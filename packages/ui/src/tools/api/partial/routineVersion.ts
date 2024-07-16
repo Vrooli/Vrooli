@@ -75,6 +75,8 @@ export const routineVersion: GqlPartial<RoutineVersion> = {
             9: async () => rel((await import("./routineVersion")).routineVersion, "nav"),
         },
         configCallData: true,
+        configFormInput: true,
+        configFormOutput: true,
         versionNotes: true,
         apiVersion: { __use: 0 },
         codeVersion: { __use: 8 },

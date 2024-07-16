@@ -27,8 +27,12 @@ export const ReactionSummaryModel: ReactionSummaryModelLogic = ({
         isDeleted: () => false,
         isPublic: () => false,
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: () => ({}),
         },
     }),

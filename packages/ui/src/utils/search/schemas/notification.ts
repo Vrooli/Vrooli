@@ -4,9 +4,9 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const notificationSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchNotification"),
+    layout: searchFormLayout("SearchNotification"),
     containers: [], //TODO
-    fields: [], //TODO
+    elements: [], //TODO
 });
 
 export const notificationSearchParams = () => toParams(notificationSearchSchema(), endpointGetNotifications, endpointGetNotification, NotificationSortBy, NotificationSortBy.DateCreatedDesc);

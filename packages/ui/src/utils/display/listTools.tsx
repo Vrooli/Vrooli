@@ -1,6 +1,7 @@
 import { Api, ApiVersion, AutocompleteOption, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, Code, CodeVersion, CommentFor, CopyType, DUMMY_ID, DeleteType, DotNotation, ListObject, Meeting, Member, MemberInvite, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Resource, ResourceList, Routine, RoutineVersion, RunProject, RunRoutine, Standard, StandardVersion, User, View, YouInflated, exists, isOfType } from "@local/shared";
 import { Chip, Palette } from "@mui/material";
 import { BotIcon } from "icons";
+import { routineTypes } from "utils/search/schemas/routine";
 import { valueFromDot } from "utils/shape/general";
 import { displayDate, firstString } from "./stringTools";
 import { getTranslation, getUserLanguages } from "./translationTools";
@@ -29,10 +30,10 @@ export type CountsInflated = {
  * @param object An object
  * @param property A property to find in the "you" property of the object
  */
-export const getYouDot = (
+export function getYouDot(
     object: ListObject | null | undefined,
     property: keyof YouInflated,
-): DotNotation<typeof object> | null => {
+): DotNotation<typeof object> | null {
     // If no object, return null
     if (!object) return null;
     // If the object is a bookmark, reaction, or view, use the "to" object
@@ -47,7 +48,7 @@ export const getYouDot = (
     if (exists(object.root?.you?.[property])) return `root.you.${property}`;
     // If not found, return null
     return null;
-};
+}
 
 export const defaultYou: YouInflated = {
     canComment: false,
@@ -68,9 +69,9 @@ export const defaultYou: YouInflated = {
  * Gets user permissions and statuses for an object. These are inflated to match YouInflated, so any fields not present are false
  * @param object An object
  */
-export const getYou = (
+export function getYou(
     object: ListObject | null | undefined,
-): YouInflated => {
+): YouInflated {
     // Initialize fields to false (except reaction, since that's an emoji or null instead of a boolean)
     const objectPermissions = { ...defaultYou };
     if (!object) return objectPermissions;
@@ -80,7 +81,7 @@ export const getYou = (
         canDelete: true,
     } as YouInflated;
     // Helper function to get permissions
-    const getPermission = (key: keyof YouInflated): boolean => {
+    function getPermission(key: keyof YouInflated): boolean {
         // Check if the field is in the object
         const field = valueFromDot(object, `you.${key}`);
         if (field === true || field === false || typeof field === "boolean") return field;
@@ -88,7 +89,7 @@ export const getYou = (
         const rootField = valueFromDot(object, `root.you.${key}`);
         if (rootField === true || rootField === false || typeof rootField === "boolean") return rootField;
         return false; // Default to false if no field found
-    };
+    }
     // Some permissions are based on a relation (e.g. bookmarking a View's "to" relation), 
     // while others are always based on the current object (e.g. deleting a member instead of the user it's associated with).
     // Keep this in mind when looking at the code below.
@@ -117,9 +118,12 @@ export const getYou = (
         objectPermissions[key] = getPermission(key as keyof YouInflated);
     }
     // Now remove permissions is the action is not allowed on the object type (e.g. can't react to a user).
-    const filterInvalidAction = (action: keyof YouInflated, enumType: Record<string, unknown>) => {
-        if (objectPermissions[action] && [object.__typename, object.__typename + "Version", object.__typename.replace("Version", "")].every(type => !exists(enumType[type]))) objectPermissions[action as any] = false;
-    };
+    function filterInvalidAction(action: keyof YouInflated, enumType: Record<string, unknown>) {
+        if (!object) return;
+        if (objectPermissions[action] && [object.__typename, object.__typename + "Version", object.__typename.replace("Version", "")].every(type => !exists(enumType[type]))) {
+            objectPermissions[action as any] = false;
+        }
+    }
     filterInvalidAction("canBookmark", BookmarkFor);
     filterInvalidAction("canComment", CommentFor);
     filterInvalidAction("canCopy", CopyType);
@@ -127,15 +131,15 @@ export const getYou = (
     filterInvalidAction("canReact", ReactionFor);
     filterInvalidAction("canReport", ReportFor);
     return objectPermissions;
-};
+}
 
 /**
  * Gets counts for an object. These are inflated to match CountsInflated, so any fields not present are 0
  * @param object An object
  */
-export const getCounts = (
+export function getCounts(
     object: ListObject | null | undefined,
-): CountsInflated => {
+): CountsInflated {
     // Initialize fields to 0
     const defaultCounts = {
         comments: 0,
@@ -176,7 +180,7 @@ export const getCounts = (
         }
     }
     return defaultCounts;
-};
+}
 
 /**
  * Attempts to find the most relevant title for an object. Does not check root object or versions
@@ -184,7 +188,7 @@ export const getCounts = (
  * @param langs The user's preferred languages
  * @returns The title, or null if none found
  */
-const tryTitle = (obj: Record<string, unknown>, langs: readonly string[]) => {
+function tryTitle(obj: Record<string, unknown>, langs: readonly string[]) {
     const translations: Record<string, unknown> = getTranslation(obj, langs, true);
     // The order of these is important to display the most relevant title
     return firstString(
@@ -196,7 +200,7 @@ const tryTitle = (obj: Record<string, unknown>, langs: readonly string[]) => {
         translations.label,
         obj.handle ? `$${obj.handle}` : null,
     );
-};
+}
 
 /**
  * Attempts to find the most relevant subtitle for an object. Does not check root object or versions
@@ -204,7 +208,7 @@ const tryTitle = (obj: Record<string, unknown>, langs: readonly string[]) => {
  * @param langs The user's preferred languages
  * @returns The subtitle, or null if none found
  */
-const trySubtitle = (obj: Record<string, unknown>, langs: readonly string[]) => {
+function trySubtitle(obj: Record<string, unknown>, langs: readonly string[]) {
     const translations: Record<string, unknown> = getTranslation(obj, langs, true);
     return firstString(
         obj.bio,
@@ -218,7 +222,7 @@ const trySubtitle = (obj: Record<string, unknown>, langs: readonly string[]) => 
         translations.details,
         translations.text,
     );
-};
+}
 
 /**
  * For an object which does not have a direct title (i.e. it's likely in the root object or a version), 
@@ -227,7 +231,7 @@ const trySubtitle = (obj: Record<string, unknown>, langs: readonly string[]) => 
  * @param langs The user's preferred languages
  * @returns The title and subtitle, or blank strings if none found
  */
-const tryVersioned = (obj: Record<string, any>, langs: readonly string[]) => {
+function tryVersioned(obj: Record<string, any>, langs: readonly string[]) {
     // Initialize the title and subtitle
     let title: string | null = null;
     let subtitle: string | null = null;
@@ -254,7 +258,7 @@ const tryVersioned = (obj: Record<string, any>, langs: readonly string[]) => {
         if (title && subtitle) break;
     }
     return { title: title ?? "", subtitle: subtitle ?? "" };
-};
+}
 
 export type DisplayAdornment = {
     Adornment: JSX.Element,
@@ -273,11 +277,11 @@ type GetDisplayResult = {
  * @param languages User languages
  * @returns The name and subtitle of the object
  */
-export const getDisplay = (
+export function getDisplay(
     object: ListObject | null | undefined,
     languages?: readonly string[],
     palette?: Palette,
-): GetDisplayResult => {
+): GetDisplayResult {
     const adornments: GetDisplayResult["adornments"] = [];
     if (!object) return { title: "", subtitle: "", adornments };
     // If a bookmark, reaction, or view, use the "to" object
@@ -358,18 +362,20 @@ export const getDisplay = (
             });
         }
     }
-    // If a Routine and there are nodes and edges, add icon indicating that it's a multi-step routine
-    const isMultiStepRoutineVersion = isOfType(object, "RoutineVersion") && (object as Partial<RoutineVersion>).nodesCount && (object as Partial<RoutineVersion>).nodeLinksCount;
-    const isMultiStepRoutine = isOfType(object, "Routine") && (object as Partial<Routine>).versions?.some(v => v.nodesCount && v.nodeLinksCount);
-    if (isMultiStepRoutineVersion || isMultiStepRoutine) {
-        adornments.push({
-            Adornment: <Chip key="multi-step" label="Multi-step" sx={{ backgroundColor: "#001b76", color: "white", display: "inline" }} />,
-            key: "multi-step",
-        });
+    // If a Routine, add adornment for routine type
+    if (isOfType(object, "Routine", "RoutineVersion")) {
+        const routineType = (object as Partial<RoutineVersion>).routineType ?? (object as Partial<Routine>).versions?.find(v => v.isLatest)?.routineType;
+        const routineTypeInfo = routineType ? routineTypes.find(t => t.type === routineType) : undefined;
+        if (routineTypeInfo) {
+            adornments.push({
+                Adornment: <Chip key="routine-type" label={routineTypeInfo.label} sx={{ backgroundColor: "#001b76", color: "white", display: "inline" }} />,
+                key: `routine-type-chip-${routineTypeInfo.type}`,
+            });
+        }
     }
     // Return result
     return { title, subtitle, adornments };
-};
+}
 
 /**
  * Finds the information required to bookmark an object
@@ -377,9 +383,9 @@ export const getDisplay = (
  * @returns BookmarkFor type and ID of the object. For versions, for example, 
  * the ID is of the root object instead of the version passed in.
  */
-export const getBookmarkFor = (
+export function getBookmarkFor(
     object: ListObject | null | undefined,
-): { bookmarkFor: BookmarkFor, starForId: string } | { bookmarkFor: null, starForId: null } => {
+): { bookmarkFor: BookmarkFor, starForId: string } | { bookmarkFor: null, starForId: null } {
     if (!object || !object.id) return { bookmarkFor: null, starForId: null };
     // If object does not support bookmarking, return null
     if (isOfType(object, "BookmarkList", "Member", "MemberInvite", "ChatParticipant", "ChatInvite")) return { bookmarkFor: null, starForId: null }; //TODO add more types
@@ -396,7 +402,7 @@ export const getBookmarkFor = (
         return getBookmarkFor((object as Partial<ApiVersion | CodeVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion>).root);
     // Use current object
     return { bookmarkFor: object.__typename as unknown as BookmarkFor, starForId: object.id };
-};
+}
 
 /**
  * Converts a list of GraphQL objects to a list of autocomplete information.
@@ -412,6 +418,7 @@ export function listToAutocomplete(
         __typename: o.__typename,
         id: o.id,
         isBookmarked: getYou(o).isBookmarked,
+        key: o.id,
         label: getDisplay(o, languages).title,
         runnableObject: o.__typename === "RunProject" ?
             o.projectVersion :
@@ -438,7 +445,7 @@ export function listToAutocomplete(
  * Color options for placeholder icon
  * [background color, silhouette color]
  */
-const placeholderColors: [string, string][] = [
+export const placeholderColors: [string, string][] = [
     ["#197e2c", "#b5ffc4"],
     ["#b578b6", "#fecfea"],
     ["#4044d6", "#e1c7f3"],
@@ -450,9 +457,29 @@ const placeholderColors: [string, string][] = [
 ];
 
 /**
+ * Simple hash function to convert a string to a number.
+ */
+export function simpleHash(str: string): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = (hash << 5) - hash + char;
+        hash |= 0; // Convert to 32bit integer
+    }
+    return hash;
+};
+
+/**
  * Finds a random color for a placeholder icon
+ * @param seed Optional seed for random number generation
  * @returns [background color code, silhouette color code]
  */
-export const placeholderColor = (): [string, string] => {
-    return placeholderColors[Math.floor(Math.random() * placeholderColors.length)];
+export function placeholderColor(seed?: unknown): [string, string] {
+    let random = Math.random();
+    if (typeof seed === 'string' || typeof seed === 'number') {
+        const seedStr = seed.toString();
+        const hash = simpleHash(seedStr);
+        random = (Math.sin(hash) + 1) / 2; // Generate a pseudo-random number from [-1, 1] to [0, 1]
+    }
+    return placeholderColors[Math.floor(random * placeholderColors.length)];
 };

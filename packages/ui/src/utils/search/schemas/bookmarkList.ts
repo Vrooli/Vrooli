@@ -3,10 +3,15 @@ import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
-export const bookmarkListSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchBookmarkList"),
-    containers: [],
-    fields: [],
-});
+export function bookmarkListSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchBookmarkList"),
+        containers: [],
+        elements: [],
+    };
+}
 
-export const bookmarkListSearchParams = () => toParams(bookmarkListSearchSchema(), endpointGetBookmarkLists, endpointGetBookmarkList, BookmarkListSortBy, BookmarkListSortBy.LabelAsc);
+export function bookmarkListSearchParams() {
+    return toParams(bookmarkListSearchSchema(), endpointGetBookmarkLists, endpointGetBookmarkList, BookmarkListSortBy, BookmarkListSortBy.LabelAsc);
+}
+

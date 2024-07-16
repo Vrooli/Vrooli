@@ -35,10 +35,10 @@ describe("getFilteredTabs function", () => {
         expect(result.map(tab => tab.key)).toEqual(expect.arrayContaining(expectedKeys));
     });
 
-    test("returns no tabs when limitTo is empty", () => {
+    test("returns all tabs when limitTo is empty", () => {
         const limitTo = [];
         const result = getFilteredTabs(limitTo, undefined);
-        expect(result).toEqual([]);
+        expect(result).toEqual(findObjectTabParams);
     });
 
     test("handles non-existent keys in limitTo", () => {

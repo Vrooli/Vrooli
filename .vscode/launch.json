@@ -18,6 +18,22 @@
             "dockerRunCommand": "--env --publish 5329:5329 --publish 9229:9229 --name ${containerName} ${image}",
         },
         {
+            "name": "🧑‍💼🐋 Jobs debug: Docker",
+            "type": "node",
+            "request": "attach",
+            "remoteRoot": "/srv/app/packages/jobs",
+            "localRoot": "${workspaceFolder}/packages/jobs",
+            "port": 9230,
+            "address": "localhost",
+            "protocol": "inspector",
+            "restart": true,
+            "sourceMaps": true,
+            "skipFiles": [
+                "/node_modules/**/*.js"
+            ],
+            "dockerRunCommand": "--env --publish 5329:5329 --publish 9230:9230 --name ${containerName} ${image}",
+        },
+        {
             "name": "📲🏠 UI local debug",
             "type": "pwa-chrome",
             "request": "launch",

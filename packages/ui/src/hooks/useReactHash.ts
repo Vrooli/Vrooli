@@ -3,12 +3,12 @@ import { useEffect, useState } from "react";
 /**
  * Hook for detecting changes of window.location.hash.
  */
-export const useReactHash = () => {
+export function useReactHash() {
     const [hash, setHash] = useState(window.location.hash);
-    const listenToPopstate = () => {
+    function listenToPopstate() {
         const winHash = window.location.hash;
         setHash(winHash);
-    };
+    }
     useEffect(() => {
         window.addEventListener("popstate", listenToPopstate);
         return () => {
@@ -16,4 +16,4 @@ export const useReactHash = () => {
         };
     }, []);
     return hash;
-};
+}

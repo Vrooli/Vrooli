@@ -19,7 +19,7 @@ const helpText =
 
 const titleId = "link-dialog-title";
 
-export const LinkDialog = ({
+export function LinkDialog({
     handleClose,
     handleDelete,
     isAdd,
@@ -29,7 +29,7 @@ export const LinkDialog = ({
     nodeFrom,
     nodeTo,
     routineVersion,
-}: LinkDialogProps) => {
+}: LinkDialogProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -78,7 +78,7 @@ export const LinkDialog = ({
      * Calculate the "From" and "To" options
      */
     const { fromOptions, toOptions } = useMemo(() => {
-        if (!routineVersion) return { fromOptions: [], toOptions: [] };
+        if (!routineVersion || !Array.isArray(routineVersion.nodes)) return { fromOptions: [], toOptions: [] };
         // Initialize options
         let fromNodes: NodeShape[] = routineVersion.nodes.filter((node) => node.nodeType !== NodeType.Start) as NodeShape[]; // Can't link from end nodes
         let toNodes: NodeShape[] = routineVersion.nodes.filter((node) => node.nodeType !== NodeType.Start) as NodeShape[]; // Can't link to start node
@@ -211,4 +211,4 @@ export const LinkDialog = ({
             />
         </LargeDialog>
     );
-};
+}

@@ -1,4 +1,4 @@
-import { FindVersionInput, Schedule, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput } from "@local/shared";
+import { FindVersionInput, Schedule, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, VisibilityType } from "@local/shared";
 import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
@@ -25,7 +25,7 @@ export const ScheduleEndpoints: EndpointsSchedule = {
         },
         schedules: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, req });
+            return readManyHelper({ info, input, objectType, req, visibility: VisibilityType.Own });
         },
     },
     Mutation: {

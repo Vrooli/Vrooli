@@ -2,6 +2,17 @@ export const projectVersion_findMany = {
   "edges": {
     "cursor": true,
     "node": {
+      "id": true,
+      "created_at": true,
+      "updated_at": true,
+      "directoriesCount": true,
+      "isLatest": true,
+      "isPrivate": true,
+      "reportsCount": true,
+      "runProjectsCount": true,
+      "simplicity": true,
+      "versionIndex": true,
+      "versionLabel": true,
       "root": {
         "id": true,
         "created_at": true,
@@ -129,18 +140,7 @@ export const projectVersion_findMany = {
         "language": true,
         "description": true,
         "name": true
-      },
-      "id": true,
-      "created_at": true,
-      "updated_at": true,
-      "directoriesCount": true,
-      "isLatest": true,
-      "isPrivate": true,
-      "reportsCount": true,
-      "runProjectsCount": true,
-      "simplicity": true,
-      "versionIndex": true,
-      "versionLabel": true
+      }
     }
   },
   "pageInfo": {

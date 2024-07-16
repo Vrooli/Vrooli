@@ -1,103 +1,226 @@
-import { InputType, ListObject, Node, OrArray } from "@local/shared";
-import { SubroutineInfoDialogProps } from "components/dialogs/types";
-import { CodeInputProps as CP, DropzoneProps as DP, IntegerInputProps as IP, LanguageInputProps as LP, SelectorProps as SP, TagSelectorProps as TP } from "components/inputs/types";
+import { InputType, ListObject, OrArray, TimeFrame } from "@local/shared";
+import { CodeInputProps, DropzoneProps, IntegerInputProps, LanguageInputProps, SelectorProps, TagSelectorProps } from "components/inputs/types";
 import { FormikProps } from "formik";
 import { Dispatch, SetStateAction } from "react";
-import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
+import { FormStructureType } from "utils/consts";
+import { SearchPageTabOption } from "utils/search/objectToSearch";
 import { TagShape } from "utils/shape/models/tag";
-import { NodeWithEndCrudProps, NodeWithEndShape, NodeWithRoutineListShape } from "views/objects/node/types";
 import { CrudProps } from "views/objects/types";
-import { ViewProps } from "views/types";
 
-export type FormBuildViewProps = ViewProps;
-
-//==============================================================
-/* #region Specific Form Props */
-//==============================================================
 export type FormProps<Model extends OrArray<ListObject>, ModelShape extends OrArray<object>> = Omit<CrudProps<Model>, "isLoading"> & FormikProps<ModelShape> & {
     disabled: boolean;
     existing: ModelShape;
     handleUpdate: Dispatch<SetStateAction<ModelShape>>;
     isReadLoading: boolean;
-}
+};
 
-export interface BaseGeneratedFormProps {
+export type FormBuildViewProps = {
+    limits?: {
+        inputs?: {
+            types?: readonly InputType[];
+        },
+        structures?: {
+            types: readonly FormStructureType[];
+        }
+    }
+    onSchemaChange: (schema: FormSchema) => unknown;
     schema: FormSchema;
-    onSubmit: (values: any) => unknown;
-}
+};
 
-export type NodeEndFormProps = Omit<FormProps<Node, NodeWithEndShape>, "onCancel" | "onClose" | "onCompleted"> & Pick<NodeWithEndCrudProps, "onCancel" | "onClose" | "onCompleted"> & {
-    isEditing: boolean;
-}
-export type NodeRoutineListFormProps = FormProps<Node, NodeWithRoutineListShape> & {
-    isEditing: boolean;
-}
+export type FormRunViewProps = {
+    disabled: boolean;
+    schema: FormSchema;
+};
 
-export type SubroutineFormProps = Omit<FormProps<Node, NodeRoutineListItemShape>, "disabled" | "display" | "existing" | "isLoading" | "isOpen" | "onCancel" | "isReadLoading" | "onClose" | "onCompleted"> & Required<Pick<SubroutineInfoDialogProps, "handleUpdate" | "handleReorder" | "handleViewFull" | "onClose">> & {
+export type FormViewProps = FormBuildViewProps & FormRunViewProps & {
+    isEditing: boolean;
+};
+
+/** Common props required by every FormElement type */
+export interface FormElementBase {
     /**
-     * True if the routine version itself can be updated. Otherwise, 
-     * only node-level properties can be updated (e.g. index)
+    * Optional description to use as a placeholder or short description of the field.
+    */
+    description?: string | null;
+    /**
+     * Longer help text to display next to the field's label. 
+     * Supports markdown.
      */
-    canUpdateRoutineVersion: boolean;
-    isEditing: boolean;
-    isOpen: boolean;
-    /** Number of subroutines in parent routine list */
-    numSubroutines: number;
-    versions: string[];
+    helpText?: string | null;
+    /**
+     * ID for field
+     */
+    id: string;
+    /**
+     * The label to display for the field
+     */
+    label: string;
 }
 
-//==============================================================
-/* #endregion Specific Form Props */
-//==============================================================
+export type HeaderTag = "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+export type FormHeaderType = FormElementBase & {
+    type: FormStructureType.Header;
+    /** 
+     * Allows header to be collapsible, which hides everything under it, 
+     * until the next header, page break/divider, or the end of the form.
+     */
+    isCollapsible?: boolean;
+    tag: HeaderTag;
+};
 
-//==============================================================
-/* #region Input Component Data */
-//==============================================================
+export type FormDividerType = FormElementBase & {
+    type: FormStructureType.Divider;
+}
 
-/**
- * Props for rendering a Checkbox input component
- */
-export interface CheckboxProps {
+/** Common props required by every form input type */
+export interface FormInputBase extends FormElementBase {
+    /** The name of the field, as will be used by formik */
+    fieldName: string;
+    /** If true, the field must be filled out before submitting the form. Defaults to false. */
+    isRequired?: boolean;
+    /** Validation schema for the field */
+    yup?: YupField;
+}
+
+/** Checkbox-specific form input props */
+export interface CheckboxFormInputProps {
     color?: "primary" | "secondary" | "default";
-    /**
-     * Array of booleans, one for each option in props
-     */
+    /** Array of booleans. One for each option in props */
     defaultValue?: boolean[];
+    /** Array of checkbox options */
+    options: {
+        label: string;
+        value: string;
+    }[];
     /**
-     * Array of checkbox options
+     * The maximum number of checkboxes that can be selected. 
+     * If 0 or not set, there is no limit.
      */
-    options: { label: string }[];
+    maxSelection?: number;
     /**
-     * If true, displays options in a row
+     * The minimum number of checkboxes that must be selected.
+     * If 0 or not set, there is no minimum.
      */
+    minSelection?: number;
+    /** If true, displays options in a row instead of a column */
     row?: boolean;
 }
-
-/**
- * Props for rendering a Checkbox input component
- */
-export interface DropzoneProps extends Omit<DP, "onUpload" | "zIndex"> {
-    defaultValue?: [];
-} // onUpload handled by form
-
-/**
- * Props for rendering a LanguageInput component
- */
-export interface LanguageInputProps extends Omit<LP, "currentLanguage" | "handleAdd" | "handleChange" | "handleDelete" | "handleCurrent" | "languages" | "zIndex"> {
-    defaultValue?: string[];
+/** Type-props pair for Checkbox input components */
+export interface CheckboxFormInput extends FormInputBase {
+    /** The type of the field */
+    type: InputType.Checkbox;
+    /** Type-specific props */
+    props: CheckboxFormInputProps;
 }
 
-/**
- * Props for rendering a language standard input component (e.g. JSON, TypeScript, HTML, etc.)
- */
-export interface CodeProps extends Omit<CP, "id" | "onChange" | "value" | "zIndex"> {
+/** Code-specific form input props */
+export interface CodeFormInputProps extends Omit<CodeInputProps, "id" | "onChange" | "value" | "zIndex"> {
     defaultValue?: string;
 }
+/** Type-props pair for Code input components */
+export interface CodeFormInput extends FormInputBase {
+    /** The type of the field */
+    type: InputType.JSON;
+    /** Type-specific props */
+    props: CodeFormInputProps;
+}
 
-/**
- * Props for rendering a Radio button input component
- */
-export interface RadioProps {
+/** Dropzone-specific form input props */
+export interface DropzoneFormInputProps extends Omit<DropzoneProps, "onUpload" | "zIndex"> {
+    defaultValue?: [];
+} // onUpload handled by form
+/** Type-props pair for Dropzone input components */
+export interface DropzoneFormInput extends FormInputBase {
+    /** The type of the field */
+    type: InputType.Checkbox;
+    /** Type-specific props */
+    props: DropzoneFormInputProps;
+}
+
+/** Integer-specific form input props */
+export interface IntegerFormInputProps extends Omit<IntegerInputProps, | "name"> {
+    defaultValue?: number;
+}
+/** Type-props pair for Integer input components */
+export interface IntegerFormInput extends FormInputBase {
+    /** The type of the field */
+    type: InputType.IntegerInput;
+    /** Type-specific props */
+    props: IntegerFormInputProps;
+}
+
+/** LanguageInput-specific form input props */
+export interface LanguageFormInputProps extends Omit<LanguageInputProps, "currentLanguage" | "handleAdd" | "handleChange" | "handleDelete" | "handleCurrent" | "languages" | "zIndex"> {
+    defaultValue?: string[];
+}
+/** Type-props pair for Language input components */
+export interface LanguageFormInput extends FormInputBase {
+    /** The type of the field */
+    type: InputType.LanguageInput;
+    /** Type-specific props */
+    props: LanguageFormInputProps;
+}
+
+export type LinkItemType = Exclude<SearchPageTabOption, "All">;
+export type LinkItemLimitTo = {
+    type: LinkItemType;
+    advancedSearchParams?: {
+        locked?: boolean;
+        /** Url-encoded representation of advanced search params object */
+        value: string;
+    }
+    ownerId?: {
+        locked?: boolean;
+        value: string;
+    }
+    projectId?: {
+        locked?: boolean;
+        value: string;
+    }
+    searchString?: {
+        locked?: boolean;
+        value: string;
+    };
+    sortBy?: {
+        locked?: boolean;
+        value: string;
+    };
+    timeFrame?: {
+        locked?: boolean;
+        value: TimeFrame
+    };
+    variant: "any" | "root" | "version";
+}
+/** Link item-specific form input props */
+export interface LinkItemFormInputProps {
+    defaultValue?: string;
+    limitTo?: LinkItemLimitTo[];
+    placeholder?: string;
+}
+/** Type-props pair for Link item input components */
+export interface LinkItemFormInput extends FormInputBase {
+    /** The type of the field */
+    type: InputType.LinkItem;
+    /** Type-specific props */
+    props: LinkItemFormInputProps;
+}
+
+/** Link url-specific form input props */
+export interface LinkUrlFormInputProps {
+    acceptedHosts?: string[];
+    defaultValue?: string;
+    placeholder?: string;
+}
+/** Type-props pair for Link url input components */
+export interface LinkUrlFormInput extends FormInputBase {
+    /** The type of the field */
+    type: InputType.LinkUrl;
+    /** Type-specific props */
+    props: LinkUrlFormInputProps;
+}
+
+/** Radio-specific form input props */
+export interface RadioFormInputProps {
     /** The initial value of the radio button. Must be one of the values in the `options` prop. */
     defaultValue?: string | null;
     /** Radio button options. */
@@ -105,45 +228,77 @@ export interface RadioProps {
     /** If true, displays options in a row. */
     row?: boolean;
 }
-
-/**
- * Props for rendering a Selector input component
- */
-export interface SelectorProps<T extends string | number | { [x: string]: any; }> extends Omit<SP<T>, "selected" | "handleChange" | "zIndex"> {
-    defaultValue?: any; // Ignored for now
+/** Type-props pair for Radio input components */
+export interface RadioFormInput extends FormInputBase {
+    /** The type of the field */
+    type: InputType.Radio;
+    /** Type-specific props */
+    props: RadioFormInputProps;
 }
 
-/**
- * Props for rendering a Slider input component
- */
-export interface SliderProps {
-    min: number;
-    max: number;
-    defaultValue?: number; // Maps to defaultValue
+export type SelectorFormInputOption = {
+    description?: string;
+    label: string;
+    value: string;
+};
+/** Selector-specific form input props */
+export interface SelectorFormInputProps<T extends SelectorFormInputOption> extends Omit<SelectorProps<T>, "selected" | "handleChange" | "zIndex"> {
+    defaultValue?: T;
+    getOptionValue: (option: T) => string | null | undefined;
+}
+/** Type-props pair for Selector input components */
+export interface SelectorFormInput<T extends SelectorFormInputOption> extends FormInputBase {
+    /** The type of the field */
+    type: InputType.Selector;
+    /** Type-specific props */
+    props: SelectorFormInputProps<T>;
+}
+
+/** Slider-specific form input props */
+export interface SliderFormInputProps {
+    min?: number;
+    max?: number;
+    defaultValue?: number;
     step?: number;
     valueLabelDisplay?: "auto" | "on" | "off";
 }
-
-/**
- * Props for rendering a Switch input component (aka a fancy checkbox)
- */
-export interface SwitchProps {
-    defaultValue?: boolean; // Maps to defaultChecked
-    size?: "small" | "medium";
-    color?: "primary" | "secondary" | "error" | "info" | "success" | "warning" | "default";
+/** Type-props pair for Slider input components */
+export interface SliderFormInput extends FormInputBase {
+    /** The type of the field */
+    type: InputType.Slider;
+    /** Type-specific props */
+    props: SliderFormInputProps;
 }
 
-/**
- * Props for rendering a TagSelector input component
- */
-export interface TagSelectorProps extends Omit<TP, "currentLanguage" | "tags" | "handleTagsUpdate" | "name" | "zIndex"> {
+/** Switch-specific form input props */
+export interface SwitchFormInputProps {
+    defaultValue?: boolean;
+    label?: string;
+    size?: "small" | "medium";
+    color?: string | "primary" | "secondary" | "error" | "info" | "success" | "warning" | "default";
+}
+/** Type-props pair for Switch input components */
+export interface SwitchFormInput extends FormInputBase {
+    /** The type of the field */
+    type: InputType.Switch;
+    /** Type-specific props */
+    props: SwitchFormInputProps;
+}
+
+/** Tag-specific form input props */
+export interface TagSelectorFormInputProps extends Omit<TagSelectorProps, "currentLanguage" | "tags" | "handleTagsUpdate" | "name" | "zIndex"> {
     defaultValue?: TagShape[];
 }
+/** Type-props pair for TagSelector input components */
+export interface TagSelectorFormInput extends FormInputBase {
+    /** The type of the field */
+    type: InputType.TagSelector;
+    /** Type-specific props */
+    props: TagSelectorFormInputProps;
+}
 
-/**
- * Props for rendering a text input component (the most common input component)
- */
-export interface TextProps {
+/** Text-specific form input props */
+export interface TextFormInputProps {
     /** Initial value of the text field. */
     defaultValue?: string;
     /** Autocomplete attribute for auto-filling the text field (e.g. 'username', 'current-password') */
@@ -158,214 +313,34 @@ export interface TextProps {
     minRows?: number;
     placeholder?: string;
 }
-
-/**
- * Props for rendering a IntegerInput input component
- */
-export interface IntegerInputProps extends Omit<IP, "defaultValue" | "name"> {
-    defaultValue?: any; // Ignored, but required by some components
-}
-
-/**
- * Common props required by every FieldData type
- */
-export interface FieldDataBase {
-    /**
-    * Optional description to use as a placeholder or short description of the field.
-    */
-    description?: string | null;
-    /**
-     * Longer help text to display next to the field's label. 
-     * Supports markdown.
-     */
-    helpText?: string | null;
-    /**
-     * The name of the field, as will be used by formik
-     */
-    fieldName: string;
-    /**
-     * The label to display for the field
-     */
-    label: string;
-    /**
-     * Defines validation schema for the field
-     */
-    yup?: YupField;
-}
-
-/**
- * Field data type and props for Checkbox input components
- */
-export interface FieldDataCheckbox extends FieldDataBase {
-    /**
-     * The type of the field
-     */
-    type: InputType.Checkbox;
-    /**
-     * Extra props for the input component, depending on the type
-     */
-    props: CheckboxProps
-}
-
-/**
- * Field data type and props for Dropzone input components
- */
-export interface FieldDataDropzone extends FieldDataBase {
-    /**
-     * The type of the field
-     */
-    type: InputType.Dropzone;
-    /**
-     * Extra props for the input component, depending on the type
-     */
-    props: DropzoneProps;
-}
-
-/**
- * Field data type and props for JSON input components
- */
-export interface FieldDataJSON extends FieldDataBase {
-    /**
-     * The type of the field
-     */
-    type: InputType.JSON;
-    /**
-     * Extra props for the input component, depending on the type
-     */
-    props: CodeProps
-}
-
-/**
- * Field data type and props for LanguageInput input components
- */
-export interface FieldDataLanguageInput extends FieldDataBase {
-    /**
-     * The type of the field
-     */
-    type: InputType.LanguageInput;
-    /**
-     * Extra props for the input component, depending on the type
-     */
-    props: LanguageInputProps;
-}
-
-/**
- * Field data type and props for Radio button input components
- */
-export interface FieldDataRadio extends FieldDataBase {
-    /**
-     * The type of the field
-     */
-    type: InputType.Radio;
-    /**
-     * Extra props for the input component, depending on the type
-     */
-    props: RadioProps;
-}
-
-/**
- * Field data type and props for Selector input components
- */
-export interface FieldDataSelector extends FieldDataBase {
-    /**
-     * The type of the field
-     */
-    type: InputType.Selector;
-    /**
-     * Extra props for the input component, depending on the type
-     */
-    props: SelectorProps<any>;
-}
-
-/**
- * Field data type and props for Slider input components
- */
-export interface FieldDataSlider extends FieldDataBase {
-    /**
-     * The type of the field
-     */
-    type: InputType.Slider;
-    /**
-     * Extra props for the input component, depending on the type
-     */
-    props: SliderProps;
-}
-
-/**
- * Field data type and props for Switch input components
- */
-export interface FieldDataSwitch extends FieldDataBase {
-    /**
-     * The type of the field
-     */
-    type: InputType.Switch;
-    /**
-     * Extra props for the input component, depending on the type
-     */
-    props: SwitchProps;
-}
-
-/**
- * Field data type and props for TagSelector input components
- */
-export interface FieldDataTagSelector extends FieldDataBase {
-    /**
-     * The type of the field
-     */
-    type: InputType.TagSelector;
-    /**
-     * Extra props for the input component, depending on the type
-     */
-    props: TagSelectorProps;
-}
-
-/**
- * Field data type and props for text input components
- */
-export interface FieldDataText extends FieldDataBase {
-    /**
-     * The type of the field
-     */
+/** Type-props pair for Text input components */
+export interface TextFormInput extends FormInputBase {
+    /** The type of the field */
     type: InputType.Text;
-    /**
-     * Extra props for the input component, depending on the type
-     */
-    props: TextProps;
-}
-
-/**
- * Field data type and props for IntegerInput input components
- */
-export interface FieldDataIntegerInput extends FieldDataBase {
-    /**
-     * The type of the field
-     */
-    type: InputType.IntegerInput;
-    /**
-     * Extra props for the input component, depending on the type
-     */
-    props: IntegerInputProps;
+    /** Type-specific props */
+    props: TextFormInputProps;
 }
 
 /**
  * Shape of a field's data structure. Parsed from its JSON representation
  */
-export type FieldData =
-    FieldDataCheckbox |
-    FieldDataDropzone |
-    FieldDataJSON |
-    FieldDataLanguageInput |
-    FieldDataIntegerInput |
-    FieldDataRadio |
-    FieldDataSelector |
-    FieldDataSlider |
-    FieldDataSwitch |
-    FieldDataTagSelector |
-    FieldDataText;
+export type FormInputType =
+    CheckboxFormInput |
+    CodeFormInput |
+    DropzoneFormInput |
+    IntegerFormInput |
+    LanguageFormInput |
+    LinkItemFormInput |
+    LinkUrlFormInput |
+    RadioFormInput |
+    SelectorFormInput<any> |
+    SliderFormInput |
+    SwitchFormInput |
+    TagSelectorFormInput |
+    TextFormInput;
 
-//==============================================================
-/* #endregion Input Component Data */
-//==============================================================
+export type FormElement = FormHeaderType | FormDividerType | FormInputType;
+
 
 //==============================================================
 /* #region Yup Conversion Types */
@@ -462,33 +437,9 @@ export interface YupSchema {
 //==============================================================
 
 /**
- * MUI spacing options. Each key represents a "breakpoint", which is set based
- * on the width of the screen.
- */
-export type GridItemSpacing = number | string | {
-    xs?: number | "auto";
-    sm?: number | "auto";
-    md?: number | "auto";
-    lg?: number | "auto";
-    xl?: number | "auto";
-}
-
-/**
- * MUI spacing options. Each key represents a "breakpoint", which is set based
- * on the width of the screen.
- */
-export type GridSpacing = number | string | Array<number | string | null> | {
-    xs?: number | "auto";
-    sm?: number | "auto";
-    md?: number | "auto";
-    lg?: number | "auto";
-    xl?: number | "auto";
-}
-
-/**
  * The layout of a specific grid container (or the entire form depending on the context)
  */
-export interface GridContainerBase {
+export type GridContainerBase = {
     /**
      * Title of the container
      */
@@ -498,36 +449,18 @@ export interface GridContainerBase {
      */
     description?: string;
     /**
-     * Spacing of the container. Overrides parent spacing
-     */
-    spacing?: GridSpacing;
-    /**
      * Direction to display items in the container. Overrides parent spacing
      */
     direction?: "column" | "row";
-    /**
-     * Spacing of container's columns. Overrides spacing field
-     */
-    columnSpacing?: GridSpacing;
-    /**
-     * Spacing of container's rows. Overrides spacing field
-     */
-    rowSpacing?: GridSpacing;
-    /**
-     * Spacing of individual fields in the container
-     */
-    itemSpacing?: GridItemSpacing;
 }
 
 /**
  * The layout of a non-form grid container. Specifies the number of total items in the grid.
  * This is used with the schema fields to determine which inputs to render.
  */
-export interface GridContainer extends GridContainerBase {
+export type GridContainer = GridContainerBase & {
     /** True if the container is not collapsible. Defaults to false. */
     disableCollapse?: boolean;
-    /** Determines if the border should be displayed */
-    showBorder?: boolean;
     /** Total number of fields in this container */
     totalItems: number;
 }
@@ -546,23 +479,19 @@ export interface GridContainer extends GridContainerBase {
  */
 export interface FormSchema {
     /**
-     * If form is stored in database, its ID
-     */
-    $id?: string;
-    /**
      * Contains information about the overall layout of the form
      */
-    formLayout?: Omit<GridContainerBase, "rowSpacing" | "columnSpacing">;
+    layout?: Omit<GridContainerBase, "direction">;
     /**
      * Contains information about subsections of the form. Subsections 
-     * can only be one level deep. If this is empty, then formLayout is 
-     * used instead.
+     * can only be one level deep. If this is empty, then all elements
+     * will be placed in one container.
      */
-    containers?: GridContainer[];
+    containers: GridContainer[];
     /**
-     * Defines the shape of every field in the form.
+     * Defines the shape of every element in the form, including headers, dividers, and inputs
      */
-    fields: FieldData[];
+    elements: FormElement[];
 }
 
 /**

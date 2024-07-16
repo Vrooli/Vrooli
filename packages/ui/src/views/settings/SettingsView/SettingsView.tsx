@@ -75,10 +75,10 @@ export const displaySettingsData: SettingsData[] = [
     },
 ];
 
-export const SettingsView = ({
+export function SettingsView({
     display,
     onClose,
-}: SettingsViewProps) => {
+}: SettingsViewProps) {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
@@ -113,9 +113,9 @@ export const SettingsView = ({
                     />
                 </Box>}
                 display={display}
-                hideTitleOnDesktop={true}
                 onClose={onClose}
                 title={t("Settings")}
+                titleBehaviorDesktop="ShowIn"
             />
             <Box sx={{ paddingBottom: pagePaddingBottom }}>
                 <Title
@@ -154,4 +154,4 @@ export const SettingsView = ({
             </Box>
         </>
     );
-};
+}

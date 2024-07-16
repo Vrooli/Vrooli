@@ -1,5 +1,67 @@
 export const runProject_cancel = {
+  "id": true,
+  "isPrivate": true,
+  "completedComplexity": true,
+  "contextSwitches": true,
+  "startedAt": true,
+  "timeElapsed": true,
+  "completedAt": true,
+  "name": true,
+  "status": true,
+  "stepsCount": true,
+  "team": {
+    "id": true,
+    "bannerImage": true,
+    "handle": true,
+    "profileImage": true,
+    "you": {
+      "canAddMembers": true,
+      "canDelete": true,
+      "canBookmark": true,
+      "canReport": true,
+      "canUpdate": true,
+      "canRead": true,
+      "isBookmarked": true,
+      "isViewed": true,
+      "yourMembership": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "isAdmin": true,
+        "permissions": true
+      }
+    },
+    "__typename": "Team"
+  },
+  "user": {
+    "id": true,
+    "created_at": true,
+    "updated_at": true,
+    "bannerImage": true,
+    "handle": true,
+    "isBot": true,
+    "isBotDepictingPerson": true,
+    "name": true,
+    "profileImage": true,
+    "__typename": "User"
+  },
+  "you": {
+    "canDelete": true,
+    "canUpdate": true,
+    "canRead": true
+  },
   "projectVersion": {
+    "id": true,
+    "created_at": true,
+    "updated_at": true,
+    "directoriesCount": true,
+    "isLatest": true,
+    "isPrivate": true,
+    "reportsCount": true,
+    "runProjectsCount": true,
+    "simplicity": true,
+    "versionIndex": true,
+    "versionLabel": true,
     "root": {
       "id": true,
       "created_at": true,
@@ -135,17 +197,6 @@ export const runProject_cancel = {
       "description": true,
       "name": true
     },
-    "id": true,
-    "created_at": true,
-    "updated_at": true,
-    "directoriesCount": true,
-    "isLatest": true,
-    "isPrivate": true,
-    "reportsCount": true,
-    "runProjectsCount": true,
-    "simplicity": true,
-    "versionIndex": true,
-    "versionLabel": true,
     "__typename": "ProjectVersion"
   },
   "steps": {
@@ -187,57 +238,6 @@ export const runProject_cancel = {
       "__typename": "ProjectVersionDirectory"
     },
     "__typename": "RunProjectStep"
-  },
-  "id": true,
-  "isPrivate": true,
-  "completedComplexity": true,
-  "contextSwitches": true,
-  "startedAt": true,
-  "timeElapsed": true,
-  "completedAt": true,
-  "name": true,
-  "status": true,
-  "stepsCount": true,
-  "team": {
-    "id": true,
-    "bannerImage": true,
-    "handle": true,
-    "profileImage": true,
-    "you": {
-      "canAddMembers": true,
-      "canDelete": true,
-      "canBookmark": true,
-      "canReport": true,
-      "canUpdate": true,
-      "canRead": true,
-      "isBookmarked": true,
-      "isViewed": true,
-      "yourMembership": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "isAdmin": true,
-        "permissions": true
-      }
-    },
-    "__typename": "Team"
-  },
-  "user": {
-    "id": true,
-    "created_at": true,
-    "updated_at": true,
-    "bannerImage": true,
-    "handle": true,
-    "isBot": true,
-    "isBotDepictingPerson": true,
-    "name": true,
-    "profileImage": true,
-    "__typename": "User"
-  },
-  "you": {
-    "canDelete": true,
-    "canUpdate": true,
-    "canRead": true
   },
   "__typename": "RunProject"
 } as const;

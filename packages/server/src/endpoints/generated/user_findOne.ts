@@ -1,10 +1,4 @@
 export const user_findOne = {
-  "botSettings": true,
-  "translations": {
-    "id": true,
-    "language": true,
-    "bio": true
-  },
   "id": true,
   "created_at": true,
   "updated_at": true,
@@ -22,6 +16,12 @@ export const user_findOne = {
     "canUpdate": true,
     "isBookmarked": true,
     "isViewed": true
+  },
+  "botSettings": true,
+  "translations": {
+    "id": true,
+    "language": true,
+    "bio": true
   },
   "__typename": "User"
 } as const;

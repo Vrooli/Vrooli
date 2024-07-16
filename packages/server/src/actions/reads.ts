@@ -33,12 +33,12 @@ const MAX_TAKE = 100;
 /**
  * Finds the take to use for a readMany query
  */
-export const getDesiredTake = (take: unknown, userLanguages?: string[], trace?: string): number => {
+export function getDesiredTake(take: unknown, userLanguages?: string[], trace?: string): number {
     const desiredTake = Number.isInteger(take) ? take as number : DEFAULT_TAKE;
     if (desiredTake < 1) throw new CustomError("0389", "InternalError", userLanguages ?? ["en"], { take, trace });
     if (desiredTake > MAX_TAKE) throw new CustomError("0391", "InternalError", userLanguages ?? ["en"], { take, trace });
     return desiredTake;
-};
+}
 
 /**
  * Helper function for reading one object in a single line
@@ -107,7 +107,7 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
  * NOTE: Permissions queries should be passed into additionalQueries
  * @returns Paginated search result
  */
-export const readManyHelper = async <Input extends { [x: string]: any }>({
+export async function readManyHelper<Input extends { [x: string]: any }>({
     additionalQueries,
     addSupplemental = true,
     info,
@@ -115,7 +115,7 @@ export const readManyHelper = async <Input extends { [x: string]: any }>({
     objectType,
     req,
     visibility = VisibilityType.Public,
-}: ReadManyHelperProps<Input>): Promise<PaginatedSearchResult> => {
+}: ReadManyHelperProps<Input>): Promise<PaginatedSearchResult> {
     const userData = getUser(req.session);
     const model = ModelMap.get(objectType);
     // Partially convert info type
@@ -198,7 +198,7 @@ export const readManyHelper = async <Input extends { [x: string]: any }>({
             node: result,
         })),
     };
-};
+}
 
 export type ReadManyAsFeedResult = {
     pageInfo: PageInfo;

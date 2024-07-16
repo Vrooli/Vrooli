@@ -1,11 +1,26 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { Box, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { PageTabsProps } from "components/types";
 import { useWindowSize } from "hooks/useWindowSize";
-import { createRef, useCallback, useEffect, useRef } from "react";
+import { createRef, useCallback, useEffect, useMemo, useRef } from "react";
 import { TabStateColors, TabsInfo } from "utils/search/objectToSearch";
 
-export const PageTabs = <TabList extends TabsInfo>({
+// Scroll so new tab is centered
+function easeInOutCubic(t: number) {
+    // eslint-disable-next-line no-magic-numbers
+    return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1;
+}
+
+const Underline = styled(Box)(({ theme }) => ({
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    height: "3px",
+    backgroundColor: theme.palette.secondary.main,
+    transition: "left 0.3s ease, width 0.3s ease",
+}));
+
+export function PageTabs<TabList extends TabsInfo>({
     ariaLabel,
     currTab,
     fullWidth = false,
@@ -14,7 +29,7 @@ export const PageTabs = <TabList extends TabsInfo>({
     onChange,
     tabs,
     sx,
-}: PageTabsProps<TabList>) => {
+}: PageTabsProps<TabList>) {
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
@@ -24,43 +39,44 @@ export const PageTabs = <TabList extends TabsInfo>({
 
     // Handle dragging of tabs
     const draggingRef = useRef(false);
-    const handleMouseDown = (e: React.MouseEvent) => {
+    function handleMouseDown(e: React.MouseEvent) {
+        const startX = e.clientX;
+        const scrollLeft = tabsRef.current?.scrollLeft ?? 0;
+        const minimumDistance = 10; // Minimum distance in pixels for a drag
+        let distanceMoved = 0; // Track the distance moved
+
+
+        function handleMouseMove(e: MouseEvent) {
+            if (!tabsRef.current) return;
+
+            const x = e.clientX;
+            const walk = (x - startX);
+            distanceMoved = Math.abs(walk);
+
+            // Only consider it a drag if the mouse has moved more than the minimum distance
+            if (distanceMoved > minimumDistance) {
+                draggingRef.current = true;
+            }
+            // But still move the tabs even if it's not considered a drag
+            tabsRef.current.scrollLeft = scrollLeft - walk;
+        }
+
+        function handleMouseUp() {
+            // Only set draggingRef to false if it was considered a drag
+            if (distanceMoved > minimumDistance) {
+                setTimeout(() => { draggingRef.current = false; }, 50);
+            }
+            document.removeEventListener("mousemove", handleMouseMove);
+            document.removeEventListener("mouseup", handleMouseUp);
+        }
+
         if (tabsRef.current) {
-            const startX = e.clientX;
-            const scrollLeft = tabsRef.current.scrollLeft;
-            const minimumDistance = 10; // Minimum distance in pixels for a drag
-            let distanceMoved = 0; // Track the distance moved
-
-            const handleMouseMove = (e: MouseEvent) => {
-                if (!tabsRef.current) return;
-
-                const x = e.clientX;
-                const walk = (x - startX);
-                distanceMoved = Math.abs(walk);
-
-                // Only consider it a drag if the mouse has moved more than the minimum distance
-                if (distanceMoved > minimumDistance) {
-                    draggingRef.current = true;
-                }
-                // But still move the tabs even if it's not considered a drag
-                tabsRef.current.scrollLeft = scrollLeft - walk;
-            };
-
-            const handleMouseUp = () => {
-                // Only set draggingRef to false if it was considered a drag
-                if (distanceMoved > minimumDistance) {
-                    setTimeout(() => { draggingRef.current = false; }, 50);
-                }
-                document.removeEventListener("mousemove", handleMouseMove);
-                document.removeEventListener("mouseup", handleMouseUp);
-            };
-
             document.addEventListener("mousemove", handleMouseMove);
             document.addEventListener("mouseup", handleMouseUp);
         }
 
         e.preventDefault();
-    };
+    }
 
     const handleTabChange = useCallback((event: React.SyntheticEvent, newValue: number) => {
         if (draggingRef.current) return;
@@ -72,8 +88,6 @@ export const PageTabs = <TabList extends TabsInfo>({
         onChange(event, tabs[newValue]);
     }, [onChange, tabs]);
 
-    // Scroll so new tab is centered
-    const easeInOutCubic = (t: number) => t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1;
     useEffect(() => {
         const selectedTab = tabRefs.current[currTab.index].current;
         if (!selectedTab || !tabsRef.current) return;
@@ -83,7 +97,7 @@ export const PageTabs = <TabList extends TabsInfo>({
         const duration = 300;
         const startTime = performance.now();
 
-        const animateScroll = (time: number) => {
+        function animateScroll(time: number) {
             // Calculate the linear progress of the animation
             const linearProgress = Math.min((time - startTime) / duration, 1);
 
@@ -96,7 +110,7 @@ export const PageTabs = <TabList extends TabsInfo>({
             if (linearProgress < 1) {
                 requestAnimationFrame(animateScroll);
             }
-        };
+        }
 
         requestAnimationFrame(animateScroll);
     }, [currTab.index]);
@@ -129,13 +143,15 @@ export const PageTabs = <TabList extends TabsInfo>({
     // Update underline on scroll
     useEffect(() => {
         const tabsContainer = tabsRef.current;
+
+        function handleScroll() {
+            if (underlineRef.current) {
+                underlineRef.current.style.transition = "none";
+            }
+            updateUnderline();
+        }
+
         if (tabsContainer) {
-            const handleScroll = () => {
-                if (underlineRef.current) {
-                    underlineRef.current.style.transition = "none";
-                }
-                updateUnderline();
-            };
             tabsContainer.addEventListener("scroll", handleScroll);
             return () => {
                 tabsContainer.removeEventListener("scroll", handleScroll);
@@ -145,9 +161,9 @@ export const PageTabs = <TabList extends TabsInfo>({
 
     // Update underline on window resize
     useEffect(() => {
-        const handleResize = () => {
+        function handleResize() {
             updateUnderline();
-        };
+        }
         window.addEventListener("resize", handleResize);
         return () => {
             window.removeEventListener("resize", handleResize);
@@ -164,30 +180,45 @@ export const PageTabs = <TabList extends TabsInfo>({
         };
     }, [tabs.length, updateUnderline]);
 
+    const outerBoxStyle = useMemo(function outerBoxStyleMemo() {
+        return {
+            minWidth: fullWidth ? "100%" : undefined,
+            maxWidth: "100%",
+            display: "flex",
+            justifyContent: "flex-start",
+            alignItems: "center",
+            position: "relative",
+            // Hide scrollbars
+            overflowX: "scroll",
+            whiteSpace: "nowrap",
+            scrollbarWidth: "none", // for Firefox
+            msOverflowStyle: "none", // for Internet Explorer 11
+            "&::-webkit-scrollbar": {
+                display: "none", // for Chrome, Safari, and Opera
+            },
+            // Apply custom styles
+            ...sx,
+        } as const;
+    }, [fullWidth, sx]);
+
+    const tabBoxStyle = useCallback(function tabBoxStyleCallback(isSelected: boolean) {
+        return {
+            padding: "10px",
+            margin: fullWidth ? "0 auto" : "0",
+            cursor: "pointer",
+            textTransform: "uppercase",
+            // Darken non-selected tabs
+            filter: isSelected ? "none" : "brightness(0.8)",
+        } as const;
+    }, [fullWidth]);
+
     return (
         <Box
             id={id}
             ref={tabsRef}
             role="tablist"
             onMouseDown={handleMouseDown}
-            sx={{
-                minWidth: fullWidth ? "100%" : undefined,
-                maxWidth: "100%",
-                display: "flex",
-                justifyContent: "flex-start",
-                alignItems: "center",
-                position: "relative",
-                // Hide scrollbars
-                overflowX: "scroll",
-                whiteSpace: "nowrap",
-                scrollbarWidth: "none", // for Firefox
-                msOverflowStyle: "none", // for Internet Explorer 11
-                "&::-webkit-scrollbar": {
-                    display: "none", // for Chrome, Safari, and Opera
-                },
-                // Apply custom styles
-                ...sx,
-            }}
+            sx={outerBoxStyle}
         >
             {tabs.map(({ color, href, Icon, key, label }, index) => {
                 const isSelected = currTab.index === index;
@@ -200,6 +231,10 @@ export const PageTabs = <TabList extends TabsInfo>({
                 const tabColor = providedColor ?? (isMobile ?
                     palette.primary.contrastText :
                     palette.primary.light);
+                const labelStyle = { color: tabColor } as const;
+                function handleClick(event: React.MouseEvent) {
+                    handleTabChange(event, index);
+                }
                 return (
                     <Tooltip key={key} title={(Icon && !ignoreIcons) ? label : ""}>
                         <Box
@@ -210,37 +245,20 @@ export const PageTabs = <TabList extends TabsInfo>({
                             href={href}
                             aria-selected={isSelected}
                             aria-controls={`${ariaLabel}-tabpanel-${index}`}
-                            onClick={(event) => handleTabChange(event, index)}
-                            style={{
-                                padding: "10px",
-                                margin: fullWidth ? "0 auto" : "0",
-                                cursor: "pointer",
-                                textTransform: "uppercase",
-                                // Darken non-selected tabs
-                                filter: isSelected ? "none" : "brightness(0.8)",
-                            }}
+                            onClick={handleClick}
+                            style={tabBoxStyle(isSelected)}
                         >
                             {
                                 (Icon && !ignoreIcons)
                                     // @ts-ignore TypeScript being bitchy
                                     ? <Icon fill={tabColor} />
-                                    : <Typography variant="body2" style={{ color: tabColor }}>{label}</Typography>
+                                    : <Typography variant="body2" style={labelStyle}>{label}</Typography>
                             }
                         </Box>
                     </Tooltip>
                 );
             })}
-            <div
-                ref={underlineRef}
-                style={{
-                    position: "absolute",
-                    bottom: 0,
-                    left: 0,
-                    height: "3px",
-                    backgroundColor: palette.secondary.main,
-                    transition: "left 0.3s ease, width 0.3s ease",
-                }}
-            />
+            <Underline ref={underlineRef} />
         </Box>
     );
-};
+}

@@ -11,7 +11,7 @@ import { BranchMap } from "utils/cookies";
 import { getDisplay } from "utils/display/listTools";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
 
-const getTypingIndicatorText = (participants: ListObject[], maxChars: number) => {
+function getTypingIndicatorText(participants: ListObject[], maxChars: number) {
     if (participants.length === 0) return "";
     if (participants.length === 1) return `${getDisplay(participants[0]).title} is typing`;
     if (participants.length === 2) return `${getDisplay(participants[0]).title}, ${getDisplay(participants[1]).title} are typing`;
@@ -23,15 +23,15 @@ const getTypingIndicatorText = (participants: ListObject[], maxChars: number) =>
     }
     if (remainingCount === 0) return `${text} are typing`;
     return `${text}, +${remainingCount} are typing`;
-};
+}
 
-export const TypingIndicator = ({
+export function TypingIndicator({
     maxChars = 30,
     participants,
 }: {
     maxChars?: number,
     participants: ListObject[]
-}) => {
+}) {
     const [dots, setDots] = useState("");
 
     useEffect(() => {
@@ -63,18 +63,18 @@ export const TypingIndicator = ({
             <Typography variant="body2" p={1}>{displayText} {dots}</Typography>
         </Box>
     );
-};
+}
 
-export const ScrollToBottomButton = ({
+export function ScrollToBottomButton({
     containerRef,
 }: {
     containerRef: RefObject<HTMLElement>,
-}) => {
+}) {
     const { palette } = useTheme();
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
-        const checkScrollPosition = () => {
+        function checkScrollPosition() {
             const scroll = containerRef.current;
             if (!scroll) return;
 
@@ -84,7 +84,7 @@ export const ScrollToBottomButton = ({
             const isCloseToBottom = scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < threshold;
 
             setIsVisible(!isCloseToBottom);
-        };
+        }
 
         const scroll = containerRef.current;
         scroll?.addEventListener("scroll", checkScrollPosition);
@@ -94,7 +94,7 @@ export const ScrollToBottomButton = ({
         };
     }, [containerRef]); // Re-run effect if containerRef changes
 
-    const scrollToBottom = () => {
+    function scrollToBottom() {
         const scroll = containerRef.current;
         if (!scroll) return;
         const lastMessage = scroll.lastElementChild;
@@ -103,7 +103,7 @@ export const ScrollToBottomButton = ({
         } else {
             scroll.scrollTop = scroll.scrollHeight;
         }
-    };
+    }
 
     return (
         <IconButton
@@ -122,7 +122,7 @@ export const ScrollToBottomButton = ({
             <ArrowDownIcon fill={palette.background.textSecondary} />
         </IconButton>
     );
-};
+}
 
 type MessageRenderData = {
     activeIndex: number;
@@ -151,7 +151,7 @@ type ChatBubbleTreeProps = {
     tree: MessageTree<ChatMessageShape>,
 };
 
-export const ChatBubbleTree = ({
+export function ChatBubbleTree({
     branches,
     dimensions,
     dimRef,
@@ -165,11 +165,11 @@ export const ChatBubbleTree = ({
     removeMessages,
     setBranches,
     tree,
-}: ChatBubbleTreeProps) => {
+}: ChatBubbleTreeProps) {
     const session = useContext(SessionContext);
 
     const messageData = useMemo<MessageRenderData[]>(() => {
-        const renderMessage = (withSiblings: string[], activeIndex: number): MessageRenderData[] => {
+        function renderMessage(withSiblings: string[], activeIndex: number): MessageRenderData[] {
             // Find information for current message
             const siblingId = withSiblings[activeIndex];
             const sibling = siblingId ? tree.map.get(siblingId) : null;
@@ -207,7 +207,7 @@ export const ChatBubbleTree = ({
                 },
                 ...childId ? renderMessage(sibling.children, activeChildIndex) : [],
             ];
-        };
+        }
         return renderMessage(tree.roots, 0);
     }, [branches, removeMessages, session, setBranches, tree.map, tree.roots]);
 
@@ -272,4 +272,4 @@ export const ChatBubbleTree = ({
             )}
         </Box>
     );
-};
+}

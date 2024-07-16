@@ -5,8 +5,8 @@ import { LexicalEditor } from "./editor";
 import { flushRootMutations } from "./mutations";
 import { $getPreviousSelection, RangeSelection, internalCreateRangeSelection } from "./selection";
 import { CustomDomElement, CustomLexicalEvent, NodeKey, RootElementEvents, RootElementRemoveHandles } from "./types";
-import { errorOnReadOnly, getActiveEditor, updateEditor } from "./updates";
-import { $getNodeByKey, $getRoot, $getSelection, $isNode, $isNodeSelection, $isRangeSelection, $isSelectionCapturedInDecorator, $isTokenOrSegmented, $setCompositionKey, $setSelection, $shouldInsertTextAfterOrBeforeTextNode, $updateSelectedTextFromDOM, $updateTextNodeFromDOMContent, dispatchCommand, doesContainGrapheme, getAnchorTextFromDOM, getDOMSelection, getDOMTextNode, getNearestEditorFromDOMNode, getParent, getTopLevelElementOrThrow, getWindow, isBackspace, isBold, isCopy, isCut, isDelete, isDeleteBackward, isDeleteForward, isDeleteLineBackward, isDeleteLineForward, isDeleteWordBackward, isDeleteWordForward, isEscape, isItalic, isLineBreak, isModifier, isMoveBackward, isMoveDown, isMoveForward, isMoveToEnd, isMoveToStart, isMoveUp, isOpenLineBreak, isParagraph, isRedo, isSelectAll, isSelectionWithinEditor, isSpace, isTab, isUnderline, isUndo } from "./utils";
+import { dispatchCommand, errorOnReadOnly, getActiveEditor, updateEditor } from "./updates";
+import { $getNodeByKey, $getRoot, $getSelection, $isNode, $isNodeSelection, $isRangeSelection, $isSelectionCapturedInDecorator, $isTokenOrSegmented, $setCompositionKey, $setSelection, $shouldInsertTextAfterOrBeforeTextNode, $updateSelectedTextFromDOM, $updateTextNodeFromDOMContent, doesContainGrapheme, getAnchorTextFromDOM, getDOMSelection, getDOMTextNode, getNearestEditorFromDOMNode, getParent, getTopLevelElementOrThrow, getWindow, isBackspace, isBold, isCopy, isCut, isDelete, isDeleteBackward, isDeleteForward, isDeleteLineBackward, isDeleteLineForward, isDeleteWordBackward, isDeleteWordForward, isEscape, isItalic, isLineBreak, isModifier, isMoveBackward, isMoveDown, isMoveForward, isMoveToEnd, isMoveToStart, isMoveUp, isOpenLineBreak, isParagraph, isRedo, isSelectAll, isSelectionWithinEditor, isSpace, isTab, isUnderline, isUndo } from "./utils";
 
 let lastKeyDownTimeStamp = 0;
 const lastBeforeInputInsertTextTimeStamp = 0;
@@ -25,14 +25,13 @@ let collapsedSelectionFormat: [number, string, number, NodeKey, number] = [
 // mapping only, so if root editor is selected map will have no reference to free up memory
 const activeNestedEditorsMap: Map<string, LexicalEditor> = new Map();
 
-const onKeyDown = (event: KeyboardEvent, editor: LexicalEditor): void => {
+function onKeyDown(event: KeyboardEvent, editor: LexicalEditor): void {
     lastKeyDownTimeStamp = event.timeStamp;
     if (editor.isComposing()) {
         return;
     }
 
     const { key } = event;
-    console.log("in onKeyDown", key, isBold(event));
 
     if (isMoveForward(event)) {
         dispatchCommand(editor, KEY_ARROW_RIGHT_COMMAND, event);
@@ -124,9 +123,9 @@ const onKeyDown = (event: KeyboardEvent, editor: LexicalEditor): void => {
     if (isModifier(event)) {
         dispatchCommand(editor, KEY_MODIFIER_COMMAND, event);
     }
-};
+}
 
-const onPointerDown = (event: PointerEvent, editor: LexicalEditor) => {
+function onPointerDown(event: PointerEvent, editor: LexicalEditor) {
     // TODO implement text drag & drop
     const target = event.target;
     const pointerType = event.pointerType;
@@ -139,9 +138,9 @@ const onPointerDown = (event: PointerEvent, editor: LexicalEditor) => {
             }
         });
     }
-};
+}
 
-const onInput = (event: InputEvent, editor: LexicalEditor): void => {
+function onInput(event: InputEvent, editor: LexicalEditor): void {
     // We don't want the onInput to bubble, in the case of nested editors.
     event.stopPropagation();
     updateEditor(editor, () => {
@@ -225,12 +224,12 @@ const onInput = (event: InputEvent, editor: LexicalEditor): void => {
         const activeEditor = getActiveEditor();
         flushRootMutations(activeEditor);
     });
-};
+}
 
-const onCompositionStart = (
+function onCompositionStart(
     event: CompositionEvent,
     editor: LexicalEditor,
-) => {
+) {
     updateEditor(editor, () => {
         const selection = $getSelection();
 
@@ -263,9 +262,9 @@ const onCompositionStart = (
             }
         }
     });
-};
+}
 
-const onCompositionEndImpl = (editor: LexicalEditor, data?: string): void => {
+function onCompositionEndImpl(editor: LexicalEditor, data?: string): void {
     const compositionKey = editor._compositionKey;
     $setCompositionKey(null);
 
@@ -311,12 +310,12 @@ const onCompositionEndImpl = (editor: LexicalEditor, data?: string): void => {
     }
 
     $updateSelectedTextFromDOM(true, editor, data);
-};
+}
 
-const onCompositionEnd = (
+function onCompositionEnd(
     event: CompositionEvent,
     editor: LexicalEditor,
-) => {
+) {
     // Firefox fires onCompositionEnd before onInput, but Chrome/Webkit,
     // fire onInput before onCompositionEnd. To ensure the sequence works
     // like Chrome/Webkit we use the isFirefoxEndingComposition flag to
@@ -329,14 +328,14 @@ const onCompositionEnd = (
             onCompositionEndImpl(editor, event.data);
         });
     }
-};
+}
 
 // This is a work-around is mainly Chrome specific bug where if you select
 // the contents of an empty block, you cannot easily unselect anything.
 // This results in a tiny selection box that looks buggy/broken. This can
 // also help other browsers when selection might "appear" lost, when it
 // really isn't.
-const onClick = (event: PointerEvent, editor: LexicalEditor) => {
+function onClick(event: PointerEvent, editor: LexicalEditor) {
     updateEditor(editor, () => {
         const selection = $getSelection();
         const domSelection = getDOMSelection(editor._window);
@@ -399,7 +398,7 @@ const onClick = (event: PointerEvent, editor: LexicalEditor) => {
 
         dispatchCommand(editor, CLICK_COMMAND, event);
     });
-};
+}
 
 const PASS_THROUGH_COMMAND = Object.freeze({});
 const rootElementEvents: RootElementEvents = [
@@ -429,13 +428,13 @@ const rootElementEvents: RootElementEvents = [
  * boundary/formats. It also is important for text replacement, node schemas and
  * composition mechanics.
  */
-const $shouldPreventDefaultAndInsertText = (
+function $shouldPreventDefaultAndInsertText(
     selection: RangeSelection,
     domTargetRange: null | StaticRange,
     text: string,
     timeStamp: number,
     isBeforeInput: boolean,
-): boolean => {
+): boolean {
     const anchor = selection.anchor;
     const focus = selection.focus;
     const anchorNode = anchor.getNode();
@@ -486,9 +485,9 @@ const $shouldPreventDefaultAndInsertText = (
         // One last set of heuristics to check against.
         $shouldInsertTextAfterOrBeforeTextNode(selection, anchorNode)
     );
-};
+}
 
-const getTargetRange = (event: InputEvent): null | StaticRange => {
+function getTargetRange(event: InputEvent): null | StaticRange {
     if (!event.getTargetRanges) {
         return null;
     }
@@ -497,11 +496,11 @@ const getTargetRange = (event: InputEvent): null | StaticRange => {
         return null;
     }
     return targetRanges[0];
-};
+}
 
-const getRootElementRemoveHandles = (
+function getRootElementRemoveHandles(
     rootElement: HTMLElement,
-): RootElementRemoveHandles => {
+): RootElementRemoveHandles {
     let eventHandles = (rootElement as CustomDomElement).__lexicalEventHandles;
 
     if (eventHandles === undefined) {
@@ -510,7 +509,7 @@ const getRootElementRemoveHandles = (
     }
 
     return eventHandles;
-};
+}
 
 function onDocumentSelectionChange(event: Event): void {
     const target = event.target as null | Element | Document;
@@ -578,19 +577,19 @@ function onDocumentSelectionChange(event: Event): void {
     }
 }
 
-const stopLexicalPropagation = (event: Event): void => {
+function stopLexicalPropagation(event: Event): void {
     // We attach a special property to ensure the same event doesn't re-fire for parent editors.
     (event as CustomLexicalEvent).__lexicalHandled = true;
-};
+}
 
-const hasStoppedLexicalPropagation = (event: Event): boolean => {
+function hasStoppedLexicalPropagation(event: Event): boolean {
     return (event as CustomLexicalEvent).__lexicalHandled === true;
-};
+}
 
-export const addRootElementEvents = (
+export function addRootElementEvents(
     rootElement: HTMLElement,
     editor: LexicalEditor,
-) => {
+) {
     // We only want to have a single global selectionchange event handler, shared
     // between all editor instances.
     const doc = rootElement.ownerDocument;
@@ -648,13 +647,13 @@ export const addRootElementEvents = (
             rootElement.removeEventListener(eventName, eventHandler);
         });
     }
-};
+}
 
-const cleanActiveNestedEditorsMap = (editor: LexicalEditor) => {
+function cleanActiveNestedEditorsMap(editor: LexicalEditor) {
     activeNestedEditorsMap.delete(editor._key);
-};
+}
 
-export const removeRootElementEvents = (rootElement: HTMLElement): void => {
+export function removeRootElementEvents(rootElement: HTMLElement): void {
     const doc = rootElement.ownerDocument;
     const documentRootElementsCount = rootElementsRegistered.get(doc);
     if (documentRootElementsCount === undefined) {
@@ -682,16 +681,16 @@ export const removeRootElementEvents = (rootElement: HTMLElement): void => {
     }
 
     (rootElement as CustomDomElement).__lexicalEventHandles = [];
-};
+}
 
-export const markSelectionChangeFromDOMUpdate = (): void => {
+export function markSelectionChangeFromDOMUpdate(): void {
     isSelectionChangeFromDOMUpdate = true;
-};
+}
 
-const shouldSkipSelectionChange = (
+function shouldSkipSelectionChange(
     domNode: null | Node,
     offset: number,
-): boolean => {
+): boolean {
     return (
         domNode !== null &&
         domNode.nodeValue !== null &&
@@ -699,13 +698,13 @@ const shouldSkipSelectionChange = (
         offset !== 0 &&
         offset !== domNode.nodeValue.length
     );
-};
+}
 
-const onSelectionChange = (
+function onSelectionChange(
     domSelection: Selection,
     editor: LexicalEditor,
     isActive: boolean,
-): void => {
+): void {
     const {
         anchorNode: anchorDOM,
         anchorOffset,
@@ -842,14 +841,14 @@ const onSelectionChange = (
         console.log("triggering editor selection_change_command");
         dispatchCommand(editor, SELECTION_CHANGE_COMMAND, undefined);
     });
-};
+}
 
-export const markCollapsedSelectionFormat = (
+export function markCollapsedSelectionFormat(
     format: number,
     style: string,
     offset: number,
     key: NodeKey,
     timeStamp: number,
-) => {
+) {
     collapsedSelectionFormat = [format, style, offset, key, timeStamp];
-};
+}

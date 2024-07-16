@@ -1,4 +1,34 @@
 export const quizQuestion_findOne = {
+  "id": true,
+  "created_at": true,
+  "updated_at": true,
+  "order": true,
+  "points": true,
+  "responsesCount": true,
+  "standardVersion": {
+    "id": true,
+    "isLatest": true,
+    "isPrivate": true,
+    "versionIndex": true,
+    "versionLabel": true,
+    "root": {
+      "id": true,
+      "isPrivate": true,
+      "__typename": "Standard"
+    },
+    "translations": {
+      "id": true,
+      "language": true,
+      "description": true,
+      "jsonVariable": true,
+      "name": true
+    },
+    "__typename": "StandardVersion"
+  },
+  "you": {
+    "canDelete": true,
+    "canUpdate": true
+  },
   "responses": {
     "id": true,
     "created_at": true,
@@ -85,36 +115,6 @@ export const quizQuestion_findOne = {
     "language": true,
     "helpText": true,
     "questionText": true
-  },
-  "id": true,
-  "created_at": true,
-  "updated_at": true,
-  "order": true,
-  "points": true,
-  "responsesCount": true,
-  "standardVersion": {
-    "id": true,
-    "isLatest": true,
-    "isPrivate": true,
-    "versionIndex": true,
-    "versionLabel": true,
-    "root": {
-      "id": true,
-      "isPrivate": true,
-      "__typename": "Standard"
-    },
-    "translations": {
-      "id": true,
-      "language": true,
-      "description": true,
-      "jsonVariable": true,
-      "name": true
-    },
-    "__typename": "StandardVersion"
-  },
-  "you": {
-    "canDelete": true,
-    "canUpdate": true
   },
   "__typename": "QuizQuestion"
 } as const;

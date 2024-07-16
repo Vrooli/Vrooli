@@ -1,5 +1,5 @@
 import { endpointPostPushDevice, PushDevice, PushDeviceCreateInput } from "@local/shared";
-import { errorToMessage, fetchWrapper } from "api";
+import { errorToMessage, fetchData } from "api";
 import { requestNotificationPermission, subscribeUserToPush } from "serviceWorkerRegistration";
 import { getDeviceInfo } from "./display/device";
 import { PubSub } from "./pubsub";
@@ -7,7 +7,7 @@ import { PubSub } from "./pubsub";
 /**
  * Sets up push notifications for the user
  */
-export const setupPush = async (showErrorWhenNotSupported = true) => {
+export async function setupPush(showErrorWhenNotSupported = true): Promise<PushDevice | undefined> {
     try {
         // Check if push notifications are supported (i.e. not in HTTP environment, and PWA is installed)
         if (window.location.protocol === "http:") {
@@ -39,21 +39,32 @@ export const setupPush = async (showErrorWhenNotSupported = true) => {
         const authArray = Array.from(new Uint8Array(subscription.getKey("auth") ?? new ArrayBuffer(0)));
         const authString = authArray.map((b) => String.fromCharCode(b)).join("");
         // Call pushDeviceCreate
-        console.log("got subscription", subscription, subscription.getKey("p256dh")?.toString(), subscription.getKey("auth")?.toString());
-        fetchWrapper<PushDeviceCreateInput, PushDevice>({
-            ...endpointPostPushDevice,
-            inputs: {
-                endpoint: subscription.endpoint,
-                expires: subscription.expirationTime ?? undefined,
-                keys: {
-                    auth: authString,
-                    p256dh: p256dhString,
+        try {
+            const response = await fetchData<PushDeviceCreateInput, PushDevice>({
+                ...endpointPostPushDevice,
+                inputs: {
+                    endpoint: subscription.endpoint,
+                    expires: subscription.expirationTime ?? undefined,
+                    keys: {
+                        auth: authString,
+                        p256dh: p256dhString,
+                    },
+                    name: getDeviceInfo().deviceName,
                 },
-                name: getDeviceInfo().deviceName,
-            },
-            onError: (error) => { PubSub.get().publish("snack", { message: errorToMessage(error, ["en"]), severity: "Error", data: error }); },
-        });
+            });
+            if (response.data) {
+                console.log("got response", response.data);
+                PubSub.get().publish("snack", { messageKey: "PushDeviceCreated", severity: "Success" });
+                return response.data;
+            } else if (response.errors) {
+                PubSub.get().publish("snack", { message: errorToMessage(response, ["en"]), severity: "Error", data: response });
+            } else {
+                PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error" });
+            }
+        } catch (error) {
+            PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error", data: error });
+        }
     } catch (error) {
         PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error", data: error });
     }
-};
+}

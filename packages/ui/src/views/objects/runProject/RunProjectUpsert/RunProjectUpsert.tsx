@@ -42,7 +42,7 @@ export const runProjectInitialValues = (
 export const transformRunProjectValues = (values: RunProjectShape, existing: RunProjectShape, isCreate: boolean) =>
     isCreate ? shapeRunProject.create(values) : shapeRunProject.update(existing, values);
 
-const RunProjectForm = ({
+function RunProjectForm({
     disabled,
     dirty,
     display,
@@ -57,7 +57,7 @@ const RunProjectForm = ({
     onDeleted,
     values,
     ...props
-}: RunProjectFormProps) => {
+}: RunProjectFormProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -125,9 +125,8 @@ const RunProjectForm = ({
             />
             {/* Dialog to create/update schedule */}
             <ScheduleUpsert
-                canChangeTab={false}
                 canSetScheduleFor={false}
-                defaultTab="RunProject"
+                defaultScheduleFor="RunProject"
                 display="dialog"
                 isCreate={editingSchedule === null}
                 isMutate={false}
@@ -230,7 +229,7 @@ const RunProjectForm = ({
             />
         </MaybeLargeDialog>
     );
-};
+}
 
 export const RunProjectUpsert = ({
     isCreate,

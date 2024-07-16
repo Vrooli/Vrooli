@@ -1,13 +1,21 @@
 import { endpointGetRoutine, endpointGetRoutines, InputType, RoutineSortBy, RoutineType } from "@local/shared";
 import { FormSchema } from "forms/types";
 import { ActionIcon, ApiIcon, CaseSensitiveIcon, HelpIcon, MagicIcon, RoutineIcon, SmartContractIcon, TerminalIcon } from "icons";
+import { SvgProps } from "types";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
+
+type RoutineTypeOption = {
+    type: RoutineType;
+    label: string;
+    description: string;
+    Icon: (props: SvgProps) => JSX.Element;
+};
 
 export const routineTypes = [
     {
         type: RoutineType.Informational,
-        label: "Informational/Placeholder",
+        label: "Basic",
         description: "Contains no additional data. Used to provide instructions, a way to prompt users for information, or as a placeholder.",
         Icon: HelpIcon,
     }, {
@@ -47,43 +55,57 @@ export const routineTypes = [
         Icon: SmartContractIcon,
     },
 ];
+export function getRoutineTypeLabel(option: RoutineTypeOption) { return option.label; }
+export function getRoutineTypeDescription(option: RoutineTypeOption) { return option.description; }
+export function getRoutineTypeIcon(option: RoutineTypeOption) { return option.Icon; }
 
-export const routineSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchRoutine"),
-    containers: [
-        { disableCollapse: true, title: "Routine Type", totalItems: 1 },
-        hasCompleteVersionContainer,
-        votesContainer(),
-        bookmarksContainer(),
-        languagesVersionContainer(),
-        tagsContainer(),
-    ],
-    fields: [
-        {
-            fieldName: "latestVersionRoutineType",
-            label: "Routine Type",
-            type: InputType.Selector,
-            props: {
-                defaultValue: null,
-                getOptionDescription: (option) => option.description,
-                getOptionLabel: (option) => option.label,
-                name: "routineType",
-                options: [
-                    {
-                        type: null,
-                        label: "All",
-                        Icon: HelpIcon,
-                    },
-                    ...routineTypes,
-                ],
+export function routineSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchRoutine"),
+        containers: [
+            {
+                direction: "column",
+                disableCollapse: true,
+                totalItems: 1,
             },
-        },
-        ...hasCompleteVersionFields(),
-        ...votesFields(),
-        ...bookmarksFields(),
-        ...languagesVersionFields(),
-        ...tagsFields(),
-    ],
-});
+            hasCompleteVersionContainer,
+            votesContainer(),
+            bookmarksContainer(),
+            languagesVersionContainer(),
+            tagsContainer(),
+        ],
+        elements: [
+            {
+                fieldName: "latestVersionRoutineType",
+                id: "latestVersionRoutineType",
+                label: "Routine Type",
+                type: InputType.Selector,
+                props: {
+                    defaultValue: null,
+                    getOptionDescription: (option) => option.description,
+                    getOptionLabel: (option) => option.label,
+                    getOptionValue: (option) => option.label,
+                    name: "routineType",
+                    options: [
+                        {
+                            type: null,
+                            label: "All",
+                            Icon: HelpIcon,
+                        },
+                        ...routineTypes,
+                    ],
+                },
+            },
+            ...hasCompleteVersionFields(),
+            ...votesFields(),
+            ...bookmarksFields(),
+            ...languagesVersionFields(),
+            ...tagsFields(),
+        ],
+    };
+}
 
-export const routineSearchParams = () => toParams(routineSearchSchema(), endpointGetRoutines, endpointGetRoutine, RoutineSortBy, RoutineSortBy.ScoreDesc);
+export function routineSearchParams() {
+    return toParams(routineSearchSchema(), endpointGetRoutines, endpointGetRoutine, RoutineSortBy, RoutineSortBy.ScoreDesc);
+}
+

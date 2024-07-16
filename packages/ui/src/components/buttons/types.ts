@@ -70,6 +70,8 @@ export interface HelpButtonProps extends ButtonProps {
     id?: string;
     /** Markdown displayed in the popup menu */
     markdown: string;
+    /** Handler to change markdown. If provided, allows editing */
+    onMarkdownChange?: (markdown: string) => unknown;
     /** On click event. Not needed to open the menu */
     onClick?: (event: React.MouseEvent) => unknown;
     /** Style applied to the root element */

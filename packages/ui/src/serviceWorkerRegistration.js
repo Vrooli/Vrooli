@@ -46,9 +46,10 @@ export async function subscribeUserToPush() {
         return null;
     }
     try {
+        const scope = process.env.BASE_URL ?? "/";
         const registration = await navigator.serviceWorker.register(
-            `${process.env.BASE_URL}service-worker.js`,
-            { scope: process.env.BASE_URL },
+            `${scope}service-worker.js`,
+            { scope },
         );
         console.log("getting subscribeoptions", process.env);
         const subscribeOptions = {

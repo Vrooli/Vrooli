@@ -1,4 +1,4 @@
-import { LlmTaskInfo, User } from "@local/shared";
+import { LlmTaskInfo } from "@local/shared";
 import { LinearProgressProps } from "@mui/material";
 import { PageTab } from "hooks/useTabs";
 import { SxType } from "types";
@@ -69,17 +69,4 @@ export interface PageTabsProps<TabList extends TabsInfo> {
     onChange: (event: React.ChangeEvent<unknown>, value: PageTab<TabList>) => unknown,
     tabs: PageTab<TabList>[],
     sx?: SxType,
-}
-
-export interface ProfileGroupProps {
-    sx?: SxType;
-    users: User[];
-}
-
-export interface TwinklingStarsProps {
-    amount?: number;
-    size?: number;
-    color?: string;
-    speed?: number;
-    sx?: SxType;
 }

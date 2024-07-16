@@ -1,7 +1,8 @@
-import { PushDevice, PushDeviceCreateInput, PushDeviceUpdateInput } from "@local/shared";
+import { PushDevice, PushDeviceCreateInput, PushDeviceTestInput, PushDeviceUpdateInput, Success } from "@local/shared";
 import { updateOneHelper } from "../../actions/updates";
 import { assertRequestFrom } from "../../auth/request";
 import { prismaInstance } from "../../db/instance";
+import { CustomError } from "../../events/error";
 import { rateLimit } from "../../middleware/rateLimit";
 import { Notify } from "../../notify";
 import { CreateOneResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
@@ -12,6 +13,7 @@ export type EndpointsPushDevice = {
     }
     Mutation: {
         pushDeviceCreate: GQLEndpoint<PushDeviceCreateInput, CreateOneResult<PushDevice>>;
+        pushDeviceTest: GQLEndpoint<PushDeviceTestInput, Success>;
         pushDeviceUpdate: GQLEndpoint<PushDeviceUpdateInput, UpdateOneResult<PushDevice>>;
     }
 }
@@ -40,6 +42,19 @@ export const PushDeviceEndpoints: EndpointsPushDevice = {
                 userData,
                 info,
             });
+        },
+        pushDeviceTest: async (_, { input }, { req }) => {
+            const userData = assertRequestFrom(req, { isUser: true });
+            const pushIds = await prismaInstance.push_device.findMany({
+                where: { userId: userData.id },
+            });
+            const requestedId = input.id;
+            const pushDevice = pushIds.find(({ id }) => id === requestedId);
+            if (!pushDevice) {
+                throw new CustomError("0588", "Unauthorized", userData.languages);
+            }
+            const success = await Notify(userData.languages).testPushDevice(pushDevice);
+            return success;
         },
         pushDeviceUpdate: async (_, { input }, { req }, info) => {
             await rateLimit({ maxUser: 10, req });

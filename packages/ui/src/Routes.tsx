@@ -84,7 +84,7 @@ const Fallback = <Box>
  * customize the Navbar for each route, without it flashing on
  * the screen before the route is loaded.
  */
-const NavRoute = (props: PageProps & RouteProps & NavbarProps) => {
+function NavRoute(props: PageProps & RouteProps & NavbarProps) {
     return (
         <Route {...props}>
             <Page {...props}>
@@ -92,7 +92,7 @@ const NavRoute = (props: PageProps & RouteProps & NavbarProps) => {
             </Page>
         </Route>
     );
-};
+}
 
 /** Style for pages that don't use left/right padding */
 const noSidePadding = {
@@ -100,7 +100,7 @@ const noSidePadding = {
     paddingRight: 0,
 };
 
-export const Routes = (props: { sessionChecked: boolean }) => {
+export function Routes(props: { sessionChecked: boolean }) {
     const { palette } = useTheme();
 
     return (
@@ -401,4 +401,4 @@ export const Routes = (props: { sessionChecked: boolean }) => {
             </Switch>
         </>
     );
-};
+}

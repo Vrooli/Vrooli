@@ -4,6 +4,14 @@ export const user_deleteOne = {
   "users": {
     "activeFocusMode": {
       "mode": {
+        "id": true,
+        "name": true,
+        "description": true,
+        "you": {
+          "canDelete": true,
+          "canRead": true,
+          "canUpdate": true
+        },
         "filters": {
           "id": true,
           "filterType": true,
@@ -23,6 +31,14 @@ export const user_deleteOne = {
             }
           },
           "focusMode": {
+            "id": true,
+            "name": true,
+            "description": true,
+            "you": {
+              "canDelete": true,
+              "canRead": true,
+              "canUpdate": true
+            },
             "labels": {
               "id": true,
               "color": true,
@@ -97,14 +113,6 @@ export const user_deleteOne = {
                 "month": true,
                 "endDate": true
               }
-            },
-            "id": true,
-            "name": true,
-            "description": true,
-            "you": {
-              "canDelete": true,
-              "canRead": true,
-              "canUpdate": true
             }
           }
         },
@@ -182,14 +190,6 @@ export const user_deleteOne = {
             "month": true,
             "endDate": true
           }
-        },
-        "id": true,
-        "name": true,
-        "description": true,
-        "you": {
-          "canDelete": true,
-          "canRead": true,
-          "canUpdate": true
         }
       },
       "stopCondition": true,
@@ -205,6 +205,14 @@ export const user_deleteOne = {
     },
     "codesCount": true,
     "focusModes": {
+      "id": true,
+      "name": true,
+      "description": true,
+      "you": {
+        "canDelete": true,
+        "canRead": true,
+        "canUpdate": true
+      },
       "filters": {
         "id": true,
         "filterType": true,
@@ -224,6 +232,14 @@ export const user_deleteOne = {
           }
         },
         "focusMode": {
+          "id": true,
+          "name": true,
+          "description": true,
+          "you": {
+            "canDelete": true,
+            "canRead": true,
+            "canUpdate": true
+          },
           "labels": {
             "id": true,
             "color": true,
@@ -298,14 +314,6 @@ export const user_deleteOne = {
               "month": true,
               "endDate": true
             }
-          },
-          "id": true,
-          "name": true,
-          "description": true,
-          "you": {
-            "canDelete": true,
-            "canRead": true,
-            "canUpdate": true
           }
         }
       },
@@ -383,14 +391,6 @@ export const user_deleteOne = {
           "month": true,
           "endDate": true
         }
-      },
-      "id": true,
-      "name": true,
-      "description": true,
-      "you": {
-        "canDelete": true,
-        "canRead": true,
-        "canUpdate": true
       }
     },
     "handle": true,

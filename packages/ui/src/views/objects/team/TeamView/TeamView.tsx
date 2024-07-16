@@ -22,7 +22,7 @@ import { EditIcon, EllipsisIcon, ExportIcon, SearchIcon, TeamIcon } from "icons"
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { BannerImageContainer, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack } from "styles";
+import { BannerImageContainer, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack, SideActionsButton } from "styles";
 import { extractImageUrl } from "utils/display/imageTools";
 import { placeholderColor } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
@@ -31,10 +31,10 @@ import { PubSub } from "utils/pubsub";
 import { TeamPageTabOption, teamTabParams } from "utils/search/objectToSearch";
 import { TeamViewProps } from "../types";
 
-export const TeamView = ({
+export function TeamView({
     display,
     onClose,
-}: TeamViewProps) => {
+}: TeamViewProps) {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -124,15 +124,6 @@ export const TeamView = ({
         setObject: setTeam,
     });
 
-    /**
-     * Opens add new page
-     */
-    const toAddNew = useCallback((event: any) => {
-        // TODO need member page
-        if (currTab.key === TeamPageTabOption.Member) return;
-        setLocation(`${LINKS[currTab.key]}/add`);
-    }, [currTab, setLocation]);
-
     return (
         <>
             <TopBar
@@ -167,11 +158,9 @@ export const TeamView = ({
             <OverviewContainer>
                 <OverviewProfileStack>
                     <OverviewProfileAvatar
+                        isBot={false}
+                        profileColors={profileColors}
                         src={extractImageUrl(team?.profileImage, team?.updated_at, 100)}
-                        sx={{
-                            backgroundColor: profileColors[0],
-                            color: profileColors[1],
-                        }}
                     >
                         <TeamIcon width="75%" height="75%" />
                     </OverviewProfileAvatar>
@@ -272,8 +261,6 @@ export const TeamView = ({
                             <SearchList
                                 {...findManyData}
                                 display={display}
-                                dummyLength={display === "page" ? 5 : 3}
-                                handleAdd={permissions.canUpdate ? toAddNew : undefined}
                                 hideUpdateButton={true}
                                 id="team-view-list"
                                 searchPlaceholder={searchPlaceholderKey}
@@ -292,16 +279,16 @@ export const TeamView = ({
             </Box>
             <SideActionsButtons display={display}>
                 {/* Toggle search filters */}
-                {currTab.key !== TeamPageTabOption.Resource ? <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
+                {currTab.key !== TeamPageTabOption.Resource ? <SideActionsButton aria-label={t("FilterList")} onClick={toggleSearchFilters}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </IconButton> : null}
-                {permissions.canUpdate ? <IconButton aria-label={t("Edit")} onClick={() => { actionData.onActionStart("Edit"); }} sx={{ background: palette.secondary.main }}>
+                </SideActionsButton> : null}
+                {permissions.canUpdate ? <SideActionsButton aria-label={t("Edit")} onClick={() => { actionData.onActionStart("Edit"); }}>
                     <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </IconButton> : null}
-                <IconButton aria-label={t("Share")} onClick={() => { actionData.onActionStart("Share"); }} sx={{ background: palette.secondary.main, width: "52px", height: "52px" }}>
+                </SideActionsButton> : null}
+                <SideActionsButton aria-label={t("Share")} onClick={() => { actionData.onActionStart("Share"); }}>
                     <ExportIcon fill={palette.secondary.contrastText} width='32px' height='32px' />
-                </IconButton>
+                </SideActionsButton>
             </SideActionsButtons>
         </>
     );
-};
+}

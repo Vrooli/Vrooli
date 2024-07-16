@@ -2,6 +2,23 @@ export const noteVersion_findMany = {
   "edges": {
     "cursor": true,
     "node": {
+      "id": true,
+      "created_at": true,
+      "updated_at": true,
+      "isLatest": true,
+      "isPrivate": true,
+      "reportsCount": true,
+      "versionIndex": true,
+      "versionLabel": true,
+      "you": {
+        "canComment": true,
+        "canCopy": true,
+        "canDelete": true,
+        "canReport": true,
+        "canUpdate": true,
+        "canUse": true,
+        "canRead": true
+      },
       "root": {
         "id": true,
         "created_at": true,
@@ -134,23 +151,6 @@ export const noteVersion_findMany = {
           "pageIndex": true,
           "text": true
         }
-      },
-      "id": true,
-      "created_at": true,
-      "updated_at": true,
-      "isLatest": true,
-      "isPrivate": true,
-      "reportsCount": true,
-      "versionIndex": true,
-      "versionLabel": true,
-      "you": {
-        "canComment": true,
-        "canCopy": true,
-        "canDelete": true,
-        "canReport": true,
-        "canUpdate": true,
-        "canUse": true,
-        "canRead": true
       }
     }
   },

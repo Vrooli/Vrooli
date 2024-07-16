@@ -19,13 +19,13 @@ const categoryList = Object.values(AwardCategory);
 //TODO store tiers in @local/shared, so we can show tier progress and stuff
 //TODO store title and description for category (i.e. no tier) in awards.json
 
-const AwardCard = ({
+function AwardCard({
     award,
     isEarned,
 }: {
     award: AwardDisplay;
     isEarned: boolean;
-}) => {
+}) {
     const { breakpoints, palette } = useTheme();
 
     // Display highest earned tier or next tier,
@@ -119,12 +119,12 @@ const AwardCard = ({
             </CardContent>
         </Card>
     );
-};
+}
 
-export const AwardsView = ({
+export function AwardsView({
     display,
     onClose,
-}: AwardsViewProps) => {
+}: AwardsViewProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const lng = useMemo(() => getUserLanguages(session)[0], [session]);
@@ -200,4 +200,4 @@ export const AwardsView = ({
             </Box>
         </>
     );
-};
+}

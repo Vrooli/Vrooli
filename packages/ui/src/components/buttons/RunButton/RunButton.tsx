@@ -1,5 +1,5 @@
 import { GqlModelType, ProjectVersion, RoutineVersion, RunProject, RunRoutine, parseSearchParams, uuidToBase36, uuidValidate } from "@local/shared";
-import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
+import { Box, Tooltip, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { RunPickerMenu } from "components/dialogs/RunPickerMenu/RunPickerMenu";
 import { usePopover } from "hooks/usePopover";
@@ -7,6 +7,7 @@ import { PlayIcon } from "icons";
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { setSearchParams, useLocation } from "route";
+import { SideActionsButton } from "styles";
 import { Status } from "utils/consts";
 import { PubSub } from "utils/pubsub";
 import { getProjectVersionStatus, getRoutineVersionStatus } from "utils/runUtils";
@@ -18,14 +19,14 @@ import { RunButtonProps } from "../types";
  * If the routine is invalid, it is greyed out with a tooltip on hover or press. 
  * If the routine is incomplete, the button is available but the user must confirm an alert before running.
  */
-export const RunButton = ({
+export function RunButton({
     canUpdate,
     handleRunAdd,
     handleRunDelete,
     isBuildGraphOpen,
     isEditing,
     runnableObject,
-}: RunButtonProps) => {
+}: RunButtonProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -104,10 +105,10 @@ export const RunButton = ({
         }
     }, [openError, startRun, status]);
 
-    const runStop = () => {
+    const runStop = useCallback(function runStopCallback() {
         setLocation(window.location.pathname, { replace: true });
         setIsRunOpen(false);
-    };
+    }, [setLocation]);
 
     return (
         <>
@@ -136,20 +137,14 @@ export const RunButton = ({
             <Tooltip title="Run Routine" placement="top">
                 {/* Button wrapped in div so it can be pressed when disabled */}
                 <Box onClick={runStart}>
-                    <IconButton
+                    <SideActionsButton
                         aria-label="run-routine"
                         disabled={status === Status.Invalid}
-                        sx={{
-                            background: palette.secondary.main,
-                            padding: 0,
-                            width: "54px",
-                            height: "54px",
-                        }}
                     >
                         <PlayIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </IconButton>
+                    </SideActionsButton>
                 </Box>
             </Tooltip>
         </>
     );
-};
+}

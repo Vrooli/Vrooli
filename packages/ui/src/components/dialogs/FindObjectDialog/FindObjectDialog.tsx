@@ -1,11 +1,12 @@
 import { AutocompleteOption, FindByIdInput, FindVersionInput, ListObject, getObjectUrl } from "@local/shared";
-import { Box, Button, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
+import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
+import { FormInputBase } from "forms/types";
 import { useFindMany } from "hooks/useFindMany";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useTabs } from "hooks/useTabs";
@@ -14,6 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { lazily } from "react-lazily";
 import { removeSearchParams, useLocation } from "route";
+import { SideActionsButton } from "styles";
 import { getDisplay } from "utils/display/listTools";
 import { scrollIntoFocusedView } from "utils/display/scroll";
 import { CalendarPageTabOption, SearchPageTabOption, SearchType, findObjectTabParams, searchTypeToParams } from "utils/search/objectToSearch";
@@ -88,17 +90,17 @@ const createMap: { [K in CreateViewTypes]: UpsertView } = {
  * @param useVersioned If true, uses tabs for objects that have versions 
  * @returns The filtered tabs
  */
-export const getFilteredTabs = (
-    limitTo: FindObjectTabOption[] | undefined,
+export function getFilteredTabs(
+    limitTo: readonly FindObjectTabOption[] | undefined,
     onlyVersioned: boolean | undefined,
-) => {
+) {
     let filtered = findObjectTabParams;
-    // Apply limitTo filter
-    if (limitTo) filtered = filtered.filter(tab => limitTo.includes(tab.key) || limitTo.includes(`${tab.key}Version` as FindObjectTabOption));
+    // Apply limitTo filter if it's a non-empty array
+    if (Array.isArray(limitTo) && limitTo.length > 0) filtered = filtered.filter(tab => limitTo.includes(tab.key) || limitTo.includes(`${tab.key}Version` as FindObjectTabOption));
     // If onlyVersioned is true, filter out non-versioned tabs
     if (onlyVersioned) filtered = filtered.filter(tab => `${tab.key}Version` in SearchType);
     return filtered;
-};
+}
 
 /**
  * Retrieves a versioned view of a root object based on the specified version ID.
@@ -108,7 +110,7 @@ export const getFilteredTabs = (
  * @param versionId - The identifier for the version to retrieve.
  * @returns The versioned object, or undefined if the version ID is not found.
  */
-export const convertRootObjectToVersion = (item: RootObject, versionId: string): any => {
+export function convertRootObjectToVersion(item: RootObject, versionId: string): any {
     if (versionId) {
         // Find the specific version based on versionId
         const version = item.versions?.find(v => v.id === versionId);
@@ -121,7 +123,7 @@ export const convertRootObjectToVersion = (item: RootObject, versionId: string):
     }
     // If versionId is not provided or no version matches, return undefined or the original item
     return undefined;
-};
+}
 
 
 const searchTitleId = "search-vrooli-for-link-title";
@@ -129,7 +131,7 @@ const searchTitleId = "search-vrooli-for-link-title";
 /**
  * Dialog for selecting or creating an object
  */
-export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType extends SelectOrCreateObject>({
+export function FindObjectDialog<Find extends FindObjectDialogType, ObjectType extends SelectOrCreateObject>({
     find,
     handleCancel,
     handleComplete,
@@ -137,7 +139,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
     limitTo,
     onlyVersioned,
     where,
-}: FindObjectDialogProps<Find, ObjectType>) => {
+}: FindObjectDialogProps<Find, ObjectType>) {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -176,7 +178,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
      */
     const onClose = useCallback((item?: ObjectType, versionId?: string) => {
         // Clear search params
-        const advancedSearchFields = advancedSearchSchemaRef.current?.fields.map(f => f.fieldName) ?? [];
+        const advancedSearchFields = advancedSearchSchemaRef.current?.elements?.filter(f => Object.prototype.hasOwnProperty.call(f, "fieldName")).map(f => (f as FormInputBase).fieldName) ?? [];
         const basicSearchFields = ["advanced", "sort", "time"];
         removeSearchParams(setLocation, [...advancedSearchFields, ...basicSearchFields]);
         // If no item, close dialog
@@ -316,7 +318,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         setSelectCreateTypeAnchorEl(null);
     }, [createObjectType]);
 
-    const focusSearch = () => { scrollIntoFocusedView("search-bar-find-object-search-list"); };
+    function focusSearch() { scrollIntoFocusedView("search-bar-find-object-search-list"); }
 
     const findManyData = useFindMany<ListObject>({
         controlsUrl: false,
@@ -324,6 +326,10 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
         take: 20,
         where,
     });
+
+    const createViewOverrideObject = useMemo(function createViewOverrideObjectMemo() {
+        return createObjectType ? { __typename: createObjectType } : undefined;
+    }, [createObjectType]);
 
     return (
         <>
@@ -335,7 +341,7 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                 onClose={handleCreateClose}
                 onCompleted={handleCreated}
                 onDeleted={handleCreateClose}
-                overrideObject={{ __typename: createObjectType }}
+                overrideObject={createViewOverrideObject}
             />}
             {/* Menu for selecting create object type */}
             {!CreateView && <Menu
@@ -370,9 +376,9 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
             >
                 <TopBar
                     display="dialog"
-                    hideTitleOnDesktop={true}
                     onClose={() => { handleCancel(); }}
                     title={t("SearchVrooli")}
+                    titleBehaviorDesktop="ShowIn"
                     below={tabs.length > 1 && Boolean(currTab) && <PageTabs
                         ariaLabel="search-tabs"
                         currTab={currTab}
@@ -394,7 +400,6 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                         id="find-object-search-list"
                         canNavigate={() => false}
                         display="dialog"
-                        dummyLength={3}
                         onItemClick={onInputSelect}
                     />}
                     {/* If object selected (and supports versioning), display buttons to select version */}
@@ -426,14 +431,14 @@ export const FindObjectDialog = <Find extends FindObjectDialogType, ObjectType e
                     )}
                 </Box>
                 <SideActionsButtons display="dialog">
-                    <IconButton aria-label="filter-list" onClick={focusSearch} sx={{ background: palette.secondary.main }}>
+                    <SideActionsButton aria-label="filter-list" onClick={focusSearch}>
                         <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </IconButton>
-                    <IconButton aria-label="create-new" onClick={onCreateStart} sx={{ background: palette.secondary.main }}>
+                    </SideActionsButton>
+                    <SideActionsButton aria-label="create-new" onClick={onCreateStart}>
                         <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </IconButton>
+                    </SideActionsButton>
                 </SideActionsButtons>
             </LargeDialog>
         </>
     );
-};
+}

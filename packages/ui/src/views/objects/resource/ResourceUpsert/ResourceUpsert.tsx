@@ -27,10 +27,10 @@ import { ResourceShape, shapeResource } from "utils/shape/models/resource";
 import { validateFormValues } from "utils/validateFormValues";
 import { ResourceFormProps, ResourceUpsertProps } from "../types";
 
-export const resourceInitialValues = (
+export function resourceInitialValues(
     session: Session | undefined,
     existing: Partial<ResourceShape>,
-): ResourceShape => {
+): ResourceShape {
     let listFor: ResourceShape["list"]["listFor"];
     if (existing.list && "listFor" in existing.list) {
         listFor = existing.list.listFor as ResourceShape["list"]["listFor"];
@@ -58,12 +58,13 @@ export const resourceInitialValues = (
             name: "",
         }]),
     };
-};
+}
 
-export const transformResourceValues = (values: ResourceShape, existing: ResourceShape, isCreate: boolean) =>
-    isCreate ? shapeResource.create(values) : shapeResource.update(existing, values);
+export function transformResourceValues(values: ResourceShape, existing: ResourceShape, isCreate: boolean) {
+    return isCreate ? shapeResource.create(values) : shapeResource.update(existing, values);
+}
 
-const ResourceForm = ({
+function ResourceForm({
     disabled,
     dirty,
     display,
@@ -79,7 +80,7 @@ const ResourceForm = ({
     onDeleted,
     values,
     ...props
-}: ResourceFormProps) => {
+}: ResourceFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
 
@@ -227,7 +228,12 @@ const ResourceForm = ({
                     </>}
                     {resourceType === "link" && <>
                         {/* Enter link or search for object */}
-                        <LinkInput autoFocus onObjectData={foundLinkData} tabIndex={0} />
+                        <LinkInput
+                            autoFocus
+                            name="link"
+                            onObjectData={foundLinkData}
+                            tabIndex={0}
+                        />
                         <Selector
                             name="usedFor"
                             options={Object.keys(ResourceUsedFor)}
@@ -240,14 +246,14 @@ const ResourceForm = ({
                     <Divider />
                     <TranslatedTextInput
                         fullWidth
-                        isOptional
+                        isRequired={false}
                         label={t("Name")}
                         language={language}
                         name="name"
                     />
                     <TranslatedTextInput
                         fullWidth
-                        isOptional
+                        isRequired={false}
                         label={t("Description")}
                         language={language}
                         multiline
@@ -277,15 +283,15 @@ const ResourceForm = ({
             />
         </MaybeLargeDialog>
     );
-};
+}
 
-export const ResourceUpsert = ({
+export function ResourceUpsert({
     isCreate,
     isMutate,
     isOpen,
     overrideObject,
     ...props
-}: ResourceUpsertProps) => {
+}: ResourceUpsertProps) {
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Resource, ResourceShape>({
@@ -316,4 +322,4 @@ export const ResourceUpsert = ({
             />}
         </Formik>
     );
-};
+}

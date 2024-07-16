@@ -2,11 +2,6 @@ export const questionAnswer_findMany = {
   "edges": {
     "cursor": true,
     "node": {
-      "translations": {
-        "id": true,
-        "language": true,
-        "text": true
-      },
       "id": true,
       "created_at": true,
       "updated_at": true,
@@ -24,7 +19,12 @@ export const questionAnswer_findMany = {
       "score": true,
       "bookmarks": true,
       "isAccepted": true,
-      "commentsCount": true
+      "commentsCount": true,
+      "translations": {
+        "id": true,
+        "language": true,
+        "text": true
+      }
     }
   },
   "pageInfo": {

@@ -1,3 +1,4 @@
+import { JOIN_CHAT_ROOM_ERRORS, LEAVE_CHAT_ROOM_ERRORS } from "@local/shared";
 import { Socket } from "socket.io";
 import { assertRequestFrom } from "../../auth/request";
 import { prismaInstance } from "../../db/instance";
@@ -6,11 +7,11 @@ import { rateLimitSocket } from "../../middleware";
 import { onSocketEvent } from "../../sockets/events";
 
 /** Socket room for chat events */
-export const chatSocketRoomHandlers = (socket: Socket) => {
+export function chatSocketRoomHandlers(socket: Socket) {
     onSocketEvent(socket, "joinChatRoom", async ({ chatId }, callback) => {
         const rateLimitError = await rateLimitSocket({ maxUser: 1000, socket });
         if (rateLimitError) {
-            callback({ error: rateLimitError });
+            callback({ success: false, error: rateLimitError });
             return;
         }
         try {
@@ -29,22 +30,29 @@ export const chatSocketRoomHandlers = (socket: Socket) => {
             });
             // If not found, return error
             if (!chat || chat.length === 0) {
-                const message = "Chat not found or unauthorized";
+                const message = JOIN_CHAT_ROOM_ERRORS.ChatNotFoundOrUnauthorized;
                 logger.error(message, { trace: "0490" });
-                callback({ error: message });
+                callback({ success: false, error: message });
                 return;
             }
             // Otherwise, join the room
             socket.join(chatId);
             callback({ success: true });
         } catch (error) {
-            logger.error("Caught error in chatSocketRoomHandlers", { trace: "0491", error, chatId });
-            callback({ error: "Error joining chat room" });
+            const message = JOIN_CHAT_ROOM_ERRORS.ErrorUnknown;
+            logger.error(message, { trace: "0491", error, chatId });
+            callback({ success: false, error: message });
         }
     });
 
     onSocketEvent(socket, "leaveChatRoom", async ({ chatId }, callback) => {
-        socket.leave(chatId);
-        callback({ success: true });
+        try {
+            socket.leave(chatId);
+            callback({ success: true });
+        } catch (error) {
+            const message = LEAVE_CHAT_ROOM_ERRORS.ErrorUnknown;
+            logger.error(message, { trace: "0578", error, chatId });
+            callback({ success: false, error: message });
+        }
     });
-};
+}

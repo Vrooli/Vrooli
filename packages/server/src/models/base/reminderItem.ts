@@ -51,8 +51,12 @@ export const ReminderItemModel: ReminderItemModelLogic = ({
             reminder: "Reminder",
         }),
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({
                 reminder: ModelMap.get<ReminderModelLogic>("Reminder").validate().visibility.owner(userId),
             }),

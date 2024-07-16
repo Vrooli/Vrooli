@@ -1,4 +1,5 @@
 import { Request } from "express";
+import { RedisClientType } from "redis";
 import { getUser } from "../auth/request";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
@@ -13,15 +14,21 @@ import { initializeRedis } from "../redisConn";
  * @param window The window for the limit
  * @param languages Languages preferred to display error message
  */
-export async function checkRateLimit(client: any, key: string, max: number, window: number, languages: string[]) {
+export async function checkRateLimit(
+    client: RedisClientType | null,
+    key: string,
+    max: number,
+    window: number,
+    languages: string[],
+) {
     // Increment and get the current count.
-    const count = await client.incr(key);
+    const count = client ? await client.incr(key) : 0;
     // If limit reached, throw error.
     if (count > max) {
         throw new CustomError("0017", "RateLimitExceeded", languages);
     }
     // If key is new, set expiration.
-    if (count === 1) {
+    if (client && count === 1) {
         await client.expire(key, window);
     }
 }

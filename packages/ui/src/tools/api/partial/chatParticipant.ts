@@ -10,6 +10,6 @@ export const chatParticipant: GqlPartial<ChatParticipant> = {
         updated_at: true,
     },
     list: {
-        user: async () => rel((await import("./user")).user, "nav"),
+        user: async () => rel((await import("./user")).user, "list"),
     },
 };

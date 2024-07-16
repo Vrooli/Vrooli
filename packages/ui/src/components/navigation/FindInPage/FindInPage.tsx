@@ -37,12 +37,12 @@ const commonIconProps = (palette: Palette) => ({
  * @param isRegex Whether or not the search should be regex
  * @returns Highlight spans
  */
-const highlightText = (
+function highlightText(
     searchString: string,
     isCaseSensitive: boolean,
     isWholeWord: boolean,
     isRegex: boolean,
-): HTMLSpanElement[] => {
+): HTMLSpanElement[] {
     // Remove all previous highlights
     removeHighlights("search-highlight"); // General highlight class
     removeHighlights("search-highlight-current"); // Highlight class for the current match
@@ -73,9 +73,9 @@ const highlightText = (
         highlightSpans[0].classList.add("search-highlight-current");
     }
     return highlightSpans;
-};
+}
 
-const FindInPage = () => {
+function FindInPage() {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -301,6 +301,6 @@ const FindInPage = () => {
             </DialogContent>
         </Dialog >
     );
-};
+}
 
 export { FindInPage };

@@ -33,12 +33,13 @@ import { MemberInvitesFormProps, MemberInvitesUpsertProps } from "../types";
 //     },
 // });
 
-const transformMemberInviteValues = (values: MemberInviteShape[], existing: MemberInviteShape[], isCreate: boolean) =>
-    isCreate ?
+function transformMemberInviteValues(values: MemberInviteShape[], existing: MemberInviteShape[], isCreate: boolean) {
+    return isCreate ?
         values.map((value) => shapeMemberInvite.create(value)) :
         values.map((value, index) => shapeMemberInvite.update(existing[index], value)); // Assumes the dialog doesn't change the order or remove items
+}
 
-const validateMemberInviteValues = async (values: MemberInviteShape[], existing: MemberInviteShape[], isCreate: boolean) => {
+async function validateMemberInviteValues(values: MemberInviteShape[], existing: MemberInviteShape[], isCreate: boolean) {
     const transformedValues = transformMemberInviteValues(values, existing, isCreate);
     const validationSchema = memberInviteValidation[isCreate ? "create" : "update"]({ env: process.env.NODE_ENV });
     const result = await Promise.all(transformedValues.map(async (value) => await validateAndGetYupErrors(validationSchema, value)));
@@ -52,9 +53,9 @@ const validateMemberInviteValues = async (values: MemberInviteShape[], existing:
     }, {} as any);
 
     return combinedResult;
-};
+}
 
-const MemberInvitesForm = ({
+function MemberInvitesForm({
     disabled,
     dirty,
     display,
@@ -70,7 +71,7 @@ const MemberInvitesForm = ({
     onDeleted,
     values,
     ...props
-}: MemberInvitesFormProps) => {
+}: MemberInvitesFormProps) {
     const { t } = useTranslation();
     const { breakpoints, palette } = useTheme();
     const [message, setMessage] = useHistoryState("member-invite-message", "");
@@ -211,21 +212,25 @@ const MemberInvitesForm = ({
             </Box>
         </MaybeLargeDialog>
     );
-};
+}
 
-export const MemberInvitesUpsert = ({
+export function MemberInvitesUpsert({
     invites,
     isCreate,
     isOpen,
     ...props
-}: MemberInvitesUpsertProps) => {
+}: MemberInvitesUpsertProps) {
+
+    async function validateValues(values: MemberInviteShape[]) {
+        return await validateMemberInviteValues(values, invites, isCreate);
+    }
 
     return (
         <Formik
             enableReinitialize={true}
             initialValues={invites}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateMemberInviteValues(values, invites, isCreate)}
+            validate={validateValues}
         >
             {(formik) => <MemberInvitesForm
                 disabled={false}
@@ -239,4 +244,4 @@ export const MemberInvitesUpsert = ({
             />}
         </Formik>
     );
-};
+}

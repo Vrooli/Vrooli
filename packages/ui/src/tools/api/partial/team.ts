@@ -60,6 +60,7 @@ export const team: GqlPartial<Team> = {
         you: () => rel(teamYou, "full"),
     },
     full: {
+        members: async () => rel((await import("./member")).member, "list", { omit: "team" }),
         roles: async () => rel((await import("./role")).role, "full", { omit: "team" }),
     },
     list: {},

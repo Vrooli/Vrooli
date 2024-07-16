@@ -1,7 +1,8 @@
-import { DUMMY_ID, endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, LINKS, Node, NodeLink, noop, noopSubmit, orDefault, RoutineType, RoutineVersion, RoutineVersionCreateInput, routineVersionTranslationValidation, RoutineVersionUpdateInput, routineVersionValidation, Session, uuid } from "@local/shared";
-import { Button, Checkbox, Divider, FormControlLabel, Grid, Tooltip, useTheme } from "@mui/material";
+import { DUMMY_ID, endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, LINKS, noopSubmit, orDefault, RoutineType, RoutineVersion, RoutineVersionCreateInput, routineVersionTranslationValidation, RoutineVersionUpdateInput, routineVersionValidation, Session, uuid } from "@local/shared";
+import { Checkbox, Divider, FormControlLabel, Grid, Tooltip } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
@@ -10,31 +11,29 @@ import { SelectorBase } from "components/inputs/Selector/Selector";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedTextInput } from "components/inputs/TextInput/TextInput";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
-import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { ResourceListInput } from "components/lists/resource/ResourceList/ResourceList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts/SessionContext";
-import { Formik, useField } from "formik";
+import { FieldHelperProps, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { FormBuildView } from "forms/FormBuildView/FormBuildView";
+import { FormInputBase, FormSchema } from "forms/types";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { ApiIcon, RoutineIcon, SearchIcon, SmartContractIcon, TerminalIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
-import { AVAILABLE_MODELS, LlmModel } from "utils/botUtils";
+import { LlmModel } from "utils/botUtils";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
+import { defaultSchemaInput, defaultSchemaOutput, parseConfigCallData, parseSchemaInputOutput } from "utils/routineUtils";
 import { initializeRoutineGraph } from "utils/runUtils";
 import { SearchPageTabOption } from "utils/search/objectToSearch";
-import { routineTypes } from "utils/search/schemas/routine";
+import { getRoutineTypeDescription, getRoutineTypeIcon, getRoutineTypeLabel, routineTypes } from "utils/search/schemas/routine";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
 import { RoutineShape } from "utils/shape/models/routine";
@@ -42,77 +41,188 @@ import { RoutineVersionShape, shapeRoutineVersion } from "utils/shape/models/rou
 import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
 import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
 import { validateFormValues } from "utils/validateFormValues";
-import { BuildView } from "views/objects/routine/BuildView/BuildView";
-import { RoutineFormProps, RoutineUpsertProps } from "../types";
+import { ConfigCallData, RoutineApiForm, RoutineCodeForm, RoutineDataForm, RoutineGenerateForm, RoutineInformationalForm, RoutineMultiStepForm, RoutineSmartContractForm } from "../RoutineTypeForms/RoutineTypeForms";
+import { BuildRoutineVersion, RoutineFormProps, RoutineUpsertProps } from "../types";
 
-export const routineInitialValues = (
+export function routineInitialValues(
     session: Session | undefined,
     existing?: Partial<RoutineVersion> | null | undefined,
-): RoutineVersionShape => ({
-    __typename: "RoutineVersion" as const,
-    id: uuid(), // Cannot be a dummy ID because nodes, links, etc. reference this ID
-    inputs: [],
-    isComplete: false,
-    isPrivate: false,
-    directoryListings: [],
-    nodeLinks: [],
-    nodes: [],
-    outputs: [],
-    routineType: RoutineType.Informational,
-    versionLabel: "1.0.0",
-    ...existing,
-    root: {
-        __typename: "Routine" as const,
-        id: DUMMY_ID,
+): RoutineVersionShape {
+    return {
+        __typename: "RoutineVersion" as const,
+        id: uuid(), // Cannot be a dummy ID because nodes, links, etc. reference this ID
+        inputs: [],
+        isComplete: false,
         isPrivate: false,
-        owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
-        parent: null,
-        permissions: JSON.stringify({}),
-        tags: [],
-        ...existing?.root,
-    },
-    resourceList: orDefault<RoutineVersionShape["resourceList"]>(existing?.resourceList, {
-        __typename: "ResourceList" as const,
-        id: DUMMY_ID,
-        listFor: {
-            __typename: "RoutineVersion" as const,
+        directoryListings: [],
+        nodeLinks: [],
+        nodes: [],
+        outputs: [],
+        routineType: RoutineType.Informational,
+        versionLabel: "1.0.0",
+        ...existing,
+        root: {
+            __typename: "Routine" as const,
             id: DUMMY_ID,
+            isPrivate: false,
+            owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
+            parent: null,
+            permissions: JSON.stringify({}),
+            tags: [],
+            ...existing?.root,
         },
-    }),
-    translations: orDefault(existing?.translations, [{
-        __typename: "RoutineVersionTranslation" as const,
-        id: DUMMY_ID,
-        language: getUserLanguages(session)[0],
-        description: "",
-        instructions: "",
-        name: "",
-    }]),
-});
+        resourceList: orDefault<RoutineVersionShape["resourceList"]>(existing?.resourceList, {
+            __typename: "ResourceList" as const,
+            id: DUMMY_ID,
+            listFor: {
+                __typename: "RoutineVersion" as const,
+                id: DUMMY_ID,
+            },
+        }),
+        translations: orDefault(existing?.translations, [{
+            __typename: "RoutineVersionTranslation" as const,
+            id: DUMMY_ID,
+            language: getUserLanguages(session)[0],
+            description: "",
+            instructions: "",
+            name: "",
+        }]),
+    };
+}
 
-const transformRoutineVersionValues = (values: RoutineVersionShape, existing: RoutineVersionShape, isCreate: boolean) =>
-    isCreate ? shapeRoutineVersion.create(values) : shapeRoutineVersion.update(existing, values);
+function transformRoutineVersionValues(values: RoutineVersionShape, existing: RoutineVersionShape, isCreate: boolean) {
+    return isCreate ? shapeRoutineVersion.create(values) : shapeRoutineVersion.update(existing, values);
+}
 
-const RoutineForm = ({
+type UpdateSchemaElementsBaseProps<Shape> = {
+    currentElements: Shape[];
+    elementsHelpers: FieldHelperProps<Shape[]>;
+    language: string;
+    routineVersionId: string;
+    schema: FormSchema;
+}
+
+type UpdateSchemaElementsInputsProps = UpdateSchemaElementsBaseProps<RoutineVersionInputShape> & {
+    type: "inputs";
+}
+
+type UpdateSchemaElementsOutputsProps = UpdateSchemaElementsBaseProps<RoutineVersionOutputShape> & {
+    type: "outputs";
+}
+
+export type UpdateSchemaElementsProps = UpdateSchemaElementsInputsProps | UpdateSchemaElementsOutputsProps;
+
+/**
+ * Updates inputs or outputs based on the provided schema.
+ * Ensures existing inputs/outputs are updated instead of creating duplicates.
+ * Utilizes the fieldName as the unique identifier for inputs/outputs.
+ * 
+ * @param schema - The form schema containing elements to be parsed as inputs/outputs.
+ * @param elementsHelpers - Formik helpers to set inputs or outputs.
+ * @param currentElements - Current inputs or outputs state.
+ * @param language - The user's language for translation.
+ */
+export function updateSchemaElements({
+    currentElements,
+    elementsHelpers,
+    language,
+    routineVersionId,
+    schema,
+    type,
+}: UpdateSchemaElementsProps) {
+    // Filter out headers and other non-input elements
+    const elementsInSchema = schema.elements.filter(
+        element => Object.prototype.hasOwnProperty.call(element, "fieldName"),
+    ) as FormInputBase[];
+
+    // Loop through schema elements and update existing elements or create new ones
+    const updatedElements = elementsInSchema.map(element => {
+        // Check if element already exists
+        const existingElement = currentElements.find(e => e.name === element.fieldName);
+
+        // Build translation if helpText and description are defined and not empty
+        const newTranslation = (element.helpText || element.description) ? {
+            language,
+            helpText: element.helpText || "",
+            description: element.description || "",
+        } : null;
+
+        // `isRequired` only applies to inputs
+        const isRequired = type === "inputs" ? (element.isRequired || false) : undefined;
+
+        if (existingElement) {
+            let updatedTranslations = [...existingElement.translations || []];
+
+            if (newTranslation) {
+                const translationIndex = updatedTranslations.findIndex(t => t.language === language);
+                if (translationIndex >= 0) {
+                    // Update existing translation
+                    updatedTranslations[translationIndex] = {
+                        ...updatedTranslations[translationIndex],
+                        ...newTranslation,
+                    };
+                } else {
+                    // Add new translation
+                    updatedTranslations.push({
+                        __typename: type === "inputs" ? "RoutineVersionInputTranslation" : "RoutineVersionOutputTranslation",
+                        id: DUMMY_ID,
+                        ...newTranslation,
+                    });
+                }
+            } else {
+                // Remove translation for this language if newTranslation is not provided
+                updatedTranslations = updatedTranslations.filter(t => t.language !== language);
+            }
+
+            // Update existing element
+            return {
+                ...existingElement,
+                isRequired,
+                translations: updatedTranslations,
+            };
+        } else {
+            // Create new element
+            return {
+                __typename: type === "inputs" ? "RoutineVersionInput" : "RoutineVersionOutput",
+                id: DUMMY_ID,
+                name: element.fieldName,
+                isRequired,
+                routineVersion: {
+                    __typename: "RoutineVersion",
+                    id: routineVersionId,
+                },
+                translations: newTranslation ? [newTranslation] : [],
+                // TODO: Handle standard version later. Makes sense for inputs like code, but not for inputs like text.
+            } as const;
+        }
+    });
+
+    (elementsHelpers as FieldHelperProps<never>).setValue(updatedElements as never);
+}
+
+const basicInfoCollapseStyle = { titleContainer: { marginBottom: 1 } } as const;
+const formSectionStyle = { overflowX: "hidden", marginBottom: 2 } as const;
+const relationshipListStyle = { marginBottom: 2 } as const;
+const resourceListStyle = { list: { marginBottom: 2 } } as const;
+const languageInputStyle = { flexDirection: "row-reverse" } as const;
+const tagSelectorStyle = { marginBottom: 2 } as const;
+const versionInputStyle = { marginBottom: 2 } as const;
+
+function RoutineForm({
     disabled,
-    dirty,
     display,
     existing,
-    handleUpdate,
     isCreate,
     isOpen,
     isReadLoading,
     isSubroutine,
-    onCancel,
     onClose,
-    onCompleted,
-    onDeleted,
     values,
     versions,
     ...props
-}: RoutineFormProps) => {
+}: RoutineFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
-    const { palette } = useTheme();
 
     // Handle translations
     const {
@@ -126,16 +236,63 @@ const RoutineForm = ({
         defaultLanguage: getUserLanguages(session)[0],
         validationSchema: routineVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
+    const translationData = useMemo(() => ({
+        language,
+        setLanguage,
+        handleAddLanguage,
+        handleDeleteLanguage,
+        languages,
+    }), [language, languages, setLanguage, handleAddLanguage, handleDeleteLanguage]);
 
     // Formik fields we need to access and/or set values for
     const [idField] = useField<string>("id");
+    const [translationsField, , translationsHelpers] = useField<RoutineVersion["translations"]>("translations");
+    const [routineTypeField, , routineTypeHelpers] = useField<RoutineVersion["routineType"]>("routineType");
     const [nodesField, , nodesHelpers] = useField<NodeShape[]>("nodes");
     const [nodeLinksField, , nodeLinksHelpers] = useField<NodeLinkShape[]>("nodeLinks");
     const [inputsField, , inputsHelpers] = useField<RoutineVersionInputShape[]>("inputs");
     const [outputsField, , outputsHelpers] = useField<RoutineVersionOutputShape[]>("outputs");
     const [configCallDataField, , configCallDataHelpers] = useField<RoutineVersion["configCallData"]>("configCallData");
+    const [configFormInputField, , configFormInputHelpers] = useField<RoutineVersion["configFormInput"]>("configFormInput");
+    const [configFormOutputField, , configFormOutputHelpers] = useField<RoutineVersion["configFormOutput"]>("configFormOutput");
     const [apiVersionField, , apiVersionHelpers] = useField<RoutineVersion["apiVersion"]>("apiVersion");
     const [codeVersionField, , codeVersionHelpers] = useField<RoutineVersion["codeVersion"]>("codeVersion");
+
+    const configCallData = useMemo(function configCallDataMemo() {
+        return parseConfigCallData(configCallDataField.value, routineTypeField.value);
+    }, [configCallDataField.value, routineTypeField.value]);
+    const onConfigCallDataChange = useCallback(function onConfigCallDataChange(config: ConfigCallData) {
+        configCallDataHelpers.setValue(JSON.stringify(config));
+    }, [configCallDataHelpers]);
+
+    const schemaInput = useMemo(function schemeInputMemo() {
+        return parseSchemaInputOutput(configFormInputField.value, defaultSchemaInput);
+    }, [configFormInputField.value]);
+    const schemaOutput = useMemo(function schemaOutputMemo() {
+        return parseSchemaInputOutput(configFormOutputField.value, defaultSchemaOutput);
+    }, [configFormOutputField.value]);
+    const onSchemaInputChange = useCallback(function onSchemaInputChange(schema: FormSchema) {
+        configFormInputHelpers.setValue(JSON.stringify(schema));
+        updateSchemaElements({
+            currentElements: inputsField.value,
+            elementsHelpers: inputsHelpers,
+            language,
+            routineVersionId: idField.value,
+            schema,
+            type: "inputs",
+        });
+    }, [configFormInputHelpers, idField.value, inputsField.value, inputsHelpers, language]);
+    const onSchemaOutputChange = useCallback(function onSchemaOutputChange(schema: FormSchema) {
+        configFormOutputHelpers.setValue(JSON.stringify(schema));
+        updateSchemaElements({
+            currentElements: outputsField.value,
+            elementsHelpers: outputsHelpers,
+            language,
+            routineVersionId: idField.value,
+            schema,
+            type: "outputs",
+        });
+    }, [configFormOutputHelpers, idField.value, language, outputsField.value, outputsHelpers]);
 
     // Multi-step routine data
     const [isGraphOpen, setIsGraphOpen] = useState(false);
@@ -151,55 +308,68 @@ const RoutineForm = ({
         }
         setIsGraphOpen(true);
     }, [idField.value, language, nodeLinksField.value, nodeLinksHelpers, nodesField.value, nodesHelpers]);
-    const handleGraphClose = useCallback(() => { console.log("yeet"); setIsGraphOpen(false); }, [setIsGraphOpen]);
-    const handleGraphSubmit = useCallback(({ nodes, nodeLinks }: { nodes: RoutineVersion["nodes"], nodeLinks: RoutineVersion["nodeLinks"] }) => {
+    const handleGraphClose = useCallback(() => { setIsGraphOpen(false); }, [setIsGraphOpen]);
+    const handleGraphSubmit = useCallback(({ nodes, nodeLinks, translations }: BuildRoutineVersion) => {
         nodesHelpers.setValue(nodes);
         nodeLinksHelpers.setValue(nodeLinks);
+        translationsHelpers.setValue(translations);
         setIsGraphOpen(false);
-    }, [nodeLinksHelpers, nodesHelpers]);
+    }, [nodeLinksHelpers, nodesHelpers, translationsHelpers]);
 
     // Generate AI routine data
     const [model, setModel] = useState<LlmModel | null>(null);
 
     // Handle routine type
-    const [routineType, setRoutineType] = useState<RoutineType>(RoutineType.Informational); // Default to this because it's the most basic
-    const handleRoutineTypeChange = useCallback((newType: RoutineType) => {
+    const routineTypeValue = useMemo(function routineTypeValueMemo() {
+        return routineTypes.find(r => r.type === routineTypeField.value) ?? routineTypes[0];
+    }, [routineTypeField.value]);
+    const handleRoutineTypeChange = useCallback(({ type }: { type: RoutineType }) => {
         // If type is the same, do nothing
-        if (newType === routineType) return;
+        if (type === routineTypeField.value) return;
+        // Returns true if one of the values is not empty
+        function hasData(...values: unknown[]): boolean {
+            return values.some(value =>
+                (typeof value === "string" && value.length > 0) ||
+                (Array.isArray(value) && value.length > 0) ||
+                (!Array.isArray(value) && typeof value === "object" && value !== null && Object.keys(value).length > 0),
+            );
+        }
         // Map to check if the type we're switching FROM has data that will be lost
         const loseDataCheck = {
             // Has call data
-            [RoutineType.Action]: typeof configCallDataField.value === "string" && configCallDataField.value.length > 0,
+            [RoutineType.Action]: hasData(configCallDataField.value, configFormInputField.value, configFormOutputField.value),
             // Has API information
-            [RoutineType.Api]: (typeof configCallDataField.value === "string" && configCallDataField.value.length > 0) || typeof apiVersionField.value === "object",
+            [RoutineType.Api]: hasData(configCallDataField.value, configFormInputField.value, configFormOutputField.value, apiVersionField.value),
             // Has code information
-            [RoutineType.Code]: (typeof configCallDataField.value === "string" && configCallDataField.value.length > 0) || typeof codeVersionField.value === "object",
+            [RoutineType.Code]: hasData(configCallDataField.value, configFormInputField.value, configFormOutputField.value, codeVersionField.value),
             // Has an output
-            [RoutineType.Data]: Array.isArray(outputsField.value) && outputsField.value.length > 0,
+            [RoutineType.Data]: hasData(configFormOutputField.value),
             // Has an input or call data
-            [RoutineType.Generate]: (Array.isArray(inputsField.value) && inputsField.value.length > 0) || (typeof configCallDataField.value === "string" && configCallDataField.value.length > 0),
-            // Has no additional data, so nothing to lose
-            [RoutineType.Informational]: false,
+            [RoutineType.Generate]: hasData(configCallDataField.value, configFormInputField.value, configFormOutputField.value),
+            // Has input data
+            [RoutineType.Informational]: hasData(configFormInputField.value),
             // Has graph information
-            [RoutineType.MultiStep]: (Array.isArray(nodesField.value) && nodesField.value.length > 0) || (Array.isArray(nodeLinksField.value) && nodeLinksField.value.length > 0),
+            [RoutineType.MultiStep]: hasData(nodesField.value, nodeLinksField.value),
             // Also uses code information
-            [RoutineType.SmartContract]: (typeof configCallDataField.value === "string" && configCallDataField.value.length > 0) || typeof codeVersionField.value === "object",
+            [RoutineType.SmartContract]: hasData(configCallDataField.value, configFormInputField.value, configFormOutputField.value, codeVersionField.value),
         };
         // Helper function to remove all type-specific data on switch
-        const performSwitch = () => {
+        function performSwitch() {
             apiVersionHelpers.setValue(null);
             codeVersionHelpers.setValue(null);
-            configCallDataHelpers.setValue("");
+            configCallDataHelpers.setValue(null);
+            configFormInputHelpers.setValue(null);
+            configFormOutputHelpers.setValue(null);
             inputsHelpers.setValue([]);
             outputsHelpers.setValue([]);
             nodesHelpers.setValue([]);
             nodeLinksHelpers.setValue([]);
-            setRoutineType(newType);
+            routineTypeHelpers.setValue(type);
             // If we switch to a multi-step routine, open the graph
-            if (newType === RoutineType.MultiStep) handleGraphOpen();
-        };
+            if (type === RoutineType.MultiStep) handleGraphOpen();
+        }
         // If we're losing data, confirm with user
-        const losingData = loseDataCheck[routineType];
+        const losingData = loseDataCheck[routineTypeField.value];
         if (losingData) {
             PubSub.get().publish("alertDialog", {
                 messageKey: "RoutineTypeSwitchLoseData",
@@ -215,13 +385,14 @@ const RoutineForm = ({
         else {
             performSwitch();
         }
-    }, [configCallDataField.value, configCallDataHelpers, apiVersionField.value, apiVersionHelpers, codeVersionField.value, codeVersionHelpers, handleGraphOpen, inputsField.value, inputsHelpers, nodeLinksField.value, nodeLinksHelpers, nodesField.value, nodesHelpers, outputsField.value, outputsHelpers, routineType]);
+    }, [routineTypeField.value, configCallDataField.value, configFormInputField.value, configFormOutputField.value, apiVersionField.value, codeVersionField.value, nodesField.value, nodeLinksField.value, apiVersionHelpers, codeVersionHelpers, configCallDataHelpers, configFormInputHelpers, configFormOutputHelpers, inputsHelpers, outputsHelpers, nodesHelpers, nodeLinksHelpers, routineTypeHelpers, handleGraphOpen]);
 
     const { handleCancel, handleCompleted } = useUpsertActions<RoutineVersion>({
         display,
         isCreate,
         objectId: values.id,
         objectType: "RoutineVersion",
+        rootObjectId: values.root?.id,
         ...props,
     });
     const {
@@ -248,202 +419,53 @@ const RoutineForm = ({
         onCompleted: () => { props.setSubmitting(false); },
     });
 
+    const routineTypeBaseProps = useMemo(function routineTypeBasePropsMemo() {
+        return {
+            configCallData,
+            disabled,
+            isEditing: true,
+            onConfigCallDataChange,
+            onSchemaInputChange,
+            onSchemaOutputChange,
+            schemaInput,
+            schemaOutput,
+        };
+    }, [configCallData, disabled, onConfigCallDataChange, onSchemaInputChange, onSchemaOutputChange, schemaInput, schemaOutput]);
+
     // Type-specific components
-    const routineTypeComponents = useMemo(() => {
-        switch (routineType) {
+    const routineTypeComponents = useMemo(function routineTypeComponentsMemo() {
+        switch (routineTypeField.value) {
             case RoutineType.Api:
-                return (
-                    <>
-                        <Title
-                            Icon={ApiIcon}
-                            title={"Connect API"}
-                            help={"Connect API that will receive the defined inputs and is expected to return the defined outputs.\n\nIf the API fails or does not return the expected data, the routine will fail."}
-                            variant="subsection"
-                            sxs={{ stack: { paddingLeft: 0 } }}
-                        />
-                        {/* TODO */}
-                        <Grid item xs={12}>
-                            <InputOutputContainer
-                                isEditing={true}
-                                handleUpdate={inputsHelpers.setValue as any}
-                                isInput={true}
-                                language={language}
-                                list={inputsField.value}
-                            />
-                        </Grid>
-                        <Grid item xs={12} mb={4}>
-                            <InputOutputContainer
-                                isEditing={true}
-                                handleUpdate={outputsHelpers.setValue as any}
-                                isInput={false}
-                                language={language}
-                                list={outputsField.value}
-                            />
-                        </Grid>
-                    </>
-                );
+                return <RoutineApiForm {...routineTypeBaseProps} />;
             case RoutineType.Code:
-                return (
-                    <>
-                        <Title
-                            Icon={TerminalIcon}
-                            title={"Connect code"}
-                            help={"Connect or create a data converter function to this routine.\n\nThe code will be passed all non-file inputs, and is expected to return all non-file outputs.\n\nIf the code fails or does not return the expected data, the routine will fail."}
-                            variant="subsection"
-                            sxs={{ stack: { paddingLeft: 0 } }}
-                        />
-                        {/* TODO */}
-                        <Grid item xs={12}>
-                            <InputOutputContainer
-                                isEditing={true}
-                                handleUpdate={inputsHelpers.setValue as any}
-                                isInput={true}
-                                language={language}
-                                list={inputsField.value}
-                            />
-                        </Grid>
-                        <Grid item xs={12} mb={4}>
-                            <InputOutputContainer
-                                isEditing={true}
-                                handleUpdate={outputsHelpers.setValue as any}
-                                isInput={false}
-                                language={language}
-                                list={outputsField.value}
-                            />
-                        </Grid>
-                    </>
-                );
+                return <RoutineCodeForm {...routineTypeBaseProps} />;
             case RoutineType.Data:
-                return (
-                    <>
-                        <InputOutputContainer
-                            isEditing={true}
-                            handleUpdate={outputsHelpers.setValue as any}
-                            isInput={false}
-                            language={language}
-                            list={outputsField.value}
-                        />
-                    </>
-                );
+                return <RoutineDataForm {...routineTypeBaseProps} />;
             case RoutineType.Generate:
-                return (
-                    <>
-                        <SelectorBase
-                            name="model"
-                            options={AVAILABLE_MODELS}
-                            getOptionLabel={(r) => r.name}
-                            getOptionDescription={(r) => r.description}
-                            fullWidth={true}
-                            inputAriaLabel="Mode"
-                            label={t("Model", { count: 1 })}
-                            onChange={(newModel) => {
-                                setModel(newModel);
-                            }}
-                            value={model}
-                        />
-                        {/* TODO */}
-                        <Grid item xs={12}>
-                            <InputOutputContainer
-                                isEditing={true}
-                                handleUpdate={inputsHelpers.setValue as any}
-                                isInput={true}
-                                language={language}
-                                list={inputsField.value}
-                            />
-                        </Grid>
-                        <Grid item xs={12} mb={4}>
-                            <InputOutputContainer
-                                isEditing={true}
-                                handleUpdate={outputsHelpers.setValue as any}
-                                isInput={false}
-                                language={language}
-                                list={outputsField.value}
-                            />
-                        </Grid>
-                    </>
-                );
+                return <RoutineGenerateForm {...routineTypeBaseProps} />;
             case RoutineType.Informational:
-                // Allow inputs to be entered. Since nothing else is connected to the routine, these inputs 
-                // will have to be filled out manually by a user or bot
-                //  {/* <InputOutputContainer
-                //             isEditing={true}
-                //             handleUpdate={inputsHelpers.setValue as any}
-                //             isInput={true}
-                //             language={language}
-                //             list={inputsField.value}
-                //         /> */}
-                return <FormBuildView display="dialog" isOpen={true} onClose={noop} />;
+                return <RoutineInformationalForm {...routineTypeBaseProps} />;
             case RoutineType.MultiStep:
-                // Display graph editor
-                return (
-                    <>
-                        <BuildView
-                            display="dialog"
-                            handleCancel={handleGraphClose}
-                            onClose={handleGraphClose}
-                            handleSubmit={handleGraphSubmit}
-                            isEditing={true}
-                            isOpen={isGraphOpen}
-                            loading={false}
-                            routineVersion={{
-                                id: idField.value,
-                                nodeLinks: nodeLinksField.value as NodeLink[],
-                                nodes: nodesField.value as Node[],
-                            }}
-                            translationData={{
-                                language,
-                                setLanguage,
-                                handleAddLanguage,
-                                handleDeleteLanguage,
-                                languages,
-                            }}
-                        />
-                        {/* Button to display graph */}
-                        <Grid item xs={12} mb={4}>
-                            <Button
-                                startIcon={<RoutineIcon />}
-                                fullWidth color="secondary"
-                                onClick={handleGraphOpen}
-                                variant="contained"
-                            >View Graph</Button>
-                        </Grid>
-                        {/* # nodes, # links, Simplicity, complexity & other graph stats */}
-                        {/* TODO */}
-                    </>
-                );
+                return <RoutineMultiStepForm
+                    {...routineTypeBaseProps}
+                    isGraphOpen={isGraphOpen}
+                    handleGraphClose={handleGraphClose}
+                    handleGraphOpen={handleGraphOpen}
+                    handleGraphSubmit={handleGraphSubmit}
+                    nodeLinks={nodeLinksField.value}
+                    nodes={nodesField.value}
+                    routineId={idField.value}
+                    translations={translationsField.value}
+                    translationData={translationData}
+                />;
             case RoutineType.SmartContract:
-                return (
-                    <>
-                        <Title
-                            Icon={SmartContractIcon}
-                            title={"Connect smart contract"}
-                            help={"Connect or create a smart contract to this routine.\n\nThe contract will be passed all non-file inputs, and is expected to return all non-file outputs.\n\nIf the contract fails or does not return the expected data, the routine will fail."}
-                            variant="subsection"
-                            sxs={{ stack: { paddingLeft: 0 } }}
-                        />
-                        {/* TODO */}
-                        <Grid item xs={12}>
-                            <InputOutputContainer
-                                isEditing={true}
-                                handleUpdate={inputsHelpers.setValue as any}
-                                isInput={true}
-                                language={language}
-                                list={inputsField.value}
-                            />
-                        </Grid>
-                        <Grid item xs={12} mb={4}>
-                            <InputOutputContainer
-                                isEditing={true}
-                                handleUpdate={outputsHelpers.setValue as any}
-                                isInput={false}
-                                language={language}
-                                list={outputsField.value}
-                            />
-                        </Grid>
-                    </>
-                );
+                return <RoutineSmartContractForm {...routineTypeBaseProps} />;
         }
-    }, [handleAddLanguage, handleDeleteLanguage, handleGraphClose, handleGraphOpen, handleGraphSubmit, idField.value, inputsField.value, inputsHelpers.setValue, isGraphOpen, language, languages, model, nodeLinksField.value, nodesField.value, outputsField.value, outputsHelpers.setValue, routineType, setLanguage, t]);
+    }, [handleGraphClose, handleGraphOpen, handleGraphSubmit, idField.value, isGraphOpen, nodeLinksField.value, nodesField.value, routineTypeField.value, routineTypeBaseProps, translationData, translationsField.value]);
+
+    const resourceListParent = useMemo(function resourceListParent() {
+        return { __typename: "RoutineVersion", id: values.id } as const;
+    }, [values.id]);
 
     return (
         <MaybeLargeDialog
@@ -457,42 +479,34 @@ const RoutineForm = ({
                 onClose={onClose}
                 title={t(isCreate ? "CreateRoutine" : "UpdateRoutine")}
             />
-            <Button
-                href={`${LINKS.Search}?type=${SearchPageTabOption.Routine}`}
-                sx={{
-                    color: palette.background.textSecondary,
-                    display: "flex",
-                    marginTop: 2,
-                    textAlign: "center",
-                    textTransform: "none",
-                }}
-                variant="text"
-                endIcon={<SearchIcon />}
-            >
-                Search existing routines
-            </Button>
+            <SearchExistingButton
+                href={`${LINKS.Search}?type="${SearchPageTabOption.Routine}"`}
+                text="Search existing routines"
+            />
             <BaseForm
                 display={display}
                 isLoading={isLoading}
                 maxWidth={700}
             >
                 <FormContainer>
-                    <ContentCollapse title="Basic info" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
+                    <ContentCollapse title="Basic info" titleVariant="h4" isOpen={display === "page"} sxs={basicInfoCollapseStyle}>
                         <RelationshipList
                             isEditing={true}
                             objectType={"Routine"}
-                            sx={{ marginBottom: 2 }}
+                            sx={relationshipListStyle}
                         />
                         <ResourceListInput
                             horizontal
                             isCreate={true}
-                            parent={{ __typename: "RoutineVersion", id: values.id }}
-                            sxs={{ list: { marginBottom: 2 } }}
+                            parent={resourceListParent}
+                            sxs={resourceListStyle}
                         />
-                        <FormSection sx={{ overflowX: "hidden", marginBottom: 2 }}>
+                        <FormSection sx={formSectionStyle}>
+                            {/* TODO: work on fix for autoFocus accessibility issue. Probably need to use ref and useEffect, which also requires making RichInput a forwardRef. If doing this, then we can autoFocus in the helpbutton edit mode as well */}
                             <TranslatedTextInput
                                 autoFocus
                                 fullWidth
+                                isRequired
                                 label={t("Name")}
                                 language={language}
                                 name="name"
@@ -519,14 +533,14 @@ const RoutineForm = ({
                                 handleDelete={handleDeleteLanguage}
                                 handleCurrent={setLanguage}
                                 languages={languages}
-                                sx={{ flexDirection: "row-reverse" }}
+                                sx={languageInputStyle}
                             />
                         </FormSection>
-                        <TagSelector name="root.tags" sx={{ marginBottom: 2 }} />
+                        <TagSelector name="root.tags" sx={tagSelectorStyle} />
                         <VersionInput
                             fullWidth
                             versions={versions}
-                            sx={{ marginBottom: 2 }}
+                            sx={versionInputStyle}
                         />
                     </ContentCollapse>
                     <Divider />
@@ -553,17 +567,16 @@ const RoutineForm = ({
                         <SelectorBase
                             name="routineType"
                             options={routineTypes}
-                            getOptionLabel={(r) => r.label}
-                            getOptionDescription={(r) => r.description}
-                            getOptionIcon={(r) => r.Icon}
+                            getOptionDescription={getRoutineTypeDescription}
+                            getOptionLabel={getRoutineTypeLabel}
+                            getOptionIcon={getRoutineTypeIcon}
                             fullWidth={true}
                             inputAriaLabel="Routine Type"
                             label="Routine Type"
-                            onChange={({ type }) => handleRoutineTypeChange(type)}
-                            value={routineTypes.find(r => r.type === routineType) ?? routineTypes[0]}
+                            onChange={handleRoutineTypeChange}
+                            value={routineTypeValue}
                         />
                         {routineTypeComponents}
-
                     </FormSection>
                 </FormContainer>
             </BaseForm>
@@ -579,15 +592,15 @@ const RoutineForm = ({
             />
         </MaybeLargeDialog >
     );
-};
+}
 
-export const RoutineUpsert = ({
+export function RoutineUpsert({
     isCreate,
     isOpen,
     isSubroutine = false,
     overrideObject,
     ...props
-}: RoutineUpsertProps) => {
+}: RoutineUpsertProps) {
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<RoutineVersion, RoutineVersionShape>({
@@ -598,12 +611,18 @@ export const RoutineUpsert = ({
         transform: (existing) => routineInitialValues(session, existing),
     });
 
+    async function validateValues(values: RoutineVersionShape) {
+        return await validateFormValues(values, existing, isCreate, transformRoutineVersionValues, routineVersionValidation);
+    }
+
+    const versions = useMemo(() => (existing?.root as RoutineShape)?.versions?.map(v => v.versionLabel) ?? [], [existing]);
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformRoutineVersionValues, routineVersionValidation)}
+            validate={validateValues}
         >
             {(formik) => <RoutineForm
                 disabled={!(isCreate || permissions.canUpdate)}
@@ -613,10 +632,10 @@ export const RoutineUpsert = ({
                 isReadLoading={isReadLoading}
                 isOpen={isOpen}
                 isSubroutine={isSubroutine}
-                versions={(existing?.root as RoutineShape)?.versions?.map(v => v.versionLabel) ?? []}
+                versions={versions}
                 {...props}
                 {...formik}
             />}
         </Formik>
     );
-};
+}

@@ -1,7 +1,7 @@
 import { CommentFor, endpointGetQuestion, exists, Question, Tag } from "@local/shared";
-import { Box, IconButton, Stack, useTheme } from "@mui/material";
+import { Stack, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
-import { CommentContainer, containerProps } from "components/containers/CommentContainer/CommentContainer";
+import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
@@ -17,6 +17,7 @@ import { EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { FormSection, SideActionsButton } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
@@ -25,10 +26,10 @@ import { TagShape } from "utils/shape/models/tag";
 import { questionInitialValues } from "../QuestionUpsert/QuestionUpsert";
 import { QuestionViewProps } from "../types";
 
-export const QuestionView = ({
+export function QuestionView({
     display,
     onClose,
-}: QuestionViewProps) => {
+}: QuestionViewProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -64,7 +65,7 @@ export const QuestionView = ({
     });
 
     const comments = useMemo(() => (
-        <Box sx={containerProps(palette)}>
+        <FormSection>
             <CommentContainer
                 forceAddCommentOpen={isAddCommentOpen}
                 language={language}
@@ -72,7 +73,7 @@ export const QuestionView = ({
                 objectType={CommentFor.Question}
                 onAddCommentClose={closeAddCommentDialog}
             />
-        </Box>
+        </FormSection>
     ), [closeAddCommentDialog, existing?.id, isAddCommentOpen, language, palette]);
 
     return (
@@ -131,11 +132,11 @@ export const QuestionView = ({
             <SideActionsButtons display={display}>
                 {/* Edit button */}
                 {permissions.canUpdate ? (
-                    <IconButton aria-label={t("UpdateQuestion")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>
+                    <SideActionsButton aria-label={t("UpdateQuestion")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }}>
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </IconButton>
+                    </SideActionsButton>
                 ) : null}
             </SideActionsButtons>
         </>
     );
-};
+}

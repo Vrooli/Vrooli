@@ -29,7 +29,7 @@ const lightPalette = {
     mode: "light",
     primary: {
         light: "#4372a3",
-        main: "#344eb5",
+        main: "#264983",
         dark: "#072c6a",
         contrastText: "#ffffff",
     },
@@ -102,7 +102,7 @@ const darkPalette = {
     mode: "dark",
     primary: {
         light: "#5f6a89",
-        main: "#515774",
+        main: "#2e3847",
         dark: "#242930",
         contrastText: "#ffffff",
     },

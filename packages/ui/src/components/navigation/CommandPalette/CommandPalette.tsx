@@ -9,6 +9,7 @@ import { useLazyFetch } from "hooks/useLazyFetch";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { randomString } from "utils/codes";
 import { listToAutocomplete } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { actionsItems, shortcuts } from "utils/navigation/quickActions";
@@ -16,7 +17,7 @@ import { PubSub } from "utils/pubsub";
 
 const titleId = "command-palette-dialog-title";
 
-export const CommandPalette = () => {
+export function CommandPalette() {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -62,13 +63,24 @@ export const CommandPalette = () => {
             // });
         }
         const queryItems = listToAutocomplete(parseData(data), languages);
-        return [...firstResults, ...queryItems, ...shortcutsItems, ...actionsItems];
+        const combinedOptions = [...firstResults, ...queryItems, ...shortcutsItems, ...actionsItems];
+        // Create unique keys for each option
+        const keySet = new Set<string>();
+        return combinedOptions.map(option => {
+            const key = option.id;
+            while (keySet.has(key)) {
+                console.warn("Duplicate key found in command palette", key, option);
+                option.id += `-${randomString()}`;
+            }
+            keySet.add(option.id);
+            return { ...option, key };
+        });
     }, [t, searchString, data, languages, shortcutsItems]);
 
     /**
      * When an autocomplete item is selected, navigate to object
      */
-    const onInputSelect = useCallback((newValue: AutocompleteOption) => {
+    const onInputSelect = useCallback(function onInputSelectCallback(newValue: AutocompleteOption) {
         if (!newValue) return;
         // Clear search string and close command palette
         close();
@@ -79,6 +91,25 @@ export const CommandPalette = () => {
         // Set new location
         setLocation(newLocation);
     }, [close, setLocation]);
+
+    const searchBarBoxStyle = useMemo(function searchBarBoxStyleMemo() {
+        return {
+            background: palette.background.default,
+            overflowY: "visible",
+            minHeight: "500px",
+        } as const;
+    }, [palette]);
+
+    const searchBarStyle = useMemo(function searchBarStyleMemo() {
+        return {
+            root: {
+                width: "100%",
+                top: 0,
+                marginTop: 2,
+            },
+            paper: { background: palette.background.paper },
+        } as const;
+    }, [palette]);
 
     return (
         <LargeDialog
@@ -93,11 +124,7 @@ export const CommandPalette = () => {
                 title={t("CommandPaletteTitle")}
                 onClose={close}
             />
-            <DialogContent sx={{
-                background: palette.background.default,
-                overflowY: "visible",
-                minHeight: "500px",
-            }}>
+            <DialogContent sx={searchBarBoxStyle}>
                 <SiteSearchBar
                     id="command-palette-search"
                     autoFocus={true}
@@ -107,17 +134,9 @@ export const CommandPalette = () => {
                     value={searchString}
                     onChange={updateSearch}
                     onInputChange={onInputSelect}
-                    showSecondaryLabel={true}
-                    sxs={{
-                        root: {
-                            width: "100%",
-                            top: 0,
-                            marginTop: 2,
-                        },
-                        paper: { background: palette.background.paper },
-                    }}
+                    sxs={searchBarStyle}
                 />
             </DialogContent>
         </LargeDialog>
     );
-};
+}

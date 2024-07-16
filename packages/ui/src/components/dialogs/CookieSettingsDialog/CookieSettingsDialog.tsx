@@ -16,10 +16,10 @@ const strictlyNecessaryUses = ["Authentication"] as const;
 const functionalUses = ["DisplayCustomization", "Caching"] as const;
 const zIndex = 30000;
 
-export const CookieSettingsDialog = ({
+export function CookieSettingsDialog({
     handleClose,
     isOpen,
-}: CookieSettingsDialogProps) => {
+}: CookieSettingsDialogProps) {
     const { t } = useTranslation();
 
     const setPreferences = (preferences: CookiePreferences) => {
@@ -179,4 +179,4 @@ export const CookieSettingsDialog = ({
             </form>
         </LargeDialog>
     );
-};
+}

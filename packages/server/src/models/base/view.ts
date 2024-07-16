@@ -228,16 +228,20 @@ export const ViewModel: ViewModelLogic = ({
             by: "User",
         }),
         visibility: {
-            private: {
-                OR: [
-                    ...Object.entries(displayMapper).map(([key, value]) => ({ [value]: ModelMap.get(key as GqlModelType).validate().visibility.private })),
-                ],
+            private: function getVisibilityPrivate(...params) {
+                return {
+                    OR: [
+                        ...Object.entries(displayMapper).map(([key, value]) => ({ [value]: ModelMap.get(key as GqlModelType).validate().visibility.private(...params) })),
+                    ],
+                };
             },
-            public: {
-                // Can use OR because only one relation will be present
-                OR: [
-                    ...Object.entries(displayMapper).map(([key, value]) => ({ [value]: ModelMap.get(key as GqlModelType).validate().visibility.public })),
-                ],
+            public: function getVisibilityPublic(...params) {
+                return {
+                    // Can use OR because only one relation will be present
+                    OR: [
+                        ...Object.entries(displayMapper).map(([key, value]) => ({ [value]: ModelMap.get(key as GqlModelType).validate().visibility.public(...params) })),
+                    ],
+                };
             },
             owner: (userId) => ({
                 by: { id: userId },
@@ -340,6 +344,8 @@ export const ViewModel: ViewModelLogic = ({
         // Update view count
         await withRedis({
             process: async (redisClient) => {
+                // Don't update view count when redis is unavailable
+                if (!redisClient) return;
                 // Check the last time the user viewed this object
                 const redisKey = `view:${userData.id}_${dataMapper[input.viewFor](objectToView).id}_${input.viewFor}`;
                 const lastViewed = await redisClient.get(redisKey);

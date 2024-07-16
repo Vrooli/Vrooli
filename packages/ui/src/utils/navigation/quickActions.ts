@@ -115,78 +115,78 @@ export const shortcuts: PreSearchItem[] = [
     {
         label: "SearchRoutine",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Routine}`,
+        value: `${LINKS.Search}?type="${SearchPageTabOption.Routine}"`,
     },
     {
         label: "SearchProject",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Project}`,
+        value: `${LINKS.Search}?type="${SearchPageTabOption.Project}"`,
     },
     {
         label: "SearchQuestion",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Question}`,
+        value: `${LINKS.Search}?type="${SearchPageTabOption.Question}"`,
     },
     {
         label: "SearchNote",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Note}`,
+        value: `${LINKS.Search}?type="${SearchPageTabOption.Note}"`,
     },
     {
         label: "SearchTeam",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Team}`,
+        value: `${LINKS.Search}?type="${SearchPageTabOption.Team}"`,
     },
     {
         label: "SearchUser",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.User}`,
+        value: `${LINKS.Search}?type="${SearchPageTabOption.User}"`,
     },
     {
         label: "SearchStandard",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Standard}`,
+        value: `${LINKS.Search}?type="${SearchPageTabOption.Standard}"`,
     },
     {
         label: "SearchApi",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Api}`,
+        value: `${LINKS.Search}?type="${SearchPageTabOption.Api}"`,
     },
     {
         label: "SearchCode",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type=${SearchPageTabOption.Code}`,
+        value: `${LINKS.Search}?type="${SearchPageTabOption.Code}"`,
     },
     {
         label: "SearchRun",
         keywords: searchKeywords,
-        value: `${LINKS.History}?type=${HistoryPageTabOption.RunsActive}`,
+        value: `${LINKS.History}?type="${HistoryPageTabOption.RunsActive}"`,
     },
     {
         label: "SearchView",
         keywords: [...searchKeywords, "SearchViewed"],
-        value: `${LINKS.History}?type=${HistoryPageTabOption.Viewed}`,
+        value: `${LINKS.History}?type="${HistoryPageTabOption.Viewed}"`,
     },
     {
         label: "SearchBookmark",
         keywords: [...searchKeywords, "SearchBookmarked"],
-        value: `${LINKS.History}?type=${HistoryPageTabOption.Bookmarked}`,
+        value: `${LINKS.History}?type="${HistoryPageTabOption.Bookmarked}"`,
     },
     // { //TODO should be possible to replicate with normal advanced search
     //     label: 'Search your actively developing projects and routines',
-    //     link: `${LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.InProgress}`,
+    //     link: `${LINKS.DevelopSearch}?type="${DevelopSearchPageTabOption.InProgress}"`,
     // },
     // {
     //     label: 'Search your completed projects and routines',
-    //     link: `${LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.Completed}`,
+    //     link: `${LINKS.DevelopSearch}?type="${DevelopSearchPageTabOption.Completed}"`,
     // },
     // {
     //     label: 'Search your actively developing projects and routines advanced',
-    //     link: `${LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.InProgress}&advanced=true`,
+    //     link: `${LINKS.DevelopSearch}?type="${DevelopSearchPageTabOption.InProgress}"&advanced=true`,
     // },
     // {
     //     label: 'Search your completed projects and routines advanced',
-    //     link: `${LINKS.DevelopSearch}?type=${DevelopSearchPageTabOption.Completed}&advanced=true`,
+    //     link: `${LINKS.DevelopSearch}?type="${DevelopSearchPageTabOption.Completed}"&advanced=true`,
     // },
 ];
 

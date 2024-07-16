@@ -88,11 +88,11 @@ const handleTextMutation = (
     }
 };
 
-export const $flushMutations = (
+export function $flushMutations(
     editor: LexicalEditor,
     mutations: MutationRecord[],
     observer: MutationObserver,
-): void => {
+): void {
     isProcessingMutations = true;
     const shouldFlushTextMutations = performance.now() - lastTextEntryTimeStamp > TEXT_MUTATION_VARIANCE;
 
@@ -280,7 +280,7 @@ export const $flushMutations = (
     } finally {
         isProcessingMutations = false;
     }
-};
+}
 
 export const flushRootMutations = (editor: LexicalEditor): void => {
     const observer = editor._observer;

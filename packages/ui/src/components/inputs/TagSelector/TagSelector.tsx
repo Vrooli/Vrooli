@@ -1,35 +1,52 @@
 import { BookmarkFor, DUMMY_ID, endpointGetTags, exists, Tag, TagSearchInput, TagSearchResult, TagSortBy } from "@local/shared";
-import { Autocomplete, Chip, CircularProgress, InputAdornment, ListItemText, MenuItem, Popper, PopperProps, useTheme } from "@mui/material";
+import { Autocomplete, AutocompleteRenderGetTagProps, AutocompleteRenderInputParams, Chip, CircularProgress, InputAdornment, ListItemText, MenuItem, Popper, PopperProps, styled } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { useField } from "formik";
 import { useFetch } from "hooks/useFetch";
 import { TagIcon } from "icons";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { HTMLAttributes, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { CHIP_LIST_LIMIT } from "utils/consts";
 import { PubSub } from "utils/pubsub";
 import { TagShape } from "utils/shape/models/tag";
 import { TextInput } from "../TextInput/TextInput";
 import { TagSelectorBaseProps, TagSelectorProps } from "../types";
 
+type TagOption = string | Tag | TagShape;
+
+function filterOptions(options: TagOption[]) { return options; }
+
+function isOptionEqualToValue(option: TagOption, value: TagOption) {
+    const optionTag = typeof option === "string" ? option : option.tag;
+    const valueTag = typeof value === "string" ? value : value.tag;
+    return optionTag === valueTag;
+}
+
+function getOptionLabel(o: TagOption) {
+    return typeof o === "string" ? o : o.tag;
+}
+
 /** Removes invalid characters from tag string */
-const withoutInvalidChars = (str: string) => str.replace(/[,;]/g, "");
+function withoutInvalidChars(str: string) {
+    return str.replace(/[,;]/g, "");
+}
 
 /** Custom Popper component to add scroll handling */
-const PopperComponent = ({
+function PopperComponent({
     onScrollBottom,
     ...props
-}: PopperProps & { onScrollBottom: () => unknown }) => {
+}: PopperProps & { onScrollBottom: () => unknown }) {
     const popperRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
-        const handleScroll = (event) => {
+        function handleScroll(event) {
             const target = event.target;
             // Check if we've scrolled to the bottom
             if (target.scrollTop + target.clientHeight >= target.scrollHeight - 10) {
                 // Trigger load more function
                 onScrollBottom();
             }
-        };
+        }
 
         // The grandchild of the Popper is the scrollable element
         const popperNode = popperRef.current;
@@ -46,20 +63,27 @@ const PopperComponent = ({
     }, [onScrollBottom, props.open]); // Re-run effect when open state changes
 
     return <Popper {...props} ref={popperRef} />;
-};
+}
 
 const PAGE_SIZE = 25;
+const MIN_TAG_LENGTH = 2;
+const MAX_TAG_LENGTH = 30;
 
-export const TagSelectorBase = ({
+const TagChip = styled(Chip)(({ theme }) => ({
+    backgroundColor: theme.palette.mode === "light" ? "#8148b0" : "#8148b0", //'#a068ce',
+    color: "white",
+}));
+
+const inputTextStyle = { paddingRight: 0, minWidth: "250px" } as const;
+
+export function TagSelectorBase({
     disabled,
     handleTagsUpdate,
-    isOptional = true,
+    isRequired = false,
     tags,
     placeholder,
     sx,
-}: TagSelectorBaseProps) => {
-    console.log("tagselectorbase tags", tags);
-    const { palette } = useTheme();
+}: TagSelectorBaseProps) {
     const { t } = useTranslation();
 
     const [inputValue, setInputValue] = useState<string>("");
@@ -81,11 +105,8 @@ export const TagSelectorBase = ({
             : (t as TagShape).tag !== tag.tag));
     }, [handleTagsUpdate, tags]);
 
-    const clearText = useCallback(() => { setInputValue(""); }, []);
-
     const onChange = useCallback((change: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const sanitized = withoutInvalidChars(change.target.value);
-        console.log("onchange", change.target.value, sanitized);
         setInputValue(sanitized);
     }, []);
 
@@ -96,11 +117,11 @@ export const TagSelectorBase = ({
         // Remove invalid characters
         const tagLabel = withoutInvalidChars(inputValue);
         // Check if tag is valid length
-        if (tagLabel.length < 2) {
+        if (tagLabel.length < MIN_TAG_LENGTH) {
             PubSub.get().publish("snack", { messageKey: "TagTooShort", severity: "Error" });
             return;
         }
-        if (tagLabel.length > 30) {
+        if (tagLabel.length > MAX_TAG_LENGTH) {
             PubSub.get().publish("snack", { messageKey: "TagTooLong", severity: "Error" });
             return;
         }
@@ -113,11 +134,10 @@ export const TagSelectorBase = ({
         // Add tag
         handleTagAdd({ __typename: "Tag", id: DUMMY_ID, tag: tagLabel });
         // Clear input
-        clearText();
-    }, [clearText, handleTagAdd, inputValue, tags]);
+        setInputValue("");
+    }, [handleTagAdd, inputValue, tags]);
 
     const onInputSelect = useCallback((tag: TagShape | Tag) => {
-        console.log("onInputSelect", tag);
         setInputValue("");
         // Remove tag is already selected
         if (tags.some(t => t.tag === tag.tag)) handleTagRemove(tag);
@@ -175,7 +195,6 @@ export const TagSelectorBase = ({
         // Return stored tags
         return stored;
     }, [autocompleteData, tagsRef]);
-    console.log("tag autocomplete options", autocompleteOptions);
 
     const handleIsBookmarked = useCallback((tag: string, isBookmarked: boolean) => {
         if (!tagsRef.current[tag]) return;
@@ -186,6 +205,96 @@ export const TagSelectorBase = ({
         } as Tag["you"];
     }, [tagsRef]);
 
+    const popperComponentRender = useCallback(function popperComponentRender(props: PopperProps) {
+        return <PopperComponent {...props} onScrollBottom={loadMoreTags} />;
+    }, [loadMoreTags]);
+
+    const renderTags = useCallback(function renderTagsMemo(value: TagOption[], getTagProps: AutocompleteRenderGetTagProps) {
+        return value.map((option, index) => {
+            function handleDelete() {
+                onChipDelete(option as TagShape | Tag);
+            }
+
+            return (
+                <TagChip
+                    {...getTagProps({ index })}
+                    id={`tag-chip-${typeof option === "string" ? option : option.tag}`}
+                    key={typeof option === "string" ? option : option.tag}
+                    variant="filled"
+                    label={typeof option === "string" ? option : option.tag}
+                    onDelete={handleDelete}
+                />
+            );
+        });
+    }, [onChipDelete]);
+
+    const renderOption = useCallback(function renderOptionCallback(props: HTMLAttributes<HTMLLIElement>, option: TagOption) {
+        function handleClick() {
+            if (typeof option === "string") {
+                const found = autocompleteOptions.find(t => t.tag === option);
+                if (found) onInputSelect(found);
+            } else {
+                onInputSelect(option);
+            }
+        }
+
+        function handleBookmarkChange(isBookmarked: boolean) {
+            handleIsBookmarked((option as TagShape | Tag).tag, isBookmarked);
+        }
+
+        return (
+            <MenuItem
+                {...props}
+                onClick={handleClick}
+                selected={tags.some(t => typeof option === "string" ? (t as unknown as string) === option : (t as TagShape | Tag).tag === option.tag)}
+            >
+                <ListItemText>{typeof option === "string" ? option : option.tag}</ListItemText>
+                <BookmarkButton
+                    objectId={(option as Tag).id ?? ""}
+                    bookmarkFor={BookmarkFor.Tag}
+                    isBookmarked={(option as Tag).you.isBookmarked}
+                    bookmarks={(option as Tag).bookmarks}
+                    onChange={handleBookmarkChange}
+                />
+            </MenuItem>
+        );
+    }, [autocompleteOptions, handleIsBookmarked, onInputSelect, tags]);
+
+    const renderInput = useCallback(function renderInputCallback(params: AutocompleteRenderInputParams) {
+        const inputProps = {
+            ...params.InputProps,
+            startAdornment: (
+                <>
+                    <InputAdornment position="start">
+                        <TagIcon />
+                    </InputAdornment>
+                    {params.InputProps.startAdornment}
+                </>
+            ),
+            endAdornment: (
+                <>
+                    {loading ? <CircularProgress color="inherit" size={20} /> : null}
+                    {params.InputProps.endAdornment}
+                </>
+            ),
+        } as const;
+
+        return (
+            <TextInput
+                value={inputValue}
+                onChange={onChange}
+                isRequired={isRequired}
+                label={t("Tag", { count: 2 })}
+                placeholder={placeholder ?? t("TagSelectorPlaceholder")}
+                InputProps={inputProps}
+                inputProps={params.inputProps}
+                onKeyDown={onKeyDown}
+                fullWidth
+                sx={inputTextStyle}
+            />
+        );
+    }, [inputValue, isRequired, loading, onChange, onKeyDown, placeholder, t]);
+
     return (
         <Autocomplete
             id="tags-input"
@@ -194,102 +303,30 @@ export const TagSelectorBase = ({
             fullWidth
             multiple
             // Allow all options through the filter - we perform custom filtering
-            filterOptions={(options) => options}
+            filterOptions={filterOptions}
             freeSolo={true}
-            isOptionEqualToValue={(option, value) => {
-                const optionTag = typeof option === "string" ? option : option.tag;
-                const valueTag = typeof value === "string" ? value : value.tag;
-                return optionTag === valueTag;
-            }}
+            isOptionEqualToValue={isOptionEqualToValue}
             options={autocompleteOptions}
-            getOptionLabel={(o: string | TagShape | Tag) => (typeof o === "string" ? o : o.tag)}
+            getOptionLabel={getOptionLabel}
             inputValue={inputValue}
             noOptionsText={t("NoSuggestions")}
-            limitTags={3}
+            limitTags={CHIP_LIST_LIMIT}
             loading={loading}
             value={tags}
             defaultValue={tags}
-            PopperComponent={(props) => <PopperComponent {...props} onScrollBottom={loadMoreTags} />}
-            renderTags={(value, getTagProps) =>
-                value.map((option, index) => {
-                    console.log("rendering tag", option, index);
-                    return (
-                        <Chip
-                            {...getTagProps({ index })}
-                            id={`tag-chip-${index}`}
-                            key={typeof option === "string" ? option : option.tag}
-                            variant="filled"
-                            label={typeof option === "string" ? option : option.tag}
-                            onDelete={() => onChipDelete(option as TagShape | Tag)}
-                            sx={{
-                                backgroundColor: palette.mode === "light" ? "#8148b0" : "#8148b0", //'#a068ce',
-                                color: "white",
-                            }}
-                        />
-                    );
-                })}
-            renderOption={(props, option) => (
-                <MenuItem
-                    {...props}
-                    onClick={() => {
-                        if (typeof option === "string") {
-                            const found = autocompleteOptions.find(t => t.tag === option);
-                            if (found) onInputSelect(found);
-                        } else {
-                            onInputSelect(option);
-                        }
-                    }}
-                    selected={tags.some(t => typeof option === "string" ? (t as unknown as string) === option : (t as TagShape | Tag).tag === option.tag)}
-                >
-                    <ListItemText>{typeof option === "string" ? option : option.tag}</ListItemText>
-                    <BookmarkButton
-                        objectId={(option as Tag).id ?? ""}
-                        bookmarkFor={BookmarkFor.Tag}
-                        isBookmarked={(option as Tag).you.isBookmarked}
-                        bookmarks={(option as Tag).bookmarks}
-                        onChange={(isBookmarked) => { handleIsBookmarked((option as TagShape | Tag).tag, isBookmarked); }}
-                    />
-                </MenuItem>
-            )}
-            renderInput={(params) => (
-                <TextInput
-                    value={inputValue}
-                    onChange={onChange}
-                    isOptional={isOptional}
-                    label={t("Tag", { count: 2 })}
-                    placeholder={placeholder ?? t("TagSelectorPlaceholder")}
-                    InputProps={{
-                        ...params.InputProps,
-                        startAdornment: (
-                            <>
-                                <InputAdornment position="start">
-                                    <TagIcon />
-                                </InputAdornment>
-                                {params.InputProps.startAdornment}
-                            </>
-                        ),
-                        endAdornment: (
-                            <>
-                                {loading ? <CircularProgress color="inherit" size={20} /> : null}
-                                {params.InputProps.endAdornment}
-                            </>
-                        ),
-                    }}
-                    inputProps={params.inputProps}
-                    onKeyDown={onKeyDown}
-                    fullWidth
-                    sx={{ paddingRight: 0, minWidth: "250px" }}
-                />
-            )}
+            PopperComponent={popperComponentRender}
+            renderTags={renderTags}
+            renderOption={renderOption}
+            renderInput={renderInput}
             sx={sx}
         />
     );
-};
+}
 
-export const TagSelector = ({
+export function TagSelector({
     name,
     ...props
-}: TagSelectorProps) => {
+}: TagSelectorProps) {
     const [field, , helpers] = useField<(TagShape | Tag)[] | undefined>(name);
 
     const handleTagsUpdate = useCallback((tags: (TagShape | Tag)[]) => {
@@ -303,5 +340,5 @@ export const TagSelector = ({
             {...props}
         />
     );
-};
+}
 

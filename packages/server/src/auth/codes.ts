@@ -1,19 +1,28 @@
 import { createHash, randomBytes } from "crypto";
 
+const DEFAULT_RANDOM_STRING_LENGTH = 64;
+const MAX_RANDOM_STRING_LENGTH = 2048;
+const MIN_RANDOM_STRING_CHARSET_LENGTH = 2;
+const MAX_RANDOM_STRING_CHARSET_LENGTH = 256;
+
 /**
  * Generate a random string of the specified length, consisting of the specified characters
  * @param length The length of sting to generate
  * @param chars The available characters to use in the string
  * @returns A random string of the specified length, consisting of the specified characters
  */
-export const randomString = (
-    length = 64,
+export function randomString(
+    length = DEFAULT_RANDOM_STRING_LENGTH,
     chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
-): string => {
+): string {
     // Check for valid parameters
-    if (!Number.isInteger(length) || length <= 0 || length > 2048) throw new Error("Length must be bewteen 1 and 2048.");
+    if (!Number.isInteger(length) || length <= 0 || length > MAX_RANDOM_STRING_LENGTH) {
+        throw new Error(`Length must be bewteen 1 and ${MAX_RANDOM_STRING_LENGTH}.`);
+    }
     const charsLength = chars.length;
-    if (typeof chars !== "string" || charsLength < 2 || chars.length > 256) throw new Error("Chars must be bewteen 2 and 256.");
+    if (typeof chars !== "string" || charsLength < MIN_RANDOM_STRING_CHARSET_LENGTH || chars.length > MAX_RANDOM_STRING_CHARSET_LENGTH) {
+        throw new Error(`Chars must be bewteen ${MIN_RANDOM_STRING_CHARSET_LENGTH} and ${MAX_RANDOM_STRING_CHARSET_LENGTH} characters long.`);
+    }
     // Generate random bytes
     const bytes = randomBytes(length);
     // Create result array
@@ -26,7 +35,7 @@ export const randomString = (
     }
     // Return result as string
     return result.join("");
-};
+}
 
 /**
  * Verifies if a code is valid and not expired
@@ -36,12 +45,12 @@ export const randomString = (
  * @param timeoutInMs Timeout in milliseconds
  * @returns Boolean indicating if the code is valid
  */
-export const validateCode = (
+export function validateCode(
     providedCode: string | null,
     storedCode: string | null,
     dateRequested: Date | null,
     timeoutInMs: number,
-): boolean => {
+): boolean {
     // Check for valid codes
     if (!providedCode || !storedCode || !dateRequested) return false;
     // Check for valid timeout
@@ -50,16 +59,16 @@ export const validateCode = (
     if (providedCode !== storedCode) return false;
     // Check that code is not expired
     return Date.now() - new Date(dateRequested).getTime() < timeoutInMs;
-};
+}
 
 /**
  * Non-cryptographic hashing function for strings
  * @param str The string to hash
  * @returns The hashed string
  */
-export const hashString = (str: string): string => {
+export function hashString(str: string): string {
     const hash = createHash("md5");
     hash.update(str);
     return hash.digest("hex");
-};
+}
 

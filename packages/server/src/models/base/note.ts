@@ -38,7 +38,7 @@ export const NoteModel: NoteModelLogic = ({
                     versions: await shapeHelper({ relation: "versions", relTypes: ["Create"], isOneToOne: false, objectType: "NoteVersion", parentRelationshipName: "root", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Note", data, ...rest }),
                     labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Note", data, ...rest }),
-                }
+                };
             },
             update: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as NotePre;
@@ -50,7 +50,7 @@ export const NoteModel: NoteModelLogic = ({
                     versions: await shapeHelper({ relation: "versions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "NoteVersion", parentRelationshipName: "root", data, ...rest }),
                     tags: await tagShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Note", data, ...rest }),
                     labels: await labelShapeHelper({ relTypes: ["Connect", "Create", "Disconnect"], parentType: "Note", data, ...rest }),
-                }
+                };
             },
         },
         trigger: {
@@ -131,22 +131,26 @@ export const NoteModel: NoteModelLogic = ({
             versions: ["NoteVersion", ["root"]],
         }),
         visibility: {
-            private: {
-                isDeleted: false,
-                OR: [
-                    { isPrivate: true },
-                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private },
-                    { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.private },
-                ],
+            private: function getVisibilityPrivate(...params) {
+                return {
+                    isDeleted: false,
+                    OR: [
+                        { isPrivate: true },
+                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private(...params) },
+                        { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.private(...params) },
+                    ],
+                };
             },
-            public: {
-                isDeleted: false,
-                isPrivate: false,
-                OR: [
-                    { ownedByTeam: null, ownedByUser: null },
-                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public },
-                    { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.public },
-                ],
+            public: function getVisibilityPublic(...params) {
+                return {
+                    isDeleted: false,
+                    isPrivate: false,
+                    OR: [
+                        { ownedByTeam: null, ownedByUser: null },
+                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public(...params) },
+                        { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.public(...params) },
+                    ],
+                };
             },
             owner: (userId) => ({
                 OR: [

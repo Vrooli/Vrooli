@@ -3,5 +3,5 @@
         "./src"
     ],
     "ext": "ts",
-    "exec": "swc src -d dist && node --experimental-modules --experimental-specifier-resolution=node --inspect=0.0.0.0:9229 dist/index.js"
+    "exec": "swc src -d dist && node --experimental-modules --experimental-specifier-resolution=node --inspect=0.0.0.0:9230 dist/index.js"
 }

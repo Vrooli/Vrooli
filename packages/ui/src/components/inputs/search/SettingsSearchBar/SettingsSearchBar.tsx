@@ -2,10 +2,12 @@ import { LINKS } from "@local/shared";
 import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, IconButton, Input, ListItemText, MenuItem, Paper, Popper, PopperProps, useTheme } from "@mui/material";
 import { SessionContext } from "contexts/SessionContext";
 import { ApiIcon, HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ObjectIcon, ProfileIcon, SearchIcon, VisibleIcon, WalletIcon } from "icons";
-import { ChangeEvent, useCallback, useContext, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PreSearchItem, SearchItem, findSearchResults, shapeSearchText, translateSearchItems } from "utils/search/siteToSearch";
 import { SettingsSearchBarProps } from "../types";
+
+const DEFAULT_DEBOUNCE_MS = 200;
 
 const searchItems: PreSearchItem[] = [
     {
@@ -67,24 +69,35 @@ const searchItems: PreSearchItem[] = [
     },
 ];
 
-const FullWidthPopper = function (props: PopperProps) {
+function getSearchItemOptionLabel(option: SearchItem) { return option.label ?? ""; }
+
+/**
+ * Stop default onSubmit, since when the search bar is a form this causes the page to reload
+ */
+function stopDefaultSubmit(event: FormEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+}
+
+function FullWidthPopper(props: PopperProps) {
     const parentWidth = props.anchorEl && (props.anchorEl as HTMLElement).parentElement ? (props.anchorEl as HTMLElement).parentElement?.clientWidth : null;
+
     return <Popper {...props} sx={{
         left: "-12px!important",
         minWidth: parentWidth ?? (props.anchorEl as HTMLElement)?.clientWidth ?? "fit-content",
         maxWidth: "100%",
     }} placement="bottom-start" /> as JSX.Element;
-};
+}
 
-export const SettingsSearchBar = ({
-    debounce = 200,
+export function SettingsSearchBar({
+    debounce = DEFAULT_DEBOUNCE_MS,
     id = "search-bar",
     onChange,
     onInputChange,
     placeholder,
     value,
     ...props
-}: SettingsSearchBarProps) => {
+}: SettingsSearchBarProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -145,12 +158,8 @@ export const SettingsSearchBar = ({
             onHighlightChange={onHighlightChange}
             onKeyDown={onKeyDown}
             inputValue={internalValue}
-            getOptionLabel={(option: SearchItem) => option.label ?? ""}
-            // Stop default onSubmit, since this reloads the page for some reason
-            onSubmit={(event: any) => {
-                event.preventDefault();
-                event.stopPropagation();
-            }}
+            getOptionLabel={getSearchItemOptionLabel}
+            onSubmit={stopDefaultSubmit}
             // The real onSubmit, since onSubmit is only triggered after 2 presses of the enter key (don't know why)
             onChange={onSubmit}
             PopperComponent={FullWidthPopper}
@@ -240,7 +249,10 @@ export const SettingsSearchBar = ({
                         placeholder={t(`${placeholder ?? "Search"}`) + "..."}
                         autoFocus={props.autoFocus ?? false}
                         // {...params.InputLabelProps}
-                        inputProps={params.inputProps}
+                        inputProps={{
+                            ...params.inputProps,
+                            enterKeyHint: "search",
+                        }}
                         ref={params.InputProps.ref}
                         size={params.size}
                         sx={{
@@ -279,4 +291,4 @@ export const SettingsSearchBar = ({
             }}
         />
     );
-};
+}

@@ -15,7 +15,7 @@ import { EndNodeProps } from "../types";
  */
 const DRAG_THRESHOLD = 10;
 
-export const EndNode = ({
+export function EndNode({
     canDrag = true,
     handleAction,
     handleDelete,
@@ -28,7 +28,7 @@ export const EndNode = ({
     linksIn,
     node,
     scale = 1,
-}: EndNodeProps) => {
+}: EndNodeProps) {
 
     /**
      * Border color indicates status of node.
@@ -83,13 +83,19 @@ export const EndNode = ({
         onRightClick: openContext,
     });
 
+    const availableActions = useMemo(() => {
+        return isEditing ?
+            [BuildAction.AddListBeforeNode, BuildAction.MoveNode, BuildAction.UnlinkNode, BuildAction.AddIncomingLink, BuildAction.DeleteNode] :
+            [];
+    }, [isEditing]);
+
     return (
         <>
             {/* Right-click context menu */}
             <NodeContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}
-                availableActions={[BuildAction.AddListBeforeNode, BuildAction.MoveNode, BuildAction.UnlinkNode, BuildAction.AddIncomingLink, BuildAction.DeleteNode]}
+                availableActions={availableActions}
                 handleClose={closeContext}
                 handleSelect={(option) => { handleAction(option, node.id); }}
             />
@@ -159,4 +165,4 @@ export const EndNode = ({
             </DraggableNode>
         </>
     );
-};
+}

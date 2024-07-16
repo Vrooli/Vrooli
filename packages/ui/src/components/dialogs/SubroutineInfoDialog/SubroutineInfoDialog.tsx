@@ -7,7 +7,6 @@ import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
-import { InputOutputContainer } from "components/lists/inputOutput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { ResourceList } from "components/lists/resource";
 import { TagList } from "components/lists/TagList/TagList";
@@ -16,7 +15,6 @@ import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { SubroutineFormProps } from "forms/types";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { CloseIcon, OpenInNewIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef } from "react";
@@ -32,31 +30,35 @@ import { TagShape } from "utils/shape/models/tag";
 import { validateFormValues } from "utils/validateFormValues";
 import { routineInitialValues } from "views/objects/routine";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
-import { SubroutineInfoDialogProps } from "../types";
+import { SubroutineFormProps, SubroutineInfoDialogProps } from "../types";
 
-export const subroutineInitialValues = (
+export function subroutineInitialValues(
     session: Session | undefined,
     existing?: NodeRoutineListItemShape | null | undefined,
-): NodeRoutineListItemShape => ({
-    __typename: "NodeRoutineListItem" as const,
-    id: uuid(),
-    index: existing?.index ?? 0,
-    isOptional: existing?.isOptional ?? false,
-    list: existing?.list ?? {} as any,
-    routineVersion: routineInitialValues(session, existing?.routineVersion as any),
-    translations: orDefault(existing?.translations, [{
-        __typename: "NodeRoutineListItemTranslation" as const,
-        id: DUMMY_ID,
-        language: getUserLanguages(session)[0],
-        description: "",
-        name: "",
-    }]),
-});
+): NodeRoutineListItemShape {
+    return {
+        __typename: "NodeRoutineListItem" as const,
+        id: uuid(),
+        index: existing?.index ?? 0,
+        isOptional: existing?.isOptional ?? false,
+        list: existing?.list ?? {} as any,
+        routineVersion: routineInitialValues(session, existing?.routineVersion as any),
+        translations: orDefault(existing?.translations, [{
+            __typename: "NodeRoutineListItemTranslation" as const,
+            id: DUMMY_ID,
+            language: getUserLanguages(session)[0],
+            description: "",
+            name: "",
+        }]),
+    };
+}
 
-export const transformSubroutineValues = (values: NodeRoutineListItemShape, existing: NodeRoutineListItemShape, isCreate: boolean) =>
-    isCreate ? shapeNodeRoutineListItem.create(values) : shapeNodeRoutineListItem.update(existing as NodeRoutineListItemShape, values);
+export function transformSubroutineValues(values: NodeRoutineListItemShape, existing: NodeRoutineListItemShape, isCreate: boolean) {
+    return isCreate ? shapeNodeRoutineListItem.create(values) : shapeNodeRoutineListItem.update(existing as NodeRoutineListItemShape, values);
+}
 
-const SubroutineForm = ({
+//TODO update to latest from RoutineUpsert and RoutineView
+function SubroutineForm({
     canUpdateRoutineVersion,
     dirty,
     handleReorder,
@@ -70,7 +72,7 @@ const SubroutineForm = ({
     values,
     versions,
     ...props
-}: SubroutineFormProps) => {
+}: SubroutineFormProps) {
     const session = useContext(SessionContext);
     const theme = useTheme();
     const { t } = useTranslation();
@@ -304,28 +306,9 @@ const SubroutineForm = ({
                             }
                         </Grid>
                     </FormContainer>
-                    {/* Inputs/Outputs */}
-                    <Grid container spacing={2} p={2}>
-                        {(canUpdateRoutineVersion || (inputsField.value?.length > 0)) && <Grid item xs={12} md={6}>
-                            <InputOutputContainer
-                                isEditing={canUpdateRoutineVersion}
-                                handleUpdate={inputsHelpers.setValue as any}
-                                isInput={true}
-                                language={language}
-                                list={inputsField.value}
-                            />
-                        </Grid>}
-                        {/* Outputs */}
-                        {(canUpdateRoutineVersion || (outputsField.value?.length > 0)) && <Grid item xs={12} md={6}>
-                            <InputOutputContainer
-                                isEditing={canUpdateRoutineVersion}
-                                handleUpdate={outputsHelpers.setValue as any}
-                                isInput={false}
-                                language={language}
-                                list={outputsField.value}
-                            />
-                        </Grid>}
-                    </Grid>
+                    {/* TODO inputs/outputs */}
+                    {/* <FormView isEditing={isEditing} />; */}
+                    {/* <FormView isEditing={isEditing} />; */}
                 </FormContainer>
             </BaseForm>
             {canUpdateRoutineVersion && <BottomActionsButtons
@@ -340,20 +323,20 @@ const SubroutineForm = ({
             />}
         </LargeDialog>
     );
-};
+}
 
 /**
  * Drawer to display a routine list item's info on the build page. 
  * Swipes up from bottom of screen
  */
-export const SubroutineInfoDialog = ({
+export function SubroutineInfoDialog({
     data,
     handleUpdate,
     handleReorder,
     handleViewFull,
     isEditing,
     ...props
-}: SubroutineInfoDialogProps) => {
+}: SubroutineInfoDialogProps) {
     const session = useContext(SessionContext);
 
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
@@ -367,12 +350,17 @@ export const SubroutineInfoDialog = ({
     const initialValues = useMemo(() => subroutineInitialValues(session, subroutine), [subroutine, session]);
     const canUpdate = useMemo<boolean>(() => isEditing && (subroutine?.routineVersion?.root?.isInternal || subroutine?.routineVersion?.root?.owner?.id === userId || subroutine?.routineVersion?.you?.canUpdate === true), [isEditing, subroutine?.routineVersion?.root?.isInternal, subroutine?.routineVersion?.root?.owner?.id, subroutine?.routineVersion?.you?.canUpdate, userId]);
 
+    async function validateValues(values: NodeRoutineListItemShape) {
+        if (!subroutine) return;
+        return await validateFormValues(values, subroutine, false, transformSubroutineValues, nodeRoutineListItemValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={initialValues}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, subroutine!, false, transformSubroutineValues, nodeRoutineListItemValidation)}
+            validate={validateValues}
         >
             {(formik) => <SubroutineForm
                 canUpdateRoutineVersion={canUpdate}
@@ -389,4 +377,4 @@ export const SubroutineInfoDialog = ({
             />}
         </Formik>
     );
-};
+}

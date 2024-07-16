@@ -1,5 +1,13 @@
 import React, { useCallback, useRef } from "react";
 
+/**
+ * Maximum travel distance allowed before a press is cancelled
+ */
+const MAX_TRAVEL_DISTANCE = 10;
+const DEFAULT_PRESS_DELAY = 300;
+const DEFAULT_HOVER_DELAY = 900;
+const EVENT_TIME_THRESHOLD = 20;
+
 interface UsePressProps {
     onLongPress: (target: EventTarget) => unknown;
     onClick?: (target: EventTarget) => unknown;
@@ -22,48 +30,74 @@ type UsePressReturn = {
     onTouchStart: (event: React.TouchEvent) => unknown;
 }
 
-const isTouchEvent = (event: React.MouseEvent | React.TouchEvent): event is React.TouchEvent => "touches" in event;
-const isMouseEvent = (event: React.MouseEvent | React.TouchEvent): event is React.MouseEvent => "button" in event;
+function isTouchEvent(event: React.MouseEvent | React.TouchEvent): event is React.TouchEvent {
+    return "touches" in event;
+}
+function isMouseEvent(event: React.MouseEvent | React.TouchEvent): event is React.MouseEvent {
+    return "button" in event;
+}
 
-const preventDefaultTouch = (event: React.TouchEvent) => {
+function preventDefaultTouch(event: React.TouchEvent) {
     if (event.touches.length < 2 && event.preventDefault) {
         event.preventDefault();
     }
-};
+}
 
 /**
  * Determines the position of the click or touch event
  * @param event The event to get the position of
  * @returns The position of the event
  */
-const getPosition = (event: React.MouseEvent | React.TouchEvent): { x: number, y: number } => {
+function getPosition(event: React.MouseEvent | React.TouchEvent): { x: number, y: number } {
     if (isTouchEvent(event)) {
         const touch = event.touches[0];
         return { x: touch.clientX, y: touch.clientY };
     } else {
         return { x: event.clientX, y: event.clientY };
     }
-};
+}
+
+let lastStartEvent = 0;
+let lastStopEvent = 0;
 
 /**
- * Maximum travel distance allowed before a press is cancelled
+ * Determines if the start/stop event has happened sufficiently longer than 
+ * the last start/stop event. This is to prevent double triggers for devices 
+ * that send both mouse and touch events.
+ * @param event The event to check
+ * @param eventType The type of event
+ * @returns True if the event is sufficiently far from the last event
  */
-const MAX_TRAVEL_DISTANCE = 10;
+function isNewEvent(event: React.MouseEvent | React.TouchEvent, eventType: "start" | "stop"): boolean {
+    // Check if event is sufficiently far from last event
+    const lastEvent = eventType === "start" ? lastStartEvent : lastStopEvent;
+    let isNewEvent = event.timeStamp - lastEvent > EVENT_TIME_THRESHOLD;
+    // Update last event time
+    if (eventType === "start") {
+        lastStartEvent = event.timeStamp;
+        // Additionally for start events, make sure stop event hasn't happened recently
+        isNewEvent = isNewEvent && event.timeStamp - lastStopEvent > EVENT_TIME_THRESHOLD;
+    }
+    if (eventType === "stop") {
+        lastStopEvent = event.timeStamp;
+    }
+    return isNewEvent;
+}
 
 /**
  * Triggered when its parent is long clicked or pressed. 
  * Also supports short clicks.
  */
-export const usePress = ({
+export function usePress({
     onLongPress,
     onClick,
     onHover,
     onHoverEnd,
     onRightClick,
     shouldPreventDefault = true,
-    pressDelay = 300,
-    hoverDelay = 900,
-}: UsePressProps): UsePressReturn => {
+    pressDelay = DEFAULT_PRESS_DELAY,
+    hoverDelay = DEFAULT_HOVER_DELAY,
+}: UsePressProps): UsePressReturn {
     // Stores is long press has been triggered
     const longPressTriggered = useRef<boolean>(false);
     // Timeout for long press
@@ -102,6 +136,8 @@ export const usePress = ({
     }, [onHover, hoverDelay]);
 
     const start = useCallback((event: React.MouseEvent | React.TouchEvent) => {
+        // Ignore if start event has already been triggered
+        if (!isNewEvent(event, "start")) return;
         // Cancel hover timeout
         if (hoverTimeout.current) {
             clearTimeout(hoverTimeout.current);
@@ -146,7 +182,9 @@ export const usePress = ({
         }
     }, []);
 
-    const clear = useCallback((event: React.MouseEvent | React.TouchEvent, shouldTriggerClick = true) => {
+    const stop = useCallback((event: React.MouseEvent | React.TouchEvent, shouldTriggerClick = true) => {
+        // Ignore if stop event has already been triggered
+        if (!isNewEvent(event, "stop")) return;
         // Clear pressTimeout and hoverTimeout
         if (pressTimeout.current) {
             clearTimeout(pressTimeout.current);
@@ -194,13 +232,13 @@ export const usePress = ({
     return {
         onMouseDown: e => start(e),
         onMouseEnter: e => hover(e),
-        onMouseLeave: e => clear(e, false),
+        onMouseLeave: e => stop(e, false),
         onMouseMove: e => move(e),
-        onMouseUp: e => clear(e, true),
-        onTouchEnd: e => clear(e, true),
+        onMouseUp: e => stop(e, true),
+        onTouchEnd: e => stop(e, true),
         onTouchMove: e => move(e),
         onTouchStart: e => start(e),
     };
-};
+}
 
 export default usePress;

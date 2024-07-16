@@ -10,15 +10,13 @@ export type ImportProcessPayload = {
 }
 
 let logger: winston.Logger;
-let HOST: string;
-let PORT: number;
 let importProcess: (job: Bull.Job<ImportProcessPayload>) => Promise<unknown>;
 let importQueue: Bull.Queue<ImportProcessPayload>;
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const importExtension = process.env.NODE_ENV === "test" ? ".ts" : ".js";
 
 // Call this on server startup
-export const setupImportQueue = async () => {
+export async function setupImportQueue() {
     try {
         const loggerPath = path.join(dirname, "../../events/logger" + importExtension);
         const loggerModule = await import(loggerPath);
@@ -26,8 +24,7 @@ export const setupImportQueue = async () => {
 
         const redisConnPath = path.join(dirname, "../../redisConn" + importExtension);
         const redisConnModule = await import(redisConnPath);
-        HOST = redisConnModule.HOST;
-        PORT = redisConnModule.PORT;
+        const REDIS_URL = redisConnModule.REDIS_URL;
 
         const processPath = path.join(dirname, "./process" + importExtension);
         const processModule = await import(processPath);
@@ -35,7 +32,7 @@ export const setupImportQueue = async () => {
 
         // Initialize the Bull queue
         importQueue = new Bull<ImportProcessPayload>("import", {
-            redis: { port: PORT, host: HOST },
+            redis: REDIS_URL,
             defaultJobOptions: {
                 removeOnComplete: {
                     age: HOURS_1_S,
@@ -56,8 +53,8 @@ export const setupImportQueue = async () => {
             console.error(errorMessage, error);
         }
     }
-};
+}
 
-export const importData = (data: ImportProcessPayload): Promise<Success> => {
+export function importData(data: ImportProcessPayload): Promise<Success> {
     return addJobToQueue(importQueue, data, {}); //TODO
-};
+}

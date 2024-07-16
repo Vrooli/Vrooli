@@ -2,11 +2,6 @@ export const user_findMany = {
   "edges": {
     "cursor": true,
     "node": {
-      "translations": {
-        "id": true,
-        "language": true,
-        "bio": true
-      },
       "id": true,
       "created_at": true,
       "updated_at": true,
@@ -24,6 +19,11 @@ export const user_findMany = {
         "canUpdate": true,
         "isBookmarked": true,
         "isViewed": true
+      },
+      "translations": {
+        "id": true,
+        "language": true,
+        "bio": true
       }
     }
   },

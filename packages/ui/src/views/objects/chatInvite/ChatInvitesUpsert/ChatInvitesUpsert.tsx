@@ -18,12 +18,13 @@ import { validateAndGetYupErrors } from "utils/shape/general";
 import { ChatInviteShape, shapeChatInvite } from "utils/shape/models/chatInvite";
 import { ChatInvitesFormProps, ChatInvitesUpsertProps } from "../types";
 
-const transformChatInviteValues = (values: ChatInviteShape[], existing: ChatInviteShape[], isCreate: boolean) =>
-    isCreate ?
+function transformChatInviteValues(values: ChatInviteShape[], existing: ChatInviteShape[], isCreate: boolean) {
+    return isCreate ?
         values.map((value) => shapeChatInvite.create(value)) :
         values.map((value, index) => shapeChatInvite.update(existing[index], value)); // Assumes the dialog doesn't change the order or remove items
+}
 
-const validateChatInviteValues = async (values: ChatInviteShape[], existing: ChatInviteShape[], isCreate: boolean) => {
+async function validateChatInviteValues(values: ChatInviteShape[], existing: ChatInviteShape[], isCreate: boolean) {
     const transformedValues = transformChatInviteValues(values, existing, isCreate);
     const validationSchema = chatInviteValidation[isCreate ? "create" : "update"]({ env: process.env.NODE_ENV });
     const result = await Promise.all(transformedValues.map(async (value) => await validateAndGetYupErrors(validationSchema, value)));
@@ -37,9 +38,9 @@ const validateChatInviteValues = async (values: ChatInviteShape[], existing: Cha
     }, {} as any);
 
     return combinedResult;
-};
+}
 
-const ChatInvitesForm = ({
+function ChatInvitesForm({
     disabled,
     dirty,
     display,
@@ -55,7 +56,7 @@ const ChatInvitesForm = ({
     onDeleted,
     values,
     ...props
-}: ChatInvitesFormProps) => {
+}: ChatInvitesFormProps) {
     console.log("chatinvitesupsert render!", props.errors, values);
     const { t } = useTranslation();
     const { breakpoints, palette } = useTheme();
@@ -186,21 +187,25 @@ const ChatInvitesForm = ({
             </Box>
         </MaybeLargeDialog>
     );
-};
+}
 
-export const ChatInvitesUpsert = ({
+export function ChatInvitesUpsert({
     invites,
     isCreate,
     isOpen,
     ...props
-}: ChatInvitesUpsertProps) => {
+}: ChatInvitesUpsertProps) {
+
+    async function validateValues(values: ChatInviteShape[]) {
+        return await validateChatInviteValues(values, invites, isCreate);
+    }
 
     return (
         <Formik
             enableReinitialize={true}
             initialValues={invites}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateChatInviteValues(values, invites, isCreate)}
+            validate={validateValues}
         >
             {(formik) => <ChatInvitesForm
                 disabled={false}
@@ -214,4 +219,4 @@ export const ChatInvitesUpsert = ({
             />}
         </Formik>
     );
-};
+}

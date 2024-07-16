@@ -250,10 +250,10 @@ const handleOrphanedNodes = (
  * It first attempts to sort siblings based on their version index. If the version index is not available for comparison,
  * it falls back to sorting by sequence number.
  */
-const sortSiblings = (
+function sortSiblings(
     map: Map<string, MessageNode<MinimumChatMessage>>,
     siblings: string[],
-) => {
+) {
     siblings.sort((a, b) => {
         const aNode = map.get(a);
         const bNode = map.get(b);
@@ -272,9 +272,9 @@ const sortSiblings = (
             return (aNode.message.sequence ?? 0) - (bNode.message.sequence ?? 0);
         }
     });
-};
+}
 
-export const useMessageTree = (chatId: string) => {
+export function useMessageTree(chatId: string) {
     const session = useContext(SessionContext);
 
     // We query messages separate from the chat, since we must traverse the message tree
@@ -300,7 +300,6 @@ export const useMessageTree = (chatId: string) => {
     useEffect(() => {
         if (hasCheckedRunningTasks.current || !session) return;
         const runningTasks = Object.values(messageTasks).flat().filter(task => task.status === "Running" || task.status === "Canceling");
-        console.log("yeeeet might get task data", runningTasks, Object.values(messageTasks).flat(), messageTasks);
         if (runningTasks.length === 0) return;
         hasCheckedRunningTasks.current = true;
         console.log("yeeet getting task data", runningTasks.map(task => task.id));
@@ -525,4 +524,4 @@ export const useMessageTree = (chatId: string) => {
         tree,
         updateTasksForMessage,
     };
-};
+}

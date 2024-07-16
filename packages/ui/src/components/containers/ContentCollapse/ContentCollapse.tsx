@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ContentCollapseProps } from "../types";
 
-export const ContentCollapse = ({
+export function ContentCollapse({
     children,
     disableCollapse,
     helpText,
@@ -19,7 +19,7 @@ export const ContentCollapse = ({
     titleKey,
     titleVariables,
     toTheRight,
-}: ContentCollapseProps) => {
+}: ContentCollapseProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -44,13 +44,17 @@ export const ContentCollapse = ({
         return "";
     }, [title, titleKey, titleVariables, t]);
 
-    return (
-        <Box id={id} sx={{
+    const outerBoxStyle = useMemo(function outerBoxStyleMemo() {
+        return {
             color: children ? palette.background.textPrimary : palette.background.textSecondary,
-            ...(sxs?.root ?? {}),
-        }}>
+            ...sxs?.root,
+        };
+    }, [children, palette.background.textPrimary, palette.background.textSecondary, sxs?.root]);
+
+    return (
+        <Box id={id} sx={outerBoxStyle}>
             {/* Title with help button and collapse */}
-            <Stack direction="row" alignItems="center" sx={sxs?.titleContainer ?? {}}>
+            <Stack direction="row" alignItems="center" sx={sxs?.titleContainer}>
                 <Typography component={titleComponent ?? "h6"} variant={titleVariant ?? "h6"}>{titleText}</Typography>
                 {helpText && <HelpButton
                     markdown={helpText}
@@ -81,4 +85,4 @@ export const ContentCollapse = ({
             )}
         </Box>
     );
-};
+}

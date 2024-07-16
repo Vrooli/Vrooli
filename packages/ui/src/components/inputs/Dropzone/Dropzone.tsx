@@ -13,6 +13,8 @@ import { useDropzone } from "react-dropzone";
 import { PubSub } from "utils/pubsub";
 import { DropzoneProps } from "../types";
 
+export const MAX_DROPZONE_FILES = 100;
+
 const useStyles = makeStyles((theme: Theme) => ({
     gridPad: {
         paddingLeft: theme.spacing(1),
@@ -23,8 +25,8 @@ const useStyles = makeStyles((theme: Theme) => ({
         marginBottom: theme.spacing(1),
     },
     dropContainer: {
-        background: "white",
-        color: "black",
+        background: theme.palette.background.paper,
+        color: theme.palette.background.textPrimary,
         border: "3px dashed gray",
         borderRadius: "5px",
     },
@@ -57,20 +59,20 @@ const useStyles = makeStyles((theme: Theme) => ({
     },
 }));
 
-export const Dropzone = ({
+export function Dropzone({
     acceptedFileTypes = ["image/*", ".heic", ".heif"],
     dropzoneText = "Drag 'n' drop files here or click",
     onUpload,
     showThumbs = true,
-    maxFiles = 100,
+    maxFiles = MAX_DROPZONE_FILES,
     uploadText = "Upload file(s)",
     cancelText = "Cancel upload",
     disabled = false,
-}: DropzoneProps) => {
+}: DropzoneProps) {
     const classes = useStyles();
     const [files, setFiles] = useState<any[]>([]);
     const { getRootProps, getInputProps } = useDropzone({
-        accept: acceptedFileTypes,
+        accept: acceptedFileTypes.length > 0 ? acceptedFileTypes : undefined,
         maxFiles,
         onDrop: acceptedFiles => {
             if (acceptedFiles.length <= 0) {
@@ -83,7 +85,8 @@ export const Dropzone = ({
         },
     });
 
-    const upload = (e) => {
+    function upload(e) {
+        if (disabled) return;
         e.stopPropagation();
         if (files.length === 0) {
             PubSub.get().publish("snack", { messageKey: "NoFilesSelected", severity: "Error" });
@@ -91,12 +94,12 @@ export const Dropzone = ({
         }
         onUpload(files);
         setFiles([]);
-    };
+    }
 
-    const cancel = (e) => {
+    function cancel(e) {
         e.stopPropagation();
         setFiles([]);
-    };
+    }
 
     const thumbs = files.map(file => (
         <div className={classes.thumb} key={file.name}>
@@ -137,7 +140,7 @@ export const Dropzone = ({
                     <Grid item xs={12} sm={6}>
                         <Button
                             className={classes.itemPad}
-                            disabled={disabled || files.length === 0}
+                            disabled={files.length === 0}
                             fullWidth
                             onClick={cancel}
                             variant="outlined"
@@ -147,4 +150,4 @@ export const Dropzone = ({
             </div>
         </section>
     );
-};
+}

@@ -80,8 +80,16 @@ export const ReportResponseModel: ReportResponseModelLogic = ({
         isDeleted: (data, languages) => ModelMap.get<ReportModelLogic>("Report").validate().isDeleted(data.report as ReportModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<ReportResponseModelInfo["PrismaSelect"]>([["report", "Report"]], ...rest),
         visibility: {
-            private: { report: ModelMap.get<ReportModelLogic>("Report").validate().visibility.private },
-            public: { report: ModelMap.get<ReportModelLogic>("Report").validate().visibility.public },
+            private: function getVisibilityPrivate(...params) {
+                return {
+                    report: ModelMap.get<ReportModelLogic>("Report").validate().visibility.private(...params),
+                };
+            },
+            public: function getVisibilityPublic(...params) {
+                return {
+                    report: ModelMap.get<ReportModelLogic>("Report").validate().visibility.public(...params),
+                };
+            },
             owner: (userId) => ({ report: ModelMap.get<ReportModelLogic>("Report").validate().visibility.owner(userId) }),
         },
     }),

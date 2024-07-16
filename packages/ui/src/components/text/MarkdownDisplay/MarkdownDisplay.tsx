@@ -1,5 +1,5 @@
 import { endpointGetApi, endpointGetChat, endpointGetCode, endpointGetComment, endpointGetNote, endpointGetProject, endpointGetQuestion, endpointGetQuiz, endpointGetReport, endpointGetRoutine, endpointGetStandard, endpointGetTag, endpointGetTeam, endpointGetUser, exists, LINKS, uuid } from "@local/shared";
-import { Box, Checkbox, CircularProgress, IconButton, Link, TypographyProps, useTheme } from "@mui/material";
+import { Box, Checkbox, CircularProgress, IconButton, Link, Typography, TypographyProps, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import usePress from "hooks/usePress";
@@ -11,21 +11,41 @@ import { getDisplay } from "utils/display/listTools";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 
+type HeadingLevel = "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+
+type HeadingProps = {
+    children: string;
+    level: 1 | 2 | 3 | 4 | 5 | 6;
+};
+
+function Heading({ children, level, ...props }: HeadingProps) {
+    return (
+        <Typography
+            variant={`h${Math.min(level + 2, 6)}` as HeadingLevel}
+            component={`h${level}` as HeadingLevel}
+            marginTop={level === 1 ? 0 : 4}
+            {...props}
+        >
+            {children}
+        </Typography>
+    );
+}
+
 /** Pretty code block with copy button */
-const CodeBlock = ({ children }) => {
+function CodeBlock({ children }) {
     const textRef = useRef<HTMLElement | null>(null);
 
     useEffect(() => {
         let isMounted = true;
 
-        const loadHighlightJs = async () => {
+        async function loadHighlightJs() {
             const hljs = (await import("highlight.js")).default;
             await import("highlight.js/styles/monokai-sublime.css");
 
             if (textRef.current && isMounted) {
                 hljs.highlightBlock(textRef.current);
             }
-        };
+        }
 
         loadHighlightJs();
 
@@ -59,10 +79,10 @@ const CodeBlock = ({ children }) => {
             </pre>
         </div>
     );
-};
+}
 
 /** Custom Blockquote component */
-const Blockquote = ({ children }) => {
+function Blockquote({ children }) {
     return (
         <blockquote style={{
             position: "relative",
@@ -73,7 +93,7 @@ const Blockquote = ({ children }) => {
             {children}
         </blockquote>
     );
-};
+}
 
 
 /**
@@ -85,7 +105,7 @@ const Blockquote = ({ children }) => {
  * @param {string} content - The input Markdown text.
  * @returns {string} - The processed Markdown text.
  */
-const processMarkdown = (content: string): string => {
+function processMarkdown(content: string): string {
     // Initialize state variables
     let isInCodeBlock = false;
     let result = "";
@@ -116,7 +136,7 @@ const processMarkdown = (content: string): string => {
         }
     }
     return result;
-};
+}
 
 // Vrooli pages that show up as special links
 const specialRoutes = [
@@ -155,7 +175,7 @@ const routeToEndpoint = {
 };
 
 /** Creates custom links for Vrooli objects, and normal links otherwise */
-const CustomLink = ({ children, href }) => {
+function CustomLink({ children, href }) {
     // Check if this is a special link
     let linkUrl, windowUrl;
     try {
@@ -229,30 +249,30 @@ const CustomLink = ({ children, href }) => {
     } else {
         return <Link href={href}>{children}</Link>;
     }
-};
+}
 
 /** HOC for rendering links */
-const withCustomLinkProps = (additionalProps) => {
+function withCustomLinkProps(additionalProps) {
     return ({ href, children }) => {
         return <CustomLink href={href} {...additionalProps}>{children}</CustomLink>;
     };
-};
+}
 
 /** Custom checkbox component editable checkboxes */
-const CustomCheckbox = ({ checked, onChange, ...otherProps }) => {
+function CustomCheckbox({ checked, onChange, ...otherProps }) {
     const id = useMemo(() => uuid(), []);
     return <Checkbox checked={checked} id={id} onChange={() => { onChange(id, !checked); }} {...otherProps} />;
-};
+}
 
 /** HOC for rendering inputs. Required so we can pass onChange handler */
-const withCustomCheckboxProps = (additionalProps) => {
+function withCustomCheckboxProps(additionalProps) {
     return ({ type, checked, onChange }) => {
         if (type === "checkbox") {
             return <CustomCheckbox checked={checked} onChange={onChange} {...additionalProps} />;
         }
         return null;
     };
-};
+}
 
 /** State machine to locate checkboxes */
 function parseMarkdownCheckboxes(content: string) {
@@ -314,7 +334,7 @@ const hiddenStyles = {
     color: "transparent",
     background: "black",
 };
-const Spoiler = ({ children }) => {
+function Spoiler({ children }) {
     const [revealed, setRevealed] = useState(false);
     const currentStyles = revealed ? revealedStyles : hiddenStyles;
     return (
@@ -325,9 +345,9 @@ const Spoiler = ({ children }) => {
             {children}
         </span>
     );
-};
+}
 
-export const MarkdownDisplay = ({
+export function MarkdownDisplay({
     content,
     isEditable,
     onChange,
@@ -339,77 +359,89 @@ export const MarkdownDisplay = ({
     onChange?: (content: string) => unknown;
     sx?: SxType;
     variant?: TypographyProps["variant"];
-}) => {
+}) {
     const { palette, typography } = useTheme();
     const id = useMemo(() => uuid(), []);
 
     // Add overrides for custom components
-    const options = {
-        overrides: {
-            code: CodeBlock,
-            blockquote: Blockquote,
-            a: withCustomLinkProps({}),
-            spoiler: {
-                component: Spoiler,
-            },
-            input: withCustomCheckboxProps({
-                onChange: (checkboxId: string, updatedState: boolean) => {
-                    if (!content || !onChange) return;
-                    // Find location of each checkbox in rendered markdown. Used to find corresponding checkbox in markdown string
-                    const markdownComponent = document.getElementById(id);
-                    if (!markdownComponent) return;
-                    // Use a tree walker to find all checkboxes
-                    const treeWalker = document.createTreeWalker(
-                        markdownComponent,
-                        NodeFilter.SHOW_ELEMENT,
-                        {
-                            acceptNode: (node: Node) => {
-                                // Check if the node is an input element before checking its type
-                                if ((node as HTMLInputElement).nodeName === "INPUT" && (node as HTMLInputElement).type === "checkbox") {
-                                    return NodeFilter.FILTER_ACCEPT;
-                                } else {
-                                    return NodeFilter.FILTER_SKIP;
-                                }
-                            },
-                        },
-                    );
-                    const checkboxes: Node[] = [];
-                    while (treeWalker.nextNode()) {
-                        checkboxes.push(treeWalker.currentNode);
-                    }
-                    // Extract id from each checkbox, so we know the order of the checkboxes in the markdown string
-                    const checkboxIds = checkboxes.map(checkbox => checkbox.id);
-                    // Find the index of the checkbox that was clicked
-                    const checkboxIndex = checkboxIds.findIndex(cId => cId === checkboxId);
-                    // Find location of each checkbox in content (i.e. plaintext), both checked and unchecked
-                    const checkboxLocations = parseMarkdownCheckboxes(content);
-                    if (checkboxIndex >= checkboxLocations.length) {
-                        console.error("Checkbox index out of range. Checkboxes:", checkboxes, "Checkbox index:", checkboxIndex, "Checkbox locations:", checkboxLocations);
-                        return;
-                    }
-                    // Replace the checkbox in the content with the updated checkbox
-                    const checkboxStart = checkboxLocations[checkboxIndex];
-                    const newCheckbox = updatedState ? "[x]" : "[ ]";
-                    const newContent = content.substring(0, checkboxStart) + newCheckbox + content.substring(checkboxStart + 3);
-                    onChange(newContent);
+    const options = useMemo(function optionsMemo() {
+        return {
+            overrides: {
+                code: CodeBlock,
+                blockquote: Blockquote,
+                a: withCustomLinkProps({}),
+                spoiler: {
+                    component: Spoiler,
                 },
-            }),
-        },
-    };
+                input: withCustomCheckboxProps({
+                    onChange: (checkboxId: string, updatedState: boolean) => {
+                        if (!content || !onChange) return;
+                        // Find location of each checkbox in rendered markdown. Used to find corresponding checkbox in markdown string
+                        const markdownComponent = document.getElementById(id);
+                        if (!markdownComponent) return;
+                        // Use a tree walker to find all checkboxes
+                        const treeWalker = document.createTreeWalker(
+                            markdownComponent,
+                            NodeFilter.SHOW_ELEMENT,
+                            {
+                                acceptNode: (node: Node) => {
+                                    // Check if the node is an input element before checking its type
+                                    if ((node as HTMLInputElement).nodeName === "INPUT" && (node as HTMLInputElement).type === "checkbox") {
+                                        return NodeFilter.FILTER_ACCEPT;
+                                    } else {
+                                        return NodeFilter.FILTER_SKIP;
+                                    }
+                                },
+                            },
+                        );
+                        const checkboxes: Node[] = [];
+                        while (treeWalker.nextNode()) {
+                            checkboxes.push(treeWalker.currentNode);
+                        }
+                        // Extract id from each checkbox, so we know the order of the checkboxes in the markdown string
+                        const checkboxIds = checkboxes.map(checkbox => checkbox.id);
+                        // Find the index of the checkbox that was clicked
+                        const checkboxIndex = checkboxIds.findIndex(cId => cId === checkboxId);
+                        // Find location of each checkbox in content (i.e. plaintext), both checked and unchecked
+                        const checkboxLocations = parseMarkdownCheckboxes(content);
+                        if (checkboxIndex >= checkboxLocations.length) {
+                            console.error("Checkbox index out of range. Checkboxes:", checkboxes, "Checkbox index:", checkboxIndex, "Checkbox locations:", checkboxLocations);
+                            return;
+                        }
+                        // Replace the checkbox in the content with the updated checkbox
+                        const checkboxStart = checkboxLocations[checkboxIndex];
+                        const newCheckbox = updatedState ? "[x]" : "[ ]";
+                        const newContent = content.substring(0, checkboxStart) + newCheckbox + content.substring(checkboxStart + 3);
+                        onChange(newContent);
+                    },
+                }),
+                h1: { component: Heading, props: { level: 1 } },
+                h2: { component: Heading, props: { level: 2 } },
+                h3: { component: Heading, props: { level: 3 } },
+                h4: { component: Heading, props: { level: 4 } },
+                h5: { component: Heading, props: { level: 5 } },
+                h6: { component: Heading, props: { level: 6 } },
+            },
+        };
+    }, [content, id, onChange]);
 
     // Preprocess the Markdown content
     const processedContent = processMarkdown(content ?? "");
 
-    return (
-        <Markdown id={id} options={options} style={{
+    const markdownStyle = useMemo(function markdownStyleMemo() {
+        return {
             fontFamily: typography.fontFamily,
             fontSize: typography.fontSize + 2,
             lineHeight: `${Math.round(typography.fontSize * 1.5)}px`,
             color: palette.background.textPrimary,
             display: "block",
             ...sx,
-        }}>
+        } as const;
+    }, [palette.background.textPrimary, sx, typography.fontSize, typography.fontFamily]);
+
+    return (
+        <Markdown id={id} options={options} style={markdownStyle}>
             {processedContent}
         </Markdown>
     );
-};
+}

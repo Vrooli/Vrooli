@@ -2576,6 +2576,7 @@ export type Mutation = {
   pullRequestReject: PullRequest;
   pullRequestUpdate: PullRequest;
   pushDeviceCreate: PushDevice;
+  pushDeviceTest: Success;
   pushDeviceUpdate: PushDevice;
   questionAnswerCreate: QuestionAnswer;
   questionAnswerMarkAsAccepted: QuestionAnswer;
@@ -3107,6 +3108,11 @@ export type MutationPullRequestUpdateArgs = {
 
 export type MutationPushDeviceCreateArgs = {
   input: PushDeviceCreateInput;
+};
+
+
+export type MutationPushDeviceTestArgs = {
+  input: PushDeviceTestInput;
 };
 
 
@@ -5260,6 +5266,10 @@ export type PushDeviceCreateInput = {
 export type PushDeviceKeysInput = {
   auth: Scalars['String'];
   p256dh: Scalars['String'];
+};
+
+export type PushDeviceTestInput = {
+  id: Scalars['ID'];
 };
 
 export type PushDeviceUpdateInput = {
@@ -7555,6 +7565,8 @@ export type RoutineVersion = {
   completedAt?: Maybe<Scalars['Date']>;
   complexity: Scalars['Int'];
   configCallData?: Maybe<Scalars['String']>;
+  configFormInput?: Maybe<Scalars['String']>;
+  configFormOutput?: Maybe<Scalars['String']>;
   created_at: Scalars['Date'];
   directoryListings: Array<ProjectVersionDirectory>;
   directoryListingsCount: Scalars['Int'];
@@ -7598,6 +7610,8 @@ export type RoutineVersionCreateInput = {
   apiVersionConnect?: InputMaybe<Scalars['ID']>;
   codeVersionConnect?: InputMaybe<Scalars['ID']>;
   configCallData?: InputMaybe<Scalars['String']>;
+  configFormInput?: InputMaybe<Scalars['String']>;
+  configFormOutput?: InputMaybe<Scalars['String']>;
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
   inputsCreate?: InputMaybe<Array<RoutineVersionInputCreateInput>>;
@@ -7808,7 +7822,7 @@ export type RoutineVersionTranslation = {
   __typename: 'RoutineVersionTranslation';
   description?: Maybe<Scalars['String']>;
   id: Scalars['ID'];
-  instructions: Scalars['String'];
+  instructions?: Maybe<Scalars['String']>;
   language: Scalars['String'];
   name: Scalars['String'];
 };
@@ -7816,7 +7830,7 @@ export type RoutineVersionTranslation = {
 export type RoutineVersionTranslationCreateInput = {
   description?: InputMaybe<Scalars['String']>;
   id: Scalars['ID'];
-  instructions: Scalars['String'];
+  instructions?: InputMaybe<Scalars['String']>;
   language: Scalars['String'];
   name: Scalars['String'];
 };
@@ -7835,6 +7849,8 @@ export type RoutineVersionUpdateInput = {
   codeVersionConnect?: InputMaybe<Scalars['ID']>;
   codeVersionDisconnect?: InputMaybe<Scalars['Boolean']>;
   configCallData?: InputMaybe<Scalars['String']>;
+  configFormInput?: InputMaybe<Scalars['String']>;
+  configFormOutput?: InputMaybe<Scalars['String']>;
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   directoryListingsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
@@ -10530,6 +10546,7 @@ export type ResolversTypes = {
   PushDevice: ResolverTypeWrapper<PushDevice>;
   PushDeviceCreateInput: PushDeviceCreateInput;
   PushDeviceKeysInput: PushDeviceKeysInput;
+  PushDeviceTestInput: PushDeviceTestInput;
   PushDeviceUpdateInput: PushDeviceUpdateInput;
   Query: ResolverTypeWrapper<{}>;
   Question: ResolverTypeWrapper<Omit<Question, 'forObject'> & { forObject?: Maybe<ResolversTypes['QuestionFor']> }>;
@@ -11262,6 +11279,7 @@ export type ResolversParentTypes = {
   PushDevice: PushDevice;
   PushDeviceCreateInput: PushDeviceCreateInput;
   PushDeviceKeysInput: PushDeviceKeysInput;
+  PushDeviceTestInput: PushDeviceTestInput;
   PushDeviceUpdateInput: PushDeviceUpdateInput;
   Query: {};
   Question: Omit<Question, 'forObject'> & { forObject?: Maybe<ResolversParentTypes['QuestionFor']> };
@@ -12578,6 +12596,7 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   pullRequestReject?: Resolver<ResolversTypes['PullRequest'], ParentType, ContextType, RequireFields<MutationPullRequestRejectArgs, 'input'>>;
   pullRequestUpdate?: Resolver<ResolversTypes['PullRequest'], ParentType, ContextType, RequireFields<MutationPullRequestUpdateArgs, 'input'>>;
   pushDeviceCreate?: Resolver<ResolversTypes['PushDevice'], ParentType, ContextType, RequireFields<MutationPushDeviceCreateArgs, 'input'>>;
+  pushDeviceTest?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationPushDeviceTestArgs, 'input'>>;
   pushDeviceUpdate?: Resolver<ResolversTypes['PushDevice'], ParentType, ContextType, RequireFields<MutationPushDeviceUpdateArgs, 'input'>>;
   questionAnswerCreate?: Resolver<ResolversTypes['QuestionAnswer'], ParentType, ContextType, RequireFields<MutationQuestionAnswerCreateArgs, 'input'>>;
   questionAnswerMarkAsAccepted?: Resolver<ResolversTypes['QuestionAnswer'], ParentType, ContextType, RequireFields<MutationQuestionAnswerMarkAsAcceptedArgs, 'input'>>;
@@ -14065,6 +14084,8 @@ export type RoutineVersionResolvers<ContextType = any, ParentType extends Resolv
   completedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   complexity?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   configCallData?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  configFormInput?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  configFormOutput?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   created_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   directoryListings?: Resolver<Array<ResolversTypes['ProjectVersionDirectory']>, ParentType, ContextType>;
   directoryListingsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -14157,7 +14178,7 @@ export type RoutineVersionSearchResultResolvers<ContextType = any, ParentType ex
 export type RoutineVersionTranslationResolvers<ContextType = any, ParentType extends ResolversParentTypes['RoutineVersionTranslation'] = ResolversParentTypes['RoutineVersionTranslation']> = {
   description?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  instructions?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  instructions?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   language?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;

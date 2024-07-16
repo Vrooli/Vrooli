@@ -1,17 +1,15 @@
+/* eslint-disable func-style */
 import { CommonKey, InputType } from "@local/shared";
-import { FieldData, FormSchema, GridContainer } from "forms/types";
+import { FormInputType, FormSchema, GridContainer } from "forms/types";
 import i18next from "i18next";
 
-export const searchFormLayout = (title: CommonKey): FormSchema["formLayout"] => ({
+export const searchFormLayout = (title: CommonKey): FormSchema["layout"] => ({
     title: i18next.t(title),
-    direction: "column",
-    spacing: 4,
 });
 
 // Containers
 export const languagesContainer = (): GridContainer => ({
-    title: i18next.t("Language", { count: 2 }),
-    description: i18next.t("LanguagesHelp"),
+    direction: "column",
     disableCollapse: true,
     totalItems: 1,
 });
@@ -19,43 +17,46 @@ export const languagesVersionContainer = languagesContainer;
 export const bookmarksContainer = (): GridContainer => ({
     title: i18next.t("Bookmark", { count: 2 }),
     description: i18next.t("BookmarksHelp"),
+    direction: "row",
     disableCollapse: true,
     totalItems: 2,
-    spacing: 2,
 });
 export const bookmarksRootContainer = bookmarksContainer;
 export const tagsContainer = (): GridContainer => ({
-    title: i18next.t("Tag", { count: 2 }),
-    description: i18next.t("TagsHelp"),
+    direction: "column",
     disableCollapse: true,
     totalItems: 1,
 });
 export const tagsRootContainer = tagsContainer;
 export const votesContainer = (): GridContainer => ({
     title: i18next.t("Vote", { count: 2 }),
-    disableCollapse: true,
     description: i18next.t("VotesHelp"),
+    direction: "row",
+    disableCollapse: true,
     totalItems: 2,
-    spacing: 2,
 });
 export const votesRootContainer = votesContainer;
 export const simplicityContainer = (): GridContainer => ({
     title: i18next.t("Simplicity"),
     description: i18next.t("SimplicityHelp"),
+    direction: "row",
     disableCollapse: true,
     totalItems: 2,
-    spacing: 2,
 });
 export const simplicityRootContainer = simplicityContainer;
 export const complexityContainer = (): GridContainer => ({
     title: i18next.t("Complexity"),
     description: i18next.t("ComplexityHelp"),
+    direction: "row",
     disableCollapse: true,
     totalItems: 2,
-    spacing: 2,
 });
 export const complexityRootContainer = complexityContainer;
-export const hasCompleteVersionContainer: GridContainer = { disableCollapse: true, totalItems: 1 };
+export const hasCompleteVersionContainer: GridContainer = {
+    direction: "column",
+    disableCollapse: true,
+    totalItems: 1,
+};
 export const isCompleteWithRootContainer: GridContainer = hasCompleteVersionContainer;
 export const isLatestContainer: GridContainer = hasCompleteVersionContainer;
 
@@ -74,23 +75,27 @@ export const yesNoDontCare = () => ({
 });
 
 // Fields
-export const languagesFields = (): FieldData[] => ([
-    {
-        fieldName: "translationLanguages",
-        label: i18next.t("Language", { count: 2 }),
-        type: InputType.LanguageInput,
-        props: {},
-    },
-]);
-export const languagesVersionFields = (): FieldData[] => ([
+export function languagesFields(): FormInputType[] {
+    return [
+        {
+            fieldName: "translationLanguages",
+            id: "translationLanguages",
+            label: i18next.t("Language", { count: 2 }),
+            type: InputType.LanguageInput,
+            props: {},
+        },
+    ];
+}
+export const languagesVersionFields = (): FormInputType[] => ([
     {
         ...languagesFields()[0],
         fieldName: "translationLanguagesLatestVersion",
     },
 ]);
-export const bookmarksFields = (): FieldData[] => ([
+export const bookmarksFields = (): FormInputType[] => ([
     {
         fieldName: "minBookmarks",
+        id: "minBookmarks",
         label: i18next.t("Min"),
         type: InputType.IntegerInput,
         props: {
@@ -101,6 +106,7 @@ export const bookmarksFields = (): FieldData[] => ([
     },
     {
         fieldName: "maxBookmarks",
+        id: "maxBookmarks",
         label: i18next.t("Max"),
         type: InputType.IntegerInput,
         props: {
@@ -110,33 +116,38 @@ export const bookmarksFields = (): FieldData[] => ([
         },
     },
 ]);
-export const bookmarksRootFields = (): FieldData[] => ([
+export const bookmarksRootFields = (): FormInputType[] => ([
     {
         ...bookmarksFields()[0],
         fieldName: "minBookmarksRoot",
+        id: "minBookmarksRoot",
     },
     {
         ...bookmarksFields()[1],
         fieldName: "maxBookmarksRoot",
+        id: "maxBookmarksRoot",
     },
 ]);
-export const tagsFields = (): FieldData[] => ([
+export const tagsFields = (): FormInputType[] => ([
     {
         fieldName: "tags",
+        id: "tags",
         label: i18next.t("Tag", { count: 2 }),
         type: InputType.TagSelector,
         props: {},
     },
 ]);
-export const tagsRootFields = (): FieldData[] => ([
+export const tagsRootFields = (): FormInputType[] => ([
     {
         ...tagsFields()[0],
         fieldName: "tagsRoot",
+        id: "tagsRoot",
     },
 ]);
-export const votesFields = (): FieldData[] => ([
+export const votesFields = (): FormInputType[] => ([
     {
         fieldName: "minVotes",
+        id: "minVotes",
         label: i18next.t("Min"),
         type: InputType.IntegerInput,
         props: {
@@ -147,6 +158,7 @@ export const votesFields = (): FieldData[] => ([
     },
     {
         fieldName: "maxVotes",
+        id: "maxVotes",
         label: i18next.t("Max"),
         type: InputType.IntegerInput,
         props: {
@@ -156,19 +168,22 @@ export const votesFields = (): FieldData[] => ([
         },
     },
 ]);
-export const votesRootFields = (): FieldData[] => ([
+export const votesRootFields = (): FormInputType[] => ([
     {
         ...votesFields()[0],
         fieldName: "minVotesRoot",
+        id: "minVotesRoot",
     },
     {
         ...votesFields()[1],
         fieldName: "maxVotesRoot",
+        id: "maxVotesRoot",
     },
 ]);
-export const simplicityFields = (): FieldData[] => ([
+export const simplicityFields = (): FormInputType[] => ([
     {
         fieldName: "minSimplicity",
+        id: "minSimplicity",
         label: i18next.t("Min"),
         type: InputType.IntegerInput,
         props: {
@@ -179,6 +194,7 @@ export const simplicityFields = (): FieldData[] => ([
     },
     {
         fieldName: "maxSimplicity",
+        id: "maxSimplicity",
         label: i18next.t("Max"),
         type: InputType.IntegerInput,
         props: {
@@ -188,7 +204,7 @@ export const simplicityFields = (): FieldData[] => ([
         },
     },
 ]);
-export const simplicityRootFields = (): FieldData[] => ([
+export const simplicityRootFields = (): FormInputType[] => ([
     {
         ...simplicityFields()[0],
         fieldName: "minSimplicityRoot",
@@ -198,9 +214,10 @@ export const simplicityRootFields = (): FieldData[] => ([
         fieldName: "maxSimplicityRoot",
     },
 ]);
-export const complexityFields = (): FieldData[] => ([
+export const complexityFields = (): FormInputType[] => ([
     {
         fieldName: "minComplexity",
+        id: "minComplexity",
         label: i18next.t("Min"),
         type: InputType.IntegerInput,
         props: {
@@ -211,6 +228,7 @@ export const complexityFields = (): FieldData[] => ([
     },
     {
         fieldName: "maxComplexity",
+        id: "maxComplexity",
         label: i18next.t("Max"),
         type: InputType.IntegerInput,
         props: {
@@ -220,33 +238,38 @@ export const complexityFields = (): FieldData[] => ([
         },
     },
 ]);
-export const complexityRootFields = (): FieldData[] => ([
+export const complexityRootFields = (): FormInputType[] => ([
     {
         ...complexityFields()[0],
         fieldName: "minComplexityRoot",
+        id: "minComplexityRoot",
     },
     {
         ...complexityFields()[1],
         fieldName: "maxComplexityRoot",
+        id: "maxComplexityRoot",
     },
 ]);
-export const hasCompleteVersionFields = (): FieldData[] => ([
+export const hasCompleteVersionFields = (): FormInputType[] => ([
     {
         fieldName: "hasCompleteVersion",
+        id: "hasCompleteVersion",
         label: i18next.t("HasCompleteVersion"),
         ...yesNoDontCare(),
     },
 ]);
-export const isCompleteWithRootFields = (): FieldData[] => ([
+export const isCompleteWithRootFields = (): FormInputType[] => ([
     {
         fieldName: "isCompleteWithRoot",
+        id: "isCompleteWithRoot",
         label: i18next.t("VersionAndRootComplete"),
         ...yesNoDontCare(),
     },
 ]);
-export const isLatestFields = (): FieldData[] => ([
+export const isLatestFields = (): FormInputType[] => ([
     {
         fieldName: "isLatest",
+        id: "isLatest",
         label: i18next.t("IsLatestVersion"),
         ...yesNoDontCare(),
     },

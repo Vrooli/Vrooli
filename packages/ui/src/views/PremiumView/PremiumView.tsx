@@ -34,10 +34,10 @@ const rows = [
     ["Early access to new features", "❌", "✔️"],
 ].map(([feature, free, pro]) => ({ feature, free, pro }));
 
-export const PremiumView = ({
+export function PremiumView({
     display,
     onClose,
-}: PremiumViewProps) => {
+}: PremiumViewProps) {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const session = useContext(SessionContext);
@@ -59,7 +59,7 @@ export const PremiumView = ({
         startCheckout,
     } = useStripe();
 
-    const scrollToElement = (elementId: string) => {
+    function scrollToElement(elementId: string) {
         const element = document.getElementById(elementId);
         if (element) {
             // Scroll so element is in middle of screen
@@ -78,7 +78,7 @@ export const PremiumView = ({
                 element.style.borderRadius = originalBorderRadius;
             }, 1000);
         }
-    };
+    }
 
     return (
         <Box sx={{
@@ -91,9 +91,9 @@ export const PremiumView = ({
             <RandomBlobs numberOfBlobs={isMobile ? 3 : 5} />
             <TopBar
                 display={display}
-                hideTitleOnDesktop
                 onClose={onClose}
-                title={t("Pricing")}
+                title={t("ProGet")}
+                titleBehaviorDesktop="ShowIn"
             />
             <Box
                 sx={{
@@ -464,4 +464,4 @@ export const PremiumView = ({
             </Box >
         </Box >
     );
-};
+}

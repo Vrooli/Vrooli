@@ -1,127 +1,107 @@
-import { User } from "@local/shared";
-import { Avatar, IconButton, Stack, Typography, useTheme } from "@mui/material";
-import { RelationshipItemUser } from "components/lists/types";
-import { TextShrink } from "components/text/TextShrink/TextShrink";
+import { AvatarGroup, Tooltip } from "@mui/material";
 import { useField, useFormikContext } from "formik";
-import { AddIcon, BotIcon, LockIcon, UserIcon } from "icons";
+import { SettingsIcon, UserIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { extractImageUrl } from "utils/display/imageTools";
-import { getDisplay, placeholderColor } from "utils/display/listTools";
+import { placeholderColor } from "utils/display/listTools";
+import { MemberShape } from "utils/shape/models/member";
 import { MemberManageView } from "views/MemberManageView/MemberManageView";
 import { MemberManageViewProps } from "views/types";
-import { commonLabelProps, smallButtonProps } from "../styles";
+import { RelationshipAvatar, RelationshipButton, RelationshipChip } from "../styles";
 import { MembersButtonProps } from "../types";
 
-const maxIconsDisplayed = 4;
+const MAX_LABEL_LENGTH = 20;
+const TARGET_IMAGE_SIZE = 100;
+const MAX_AVATARS = 4;
 
-export const MembersButton = ({
+export function MembersButton({
     isEditing,
-    objectType,
-}: MembersButtonProps) => {
-    const { palette } = useTheme();
+}: MembersButtonProps) {
     const { t } = useTranslation();
 
     const formikContext = useFormikContext();
-    const [membersField, , membersFieldHelpers] = useField("members");
-    const [isOpenToNewMembersField] = useField("isOpenToNewMembers");
-
-    const isAvailable = useMemo(() => ["Team"].includes(objectType), [objectType]);
+    const [membersField] = useField("members");
 
     const [isDialogOpen, setDialogOpen] = useState<boolean>(false);
     const openDialog = useCallback(() => { setDialogOpen(true); }, []);
     const closeDialog = useCallback(() => { setDialogOpen(false); }, []);
-    const handleMemberSelect = useCallback((member: RelationshipItemUser) => {
-        membersFieldHelpers.setValue([...(membersField.value ?? []), member]);
-        closeDialog();
-    }, [membersFieldHelpers, membersField.value, closeDialog]);
 
-    const searchData = useMemo(() => ({
-        searchType: "User" as const,
-        where: { memberInTeamId: membersField?.value?.id },
-    }), [membersField?.value?.id]);
-
-    const icons = useMemo<(JSX.Element | null)[]>(() => {
-        let newIcons: (JSX.Element | null)[] = [];
-        let maxUserIcons = isEditing ? maxIconsDisplayed - 1 : maxIconsDisplayed;
-        // If there are more members than allowed, add a "+X" icon
-        const hasMoreMembers = (membersField.value ?? []).length > maxUserIcons;
-        if (hasMoreMembers) maxUserIcons--;
-        // Add the first X members
-        newIcons = (membersField.value ?? []).slice(0, maxUserIcons).map((user: User) => (
-            <Avatar
-                key={user.id}
-                src={extractImageUrl(user.profileImage, user.updated_at, 50)}
-                alt={`${getDisplay(user).title}'s profile picture`}
-                sx={{
-                    backgroundColor: placeholderColor()[0],
-                    width: "24px",
-                    height: "24px",
-                    pointerEvents: "none",
-                    ...(user.isBot ? { borderRadius: "4px" } : {}),
-                }}
-            >
-                {user.isBot ? <BotIcon width="75%" height="75%" fill={palette.background.textPrimary} /> : <UserIcon width="75%" height="75%" fill={palette.background.textPrimary} />}
-            </Avatar>
-        ));
-        // Add the "+X" icon if there are more members than allowed
-        if (hasMoreMembers) {
-            newIcons.push(
-                <Typography variant="body2" key="more" sx={{ width: 24, height: 24 }}>
-                    {`+${membersField.value.length - maxUserIcons}`}
-                </Typography>,
-            );
+    const { avatars, Icon, membersCount, label, tooltip } = useMemo(() => {
+        const members = (membersField.value || []) as MemberShape[];
+        if (!Array.isArray(members) || members.some(member => typeof member !== "object")) {
+            return {
+                avatars: [],
+                Icon: null,
+                membersCount: 0,
+                label: "",
+                tooltip: "",
+            };
         }
-        // Add the "Add" or "Lock" icon if editing
-        if (isEditing) {
-            if (isOpenToNewMembersField.value) newIcons.push(<AddIcon key="add" width={24} height={24} fill={palette.background.textPrimary} />);
-            else newIcons.push(<LockIcon key="lock" width={24} height={24} fill={palette.background.textPrimary} />);
-        }
-        // Add null icons to fill the remaining space up to the max
-        while (newIcons.length < maxIconsDisplayed) newIcons.push(null);
-        return newIcons;
-    }, [isEditing, isOpenToNewMembersField.value, membersField.value, palette.background.textPrimary]);
-
-    if (!isAvailable || (!isEditing && (!Array.isArray(membersField.value) || membersField.value.length === 0))) return null;
-
-    return (
-        <>
-            {/* Dialog for managing members */}
-            <MemberManageView
-                display="dialog"
-                isOpen={isDialogOpen}
-                onClose={closeDialog}
-                team={formikContext.values as MemberManageViewProps["team"]}
-            />
-            <Stack
-                direction="column"
-                alignItems="center"
-                justifyContent="center"
-            >
-                <TextShrink id="members" sx={{ ...commonLabelProps() }}>{t("Member", { count: 2 })}</TextShrink>
-                <IconButton
-                    sx={{
-                        ...smallButtonProps(isEditing, true),
-                        background: palette.primary.light,
-                        borderRadius: "12px",
-                        color: "white",
-                        position: "relative",
-                    }}
-                    onClick={openDialog}
+        const avatars = members.slice(0, MAX_AVATARS).map(member => {
+            const imageUrl = extractImageUrl(member.user?.profileImage, member.user?.updated_at, TARGET_IMAGE_SIZE);
+            const isBot = member.user?.isBot ?? false;
+            return (
+                <RelationshipAvatar
+                    key={member.id}
+                    isBot={isBot}
+                    src={imageUrl}
+                    profileColors={placeholderColor(member.user?.id)}
                 >
-                    {/* Members & add members icons */}
-                    <Stack direction="column" justifyContent="center" alignItems="center" style={{ height: "100%", width: "100%" }}>
-                        <Stack direction="row" justifyContent="space-around" sx={{ gap: "2px" }}>
-                            {icons[0]}
-                            {icons[1]}
-                        </Stack>
-                        <Stack direction="row" justifyContent="space-around" sx={{ gap: "2px" }}>
-                            {icons[2]}
-                            {icons[3]}
-                        </Stack>
-                    </Stack>
-                </IconButton>
-            </Stack>
-        </>
+                    {!imageUrl && <UserIcon />}
+                </RelationshipAvatar>
+            );
+        });
+
+        const membersCount = members.length;
+        const label = (membersCount > 0 || !isEditing) ? `${t("Member", { count: membersCount })}: ${membersCount}` : "Manage members";
+        const truncatedLabel = label.length > MAX_LABEL_LENGTH ? `${label.slice(0, MAX_LABEL_LENGTH)}...` : label;
+        const tooltip = isEditing ? "Manage members" : "View members";
+
+        return {
+            avatars,
+            Icon: avatars.length > 0 ? undefined : SettingsIcon,
+            membersCount,
+            label: truncatedLabel,
+            tooltip,
+        };
+    }, [isEditing, membersField.value, t]);
+
+    const Avatars = useMemo(function AvatarsMemo() {
+        return avatars.length > 0 ? (
+            <AvatarGroup max={MAX_AVATARS} total={membersCount}>
+                {avatars}
+            </AvatarGroup>
+        ) : null;
+    }, [avatars, membersCount]);
+
+    if (!isEditing && avatars.length === 0) return null;
+    if (isEditing) {
+        return (
+            <>
+                <MemberManageView
+                    display="dialog"
+                    isOpen={isDialogOpen}
+                    onClose={closeDialog}
+                    team={formikContext.values as MemberManageViewProps["team"]}
+                />
+                <Tooltip title={tooltip}>
+                    <RelationshipButton
+                        onClick={openDialog}
+                        startIcon={Avatars || (Icon && <Icon />)}
+                        variant="outlined"
+                    >
+                        {label}
+                    </RelationshipButton>
+                </Tooltip>
+            </>
+        );
+    }
+    return (
+        <RelationshipChip
+            icon={Avatars || (Icon && <Icon />) || undefined}
+            label={label}
+            onClick={openDialog}
+        />
     );
-};
+}

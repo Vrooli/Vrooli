@@ -10,7 +10,7 @@ let vapidDetailsSet = false;
  * the private key is loaded from the secrets location, so it's 
  * not available at startup.
  */
-export const setVapidDetails = () => {
+export function setVapidDetails() {
     if (!vapidDetailsSet) {
         webpush.setVapidDetails(
             `mailto:${process.env.LETSENCRYPT_EMAIL}`,
@@ -19,7 +19,7 @@ export const setVapidDetails = () => {
         );
         vapidDetailsSet = true;
     }
-};
+}
 
 export async function pushProcess({ data }: Job<PushSubscription & PushPayload>) {
     try {

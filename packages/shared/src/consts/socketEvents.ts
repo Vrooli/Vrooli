@@ -1,5 +1,6 @@
 import { ChatMessage, ChatParticipant } from "../api/generated/graphqlTypes";
 import { LlmTaskInfo } from "../llm/types";
+import { JOIN_CHAT_ROOM_ERRORS, JOIN_USER_ROOM_ERRORS, LEAVE_CHAT_ROOM_ERRORS, LEAVE_USER_ROOM_ERRORS } from "./api";
 
 export type ReservedSocketEvents = "connect" | "connect_error" | "disconnect";
 export type RoomSocketEvents = "joinChatRoom" | "leaveChatRoom" | "joinUserRoom" | "leaveUserRoom";
@@ -64,19 +65,40 @@ export type ReservedSocketEventPayloads = {
 }
 export type SocketEventPayloads = UserSocketEventPayloads & ChatSocketEventPayloads & ReservedSocketEventPayloads;
 
-export interface SocketEventCallbackData {
-    success?: boolean;
-    error?: string;
-}
-export interface SocketEventCallbacks {
-    joinChatRoom: (response: SocketEventCallbackData) => void;
-    leaveChatRoom: (response: SocketEventCallbackData) => void;
-    joinUserRoom: (response: SocketEventCallbackData) => void;
-    leaveUserRoom: (response: SocketEventCallbackData) => void;
+export type JoinUserRoomCallbackData = {
+    success: boolean;
+    error?: keyof typeof JOIN_USER_ROOM_ERRORS | string;
 }
 
-export type SocketEventHandler<T extends SocketEvent> = T extends keyof SocketEventCallbacks
-    ? (payload: SocketEventPayloads[T], callback: SocketEventCallbacks[T]) => void
+export type LeaveUserRoomCallbackData = {
+    success: boolean;
+    error?: keyof typeof LEAVE_USER_ROOM_ERRORS;
+}
+
+export type JoinChatRoomCallbackData = {
+    success: boolean;
+    error?: keyof typeof JOIN_CHAT_ROOM_ERRORS | string;
+}
+
+export type LeaveChatRoomCallbackData = {
+    success: boolean;
+    error?: keyof typeof LEAVE_CHAT_ROOM_ERRORS;
+}
+
+export type UserSocketEventCallbackPayloads = {
+    joinUserRoom: JoinUserRoomCallbackData;
+    leaveUserRoom: LeaveUserRoomCallbackData;
+}
+
+export type ChatSocketEventCallbackPayloads = {
+    joinChatRoom: JoinChatRoomCallbackData;
+    leaveChatRoom: LeaveChatRoomCallbackData;
+}
+
+export type SocketEventCallbackPayloads = UserSocketEventCallbackPayloads & ChatSocketEventCallbackPayloads;
+
+export type SocketEventHandler<T extends SocketEvent> = T extends keyof SocketEventCallbackPayloads
+    ? (payload: SocketEventPayloads[T], callback: (data: SocketEventCallbackPayloads[T]) => void) => void
     : (payload: SocketEventPayloads[T]) => void;
 
 

@@ -1,6 +1,8 @@
-import { Avatar, Box, IconButton, Palette, Stack, styled, SxProps, Theme, Typography } from "@mui/material";
+/* eslint-disable no-magic-numbers */
+import { Avatar, AvatarProps, Box, IconButton, Palette, Stack, styled, SxProps, Theme, Typography } from "@mui/material";
 
-export const pagePaddingBottom = "calc(56px + env(safe-area-inset-bottom))";
+export const bottomNavHeight = "56px";
+export const pagePaddingBottom = `calc(${bottomNavHeight} + env(safe-area-inset-bottom))`;
 
 export const centeredDiv = {
     display: "flex",
@@ -23,14 +25,16 @@ export const clickSize = {
     minHeight: "48px",
 } as const;
 
-export const multiLineEllipsis = (lines: number) => ({
-    display: "-webkit-box",
-    lineHeight: "1.5", // Without this, WebkitLineClamp might accidentally include the top of the first line cut off
-    WebkitLineClamp: lines,
-    WebkitBoxOrient: "vertical",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-}) as const;
+export function multiLineEllipsis(lines: number) {
+    return {
+        display: "-webkit-box",
+        lineHeight: "1.5", // Without this, WebkitLineClamp might accidentally include the top of the first line cut off
+        WebkitLineClamp: lines,
+        WebkitBoxOrient: "vertical",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+    } as const;
+}
 
 /**
  * Disables text highlighting
@@ -44,22 +48,24 @@ export const noSelect = {
     supported by Chrome, Edge, Opera and Firefox */
 } as const;
 
-export const linkColors = (palette: Palette) => ({
-    a: {
-        color: palette.mode === "light" ? "#001cd3" : "#dd86db",
-        "&:visited": {
-            color: palette.mode === "light" ? "#001cd3" : "#f551ef",
+export function linkColors(palette: Palette) {
+    return {
+        a: {
+            color: palette.mode === "light" ? "#001cd3" : "#dd86db",
+            "&:visited": {
+                color: palette.mode === "light" ? "#001cd3" : "#f551ef",
+            },
+            "&:active": {
+                color: palette.mode === "light" ? "#001cd3" : "#f551ef",
+            },
+            "&:hover": {
+                color: palette.mode === "light" ? "#5a6ff6" : "#f3d4f2",
+            },
+            // Remove underline on links
+            textDecoration: "none",
         },
-        "&:active": {
-            color: palette.mode === "light" ? "#001cd3" : "#f551ef",
-        },
-        "&:hover": {
-            color: palette.mode === "light" ? "#5a6ff6" : "#f3d4f2",
-        },
-        // Remove underline on links
-        textDecoration: "none",
-    },
-});
+    };
+}
 
 export const greenNeonText = {
     color: "#fff",
@@ -80,58 +86,66 @@ export const SlideIconButton = styled(IconButton)(({ theme }) => ({
     ...slideIconButton,
 }));
 
-export const slideText = (theme: Theme) => ({
-    zIndex: 10,
-    textAlign: "center",
-    textWrap: "balance",
-    [theme.breakpoints.up("md")]: {
-        fontSize: "1.5rem",
-    },
-    [theme.breakpoints.down("md")]: {
-        fontSize: "1.25rem",
-    },
-} as const);
+export function slideText(theme: Theme) {
+    return {
+        zIndex: 10,
+        textAlign: "center",
+        textWrap: "balance",
+        [theme.breakpoints.up("md")]: {
+            fontSize: "1.5rem",
+        },
+        [theme.breakpoints.down("md")]: {
+            fontSize: "1.25rem",
+        },
+    } as const;
+}
 export const SlideText = styled("h3")(({ theme }) => ({
     ...slideText(theme),
 }));
 
-export const slideTitle = (theme: Theme) => ({
-    letterSpacing: "-0.05em",
-    textAlign: "center",
-    wordBreak: "break-word",
-    zIndex: 10,
-    [theme.breakpoints.up("md")]: {
-        fontSize: "3.75rem",
-    },
-    [theme.breakpoints.up("sm")]: {
-        fontSize: "3rem",
-    },
-    [theme.breakpoints.up("xs")]: {
-        fontSize: "2.4rem",
-    },
-} as const);
+export function slideTitle(theme: Theme) {
+    return {
+        letterSpacing: "-0.05em",
+        textAlign: "center",
+        wordBreak: "break-word",
+        zIndex: 10,
+        [theme.breakpoints.up("md")]: {
+            fontSize: "3.75rem",
+        },
+        [theme.breakpoints.up("sm")]: {
+            fontSize: "3rem",
+        },
+        [theme.breakpoints.up("xs")]: {
+            fontSize: "2.4rem",
+        },
+    } as const;
+}
 export const SlideTitle = styled(Typography)(({ theme }) => ({
     ...slideTitle(theme),
 }));
 
-export const slideImageContainer = (theme: Theme) => ({
-    justifyContent: "center",
-    height: "100%",
-    display: "flex",
-    "& > img": {
-        maxWidth: "min(500px, 100%)",
-        maxHeight: "100%",
-        zIndex: "3",
-    },
-} as const);
+export function slideImageContainer(theme: Theme) {
+    return {
+        justifyContent: "center",
+        height: "100%",
+        display: "flex",
+        "& > img": {
+            maxWidth: "min(500px, 100%)",
+            maxHeight: "100%",
+            zIndex: "3",
+        },
+    } as const;
+}
 export const SlideImageContainer = styled(Box)(({ theme }) => ({
     ...slideImageContainer(theme),
 }));
 
-export const slideImage = (theme: Theme) => ({
-    borderRadius: theme.spacing(4),
-    objectFit: "cover",
-} as const);
+export function slideImage(theme: Theme) {
+    return {
+        borderRadius: theme.spacing(4),
+        objectFit: "cover",
+    } as const;
+}
 export const SlideImage = styled("img")(({ theme }) => ({
     ...slideImage(theme),
 }));
@@ -171,7 +185,6 @@ export const slideBox = (theme: Theme) => ({
     ...slideContent(theme),
     background: "#2c2d2fd1",
     borderRadius: theme.spacing(4),
-    boxShadow: theme.shadows[2],
     minHeight: "unset",
     zIndex: 2,
     gap: theme.spacing(6),
@@ -192,37 +205,52 @@ export const textPop = {
                 1px 1px 0 black`,
 } as const;
 
-export const baseSection = (theme: Theme) => ({
-    background: theme.palette.mode === "dark" ?
-        theme.palette.background.paper :
-        theme.palette.background.default,
-    borderRadius: theme.spacing(1),
-    flexDirection: "column",
-    padding: theme.spacing(2),
-    "@media print": {
-        border: `1px solid ${theme.palette.divider}`,
-    },
-} as const);
+export function baseSection(theme: Pick<Theme, "palette" | "spacing">) {
+    return {
+        background: theme.palette.mode === "dark" ?
+            theme.palette.background.paper :
+            theme.palette.background.default,
+        borderRadius: theme.spacing(1),
+        flexDirection: "column",
+        padding: theme.spacing(2),
+        "@media print": {
+            border: `1px solid ${theme.palette.divider}`,
+        },
+    } as const;
+}
 export const BaseSection = styled(Box)(({ theme }) => ({
     ...baseSection(theme),
 }));
 
-export const formSection = (theme: Theme) => ({
-    ...baseSection(theme),
-    overflowX: "auto",
-    gap: theme.spacing(2),
-} as const);
+export function formSection(theme: Pick<Theme, "breakpoints" | "palette" | "spacing">) {
+    return {
+        ...baseSection(theme),
+        overflowX: "auto",
+        gap: theme.spacing(2),
+        padding: theme.spacing(2),
+        // Smaller padding on mobile
+        [theme.breakpoints.down("sm")]: {
+            padding: theme.spacing(1.5),
+        },
+    } as const;
+}
 export const FormSection = styled(Stack)(({ theme }) => ({
     ...noSelect,
     ...formSection(theme),
 }));
 
 
-export const formContainer = (theme: Theme): SxProps => ({
-    flexDirection: "column",
-    margin: theme.spacing(2),
-    gap: theme.spacing(3),
-});
+export function formContainer(theme: Theme): SxProps {
+    return {
+        flexDirection: "column",
+        gap: theme.spacing(3),
+        margin: theme.spacing(2),
+        // Smaller margin on mobile
+        [theme.breakpoints.down("sm")]: {
+            margin: theme.spacing(1),
+        },
+    };
+}
 export const FormContainer = styled(Stack)(({ theme }) => ({
     ...formContainer(theme),
 }));
@@ -259,12 +287,45 @@ export const OverviewProfileStack = styled(Stack)(({ theme }) => ({
     },
 }));
 
-export const OverviewProfileAvatar = styled(Avatar)(({ theme }) => ({
+interface ProfileAvatarProps extends AvatarProps {
+    isBot: boolean;
+    profileColors: [string, string];
+}
+
+export const ProfileAvatar = styled(Avatar, {
+    shouldForwardProp: (prop) => prop !== "isBot" && prop !== "profileColors",
+})<ProfileAvatarProps>(({ isBot, profileColors }) => ({
+    backgroundColor: profileColors[0],
+    color: profileColors[1],
+    borderRadius: isBot ? "8px" : "50%",
+}));
+
+
+export const OverviewProfileAvatar = styled(ProfileAvatar)(() => ({
     width: "max(min(100px, 40vw), 75px)",
     height: "max(min(100px, 40vw), 75px)",
     top: "-100%",
     fontSize: "min(50px, 10vw)",
     marginRight: "auto",
+}));
+
+export const ProfilePictureInputAvatar = styled(ProfileAvatar)(({ theme }) => ({
+    boxShadow: theme.shadows[4],
+    width: "100px",
+    height: "100px",
+    cursor: "pointer",
+}));
+
+interface ObjectListProfileAvatarProps extends ProfileAvatarProps {
+    isMobile: boolean;
+}
+
+export const ObjectListProfileAvatar = styled(ProfileAvatar, {
+    shouldForwardProp: (prop) => prop !== "isMobile",
+})<ObjectListProfileAvatarProps>(({ isMobile }) => ({
+    width: isMobile ? "40px" : "50px",
+    height: isMobile ? "40px" : "50px",
+    pointerEvents: "none",
 }));
 
 export const highlightStyle = (background: string, disabled: boolean | undefined) => ({
@@ -296,3 +357,10 @@ export const CardBox = styled(Box)(({ theme }) => ({
         transition: "filter 0.2s",
     },
 })) as any;// TODO: Fix any - https://github.com/mui/material-ui/issues/38274
+
+export const SideActionsButton = styled(IconButton)(({ theme }) => ({
+    background: theme.palette.secondary.main,
+    width: "54px",
+    height: "54px",
+    padding: 0,
+}));

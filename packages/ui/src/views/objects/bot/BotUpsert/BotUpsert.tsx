@@ -1,7 +1,8 @@
 import { AutoFillInput, AutoFillResult, BotCreateInput, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetAutoFill, endpointGetUser, endpointPostBot, endpointPutBot, LINKS, LlmTask, noopSubmit, Session, User } from "@local/shared";
-import { Button, Divider, IconButton, InputAdornment, Slider, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Divider, IconButton, InputAdornment, Slider, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper, useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { CheckboxInput } from "components/inputs/CheckboxInput/CheckboxInput";
@@ -21,7 +22,7 @@ import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { BotIcon, CommentIcon, HandleIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, MagicIcon, TeamIcon, PersonaIcon, RoutineValidIcon, SearchIcon } from "icons";
+import { BotIcon, CommentIcon, HandleIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, MagicIcon, PersonaIcon, RoutineValidIcon, TeamIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
@@ -34,10 +35,10 @@ import { validateAndGetYupErrors } from "utils/shape/general";
 import { BotShape, BotTranslationShape, shapeBot } from "utils/shape/models/bot";
 import { BotFormProps, BotUpsertProps } from "../types";
 
-const botInitialValues = (
+function botInitialValues(
     session: Session | undefined,
     existing?: Partial<User> | BotShape | null | undefined,
-): BotShape => {
+): BotShape {
     const { creativity, verbosity, model, translations } = findBotData(getUserLanguages(session)[0], existing);
 
     return {
@@ -53,19 +54,20 @@ const botInitialValues = (
         isBot: true,
         translations,
     };
-};
+}
 
-const transformBotValues = (session: Session | undefined, values: BotShape, existing: BotShape, isCreate: boolean) =>
-    isCreate ? shapeBot.create(values) : shapeBot.update(botInitialValues(session, existing), values);
+function transformBotValues(session: Session | undefined, values: BotShape, existing: BotShape, isCreate: boolean) {
+    return isCreate ? shapeBot.create(values) : shapeBot.update(botInitialValues(session, existing), values);
+}
 
-const validateBotValues = async (session: Session | undefined, values: BotShape, existing: BotShape, isCreate: boolean) => {
+async function validateBotValues(session: Session | undefined, values: BotShape, existing: BotShape, isCreate: boolean) {
     const transformedValues = transformBotValues(session, values, existing, isCreate);
     const validationSchema = botValidation[isCreate ? "create" : "update"]({ env: process.env.NODE_ENV });
     const result = await validateAndGetYupErrors(validationSchema, transformedValues);
     return result;
-};
+}
 
-export const FeatureSlider = ({
+export function FeatureSlider({
     disabled,
     id,
     labelLeft,
@@ -81,7 +83,7 @@ export const FeatureSlider = ({
     setValue: (value: number) => unknown,
     title: string,
     value: number,
-}) => {
+}) {
     const min = 0.1;
     const max = 1;
     const step = 0.1;
@@ -125,7 +127,7 @@ export const FeatureSlider = ({
             />
         </Stack>
     );
-};
+}
 
 type InputMode = "default" | "custom";
 
@@ -151,7 +153,7 @@ type InputMode = "default" | "custom";
 //     )
 // };
 
-const BotForm = ({
+function BotForm({
     disabled,
     dirty,
     display,
@@ -166,7 +168,7 @@ const BotForm = ({
     onDeleted,
     values,
     ...props
-}: BotFormProps) => {
+}: BotFormProps) {
     const session = useContext(SessionContext);
     const { credits } = useMemo(() => getCurrentUser(session), [session]);
     const { palette } = useTheme();
@@ -282,20 +284,10 @@ const BotForm = ({
                 onClose={onClose}
                 title={t(isCreate ? "CreateBot" : "UpdateBot")}
             />
-            <Button
-                href={`${LINKS.Search}?type=${SearchPageTabOption.User}`}
-                sx={{
-                    color: palette.background.textSecondary,
-                    display: "flex",
-                    marginTop: 2,
-                    textAlign: "center",
-                    textTransform: "none",
-                }}
-                variant="text"
-                endIcon={<SearchIcon />}
-            >
-                Search existing bots
-            </Button>
+            <SearchExistingButton
+                href={`${LINKS.Search}?type="${SearchPageTabOption.User}"&isBot=true`}
+                text="Search existing bots"
+            />
             <BaseForm
                 display={display}
                 isLoading={isLoading}
@@ -356,6 +348,7 @@ const BotForm = ({
                                 helperText={props.touched.handle && props.errors.handle}
                             />
                             <TranslatedRichInput
+                                isRequired={false}
                                 language={language}
                                 maxChars={2048}
                                 minRows={4}
@@ -364,6 +357,7 @@ const BotForm = ({
                             />
                             <TranslatedTextInput
                                 fullWidth
+                                isRequired={false}
                                 label={t("StartMessage")}
                                 placeholder={t("StartMessagePlaceholder")}
                                 language={language}
@@ -398,6 +392,7 @@ const BotForm = ({
                         /> */}
                             <TranslatedTextInput
                                 fullWidth
+                                isRequired={false}
                                 label={t("Occupation")}
                                 placeholder={t("OccupationPlaceholderBot")}
                                 language={language}
@@ -412,6 +407,7 @@ const BotForm = ({
                             />
                             <TranslatedTextInput
                                 fullWidth
+                                isRequired={false}
                                 label={t("Persona")}
                                 placeholder={t("PersonaPlaceholderBot")}
                                 language={language}
@@ -426,6 +422,7 @@ const BotForm = ({
                             />
                             <TranslatedTextInput
                                 fullWidth
+                                isRequired={false}
                                 label={t("Tone")}
                                 placeholder={t("TonePlaceholderBot")}
                                 language={language}
@@ -440,6 +437,7 @@ const BotForm = ({
                             />
                             <TranslatedTextInput
                                 fullWidth
+                                isRequired={false}
                                 label={t("KeyPhrases")}
                                 placeholder={t("KeyPhrasesPlaceholderBot")}
                                 language={language}
@@ -454,6 +452,7 @@ const BotForm = ({
                             />
                             <TranslatedTextInput
                                 fullWidth
+                                isRequired={false}
                                 label={t("DomainKnowledge")}
                                 placeholder={t("DomainKnowledgePlaceholderBot")}
                                 language={language}
@@ -468,6 +467,7 @@ const BotForm = ({
                             />
                             <TranslatedTextInput
                                 fullWidth
+                                isRequired={false}
                                 label={t("Bias")}
                                 placeholder={t("BiasPlaceholderBot")}
                                 language={language}
@@ -540,14 +540,14 @@ const BotForm = ({
             />
         </MaybeLargeDialog >
     );
-};
+}
 
-export const BotUpsert = ({
+export function BotUpsert({
     isCreate,
     isOpen,
     overrideObject,
     ...props
-}: BotUpsertProps) => {
+}: BotUpsertProps) {
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<User, BotShape>({
@@ -558,12 +558,16 @@ export const BotUpsert = ({
         transform: (data) => botInitialValues(session, data),
     });
 
+    async function validateValues(values: BotShape) {
+        return await validateBotValues(session, values, existing, isCreate);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateBotValues(session, values, existing, isCreate)}
+            validate={validateValues}
         >
             {(formik) =>
                 <BotForm
@@ -579,4 +583,4 @@ export const BotUpsert = ({
             }
         </Formik>
     );
-};
+}

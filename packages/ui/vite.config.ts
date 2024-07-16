@@ -65,6 +65,8 @@ export default defineConfig((props) => {
                         // it won't affect the rest of the site).
                         // To help prevent blocking, it's named something random.
                         'banner-chicken': ['./src/components/BannerChicken/BannerChicken.tsx'],
+                        // Separate landing page to reduce main bundle size
+                        'landing': ['./src/views/main/LandingView/LandingView.tsx'],
                         // Codemirror bundles
                         'lang-angular': ['@codemirror/lang-angular'],
                         'lang-cpp': ['@codemirror/lang-cpp'],

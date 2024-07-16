@@ -1,7 +1,11 @@
+import { DAYS_1_S } from "@local/shared";
 import { Socket } from "socket.io";
 import { getUser } from "../auth/request";
 import { initializeRedis } from "../redisConn";
 import { checkRateLimit } from "./rateLimit";
+
+const DEFAULT_RATE_LIMIT = 250;
+const DEFAULT_RATE_LIMIT_WINDOW = DAYS_1_S;
 
 // Rate limit props
 interface SocketRateLimitProps {
@@ -17,8 +21,8 @@ interface SocketRateLimitProps {
  */
 export async function rateLimitSocket({
     maxIp,
-    maxUser = 250,
-    window = 60 * 60 * 24,
+    maxUser = DEFAULT_RATE_LIMIT,
+    window = DEFAULT_RATE_LIMIT_WINDOW,
     socket,
 }: SocketRateLimitProps): Promise<string | undefined> {
     const keyBase = "rate-limit:";

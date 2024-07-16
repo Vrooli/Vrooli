@@ -4,12 +4,15 @@ import { RoutineVersionShape } from "utils/shape/models/routineVersion";
 import { ObjectViewProps, ViewProps } from "views/types";
 import { CrudPropsDialog, CrudPropsPage } from "../types";
 
+/** RoutineVersion with fields required for the build view */
+export type BuildRoutineVersion = Pick<RoutineVersion, "id" | "nodes" | "nodeLinks" | "translations">
+
 export type BuildViewProps = ViewProps & {
     handleCancel: () => unknown;
-    handleSubmit: (updatedRoutineVersion: Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">) => unknown;
+    handleSubmit: (updatedRoutineVersion: BuildRoutineVersion) => unknown;
     isEditing: boolean;
     loading: boolean;
-    routineVersion: Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">;
+    routineVersion: BuildRoutineVersion;
     translationData: {
         language: string;
         setLanguage: (language: string) => unknown;

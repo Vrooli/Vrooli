@@ -41,8 +41,12 @@ export const FocusModeFilterModel: FocusModeFilterModelLogic = ({
             focusMode: "FocusMode",
         }),
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({
                 focusMode: ModelMap.get<FocusModeModelLogic>("FocusMode").validate().visibility.owner(userId),
             }),

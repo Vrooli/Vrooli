@@ -2,6 +2,7 @@ import { CodeType, CodeVersion, CodeVersionCreateInput, CodeVersionUpdateInput, 
 import { Button, Divider, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { CodeInput, CodeLanguage } from "components/inputs/CodeInput/CodeInput";
@@ -21,7 +22,7 @@ import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { HelpIcon, SearchIcon } from "icons";
+import { HelpIcon } from "icons";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
@@ -33,51 +34,54 @@ import { CodeVersionShape, shapeCodeVersion } from "utils/shape/models/codeVersi
 import { validateFormValues } from "utils/validateFormValues";
 import { CodeFormProps, CodeUpsertProps } from "../types";
 
-export const codeInitialValues = (
+export function codeInitialValues(
     session: Session | undefined,
     existing?: Partial<CodeVersion> | undefined,
-): CodeVersionShape => ({
-    __typename: "CodeVersion" as const,
-    id: DUMMY_ID,
-    calledByRoutineVersionsCount: 0,
-    codeLanguage: CodeLanguage.Haskell,
-    codeType: CodeType.DataConvert,
-    content: "",
-    directoryListings: [],
-    isComplete: false,
-    isPrivate: false,
-    resourceList: {
-        __typename: "ResourceList" as const,
+): CodeVersionShape {
+    return {
+        __typename: "CodeVersion" as const,
         id: DUMMY_ID,
-        listFor: {
-            __typename: "CodeVersion" as const,
-            id: DUMMY_ID,
-        },
-    },
-    versionLabel: "1.0.0",
-    ...existing,
-    root: {
-        __typename: "Code" as const,
-        id: DUMMY_ID,
+        calledByRoutineVersionsCount: 0,
+        codeLanguage: CodeLanguage.Haskell,
+        codeType: CodeType.DataConvert,
+        content: "",
+        directoryListings: [],
+        isComplete: false,
         isPrivate: false,
-        owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
-        parent: null,
-        permissions: JSON.stringify({}),
-        tags: [],
-        ...existing?.root,
-    },
-    translations: orDefault(existing?.translations, [{
-        __typename: "CodeVersionTranslation" as const,
-        id: DUMMY_ID,
-        language: getUserLanguages(session)[0],
-        description: "",
-        jsonVariable: "",
-        name: "",
-    }]),
-});
+        resourceList: {
+            __typename: "ResourceList" as const,
+            id: DUMMY_ID,
+            listFor: {
+                __typename: "CodeVersion" as const,
+                id: DUMMY_ID,
+            },
+        },
+        versionLabel: "1.0.0",
+        ...existing,
+        root: {
+            __typename: "Code" as const,
+            id: DUMMY_ID,
+            isPrivate: false,
+            owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
+            parent: null,
+            permissions: JSON.stringify({}),
+            tags: [],
+            ...existing?.root,
+        },
+        translations: orDefault(existing?.translations, [{
+            __typename: "CodeVersionTranslation" as const,
+            id: DUMMY_ID,
+            language: getUserLanguages(session)[0],
+            description: "",
+            jsonVariable: "",
+            name: "",
+        }]),
+    };
+}
 
-const transformCodeVersionValues = (values: CodeVersionShape, existing: CodeVersionShape, isCreate: boolean) =>
-    isCreate ? shapeCodeVersion.create(values) : shapeCodeVersion.update(existing, values);
+function transformCodeVersionValues(values: CodeVersionShape, existing: CodeVersionShape, isCreate: boolean) {
+    return isCreate ? shapeCodeVersion.create(values) : shapeCodeVersion.update(existing, values);
+}
 
 /** Code to display when an example is requested */
 const exampleCode = `
@@ -98,7 +102,7 @@ function parseList(input) {
 }
 `.trim();
 
-const CodeForm = ({
+function CodeForm({
     disabled,
     dirty,
     display,
@@ -114,7 +118,7 @@ const CodeForm = ({
     values,
     versions,
     ...props
-}: CodeFormProps) => {
+}: CodeFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const { palette } = useTheme();
@@ -137,6 +141,7 @@ const CodeForm = ({
         isCreate,
         objectId: values.id,
         objectType: "CodeVersion",
+        rootObjectId: values.root?.id,
         ...props,
     });
     const {
@@ -165,12 +170,12 @@ const CodeForm = ({
 
     const [codeLanguageField, , codeLanguageHelpers] = useField<CodeLanguage>("codeLanguage");
     const [contentField, , contentHelpers] = useField<string>("content");
-    const showExample = () => {
+    function showExample() {
         // We only have an example for JavaScript, so switch to that
         codeLanguageHelpers.setValue(CodeLanguage.Javascript);
         // Set value to hard-coded example
         contentHelpers.setValue(exampleCode);
-    };
+    }
 
     return (
         <MaybeLargeDialog
@@ -184,20 +189,10 @@ const CodeForm = ({
                 onClose={onClose}
                 title={t(isCreate ? "CreateCode" : "UpdateCode")}
             />
-            <Button
-                href={`${LINKS.Search}?type=${SearchPageTabOption.Code}`}
-                sx={{
-                    color: palette.background.textSecondary,
-                    display: "flex",
-                    marginTop: 2,
-                    textAlign: "center",
-                    textTransform: "none",
-                }}
-                variant="text"
-                endIcon={<SearchIcon />}
-            >
-                Search existing codes
-            </Button>
+            <SearchExistingButton
+                href={`${LINKS.Search}?type="${SearchPageTabOption.Code}"`}
+                text="Search existing codes"
+            />
             <BaseForm
                 display={display}
                 isLoading={isLoading}
@@ -294,14 +289,14 @@ const CodeForm = ({
             />
         </MaybeLargeDialog>
     );
-};
+}
 
-export const CodeUpsert = ({
+export function CodeUpsert({
     isCreate,
     isOpen,
     overrideObject,
     ...props
-}: CodeUpsertProps) => {
+}: CodeUpsertProps) {
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<CodeVersion, CodeVersionShape>({
@@ -312,12 +307,16 @@ export const CodeUpsert = ({
         transform: (existing) => codeInitialValues(session, existing),
     });
 
+    async function validateValues(values: CodeVersionShape) {
+        return await validateFormValues(values, existing, isCreate, transformCodeVersionValues, codeVersionValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformCodeVersionValues, codeVersionValidation)}
+            validate={validateValues}
         >
             {(formik) => <CodeForm
                 disabled={!(isCreate || permissions.canUpdate)}
@@ -332,4 +331,4 @@ export const CodeUpsert = ({
             />}
         </Formik>
     );
-};
+}

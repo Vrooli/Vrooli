@@ -63,10 +63,10 @@ export function getUserActions({ session, exclude = [] }: GetUserActionsProps): 
 }
 
 /** Factory for creating action objects */
-const createAction = (action: NavActionArray): NavAction => {
+function createAction(action: NavActionArray): NavAction {
     const keys = ["label", "value", "link", "Icon", "numNotifications"];
     return action.reduce((obj, val, i) => { obj[keys[i]] = val; return obj; }, {}) as NavAction;
-};
+}
 
 // Factory for creating a list of action objects
 export const createActions = (actions: NavActionArray[]): NavAction[] => actions.map(a => createAction(a));
@@ -77,7 +77,7 @@ interface ActionsToMenuProps {
     setLocation: SetLocation;
     sx?: SxProps<Theme>;
 }
-export const actionsToMenu = ({ actions, setLocation, sx = {} }: ActionsToMenuProps) => {
+export function actionsToMenu({ actions, setLocation, sx = {} }: ActionsToMenuProps) {
     return actions.map(({ label, value, link }) => (
         <Button
             key={value}
@@ -90,37 +90,41 @@ export const actionsToMenu = ({ actions, setLocation, sx = {} }: ActionsToMenuPr
             {i18next.t(label, { count: 2 })}
         </Button>
     ));
-};
+}
 
 // Display actions in a bottom navigation
 interface ActionsToBottomNavProps {
     actions: NavAction[];
     setLocation: SetLocation;
 }
-export const actionsToBottomNav = ({ actions, setLocation }: ActionsToBottomNavProps) => {
-    return actions.map(({ label, value, link, Icon, numNotifications }) => (
-        <BottomNavigationAction
-            key={value}
-            label={i18next.t(label, { count: 2 })}
-            value={value}
-            href={link}
-            onClick={(e) => {
-                e.preventDefault();
-                // Check if link is different from current location
-                const shouldScroll = link === window.location.pathname;
-                // If same, scroll to top of page instead of navigating
-                if (shouldScroll) window.scrollTo({ top: 0, behavior: "smooth" });
-                // Otherwise, navigate to link
-                else openLink(setLocation, link);
-            }}
-            icon={<Badge badgeContent={numNotifications} color="error"><Icon /></Badge>}
-            sx={{
-                color: "white",
-                minWidth: "58px", // Default min width is too big for some screens, like closed Galaxy Fold 
-            }}
-        />
-    ));
+const navActionStyle = {
+    color: "white",
+    minWidth: "58px", // Default min width is too big for some screens, like closed Galaxy Fold 
 };
+export function actionsToBottomNav({ actions, setLocation }: ActionsToBottomNavProps) {
+    return actions.map(({ label, value, link, Icon, numNotifications }) => {
+        function handleNavActionClick(e: React.MouseEvent) {
+            e.preventDefault();
+            // Check if link is different from current location
+            const shouldScroll = link === window.location.pathname;
+            // If same, scroll to top of page instead of navigating
+            if (shouldScroll) window.scrollTo({ top: 0, behavior: "smooth" });
+            // Otherwise, navigate to link
+            else openLink(setLocation, link);
+        }
+        return (
+            <BottomNavigationAction
+                key={value}
+                label={i18next.t(label, { count: 2 })}
+                value={value}
+                href={link}
+                onClick={handleNavActionClick}
+                icon={<Badge badgeContent={numNotifications} color="error"><Icon /></Badge>}
+                sx={navActionStyle}
+            />
+        );
+    });
+}
 
 // Display an action as an icon button
 interface ActionToIconButtonProps {
@@ -128,11 +132,11 @@ interface ActionToIconButtonProps {
     setLocation: SetLocation;
     classes?: { [key: string]: string };
 }
-export const actionToIconButton = ({ action, setLocation, classes = { root: "" } }: ActionToIconButtonProps) => {
+export function actionToIconButton({ action, setLocation, classes = { root: "" } }: ActionToIconButtonProps) {
     const { value, link, Icon, numNotifications } = action;
     return <IconButton classes={classes} edge="start" color="inherit" aria-label={value} onClick={() => openLink(setLocation, link)}>
         <Badge badgeContent={numNotifications} color="error">
             <Icon />
         </Badge>
     </IconButton>;
-};
+}

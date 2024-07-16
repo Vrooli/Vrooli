@@ -46,8 +46,16 @@ export const NodeLoopWhileModel: NodeLoopWhileModelLogic = ({
         isDeleted: (data, languages) => ModelMap.get<NodeLoopModelLogic>("NodeLoop").validate().isDeleted(data.loop as NodeLoopModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<NodeLoopWhileModelInfo["PrismaSelect"]>([["loop", "NodeLoop"]], ...rest),
         visibility: {
-            private: { loop: ModelMap.get<NodeLoopModelLogic>("NodeLoop").validate().visibility.private },
-            public: { loop: ModelMap.get<NodeLoopModelLogic>("NodeLoop").validate().visibility.public },
+            private: function getVisibilityPrivate(...params) {
+                return {
+                    loop: ModelMap.get<NodeLoopModelLogic>("NodeLoop").validate().visibility.private(...params),
+                };
+            },
+            public: function getVisibilityPublic(...params) {
+                return {
+                    loop: ModelMap.get<NodeLoopModelLogic>("NodeLoop").validate().visibility.public(...params),
+                };
+            },
             owner: (userId) => ({ loop: ModelMap.get<NodeLoopModelLogic>("NodeLoop").validate().visibility.owner(userId) }),
         },
     }),

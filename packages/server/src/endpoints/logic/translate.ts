@@ -37,18 +37,14 @@ export const TranslateEndpoints: EndpointsTranslate = {
             // Use LibreTranslate API to translate fields. 
             // Must make a call for each field, using promise all
             const promises = filteredFields.map(async ([key, value]) => {
-                console.log("in promise", value.trim(), encodeURI(value.trim()));
                 const url = `http://localhost:${process.env.PORT_TRANSLATE}/translate?source=${sourceTag}&target=${targetTag}&q=${encodeURI(value.trim())}`;
-                console.log("translate url", url);
                 const response = await fetch(url);
                 const json = await response.json() as any;
-                console.log("got libretranslate response", JSON.stringify(json));
                 return {
                     [key]: json?.translatedText,
                 };
             });
             const results = await Promise.all(promises);
-            console.log("translate results", JSON.stringify(results));
             // Combine results into one object
             const translatedFields = results.reduce((acc, cur) => {
                 return {

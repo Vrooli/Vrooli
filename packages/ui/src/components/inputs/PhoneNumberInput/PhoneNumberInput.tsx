@@ -34,7 +34,7 @@ export const PhoneNumberInputBase = ({
     const closePopover = () => { setAnchorEl(null); };
 
     // Validate phone number
-    useEffect(() => {
+    useEffect(function validatePhoneNumberEffect() {
         const libphonenumber = import("libphonenumber-js");
         libphonenumber.then((lib) => {
             try {
@@ -162,7 +162,7 @@ export const PhoneNumberInputBase = ({
                         }}
                     />
                 </FormControl>
-                {helperText && <FormHelperText id={`helper-text-${name}`}>{helperText}</FormHelperText>}
+                {helperText && <FormHelperText id={`helper-text-${name}`}>{typeof helperText === "string" ? helperText : JSON.stringify(helperText)}</FormHelperText>}
             </Box>
             <Popover
                 open={Boolean(anchorEl)}

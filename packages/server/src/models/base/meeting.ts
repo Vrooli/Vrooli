@@ -145,20 +145,28 @@ export const MeetingModel: MeetingModelLogic = ({
         isDeleted: () => false,
         isPublic: (data) => data.showOnTeamProfile === true,
         visibility: {
-            private: {
-                OR: [
-                    { showOnTeamProfile: false },
-                    { team: { isPrivate: true } },
-                ],
+            private: function getVisibilityPrivate() {
+                return {
+                    OR: [
+                        { showOnTeamProfile: false },
+                        { team: { isPrivate: true } },
+                    ],
+                };
             },
-            public: {
-                AND: [
-                    { showOnTeamProfile: true },
-                    { team: { isPrivate: false } },
-                ],
+            public: function getVisibilityPublic() {
+                return {
+                    showOnTeamProfile: true,
+                    team: { isPrivate: false },
+                };
             },
             owner: (userId) => ({
                 team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId),
+            }),
+            attendingOrInvited: (userId) => ({
+                OR: [
+                    { attendees: { some: { user: { id: userId } } } },
+                    { invites: { some: { userId } } },
+                ],
             }),
         },
     }),

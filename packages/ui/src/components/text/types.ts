@@ -1,5 +1,5 @@
 import { ListObject, Routine } from "@local/shared";
-import { BoxProps, TypographyProps } from "@mui/material";
+import { BoxProps } from "@mui/material";
 import { SvgComponent, SxType } from "types";
 import { DisplayAdornment } from "utils/display/listTools";
 import { ObjectType } from "utils/navigation/openObject";
@@ -25,11 +25,6 @@ export interface OwnerLabelProps {
 export interface StatsCompactProps<T extends ListObject> {
     handleObjectUpdate: (object: T) => unknown;
     object: T | null | undefined;
-}
-
-export interface TextShrinkProps extends TypographyProps {
-    id: string;
-    minFontSize?: string | number;
 }
 
 export interface TitleProps {

@@ -8,11 +8,11 @@ import { CommentConnectorProps } from "../types";
  * Collapsible, vertical line for indicating a comment level. Top of line 
  * if the profile image of the comment.
  */
-export const CommentConnector = ({
+export function CommentConnector({
     isOpen,
     parentType,
     onToggle,
-}: CommentConnectorProps) => {
+}: CommentConnectorProps) {
     const { palette } = useTheme();
 
     // Random color for profile image (since we don't display custom image yet)
@@ -91,4 +91,4 @@ export const CommentConnector = ({
             {profileImage}
         </Stack>
     );
-};
+}

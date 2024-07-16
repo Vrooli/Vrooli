@@ -4,9 +4,9 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const quizSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchQuiz"),
+    layout: searchFormLayout("SearchQuiz"),
     containers: [], //TODO
-    fields: [], //TODO
+    elements: [], //TODO
 });
 
 export const quizSearchParams = () => toParams(quizSearchSchema(), endpointGetQuizzes, endpointGetQuiz, QuizSortBy, QuizSortBy.BookmarksDesc);

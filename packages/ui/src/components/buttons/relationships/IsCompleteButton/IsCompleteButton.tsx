@@ -1,54 +1,53 @@
-import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
-import { TextShrink } from "components/text/TextShrink/TextShrink";
+import { Tooltip } from "@mui/material";
 import { useField } from "formik";
-import { CompleteIcon } from "icons";
+import { CompleteIcon as CIcon } from "icons";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { commonIconProps, commonLabelProps, smallButtonProps } from "../styles";
+import { RelationshipButton, RelationshipChip, withRelationshipIcon } from "../styles";
 import { IsCompleteButtonProps } from "../types";
 
-export const IsCompleteButton = ({
+const CompleteIcon = withRelationshipIcon(CIcon);
+
+export function IsCompleteButton({
     isEditing,
-    objectType,
-}: IsCompleteButtonProps) => {
-    const { palette } = useTheme();
+}: IsCompleteButtonProps) {
     const { t } = useTranslation();
 
     const [field, , helpers] = useField("isComplete");
 
-    const isAvailable = useMemo(() => ["Project", "Routine"].includes(objectType), [objectType]);
-
-    const { Icon, tooltip } = useMemo(() => {
+    const { Icon, label, tooltip } = useMemo(() => {
         const isComplete = field?.value;
         return {
-            Icon: isComplete ? CompleteIcon : null,
+            Icon: isComplete ? CompleteIcon : undefined,
+            label: t(field?.value ? "Complete" : "Incomplete"),
             tooltip: t(`IsComplete${isComplete ? "True" : "False"}TogglePress${isEditing ? "Editable" : ""}`),
         };
     }, [field?.value, isEditing, t]);
 
-    const handleClick = useCallback((ev: React.MouseEvent<Element>) => {
-        if (!isEditing || !isAvailable) return;
+    const handleClick = useCallback(() => {
+        if (!isEditing) return;
         helpers.setValue(!field?.value);
-    }, [isEditing, isAvailable, helpers, field?.value]);
+    }, [isEditing, helpers, field?.value]);
 
-    // If not available, return null
-    if (!isAvailable) return null;
-    // Return button with label on top
-    return (
-        <Stack
-            direction="column"
-            alignItems="center"
-            justifyContent="center"
-        >
-            <TextShrink id="complete" sx={{ ...commonLabelProps() }}>{t(field?.value ? "Complete" : "Incomplete")}</TextShrink>
+    // If editing, return button
+    if (isEditing) {
+        return (
             <Tooltip title={tooltip}>
-                <IconButton
+                <RelationshipButton
                     onClick={handleClick}
-                    sx={{ ...smallButtonProps(isEditing, false), background: palette.primary.light }}
+                    startIcon={Icon && <Icon />}
+                    variant="outlined"
                 >
-                    {Icon && <Icon {...commonIconProps()} />}
-                </IconButton>
+                    {label}
+                </RelationshipButton>
             </Tooltip>
-        </Stack>
+        );
+    }
+    // Otherwise, return chip
+    return (
+        <RelationshipChip
+            icon={Icon && <Icon />}
+            label={label}
+        />
     );
-};
+}

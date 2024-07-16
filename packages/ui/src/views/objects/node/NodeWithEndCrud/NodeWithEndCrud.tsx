@@ -22,12 +22,15 @@ import { shapeNode } from "utils/shape/models/node";
 import { validateFormValues } from "utils/validateFormValues";
 import { NodeWithEnd, NodeWithEndCrudProps, NodeWithEndFormProps, NodeWithEndShape } from "../types";
 
-export const nodeWithEndInitialValues = (existing: NodeWithEndShape): NodeWithEndShape => ({ ...existing });
+export function nodeWithEndInitialValues(existing: NodeWithEndShape): NodeWithEndShape {
+    return { ...existing };
+}
 
-export const transformNodeWithEndValues = (values: NodeWithEndShape, existing: NodeWithEndShape, isCreate: boolean) =>
-    isCreate ? shapeNode.create(values) : shapeNode.update(existing, values);
+export function transformNodeWithEndValues(values: NodeWithEndShape, existing: NodeWithEndShape, isCreate: boolean) {
+    return isCreate ? shapeNode.create(values) : shapeNode.update(existing, values);
+}
 
-const NodeWithEndForm = ({
+function NodeWithEndForm({
     disabled,
     dirty,
     display,
@@ -43,7 +46,7 @@ const NodeWithEndForm = ({
     onDeleted,
     values,
     ...props
-}: NodeWithEndFormProps) => {
+}: NodeWithEndFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
 
@@ -149,45 +152,48 @@ const NodeWithEndForm = ({
             />
         </MaybeLargeDialog>
     );
-};
+}
 
-export const
-    NodeWithEndCrud = ({
-        isEditing,
-        isOpen,
-        overrideObject,
-        ...props
-    }: NodeWithEndCrudProps) => {
+export function NodeWithEndCrud({
+    isEditing,
+    isOpen,
+    overrideObject,
+    ...props
+}: NodeWithEndCrudProps) {
 
-        const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<NodeWithEndShape, NodeWithEndShape>({
-            ...endpointGetApi, // Won't be used. Need to pass an endpoint to useObjectFromUrl
-            isCreate: false,
-            objectType: "Node",
-            overrideObject: overrideObject as NodeWithEndShape,
-            transform: (existing) => nodeWithEndInitialValues(existing as NodeWithEndShape),
-        });
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<NodeWithEndShape, NodeWithEndShape>({
+        ...endpointGetApi, // Won't be used. Need to pass an endpoint to useObjectFromUrl
+        isCreate: false,
+        objectType: "Node",
+        overrideObject: overrideObject as NodeWithEndShape,
+        transform: (existing) => nodeWithEndInitialValues(existing as NodeWithEndShape),
+    });
 
-        return (
-            <Formik
-                enableReinitialize={true}
-                initialValues={existing}
-                onSubmit={noopSubmit}
-                validate={async (values) => await validateFormValues(values, existing, false, transformNodeWithEndValues, nodeValidation)}
-            >
-                {(formik) =>
-                    <>
-                        <NodeWithEndForm
-                            disabled={!(permissions.canUpdate || isEditing)}
-                            existing={existing}
-                            handleUpdate={setExisting}
-                            isEditing={isEditing}
-                            isReadLoading={isReadLoading}
-                            isOpen={isOpen}
-                            {...props}
-                            {...formik}
-                        />
-                    </>
-                }
-            </Formik>
-        );
-    };
+    async function validateValues(values: NodeWithEndShape) {
+        return await validateFormValues(values, existing, false, transformNodeWithEndValues, nodeValidation);
+    }
+
+    return (
+        <Formik
+            enableReinitialize={true}
+            initialValues={existing}
+            onSubmit={noopSubmit}
+            validate={validateValues}
+        >
+            {(formik) =>
+                <>
+                    <NodeWithEndForm
+                        disabled={!(permissions.canUpdate || isEditing)}
+                        existing={existing}
+                        handleUpdate={setExisting}
+                        isEditing={isEditing}
+                        isReadLoading={isReadLoading}
+                        isOpen={isOpen}
+                        {...props}
+                        {...formik}
+                    />
+                </>
+            }
+        </Formik>
+    );
+}

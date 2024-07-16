@@ -4,11 +4,11 @@ import { toParams } from "./base";
 import { languagesContainer, languagesFields, searchFormLayout } from "./common";
 
 export const labelSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchLabel"),
+    layout: searchFormLayout("SearchLabel"),
     containers: [
         languagesContainer(),
     ],
-    fields: [
+    elements: [
         ...languagesFields(),
     ],
 });

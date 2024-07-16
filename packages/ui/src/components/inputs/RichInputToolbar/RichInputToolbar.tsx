@@ -1,5 +1,5 @@
 import { noop } from "@local/shared";
-import { Box, Button, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, BoxProps, Button, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, Popover, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { SessionContext } from "contexts/SessionContext";
 import { useDimensions } from "hooks/useDimensions";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
@@ -79,32 +79,43 @@ const ToolButton = forwardRef(({
     label: string,
     onClick: (event: React.MouseEvent<HTMLElement>) => unknown,
     palette: Palette,
-}, ref: React.Ref<HTMLButtonElement>) => (
-    <Tooltip title={label}>
-        <IconButton
-            id={id}
-            ref={ref}
-            disabled={disabled}
-            size="small"
-            onClick={(event) => {
-                // Stop propagation so text field doesn't lose focus
-                event.preventDefault();
-                event.stopPropagation();
-                onClick(event);
-            }}
-            sx={{
-                background: isActive ? palette.secondary.main : palette.primary.main,
-                color: palette.primary.contrastText,
-                borderRadius: 2,
-            }}
-        >
-            {icon}
-        </IconButton>
-    </Tooltip>
-));
+}, ref: React.Ref<HTMLButtonElement>) => {
+
+    const handleClick = useCallback(function handleClickCallback(event: React.MouseEvent<HTMLElement>) {
+        // Stop propagation so text field doesn't lose focus
+        event.preventDefault();
+        event.stopPropagation();
+        onClick(event);
+    }, [onClick]);
+
+    const buttonStyle = useMemo(function buttonStyleMemo() {
+        return {
+            background: isActive ? palette.secondary.main : palette.primary.main,
+            color: palette.primary.contrastText,
+            borderRadius: 2,
+        };
+    }, [isActive, palette.primary.contrastText, palette.primary.main, palette.secondary.main]);
+
+    return (
+        <Tooltip title={label}>
+            <IconButton
+                id={id}
+                ref={ref}
+                disabled={disabled}
+                size="small"
+                onClick={handleClick}
+                sx={buttonStyle}
+            >
+                {icon}
+            </IconButton>
+        </Tooltip>
+    );
+});
 ToolButton.displayName = "ToolButton";
 
-const ActionPopover = ({
+const popoverAnchorOrigin = { vertical: "bottom", horizontal: "center" } as const;
+
+function ActionPopover({
     activeStates,
     anchorEl,
     handleAction,
@@ -113,45 +124,44 @@ const ActionPopover = ({
     items,
     onClose,
     palette,
-}: ActionPopoverProps) => (
-    <Popover
-        id={`markdown-input-${idPrefix}-popover`}
-        open={isOpen}
-        anchorEl={anchorEl}
-        onClose={onClose}
-        anchorOrigin={{
-            vertical: "bottom",
-            horizontal: "center",
-        }}
-    >
-        <List sx={{ background: palette.background.paper, color: palette.background.contrastText }}>
-            {items.map(({ action, icon, label }) => (
-                <ListItem
-                    button
-                    key={action}
-                    onClick={() => { handleAction(action); }}
-                    sx={{
-                        background: activeStates[action] ? palette.secondary.light : "transparent",
-                    }}
-                >
-                    <ListItemIcon>
-                        {icon}
-                    </ListItemIcon>
-                    <ListItemText primary={label} />
-                </ListItem>
-            ))}
-        </List>
-    </Popover>
-);
+}: ActionPopoverProps) {
+    return (
+        <Popover
+            id={`markdown-input-${idPrefix}-popover`}
+            open={isOpen}
+            anchorEl={anchorEl}
+            onClose={onClose}
+            anchorOrigin={popoverAnchorOrigin}
+        >
+            <List sx={{ background: palette.background.paper, color: palette.background.contrastText }}>
+                {items.map(({ action, icon, label }) => (
+                    <ListItem
+                        button
+                        key={action}
+                        onClick={() => { handleAction(action); }}
+                        sx={{
+                            background: activeStates[action] ? palette.secondary.light : "transparent",
+                        }}
+                    >
+                        <ListItemIcon>
+                            {icon}
+                        </ListItemIcon>
+                        <ListItemText primary={label} />
+                    </ListItem>
+                ))}
+            </List>
+        </Popover>
+    );
+}
 
-const TablePopover = ({
+function TablePopover({
     anchorEl,
     handleTableInsert,
     isOpen,
     onClose,
     palette,
     t,
-}: TablePopoverProps) => {
+}: TablePopoverProps) {
     const [hoveredRow, setHoveredRow] = useState(1);
     const [hoveredCol, setHoveredCol] = useState(1);
     const [canHover, setCanHover] = useState(true);
@@ -212,7 +222,7 @@ const TablePopover = ({
             open={isOpen}
             anchorEl={anchorEl}
             onClose={onClose}
-            anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+            anchorOrigin={popoverAnchorOrigin}
         >
             <Stack
                 direction="column"
@@ -269,9 +279,47 @@ const TablePopover = ({
             </Stack>
         </Popover>
     );
-};
+}
 
-export const RichInputToolbar = ({
+interface LeftSectionProps extends BoxProps {
+    disabled: boolean;
+    isLeftHanded: boolean;
+    viewSize: ViewSize
+}
+
+const LeftSection = styled(Box, {
+    shouldForwardProp: (prop) => !["disabled", "isLeftHanded", "viewSize"].includes(prop as string),
+})<LeftSectionProps>(({ disabled, isLeftHanded, viewSize }) => ({
+    ...((isLeftHanded || viewSize === "full") ? { marginRight: "auto" } : { marginLeft: "auto" }),
+    visibility: disabled ? "hidden" : "visible",
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 0,
+}));
+
+const RightSection = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 0,
+    [theme.breakpoints.up("sm")]: {
+        gap: 0.5,
+    },
+    [theme.breakpoints.up("md")]: {
+        gap: 1,
+    },
+}));
+
+const ModeSelectorLabel = styled(Typography)(({ theme }) => ({
+    cursor: "pointer",
+    margin: "auto",
+    padding: 1,
+    background: theme.palette.primary.main,
+    borderRadius: 2,
+}));
+
+export function RichInputToolbar({
     activeStates,
     canRedo,
     canUndo,
@@ -281,7 +329,6 @@ export const RichInputToolbar = ({
     handleActiveStatesChange,
     id,
     isMarkdownOn,
-    name,
     sx,
 }: {
     activeStates: Omit<RichInputActiveStates, "SetValue">;
@@ -295,7 +342,7 @@ export const RichInputToolbar = ({
     isMarkdownOn: boolean;
     name: string,
     sx?: SxType;
-}) => {
+}) {
     const { breakpoints, palette } = useTheme();
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -308,7 +355,7 @@ export const RichInputToolbar = ({
     }, [breakpoints, dimensions]);
     const isLeftHanded = useIsLeftHanded();
 
-    const handleToggleAction = (action: string, data?: unknown) => {
+    const handleToggleAction = useCallback(function handleToggleActionCallback(action: string, data?: unknown) {
         // Update action's active state, if we're not using markdown mode
         if (!isMarkdownOn && action in activeStates) {
             handleActiveStatesChange({
@@ -318,24 +365,40 @@ export const RichInputToolbar = ({
         }
         // Trigger handleAction
         handleAction(action as RichInputAction, data);
-    };
+    }, [activeStates, handleAction, handleActiveStatesChange, isMarkdownOn]);
     useEffect(() => {
         if (isMarkdownOn) {
             handleActiveStatesChange(defaultActiveStates);
         }
     }, [handleActiveStatesChange, isMarkdownOn]);
 
+    const handleToggleAssistant = useCallback(function handleToggleAssistantCallback() {
+        handleToggleAction("Assistant");
+    }, [handleToggleAction]);
+    const handleToggleLink = useCallback(function handleToggleLinkCallback() {
+        handleToggleAction("Link");
+    }, [handleToggleAction]);
+    const handleToggleUndo = useCallback(function handleToggleUndoCallback() {
+        handleToggleAction("Undo");
+    }, [handleToggleAction]);
+    const handleToggleRedo = useCallback(function handleToggleRedoCallback() {
+        handleToggleAction("Redo");
+    }, [handleToggleAction]);
+    const handleToggleMode = useCallback(function handleToggleModeCallback() {
+        handleToggleAction("Mode");
+    }, [handleToggleAction]);
+
     const [headerAnchorEl, openHeaderSelect, closeHeader, headerSelectOpen] = usePopover();
     const [formatAnchorEl, openFormatSelect, closeFormat, formatSelectOpen] = usePopover();
     const [listAnchorEl, openListSelect, closeList, listSelectOpen] = usePopover();
     const [tableAnchorEl, openTableSelect, closeTable, tableSelectOpen] = usePopover();
-    const handleTableInsert = (rows: number, cols: number) => {
+    function handleTableInsert(rows: number, cols: number) {
         handleToggleAction("Table", { rows, cols });
         closeTable();
-    };
+    }
     const combinedButtonRef = useRef(null);
     const [combinedAnchorEl, openCombinedSelect, closeCombined, combinedSelectOpen] = usePopover();
-    const handleCombinedAction = (action: string, data?: unknown) => {
+    function handleCombinedAction(action: string, data?: unknown) {
         if (action === "Table") {
             closeCombined();
             const syntheticEvent = { currentTarget: combinedButtonRef.current };
@@ -343,67 +406,78 @@ export const RichInputToolbar = ({
         } else {
             handleToggleAction(action, data);
         }
-    };
+    }
 
-    const headerItems: PopoverActionItem[] = [
-        { action: "Header1", icon: <Header1Icon />, label: `${t("Header1")} (${keyComboToString("Alt", "1")})` },
-        { action: "Header2", icon: <Header2Icon />, label: `${t("Header2")} (${keyComboToString("Alt", "2")})` },
-        { action: "Header3", icon: <Header3Icon />, label: `${t("Header3")} (${keyComboToString("Alt", "3")})` },
-        { action: "Header4", icon: <Header4Icon />, label: `${t("Header4")} (${keyComboToString("Alt", "4")})` },
-        { action: "Header5", icon: <Header5Icon />, label: `${t("Header5")} (${keyComboToString("Alt", "5")})` },
-        { action: "Header6", icon: <Header6Icon />, label: `${t("Header6")} (${keyComboToString("Alt", "6")})` },
-    ];
-    const formatItems: PopoverActionItem[] = [
-        { action: "Bold", icon: <BoldIcon />, label: `${t("Bold")} (${keyComboToString("Ctrl", "B")})` },
-        { action: "Italic", icon: <ItalicIcon />, label: `${t("Italic")} (${keyComboToString("Ctrl", "I")})` },
-        { action: "Underline", icon: <UnderlineIcon />, label: `${t("Underline")} (${keyComboToString("Ctrl", "U")})` },
-        { action: "Strikethrough", icon: <StrikethroughIcon />, label: `${t("Strikethrough")} (${keyComboToString("Ctrl", "Shift", "S")})` },
-        { action: "Spoiler", icon: <WarningIcon />, label: `${t("Spoiler")} (${keyComboToString("Ctrl", "L")})` },
-        { action: "Quote", icon: <QuoteIcon />, label: `${t("Quote")} (${keyComboToString("Ctrl", "Shift", "Q")})` },
-        { action: "Code", icon: <TerminalIcon />, label: `${t("Code")} (${keyComboToString("Ctrl", "E")})` },
-    ];
-    const listItems: PopoverActionItem[] = [
-        { action: "ListBullet", icon: <ListBulletIcon />, label: `${t("ListBulleted")} (${keyComboToString("Alt", "7")})` },
-        { action: "ListNumber", icon: <ListNumberIcon />, label: `${t("ListNumbered")} (${keyComboToString("Alt", "8")})` },
-        { action: "ListCheckbox", icon: <ListCheckIcon />, label: `${t("ListCheckbox")} (${keyComboToString("Alt", "9")})` },
-    ];
+    const headerItems = useMemo<PopoverActionItem[]>(function headerItemsMemo() {
+        return [
+            { action: "Header1", icon: <Header1Icon />, label: `${t("Header1")} (${keyComboToString("Alt", "1")})` },
+            { action: "Header2", icon: <Header2Icon />, label: `${t("Header2")} (${keyComboToString("Alt", "2")})` },
+            { action: "Header3", icon: <Header3Icon />, label: `${t("Header3")} (${keyComboToString("Alt", "3")})` },
+            { action: "Header4", icon: <Header4Icon />, label: `${t("Header4")} (${keyComboToString("Alt", "4")})` },
+            { action: "Header5", icon: <Header5Icon />, label: `${t("Header5")} (${keyComboToString("Alt", "5")})` },
+            { action: "Header6", icon: <Header6Icon />, label: `${t("Header6")} (${keyComboToString("Alt", "6")})` },
+        ];
+    }, [t]);
+    const formatItems = useMemo<PopoverActionItem[]>(function formatItemsMemo() {
+        return [
+            { action: "Bold", icon: <BoldIcon />, label: `${t("Bold")} (${keyComboToString("Ctrl", "B")})` },
+            { action: "Italic", icon: <ItalicIcon />, label: `${t("Italic")} (${keyComboToString("Ctrl", "I")})` },
+            { action: "Underline", icon: <UnderlineIcon />, label: `${t("Underline")} (${keyComboToString("Ctrl", "U")})` },
+            { action: "Strikethrough", icon: <StrikethroughIcon />, label: `${t("Strikethrough")} (${keyComboToString("Ctrl", "Shift", "S")})` },
+            { action: "Spoiler", icon: <WarningIcon />, label: `${t("Spoiler")} (${keyComboToString("Ctrl", "L")})` },
+            { action: "Quote", icon: <QuoteIcon />, label: `${t("Quote")} (${keyComboToString("Ctrl", "Shift", "Q")})` },
+            { action: "Code", icon: <TerminalIcon />, label: `${t("Code")} (${keyComboToString("Ctrl", "E")})` },
+        ];
+    }, [t]);
+    const listItems = useMemo<PopoverActionItem[]>(function listItemsMemo() {
+        return [
+            { action: "ListBullet", icon: <ListBulletIcon />, label: `${t("ListBulleted")} (${keyComboToString("Alt", "7")})` },
+            { action: "ListNumber", icon: <ListNumberIcon />, label: `${t("ListNumbered")} (${keyComboToString("Alt", "8")})` },
+            { action: "ListCheckbox", icon: <ListCheckIcon />, label: `${t("ListCheckbox")} (${keyComboToString("Alt", "9")})` },
+        ];
+    }, [t]);
     // Combine format, link, list, and table actions for minimal view
-    const combinedItems: PopoverActionItem[] = [
-        ...formatItems,
-        { action: "Link", icon: <LinkIcon />, label: `${t("Link", { count: 1 })} (${keyComboToString("Ctrl", "K")})` },
-        ...listItems,
-        { action: "Table", icon: <TableIcon />, label: t("TableInsert") },
-    ];
+    const combinedItems = useMemo<PopoverActionItem[]>(function combinedItemsMemo() {
+        return [
+            ...formatItems,
+            { action: "Link", icon: <LinkIcon />, label: `${t("Link", { count: 1 })} (${keyComboToString("Ctrl", "K")})` },
+            ...listItems,
+            { action: "Table", icon: <TableIcon />, label: t("TableInsert") },
+        ];
+    }, [formatItems, listItems, t]);
+
+    const outerBoxStyle = useMemo(function outerBoxStyleMemo() {
+        return {
+            display: "flex",
+            flexDirection: (isLeftHanded || viewSize === "full") ? "row" : "row-reverse",
+            width: "100%",
+            padding: "2px",
+            background: palette.primary.main,
+            color: palette.primary.contrastText,
+            borderRadius: "0.5rem 0.5rem 0 0",
+            ...sx,
+        } as const;
+    }, [isLeftHanded, sx, palette.primary.contrastText, palette.primary.main, viewSize]);
 
     return (
         <Box
+            aria-label="Rich text editor toolbar"
+            component="section"
             id={id}
             ref={dimRef}
-            sx={{
-                display: "flex",
-                flexDirection: (isLeftHanded || viewSize === "full") ? "row" : "row-reverse",
-                width: "100%",
-                padding: "2px",
-                background: palette.primary.main,
-                color: palette.primary.contrastText,
-                borderRadius: "0.5rem 0.5rem 0 0",
-                ...sx,
-            }}
+            sx={outerBoxStyle}
         >
             {/* Group of main editor controls including AI assistant and formatting tools */}
-            <Stack
-                direction="row"
-                spacing={fromDims({ xs: 0, sm: 0.5, md: 1 })}
-                sx={{
-                    ...((isLeftHanded || viewSize === "full") ? { marginRight: "auto" } : { marginLeft: "auto" }),
-                    visibility: disabled ? "hidden" : "visible",
-                }}
+            <LeftSection
+                disabled={disabled}
+                isLeftHanded={isLeftHanded}
+                viewSize={viewSize}
             >
                 {credits && BigInt(credits) > 0 && !disableAssistant && <ToolButton
                     id={`${id}-assistant`}
                     icon={<MagicIcon fill={palette.primary.contrastText} />}
                     label={t("AIAssistant")}
-                    onClick={() => handleToggleAction("Assistant")}
+                    onClick={handleToggleAssistant}
                     palette={palette}
                 />}
                 <ToolButton
@@ -485,7 +559,7 @@ export const RichInputToolbar = ({
                             disabled={disabled}
                             icon={<LinkIcon fill={palette.primary.contrastText} />}
                             label={`${t("Link", { count: 1 })} (${keyComboToString("Ctrl", "k")})`}
-                            onClick={() => { handleToggleAction("Link"); }}
+                            onClick={handleToggleLink}
                             palette={palette}
                         />
                         <ToolButton
@@ -523,40 +597,31 @@ export const RichInputToolbar = ({
                     palette={palette}
                     t={t}
                 />
-            </Stack>
+            </LeftSection>
             {/* Group for undo, redo, and switching between Markdown as WYSIWYG */}
-            <Box sx={{
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
-                gap: { xs: 0, sm: 0.5, md: 1 },
-            }}>
-                {(canUndo || canRedo) && <ToolButton
-                    disabled={disabled || !canUndo}
-                    icon={<UndoIcon fill={palette.primary.contrastText} />}
-                    label={`${t("Undo")} (${keyComboToString("Ctrl", "z")})`}
-                    onClick={() => { handleToggleAction("Undo"); }}
-                    palette={palette}
-                />}
-                {(canUndo || canRedo) && <ToolButton
-                    disabled={disabled || !canRedo}
-                    icon={<RedoIcon fill={palette.primary.contrastText} />}
-                    label={`${t("Redo")} (${keyComboToString("Ctrl", "y")})`}
-                    onClick={() => { handleToggleAction("Redo"); }}
-                    palette={palette}
-                />}
+            <RightSection>
+                <div>
+                    {(canUndo || canRedo) && <ToolButton
+                        disabled={disabled || !canUndo}
+                        icon={<UndoIcon fill={palette.primary.contrastText} />}
+                        label={`${t("Undo")} (${keyComboToString("Ctrl", "z")})`}
+                        onClick={handleToggleUndo}
+                        palette={palette}
+                    />}
+                    {(canUndo || canRedo) && <ToolButton
+                        disabled={disabled || !canRedo}
+                        icon={<RedoIcon fill={palette.primary.contrastText} />}
+                        label={`${t("Redo")} (${keyComboToString("Ctrl", "y")})`}
+                        onClick={handleToggleRedo}
+                        palette={palette}
+                    />}
+                </div>
                 <Tooltip title={!isMarkdownOn ? `${t("PressToMarkdown")} (${keyComboToString("Alt", "0")})` : `${t("PressToPreview")} (${keyComboToString("Alt", "0")})`} placement="top">
-                    <Typography variant="body2" onClick={() => { handleToggleAction("Mode"); }} sx={{
-                        cursor: "pointer",
-                        margin: "auto",
-                        padding: 1,
-                        background: palette.primary.main,
-                        borderRadius: 2,
-                    }}>
+                    <ModeSelectorLabel variant="body2" onClick={handleToggleMode}>
                         {!isMarkdownOn ? t("MarkdownTo") : t("PreviewTo")}
-                    </Typography>
+                    </ModeSelectorLabel>
                 </Tooltip>
-            </Box>
+            </RightSection>
         </Box>
     );
-};
+}

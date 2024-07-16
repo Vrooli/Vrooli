@@ -5,7 +5,9 @@ import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
 import { SessionUserToken } from "../types";
 
-const hasInternalField = (objectType: string) => [GqlModelType.RoutineVersion, GqlModelType.StandardVersion].includes(objectType as any);
+function hasInternalField(objectType: string) {
+    return [GqlModelType.RoutineVersion, GqlModelType.StandardVersion].includes(objectType as any);
+}
 
 /**
  * Checks if versions of an object type can be created, updated, or deleted.
@@ -16,7 +18,7 @@ const hasInternalField = (objectType: string) => [GqlModelType.RoutineVersion, G
  * 3. Updating versions are not marked as complete, OR the version or root is private (i.e. isPrivate = true). 
  * This helps ensure that public data is immutable, while owners have full control over private data
  */
-export const versionsCheck = async ({
+export async function versionsCheck({
     objectType,
     Create,
     Update,
@@ -48,7 +50,7 @@ export const versionsCheck = async ({
         input: string;
     }[],
     userData: SessionUserToken,
-}) => {
+}) {
     // Filter unchanged versions from create and update data
     const create = Create.filter(x => x.input.versionLabel).map(({ input }) => {
         const rootData = input.rootCreate ?? input.rootConnect;
@@ -146,4 +148,4 @@ export const versionsCheck = async ({
             }
         }
     }
-};
+}

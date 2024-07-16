@@ -36,7 +36,11 @@ type SnackPub<KeyList = CommonKey | ErrorKey> = SnackMessage<KeyList> & {
  * @param {string} namespace - The namespace for the formData entry being created. For nested objects or arrays, this will be the parent's formKey. This should be undefined when initially called.
  * @return {FormData} The final FormData object which is constructed from the input object.
  */
-const objectToFormData = <T extends object>(obj: T, form?: FormData, namespace?: string): FormData => {
+function objectToFormData<T extends object>(
+    obj: T,
+    form?: FormData,
+    namespace?: string,
+): FormData {
     const formData = form || new FormData();
 
     Object.entries(obj).forEach(([property, value]) => {
@@ -54,7 +58,7 @@ const objectToFormData = <T extends object>(obj: T, form?: FormData, namespace?:
     });
 
     return formData;
-};
+}
 
 interface FetchLazyWrapperProps<Input extends object | undefined, Output> {
     fetch: LazyRequestWithResult<Input, Output>;
@@ -78,7 +82,7 @@ interface FetchLazyWrapperProps<Input extends object | undefined, Output> {
     spinnerDelay?: number | null;
 }
 
-export const fetchLazyWrapper = async <Input extends object | undefined, Output>({
+export async function fetchLazyWrapper<Input extends object | undefined, Output>({
     fetch,
     inputs,
     successCondition = () => true,
@@ -89,9 +93,9 @@ export const fetchLazyWrapper = async <Input extends object | undefined, Output>
     onError,
     onCompleted,
     spinnerDelay = 1000,
-}: FetchLazyWrapperProps<Input, Output>): Promise<ServerResponse<Output>> => {
+}: FetchLazyWrapperProps<Input, Output>): Promise<ServerResponse<Output>> {
     // Helper function to handle errors
-    const handleError = (data?: ServerResponse | undefined) => {
+    function handleError(data?: ServerResponse | undefined) {
         // Stop spinner
         if (spinnerDelay) PubSub.get().publish("loading", false);
         // Determine if error caused by bad response, or caught error
@@ -116,7 +120,7 @@ export const fetchLazyWrapper = async <Input extends object | undefined, Output>
         if (typeof onCompleted === "function") {
             onCompleted(isError ? data as ServerResponse : { errors: [{ message: "Unknown error occurred" }] });
         }
-    };
+    }
     // Start loading spinner
     if (spinnerDelay) PubSub.get().publish("loading", spinnerDelay);
     let result: ServerResponse<Output> = {};
@@ -168,7 +172,7 @@ export const fetchLazyWrapper = async <Input extends object | undefined, Output>
             if (spinnerDelay) PubSub.get().publish("loading", false);
         });
     return result;
-};
+}
 
 interface FetchWrapperProps<Input extends object | undefined, Output> extends Omit<FetchLazyWrapperProps<Input, Output>, "fetch"> {
     // Endpoint to call
@@ -177,16 +181,16 @@ interface FetchWrapperProps<Input extends object | undefined, Output> extends Om
     method: Method;
 }
 
-export const fetchWrapper = <Input extends object | undefined, Output>({
+export function fetchWrapper<Input extends object | undefined, Output>({
     endpoint,
     method,
     ...rest
-}: FetchWrapperProps<Input, Output>) => {
+}: FetchWrapperProps<Input, Output>) {
     return fetchLazyWrapper<Input, Output>({
         fetch: (inputs) => fetchData<Input | undefined, Output>({ endpoint, method, inputs }),
         ...rest,
     });
-};
+}
 
 type UseSubmitHelperProps<Input extends object | undefined, Output> = FetchLazyWrapperProps<Input, Output> & {
     disabled?: boolean,
@@ -195,13 +199,13 @@ type UseSubmitHelperProps<Input extends object | undefined, Output> = FetchLazyW
 }
 
 /** Wraps around fetchLazyWrapper to provide common checks before submitting */
-export const useSubmitHelper = <Input extends object | undefined, Output>({
+export function useSubmitHelper<Input extends object | undefined, Output>({
     disabled,
     existing,
     isCreate,
     ...props
-}: UseSubmitHelperProps<Input, Output>) => {
-    return useCallback(() => {
+}: UseSubmitHelperProps<Input, Output>) {
+    return useCallback(function useSubmitHelperCallback() {
         if (disabled === true) {
             PubSub.get().publish("snack", { messageKey: "Unauthorized", severity: "Error" });
             return;
@@ -212,4 +216,4 @@ export const useSubmitHelper = <Input extends object | undefined, Output>({
         }
         fetchLazyWrapper<Input, Output>(props);
     }, [disabled, existing, isCreate, props]);
-};
+}

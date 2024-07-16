@@ -20,7 +20,7 @@ export const routineVersionInputValidation: YupModel<["create", "update"]> = {
         name: opt(name),
     }, [
         ["routineVersion", ["Connect"], "one", "req"],
-        ["standardVersion", ["Connect", "Create"], "one", "req", standardVersionValidation],
+        ["standardVersion", ["Connect", "Create"], "one", "opt", standardVersionValidation],
         ["translations", ["Create"], "many", "opt", routineVersionInputTranslationValidation],
     ], [], d),
     update: (d) => yupObj({
@@ -29,7 +29,7 @@ export const routineVersionInputValidation: YupModel<["create", "update"]> = {
         isRequired: opt(bool),
         name: opt(name),
     }, [
-        ["standardVersion", ["Connect", "Create", "Disconnect"], "one", "req", standardVersionValidation],
+        ["standardVersion", ["Connect", "Create", "Disconnect"], "one", "opt", standardVersionValidation],
         ["translations", ["Create"], "many", "opt", routineVersionInputTranslationValidation],
     ], [], d),
 };

@@ -14,7 +14,7 @@ type Props = {
 /**
  * Generates or updates a LinkNode.
  */
-export const addLink = (params: LinkAttributes): void => {
+export function addLink(params: LinkAttributes): void {
     const { target, title, url } = params;
     const rel = params.rel === undefined ? "noreferrer" : params.rel;
     const selection = $getSelection();
@@ -109,12 +109,12 @@ export const addLink = (params: LinkAttributes): void => {
             linkNode.append(node);
         }
     });
-};
+}
 
 /**
  * Delete a LinkNode, and saves any children and brings them up to the parent node.
  */
-export const removeLink = (): void => {
+export function removeLink(): void {
     const selection = $getSelection();
 
     if (!$isRangeSelection(selection)) {
@@ -136,9 +136,9 @@ export const removeLink = (): void => {
             parent.remove();
         }
     });
-};
+}
 
-export const LinkPlugin = ({ validateUrl }: Props) => {
+export function LinkPlugin({ validateUrl }: Props) {
     const editor = useLexicalComposerContext();
 
     useEffect(() => {
@@ -202,4 +202,4 @@ export const LinkPlugin = ({ validateUrl }: Props) => {
     }, [editor, validateUrl]);
 
     return null;
-};
+}

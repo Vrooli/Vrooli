@@ -4,9 +4,9 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const focusModeSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchFocusMode"),
+    layout: searchFormLayout("SearchFocusMode"),
     containers: [],
-    fields: [],
+    elements: [],
 });
 
 export const focusModeSearchParams = () => toParams(focusModeSearchSchema(), endpointGetFocusModes, endpointGetFocusMode, FocusModeSortBy, FocusModeSortBy.NameAsc);

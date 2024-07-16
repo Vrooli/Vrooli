@@ -1,28 +1,31 @@
-import { Schedule } from "@local/shared";
+import { CommonKey, Schedule } from "@local/shared";
 import { FormProps } from "forms/types";
-import { PageTab } from "hooks/useTabs";
-import { ChangeEvent } from "react";
-import { CalendarPageTabOption, CalendarTabsInfo } from "utils/search/objectToSearch";
+import { SvgComponent } from "types";
 import { ScheduleShape } from "utils/shape/models/schedule";
 import { ObjectViewProps } from "views/types";
 import { CrudPropsDialog, CrudPropsPage } from "../types";
 
+export type ScheduleForType = "FocusMode" | "Meeting" | "RunProject" | "RunRoutine";
+
+export type ScheduleForOption = {
+    Icon: SvgComponent
+    labelKey: CommonKey;
+    objectType: ScheduleForType;
+}
+
 type ScheduleUpsertPropsPage = CrudPropsPage & {
-    canChangeTab?: never;
     canSetScheduleFor?: never;
-    defaultTab?: never;
+    defaultScheduleFor?: never;
     isMutate?: never;
 }
 type ScheduleUpsertPropsDialog = CrudPropsDialog<Schedule> & {
-    canChangeTab: boolean;
     canSetScheduleFor: boolean;
-    defaultTab: CalendarPageTabOption | `${CalendarPageTabOption}`;
+    defaultScheduleFor: ScheduleForType;
     isMutate: boolean;
 };
 export type ScheduleUpsertProps = ScheduleUpsertPropsPage | ScheduleUpsertPropsDialog;
-export type ScheduleFormProps = FormProps<Schedule, ScheduleShape> & Pick<ScheduleUpsertProps, "canChangeTab" | "canSetScheduleFor" | "isMutate"> & {
-    currTab: PageTab<CalendarTabsInfo>;
-    handleTabChange: (e: ChangeEvent<unknown> | undefined, tab: PageTab<CalendarTabsInfo>) => unknown;
-    tabs: PageTab<CalendarTabsInfo>[];
+export type ScheduleFormProps = FormProps<Schedule, ScheduleShape> & Pick<ScheduleUpsertProps, | "canSetScheduleFor" | "isMutate"> & {
+    scheduleFor: ScheduleForOption | null;
+    handleScheduleForChange: (scheduleFor: ScheduleForOption) => unknown;
 }
 export type ScheduleViewProps = ObjectViewProps<Schedule>

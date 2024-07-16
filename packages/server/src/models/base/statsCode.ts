@@ -40,8 +40,16 @@ export const StatsCodeModel: StatsCodeModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<StatsCodeModelInfo["PrismaSelect"]>([["code", "Code"]], ...rest),
         visibility: {
-            private: { code: ModelMap.get<CodeModelLogic>("Code").validate().visibility.private },
-            public: { code: ModelMap.get<CodeModelLogic>("Code").validate().visibility.public },
+            private: function getVisibilityPrivate(...params) {
+                return {
+                    code: ModelMap.get<CodeModelLogic>("Code").validate().visibility.private(...params),
+                };
+            },
+            public: function getVisibilityPublic(...params) {
+                return {
+                    code: ModelMap.get<CodeModelLogic>("Code").validate().visibility.public(...params),
+                };
+            },
             owner: (userId) => ({ code: ModelMap.get<CodeModelLogic>("Code").validate().visibility.owner(userId) }),
         },
     }),

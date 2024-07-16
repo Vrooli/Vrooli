@@ -1,5 +1,5 @@
-import { calculateOccurrences, CalendarEvent, Chat, ChatCreateInput, ChatInviteStatus, ChatParticipant, ChatUpdateInput, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList as ResourceListType, Schedule, uuid, VALYXA_ID } from "@local/shared";
-import { Box, Button, IconButton, useTheme } from "@mui/material";
+import { calculateOccurrences, CalendarEvent, Chat, ChatCreateInput, ChatInviteStatus, ChatUpdateInput, DAYS_30_MS, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList as ResourceListType, Schedule, uuid, VALYXA_ID } from "@local/shared";
+import { Box, Button, IconButton, styled, useTheme } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse } from "api";
 import { ChatBubbleTree, ScrollToBottomButton, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
@@ -27,6 +27,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { pagePaddingBottom } from "styles";
 import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
+import { DUMMY_LIST_LENGTH } from "utils/consts";
 import { getCookieMatchingChat, setCookieMatchingChat } from "utils/cookies";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
@@ -34,8 +35,11 @@ import { PubSub } from "utils/pubsub";
 import { MyStuffPageTabOption } from "utils/search/objectToSearch";
 import { deleteArrayIndex, updateArray } from "utils/shape/general";
 import { ChatShape } from "utils/shape/models/chat";
+import { ChatParticipantShape } from "utils/shape/models/chatParticipant";
 import { chatInitialValues, transformChatValues, VALYXA_INFO, withModifiableMessages, withYourMessages } from "views/objects/chat";
 import { DashboardViewProps } from "../types";
+
+const MAX_EVENTS_SHOWN = 10;
 
 const CHAT_DEFAULTS = {
     __typename: "Chat" as const,
@@ -56,12 +60,42 @@ type DashboardTabsInfo = {
     WhereParams: undefined;
 }
 
+const DashboardBox = styled(Box)(() => ({
+    display: "flex",
+    flexDirection: "column",
+    maxHeight: "100vh",
+    height: "calc(100vh - env(safe-area-inset-bottom))",
+    overflow: "hidden",
+}));
+
+const DashboardInnerBox = styled(Box)(() => ({
+    position: "relative",
+    display: "flex",
+    flexDirection: "column",
+    flexGrow: 1,
+    gap: 2,
+    margin: "auto",
+    paddingBottom: 4,
+    overflowY: "auto",
+    width: "min(700px, 100%)",
+}));
+
+const sideMenuStyle = {
+    width: "48px",
+    height: "48px",
+    marginLeft: 1,
+    marginRight: 1,
+    cursor: "pointer",
+} as const;
+const pageTabsStyle = { width: "min(700px, 100%)", minWidth: undefined, margin: "auto" } as const;
+const exitChatButtonStyle = { margin: 1, borderRadius: 8, padding: "4px 8px" } as const;
+
 /** View displayed for Home page when logged in */
-export const DashboardView = ({
+export function DashboardView({
     display,
     isOpen,
     onClose,
-}: DashboardViewProps) => {
+}: DashboardViewProps) {
     const { breakpoints, palette } = useTheme();
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -71,8 +105,8 @@ export const DashboardView = ({
     const isKeyboardOpen = useKeyboardOpen();
 
     const [message, setMessage] = useHistoryState<string>("dashboardMessage", "");
-    const [participants, setParticipants] = useState<Omit<ChatParticipant, "chat">[]>([]);
-    const [usersTyping, setUsersTyping] = useState<Omit<ChatParticipant, "chat">[]>([]);
+    const [participants, setParticipants] = useState<Omit<ChatParticipantShape, "chat">[]>([]);
+    const [usersTyping, setUsersTyping] = useState<Omit<ChatParticipantShape, "chat">[]>([]);
     const [refetch, { data, loading: isFeedLoading }] = useLazyFetch<HomeInput, HomeResult>(endpointGetFeedHome);
 
     const {
@@ -119,6 +153,7 @@ export const DashboardView = ({
             },
         });
     }, [chat, languages, fetchCreate, session, t]);
+    const resetChat = useCallback(() => { createChat(true); }, [createChat]);
 
     // Create chats automatically
     const chatCreateStatus = useRef<"notStarted" | "inProgress" | "complete">("notStarted");
@@ -127,7 +162,7 @@ export const DashboardView = ({
         if (!userId) return;
         // Unlike the chat view, we look for the chat by local storage data rather than the ID in the URL
         const existingChatId = getCookieMatchingChat([userId, VALYXA_ID]);
-        const isChatValid = chat.id !== DUMMY_ID && chat.participants.every(p => [userId, VALYXA_ID].includes(p.user.id));
+        const isChatValid = chat.id !== DUMMY_ID && chat.participants?.every(p => [userId, VALYXA_ID].includes(p.user.id));
         if (chat.id === DUMMY_ID && existingChatId) {
             fetchLazyWrapper<FindByIdInput, Chat>({
                 fetch: getChat,
@@ -260,13 +295,13 @@ export const DashboardView = ({
     useEffect(() => {
         let isCancelled = false;
 
-        const fetchUpcomingEvents = async () => {
+        async function fetchUpcomingEvents() {
             const result: CalendarEvent[] = [];
             for (const schedule of schedules) {
                 const occurrences = await calculateOccurrences(
                     schedule,
                     new Date(),
-                    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+                    new Date(Date.now() + DAYS_30_MS),
                 );
                 const events: CalendarEvent[] = occurrences.map(occurrence => ({
                     __typename: "CalendarEvent",
@@ -284,9 +319,9 @@ export const DashboardView = ({
             if (!isCancelled) {
                 // Sort events by start date, and set the first 10
                 result.sort((a, b) => a.start.getTime() - b.start.getTime());
-                setUpcomingEvents(result.slice(0, 10));
+                setUpcomingEvents(result.slice(0, MAX_EVENTS_SHOWN));
             }
-        };
+        }
 
         fetchUpcomingEvents();
 
@@ -322,6 +357,10 @@ export const DashboardView = ({
     }, [closeSideMenu]);
 
     const [showChat, setShowChat] = useState(false);
+    const hideChat = useCallback(function hideChatCallback() {
+        setShowChat(false);
+    }, []);
+
     const showTabs = useMemo(() => !showChat && Boolean(getCurrentUser(session).id) && allFocusModes.length > 1 && currTab !== null, [showChat, session, allFocusModes.length, currTab]);
 
     const messageTree = useMessageTree(chat.id);
@@ -388,14 +427,65 @@ export const DashboardView = ({
 
     const isBotOnlyChat = chat?.participants?.every(p => p.user?.isBot || p.user?.id === getCurrentUser(session).id) ?? false;
 
+    const scheduleContainerOptions = useMemo(function scheduleContainerOptionsMemo() {
+        return [{
+            Icon: OpenInNewIcon,
+            label: t("Open"),
+            onClick: openSchedule,
+        }];
+    }, [openSchedule, t]);
+
+    const reminderContainerOptions = useMemo(function reminderContainerOptionsMemo() {
+        return [{
+            Icon: OpenInNewIcon,
+            label: t("SeeAll"),
+            onClick: () => { setLocation(`${LINKS.MyStuff}?type="${MyStuffPageTabOption.Reminder}"`); },
+        }, {
+            Icon: AddIcon,
+            label: t("Create"),
+            onClick: () => { setLocation(`${LINKS.Reminder}/add`); },
+        }];
+    }, [setLocation, t]);
+
+    const inputActionButtons = useMemo(function inputActionButtonsMemo() {
+        return [{
+            disabled: isChatLoading || isCreateLoading || isUpdateLoading,
+            Icon: SendIcon,
+            onClick: () => {
+                const trimmed = message.trim();
+                if (trimmed.length === 0) return;
+                messageActions.postMessage(trimmed);
+            },
+        }];
+    }, [isChatLoading, isCreateLoading, isUpdateLoading, message, messageActions]);
+
+    const inputStyle = useMemo(function inputStyleMemo() {
+        return {
+            root: {
+                background: palette.primary.dark,
+                color: palette.primary.contrastText,
+                maxHeight: "min(75vh, 500px)",
+                width: "min(700px, 100%)",
+                margin: "auto",
+                marginBottom: { xs: (display === "page" && !isKeyboardOpen) ? pagePaddingBottom : "0", md: "0" },
+            },
+            topBar: { borderRadius: 0, paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
+            bottomBar: { paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
+            inputRoot: {
+                border: "none",
+                background: palette.background.paper,
+            },
+        };
+    }, [display, isKeyboardOpen, isMobile, palette.background.paper, palette.primary.contrastText, palette.primary.dark]);
+
+    const handleSubmit = useCallback(function handleSubmitCallback(m) {
+        const trimmed = m.trim();
+        if (trimmed.length === 0) return;
+        messageActions.postMessage(trimmed);
+    }, [messageActions]);
+
     return (
-        <Box sx={{
-            display: "flex",
-            flexDirection: "column",
-            maxHeight: "100vh",
-            height: "calc(100vh - env(safe-area-inset-bottom))",
-            overflow: "hidden",
-        }}>
+        <DashboardBox>
             {/* Main content */}
             <TopBar
                 display={display}
@@ -403,13 +493,7 @@ export const DashboardView = ({
                 startComponent={<IconButton
                     aria-label="Open chat menu"
                     onClick={openSideMenu}
-                    sx={{
-                        width: "48px",
-                        height: "48px",
-                        marginLeft: 1,
-                        marginRight: 1,
-                        cursor: "pointer",
-                    }}
+                    sx={sideMenuStyle}
                 >
                     <ListIcon fill={palette.primary.contrastText} width="100%" height="100%" />
                 </IconButton>}
@@ -421,7 +505,7 @@ export const DashboardView = ({
                         fullWidth
                         onChange={handleTabChange}
                         tabs={tabs}
-                        sx={{ width: "min(700px, 100%)", minWidth: undefined, margin: "auto" }}
+                        sx={pageTabsStyle}
                     />}
                     {showChat && <Box
                         display="flex"
@@ -433,16 +517,16 @@ export const DashboardView = ({
                     >
                         <Button
                             color="primary"
-                            onClick={() => { setShowChat(false); }}
+                            onClick={hideChat}
                             variant="contained"
-                            sx={{ margin: 1, borderRadius: 8, padding: "4px 8px" }}
+                            sx={exitChatButtonStyle}
                             startIcon={<ChevronLeftIcon />}
                         >
                             {t("Dashboard")}
                         </Button>
                         <Button
                             color="primary"
-                            onClick={() => { createChat(true); }}
+                            onClick={resetChat}
                             variant="contained"
                             sx={{ margin: 1, borderRadius: 8, padding: "4px 8px" }}
                             startIcon={<AddIcon />}
@@ -452,17 +536,7 @@ export const DashboardView = ({
                     </Box>}
                 </>}
             />
-            <Box sx={{
-                position: "relative",
-                display: "flex",
-                flexDirection: "column",
-                flexGrow: 1,
-                gap: 2,
-                margin: "auto",
-                paddingBottom: 4,
-                overflowY: "auto",
-                width: "min(700px, 100%)",
-            }}>
+            <DashboardInnerBox>
                 {/* TODO for morning: work on changes needed for a chat to track active and inactive tasks. Might need to link them to their own reminder list */}
                 {!showChat && <>
                     <Box p={1}>
@@ -494,14 +568,10 @@ export const DashboardView = ({
                         emptyText="No upcoming events"
                         loading={isFeedLoading}
                         title={t("Schedule", { count: 1 })}
-                        options={[{
-                            Icon: OpenInNewIcon,
-                            label: t("Open"),
-                            onClick: openSchedule,
-                        }]}
+                        options={scheduleContainerOptions}
                     >
                         <ObjectList
-                            dummyItems={new Array(5).fill("Event")}
+                            dummyItems={new Array(DUMMY_LIST_LENGTH).fill("Event")}
                             items={upcomingEvents}
                             keyPrefix="event-list-item"
                             loading={isFeedLoading}
@@ -516,18 +586,10 @@ export const DashboardView = ({
                         emptyText="No reminders"
                         loading={isFeedLoading}
                         title={t("Reminder", { count: 2 })}
-                        options={[{
-                            Icon: OpenInNewIcon,
-                            label: t("SeeAll"),
-                            onClick: () => { setLocation(`${LINKS.MyStuff}?type=${MyStuffPageTabOption.Reminder}`); },
-                        }, {
-                            Icon: AddIcon,
-                            label: t("Create"),
-                            onClick: () => { setLocation(`${LINKS.Reminder}/add`); },
-                        }]}
+                        options={reminderContainerOptions}
                     >
                         <ObjectList
-                            dummyItems={new Array(5).fill("Reminder")}
+                            dummyItems={new Array(DUMMY_LIST_LENGTH).fill("Reminder")}
                             items={reminders}
                             keyPrefix="reminder-list-item"
                             loading={isFeedLoading}
@@ -551,18 +613,10 @@ export const DashboardView = ({
                     tree={messageTree.tree}
                 />}
                 {showChat && <ScrollToBottomButton containerRef={dimRef} />}
-            </Box>
+            </DashboardInnerBox>
             <TypingIndicator participants={usersTyping} />
             <RichInputBase
-                actionButtons={[{
-                    disabled: isChatLoading || isCreateLoading || isUpdateLoading,
-                    Icon: SendIcon,
-                    onClick: () => {
-                        const trimmed = message.trim();
-                        if (trimmed.length === 0) return;
-                        messageActions.postMessage(trimmed);
-                    },
-                }]}
+                actionButtons={inputActionButtons}
                 fullWidth
                 getTaggableItems={async (message) => {
                     // TODO should be able to tag any public or owned object (e.g. "Create routine like @some_existing_routine, but change a to b")
@@ -575,31 +629,12 @@ export const DashboardView = ({
                 onBlur={onBlur}
                 onChange={setMessage}
                 onFocus={onFocus}
-                onSubmit={(m) => {
-                    const trimmed = m.trim();
-                    if (trimmed.length === 0) return;
-                    messageActions.postMessage(trimmed);
-                }}
+                onSubmit={handleSubmit}
                 placeholder={t("WhatWouldYouLikeToDo")}
-                sxs={{
-                    root: {
-                        background: palette.primary.dark,
-                        color: palette.primary.contrastText,
-                        maxHeight: "min(75vh, 500px)",
-                        width: "min(700px, 100%)",
-                        margin: "auto",
-                        marginBottom: { xs: (display === "page" && !isKeyboardOpen) ? pagePaddingBottom : "0", md: "0" },
-                    },
-                    topBar: { borderRadius: 0, paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
-                    bottomBar: { paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
-                    inputRoot: {
-                        border: "none",
-                        background: palette.background.paper,
-                    },
-                }}
+                sxs={inputStyle}
                 value={message}
             />
             <ChatSideMenu />
-        </Box>
+        </DashboardBox>
     );
-};
+}

@@ -337,9 +337,9 @@ export type Validator<
      */
     visibility: {
         /** For private objects (i.e. only the owner can see them) */
-        private: Model["PrismaWhere"];
+        private: (userId: string) => Model["PrismaWhere"];
         /** For public objects (i.e. anyone can see them) */
-        public: Model["PrismaWhere"];
+        public: (userId: string) => Model["PrismaWhere"];
         /** For both private and public objects that you own */
         owner: (userId: string) => Model["PrismaWhere"];
     }

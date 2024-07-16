@@ -1,5 +1,5 @@
 import { exists } from "@local/shared";
-import { Box, Button, CircularProgress, Grid, useTheme } from "@mui/material";
+import { Box, BoxProps, Button, CircularProgress, Grid, styled, useTheme } from "@mui/material";
 import { useErrorPopover } from "hooks/useErrorPopover";
 import { useKeyboardOpen } from "hooks/useKeyboardOpen";
 import { useWindowSize } from "hooks/useWindowSize";
@@ -10,7 +10,33 @@ import { SxType } from "types";
 import { BottomActionsGrid } from "../BottomActionsGrid/BottomActionsGrid";
 import { BottomActionsButtonsProps } from "../types";
 
-export const BottomActionsButtons = ({
+interface SideActionsBoxProps extends BoxProps {
+    hideButtons: boolean;
+    isKeyboardOpen: boolean;
+}
+
+const SideActionsBox = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "hideButtons" && prop !== "isKeyboardOpen",
+})<SideActionsBoxProps>(({ hideButtons, isKeyboardOpen }) => ({
+    position: "absolute",
+    top: isKeyboardOpen ? 0 : "-64px",
+    justifyContent: "flex-end",
+    display: "flex",
+    flexDirection: "row",
+    gap: "16px",
+    alignItems: "end",
+    paddingRight: "calc(32px + env(safe-area-inset-left))",
+    paddingLeft: "calc(32px + env(safe-area-inset-right))",
+    height: "calc(64px)",
+    width: "100%",
+    pointerEvents: "none",
+    "& > *": {
+        marginBottom: !hideButtons ? "4px !important" : "calc(16px + env(safe-area-inset-bottom)) !important",
+        pointerEvents: "auto",
+    },
+}));
+
+export function BottomActionsButtons({
     disabledCancel,
     disabledSubmit,
     display,
@@ -23,14 +49,13 @@ export const BottomActionsButtons = ({
     onSetSubmitting,
     onSubmit,
     sideActionButtons,
-}: BottomActionsButtonsProps) => {
+}: BottomActionsButtonsProps) {
     const { t } = useTranslation();
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
     const isKeyboardOpen = useKeyboardOpen();
     const iconStyle = useMemo<SxType>(() => (hideTextOnMobile && isMobile ? { marginLeft: 0, marginRight: 0 } : {}) as SxType, [hideTextOnMobile, isMobile]);
 
-    // Errors popup
     const { openPopover, Popover } = useErrorPopover({ errors, onSetSubmitting });
 
     const hasErrors = useMemo(() => Object.values(errors ?? {}).some((value) => exists(value)), [errors]);
@@ -47,26 +72,12 @@ export const BottomActionsButtons = ({
         <BottomActionsGrid display={display}>
             <Popover />
             {/* Side action buttons displayed above grid options */}
-            {sideActionButtons ? <Box sx={{
-                position: "absolute",
-                top: isKeyboardOpen ? 0 : "-64px",
-                justifyContent: "flex-end",
-                display: "flex",
-                flexDirection: "row",
-                gap: "16px",
-                alignItems: "end",
-                paddingRight: "calc(32px + env(safe-area-inset-left))",
-                paddingLeft: "calc(32px + env(safe-area-inset-right))",
-                height: "calc(64px)",
-                width: "100%",
-                pointerEvents: "none",
-                "& > *": {
-                    marginBottom: !hideButtons ? "4px !important" : "calc(16px + env(safe-area-inset-bottom)) !important",
-                    pointerEvents: "auto",
-                },
-            }}>
+            {sideActionButtons ? <SideActionsBox
+                hideButtons={hideButtons}
+                isKeyboardOpen={isKeyboardOpen}
+            >
                 {sideActionButtons}
-            </Box> : null}
+            </SideActionsBox> : null}
             {/* Create/Save button. On hover or press, displays formik errors if disabled */}
             {!hideButtons ? <Grid item xs={6}>
                 <Box onClick={handleSubmit}>
@@ -100,4 +111,4 @@ export const BottomActionsButtons = ({
             </Grid> : null}
         </BottomActionsGrid>
     );
-};
+}

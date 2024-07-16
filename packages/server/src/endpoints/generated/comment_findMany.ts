@@ -4,11 +4,6 @@ export const comment_findMany = {
     "childThreads": {
       "childThreads": {
         "comment": {
-          "translations": {
-            "id": true,
-            "language": true,
-            "text": true
-          },
           "id": true,
           "created_at": true,
           "updated_at": true,
@@ -60,17 +55,17 @@ export const comment_findMany = {
             "canReact": true,
             "isBookmarked": true,
             "reaction": true
+          },
+          "translations": {
+            "id": true,
+            "language": true,
+            "text": true
           }
         },
         "endCursor": true,
         "totalInThread": true
       },
       "comment": {
-        "translations": {
-          "id": true,
-          "language": true,
-          "text": true
-        },
         "id": true,
         "created_at": true,
         "updated_at": true,
@@ -122,17 +117,17 @@ export const comment_findMany = {
           "canReact": true,
           "isBookmarked": true,
           "reaction": true
+        },
+        "translations": {
+          "id": true,
+          "language": true,
+          "text": true
         }
       },
       "endCursor": true,
       "totalInThread": true
     },
     "comment": {
-      "translations": {
-        "id": true,
-        "language": true,
-        "text": true
-      },
       "id": true,
       "created_at": true,
       "updated_at": true,
@@ -184,6 +179,11 @@ export const comment_findMany = {
         "canReact": true,
         "isBookmarked": true,
         "reaction": true
+      },
+      "translations": {
+        "id": true,
+        "language": true,
+        "text": true
       }
     },
     "endCursor": true,

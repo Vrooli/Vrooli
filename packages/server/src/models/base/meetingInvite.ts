@@ -78,8 +78,12 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<MeetingInviteModelInfo["PrismaSelect"]>([["meeting", "Meeting"]], ...rest),
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({
                 meeting: ModelMap.get<MeetingModelLogic>("Meeting").validate().visibility.owner(userId),
             }),

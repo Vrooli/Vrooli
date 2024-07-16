@@ -23,7 +23,7 @@ import { PubSub } from "utils/pubsub";
 import { shapeProfile } from "utils/shape/models/profile";
 import { SettingsProfileFormProps, SettingsProfileViewProps } from "../types";
 
-const SettingsProfileForm = ({
+function SettingsProfileForm({
     display,
     dirty,
     isLoading,
@@ -31,7 +31,7 @@ const SettingsProfileForm = ({
     onCancel,
     values,
     ...props
-}: SettingsProfileFormProps) => {
+}: SettingsProfileFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
 
@@ -123,12 +123,12 @@ const SettingsProfileForm = ({
             />
         </>
     );
-};
+}
 
-export const SettingsProfileView = ({
+export function SettingsProfileView({
     display,
     onClose,
-}: SettingsProfileViewProps) => {
+}: SettingsProfileViewProps) {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
 
@@ -190,4 +190,4 @@ export const SettingsProfileView = ({
             </Stack>
         </>
     );
-};
+}

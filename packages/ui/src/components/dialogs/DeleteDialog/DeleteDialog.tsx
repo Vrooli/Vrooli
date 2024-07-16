@@ -7,12 +7,12 @@ import { useTranslation } from "react-i18next";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { DeleteDialogProps } from "../types";
 
-export const DeleteDialog = ({
+export function DeleteDialog({
     handleClose,
     handleDelete,
     isOpen,
     objectName,
-}: DeleteDialogProps) => {
+}: DeleteDialogProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -62,4 +62,4 @@ export const DeleteDialog = ({
             </DialogContent>
         </LargeDialog>
     );
-};
+}

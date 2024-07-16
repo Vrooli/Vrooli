@@ -38,8 +38,12 @@ export const RunProjectStepModel: RunProjectStepModelLogic = ({
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({ id: true, runProject: "RunProject" }),
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({ runProject: ModelMap.get<RunProjectModelLogic>("RunProject").validate().visibility.owner(userId) }),
         },
     }),

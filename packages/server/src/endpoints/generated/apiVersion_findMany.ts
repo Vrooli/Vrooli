@@ -2,6 +2,27 @@ export const apiVersion_findMany = {
   "edges": {
     "cursor": true,
     "node": {
+      "id": true,
+      "created_at": true,
+      "updated_at": true,
+      "callLink": true,
+      "commentsCount": true,
+      "documentationLink": true,
+      "forksCount": true,
+      "isLatest": true,
+      "isPrivate": true,
+      "reportsCount": true,
+      "versionIndex": true,
+      "versionLabel": true,
+      "you": {
+        "canComment": true,
+        "canCopy": true,
+        "canDelete": true,
+        "canReport": true,
+        "canUpdate": true,
+        "canUse": true,
+        "canRead": true
+      },
       "root": {
         "id": true,
         "created_at": true,
@@ -130,27 +151,6 @@ export const apiVersion_findMany = {
         "details": true,
         "name": true,
         "summary": true
-      },
-      "id": true,
-      "created_at": true,
-      "updated_at": true,
-      "callLink": true,
-      "commentsCount": true,
-      "documentationLink": true,
-      "forksCount": true,
-      "isLatest": true,
-      "isPrivate": true,
-      "reportsCount": true,
-      "versionIndex": true,
-      "versionLabel": true,
-      "you": {
-        "canComment": true,
-        "canCopy": true,
-        "canDelete": true,
-        "canReport": true,
-        "canUpdate": true,
-        "canUse": true,
-        "canRead": true
       }
     }
   },

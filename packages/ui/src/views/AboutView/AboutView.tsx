@@ -66,10 +66,10 @@ const teamMembers: MemberData[] = [
 
 const joinTeamLink = "https://github.com/Vrooli/Vrooli#-join-the-team";
 
-export const AboutView = ({
+export function AboutView({
     display,
     onClose,
-}: AboutViewProps) => {
+}: AboutViewProps) {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const { breakpoints, palette } = useTheme();
@@ -79,9 +79,9 @@ export const AboutView = ({
         <Box pl={2} pr={2}>
             <TopBar
                 display={display}
-                hideTitleOnDesktop={true}
                 onClose={onClose}
                 title={t("AboutUs")}
+                titleBehaviorDesktop="ShowIn"
             />
             <Stack mt={4} spacing={4} sx={{
                 marginBottom: (isMobile && getDeviceInfo().isStandalone) ? pagePaddingBottom : 0,
@@ -217,4 +217,4 @@ export const AboutView = ({
             </Stack>
         </Box>
     );
-};
+}

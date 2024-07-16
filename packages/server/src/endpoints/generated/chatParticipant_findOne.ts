@@ -1,4 +1,7 @@
 export const chatParticipant_findOne = {
+  "id": true,
+  "created_at": true,
+  "updated_at": true,
   "user": {
     "id": true,
     "created_at": true,
@@ -9,10 +12,21 @@ export const chatParticipant_findOne = {
     "isBotDepictingPerson": true,
     "name": true,
     "profileImage": true,
+    "bookmarks": true,
+    "reportsReceivedCount": true,
+    "you": {
+      "canDelete": true,
+      "canReport": true,
+      "canUpdate": true,
+      "isBookmarked": true,
+      "isViewed": true
+    },
+    "translations": {
+      "id": true,
+      "language": true,
+      "bio": true
+    },
     "__typename": "User"
   },
-  "id": true,
-  "created_at": true,
-  "updated_at": true,
   "__typename": "ChatParticipant"
 } as const;

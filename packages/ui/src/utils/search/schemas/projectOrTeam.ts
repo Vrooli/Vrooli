@@ -4,16 +4,17 @@ import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields } from "./common";
 
 export const projectOrTeamSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchProjectOrTeam"),
+    layout: searchFormLayout("SearchProjectOrTeam"),
     containers: [
-        { totalItems: 1 },
+        { direction: "column", totalItems: 1 },
         bookmarksContainer(),
         languagesVersionContainer(),
         tagsContainer(),
     ],
-    fields: [
+    elements: [
         {
             fieldName: "objectType",
+            id: "objectType",
             label: "Object Type",
             type: InputType.Radio,
             props: {

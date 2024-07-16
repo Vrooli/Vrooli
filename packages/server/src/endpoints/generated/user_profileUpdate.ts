@@ -33,6 +33,14 @@ export const user_profileUpdate = {
     "__typename": "Email"
   },
   "focusModes": {
+    "id": true,
+    "name": true,
+    "description": true,
+    "you": {
+      "canDelete": true,
+      "canRead": true,
+      "canUpdate": true
+    },
     "filters": {
       "id": true,
       "filterType": true,
@@ -53,6 +61,14 @@ export const user_profileUpdate = {
         "__typename": "Tag"
       },
       "focusMode": {
+        "id": true,
+        "name": true,
+        "description": true,
+        "you": {
+          "canDelete": true,
+          "canRead": true,
+          "canUpdate": true
+        },
         "labels": {
           "id": true,
           "color": true,
@@ -134,14 +150,6 @@ export const user_profileUpdate = {
             "__typename": "ScheduleRecurrence"
           },
           "__typename": "Schedule"
-        },
-        "id": true,
-        "name": true,
-        "description": true,
-        "you": {
-          "canDelete": true,
-          "canRead": true,
-          "canUpdate": true
         },
         "__typename": "FocusMode"
       },
@@ -228,14 +236,6 @@ export const user_profileUpdate = {
         "__typename": "ScheduleRecurrence"
       },
       "__typename": "Schedule"
-    },
-    "id": true,
-    "name": true,
-    "description": true,
-    "you": {
-      "canDelete": true,
-      "canRead": true,
-      "canUpdate": true
     },
     "__typename": "FocusMode"
   },

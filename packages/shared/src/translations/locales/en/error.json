@@ -21,6 +21,7 @@
     "CannotVerifyWallet": "Cannot verify wallet.",
     "CannotVerifyWalletDetails": "Wallet verification failed. Please try again.",
     "ChatRoomJoinFailed": "Failed to join chat room.",
+    "ChatNotFoundOrUnauthorized": "Chat not found or unauthorized.",
     "CouldNotFindPermissions": "Could not find permissions.",
     "CouldNotFindPermissionsDetails": "Could not find permissions for this object or an object linked to it.",
     "CouldNotFindTranslation": "Could not find translation.",

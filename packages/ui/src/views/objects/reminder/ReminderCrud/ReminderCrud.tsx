@@ -30,7 +30,7 @@ import { ReminderItemShape } from "utils/shape/models/reminderItem";
 import { validateFormValues } from "utils/validateFormValues";
 import { ReminderCrudProps, ReminderFormProps } from "../types";
 
-const getFallbackReminderList = (session: Session | undefined, existing: Partial<ReminderShape> | null | undefined) => {
+function getFallbackReminderList(session: Session | undefined, existing: Partial<ReminderShape> | null | undefined) {
     const { active: activeFocusMode, all: allFocusModes } = getFocusModeInfo(session);
     const activeMode = activeFocusMode?.mode;
 
@@ -60,28 +60,31 @@ const getFallbackReminderList = (session: Session | undefined, existing: Partial
         id: focusWithReminderList?.reminderList?.id ?? DUMMY_ID,
         focusMode: focusWithReminderList,
     };
-};
+}
 
-const reminderInitialValues = (
+function reminderInitialValues(
     session: Session | undefined,
     existing?: Partial<ReminderShape> | null | undefined,
-): ReminderShape => ({
-    __typename: "Reminder" as const,
-    id: DUMMY_ID,
-    dueDate: null,
-    index: 0,
-    isComplete: false,
-    reminderItems: [],
-    ...existing,
-    reminderList: existing?.reminderList || getFallbackReminderList(session, existing),
-    description: existing?.description ?? "",
-    name: existing?.name ?? "",
-});
+): ReminderShape {
+    return {
+        __typename: "Reminder" as const,
+        id: DUMMY_ID,
+        dueDate: null,
+        index: 0,
+        isComplete: false,
+        reminderItems: [],
+        ...existing,
+        reminderList: existing?.reminderList || getFallbackReminderList(session, existing),
+        description: existing?.description ?? "",
+        name: existing?.name ?? "",
+    };
+}
 
-const transformReminderValues = (values: ReminderShape, existing: ReminderShape, isCreate: boolean) =>
-    isCreate ? shapeReminder.create(values) : shapeReminder.update(existing, values);
+function transformReminderValues(values: ReminderShape, existing: ReminderShape, isCreate: boolean) {
+    return isCreate ? shapeReminder.create(values) : shapeReminder.update(existing, values);
+}
 
-const ReminderForm = ({
+function ReminderForm({
     disabled,
     dirty,
     display,
@@ -95,7 +98,7 @@ const ReminderForm = ({
     reminderListId,
     values,
     ...props
-}: ReminderFormProps) => {
+}: ReminderFormProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -167,13 +170,13 @@ const ReminderForm = ({
 
     const [reminderItemsField, , reminderItemsHelpers] = useField("reminderItems");
 
-    const handleDeleteStep = (index: number) => {
+    function handleDeleteStep(index: number) {
         const newReminderItems = [...reminderItemsField.value];
         newReminderItems.splice(index, 1);
         reminderItemsHelpers.setValue(newReminderItems);
-    };
+    }
 
-    const handleAddStep = () => {
+    function handleAddStep() {
         reminderItemsHelpers.setValue([
             ...reminderItemsField.value,
             {
@@ -185,9 +188,9 @@ const ReminderForm = ({
                 dueDate: null,
             },
         ]);
-    };
+    }
 
-    const onDragEnd = (result: DropResult) => {
+    function onDragEnd(result: DropResult) {
         if (!result.destination) return;
 
         const newReminderItems: ReminderItemShape[] = Array.from(reminderItemsField.value);
@@ -200,7 +203,7 @@ const ReminderForm = ({
         });
 
         reminderItemsHelpers.setValue(newReminderItems);
-    };
+    }
 
     return (
         <MaybeLargeDialog
@@ -236,13 +239,14 @@ const ReminderForm = ({
                                 <Field
                                     autoFocus
                                     fullWidth
+                                    isRequired={true}
                                     name="name"
                                     label={t("Name")}
                                     placeholder={t("NamePlaceholder")}
                                     as={TextInput}
                                 />
                                 <RichInput
-                                    isOptional
+                                    isRequired={false}
                                     maxChars={2048}
                                     maxRows={10}
                                     minRows={4}
@@ -251,7 +255,7 @@ const ReminderForm = ({
                                     placeholder={t("DescriptionPlaceholder")}
                                 />
                                 <DateInput
-                                    isOptional
+                                    isRequired={false}
                                     name="dueDate"
                                     label={t("DueDate")}
                                     type="datetime-local"
@@ -285,12 +289,14 @@ const ReminderForm = ({
                                                                 <Stack spacing={1} sx={{ width: "100%" }}>
                                                                     <Field
                                                                         fullWidth
+                                                                        isRequired={true}
                                                                         name={`reminderItems[${i}].name`}
                                                                         label={t("Name")}
                                                                         placeholder={t("NamePlaceholder")}
                                                                         as={TextInput}
                                                                     />
                                                                     <RichInput
+                                                                        isRequired={false}
                                                                         maxChars={2048}
                                                                         maxRows={6}
                                                                         minRows={2}
@@ -299,8 +305,8 @@ const ReminderForm = ({
                                                                         placeholder={t("DescriptionPlaceholder")}
                                                                     />
                                                                     <DateInput
+                                                                        isRequired={false}
                                                                         name={`reminderItems[${i}].dueDate`}
-                                                                        isOptional
                                                                         label={t("DueDate")}
                                                                         type="datetime-local"
                                                                     />
@@ -363,14 +369,14 @@ const ReminderForm = ({
             />
         </MaybeLargeDialog>
     );
-};
+}
 
-export const ReminderCrud = ({
+export function ReminderCrud({
     isCreate,
     isOpen,
     overrideObject,
     ...props
-}: ReminderCrudProps) => {
+}: ReminderCrudProps) {
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Reminder, ReminderShape>({
@@ -400,4 +406,4 @@ export const ReminderCrud = ({
             />}
         </Formik>
     );
-};
+}

@@ -6,8 +6,9 @@ import { BaseSelection, BaseSerializedNode, SerializedElementNode, SerializedTex
 import { $addNodeStyle, $parseSerializedNode } from "./updates";
 import { $cloneWithProperties, $createNode, $generateNodesFromDOM, $getRoot, $getSelection, $isNode, $isRangeSelection, $sliceSelectedTextNodeContent, isSelected, isSelectionWithinEditor, objectKlassEquals } from "./utils";
 
-const getDOMSelection = (targetWindow: Window | null): Selection | null =>
-    CAN_USE_DOM ? (targetWindow || window).getSelection() : null;
+function getDOMSelection(targetWindow: Window | null): Selection | null {
+    return CAN_USE_DOM ? (targetWindow || window).getSelection() : null;
+}
 
 /**
  * Returns the *currently selected* Lexical content as a JSON string, relying on the
@@ -18,7 +19,7 @@ const getDOMSelection = (targetWindow: Window | null): Selection | null =>
  * @param editor  - LexicalEditor instance to get the JSON content from
  * @returns
  */
-export const $getLexicalContent = (editor: LexicalEditor): null | string => {
+export function $getLexicalContent(editor: LexicalEditor): null | string {
     const selection = $getSelection();
 
     if (!selection) {
@@ -34,7 +35,7 @@ export const $getLexicalContent = (editor: LexicalEditor): null | string => {
     }
 
     return JSON.stringify($generateJSONFromSelectedNodes(editor, selection));
-};
+}
 
 /**
  * Attempts to insert content of the mime-types text/plain or text/uri-list from
@@ -44,17 +45,16 @@ export const $getLexicalContent = (editor: LexicalEditor): null | string => {
  * @param dataTransfer an object conforming to the [DataTransfer interface] (https://html.spec.whatwg.org/multipage/dnd.html#the-datatransfer-interface)
  * @param selection the selection to use as the insertion point for the content in the DataTransfer object
  */
-export const $insertDataTransferForPlainText = (
+export function $insertDataTransferForPlainText(
     dataTransfer: DataTransfer,
     selection: BaseSelection,
-): void => {
-    const text =
-        dataTransfer.getData("text/plain") || dataTransfer.getData("text/uri-list");
+): void {
+    const text = dataTransfer.getData("text/plain") || dataTransfer.getData("text/uri-list");
 
     if (text !== null) {
         selection.insertRawText(text);
     }
-};
+}
 
 /**
  * Attempts to insert content of the mime-types application/x-lexical-editor, text/html,
@@ -65,11 +65,11 @@ export const $insertDataTransferForPlainText = (
  * @param selection the selection to use as the insertion point for the content in the DataTransfer object
  * @param editor the LexicalEditor the content is being inserted into.
  */
-export const $insertDataTransferForRichText = (
+export function $insertDataTransferForRichText(
     dataTransfer: DataTransfer,
     selection: BaseSelection,
     editor: LexicalEditor,
-): void => {
+): void {
     const lexicalString = dataTransfer.getData("application/x-lexical-editor");
 
     if (lexicalString) {
@@ -124,7 +124,7 @@ export const $insertDataTransferForRichText = (
             selection.insertRawText(text);
         }
     }
-};
+}
 
 /**
  * Inserts Lexical nodes into the editor using different strategies depending on
@@ -136,11 +136,11 @@ export const $insertDataTransferForRichText = (
  * @param nodes The nodes to insert.
  * @param selection The selection to insert the nodes into.
  */
-export const $insertGeneratedNodes = (
+export function $insertGeneratedNodes(
     editor: LexicalEditor,
     nodes: LexicalNode[],
     selection: BaseSelection,
-): void => {
+): void {
     if (
         !editor.dispatchCommand(SELECTION_INSERT_CLIPBOARD_NODES_COMMAND, {
             nodes,
@@ -150,7 +150,7 @@ export const $insertGeneratedNodes = (
         selection.insertNodes(nodes);
     }
     return;
-};
+}
 
 function exportNodeToJSON<T extends LexicalNode>(node: T): BaseSerializedNode {
     const serializedNode = node.exportJSON();
@@ -170,12 +170,12 @@ function exportNodeToJSON<T extends LexicalNode>(node: T): BaseSerializedNode {
     return serializedNode;
 }
 
-const $appendNodesToJSON = (
+function $appendNodesToJSON(
     editor: LexicalEditor,
     selection: BaseSelection | null,
     currentNode: LexicalNode,
     targetArray: BaseSerializedNode[] = [],
-): boolean => {
+): boolean {
     let shouldInclude =
         selection !== null ? isSelected(currentNode, selection) : true;
     const shouldExclude =
@@ -241,7 +241,7 @@ const $appendNodesToJSON = (
     }
 
     return shouldInclude;
-};
+}
 
 // TODO why $ function with Editor instance?
 /**

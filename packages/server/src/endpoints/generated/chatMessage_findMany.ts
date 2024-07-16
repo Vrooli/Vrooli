@@ -2,11 +2,6 @@ export const chatMessage_findMany = {
   "edges": {
     "cursor": true,
     "node": {
-      "translations": {
-        "id": true,
-        "language": true,
-        "text": true
-      },
       "id": true,
       "created_at": true,
       "updated_at": true,
@@ -40,6 +35,11 @@ export const chatMessage_findMany = {
         "canUpdate": true,
         "canReact": true,
         "reaction": true
+      },
+      "translations": {
+        "id": true,
+        "language": true,
+        "text": true
       }
     }
   },

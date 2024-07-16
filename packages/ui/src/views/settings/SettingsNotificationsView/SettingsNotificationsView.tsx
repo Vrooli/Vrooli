@@ -22,14 +22,14 @@ import { pagePaddingBottom } from "styles";
 import { PubSub } from "utils/pubsub";
 import { SettingsNotificationFormProps, SettingsNotificationsViewProps } from "../types";
 
-const SettingsNotificationForm = ({
+function SettingsNotificationForm({
     display,
     dirty,
     isLoading,
     onCancel,
     values,
     ...props
-}: SettingsNotificationFormProps) => {
+}: SettingsNotificationFormProps) {
     const { t } = useTranslation();
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
@@ -180,12 +180,12 @@ const SettingsNotificationForm = ({
             </Stack>
         </BaseForm>
     );
-};
+}
 
-export const SettingsNotificationsView = ({
+export function SettingsNotificationsView({
     display,
     onClose,
-}: SettingsNotificationsViewProps) => {
+}: SettingsNotificationsViewProps) {
     const { t } = useTranslation();
 
     const { data, refetch, loading: isLoading } = useFetch<undefined, NotificationSettings>(endpointGetNotificationSettings);
@@ -231,4 +231,4 @@ export const SettingsNotificationsView = ({
             </Stack>
         </>
     );
-};
+}

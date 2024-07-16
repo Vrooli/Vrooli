@@ -44,13 +44,13 @@ type LlmServiceModel = AnthropicModel | MistralModel | OpenAIModel;
  * Preferred fallback order for each service
  */
 export const fallbacks: Record<LlmServiceModel, LlmServiceModel[]> = {
-    [AnthropicModel.Opus]: [OpenAIModel.Gpt4o, MistralModel.Mistral8x7b],
-    [AnthropicModel.Sonnet]: [OpenAIModel.Gpt3_5Turbo, MistralModel.Mistral7b],
-    [MistralModel.Mistral8x7b]: [OpenAIModel.Gpt4o, AnthropicModel.Opus],
-    [MistralModel.Mistral7b]: [OpenAIModel.Gpt3_5Turbo, AnthropicModel.Sonnet],
-    [OpenAIModel.Gpt4o]: [MistralModel.Mistral8x7b, AnthropicModel.Opus],
-    [OpenAIModel.Gpt4]: [MistralModel.Mistral8x7b, AnthropicModel.Opus],
-    [OpenAIModel.Gpt3_5Turbo]: [MistralModel.Mistral7b, AnthropicModel.Sonnet],
+    [AnthropicModel.Opus3]: [OpenAIModel.Gpt4o, MistralModel.Mistral8x7b],
+    [AnthropicModel.Sonnet3_5]: [OpenAIModel.Gpt3_5Turbo, MistralModel.Mistral7b],
+    [MistralModel.Mistral8x7b]: [OpenAIModel.Gpt4o, AnthropicModel.Opus3],
+    [MistralModel.Mistral7b]: [OpenAIModel.Gpt3_5Turbo, AnthropicModel.Sonnet3_5],
+    [OpenAIModel.Gpt4o]: [MistralModel.Mistral8x7b, AnthropicModel.Opus3],
+    [OpenAIModel.Gpt4]: [MistralModel.Mistral8x7b, AnthropicModel.Opus3],
+    [OpenAIModel.Gpt3_5Turbo]: [MistralModel.Mistral7b, AnthropicModel.Sonnet3_5],
 };
 
 /**

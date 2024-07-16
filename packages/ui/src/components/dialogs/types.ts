@@ -2,6 +2,7 @@ import { ApiVersion, Bookmark, BookmarkFor, CodeVersion, CommonKey, FocusMode, L
 import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
 import { TitleProps } from "components/text/types";
+import { FormProps } from "forms/types";
 import { UseObjectActionsReturn } from "hooks/useObjectActions";
 import { ReactNode } from "react";
 import { DirectoryStep, RoutineListStep, SvgComponent, SxType } from "types";
@@ -9,6 +10,7 @@ import { ObjectAction } from "utils/actions/objectActions";
 import { CookiePreferences } from "utils/cookies";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeLinkShape } from "utils/shape/models/nodeLink";
+import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
 import { ViewDisplayType } from "views/types";
 import { FindObjectTabOption } from "./FindObjectDialog/FindObjectDialog";
 
@@ -83,10 +85,10 @@ export interface FindObjectDialogProps<Find extends FindObjectDialogType, Object
     handleCancel: () => unknown;
     handleComplete: (data: Find extends "Url" ? string : ObjectType) => unknown;
     isOpen: boolean;
-    limitTo?: FindObjectTabOption[];
+    limitTo?: readonly FindObjectTabOption[];
     /** Forces selection to be a version, and removes unversioned items from limitTo */
     onlyVersioned?: boolean;
-    where?: { [key: string]: object };
+    where?: Record<string, any>;
 }
 
 export interface FindSubroutineDialogProps {
@@ -185,6 +187,19 @@ export interface SubroutineCreateDialogProps {
     isOpen: boolean;
     onClose: () => unknown;
 }
+
+export type SubroutineFormProps = Omit<FormProps<Node, NodeRoutineListItemShape>, "disabled" | "display" | "existing" | "isLoading" | "isOpen" | "onCancel" | "isReadLoading" | "onClose" | "onCompleted"> & Required<Pick<SubroutineInfoDialogProps, "handleUpdate" | "handleReorder" | "handleViewFull" | "onClose">> & {
+    /**
+     * True if the routine version itself can be updated. Otherwise, 
+     * only node-level properties can be updated (e.g. index)
+     */
+    canUpdateRoutineVersion: boolean;
+    isEditing: boolean;
+    isOpen: boolean;
+    /** Number of subroutines in parent routine list */
+    numSubroutines: number;
+    versions: string[];
+};
 
 export interface SubroutineInfoDialogProps {
     data: { node: Node & { routineList: NodeRoutineList }, routineItemId: string } | null;

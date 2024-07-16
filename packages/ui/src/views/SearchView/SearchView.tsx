@@ -1,5 +1,5 @@
 import { GqlModelType, LINKS, ListObject, getObjectUrlBase } from "@local/shared";
-import { IconButton, useTheme } from "@mui/material";
+import { useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { SearchList } from "components/lists/SearchList/SearchList";
@@ -11,19 +11,22 @@ import { AddIcon, SearchIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { SideActionsButton } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { scrollIntoFocusedView } from "utils/display/scroll";
 import { PubSub } from "utils/pubsub";
 import { SearchType, searchViewTabParams } from "utils/search/objectToSearch";
 import { SearchViewProps } from "../types";
 
+const searchListStyle = { search: { marginTop: 2 } } as const;
+
 /**
  * Search page for teams, projects, routines, standards, users, and other main objects
  */
-export const SearchView = ({
+export function SearchView({
     display,
     onClose,
-}: SearchViewProps) => {
+}: SearchViewProps) {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { palette } = useTheme();
@@ -45,7 +48,7 @@ export const SearchView = ({
         where: where(),
     });
 
-    const onCreateStart = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    const onCreateStart = useCallback(function onCreateStartCallback() {
         // If tab is 'All', go to "Create" page
         if (searchType === SearchType.Popular) {
             setLocation(LINKS.Create);
@@ -62,15 +65,15 @@ export const SearchView = ({
         else setLocation(addUrl);
     }, [searchType, setLocation, userId]);
 
-    const focusSearch = () => { scrollIntoFocusedView("search-bar-main-search-page-list"); };
+    function focusSearch() { scrollIntoFocusedView("search-bar-main-search-page-list"); }
 
     return (
         <>
             <TopBar
                 display={display}
-                hideTitleOnDesktop={true}
                 onClose={onClose}
                 title={t("Search")}
+                titleBehaviorDesktop="ShowIn"
                 below={<PageTabs
                     ariaLabel="search-tabs"
                     fullWidth
@@ -85,19 +88,18 @@ export const SearchView = ({
                 {...findManyData}
                 id="main-search-page-list"
                 display={display}
-                dummyLength={display === "page" ? 5 : 3}
-                sxs={{ search: { marginTop: 2 } }}
+                sxs={searchListStyle}
             />}
             <SideActionsButtons display={display}>
-                <IconButton aria-label={t("FilterList")} onClick={focusSearch} sx={{ background: palette.secondary.main }}>
+                <SideActionsButton aria-label={t("FilterList")} onClick={focusSearch}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </IconButton>
+                </SideActionsButton>
                 {userId ? (
-                    <IconButton aria-label={t("Add")} onClick={onCreateStart} sx={{ background: palette.secondary.main }}>
+                    <SideActionsButton aria-label={t("Add")} onClick={onCreateStart}>
                         <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </IconButton>
+                    </SideActionsButton>
                 ) : null}
             </SideActionsButtons>
         </>
     );
-};
+}

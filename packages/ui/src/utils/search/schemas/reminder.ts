@@ -4,9 +4,9 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const reminderSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchReminder"),
+    layout: searchFormLayout("SearchReminder"),
     containers: [], //TODO
-    fields: [], //TODO
+    elements: [], //TODO
 });
 
 export const reminderSearchParams = () => toParams(reminderSearchSchema(), endpointGetReminders, endpointGetReminder, ReminderSortBy, ReminderSortBy.DueDateAsc);

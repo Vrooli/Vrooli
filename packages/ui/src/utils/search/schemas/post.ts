@@ -4,9 +4,9 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const postSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchPost"),
+    layout: searchFormLayout("SearchPost"),
     containers: [], //TODO
-    fields: [], //TODO
+    elements: [], //TODO
 });
 
 export const postSearchParams = () => toParams(postSearchSchema(), endpointGetPosts, endpointGetPost, PostSortBy, PostSortBy.DateCreatedDesc);

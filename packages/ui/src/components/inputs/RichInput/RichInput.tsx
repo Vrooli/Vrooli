@@ -1,5 +1,5 @@
 import { ChatInviteStatus, DUMMY_ID, getDotNotationValue, noop, setDotNotationValue, uuid } from "@local/shared";
-import { Box, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
 import { SessionContext } from "contexts/SessionContext";
 import { useField } from "formik";
@@ -21,9 +21,19 @@ import { RichInputToolbar, defaultActiveStates } from "../RichInputToolbar/RichI
 import { RichInputAction, RichInputActiveStates, RichInputBaseProps, RichInputProps, TranslatedRichInputProps } from "../types";
 
 export const LINE_HEIGHT_MULTIPLIER = 1.5;
+const SHOW_CHAR_LIMIT_AT_REMAINING = 500;
+
+const ActionButton = styled(IconButton)(({ theme }) => ({
+    background: theme.palette.primary.dark,
+    color: theme.palette.primary.contrastText,
+    borderRadius: theme.spacing(2),
+}));
+
+const helperTextStyle = { color: "red" } as const;
+const newLineTextStyle = { fontSize: "0.5em" } as const;
 
 /** TextInput for entering rich text. Supports markdown and WYSIWYG */
-export const RichInputBase = ({
+export function RichInputBase({
     actionButtons,
     autoFocus = false,
     disabled = false,
@@ -43,7 +53,7 @@ export const RichInputBase = ({
     tabIndex,
     value,
     sxs,
-}: RichInputBaseProps) => {
+}: RichInputBaseProps) {
     const { palette } = useTheme();
     const session = useContext(SessionContext);
     const isLeftHanded = useIsLeftHanded();
@@ -62,7 +72,7 @@ export const RichInputBase = ({
             return false;
         },
     });
-    useEffect(() => {
+    useEffect(function resetValueEffect() {
         resetInternalValue(value);
     }, [value, resetInternalValue]);
 
@@ -135,9 +145,9 @@ export const RichInputBase = ({
     // This is currently ignored when markdown mode is on, since it's 
     // a bitch to keep track of
     const [activeStates, setActiveStates] = useState<Omit<RichInputActiveStates, "SetValue">>(defaultActiveStates);
-    const handleActiveStatesChange = (newActiveStates) => {
+    function handleActiveStatesChange(newActiveStates) {
         setActiveStates(newActiveStates);
-    };
+    }
 
     const [enterWillSubmit, setEnterWillSubmit] = useState<boolean | undefined>(typeof onSubmit === "function" ? true : undefined);
     useEffect(() => {
@@ -192,6 +202,37 @@ export const RichInputBase = ({
         },
     }), [autoFocus, changeInternalValue, disabled, enterWillSubmit, error, getTaggableItems, id, internalValue, maxRows, minRows, name, onBlur, onFocus, onSubmit, openAssistantDialog, placeholder, redo, setChildHandleAction, sxs?.inputRoot, sxs?.textArea, tabIndex, toggleMarkdown, undo]);
 
+    const rootStyle = useMemo(function rootStyleMemo() {
+        return {
+            display: "flex",
+            flexDirection: "column",
+            gap: 0,
+            ...sxs?.root,
+        } as const;
+    }, [sxs?.root]);
+
+    const bottomBarStyle = useMemo(function bottomBarStyleMemo() {
+        return {
+            padding: "2px",
+            display: "flex",
+            flexDirection: isLeftHanded ? "row-reverse" : "row",
+            gap: 1,
+            justifyContent: "space-between",
+            alignItems: "center",
+            ...sxs?.bottomBar,
+        } as const;
+    }, [isLeftHanded, sxs?.bottomBar]);
+
+    const actionsBoxStyle = useMemo(function actionsBoxStyleMemo() {
+        return {
+            display: "flex",
+            gap: 2,
+            ...(isLeftHanded ?
+                { marginRight: "auto", flexDirection: "row-reverse" } :
+                { marginLeft: "auto", flexDirection: "row" }),
+        } as const;
+    }, [isLeftHanded]);
+
     return (
         <>
             {/* Assistant dialog for generating text */}
@@ -199,12 +240,7 @@ export const RichInputBase = ({
             <Box
                 id={`markdown-input-base-${name}`}
                 onMouseDown={handleMouseDown}
-                sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 0,
-                    ...(sxs?.root ?? {}),
-                }}
+                sx={rootStyle}
             >
                 <RichInputToolbar
                     activeStates={activeStates}
@@ -222,71 +258,45 @@ export const RichInputBase = ({
                 {isMarkdownOn ? <RichInputMarkdown {...viewProps} /> : <RichInputLexical {...viewProps} />}
                 {/* Help text, characters remaining indicator, and action buttons */}
                 {
-                    (helperText || maxChars || (Array.isArray(actionButtons) && actionButtons.length > 0)) && <Box
-                        sx={{
-                            padding: "2px",
-                            display: "flex",
-                            flexDirection: isLeftHanded ? "row-reverse" : "row",
-                            gap: 1,
-                            justifyContent: "space-between",
-                            alitnItems: "center",
-                            ...sxs?.bottomBar,
-                        }}
-                    >
-                        <Typography variant="body1" mt="auto" mb="auto" sx={{ color: "red" }}>
-                            {helperText}
-                        </Typography>
-                        <Box sx={{
-                            display: "flex",
-                            gap: 2,
-                            ...(isLeftHanded ?
-                                { marginRight: "auto", flexDirection: "row-reverse" } :
-                                { marginLeft: "auto", flexDirection: "row" }),
-                        }}>
+                    (helperText || maxChars || (Array.isArray(actionButtons) && actionButtons.length > 0)) && <Box sx={bottomBarStyle}>
+                        {helperText && <Typography variant="body1" mt="auto" mb="auto" sx={helperTextStyle}>
+                            {typeof helperText === "string" ? helperText : JSON.stringify(helperText)}
+                        </Typography>}
+                        <Box sx={actionsBoxStyle}>
                             {/* On desktop, allow users to set the behavior of the "Enter" key. 
                                 On mobile, the virtual keyboard will (hopefully) display a "Return" 
                                 button - so this isn't needed */}
                             {
                                 typeof enterWillSubmit === "boolean" && !getDeviceInfo().isMobile &&
-                                <IconButton
+                                <ActionButton
                                     size="medium"
                                     onClick={toggleEnterWillSubmit}
-                                    sx={{
-                                        background: palette.primary.dark,
-                                        color: palette.primary.contrastText,
-                                        borderRadius: 2,
-                                    }}
                                 >
-                                    <Typography variant="body2" mt="auto" mb="auto" sx={{ fontSize: "0.5em" }}>
-                                        '{keyComboToString(...(enterWillSubmit ? ["Shift", "Enter"] as const : ["Enter"] as const))}' for new line
+                                    <Typography variant="body2" mt="auto" mb="auto" sx={newLineTextStyle}>
+                                        &apos;{keyComboToString(...(enterWillSubmit ? ["Shift", "Enter"] as const : ["Enter"] as const))}&apos; for new line
                                     </Typography>
-                                </IconButton>
+                                </ActionButton>
                             }
                             {/* Characters remaining indicator */}
                             {
                                 !disabled && maxChars !== undefined &&
                                 <CharLimitIndicator
                                     chars={internalValue?.length ?? 0}
-                                    minCharsToShow={Math.max(0, maxChars - 500)}
+                                    minCharsToShow={Math.max(0, maxChars - SHOW_CHAR_LIMIT_AT_REMAINING)}
                                     maxChars={maxChars}
                                 />
                             }
                             {/* Action buttons */}
                             {
-                                actionButtons?.map(({ disabled: buttonDisabled, Icon, onClick, tooltip }, index) => (
-                                    <Tooltip key={index} title={tooltip} placement="top">
-                                        <IconButton
+                                actionButtons?.map(({ disabled: buttonDisabled, Icon, onClick, tooltip }) => (
+                                    <Tooltip key={tooltip} title={tooltip} placement="top">
+                                        <ActionButton
                                             disabled={disabled || buttonDisabled}
                                             size="medium"
                                             onClick={onClick}
-                                            sx={{
-                                                background: palette.primary.dark,
-                                                color: palette.primary.contrastText,
-                                                borderRadius: 2,
-                                            }}
                                         >
                                             <Icon fill={palette.primary.contrastText} />
-                                        </IconButton>
+                                        </ActionButton>
                                     </Tooltip>
                                 ))
                             }
@@ -296,17 +306,17 @@ export const RichInputBase = ({
             </Box>
         </>
     );
-};
+}
 
-export const RichInput = ({
+export function RichInput({
     name,
     ...props
-}: RichInputProps) => {
+}: RichInputProps) {
     const [field, meta, helpers] = useField(name);
 
-    const handleChange = (value) => {
+    function handleChange(value) {
         helpers.setValue(value);
-    };
+    }
 
     return (
         <RichInputBase
@@ -319,13 +329,13 @@ export const RichInput = ({
             onChange={handleChange}
         />
     );
-};
+}
 
-export const TranslatedRichInput = ({
+export function TranslatedRichInput({
     language,
     name,
     ...props
-}: TranslatedRichInputProps) => {
+}: TranslatedRichInputProps) {
     const [field, meta, helpers] = useField("translations");
     const translationData = getTranslationData(field, meta, language);
 
@@ -333,11 +343,11 @@ export const TranslatedRichInput = ({
     const fieldError = getDotNotationValue(translationData.error, name);
     const fieldTouched = getDotNotationValue(translationData.touched, name);
 
-    const handleBlur = (event) => {
+    function handleBlur(event) {
         field.onBlur(event);
-    };
+    }
 
-    const handleChange = (newText: string) => {
+    function handleChange(newText: string) {
         // Only use dot notation if the name has a dot in it
         if (name.includes(".")) {
             const updatedValue = setDotNotationValue(translationData.value ?? {}, name, newText);
@@ -347,7 +357,7 @@ export const TranslatedRichInput = ({
             }));
         }
         else handleTranslationChange(field, meta, helpers, { target: { name, value: newText } }, language);
-    };
+    }
 
     return (
         <RichInputBase
@@ -360,4 +370,4 @@ export const TranslatedRichInput = ({
             onChange={handleChange}
         />
     );
-};
+}

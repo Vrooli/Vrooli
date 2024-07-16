@@ -1,6 +1,7 @@
 import { LINKS } from "@local/shared";
 import { IconButton, useTheme } from "@mui/material";
 import { ArrowLeftIcon } from "icons";
+import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { TopBar } from "../TopBar/TopBar";
 import { SettingsTopBarProps } from "../types";
@@ -8,12 +9,13 @@ import { SettingsTopBarProps } from "../types";
 /**
  * Generates an app bar for both pages and dialogs
  */
-export const SettingsTopBar = ({
+export function SettingsTopBar({
     display,
     onClose,
     ...rest
-}: SettingsTopBarProps) => {
+}: SettingsTopBarProps) {
     const { palette } = useTheme();
+    const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
 
@@ -21,7 +23,6 @@ export const SettingsTopBar = ({
         <TopBar
             {...rest}
             display={display}
-            hideTitleOnDesktop={true}
             onClose={onClose}
             startComponent={<IconButton
                 aria-label="Back"
@@ -40,6 +41,8 @@ export const SettingsTopBar = ({
             >
                 <ArrowLeftIcon fill={palette.primary.contrastText} width="100%" height="100%" />
             </IconButton>}
+            title={t("Settings")}
+            titleBehaviorDesktop="ShowIn"
         />
     );
-};
+}

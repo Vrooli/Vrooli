@@ -22,7 +22,7 @@ import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { CompleteIcon, LinkIcon, SearchIcon } from "icons";
+import { CompleteIcon, LinkIcon } from "icons";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
@@ -32,6 +32,7 @@ import { SearchPageTabOption } from "utils/search/objectToSearch";
 import { ApiShape } from "utils/shape/models/api";
 import { ApiVersionShape, shapeApiVersion } from "utils/shape/models/apiVersion";
 import { validateFormValues } from "utils/validateFormValues";
+import { SearchExistingButton } from "../../../../components/buttons/SearchExistingButton/SearchExistingButton";
 import { ApiFormProps, ApiUpsertProps } from "../types";
 
 const apiInitialValues = (
@@ -76,7 +77,7 @@ const apiInitialValues = (
 const transformApiVersionValues = (values: ApiVersionShape, existing: ApiVersionShape, isCreate: boolean) =>
     isCreate ? shapeApiVersion.create(values) : shapeApiVersion.update(existing, values);
 
-const ApiForm = ({
+function ApiForm({
     disabled,
     dirty,
     display,
@@ -89,7 +90,7 @@ const ApiForm = ({
     values,
     versions,
     ...props
-}: ApiFormProps) => {
+}: ApiFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const { palette } = useTheme();
@@ -120,6 +121,7 @@ const ApiForm = ({
         isCreate,
         objectId: values.id,
         objectType: "ApiVersion",
+        rootObjectId: values.root?.id,
         ...props,
     });
     const {
@@ -158,20 +160,10 @@ const ApiForm = ({
                 onClose={onClose}
                 title={t(isCreate ? "CreateApi" : "UpdateApi")}
             />
-            <Button
-                href={`${LINKS.Search}?type=${SearchPageTabOption.Api}`}
-                sx={{
-                    color: palette.background.textSecondary,
-                    display: "flex",
-                    marginTop: 2,
-                    textAlign: "center",
-                    textTransform: "none",
-                }}
-                variant="text"
-                endIcon={<SearchIcon />}
-            >
-                Search existing apis
-            </Button>
+            <SearchExistingButton
+                href={`${LINKS.Search}?type="${SearchPageTabOption.Api}"`}
+                text="Search existing apis"
+            />
             <BaseForm
                 display={display}
                 isLoading={isLoading}
@@ -188,12 +180,14 @@ const ApiForm = ({
                             <TranslatedTextInput
                                 autoFocus
                                 fullWidth
+                                isRequired={true}
                                 label={t("Name")}
                                 language={language}
                                 name="name"
                                 placeholder={t("NamePlaceholder")}
                             />
                             <TranslatedRichInput
+                                isRequired={false}
                                 language={language}
                                 name="summary"
                                 maxChars={1024}
@@ -202,6 +196,7 @@ const ApiForm = ({
                                 placeholder={t("Summary")}
                             />
                             <TranslatedRichInput
+                                isRequired={false}
                                 language={language}
                                 name="details"
                                 maxChars={8192}
@@ -309,14 +304,14 @@ const ApiForm = ({
             />
         </MaybeLargeDialog>
     );
-};
+}
 
-export const ApiUpsert = ({
+export function ApiUpsert({
     isCreate,
     isOpen,
     overrideObject,
     ...props
-}: ApiUpsertProps) => {
+}: ApiUpsertProps) {
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<ApiVersion, ApiVersionShape>({
@@ -327,12 +322,16 @@ export const ApiUpsert = ({
         transform: (data) => apiInitialValues(session, data),
     });
 
+    async function validateValues(values: ApiVersionShape) {
+        return await validateFormValues(values, existing, isCreate, transformApiVersionValues, apiVersionValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformApiVersionValues, apiVersionValidation)}
+            validate={validateValues}
         >
             {(formik) => <ApiForm
                 disabled={!(isCreate || permissions.canUpdate)}
@@ -347,4 +346,4 @@ export const ApiUpsert = ({
             />}
         </Formik>
     );
-};
+}

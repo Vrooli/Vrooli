@@ -97,7 +97,7 @@ export const createCards: CreateInfo[] = [
     },
 ] as const;
 
-const sortCardsByUsageHistory = (cards: CreateInfo[]) => {
+function sortCardsByUsageHistory(cards: CreateInfo[]) {
     const history = getCookie("CreateOrder");
     cards.sort((a, b) => {
         const aIndex = history.indexOf(a.id);
@@ -106,12 +106,12 @@ const sortCardsByUsageHistory = (cards: CreateInfo[]) => {
         if (bIndex === -1) return -1;
         return aIndex - bIndex;
     });
-};
+}
 
-export const CreateView = ({
+export function CreateView({
     display,
     onClose,
-}: CreateViewProps) => {
+}: CreateViewProps) {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
 
@@ -142,6 +142,7 @@ export const CreateView = ({
                 display={display}
                 onClose={onClose}
                 title={t("Create")}
+                titleBehaviorDesktop="ShowIn"
             />
             <CardGrid minWidth={300}>
                 {sortedCards.map(({ objectType, description, Icon, id, incomplete }, index) => (
@@ -159,4 +160,4 @@ export const CreateView = ({
             </CardGrid>
         </PageContainer>
     );
-};
+}

@@ -3,11 +3,12 @@ import { useTranslation } from "react-i18next";
 import { BreadcrumbsBase } from "../BreadcrumbsBase/BreadcrumbsBase";
 import { CopyrightBreadcrumbsProps } from "../types";
 
-export const CopyrightBreadcrumbs = ({
+export function CopyrightBreadcrumbs({
     sx,
     ...props
-}: CopyrightBreadcrumbsProps) => {
+}: CopyrightBreadcrumbsProps) {
     const { t } = useTranslation();
+
     return BreadcrumbsBase({
         paths: [
             [`© ${new Date().getFullYear()} ${BUSINESS_NAME}`, LINKS.Home],
@@ -23,4 +24,4 @@ export const CopyrightBreadcrumbs = ({
         },
         ...props,
     });
-};
+}

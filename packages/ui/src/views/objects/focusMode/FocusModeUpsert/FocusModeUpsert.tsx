@@ -2,6 +2,7 @@ import { DUMMY_ID, endpointGetFocusMode, endpointPostFocusMode, endpointPutFocus
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
@@ -24,37 +25,40 @@ import { validateFormValues } from "utils/validateFormValues";
 import { ScheduleUpsert } from "views/objects/schedule";
 import { FocusModeFormProps, FocusModeUpsertProps } from "../types";
 
-export const focusModeInitialValues = (
+export function focusModeInitialValues(
     session: Session | undefined,
     existing?: Partial<FocusMode> | null | undefined,
-): FocusModeShape => ({
-    __typename: "FocusMode" as const,
-    id: DUMMY_ID,
-    description: "",
-    name: "",
-    reminderList: {
-        __typename: "ReminderList" as const,
+): FocusModeShape {
+    return {
+        __typename: "FocusMode" as const,
         id: DUMMY_ID,
-        reminders: [],
-    },
-    resourceList: {
-        __typename: "ResourceList" as const,
-        id: DUMMY_ID,
-        resources: [],
-        listFor: {
-            __typename: "FocusMode" as const,
+        description: "",
+        name: "",
+        reminderList: {
+            __typename: "ReminderList" as const,
             id: DUMMY_ID,
+            reminders: [],
         },
-    },
-    filters: [],
-    schedule: null,
-    ...existing,
-});
+        resourceList: {
+            __typename: "ResourceList" as const,
+            id: DUMMY_ID,
+            resources: [],
+            listFor: {
+                __typename: "FocusMode" as const,
+                id: DUMMY_ID,
+            },
+        },
+        filters: [],
+        schedule: null,
+        ...existing,
+    };
+}
 
-export const transformFocusModeValues = (values: FocusModeShape, existing: FocusModeShape, isCreate: boolean) =>
-    isCreate ? shapeFocusMode.create(values) : shapeFocusMode.update(existing, values);
+export function transformFocusModeValues(values: FocusModeShape, existing: FocusModeShape, isCreate: boolean) {
+    return isCreate ? shapeFocusMode.create(values) : shapeFocusMode.update(existing, values);
+}
 
-const FocusModeForm = ({
+function FocusModeForm({
     disabled,
     dirty,
     display,
@@ -69,7 +73,7 @@ const FocusModeForm = ({
     onDeleted,
     values,
     ...props
-}: FocusModeFormProps) => {
+}: FocusModeFormProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -136,9 +140,8 @@ const FocusModeForm = ({
                 title={t(isCreate ? "CreateFocusMode" : "UpdateFocusMode")}
             />
             <ScheduleUpsert
-                canChangeTab={false}
                 canSetScheduleFor={false}
-                defaultTab="FocusMode"
+                defaultScheduleFor="FocusMode"
                 display="dialog"
                 isCreate={editingSchedule === null}
                 isMutate={false}
@@ -244,20 +247,25 @@ const FocusModeForm = ({
                         isCreate={true}
                         parent={{ __typename: "FocusMode", id: values.id }}
                     />
-                    <Title
-                        Icon={HeartFilledIcon}
-                        title={t("TopicsFavorite")}
-                        help={t("TopicsFavoriteHelp")}
-                        variant="subheader"
-                    />
-                    <TagSelector name="favorites" />
-                    <Title
-                        Icon={InvisibleIcon}
-                        title={t("TopicsHidden")}
-                        help={t("TopicsHiddenHelp")}
-                        variant="subheader"
-                    />
-                    <TagSelector name="hidden" />
+                    <ContentCollapse
+                        isOpen={false}
+                        title={t("Advanced")}
+                    >
+                        <Title
+                            Icon={HeartFilledIcon}
+                            title={t("TopicsFavorite")}
+                            help={t("TopicsFavoriteHelp")}
+                            variant="subsection"
+                        />
+                        <TagSelector name="favorites" />
+                        <Title
+                            Icon={InvisibleIcon}
+                            title={t("TopicsHidden")}
+                            help={t("TopicsHiddenHelp")}
+                            variant="subsection"
+                        />
+                        <TagSelector name="hidden" />
+                    </ContentCollapse>
                 </Stack>
             </BaseForm>
             <BottomActionsButtons
@@ -271,14 +279,14 @@ const FocusModeForm = ({
             />
         </MaybeLargeDialog>
     );
-};
+}
 
-export const FocusModeUpsert = ({
+export function FocusModeUpsert({
     isCreate,
     isOpen,
     overrideObject,
     ...props
-}: FocusModeUpsertProps) => {
+}: FocusModeUpsertProps) {
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<FocusMode, FocusModeShape>({
@@ -289,12 +297,16 @@ export const FocusModeUpsert = ({
         transform: (data) => focusModeInitialValues(session, data),
     });
 
+    async function validateValues(values: FocusModeShape) {
+        return await validateFormValues(values, existing, isCreate, transformFocusModeValues, focusModeValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformFocusModeValues, focusModeValidation)}
+            validate={validateValues}
         >
             {(formik) => <FocusModeForm
                 disabled={false} // Can always update focus mode
@@ -308,4 +320,4 @@ export const FocusModeUpsert = ({
             />}
         </Formik>
     );
-};
+}

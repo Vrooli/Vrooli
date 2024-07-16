@@ -1,11 +1,10 @@
-import { exists, noop } from "@local/shared";
-import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
+import { User, exists, noop } from "@local/shared";
+import { Tooltip } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { ListMenu } from "components/dialogs/ListMenu/ListMenu";
 import { ListMenuItemData, SelectOrCreateObjectType } from "components/dialogs/types";
 import { userFromSession } from "components/lists/RelationshipList/RelationshipList";
 import { RelationshipItemTeam, RelationshipItemUser } from "components/lists/types";
-import { TextShrink } from "components/text/TextShrink/TextShrink";
 import { SessionContext } from "contexts/SessionContext";
 import { useField } from "formik";
 import { usePopover } from "hooks/usePopover";
@@ -14,11 +13,13 @@ import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
+import { extractImageUrl } from "utils/display/imageTools";
+import { placeholderColor } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { openObject } from "utils/navigation/openObject";
 import { OwnerShape } from "utils/shape/models/types";
-import { commonIconProps, commonLabelProps, smallButtonProps } from "../styles";
+import { RelationshipAvatar, RelationshipButton, RelationshipChip } from "../styles";
 import { OwnerButtonProps } from "../types";
 
 enum OwnerTypesEnum {
@@ -26,20 +27,22 @@ enum OwnerTypesEnum {
     Team = "Team",
 }
 
+const MAX_LABEL_LENGTH = 20;
+const TARGET_IMAGE_SIZE = 100;
+
 const ownerTypes: ListMenuItemData<OwnerTypesEnum>[] = [
     { labelKey: "Self", value: OwnerTypesEnum.Self },
     { labelKey: "Team", value: OwnerTypesEnum.Team },
 ];
 
-export const OwnerButton = ({
+export function OwnerButton({
     isEditing,
-    objectType,
-}: OwnerButtonProps) => {
+}: OwnerButtonProps) {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const languages = useMemo(() => getUserLanguages(session), [session]);
+    const profileColors = useMemo(() => placeholderColor(), []);
 
     const [versionField, , versionHelpers] = useField("owner");
     const [rootField, , rootHelpers] = useField("root.owner");
@@ -73,6 +76,7 @@ export const OwnerButton = ({
             openTeamDialog();
         } else {
             const owner = session ? userFromSession(session) : undefined;
+            console.log("self owner", owner);
             exists(versionHelpers) && versionHelpers.setValue(owner);
             exists(rootHelpers) && rootHelpers.setValue(owner);
         }
@@ -84,70 +88,84 @@ export const OwnerButton = ({
         if (isTeamDialogOpen) return ["Team", handleOwnerSelect, closeTeamDialog];
         return [null, noop, noop];
     }, [isTeamDialogOpen, handleOwnerSelect, closeTeamDialog]);
+    const limitTo = useMemo(function limitToMemo() {
+        return findType ? [findType] : [];
+    }, [findType]);
 
-    const { Icon, tooltip } = useMemo(() => {
+    const { avatarProps, label, tooltip } = useMemo(() => {
         const owner = versionField?.value ?? rootField?.value;
         // If no owner data, marked as anonymous
         if (!owner) return {
-            Icon: null,
+            avatarProps: null,
+            label: "No owner",
             tooltip: t(`OwnerNoneTogglePress${isEditing ? "Editable" : ""}`),
         };
-        // If owner is team, use team icon
-        if (owner.__typename === "Team") {
-            const Icon = TeamIcon;
-            const ownerName = firstString(getTranslation(owner as RelationshipItemTeam, languages, true).name, "team");
-            return {
-                Icon,
-                tooltip: t(`OwnerTogglePress${isEditing ? "Editable" : ""}`, { owner: ownerName }),
-            };
-        }
-        // If owner is user, use self icon
-        const Icon = UserIcon;
-        const isSelf = owner.id === getCurrentUser(session).id;
-        const ownerName = (owner as RelationshipItemUser).name;
-        return {
-            Icon,
-            tooltip: t(`OwnerTogglePress${isEditing ? "Editable" : ""}`, { owner: isSelf ? t("Self") : ownerName }),
-        };
-    }, [isEditing, languages, rootField?.value, session, t, versionField?.value]);
+        // Otherwise, find owner information
+        const isTeam = owner.__typename === "Team";
+        const ownerName = isTeam
+            ? firstString(getTranslation(owner as RelationshipItemTeam, languages, true).name, "team")
+            : (owner as RelationshipItemUser).name;
+        const isSelf = !isTeam && owner.id === getCurrentUser(session).id;
+        const isBot = !isTeam && (owner as Partial<User>).isBot === true;
+        const imageUrl = extractImageUrl(owner.profileImage, owner.updated_at, TARGET_IMAGE_SIZE);
+        const label = `By: ${isSelf ? t("Self") : ownerName}`;
+        const truncatedLabel = label.length > MAX_LABEL_LENGTH ? `${label.slice(0, MAX_LABEL_LENGTH)}...` : label;
 
-    // If not available, return null
-    if (!isEditing && !Icon) return null;
-    // Return button with label on top
-    return (
-        <>
-            {/* Popup for selecting type of owner */}
-            <ListMenu
-                id={"select-owner-type-menu"}
-                anchorEl={ownerDialogAnchor}
-                title={t("Owner")}
-                data={ownerTypes}
-                onSelect={handleOwnerDialogSelect}
-                onClose={closeOwnerDialog}
-            />
-            {/* Popup for selecting team or user */}
-            {findType && <FindObjectDialog
-                find="List"
-                isOpen={Boolean(findType)}
-                handleCancel={findHandleClose}
-                handleComplete={findHandleAdd}
-                limitTo={[findType]}
-            />}
-            <Stack
-                direction="column"
-                alignItems="center"
-                justifyContent="center"
-            >
-                <TextShrink id="owner" sx={{ ...commonLabelProps() }}>{t("Owner")}</TextShrink>
+        return {
+            label: truncatedLabel,
+            tooltip: t(`OwnerTogglePress${isEditing ? "Editable" : ""}`, { owner: isSelf ? t("Self") : ownerName }),
+            avatarProps: {
+                children: isTeam ? <TeamIcon /> : <UserIcon />,
+                isBot,
+                profileColors,
+                src: imageUrl,
+            },
+        };
+    }, [isEditing, languages, profileColors, rootField?.value, session, t, versionField?.value]);
+
+    const Avatar = useMemo(function avatarMemo() {
+        return avatarProps ? <RelationshipAvatar {...avatarProps} /> : undefined;
+    }, [avatarProps]);
+
+    // If editing, return button and popups for choosing owner type and owner
+    if (isEditing) {
+        return (
+            <>
+                {/* Popup for selecting type of owner */}
+                <ListMenu
+                    id={"select-owner-type-menu"}
+                    anchorEl={ownerDialogAnchor}
+                    title={t("Owner")}
+                    data={ownerTypes}
+                    onSelect={handleOwnerDialogSelect}
+                    onClose={closeOwnerDialog}
+                />
+                {/* Popup for selecting team or user */}
+                {findType && <FindObjectDialog
+                    find="List"
+                    isOpen={Boolean(findType)}
+                    handleCancel={findHandleClose}
+                    handleComplete={findHandleAdd}
+                    limitTo={limitTo}
+                />}
                 <Tooltip title={tooltip}>
-                    <IconButton
+                    <RelationshipButton
                         onClick={handleOwnerClick}
-                        sx={{ ...smallButtonProps(isEditing, true), background: palette.primary.light }}
+                        startIcon={Avatar}
+                        variant="outlined"
                     >
-                        {Icon && <Icon {...commonIconProps()} />}
-                    </IconButton>
+                        {label}
+                    </RelationshipButton>
                 </Tooltip>
-            </Stack>
-        </>
+            </>
+        );
+    }
+    // Otherwise, return chip
+    return (
+        <RelationshipChip
+            icon={Avatar}
+            label={label}
+            onClick={handleOwnerClick}
+        />
     );
-};
+}

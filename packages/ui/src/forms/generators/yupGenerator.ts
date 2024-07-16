@@ -1,7 +1,7 @@
 import { InputType } from "@local/shared";
 import { FormikConfig } from "formik";
 import { buildYup } from "schema-to-yup";
-import { FormSchema, YupSchema, YupType } from "../types";
+import { FormInputBase, FormSchema, YupSchema, YupType } from "../types";
 
 /**
  * Maps input types to their yup types. 
@@ -25,7 +25,9 @@ export const InputToYupType: { [key in InputType]?: YupType } = {
  * Then we convert this schema into a yup object.
  * @param formSchema The schema of the entire form
  */
-export const generateYupSchema = (formSchema: Pick<FormSchema, "fields">): FormikConfig<any>["validationSchema"] => {
+export function generateYupSchema(
+    formSchema: Pick<FormSchema, "elements">,
+): FormikConfig<never>["validationSchema"] {
     if (!formSchema) return null;
     // Create shape object to describe yup validation
     const shape: YupSchema = {
@@ -37,15 +39,18 @@ export const generateYupSchema = (formSchema: Pick<FormSchema, "fields">): Formi
     // Create config object for yup builder. Currently only used for error messages
     const config = { errMessages: {} };
     // Loop through each field in the form schema
-    formSchema.fields.forEach(field => {
-        const name = field.fieldName;
+    formSchema.elements.forEach(field => {
+        // Skip non-input fields
+        if (!Object.prototype.hasOwnProperty.call(field, "fieldName")) return;
+        const formInput = field as FormInputBase;
+        const name = formInput.fieldName;
         // Field will only be validated if it has a yup schema, and it is a valid input type
-        if (field.yup && InputToYupType[field.type]) {
+        if (formInput.yup && InputToYupType[field.type]) {
             // Add field to properties
             shape.properties[name] = { type: InputToYupType[field.type] };
             // Set up required and error messages
             config.errMessages[name] = {};
-            if (field.yup.required) {
+            if (formInput.yup.required) {
                 shape.properties[name].required = true;
                 shape.required.push(name);
                 config.errMessages[name].required = `${field.label} is required`;
@@ -56,8 +61,8 @@ export const generateYupSchema = (formSchema: Pick<FormSchema, "fields">): Formi
                 shape.properties[name].nullable = true;
             }
             // Add additional validation checks
-            if (Array.isArray(field.yup.checks)) {
-                field.yup.checks.forEach(check => {
+            if (Array.isArray(formInput.yup.checks)) {
+                formInput.yup.checks.forEach(check => {
                     shape.properties[name][check.key] = check.value;
                     if (check.error) { config.errMessages[name][check.key] = check.error; }
                 });
@@ -112,4 +117,4 @@ export const generateYupSchema = (formSchema: Pick<FormSchema, "fields">): Formi
     //         },
     //     },
     // })
-};
+}

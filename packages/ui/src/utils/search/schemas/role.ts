@@ -4,9 +4,9 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const roleSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchRole"),
+    layout: searchFormLayout("SearchRole"),
     containers: [], //TODO
-    fields: [], //TODO
+    elements: [], //TODO
 });
 
 export const roleSearchParams = () => toParams(roleSearchSchema(), endpointGetRoles, endpointGetRole, RoleSortBy, RoleSortBy.DateCreatedDesc);

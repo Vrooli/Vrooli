@@ -172,7 +172,7 @@ const emojiByCode: Record<string, DataEmoji | undefined> = {};
 /**
  * Loads emoji data
  */
-const fetchEmojiData = async () => {
+async function fetchEmojiData() {
     const response = await fetch("/emojis/data.json");
     if (!response.ok) {
         console.error("Failed to fetch emoji data: response was not ok");
@@ -195,7 +195,7 @@ const fetchEmojiData = async () => {
             emojiByCode[unified] = emojiData;
         });
     });
-};
+}
 if (process.env.NODE_ENV !== "test") {
     fetchEmojiData();
 }
@@ -205,9 +205,9 @@ if (process.env.NODE_ENV !== "test") {
  * @param unified - The unified string of an emoji code, potentially including skin tones.
  * @returns The unified code without any skin tone information.
  */
-export const unifiedWithoutSkinTone = (unified: string): string => {
+export function unifiedWithoutSkinTone(unified: string): string {
     return unified.split("-").filter((section) => !skinTones.includes(section as SkinTone)).join("-");
-};
+}
 
 /**
  * Computes the unified string for an emoji, optionally applying a specified skin tone.
@@ -215,7 +215,7 @@ export const unifiedWithoutSkinTone = (unified: string): string => {
  * @param Optional skin tone modifier.
  * @returns The unified string with or without a skin tone modification.
  */
-export const emojiUnified = (emoji: DataEmoji, skinTone?: string): string => {
+export function emojiUnified(emoji: DataEmoji, skinTone?: string): string {
     const unified = emoji[EmojiProperties.unified];
 
     if (!skinTone || !Array.isArray(emoji[EmojiProperties.variations]) || emoji[EmojiProperties.variations].length === 0) {
@@ -223,7 +223,7 @@ export const emojiUnified = (emoji: DataEmoji, skinTone?: string): string => {
     }
 
     return emojiVariationUnified(emoji, skinTone) ?? unified;
-};
+}
 
 /**
  * Selects the appropriate emoji variation based on the given skin tone.
@@ -231,21 +231,21 @@ export const emojiUnified = (emoji: DataEmoji, skinTone?: string): string => {
  * @param Optional skin tone to apply.
  * @returns The unified string of the emoji with the applied skin tone, if available.
  */
-export const emojiVariationUnified = (
+export function emojiVariationUnified(
     emoji: DataEmoji,
     skinTone?: string,
-): string | undefined => {
+): string | undefined {
     return skinTone
         ? (emoji[EmojiProperties.variations] ?? []).find(variation => variation.includes(skinTone))
         : emojiUnified(emoji);
-};
+}
 
 /**
  * Retrieves an emoji object by its unified code.
  * @param unified The unified string of an emoji.
  * @returns The emoji object corresponding to the unified code.
  */
-export const emojiByUnified = (unified?: string): DataEmoji | undefined => {
+export function emojiByUnified(unified?: string): DataEmoji | undefined {
     if (!unified) {
         return;
     }
@@ -256,7 +256,7 @@ export const emojiByUnified = (unified?: string): DataEmoji | undefined => {
 
     const withoutSkinTone = unifiedWithoutSkinTone(unified);
     return emojiByCode[withoutSkinTone];
-};
+}
 
 /**
  * Component representing a clickable emoji button in the UI.
@@ -415,7 +415,7 @@ const RenderCategory = memo(({
 });
 RenderCategory.displayName = "RenderCategory";
 
-export const EmojiPicker = ({
+export function EmojiPicker({
     anchorEl,
     onClose,
     onSelect,
@@ -423,7 +423,7 @@ export const EmojiPicker = ({
     anchorEl: HTMLElement | null;
     onClose: () => unknown;
     onSelect: (emoji: string) => unknown;
-}) => {
+}) {
     const { t } = useTranslation();
     const { palette } = useTheme();
     const zIndex = useZIndex(Boolean(anchorEl), false, 1000);
@@ -438,7 +438,7 @@ export const EmojiPicker = ({
         handleTabChange: setActiveCategory,
         tabs: categories,
     } = useTabs({ id: "emoji-picker-tabs", tabParams: categoryTabParams, display: "dialog" });
-    useEffect(() => {
+    useEffect(function scrollCategoryIntoViewEffect() {
         const categoryDiv = document.querySelector(`[data-name="${activeCategory.key}"]`);
         if (categoryDiv) {
             categoryDiv.scrollIntoView();
@@ -675,4 +675,4 @@ export const EmojiPicker = ({
             </Box>
         </Popover>
     );
-};
+}

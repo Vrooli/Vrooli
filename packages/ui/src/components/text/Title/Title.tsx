@@ -6,7 +6,7 @@ import { multiLineEllipsis } from "styles";
 import { fontSizeToPixels } from "utils/display/stringTools";
 import { TitleProps } from "../types";
 
-export const Title = ({
+export function Title({
     adornments,
     help,
     Icon,
@@ -15,7 +15,7 @@ export const Title = ({
     title,
     titleComponent,
     variant = "header",
-}: TitleProps) => {
+}: TitleProps) {
     const { breakpoints, palette, typography } = useTheme();
 
     const textRef = useRef<HTMLDivElement>(null);
@@ -102,4 +102,4 @@ export const Title = ({
             </Box>
         </Stack>
     );
-};
+}

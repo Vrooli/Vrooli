@@ -4,11 +4,11 @@ import { CloseIcon } from "icons";
 import { noSelect } from "styles";
 import { MenuTitleProps } from "../types";
 
-export const MenuTitle = ({
+export function MenuTitle({
     ariaLabel,
     onClose,
     ...titleData
-}: MenuTitleProps) => {
+}: MenuTitleProps) {
     const { palette } = useTheme();
 
     return (
@@ -18,8 +18,8 @@ export const MenuTitle = ({
                 ...noSelect,
                 display: "flex",
                 alignItems: "center",
-                paddingTop: 1,
-                paddingBottom: 1,
+                paddingTop: 0,
+                paddingBottom: 0,
                 paddingLeft: 2,
                 paddingRight: 2,
                 background: palette.primary.dark,
@@ -65,4 +65,4 @@ export const MenuTitle = ({
             </IconButton>
         </Box>
     );
-};
+}

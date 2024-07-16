@@ -1,16 +1,16 @@
 /**
  * Search list for a single object type
  */
-import { ListObject, NavigableObject } from "@local/shared";
-import { Box, Button } from "@mui/material";
+import { ListObject, NavigableObject, funcTrue } from "@local/shared";
+import { Box } from "@mui/material";
 import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { SiteSearchBar } from "components/inputs/search";
-import { PlusIcon } from "icons";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ArgsType } from "types";
+import { getDummyListLength } from "utils/consts";
 import { openObject } from "utils/navigation/openObject";
 import { ObjectList } from "../ObjectList/ObjectList";
 import { ObjectListActions, SearchListProps } from "../types";
@@ -20,11 +20,10 @@ export function SearchList<DataType extends ListObject>({
     advancedSearchSchema,
     allData,
     autocompleteOptions,
-    canNavigate = () => true,
+    canNavigate = funcTrue,
     defaultSortBy,
     display,
-    dummyLength = 5,
-    handleAdd,
+    dummyLength,
     handleToggleSelect,
     hideUpdateButton,
     id,
@@ -106,7 +105,7 @@ export function SearchList<DataType extends ListObject>({
             loadMore();
         }
     }, [getScrollingContainer, loading, loadMore]);
-    useEffect(() => {
+    useEffect(function listenToScrollingContainerEffect() {
         const scrollingContainer = getScrollingContainer(containerRef.current);
         if (scrollingContainer) {
             scrollingContainer.addEventListener("scroll", handleScroll);
@@ -117,14 +116,14 @@ export function SearchList<DataType extends ListObject>({
         }
     }, [getScrollingContainer, handleScroll]);
 
-    const handleSearch = useCallback((newString: string) => {
+    const handleSearch = useCallback(function handleSearchCallback(newString: string) {
         setSearchString(newString);
     }, [setSearchString]);
 
     /**
      * When an autocomplete item is selected, navigate to object
      */
-    const onInputSelect = useCallback((newValue: any) => {
+    const onInputSelect = useCallback(function onInputSelectCallback(newValue: any) {
         if (!newValue) return;
         // Determine object from selected label
         const selectedItem = allData.find(o => (o as any)?.id === newValue?.id);
@@ -194,7 +193,7 @@ export function SearchList<DataType extends ListObject>({
             >
                 <ObjectList
                     canNavigate={canNavigate}
-                    dummyItems={new Array(dummyLength).fill(searchType)}
+                    dummyItems={new Array(dummyLength || getDummyListLength(display)).fill(searchType)}
                     handleToggleSelect={handleToggleSelect}
                     hideUpdateButton={hideUpdateButton}
                     isSelecting={isSelecting}
@@ -206,19 +205,6 @@ export function SearchList<DataType extends ListObject>({
                     selectedItems={selectedItems}
                 />
             </ListContainer>
-            {/* Add new button */}
-            {Boolean(handleAdd) && <Box sx={{
-                maxWidth: "400px",
-                margin: "auto",
-                paddingTop: 5,
-            }}>
-                <Button
-                    fullWidth
-                    onClick={handleAdd}
-                    startIcon={<PlusIcon />}
-                    variant="contained"
-                >{t("AddNew")}</Button>
-            </Box>}
         </>
     );
 }

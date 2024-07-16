@@ -1,6 +1,9 @@
 {
     "root": true,
     "ignorePatterns": [
+        "backups/",
+        "coverage/",
+        "data/",
         "dist/",
         "node_modules/",
         "coverage/",
@@ -69,6 +72,45 @@
                 "prev": "import",
                 "next": "import"
             }
+        ],
+        "func-names": [
+            "error",
+            "always"
+        ],
+        "func-style": [
+            "error",
+            "declaration",
+            {
+                "allowArrowFunctions": false
+            }
+        ],
+        "no-magic-numbers": [
+            "error",
+            {
+                "ignore": [
+                    -1,
+                    0,
+                    0.5,
+                    1,
+                    2
+                ],
+                "ignoreArrayIndexes": true,
+                "enforceConst": true,
+                "detectObjects": false
+            }
         ]
-    }
+    },
+    "overrides": [
+        {
+            "files": [
+                "**/*.test.js",
+                "**/*.test.jsx",
+                "**/*.test.ts",
+                "**/*.test.tsx"
+            ],
+            "rules": {
+                "no-magic-numbers": "off",
+            }
+        }
+    ],
 }

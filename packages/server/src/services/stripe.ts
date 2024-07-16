@@ -46,16 +46,16 @@ export enum PaymentMethod {
  * Finds all available price IDs for the current environment (development or production)
  * NOTE: Make sure these are PRICE IDs, not PRODUCT IDs
  **/
-export const getPriceIds = (): Record<PaymentType, string> => {
+export function getPriceIds(): Record<PaymentType, string> {
     return process.env.NODE_ENV === "production" ? PRICE_IDS_PROD : PRICE_IDS_DEV;
-};
+}
 
 /** 
  * Finds the payment type of a Stripe price 
  * 
  * @throws Error if the price ID is invalid
  */
-export const getPaymentType = (price: string | Stripe.Price | Stripe.DeletedPrice): PaymentType => {
+export function getPaymentType(price: string | Stripe.Price | Stripe.DeletedPrice): PaymentType {
     const priceId = typeof price === "string" ? price : price.id;
     const prices = getPriceIds();
     const matchingPrice = Object.entries(prices).find(([_key, value]) => value === priceId);
@@ -63,7 +63,7 @@ export const getPaymentType = (price: string | Stripe.Price | Stripe.DeletedPric
         throw new Error("Invalid price ID");
     }
     return matchingPrice[0] as PaymentType;
-};
+}
 
 /**
  * Returns the customer ID from the Stripe API response.
@@ -72,7 +72,7 @@ export const getPaymentType = (price: string | Stripe.Price | Stripe.DeletedPric
  * @returns The customer ID as a string if it exists
  * @throws hrows an error if the customer ID doesn't exist or couldn't be found.
  */
-export const getCustomerId = (customer: string | Stripe.Customer | Stripe.DeletedCustomer | null | undefined): string => {
+export function getCustomerId(customer: string | Stripe.Customer | Stripe.DeletedCustomer | null | undefined): string {
     if (typeof customer === "string") {
         return customer;
     } else if (customer && typeof customer === "object" && Object.prototype.hasOwnProperty.call(customer, "id") && typeof customer.id === "string") {
@@ -80,7 +80,7 @@ export const getCustomerId = (customer: string | Stripe.Customer | Stripe.Delete
     } else {
         throw new Error("Customer ID not found");
     }
-};
+}
 
 /** 
  * Simplifies the return logic for Stripe event handlers, by handling 
@@ -92,42 +92,44 @@ export const getCustomerId = (customer: string | Stripe.Customer | Stripe.Delete
  * @param ...args Additional arguments to log
  * @returns Object with status and message
  */
-export const handlerResult = (
+export function handlerResult(
     status: HttpStatus,
     res: Response,
     message?: string,
     trace?: string,
     ...args: unknown[]
-): HandlerResult => {
+): HandlerResult {
     if (status !== HttpStatus.Ok) {
         logger.error(message ?? "Stripe handler error", { trace: trace ?? "0523", ...args });
     }
     res.status(status).send(message);
     return { status, message };
-};
+}
 
 /**
  * Stores a price in redis for a given payment type
  */
-export const storePrice = async (paymentType: PaymentType, price: number): Promise<void> => {
+export async function storePrice(paymentType: PaymentType, price: number): Promise<void> {
     await withRedis({
         process: async (redisClient) => {
+            if (!redisClient) return;
             const key = `stripe-payment-${process.env.NODE_ENV}-${paymentType}`;
             await redisClient.set(key, price);
             await redisClient.expire(key, 60 * 60 * 24); // expire after 24 hours
         },
         trace: "0517",
     });
-};
+}
 
 /**
  * Fetches a price from redis for a given payment type, 
  * or null if the price is not found
  */
-export const fetchPriceFromRedis = async (paymentType: PaymentType): Promise<number | null> => {
+export async function fetchPriceFromRedis(paymentType: PaymentType): Promise<number | null> {
     let result: number | null = null;
     await withRedis({
         process: async (redisClient) => {
+            if (!redisClient) return;
             const key = `stripe-payment-${process.env.NODE_ENV}-${paymentType}`;
             const price = await redisClient.get(key);
             if (Number.isInteger(price) && Number(price) >= 0) {
@@ -137,35 +139,35 @@ export const fetchPriceFromRedis = async (paymentType: PaymentType): Promise<num
         trace: "0185",
     });
     return result;
-};
+}
 
 /**
  * @returns True if the Stripe object was created in the environment matching the current environment
  */
-export const isInCorrectEnvironment = (object: { livemode: boolean }): boolean => {
+export function isInCorrectEnvironment(object: { livemode: boolean }): boolean {
     if (process.env.NODE_ENV === "production") {
         return object.livemode;
     }
     return !object.livemode;
-};
+}
 
 /** @returns True if the Stripe session should be counted as rewarding a subscription */
-export const isValidSubscriptionSession = (session: Stripe.Checkout.Session, userId: string): boolean => {
+export function isValidSubscriptionSession(session: Stripe.Checkout.Session, userId: string): boolean {
     const { paymentType, userId: sessionUserId } = session.metadata as CheckoutSessionMetadata;
     return [PaymentType.PremiumMonthly, PaymentType.PremiumYearly].includes(paymentType) // Is a payment type we recognize
         && sessionUserId === userId // Was initiated by this user
         && session.status === "complete" // Was completed
         && isInCorrectEnvironment(session);
-};
+}
 
 /** @returns True if the Stripe session should be counted as rewarding credits */
-export const isValidCreditsPurchaseSession = (session: Stripe.Checkout.Session, userId: string): boolean => {
+export function isValidCreditsPurchaseSession(session: Stripe.Checkout.Session, userId: string): boolean {
     const { paymentType, userId: sessionUserId } = session.metadata as CheckoutSessionMetadata;
     return paymentType === PaymentType.Credits // Is a credit purchase
         && sessionUserId === userId // Was initiated by this user
         && session.status === "complete" // Was completed
         && isInCorrectEnvironment(session); // Is in the correct environment (optional, depending on your setup)
-};
+}
 
 type GetVerifiedSubscriptionInfoResult = {
     session: Stripe.Checkout.Session,
@@ -180,11 +182,11 @@ type GetVerifiedSubscriptionInfoResult = {
  * @returns Verified subscription information, including the session and payment type, 
  * or null if the subscription is not found or is invalid
  */
-export const getVerifiedSubscriptionInfo = async (
+export async function getVerifiedSubscriptionInfo(
     stripe: Stripe,
     customerId: string,
     userId: string,
-): Promise<GetVerifiedSubscriptionInfoResult | null> => {
+): Promise<GetVerifiedSubscriptionInfoResult | null> {
     // Retrieve subscriptions for the customer, and filter out inactive subscriptions
     const subscriptions = (await stripe.subscriptions.list({
         customer: customerId,
@@ -221,7 +223,7 @@ export const getVerifiedSubscriptionInfo = async (
 
     // If we didn't find a verified subscription, return null
     return null;
-};
+}
 
 type GetStripeCustomerIdResult = {
     emails: { emailAddress: string }[],
@@ -239,7 +241,7 @@ type GetStripeCustomerIdResult = {
  * This is useful if someone used stripe before with one email, then subscribed with another.
  * @returns Verified customer information, including the stripeCustomerId, emails, and userId
  */
-export const getVerifiedCustomerInfo = async ({
+export async function getVerifiedCustomerInfo({
     userId,
     stripe,
     validateSubscription,
@@ -247,7 +249,7 @@ export const getVerifiedCustomerInfo = async ({
     userId: string | undefined,
     stripe: Stripe,
     validateSubscription: boolean,
-}): Promise<GetStripeCustomerIdResult> => {
+}): Promise<GetStripeCustomerIdResult> {
     const result: GetStripeCustomerIdResult = {
         emails: [],
         hasPremium: false,
@@ -334,13 +336,13 @@ export const getVerifiedCustomerInfo = async ({
         }
     }
     return result;
-};
+}
 
 /**
  * Creates and sets a Stripe customer ID for a user
  * @returns The newly-created Stripe customer ID
  */
-export const createStripeCustomerId = async ({
+export async function createStripeCustomerId({
     customerInfo,
     requireUserToExist,
     stripe,
@@ -348,7 +350,7 @@ export const createStripeCustomerId = async ({
     customerInfo: GetStripeCustomerIdResult,
     requireUserToExist: boolean,
     stripe: Stripe,
-}): Promise<string> => {
+}): Promise<string> {
     // Throw error if there should be a user but there isn't
     if (requireUserToExist && !customerInfo.userId) {
         throw new Error("User not found.");
@@ -365,7 +367,7 @@ export const createStripeCustomerId = async ({
         });
     }
     return stripeCustomer.id;
-};
+}
 
 /** 
  * Processes a completed payment.
@@ -374,11 +376,11 @@ export const createStripeCustomerId = async ({
  * @param subscription The Stripe subscription object linked to the session, if known
  * @throws Error if something goes wrong, such as if the user is not found
  */
-export const processPayment = async (
+export async function processPayment(
     stripe: Stripe,
     session: Stripe.Checkout.Session,
     subscription?: Stripe.Subscription,
-): Promise<void> => {
+): Promise<void> {
     const checkoutId = session.id;
     const customerId = getCustomerId(session.customer);
     const { paymentType, userId } = session.metadata as CheckoutSessionMetadata;
@@ -496,7 +498,7 @@ export const processPayment = async (
     for (const email of payment.user.emails) {
         sendPaymentThankYou(email.emailAddress, [PaymentType.PremiumMonthly, PaymentType.PremiumYearly].includes(payment.paymentType as PaymentType));
     }
-};
+}
 
 /** Checkout completed for donation or subscription */
 const handleCheckoutSessionCompleted = async ({ event, stripe, res }: EventHandlerArgs): Promise<HandlerResult> => {
@@ -963,7 +965,7 @@ export const checkSubscriptionPrices = async (stripe: Stripe, res: Response): Pr
 /**
  * Creates a checkout session for buying a subscription, donation, credits, or other payment.
  */
-const createCheckoutSession = async (stripe: Stripe, req: Request, res: Response): Promise<void> => {
+async function createCheckoutSession(stripe: Stripe, req: Request, res: Response): Promise<void> {
     const { amount, userId, variant } = req.body as CreateCheckoutSessionParams;
     const priceId = getPriceIds()[variant];
     const paymentType = variant as PaymentType;
@@ -1022,8 +1024,8 @@ const createCheckoutSession = async (stripe: Stripe, req: Request, res: Response
         }
         // Create checkout session 
         const session = await stripe.checkout.sessions.create({
-            success_url: `${UI_URL}${LINKS.Pro}?status=success&paymentType=${paymentType}`,
-            cancel_url: `${UI_URL}${LINKS.Pro}?status=canceled&paymentType=${paymentType}`,
+            success_url: `${UI_URL}${LINKS.Pro}?status="success"&paymentType="${paymentType}"`,
+            cancel_url: `${UI_URL}${LINKS.Pro}?status="canceled"&paymentType="${paymentType}"`,
             payment_method_types: ["card"],
             line_items,
             mode: [PaymentType.Credits, PaymentType.Donation].includes(variant) ? "payment" : "subscription",
@@ -1044,12 +1046,12 @@ const createCheckoutSession = async (stripe: Stripe, req: Request, res: Response
         logger.error("Caught error in create-checkout-session", { trace: "0437", error, userId, variant });
         res.status(HttpStatus.InternalServerError).json({ error });
     }
-};
+}
 
 /**
  * Creates a portal session for updating payment method or switching/canceling subscription.
  */
-const createPortalSession = async (stripe: Stripe, req: Request, res: Response): Promise<void> => {
+async function createPortalSession(stripe: Stripe, req: Request, res: Response): Promise<void> {
     const { userId, returnUrl } = req.body as CreatePortalSessionParams;
     try {
         const customerInfo = await getVerifiedCustomerInfo({ userId, stripe, validateSubscription: false });
@@ -1077,7 +1079,7 @@ const createPortalSession = async (stripe: Stripe, req: Request, res: Response):
         logger.error("Caught error in create-portal-session", { trace: "0520", error, userId, returnUrl });
         res.status(HttpStatus.InternalServerError).json({ error });
     }
-};
+}
 
 /**
  * Checks your subscription status, and fixes your subscription status if a payment

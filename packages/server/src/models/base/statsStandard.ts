@@ -40,8 +40,16 @@ export const StatsStandardModel: StatsStandardModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<StatsStandardModelInfo["PrismaSelect"]>([["standard", "Standard"]], ...rest),
         visibility: {
-            private: { standard: ModelMap.get<StandardModelLogic>("Standard").validate().visibility.private },
-            public: { standard: ModelMap.get<StandardModelLogic>("Standard").validate().visibility.public },
+            private: function getVisibilityPrivate(...params) {
+                return {
+                    standard: ModelMap.get<StandardModelLogic>("Standard").validate().visibility.private(...params),
+                };
+            },
+            public: function getVisibilityPublic(...params) {
+                return {
+                    standard: ModelMap.get<StandardModelLogic>("Standard").validate().visibility.public(...params),
+                };
+            },
             owner: (userId) => ({ standard: ModelMap.get<StandardModelLogic>("Standard").validate().visibility.owner(userId) }),
         },
     }),

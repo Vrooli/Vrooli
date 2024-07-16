@@ -1,3 +1,4 @@
+/* eslint-disable no-magic-numbers */
 /**
  * Shared fields are defined to reduce bugs that may occur when 
  * there is a mismatch between the database and schemas. Every database 
@@ -9,7 +10,22 @@ import * as yup from "yup";
 import { enumToYup } from "./builders";
 import { maxNumErr, maxStrErr, minNumErr, minStrErr, reqErr } from "./errors";
 import { handleRegex, hexColorRegex, urlRegex } from "./regex";
-import { minVersionTest } from "./versions";
+import { meetsMinVersion } from "./versions";
+
+/**
+ * Test for minimum version
+ */
+export const minVersionTest = (minVersion: string): [string, string, (value: string | undefined) => boolean] => {
+    const versionRegex = /^\d+\.\d+\.\d+$/;
+    return [
+        "version",
+        `Minimum version is ${minVersion}`,
+        (value: string | undefined) => {
+            if (!value) return true;
+            return versionRegex.test(value) && meetsMinVersion(value, minVersion);
+        },
+    ];
+};
 
 yup.addMethod(yup.string, "removeEmptyString", function () {
     return this.transform((value: unknown) => {
@@ -32,6 +48,8 @@ export const id = yup.string().trim().removeEmptyString().test("uuid", "Must be 
 
 // protocol fields
 export const configCallData = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
+export const configFormInput = yup.string().trim().removeEmptyString().max(16384, maxStrErr);
+export const configFormOutput = yup.string().trim().removeEmptyString().max(16384, maxStrErr);
 export const email = yup.string().trim().removeEmptyString().email("Please enter a valid email address").max(256, maxStrErr);
 export const handle = yup.string().trim().removeEmptyString().min(3, minStrErr).max(16, maxStrErr).matches(handleRegex, "Must be 3-16 characters, and can only contain letters, numbers, and underscores");
 export const hexColor = yup.string().trim().removeEmptyString().min(4, minStrErr).max(7, maxStrErr).matches(hexColorRegex, "Must be a valid hex color");

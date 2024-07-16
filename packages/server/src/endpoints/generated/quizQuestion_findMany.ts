@@ -2,12 +2,6 @@ export const quizQuestion_findMany = {
   "edges": {
     "cursor": true,
     "node": {
-      "translations": {
-        "id": true,
-        "language": true,
-        "helpText": true,
-        "questionText": true
-      },
       "id": true,
       "created_at": true,
       "updated_at": true,
@@ -35,6 +29,12 @@ export const quizQuestion_findMany = {
       "you": {
         "canDelete": true,
         "canUpdate": true
+      },
+      "translations": {
+        "id": true,
+        "language": true,
+        "helpText": true,
+        "questionText": true
       }
     }
   },

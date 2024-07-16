@@ -56,14 +56,14 @@ export const IssueModel: IssueModelLogic = ({
                     [forMapper[data.issueFor]]: { connect: { id: data.forConnect } },
                     labels: await labelShapeHelper({ relTypes: ["Connect", "Create"], parentType: "Issue", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
-                }
+                };
             },
             update: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as IssuePre;
                 return {
                     labels: await labelShapeHelper({ relTypes: ["Connect", "Disconnect", "Create"], parentType: "Issue", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
-                }
+                };
             },
         },
         yup: issueValidation,
@@ -133,8 +133,12 @@ export const IssueModel: IssueModelLogic = ({
             team: "Team",
         }),
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({ createdBy: { id: userId } }),
         },
     }),

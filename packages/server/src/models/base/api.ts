@@ -141,23 +141,26 @@ export const ApiModel: ApiModelLogic = ({
         }),
         visibility: {
             //TODO for morning: all visiblity private/public need to be updated. Some are just blank when they should at MINIMUM look like the ones below, and ones like this one should also be checking that either the owners are both null, or the owner is also public/private
-            //TODO 2: Finish updating StandardVersionSelectSwitch to be generic. Use it for connecting code to single-step routine. Make sure it still works with inputs, and that we can set "isInternal" through the create standard popup. Also improve look of RoutineUpsert for single-step routines, so that we use a dropdown to select the type (e.g. api, data converter (code), smart contract, instruction, LLM generation, instruction (i.e. does nothing but show description and details), etc.)
-            private: {
-                isDeleted: false,
-                OR: [
-                    { isPrivate: true },
-                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private },
-                    { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.private },
-                ],
+            private: function getVisibilityPrivate(...params) {
+                return {
+                    isDeleted: false,
+                    OR: [
+                        { isPrivate: true },
+                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private(...params) },
+                        { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.private(...params) },
+                    ],
+                };
             },
-            public: {
-                isDeleted: false,
-                isPrivate: false,
-                OR: [
-                    { ownedByTeam: null, ownedByUser: null },
-                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public },
-                    { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.public },
-                ],
+            public: function getVisibilityPublic(...params) {
+                return {
+                    isDeleted: false,
+                    isPrivate: false,
+                    OR: [
+                        { ownedByTeam: null, ownedByUser: null },
+                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public(...params) },
+                        { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.public(...params) },
+                    ],
+                };
             },
             owner: (userId) => ({
                 OR: [

@@ -3,24 +3,30 @@ import { FormSchema } from "forms/types";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, languagesContainer, languagesFields, searchFormLayout, tagsContainer, tagsFields, yesNoDontCare } from "./common";
 
-export const teamSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchTeam"),
-    containers: [
-        { totalItems: 1 },
-        bookmarksContainer(),
-        languagesContainer(),
-        tagsContainer(),
-    ],
-    fields: [
-        {
-            fieldName: "isOpenToNewMembers",
-            label: "Accepting new members?",
-            ...yesNoDontCare(),
-        },
-        ...bookmarksFields(),
-        ...languagesFields(),
-        ...tagsFields(),
-    ],
-});
+export function teamSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchTeam"),
+        containers: [
+            { direction: "column", totalItems: 1 },
+            bookmarksContainer(),
+            languagesContainer(),
+            tagsContainer(),
+        ],
+        elements: [
+            {
+                fieldName: "isOpenToNewMembers",
+                id: "isOpenToNewMembers",
+                label: "Accepting new members?",
+                ...yesNoDontCare(),
+            },
+            ...bookmarksFields(),
+            ...languagesFields(),
+            ...tagsFields(),
+        ],
+    };
+}
 
-export const teamSearchParams = () => toParams(teamSearchSchema(), endpointGetTeams, endpointGetTeam, TeamSortBy, TeamSortBy.BookmarksDesc);
+export function teamSearchParams() {
+    return toParams(teamSearchSchema(), endpointGetTeams, endpointGetTeam, TeamSortBy, TeamSortBy.BookmarksDesc);
+}
+

@@ -83,8 +83,12 @@ export const EmailModel: EmailModelLogic = ({
         isPublic: () => false,
         profanityFields: ["emailAddress"],
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({ user: { id: userId } }),
         },
     }),

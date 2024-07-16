@@ -1911,6 +1911,8 @@ model routine_version {
     updated_at                        DateTime                      @default(now()) @db.Timestamptz(6)
     completedAt                       DateTime?                     @db.Timestamptz(6)
     configCallData                    String?                       @db.VarChar(8192)
+    configFormInput                   String?                       @db.VarChar(8192)
+    configFormOutput                  String?                       @db.VarChar(8192)
     complexity                        Int                           @default(1)
     intendToPullRequest               Boolean                       @default(false)
     isAutomatable                     Boolean                       @default(false)
@@ -1961,7 +1963,7 @@ model routine_version_translation {
     embedding            Unsupported("vector(768)")?
     embeddingNeedsUpdate Boolean                     @default(true)
     description          String?                     @db.VarChar(2048)
-    instructions         String                      @db.VarChar(8192)
+    instructions         String?                     @db.VarChar(8192)
     name                 String                      @db.VarChar(128)
     language             String                      @db.VarChar(3)
     routineVersionId     String                      @db.Uuid

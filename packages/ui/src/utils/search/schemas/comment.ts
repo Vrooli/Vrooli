@@ -4,13 +4,13 @@ import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, languagesContainer, languagesFields, searchFormLayout, votesContainer, votesFields } from "./common";
 
 export const commentSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchComment"),
+    layout: searchFormLayout("SearchComment"),
     containers: [
         votesContainer(),
         bookmarksContainer(),
         languagesContainer(),
     ],
-    fields: [
+    elements: [
         ...votesFields(),
         ...bookmarksFields(),
         ...languagesFields(),

@@ -1,16 +1,17 @@
 import { Box, useTheme } from "@mui/material";
+import { useMemo } from "react";
 import { CardGridProps } from "../types";
 
-export const CardGrid = ({
+export function CardGrid({
     children,
     disableMargin,
     minWidth,
     sx,
-}: CardGridProps) => {
+}: CardGridProps) {
     const { breakpoints } = useTheme();
 
-    return (
-        <Box sx={{
+    const boxStyle = useMemo(function boxStyleMemo() {
+        return {
             display: "grid",
             gridTemplateColumns: `repeat(auto-fit, minmax(${minWidth}px, 1fr))`,
             alignItems: "stretch",
@@ -22,8 +23,12 @@ export const CardGrid = ({
                 margin: 0,
             },
             ...(sx ?? {}),
-        }}>
+        } as const;
+    }, [breakpoints, disableMargin, minWidth, sx]);
+
+    return (
+        <Box sx={boxStyle}>
             {children}
         </Box>
     );
-};
+}

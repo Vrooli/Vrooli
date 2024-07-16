@@ -6,29 +6,31 @@ import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SelectorBaseProps, SelectorProps } from "../types";
 
-export const SelectorBase = <T extends string | number | { [x: string]: any }>({
+export function SelectorBase<T extends string | number | { [x: string]: any }>({
     addOption,
     autoFocus = false,
     color,
     options,
     error,
+    getDisplayIcon,
     getOptionDescription,
     getOptionIcon,
     getOptionLabel,
     helperText,
     fullWidth = false,
     inputAriaLabel = "select-label",
+    isRequired,
     onBlur,
     onChange,
     name,
     noneOption = false,
+    noneText,
     label = "Select",
-    required = true,
     disabled = false,
     sxs,
     tabIndex,
     value,
-}: SelectorBaseProps<T>) => {
+}: SelectorBaseProps<T>) {
     const { palette, typography } = useTheme();
     const { t } = useTranslation();
 
@@ -39,11 +41,22 @@ export const SelectorBase = <T extends string | number | { [x: string]: any }>({
         };
     }, [value, getOptionLabel, typography.fontWeightMedium, typography.fontWeightRegular]);
 
+    const getLabelStyle = useCallback(function getLabelStyleCallback(label: string, description: string | null | undefined) {
+        return {
+            ...getOptionStyle(label),
+            "& .MuiTypography-root": {
+                fontWeight: description ? "bold" : typography.fontWeightRegular,
+            },
+        };
+    }, [getOptionStyle, typography.fontWeightRegular]);
+
     // Render all labels
     const labels = useMemo(() => options.map((option) => {
-        const labelText = getOptionLabel(option);
+        const labelText = getOptionLabel(option) ?? "";
         const description = getOptionDescription ? getOptionDescription(option) : null;
         const Icon = getOptionIcon ? getOptionIcon(option) : null;
+        const labelStyle = getLabelStyle(labelText, description);
+
         return (
             <MenuItem key={labelText} value={labelText} sx={{ whiteSpace: "normal" }}>
                 {
@@ -56,13 +69,7 @@ export const SelectorBase = <T extends string | number | { [x: string]: any }>({
                         null
                 }
                 <Stack direction="column">
-                    <ListItemText sx={{
-                        ...getOptionStyle(labelText),
-                        // fontWeight: description ? 'bold!important' : typography.fontWeightRegular,
-                        "& .MuiTypography-root": {
-                            fontWeight: description ? "bold" : typography.fontWeightRegular,
-                        },
-                    }}>{labelText}</ListItemText>
+                    <ListItemText sx={labelStyle}>{labelText}</ListItemText>
                     {description && <ListItemText sx={getOptionStyle(labelText)}>{description}</ListItemText>}
                 </Stack>
             </MenuItem>
@@ -77,8 +84,66 @@ export const SelectorBase = <T extends string | number | { [x: string]: any }>({
      */
     const shrinkLabel = useMemo(() => {
         if (!exists(value)) return false;
-        return getOptionLabel(value)?.length > 0;
+        const labelText = getOptionLabel(value);
+        return typeof labelText === "string" && labelText.length > 0;
     }, [value, getOptionLabel]);
+
+    const renderValue = useCallback(function renderValueCallback(value: string) {
+        const option = findOption(value as string);
+        if (!exists(option)) return null;
+        const labelText = getOptionLabel(option) ?? "";
+        // Icon function can be overridden by getDisplayIcon
+        const Icon = typeof getDisplayIcon === "function"
+            ? getDisplayIcon(option) :
+            typeof getOptionIcon === "function"
+                ? getOptionIcon(option) :
+                null;
+        return (
+            <Stack direction="row" alignItems="center">
+                {
+                    Icon ?
+                        typeof Icon === "function" ?
+                            <ListItemIcon sx={{ minWidth: "32px" }}>
+                                <Icon fill={palette.background.textSecondary} />
+                            </ListItemIcon> :
+                            Icon :
+                        null
+                }
+                <ListItemText sx={getOptionStyle(labelText)}>{labelText}</ListItemText>
+                {/* Note that we omit the description */}
+            </Stack>
+        );
+    }, []);
+
+    const selectStyle = useMemo(function selectStyle() {
+        return {
+            ...sxs?.root,
+            color: color ?? palette.background.textPrimary,
+            "& .MuiSelect-select": {
+                paddingTop: "12px",
+                paddingBottom: "12px",
+                display: "flex",
+                alignItems: "center",
+            },
+            "& .MuiSelect-icon": {
+                color: color ?? palette.background.textPrimary,
+            },
+            "& .MuiOutlinedInput-notchedOutline": {
+                borderColor: color ?? palette.background.textPrimary,
+            },
+            "& .MuiPaper-root": {
+                zIndex: 9999,
+            },
+            "& fieldset": {
+                ...sxs?.fieldset,
+            },
+            "& svg": {
+                marginRight: "8px",
+                display: "flex",
+                alignItems: "center",
+            },
+        };
+    }, [sxs, color, palette.background.textPrimary]);
 
     return (
         <FormControl
@@ -103,58 +168,17 @@ export const SelectorBase = <T extends string | number | { [x: string]: any }>({
                 name={name}
                 onChange={(e) => { onChange(findOption(e.target.value as string) as T); }}
                 onBlur={onBlur}
-                required={required}
-                value={exists(value) ? getOptionLabel(value) : ""}
+                required={isRequired}
+                value={exists(value) ? (getOptionLabel(value) ?? undefined) : ""}
                 variant="outlined"
-                sx={{
-                    ...sxs?.root,
-                    color: color ?? palette.background.textPrimary,
-                    "& .MuiSelect-select": {
-                        paddingTop: "12px",
-                        paddingBottom: "12px",
-                        display: "flex",
-                        alignItems: "center",
-                    },
-                    "& .MuiSelect-icon": {
-                        color: color ?? palette.background.textPrimary,
-                    },
-                    "& .MuiOutlinedInput-notchedOutline": {
-                        borderColor: color ?? palette.background.textPrimary,
-                    },
-                    "& .MuiPaper-root": {
-                        zIndex: 9999,
-                    },
-                    "& fieldset": {
-                        ...sxs?.fieldset,
-                    },
-                }}
+                sx={selectStyle}
                 tabIndex={tabIndex}
-                // Don't show description
-                renderValue={(value) => {
-                    const option = findOption(value as string);
-                    if (!exists(option)) return null;
-                    const labelText = getOptionLabel(option);
-                    const Icon = getOptionIcon ? getOptionIcon(option) : null;
-                    return (
-                        <Stack direction="row" alignItems="center">
-                            {
-                                Icon ?
-                                    typeof Icon === "function" ?
-                                        <ListItemIcon sx={{ minWidth: "32px" }}>
-                                            <Icon fill={palette.background.textSecondary} />
-                                        </ListItemIcon> :
-                                        Icon :
-                                    null
-                            }
-                            <ListItemText sx={getOptionStyle(labelText)}>{labelText}</ListItemText>
-                        </Stack>
-                    );
-                }}
+                renderValue={renderValue}
             >
                 {
                     noneOption ? (
                         <MenuItem value="">
-                            <em>{t("None")}</em>
+                            <em>{noneText || t("None")}</em>
                         </MenuItem>
                     ) : null
                 }
@@ -170,17 +194,22 @@ export const SelectorBase = <T extends string | number | { [x: string]: any }>({
                     ) : null
                 }
             </Select>
-            {helperText && <FormHelperText id={`helper-text-${name}`}>{helperText}</FormHelperText>}
+            {helperText && <FormHelperText id={`helper-text-${name}`}>{typeof helperText === "string" ? helperText : JSON.stringify(helperText)}</FormHelperText>}
         </FormControl>
     );
-};
+}
 
-export const Selector = <T extends string | number | { [x: string]: any }>({
+export function Selector<T extends string | number | { [x: string]: any }>({
     name,
     onChange,
     ...props
-}: SelectorProps<T>) => {
+}: SelectorProps<T>) {
     const [field, meta, helpers] = useField(name);
+
+    const handleChange = useCallback(function handleChangeCallback(newValue: T) {
+        if (onChange) onChange(newValue);
+        helpers.setValue(newValue);
+    }, [onChange, helpers]);
 
     return (
         <SelectorBase
@@ -190,10 +219,7 @@ export const Selector = <T extends string | number | { [x: string]: any }>({
             error={meta.touched && !!meta.error}
             helperText={meta.touched && meta.error}
             onBlur={field.onBlur}
-            onChange={(newValue) => {
-                if (onChange) onChange(newValue);
-                helpers.setValue(newValue);
-            }}
+            onChange={handleChange}
         />
     );
-};
+}

@@ -40,8 +40,16 @@ export const StatsRoutineModel: StatsRoutineModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<StatsRoutineModelInfo["PrismaSelect"]>([["routine", "Routine"]], ...rest),
         visibility: {
-            private: { routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.private },
-            public: { routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.public },
+            private: function getVisibilityPrivate(...params) {
+                return {
+                    routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.private(...params),
+                };
+            },
+            public: function getVisibilityPublic(...params) {
+                return {
+                    routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.public(...params),
+                };
+            },
             owner: (userId) => ({ routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.owner(userId) }),
         },
     }),

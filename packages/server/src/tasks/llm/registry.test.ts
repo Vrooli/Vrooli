@@ -17,21 +17,21 @@ describe("LlmServiceRegistry", () => {
     });
 
     test("returns the preferred service when active", () => {
-        expect(registry.getBestService(AnthropicModel.Opus)).toEqual(LlmServiceId.Anthropic);
+        expect(registry.getBestService(AnthropicModel.Opus3)).toEqual(LlmServiceId.Anthropic);
         expect(registry.getBestService(OpenAIModel.Gpt3_5Turbo)).toEqual(LlmServiceId.OpenAI);
         expect(registry.getBestService(MistralModel.Mistral8x7b)).toEqual(LlmServiceId.Mistral);
     });
 
     test("returns the first active fallback service when preferred is on cooldown", () => {
         registry.updateServiceState("Anthropic", LlmServiceErrorType.Overloaded);
-        expect(registry.getBestService(AnthropicModel.Opus)).not.toEqual(LlmServiceId.Anthropic);
+        expect(registry.getBestService(AnthropicModel.Opus3)).not.toEqual(LlmServiceId.Anthropic);
     });
 
     test("returns the next active fallback service when preferred and first fallback are on cooldown", () => {
         registry.updateServiceState("Anthropic", LlmServiceErrorType.Overloaded); // Set Anthropic to cooldown
         registry.updateServiceState("Mistral", LlmServiceErrorType.Overloaded); // Set Mistral to cooldown
 
-        const bestServiceId = registry.getBestService(AnthropicModel.Sonnet);
+        const bestServiceId = registry.getBestService(AnthropicModel.Sonnet3_5);
         expect(bestServiceId).not.toEqual(LlmServiceId.Anthropic);
         expect(bestServiceId).not.toEqual(LlmServiceId.Mistral);
     });
@@ -41,7 +41,7 @@ describe("LlmServiceRegistry", () => {
             registry.updateServiceState(serviceId, LlmServiceErrorType.Overloaded);
         });
 
-        expect(registry.getBestService(AnthropicModel.Opus)).toBeNull();
+        expect(registry.getBestService(AnthropicModel.Opus3)).toBeNull();
     });
 
     test("registers and retrieves service states correctly", () => {

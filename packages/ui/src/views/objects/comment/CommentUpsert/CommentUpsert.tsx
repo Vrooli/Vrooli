@@ -24,29 +24,32 @@ import { CommentShape, shapeComment } from "utils/shape/models/comment";
 import { validateFormValues } from "utils/validateFormValues";
 import { CommentFormProps, CommentUpsertProps } from "../types";
 
-export const commentInitialValues = (
+export function commentInitialValues(
     session: Session | undefined,
     objectType: CommentFor,
     objectId: string,
     language: string,
     existing?: Partial<CommentShape> | null | undefined,
-): CommentShape => ({
-    __typename: "Comment" as const,
-    id: DUMMY_ID,
-    commentedOn: { __typename: objectType, id: objectId },
-    ...existing,
-    translations: orDefault(existing?.translations, [{
-        __typename: "CommentTranslation" as const,
+): CommentShape {
+    return {
+        __typename: "Comment" as const,
         id: DUMMY_ID,
-        language,
-        text: "",
-    }]),
-});
+        commentedOn: { __typename: objectType, id: objectId },
+        ...existing,
+        translations: orDefault(existing?.translations, [{
+            __typename: "CommentTranslation" as const,
+            id: DUMMY_ID,
+            language,
+            text: "",
+        }]),
+    };
+}
 
-export const transformCommentValues = (values: CommentShape, existing: CommentShape, isCreate: boolean) =>
-    isCreate ? shapeComment.create(values) : shapeComment.update(existing, values);
+export function transformCommentValues(values: CommentShape, existing: CommentShape, isCreate: boolean) {
+    return isCreate ? shapeComment.create(values) : shapeComment.update(existing, values);
+}
 
-const CommentForm = ({
+function CommentForm({
     disabled,
     dirty,
     existing,
@@ -63,7 +66,7 @@ const CommentForm = ({
     onDeleted,
     values,
     ...props
-}: CommentFormProps) => {
+}: CommentFormProps) {
     const session = useContext(SessionContext);
     const display = "page";
     const { palette } = useTheme();
@@ -138,7 +141,7 @@ const CommentForm = ({
             </BaseForm>
         </>
     );
-};
+}
 
 const titleId = "comment-dialog-title";
 
@@ -147,7 +150,7 @@ const titleId = "comment-dialog-title";
  * Only used on mobile; desktop displays RichInput at top of 
  * CommentContainer
  */
-export const CommentDialog = ({
+export function CommentDialog({
     disabled,
     dirty,
     existing,
@@ -164,7 +167,7 @@ export const CommentDialog = ({
     onDeleted,
     values,
     ...props
-}: CommentFormProps) => {
+}: CommentFormProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -279,9 +282,9 @@ export const CommentDialog = ({
             </BaseForm>
         </LargeDialog>
     );
-};
+}
 
-const commentFromSearch = (searchResult: CommentSearchResult | undefined): Comment | null => {
+function commentFromSearch(searchResult: CommentSearchResult | undefined): Comment | null {
     if (!searchResult) return null;
     const comment = Array.isArray(searchResult.threads) && searchResult.threads.length > 0 ? searchResult.threads[0].comment : null;
     return comment;
@@ -290,7 +293,7 @@ const commentFromSearch = (searchResult: CommentSearchResult | undefined): Comme
 /**
  * RichInput/CommentContainer wrapper for creating comments
  */
-export const CommentUpsert = ({
+export function CommentUpsert({
     isCreate,
     isOpen,
     language,
@@ -298,7 +301,7 @@ export const CommentUpsert = ({
     objectType,
     overrideObject,
     ...props
-}: CommentUpsertProps) => {
+}: CommentUpsertProps) {
     const session = useContext(SessionContext);
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
@@ -307,7 +310,7 @@ export const CommentUpsert = ({
     useEffect(() => {
         if (!uuidValidate(objectId)) return;
         getData({ [`${camelCase(objectType)}Id`]: objectId });
-    }, [objectId, objectType]);
+    }, [getData, objectId, objectType]);
 
     const [existing, setExisting] = useState<CommentShape>(commentInitialValues(session, objectType, objectId, language, {}));
     useEffect(() => {
@@ -318,12 +321,16 @@ export const CommentUpsert = ({
 
     const permissions = useMemo(() => commentFromSearch(fetchedData) ? getYou(commentFromSearch(fetchedData)) : defaultYou, [fetchedData]);
 
+    async function validateValues(values: CommentShape) {
+        return await validateFormValues(values, existing, isCreate, transformCommentValues, commentValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformCommentValues, commentValidation)}
+            validate={validateValues}
         >
             {(formik) => {
                 if (isMobile) return <CommentDialog
@@ -355,4 +362,4 @@ export const CommentUpsert = ({
             }}
         </Formik>
     );
-};
+}

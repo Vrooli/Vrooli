@@ -9,10 +9,10 @@ import { insertList } from "../nodes/ListNode";
 import { CustomDomElement } from "../types";
 import { $findMatchingParent, $getNearestNodeFromDOMNode, $getSelection, $isNode, $isRangeSelection, calculateZoomLevel, getNextSibling, getParent, getPreviousSibling, isHTMLElement, mergeRegister } from "../utils";
 
-export const CheckListPlugin = (): null => {
+export function CheckListPlugin(): null {
     const editor = useLexicalComposerContext();
 
-    useEffect(() => {
+    useEffect(function registerCheckListCommandsEffect() {
         if (!editor) return;
         return mergeRegister(
             editor.registerCommand(
@@ -133,9 +133,9 @@ export const CheckListPlugin = (): null => {
     });
 
     return null;
-};
+}
 
-const handleCheckItemEvent = (event: PointerEvent, callback: () => void) => {
+function handleCheckItemEvent(event: PointerEvent, callback: () => void) {
     const target = event.target;
 
     if (target === null || !isHTMLElement(target)) {
@@ -161,16 +161,17 @@ const handleCheckItemEvent = (event: PointerEvent, callback: () => void) => {
 
     const rect = target.getBoundingClientRect();
     const pageX = event.pageX / calculateZoomLevel(target);
+    const CHECKBOX_CLICK_OFFSET = 20;
     if (
         target.dir === "rtl"
-            ? pageX < rect.right && pageX > rect.right - 20
-            : pageX > rect.left && pageX < rect.left + 20
+            ? pageX < rect.right && pageX > rect.right - CHECKBOX_CLICK_OFFSET
+            : pageX > rect.left && pageX < rect.left + CHECKBOX_CLICK_OFFSET
     ) {
         callback();
     }
-};
+}
 
-const handleClick = (event: Event) => {
+function handleClick(event: Event) {
     handleCheckItemEvent(event as PointerEvent, () => {
         const domNode = event.target as HTMLElement;
         const editor = findEditor(domNode);
@@ -188,16 +189,16 @@ const handleClick = (event: Event) => {
             });
         }
     });
-};
+}
 
-const handlePointerDown = (event: PointerEvent) => {
+function handlePointerDown(event: PointerEvent) {
     handleCheckItemEvent(event, () => {
         // Prevents caret moving when clicking on check mark
         event.preventDefault();
     });
-};
+}
 
-const findEditor = (target: Node) => {
+function findEditor(target: Node) {
     let node: ParentNode | Node | null = target;
 
     while (node) {
@@ -209,9 +210,9 @@ const findEditor = (target: Node) => {
     }
 
     return null;
-};
+}
 
-const getActiveCheckListItem = (): HTMLElement | null => {
+function getActiveCheckListItem(): HTMLElement | null {
     const activeElement = document.activeElement as HTMLElement;
 
     return activeElement &&
@@ -220,12 +221,12 @@ const getActiveCheckListItem = (): HTMLElement | null => {
         (activeElement.parentNode as CustomDomElement).__lexicalListType === "check"
         ? activeElement
         : null;
-};
+}
 
-const findCheckListItemSibling = (
+function findCheckListItemSibling(
     node: ListItemNode,
     backward: boolean,
-): ListItemNode | null => {
+): ListItemNode | null {
     let sibling = backward ? getPreviousSibling(node) : getNextSibling(node);
     let parent: ListItemNode | null = node;
 
@@ -255,13 +256,13 @@ const findCheckListItemSibling = (
     }
 
     return null;
-};
+}
 
-const handleArrownUpOrDown = (
+function handleArrownUpOrDown(
     event: KeyboardEvent,
     editor: LexicalEditor,
     backward: boolean,
-) => {
+) {
     const activeItem = getActiveCheckListItem();
 
     if (activeItem !== null) {
@@ -289,4 +290,4 @@ const handleArrownUpOrDown = (
     }
 
     return false;
-};
+}

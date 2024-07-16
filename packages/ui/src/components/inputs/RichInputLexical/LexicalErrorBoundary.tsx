@@ -6,6 +6,9 @@ interface ErrorBoundaryState {
     error: Error | null;
 }
 
+const outerBoxStyle = { color: "#f00", padding: "8px" } as const;
+const detailsStyle = { whiteSpace: "pre-wrap" } as const;
+
 /**
  * Displays an error message if lexical throws an error.
  * 
@@ -31,9 +34,9 @@ export class LexicalErrorBoundary extends Component<ErrorBoundaryProps, ErrorBou
         if (this.state.hasError) {
             // You can render any custom fallback UI
             return (
-                <div style={{ color: "#f00", padding: "8px" }}>
+                <div style={outerBoxStyle}>
                     <p>Something went wrong with the editor :(</p>
-                    <details style={{ whiteSpace: "pre-wrap" }}>
+                    <details style={detailsStyle}>
                         {this.state.error && this.state.error.toString()}
                         <br />
                     </details>

@@ -1,5 +1,5 @@
 import { Bookmark, BookmarkCreateInput, BookmarkList, endpointGetBookmarkList, endpointPostBookmark, LINKS, uuid } from "@local/shared";
-import { Box, IconButton, useTheme } from "@mui/material";
+import { Box, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -17,7 +17,9 @@ import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { SideActionsButton } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
+import { DUMMY_LIST_LENGTH } from "utils/consts";
 import { listToAutocomplete } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
@@ -26,11 +28,11 @@ import { deleteArrayIndex, updateArray } from "utils/shape/general";
 import { shapeBookmark } from "utils/shape/models/bookmark";
 import { BookmarkListViewProps } from "../types";
 
-export const BookmarkListView = ({
+export function BookmarkListView({
     display,
     isOpen,
     onClose,
-}: BookmarkListViewProps) => {
+}: BookmarkListViewProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -120,9 +122,17 @@ export const BookmarkListView = ({
         onActionComplete: () => {
             const hasPreviousPage = Boolean(sessionStorage.getItem("lastPath"));
             if (hasPreviousPage) window.history.back();
-            else setLocation(`${LINKS.History}?type=${HistoryPageTabOption.Bookmarked}`, { replace: true });
+            else setLocation(`${LINKS.History}?type="${HistoryPageTabOption.Bookmarked}"`, { replace: true });
         },
     });
+
+    const topBarOptions = useMemo(function topBarOptionsMemo() {
+        return [{
+            Icon: DeleteIcon,
+            label: t("Delete"),
+            onClick: handleDelete,
+        }];
+    }, [handleDelete, t]);
 
     return (
         <>
@@ -137,11 +147,7 @@ export const BookmarkListView = ({
                 display={display}
                 onClose={onClose}
                 title={firstString(label, t("BookmarkList", { count: 1 }))}
-                options={[{
-                    Icon: DeleteIcon,
-                    label: t("Delete"),
-                    onClick: handleDelete,
-                }]}
+                options={topBarOptions}
                 below={<Box sx={{
                     width: "min(100%, 700px)",
                     margin: "auto",
@@ -167,7 +173,7 @@ export const BookmarkListView = ({
                 isEmpty={bookmarks.length === 0 && !isLoading}
             >
                 <ObjectList
-                    dummyItems={new Array(5).fill("Routine")}
+                    dummyItems={new Array(DUMMY_LIST_LENGTH).fill("Routine")}
                     items={bookmarks}
                     keyPrefix="bookmark-list-item"
                     loading={isLoading}
@@ -175,13 +181,13 @@ export const BookmarkListView = ({
                 />
             </ListContainer>
             <SideActionsButtons display={display} >
-                <IconButton aria-label={t("UpdateList")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }} sx={{ background: palette.secondary.main }}>
+                <SideActionsButton aria-label={t("UpdateList")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }}>
                     <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </IconButton>
-                <IconButton aria-label={t("AddBookmark")} onClick={openSearch} sx={{ background: palette.secondary.main }}>
+                </SideActionsButton>
+                <SideActionsButton aria-label={t("AddBookmark")} onClick={openSearch}>
                     <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </IconButton>
+                </SideActionsButton>
             </SideActionsButtons>
         </>
     );
-};
+}

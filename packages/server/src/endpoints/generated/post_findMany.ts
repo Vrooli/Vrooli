@@ -2,6 +2,14 @@ export const post_findMany = {
   "edges": {
     "cursor": true,
     "node": {
+      "id": true,
+      "created_at": true,
+      "updated_at": true,
+      "commentsCount": true,
+      "repostsCount": true,
+      "score": true,
+      "bookmarks": true,
+      "views": true,
       "resourceList": {
         "id": true,
         "created_at": true,
@@ -29,15 +37,7 @@ export const post_findMany = {
         "language": true,
         "description": true,
         "name": true
-      },
-      "id": true,
-      "created_at": true,
-      "updated_at": true,
-      "commentsCount": true,
-      "repostsCount": true,
-      "score": true,
-      "bookmarks": true,
-      "views": true
+      }
     }
   },
   "pageInfo": {

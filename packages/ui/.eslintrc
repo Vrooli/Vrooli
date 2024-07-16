@@ -1,9 +1,24 @@
 {
     "extends": [
         "../../.eslintrc",
+        "plugin:@typescript-eslint/recommended",
         "plugin:react/recommended",
-        "plugin:react/jsx-runtime"
+        "plugin:react-hooks/recommended",
+        "plugin:react-perf/recommended",
+        "plugin:jsx-a11y/recommended"
     ],
+    "plugins": [
+        "@typescript-eslint",
+        "react",
+        "react-hooks",
+        "react-perf",
+        "jsx-a11y"
+    ],
+    "settings": {
+        "react": {
+            "version": "detect"
+        }
+    },
     "overrides": [
         {
             "files": [
@@ -16,5 +31,11 @@
                 "jest/no-mocks-import": "off"
             }
         }
-    ]
+    ],
+    "rules": {
+        "react/react-in-jsx-scope": "off",
+        "react-hooks/rules-of-hooks": "error",
+        "react-hooks/exhaustive-deps": "warn",
+        "react/prop-types": "off"
+    }
 }

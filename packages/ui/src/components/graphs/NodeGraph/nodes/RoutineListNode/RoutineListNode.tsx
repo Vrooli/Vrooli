@@ -26,15 +26,15 @@ const DRAG_THRESHOLD = 10;
  * Decides if a clicked element should trigger a collapse/expand. 
  * @param id ID of the clicked element
  */
-const shouldCollapse = (id: string | null | undefined): boolean => {
+function shouldCollapse(id: string | null | undefined): boolean {
     // Only collapse if clicked on shrink/expand icon, title bar, or title
     return Boolean(id && (
         id.startsWith("toggle-expand-icon-") ||
         id.startsWith("node-")
     ));
-};
+}
 
-export const RoutineListNode = ({
+export function RoutineListNode({
     canDrag,
     canExpand,
     handleAction,
@@ -48,7 +48,7 @@ export const RoutineListNode = ({
     isEditing,
     node,
     scale = 1,
-}: RoutineListNodeProps) => {
+}: RoutineListNodeProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -260,13 +260,19 @@ export const RoutineListNode = ({
         onRightClick: openContext,
     });
 
+    const availableActions = useMemo(() => {
+        return isEditing ?
+            [BuildAction.AddListBeforeNode, BuildAction.AddListAfterNode, BuildAction.AddEndAfterNode, BuildAction.MoveNode, BuildAction.UnlinkNode, BuildAction.AddIncomingLink, BuildAction.AddOutgoingLink, BuildAction.DeleteNode, BuildAction.AddSubroutine] :
+            [];
+    }, [isEditing]);
+
     return (
         <>
             {/* Right-click context menu */}
             <NodeContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}
-                availableActions={[BuildAction.AddListBeforeNode, BuildAction.AddListAfterNode, BuildAction.AddEndAfterNode, BuildAction.MoveNode, BuildAction.UnlinkNode, BuildAction.AddIncomingLink, BuildAction.AddOutgoingLink, BuildAction.DeleteNode, BuildAction.AddSubroutine]}
+                availableActions={availableActions}
                 handleClose={closeContext}
                 handleSelect={(option) => { handleAction(option, node.id); }}
             />
@@ -397,4 +403,4 @@ export const RoutineListNode = ({
             </DraggableNode>
         </>
     );
-};
+}

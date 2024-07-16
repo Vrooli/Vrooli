@@ -50,13 +50,13 @@ export const VALYXA_INFO = {
     name: "Valyxa" as const,
 } as const;
 
-export const chatInitialValues = (
+export function chatInitialValues(
     session: Session | undefined,
     task: string | undefined,
     t: TFunction<"common", undefined, "common">,
     language: string,
     existing?: Partial<Chat> | null | undefined,
-): ChatShape => {
+): ChatShape {
     const messages: ChatMessageShape[] = (existing?.messages ?? []).map(m => ({ ...m, status: "sent" }));
     // If chatting with Valyxa, add start message so that the user 
     // sees something while the chat is loading
@@ -127,7 +127,7 @@ export const chatInitialValues = (
             description: "",
         }]),
     };
-};
+}
 
 export const transformChatValues = (values: ChatShape, existing: ChatShape, isCreate: boolean) =>
     isCreate ? shapeChat.create(values) : shapeChat.update(existing, values);
@@ -149,7 +149,7 @@ export const withYourMessages = (chat: ChatShape, session?: Session) => ({
     messages: chat.messages?.filter(m => m.user?.id === getCurrentUser(session).id) ?? [],
 });
 
-const ChatForm = ({
+function ChatForm({
     context,
     disabled,
     dirty,
@@ -165,7 +165,7 @@ const ChatForm = ({
     task,
     values,
     ...props
-}: ChatFormProps) => {
+}: ChatFormProps) {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -627,16 +627,16 @@ const ChatForm = ({
             <ChatSideMenu idPrefix={task} />
         </>
     );
-};
+}
 
-export const ChatCrud = ({
+export function ChatCrud({
     display,
     isCreate,
     isOpen,
     overrideObject,
     task,
     ...props
-}: ChatCrudProps) => {
+}: ChatCrudProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -683,4 +683,4 @@ export const ChatCrud = ({
             }
         </Formik>
     );
-};
+}

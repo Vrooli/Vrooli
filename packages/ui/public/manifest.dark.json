@@ -58,72 +58,147 @@
     "start_url": "/",
     "screenshots": [
         {
-            "src": "/screenshots/1-intro-page.png",
+            "src": "/screenshots/narrow-1-intro.png",
             "sizes": "720x1280",
-            "platform": "narrow",
+            "form_factor": "narrow",
             "type": "image/png",
-            "label": "About Vrooli"
+            "label": "Chatting with bot from main page"
         },
         {
-            "src": "/screenshots/2-build-screenshot.png",
+            "src": "/screenshots/narrow-2-build.png",
             "sizes": "720x1280",
-            "platform": "narrow",
+            "form_factor": "narrow",
             "type": "image/png",
-            "label": "Connecting subroutines together"
+            "label": "Building a multi-step routine"
         },
         {
-            "src": "/screenshots/3-create-routine-screenshot.png",
+            "src": "/screenshots/narrow-3-team.png",
             "sizes": "720x1280",
-            "platform": "narrow",
+            "form_factor": "narrow",
             "type": "image/png",
-            "label": "Defining routine information"
+            "label": "Viewing a team"
         },
         {
-            "src": "/screenshots/4-run-routine-screenshot.png",
+            "src": "/screenshots/narrow-4-search.png",
             "sizes": "720x1280",
-            "platform": "narrow",
+            "form_factor": "narrow",
             "type": "image/png",
-            "label": "Running a routine"
+            "label": "Searching for existing routines"
         },
         {
-            "src": "/screenshots/5-build-with-community-screenshot.png",
+            "src": "/screenshots/narrow-5-start.png",
             "sizes": "720x1280",
-            "platform": "narrow",
+            "form_factor": "narrow",
             "type": "image/png",
-            "label": "Find routines page"
+            "label": "Start page"
+        },
+        {
+            "src": "/screenshots/wide-1-intro.png",
+            "sizes": "1280x720",
+            "form_factor": "wide",
+            "type": "image/png",
+            "label": "Chatting with bot from main page"
+        },
+        {
+            "src": "/screenshots/wide-2-build.png",
+            "sizes": "1280x720",
+            "form_factor": "wide",
+            "type": "image/png",
+            "label": "Building a multi-step routine"
+        },
+        {
+            "src": "/screenshots/wide-3-team.png",
+            "sizes": "1280x720",
+            "form_factor": "wide",
+            "type": "image/png",
+            "label": "Viewing a team"
+        },
+        {
+            "src": "/screenshots/wide-4-search.png",
+            "sizes": "1280x720",
+            "form_factor": "wide",
+            "type": "image/png",
+            "label": "Searching for existing routines"
+        },
+        {
+            "src": "/screenshots/wide-5-start.png",
+            "sizes": "1280x720",
+            "form_factor": "wide",
+            "type": "image/png",
+            "label": "Start page"
         }
     ],
     "shortcuts": [
         {
-            "name": "Home",
+            "name": "Open Dashboard",
+            "short_name": "Dashboard",
             "url": "/",
-            "description": "View upcoming events, reminders, and notes"
+            "description": "View upcoming events, reminders, and notes",
+            "icons": [
+                {
+                    "src": "/icons/shortcut-home-dark-192x192.png",
+                    "sizes": "192x192"
+                }
+            ]
         },
         {
-            "name": "Search",
+            "name": "Search Site",
+            "short_name": "Search",
             "url": "/search",
-            "description": "Find a public routine, project, or other item"
+            "description": "Find a public routine, project, bot, or other item",
+            "icons": [
+                {
+                    "src": "/icons/shortcut-search-dark-192x192.png",
+                    "sizes": "192x192"
+                }
+            ]
         },
         {
-            "name": "Create",
+            "name": "Create Object",
+            "short_name": "Create",
             "url": "/create",
-            "description": "Create a routine, note, reminder, and more"
+            "description": "Create a routine, note, reminder, project, or any other item",
+            "icons": [
+                {
+                    "src": "/icons/shortcut-create-dark-192x192.png",
+                    "sizes": "192x192"
+                }
+            ]
         },
         {
-            "name": "Inbox",
+            "name": "Notifications and Messages",
+            "short_name": "Inbox",
             "url": "/inbox",
-            "description": "Messages and notifications"
+            "description": "View notifications and messages from bots and other users",
+            "icons": [
+                {
+                    "src": "/icons/shortcut-inbox-dark-192x192.png",
+                    "sizes": "192x192"
+                }
+            ]
         },
         {
-            "name": "My Stuff",
+            "name": "View My Stuff",
+            "short_name": "My Stuff",
             "url": "/my",
-            "description": "See all of your routines, projects, and other items"
+            "description": "See all of your routines, projects, and other items",
+            "icons": [
+                {
+                    "src": "/icons/shortcut-my-dark-192x192.png",
+                    "sizes": "192x192"
+                }
+            ]
         }
     ],
     "related_applications": [
         {
             "platform": "webapp",
-            "url": "<UI_URL>"
+            "url": "https://vrooli.com"
+        },
+        {
+            "platform": "play",
+            "url": "https://play.google.com/apps/test/com.vrooli.twa/1980",
+            "id": "com.vrooli.twa"
         }
     ],
     "launch_handler": {

@@ -33,11 +33,21 @@ import { setupSmsQueue } from "./tasks/sms/queue";
 import { setupDatabase } from "./utils/setupDatabase";
 
 const debug = process.env.NODE_ENV === "development";
+const QUERY_DEPTH_LIMIT = 13;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const main = async () => {
+export async function initSingletons() {
+    // Initialize translations
+    await i18next.init(i18nConfig(debug));
+
+    // Initialize singletons
+    await ModelMap.init();
+    await LlmServiceRegistry.init();
+}
+
+async function main() {
     logger.info("Starting server...");
 
     // Check for required .env variables
@@ -49,12 +59,8 @@ const main = async () => {
         }
     }
 
-    // Initialize translations
-    await i18next.init(i18nConfig(debug));
-
     // Initialize singletons
-    await ModelMap.init();
-    await LlmServiceRegistry.init();
+    await initSingletons();
 
     // Setup queues
     await setupLlmTaskQueue();
@@ -142,7 +148,7 @@ const main = async () => {
             introspection: debug,
             schema,
             context: (c) => context(c), // Allows request and response to be included in the context
-            validationRules: [depthLimit(13)], // Prevents DoS attack from arbitrarily-nested query
+            validationRules: [depthLimit(QUERY_DEPTH_LIMIT)], // Prevents DoS attack from arbitrarily-nested query
         });
         // Start server
         await apollo_options_latest.start();
@@ -174,7 +180,7 @@ const main = async () => {
     server.listen(5329);
 
     logger.info(`🚀 Server running at ${SERVER_URL}`);
-};
+}
 
 // Only call this from the "server" package
 if (process.env.npm_package_name === "@local/server") {

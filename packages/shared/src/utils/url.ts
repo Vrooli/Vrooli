@@ -95,7 +95,9 @@ export interface CalendarEventOption {
     title: string;
 }
 
-export type AutocompleteOption = ObjectOption | ShortcutOption | ActionOption;
+export type AutocompleteOption = (ObjectOption | ShortcutOption | ActionOption) & {
+    key: string;
+};
 
 export type CalendarEvent = {
     __typename: "CalendarEvent",
@@ -121,7 +123,7 @@ export type CalendarEvent = {
  * @returns The encoded value, with all '%' characters in strings replaced by '%25'.
  *                      Arrays and objects are handled recursively, and other types are returned as is.
  */
-export const encodeValue = (value: unknown): unknown => {
+export function encodeValue(value: unknown): unknown {
     if (typeof value === "string") {
         // encodeURIComponent will skip what looks like percent-encoded values. 
         // For this reason, we must manually replace all '%' characters with '%25'
@@ -133,7 +135,7 @@ export const encodeValue = (value: unknown): unknown => {
         return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, encodeValue(v)]));
     }
     return value;
-};
+}
 
 /**
  * Recursively processes values after JSON parsing, intended to be the inverse of encodeValue.
@@ -141,7 +143,7 @@ export const encodeValue = (value: unknown): unknown => {
  * @param value - The value to be decoded, typically after JSON parsing.
  * @returns The value without any special encoding from encodeValue.
  */
-export const decodeValue = (value: unknown): unknown => {
+export function decodeValue(value: unknown): unknown {
     if (typeof value === "string") {
         return value.replace(/%25/g, "%");
     } else if (typeof value === "object" && value !== null) {
@@ -151,7 +153,7 @@ export const decodeValue = (value: unknown): unknown => {
         return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, decodeValue(v)]));
     }
     return value;
-};
+}
 
 /**
  * Converts object to url search params. 
@@ -167,7 +169,7 @@ export const decodeValue = (value: unknown): unknown => {
  * @param params Object with key/value pairs, representing search params
  * @returns string of search params, matching the format of window.location.search
  */
-export const stringifySearchParams = (params: ParseSearchParamsResult) => {
+export function stringifySearchParams(params: ParseSearchParamsResult) {
     const keys = Object.keys(params).filter(key => params[key] != null && params[key] !== undefined);
     const encodedParams = keys.map(key => {
         try {
@@ -178,13 +180,13 @@ export const stringifySearchParams = (params: ParseSearchParamsResult) => {
         }
     }).filter(param => param !== null).join("&");
     return encodedParams ? `?${encodedParams}` : "";
-};
+}
 
 /**
  * Converts url search params to object
  * @returns Object with key/value pairs, or empty object if no params
  */
-export const parseSearchParams = (): ParseSearchParamsResult => {
+export function parseSearchParams(): ParseSearchParamsResult {
     const params = new URLSearchParams(window.location.search);
     const obj = {};
     for (const [key, value] of params) {
@@ -195,7 +197,7 @@ export const parseSearchParams = (): ParseSearchParamsResult => {
         }
     }
     return obj;
-};
+}
 
 /**
  * Converts a string to a BigInt
@@ -205,6 +207,7 @@ export const parseSearchParams = (): ParseSearchParamsResult => {
  */
 function toBigInt(value: string, radix: number) {
     return [...value.toString()]
+        // eslint-disable-next-line no-magic-numbers
         .reduce((r, v) => r * BigInt(radix) + BigInt(parseInt(v, radix)), 0n);
 }
 
@@ -214,14 +217,15 @@ function toBigInt(value: string, radix: number) {
  * @param uuid v4 UUID to convert
  * @returns base 36 string without dashes
  */
-export const uuidToBase36 = (uuid: string): string => {
+export function uuidToBase36(uuid: string): string {
     try {
+        // eslint-disable-next-line no-magic-numbers
         const base36 = toBigInt(uuid.replace(/-/g, ""), 16).toString(36);
         return base36 === "0" ? "" : base36;
     } catch (error) {
         return "";
     }
-};
+}
 
 /**
  * Converts a base 36 string without dashes into a UUID.
@@ -229,23 +233,24 @@ export const uuidToBase36 = (uuid: string): string => {
  * @param showError Whether to show an error snack if the conversion fails
  * @returns v4 UUID
  */
-export const base36ToUuid = (base36: string): string => {
+export function base36ToUuid(base36: string): string {
     try {
         // Convert to base 16. If the ID is less than 32 characters, pad start with 0s. 
         // Then, insert dashes
+        // eslint-disable-next-line no-magic-numbers
         const uuid = toBigInt(base36, 36).toString(16).padStart(32, "0").replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, "$1-$2-$3-$4-$5");
         return uuid === "0" ? "" : uuid;
     } catch (error) {
         return "";
     }
-};
+}
 
 /**
  * Gets URL base for object type
  * @param object Object to get base for
  * @returns Search URL base for object type
  */
-export const getObjectUrlBase = (object: Omit<NavigableObject, "id">): string => {
+export function getObjectUrlBase(object: Omit<NavigableObject, "id">): string {
     // If object is a user, use 'Profile'
     if (isOfType(object, "User", "SessionUser")) return LINKS.Profile;
     // If object is a star/vote/some other type that links to a main object, use the "to" property
@@ -260,7 +265,7 @@ export const getObjectUrlBase = (object: Omit<NavigableObject, "id">): string =>
     if (isOfType(object, "Notification")) return (object as Notification).link ?? "";
     // Otherwise, use __typename (or root if versioned object)
     return LINKS[object.__typename.replace("Version", "")];
-};
+}
 
 /**
  * Determines string used to reference object in URL slug
@@ -268,7 +273,7 @@ export const getObjectUrlBase = (object: Omit<NavigableObject, "id">): string =>
  * @param prefersId Whether to prefer the ID over the handle
  * @returns String used to reference object in URL slug
  */
-export const getObjectSlug = (object: NavigableObject | null | undefined, prefersId = false): string => {
+export function getObjectSlug(object: NavigableObject | null | undefined, prefersId = false): string {
     // If object is an action/shortcut/event, return blank
     if (isOfType(object, "Action", "Shortcut", "CalendarEvent")) return "";
     // If object is a star/vote/some other __typename that links to a main object, use that object's slug
@@ -291,14 +296,14 @@ export const getObjectSlug = (object: NavigableObject | null | undefined, prefer
     // Otherwise, use object's handle or id
     const id = uuidToBase36((object as { id?: string }).id ?? "");
     return prefersId ? id : (object as { handle?: string }).handle ?? id;
-};
+}
 
 /**
  * Determines string for object's search params
  * @param object Object being navigated to
  * @returns Stringified search params for object
  */
-export const getObjectSearchParams = (object: NavigableObject): string | null => {
+export function getObjectSearchParams(object: NavigableObject): string | null {
     // If object is an action/shortcut, return blank
     if (isOfType(object, "Action", "Shortcut")) return "";
     // If object is an event, add start time to search params
@@ -306,13 +311,14 @@ export const getObjectSearchParams = (object: NavigableObject): string | null =>
     // If object is a run
     if (isOfType(object, "RunProject", "RunRoutine")) return stringifySearchParams({ run: uuidToBase36((object as Partial<RunProject | RunRoutine>).id ?? "") });
     return "";
-};
+}
 
 /**
  * Finds view page URL for any object with an id and type
  * @param object Object being navigated to
  */
-export const getObjectUrl = (object: NavigableObject): string =>
-    isOfType(object, "Action") ? "" :
-        isOfType(object, "Shortcut", "CalendarEvent") ? ((object as ShortcutOption | CalendarEventOption).id ?? "") :
-            `${getObjectUrlBase(object)}/${getObjectSlug(object)}${getObjectSearchParams(object)}`;
+export function getObjectUrl(object: NavigableObject): string {
+    if (isOfType(object, "Action")) return "";
+    if (isOfType(object, "Shortcut", "CalendarEvent")) return (object as ShortcutOption | CalendarEventOption).id ?? "";
+    return `${getObjectUrlBase(object)}/${getObjectSlug(object)}${getObjectSearchParams(object)}`;
+}

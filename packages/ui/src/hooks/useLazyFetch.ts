@@ -55,7 +55,6 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
         if (input) {
             fetchParamsRef.current.inputs = input;
         }
-        console.log('in getData', fetchParamsRef.current.inputs)
         // Get fetch params from the ref
         const { endpoint, method, options, inputs } = fetchParamsRef.current;
         // Cancel if no endpoint is provided
@@ -69,7 +68,7 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
         // Update the state to loading
         setState(s => ({ ...s, loading: true }));
         // Helper function for handling response
-        const handleResponse = ({ data, errors, __fetchTimestamp }: ServerResponseWithTimestamp) => {
+        function handleResponse({ data, errors, __fetchTimestamp }: ServerResponseWithTimestamp) {
             // If timestamp is older than the current fetch, the data is outdated and should be ignored
             const isOld = __fetchTimestamp < lastFetchTimestampRef.current;
             if (isOld) {
@@ -91,7 +90,7 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
                 }
             }
             return stateRef.current;
-        };
+        }
         // Make the request
         const result = await fetchData({
             endpoint: inputOptions?.endpointOverride || endpoint as string,
@@ -105,4 +104,4 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
     }, []);
 
     return [getData, state];
-};
+}

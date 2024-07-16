@@ -7,21 +7,23 @@ import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, Ge
 
 type AnthropicTokenModel = "default";
 
+const DEFAULT_CONTEXT_SIZE = 200_000;
+
 /** Cost in cents per 1_000_000 input tokens */
 const inputCosts: Record<AnthropicModel, number> = {
-    [AnthropicModel.Opus]: 1500,
-    [AnthropicModel.Sonnet]: 300,
+    [AnthropicModel.Opus3]: 1500,
+    [AnthropicModel.Sonnet3_5]: 300,
 };
 /** Cost in cents per 1_000_000 output tokens */
 const outputCosts: Record<AnthropicModel, number> = {
-    [AnthropicModel.Opus]: 7500,
-    [AnthropicModel.Sonnet]: 1500,
+    [AnthropicModel.Opus3]: 7500,
+    [AnthropicModel.Sonnet3_5]: 1500,
 };
 
 export class AnthropicService implements LanguageModelService<AnthropicModel, AnthropicTokenModel> {
     public __id = LlmServiceId.Anthropic;
     private client: Anthropic;
-    private defaultModel: AnthropicModel = AnthropicModel.Sonnet;
+    private defaultModel: AnthropicModel = AnthropicModel.Sonnet3_5;
 
     constructor() {
         this.client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -182,7 +184,7 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     getContextSize(_requestedModel?: string | null) {
-        return 200000;
+        return DEFAULT_CONTEXT_SIZE;
     }
 
     getResponseCost({ model, usage }: GetResponseCostParams) {
@@ -201,8 +203,8 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
 
     getModel(model?: string | null) {
         if (typeof model !== "string") return this.defaultModel;
-        if (model.includes("opus")) return AnthropicModel.Opus;
-        if (model.includes("sonnet")) return AnthropicModel.Sonnet;
+        if (model.includes("opus")) return AnthropicModel.Opus3;
+        if (model.includes("sonnet")) return AnthropicModel.Sonnet3_5;
         return this.defaultModel;
     }
 

@@ -1,12 +1,33 @@
 export const codeVersion_create = {
+  "id": true,
+  "created_at": true,
+  "updated_at": true,
+  "isComplete": true,
+  "isDeleted": true,
+  "isLatest": true,
+  "isPrivate": true,
+  "codeLanguage": true,
+  "codeType": true,
+  "default": true,
+  "versionIndex": true,
+  "versionLabel": true,
+  "calledByRoutineVersionsCount": true,
+  "commentsCount": true,
+  "directoryListingsCount": true,
+  "forksCount": true,
+  "reportsCount": true,
+  "you": {
+    "canComment": true,
+    "canCopy": true,
+    "canDelete": true,
+    "canReport": true,
+    "canUpdate": true,
+    "canUse": true,
+    "canRead": true
+  },
   "content": true,
   "versionNotes": true,
   "pullRequest": {
-    "translations": {
-      "id": true,
-      "language": true,
-      "text": true
-    },
     "id": true,
     "created_at": true,
     "updated_at": true,
@@ -30,6 +51,11 @@ export const codeVersion_create = {
       "canDelete": true,
       "canReport": true,
       "canUpdate": true
+    },
+    "translations": {
+      "id": true,
+      "language": true,
+      "text": true
     },
     "__typename": "PullRequest"
   },
@@ -58,35 +84,6 @@ export const codeVersion_create = {
     "__typename": "ResourceList"
   },
   "root": {
-    "versionsCount": true,
-    "parent": {
-      "id": true,
-      "isLatest": true,
-      "isPrivate": true,
-      "versionIndex": true,
-      "versionLabel": true,
-      "root": {
-        "id": true,
-        "isPrivate": true,
-        "__typename": "Code"
-      },
-      "translations": {
-        "id": true,
-        "language": true,
-        "description": true,
-        "jsonVariable": true,
-        "name": true
-      },
-      "__typename": "CodeVersion"
-    },
-    "stats": {
-      "id": true,
-      "periodStart": true,
-      "periodEnd": true,
-      "periodType": true,
-      "calls": true,
-      "routineVersions": true
-    },
     "id": true,
     "created_at": true,
     "updated_at": true,
@@ -213,6 +210,35 @@ export const codeVersion_create = {
       "isViewed": true,
       "reaction": true
     },
+    "versionsCount": true,
+    "parent": {
+      "id": true,
+      "isLatest": true,
+      "isPrivate": true,
+      "versionIndex": true,
+      "versionLabel": true,
+      "root": {
+        "id": true,
+        "isPrivate": true,
+        "__typename": "Code"
+      },
+      "translations": {
+        "id": true,
+        "language": true,
+        "description": true,
+        "jsonVariable": true,
+        "name": true
+      },
+      "__typename": "CodeVersion"
+    },
+    "stats": {
+      "id": true,
+      "periodStart": true,
+      "periodEnd": true,
+      "periodType": true,
+      "calls": true,
+      "routineVersions": true
+    },
     "__typename": "Code"
   },
   "translations": {
@@ -221,32 +247,6 @@ export const codeVersion_create = {
     "description": true,
     "jsonVariable": true,
     "name": true
-  },
-  "id": true,
-  "created_at": true,
-  "updated_at": true,
-  "isComplete": true,
-  "isDeleted": true,
-  "isLatest": true,
-  "isPrivate": true,
-  "codeLanguage": true,
-  "codeType": true,
-  "default": true,
-  "versionIndex": true,
-  "versionLabel": true,
-  "calledByRoutineVersionsCount": true,
-  "commentsCount": true,
-  "directoryListingsCount": true,
-  "forksCount": true,
-  "reportsCount": true,
-  "you": {
-    "canComment": true,
-    "canCopy": true,
-    "canDelete": true,
-    "canReport": true,
-    "canUpdate": true,
-    "canUse": true,
-    "canRead": true
   },
   "__typename": "CodeVersion"
 } as const;

@@ -4,9 +4,9 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const chatParticipantSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchChatParticipant"),
+    layout: searchFormLayout("SearchChatParticipant"),
     containers: [], //TODO
-    fields: [], //TODO
+    elements: [], //TODO
 });
 
 export const chatParticipantSearchParams = () => toParams(chatParticipantSearchSchema(), endpointGetChatParticipants, endpointGetChatParticipant, ChatParticipantSortBy, ChatParticipantSortBy.DateUpdatedDesc);

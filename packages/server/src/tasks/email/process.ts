@@ -13,7 +13,7 @@ let transporter: nodemailer.Transporter | null = null;
  * the password is loaded from the secrets location, so it's 
  * not available at startup.
  */
-export const setupTransporter = () => {
+export function setupTransporter() {
     if (transporter === null) {
         transporter = nodemailer.createTransport({
             host: HOST,
@@ -25,9 +25,9 @@ export const setupTransporter = () => {
             },
         });
     }
-};
+}
 
-export const emailProcess = async (job: Job<EmailProcessPayload>) => {
+export async function emailProcess(job: Job<EmailProcessPayload>) {
     setupTransporter();
     transporter?.sendMail({
         from: `"${process.env.SITE_EMAIL_FROM}" <${process.env.SITE_EMAIL_ALIAS ?? process.env.SITE_EMAIL_USERNAME}>`,
@@ -46,5 +46,5 @@ export const emailProcess = async (job: Job<EmailProcessPayload>) => {
             "success": false,
         };
     });
-};
+}
 

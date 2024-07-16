@@ -5,6 +5,7 @@ import { UseObjectActionsReturn } from "hooks/useObjectActions";
 import { ReactNode } from "react";
 import { SvgComponent, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
+import { RelationshipButtonType } from "utils/consts";
 import { ObjectType } from "utils/navigation/openObject";
 import { SearchType } from "utils/search/objectToSearch";
 import { ViewDisplayType } from "views/types";
@@ -12,7 +13,7 @@ import { ObjectListProps } from "./ObjectList/ObjectList";
 
 export interface ObjectActionsRowProps<T extends ListObject> {
     actionData: UseObjectActionsReturn;
-    exclude?: ObjectAction[];
+    exclude?: readonly ObjectAction[];
     object: T | null | undefined;
 }
 
@@ -124,21 +125,6 @@ export type RelationshipItemRunRoutine = Pick<RunRoutine, "id" | "name"> &
     routineVersion: RelationshipItemRoutineVersion;
 }
 
-export type RelationshipButtonType =
-    "Owner" |
-    "Parent" |
-    "IsPrivate" |
-    "IsComplete" |
-    "FocusMode" |
-    "Meeting" |
-    "RunProject" |
-    "RunRoutine" |
-    "QuestionFor" |
-    "Members" |
-    "Participants" |
-    "Team" |
-    "User";
-
 export interface RelationshipListProps {
     limitTo?: RelationshipButtonType[];
     isEditing: boolean;
@@ -178,7 +164,6 @@ export type SearchListProps<T extends OrArray<ListObject>> =
          * an annoying grow/shrink effect.
          */
         dummyLength?: number;
-        handleAdd?: (event?: any) => unknown; // Not shown if not passed
         /** If update button on list items should be hidden */
         hideUpdateButton?: boolean;
         id: string;

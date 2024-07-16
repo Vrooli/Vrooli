@@ -4,9 +4,9 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const statsApiSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchStatsApi"),
+    layout: searchFormLayout("SearchStatsApi"),
     containers: [], //TODO
-    fields: [], //TODO
+    elements: [], //TODO
 });
 
 export const statsApiSearchParams = () => toParams(statsApiSearchSchema(), endpointGetStatsApi, undefined, StatsApiSortBy, StatsApiSortBy.PeriodStartAsc);

@@ -6,6 +6,14 @@ export const reminderList_findMany = {
       "created_at": true,
       "updated_at": true,
       "focusMode": {
+        "id": true,
+        "name": true,
+        "description": true,
+        "you": {
+          "canDelete": true,
+          "canRead": true,
+          "canUpdate": true
+        },
         "labels": {
           "id": true,
           "color": true,
@@ -55,14 +63,6 @@ export const reminderList_findMany = {
             "month": true,
             "endDate": true
           }
-        },
-        "id": true,
-        "name": true,
-        "description": true,
-        "you": {
-          "canDelete": true,
-          "canRead": true,
-          "canUpdate": true
         }
       },
       "reminders": {

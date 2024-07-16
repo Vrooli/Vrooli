@@ -1,7 +1,7 @@
 import { IconButton, InputAdornment, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { CloseIcon } from "icons";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { TextInput } from "../TextInput/TextInput";
 import { DateInputProps } from "../types";
 
@@ -38,35 +38,39 @@ function formatForDateTimeLocal(dateStr, type) {
     }
 }
 
-export const DateInput = ({
-    isOptional,
+export function DateInput({
+    isRequired,
     label,
     name,
     type = "datetime-local",
-}: DateInputProps) => {
+}: DateInputProps) {
     const { palette } = useTheme();
 
     const [field, , helpers] = useField(name);
 
-    const clearDate = useCallback(() => {
+    const clearDate = useCallback(function clearDateCallback() {
         helpers.setValue("");
     }, [helpers]);
 
+    const inputProps = useMemo(function inputPropsMemo() {
+        return {
+            endAdornment: (
+                <InputAdornment position="end" sx={{ display: "flex", alignItems: "center" }}>
+                    <input type="hidden" />
+                    {typeof field.value === "string" && field.value.length > 0 && <IconButton edge="end" size="small" onClick={clearDate}>
+                        <CloseIcon fill={palette.background.textPrimary} width="20px" height="20px" />
+                    </IconButton>}
+                </InputAdornment>
+            ),
+        };
+    }, [clearDate, field.value, palette.background.textPrimary]);
+
     return (
         <TextInput
-            isOptional={isOptional}
+            isRequired={isRequired}
             label={label}
             type={type}
-            InputProps={{
-                endAdornment: (
-                    <InputAdornment position="end" sx={{ display: "flex", alignItems: "center" }}>
-                        <input type="hidden" />
-                        {typeof field.value === "string" && field.value.length > 0 && <IconButton edge="end" size="small" onClick={clearDate}>
-                            <CloseIcon fill={palette.background.textPrimary} width="20px" height="20px" />
-                        </IconButton>}
-                    </InputAdornment>
-                ),
-            }}
+            InputProps={inputProps}
             InputLabelProps={{ shrink: true }}
             {...field}
             value={formatForDateTimeLocal(field.value, type)}
@@ -78,4 +82,4 @@ export const DateInput = ({
             }}
         />
     );
-};
+}

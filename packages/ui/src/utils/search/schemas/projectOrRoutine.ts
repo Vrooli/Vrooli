@@ -4,9 +4,9 @@ import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, complexityContainer, complexityFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, simplicityContainer, simplicityFields, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
 
 export const projectOrRoutineSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchProjectOrRoutine"),
+    layout: searchFormLayout("SearchProjectOrRoutine"),
     containers: [
-        { totalItems: 1 },
+        { direction: "column", totalItems: 1 },
         hasCompleteVersionContainer,
         votesContainer(),
         bookmarksContainer(),
@@ -15,9 +15,10 @@ export const projectOrRoutineSearchSchema = (): FormSchema => ({
         languagesVersionContainer(),
         tagsContainer(),
     ],
-    fields: [
+    elements: [
         {
             fieldName: "objectType",
+            id: "objectType",
             label: "Object Type",
             type: InputType.Radio,
             props: {

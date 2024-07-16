@@ -80,8 +80,12 @@ export const QuizQuestionModel: QuizQuestionModelLogic = ({
             quiz: "Quiz",
         }),
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({
                 quiz: ModelMap.get<QuizModelLogic>("Quiz").validate().visibility.owner(userId),
             }),

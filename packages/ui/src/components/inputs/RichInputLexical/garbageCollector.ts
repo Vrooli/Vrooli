@@ -3,10 +3,10 @@ import { ElementNode } from "./nodes/ElementNode";
 import { IntentionallyMarkedAsDirtyElement, NodeKey, NodeMap } from "./types";
 import { $isNode, cloneDecorators, getNextSibling, isAttachedToRoot } from "./utils";
 
-export const $garbageCollectDetachedDecorators = (
+export function $garbageCollectDetachedDecorators(
     editor: LexicalEditor,
     pendingEditorState: EditorState,
-): void => {
+): void {
     const currentDecorators = editor._decorators;
     const pendingDecorators = editor._pendingDecorators;
     let decorators = pendingDecorators || currentDecorators;
@@ -22,16 +22,16 @@ export const $garbageCollectDetachedDecorators = (
             delete decorators[key];
         }
     }
-};
+}
 
-const $garbageCollectDetachedDeepChildNodes = (
+function $garbageCollectDetachedDeepChildNodes(
     node: ElementNode,
     parentKey: NodeKey,
     prevNodeMap: NodeMap,
     nodeMap: NodeMap,
     nodeMapDelete: NodeKey[],
     dirtyNodes: Map<NodeKey, IntentionallyMarkedAsDirtyElement>,
-): void => {
+): void {
     let child = node.getFirstChild();
 
     while (child !== null) {
@@ -58,7 +58,7 @@ const $garbageCollectDetachedDeepChildNodes = (
         }
         child = getNextSibling(child);
     }
-};
+}
 
 export function $garbageCollectDetachedNodes(
     prevEditorState: EditorState,

@@ -4,9 +4,9 @@
         "packages/*"
     ],
     "author": "Vrooli",
-    "license": "GPL-3.0",
+    "license": "AGPL-3.0-only",
     "resolutions": {
         "babel-loader": "8.1.0"
     },
-    "version": "1.9.8"
+    "version": "1.9.9"
 }

@@ -146,8 +146,12 @@ export const PullRequestModel: PullRequestModelLogic = ({
             ...Object.fromEntries(Object.entries(toMapper).map(([key, value]) => [value, key as GqlModelType])),
         }),
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({
                 createdBy: { id: userId },
             }),

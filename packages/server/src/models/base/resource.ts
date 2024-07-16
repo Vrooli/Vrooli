@@ -68,8 +68,12 @@ export const ResourceModel: ResourceModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<ResourceModelInfo["PrismaSelect"]>([["list", "ResourceList"]], ...rest),
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({ list: ModelMap.get<ResourceListModelLogic>("ResourceList").validate().visibility.owner(userId) }),
         },
     }),

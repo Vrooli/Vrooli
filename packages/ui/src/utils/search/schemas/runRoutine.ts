@@ -4,13 +4,14 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const runRoutineSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchRunRoutine"),
+    layout: searchFormLayout("SearchRunRoutine"),
     containers: [
-        { totalItems: 1 },
+        { direction: "column", totalItems: 1 },
     ],
-    fields: [
+    elements: [
         {
             fieldName: "status",
+            id: "status",
             label: "Status",
             type: InputType.Radio,
             props: {

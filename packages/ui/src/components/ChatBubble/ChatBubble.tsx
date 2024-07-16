@@ -32,7 +32,7 @@ import { ChatMessageStatus } from "utils/shape/models/chatMessage";
  * It shows a CircularProgress that progresses as the message is sending,
  * and changes color and icon based on the success or failure of the operation.
  */
-export const ChatBubbleStatus = ({
+export function ChatBubbleStatus({
     isEditing,
     onDelete,
     onEdit,
@@ -47,14 +47,14 @@ export const ChatBubbleStatus = ({
     /** Indicates if the edit and delete buttons should be shown */
     showButtons: boolean;
     status: ChatMessageStatus;
-}) => {
+}) {
     const { palette } = useTheme();
     console.log("in chatbubblestatus", useTranslation);
     const { t } = useTranslation();
     const [progress, setProgress] = useState(0);
     const [isCompleted, setIsCompleted] = useState(false);
 
-    useEffect(() => {
+    useEffect(function chatStatusLoaderEffect() {
         // Updates the progress value every 100ms, but stops at 90 if the message is still sending
         let timer: NodeJS.Timeout;
         if (status === "sending") {
@@ -76,7 +76,7 @@ export const ChatBubbleStatus = ({
         };
     }, [status]);
 
-    useEffect(() => {
+    useEffect(function chatStatusTimeoutEffect() {
         // Resets the progress and completion state after a delay when the sending has completed
         if (isCompleted && status !== "sending") {
             const timer = setTimeout(() => {
@@ -144,9 +144,9 @@ export const ChatBubbleStatus = ({
     );
     // Otherwise, show nothing
     return null;
-};
+}
 
-export const NavigationArrows = ({
+export function NavigationArrows({
     activeIndex,
     numSiblings,
     onIndexChange,
@@ -154,18 +154,19 @@ export const NavigationArrows = ({
     activeIndex: number,
     numSiblings: number,
     onIndexChange: (newIndex: number) => unknown,
-}) => {
+}) {
     const { palette } = useTheme();
 
+    // eslint-disable-next-line no-magic-numbers
     if (numSiblings < 2) {
         return null; // Do not render anything if there are less than 2 siblings
     }
 
-    const handleActiveIndexChange = (newIndex: number) => {
+    function handleActiveIndexChange(newIndex: number) {
         if (newIndex >= 0 && newIndex < numSiblings) {
             onIndexChange(newIndex);
         }
-    };
+    }
 
     return (
         <div style={{ display: "flex", alignItems: "center" }}>
@@ -190,7 +191,7 @@ export const NavigationArrows = ({
             </IconButton>
         </div>
     );
-};
+}
 
 type ChatBubbleReactionsProps = {
     activeIndex: number,
@@ -213,7 +214,7 @@ type ChatBubbleReactionsProps = {
  * Reactions are displayed as a list of emojis on the left, and bot actions are displayed
  * as a list of icons on the right.
  */
-const ChatBubbleReactions = ({
+function ChatBubbleReactions({
     activeIndex,
     handleActiveIndexChange,
     handleCopy,
@@ -227,15 +228,15 @@ const ChatBubbleReactions = ({
     messageId,
     reactions,
     status,
-}: ChatBubbleReactionsProps) => {
+}: ChatBubbleReactionsProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
     const [anchorEl, openReactionMenu, closeReactionMenu] = usePopover();
-    const onReactionAdd = (emoji: string) => {
+    function onReactionAdd(emoji: string) {
         closeReactionMenu();
         handleReactionAdd(emoji);
-    };
+    }
 
     if (status === "unsent") return null;
     return (
@@ -315,18 +316,18 @@ const ChatBubbleReactions = ({
             </Stack>
         </Box >
     );
-};
+}
 
 
 
 /** Displays a suggested, active, or finished task that is associated with the message */
-export const TaskChip = ({
+export function TaskChip({
     taskInfo,
     onTaskClick,
 }: {
     taskInfo: LlmTaskInfo,
     onTaskClick: (task: LlmTaskInfo) => unknown,
-}) => {
+}) {
     const { label, status, resultLabel, resultLink, task } = taskInfo;
     const [, setLocation] = useLocation();
 
@@ -336,7 +337,7 @@ export const TaskChip = ({
         || !["Completed", "Canceling"].includes(status)
         || (status === "Completed" && resultLink); // Result can be opened
 
-    const getStatusColor = () => {
+    function getStatusColor() {
         if (isStale) return "warning";
         switch (status) {
             case "Running":
@@ -349,9 +350,9 @@ export const TaskChip = ({
             default:
                 return "default";
         }
-    };
+    }
 
-    const getStatusIcon = () => {
+    function getStatusIcon() {
         if (isStale || !task) return <ErrorIcon />;
         switch (status) {
             case "Running":
@@ -373,9 +374,9 @@ export const TaskChip = ({
                     return <EditIcon />;
                 return <PlayIcon />;
         }
-    };
+    }
 
-    const getStatusTooltip = () => {
+    function getStatusTooltip() {
         if (isStale) return `Task is stale: ${label}`;
         switch (status) {
             case "Suggested":
@@ -391,16 +392,16 @@ export const TaskChip = ({
             default:
                 return `Task: ${label}`;
         }
-    };
+    }
 
-    const handleTaskClick = () => {
+    function handleTaskClick() {
         // If the result link is available, open it
         if (resultLink) {
             openLink(setLocation, resultLink);
         } else {
             onTaskClick(taskInfo);
         }
-    };
+    }
 
     return (
         <Tooltip title={getStatusTooltip()}>
@@ -423,9 +424,9 @@ export const TaskChip = ({
             </span>
         </Tooltip>
     );
-};
+}
 
-export const ChatBubble = ({
+export function ChatBubble({
     activeIndex,
     chatWidth,
     isBotOnlyChat,
@@ -440,7 +441,7 @@ export const ChatBubble = ({
     onTaskClick,
     onUpdated,
     tasks,
-}: ChatBubbleProps) => {
+}: ChatBubbleProps) {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
     const { breakpoints, palette } = useTheme();
@@ -482,7 +483,7 @@ export const ChatBubble = ({
         if (message.status && message.status !== "sent") return;
         setEditingText(getTranslation(message, getUserLanguages(session), true)?.text ?? "");
     }, [message, session]);
-    const finishEditing = () => {
+    function finishEditing() {
         if (message.status !== "sent" || editingText === undefined || editingText.trim() === "") return;
         if (isBotOnlyChat) {
             //TODO
@@ -507,9 +508,9 @@ export const ChatBubble = ({
             // setEditingText(undefined);
             // setHasError(false);
         }
-    };
+    }
 
-    const handleReactionAdd = (emoji: string) => {
+    function handleReactionAdd(emoji: string) {
         if (message.status !== "sent") return;
         const originalSummaries = message.reactionSummaries;
         // Add to summaries right away, so that the UI updates immediately
@@ -539,12 +540,12 @@ export const ChatBubble = ({
                 onUpdated({ ...message, reactionSummaries: originalSummaries } as ChatBubbleProps["message"]);
             },
         });
-    };
+    }
 
-    const handleCopy = () => {
+    function handleCopy() {
         navigator.clipboard.writeText(getTranslation(message, getUserLanguages(session), true)?.text ?? "");
         PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
-    };
+    }
 
     const { name, handle, adornments } = useMemo(() => {
         const { title, adornments } = getDisplay(message.user as ListObject);
@@ -556,19 +557,19 @@ export const ChatBubble = ({
     }, [message.user]);
 
     const [bubblePressed, setBubblePressed] = useState(false);
-    const toggleBubblePressed = () => {
+    function toggleBubblePressed() {
         if (!isMobile && bubblePressed) return;
         setBubblePressed(!bubblePressed);
-    };
+    }
     const pressEvents = usePress({
         onLongPress: toggleBubblePressed,
         onClick: toggleBubblePressed,
     });
     useEffect(() => {
-        const handleResize = () => {
+        function handleResize() {
             if (!isMobile && !bubblePressed) setBubblePressed(true);
             if (isMobile && bubblePressed) setBubblePressed(false);
-        };
+        }
         window.addEventListener("resize", handleResize);
         return () => {
             window.removeEventListener("resize", handleResize);
@@ -732,4 +733,4 @@ export const ChatBubble = ({
             </Box>
         </>
     );
-};
+}

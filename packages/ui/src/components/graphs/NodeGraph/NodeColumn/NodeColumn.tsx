@@ -11,7 +11,7 @@ import { NodeWithEndShape, NodeWithRoutineListShape } from "views/objects/node/t
 import { EndNode, RedirectNode, RoutineListNode, StartNode, calculateNodeSize } from "../nodes";
 import { NodeColumnProps } from "../types";
 
-export const NodeColumn = ({
+export function NodeColumn({
     handleAction,
     handleNodeUpdate,
     id,
@@ -23,7 +23,7 @@ export const NodeColumn = ({
     links,
     nodes,
     scale = 1,
-}: NodeColumnProps) => {
+}: NodeColumnProps) {
     // Padding between cells
     const padding = useMemo(() => calculateNodeSize(50, scale), [scale]);
 
@@ -31,7 +31,7 @@ export const NodeColumn = ({
      * Create a node component for the given node data. 
      * Each node is wrapped in a cell that accepts drag and drop. 
      */
-    const nodeList = useMemo(() => {
+    const nodeList = useMemo(function nodeListMemo() {
         // Sort nodes by their row index
         if (nodes.length === 0) return null;
         // There may be gaps between the nodes. For each missing rowIndex,
@@ -130,4 +130,4 @@ export const NodeColumn = ({
             {nodeList}
         </Stack >
     );
-};
+}

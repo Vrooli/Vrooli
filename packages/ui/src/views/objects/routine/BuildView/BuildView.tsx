@@ -1,5 +1,5 @@
 import { DUMMY_ID, exists, isEqual, Node, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, RoutineVersion, uuid, uuidValidate } from "@local/shared";
-import { Box, IconButton, Stack, useTheme } from "@mui/material";
+import { Box, IconButton, styled, TextField, Typography, useTheme } from "@mui/material";
 import { BuildEditButtons } from "components/buttons/BuildEditButtons/BuildEditButtons";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { StatusButton } from "components/buttons/StatusButton/StatusButton";
@@ -14,6 +14,7 @@ import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph } from
 import { MoveNodeMenu as MoveNodeDialog } from "components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { SessionContext } from "contexts/SessionContext";
+import { useEditableLabel } from "hooks/useEditableLabel";
 import { useHotkeys } from "hooks/useHotkeys";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useStableObject } from "hooks/useStableObject";
@@ -21,9 +22,10 @@ import { CloseIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { keepSearchParams, useLocation } from "route";
+import { multiLineEllipsis } from "styles";
 import { BuildAction, Status } from "utils/consts";
 import { setCookieAllowFormCache } from "utils/cookies";
-import { getUserLanguages } from "utils/display/translationTools";
+import { getTranslation, getUserLanguages, updateTranslationFields } from "utils/display/translationTools";
 import { tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { getRoutineVersionStatus } from "utils/runUtils";
@@ -33,7 +35,13 @@ import { NodeLinkShape } from "utils/shape/models/nodeLink";
 import { NodeRoutineListShape } from "utils/shape/models/nodeRoutineList";
 import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
 import { NodeWithRoutineListShape } from "views/objects/node/types";
-import { BuildViewProps } from "../types";
+import { BuildRoutineVersion, BuildViewProps } from "../types";
+
+/** Maximum number of nodes allowed in a column */
+const MAX_ROW_SIZE = 100;
+
+const MIN_SCALE = -3;
+const MAX_SCALE = 0.5;
 
 /**
  * Generates a new link object, but doesn't add it to the routine
@@ -42,18 +50,49 @@ import { BuildViewProps } from "../types";
  * @param routineVersionId - The ID of the overall routine version
  * @returns The new link object
  */
-const generateNewLink = (fromId: string, toId: string, routineVersionId: string): NodeLinkShape => ({
-    __typename: "NodeLink",
-    id: uuid(),
-    from: { __typename: "Node", id: fromId },
-    to: { __typename: "Node", id: toId },
-    routineVersion: { __typename: "RoutineVersion", id: routineVersionId },
-});
+function generateNewLink(fromId: string, toId: string, routineVersionId: string): NodeLinkShape {
+    return {
+        __typename: "NodeLink",
+        id: uuid(),
+        from: { __typename: "Node", id: fromId },
+        to: { __typename: "Node", id: toId },
+        routineVersion: { __typename: "RoutineVersion", id: routineVersionId },
+    };
+}
 
-// RoutineVersion with fields required for the build view
-type BuildRoutineVersion = Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">
+const NavbarBox = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "row",
+    gap: "8px",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    zIndex: 2,
+    height: "48px",
+    width: "100%",
+    background: theme.palette.primary.dark,
+    color: theme.palette.primary.contrastText,
+    paddingLeft: "calc(8px + env(safe-area-inset-left))",
+    paddingRight: "calc(8px + env(safe-area-inset-right))",
+    "@media print": {
+        display: "none",
+    },
+}));
 
-export const BuildView = ({
+const NavbarContent = styled(Box)(() => ({
+    display: "flex",
+    flexDirection: "row",
+    gap: "8px",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    flexGrow: 1,
+}));
+
+
+const closeIconStyle = {
+    right: "env(safe-area-inset-right)",
+} as const;
+
+export function BuildView({
     display,
     handleCancel,
     handleSubmit,
@@ -63,12 +102,20 @@ export const BuildView = ({
     onClose,
     routineVersion,
     translationData,
-}: BuildViewProps) => {
+}: BuildViewProps) {
     const session = useContext(SessionContext);
-    const { palette } = useTheme();
+    const { palette, typography } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const id: string = useMemo(() => routineVersion?.id ?? "", [routineVersion]);
+
+    const { id, name } = useMemo(() => {
+        let id = "";
+        let name = "";
+        if (!routineVersion) return { id, name };
+        id = routineVersion.id;
+        name = getTranslation(routineVersion, translationData.languages)?.name ?? "";
+        return { id, name };
+    }, [routineVersion, translationData.languages]);
 
     const stableRoutineVersion = useStableObject(routineVersion);
     const [changedRoutineVersion, setChangedRoutineVersion] = useState<BuildRoutineVersion>(routineVersion);
@@ -77,8 +124,7 @@ export const BuildView = ({
     const [scale, setScale] = useState<number>(-1);
     const handleScaleChange = useCallback((delta: number) => {
         PubSub.get().publish("fastUpdate", { duration: 1000 });
-        // Limit to -3 to 0.5. These are determined by finding where the nodes stop shrinking/growing
-        setScale(s => Math.min(Math.max(s + delta, -3), 0.5));
+        setScale(s => Math.min(Math.max(s + delta, MIN_SCALE), MAX_SCALE));
     }, []);
 
     // Stores previous routineVersion states for undo/redo
@@ -263,7 +309,7 @@ export const BuildView = ({
 
     const revertChanges = useCallback(() => {
         // Helper function to revert changes
-        const revert = () => {
+        function revert() {
             setCookieAllowFormCache("RoutineVersion", id, false);
             // If updating routineVersion, revert to original routineVersion
             if (id) {
@@ -272,7 +318,7 @@ export const BuildView = ({
             }
             // If adding new routineVersion, go back
             else window.history.back();
-        };
+        }
         // Confirm if changes have been made
         if (changeStack.length > 1) {
             PubSub.get().publish("alertDialog", {
@@ -335,18 +381,18 @@ export const BuildView = ({
      * @param row - The preferred row
      * @returns a node position in the same column, with the first available row starting at the given row
      */
-    const closestOpenPosition = useCallback((
+    const closestOpenPosition = useCallback(function closestOpenPositionCallback(
         column: number | null | undefined,
         row: number | null | undefined,
-    ): { columnIndex: number, rowIndex: number } => {
+    ): { columnIndex: number, rowIndex: number } {
         if (column === null || column === undefined || row === null || row === undefined) return { columnIndex: -1, rowIndex: -1 };
         const columnNodes = changedRoutineVersion.nodes?.filter(n => n.columnIndex === column) ?? [];
         let rowIndex: number = row;
         // eslint-disable-next-line no-loop-func
-        while (columnNodes.some(n => n.rowIndex !== null && n.rowIndex === rowIndex) && rowIndex <= 100) {
+        while (columnNodes.some(n => n.rowIndex !== null && n.rowIndex === rowIndex) && rowIndex <= MAX_ROW_SIZE) {
             rowIndex++;
         }
-        if (rowIndex > 100) return { columnIndex: -1, rowIndex: -1 };
+        if (rowIndex > MAX_ROW_SIZE) return { columnIndex: -1, rowIndex: -1 };
         return { columnIndex: column, rowIndex };
     }, [changedRoutineVersion.nodes]);
 
@@ -355,7 +401,10 @@ export const BuildView = ({
      * @param column Suggested column for the node
      * @param row Suggested row for the node
      */
-    const createRoutineListNode = useCallback((column: number | null | undefined, row: number | null | undefined) => {
+    const createRoutineListNode = useCallback(function createRoutineListNodeCallback(
+        column: number | null | undefined,
+        row: number | null | undefined,
+    ) {
         const { columnIndex, rowIndex } = closestOpenPosition(column, row);
         const newNodeId = uuid();
         const newNode: Omit<NodeShape, "routineVersion"> = {
@@ -389,7 +438,10 @@ export const BuildView = ({
      * @param column Suggested column for the node
      * @param row Suggested row for the node
      */
-    const createEndNode = useCallback((column: number | null, row: number | null) => {
+    const createEndNode = useCallback(function createEndNodeCallback(
+        column: number | null,
+        row: number | null,
+    ) {
         const { columnIndex, rowIndex } = closestOpenPosition(column, row);
         const newNodeId = uuid();
         const newNode: Omit<NodeShape, "routineVersion"> = {
@@ -990,6 +1042,52 @@ export const BuildView = ({
         );
     }, [translationData, isEditing]);
 
+    const updateLabel = useCallback((updatedLabel: string) => {
+        const updatedTranslations = updateTranslationFields<BuildRoutineVersion["translations"][0], BuildRoutineVersion>(
+            changedRoutineVersion,
+            translationData.language,
+            { name: updatedLabel },
+        );
+        addToChangeStack({
+            ...changedRoutineVersion,
+            translations: updatedTranslations,
+        });
+    }, [addToChangeStack, changedRoutineVersion, translationData.language]);
+    const {
+        editedLabel,
+        handleLabelChange,
+        handleLabelKeyDown,
+        isEditingLabel,
+        labelEditRef,
+        startEditingLabel,
+        submitLabelChange,
+    } = useEditableLabel({
+        isEditable: isEditing,
+        label: name,
+        onUpdate: updateLabel,
+    });
+    const labelStyle = useMemo(() => {
+        return {
+            cursor: "pointer",
+            paddingLeft: "4px",
+            paddingRight: "8px",
+            maxWidth: "50vw",
+            ...multiLineEllipsis(1),
+            ...((typography["h5" as keyof typeof typography]) as object || {}),
+        };
+    }, [typography]);
+    const labelInputProps = useMemo(() => ({
+        style: {
+            ...labelStyle,
+        },
+        inputProps: {
+            style: {
+                paddingTop: 0,
+                paddingBottom: 0,
+            },
+        },
+    }), [labelStyle]);
+
     return (
         <MaybeLargeDialog
             display={display}
@@ -1069,46 +1167,38 @@ export const BuildView = ({
                     open={Boolean(openedSubroutine)}
                     onClose={closeSubroutineDialog}
                 />
-                {/* Navbar */}
-                <Stack
-                    id="build-routine-information-bar"
-                    direction="row"
-                    spacing={1}
-                    width="100%"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="flex-start"
-                    sx={{
-                        zIndex: 2,
-                        height: "48px",
-                        background: palette.primary.dark,
-                        color: palette.primary.contrastText,
-                        paddingLeft: "calc(8px + env(safe-area-inset-left))",
-                        paddingRight: "calc(8px + env(safe-area-inset-right))",
-                        "@media print": {
-                            display: "none",
-                        },
-                    }}
-                >
-                    <StatusButton status={status.status} messages={status.messages} />
-                    {/* Language */}
-                    {languageComponent}
-                    {/* Help button */}
-                    <HelpButton markdown={t("BuildHelp")} sx={{ fill: palette.secondary.light }} />
-                    {/* Close Icon */}
+                <NavbarBox id="build-routine-information-bar">
+                    <NavbarContent>
+                        {isEditingLabel ? <TextField
+                            ref={labelEditRef}
+                            fullWidth
+                            InputProps={labelInputProps}
+                            onBlur={submitLabelChange}
+                            onChange={handleLabelChange}
+                            onKeyDown={handleLabelKeyDown}
+                            value={editedLabel}
+                            variant="outlined"
+                        /> : <Typography
+                            onClick={startEditingLabel}
+                            variant="h5"
+                            sx={labelStyle}
+                        >{name || "Enter name..."}</Typography>}
+                        <StatusButton status={status.status} messages={status.messages} />
+                        {/* Language */}
+                        {languageComponent}
+                        {/* Help button */}
+                        <HelpButton markdown={t("BuildHelp")} sx={{ fill: palette.secondary.light }} />
+                    </NavbarContent>
                     <IconButton
                         edge="start"
                         aria-label="close"
                         onClick={handleClose}
                         color="inherit"
-                        sx={{
-                            position: "absolute",
-                            right: "env(safe-area-inset-right)",
-                        }}
+                        sx={closeIconStyle}
                     >
                         <CloseIcon width='32px' height='32px' />
                     </IconButton>
-                </Stack>
+                </NavbarBox>
                 {/* Buttons displayed when editing (except for submit/cancel) */}
                 <GraphActions
                     canRedo={canRedo}
@@ -1167,4 +1257,4 @@ export const BuildView = ({
             </Box>
         </MaybeLargeDialog>
     );
-};
+}

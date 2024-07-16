@@ -62,8 +62,12 @@ export const QuestionAnswerModel: QuestionAnswerModelLogic = ({
             createdBy: "User",
         }),
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({
                 createdBy: { id: userId },
             }),

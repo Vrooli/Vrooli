@@ -1,8 +1,5 @@
 import { FindManyArgs, batch, logger, prismaInstance } from "@local/server";
-import { GqlModelType, getReactionScore, uppercaseFirstLetter } from "@local/shared";
-import pkg from "lodash";
-
-const { camelCase } = pkg;
+import { GqlModelType, camelCase, getReactionScore, uppercaseFirstLetter } from "@local/shared";
 
 /**
  * Processes reactions for a single object, calculating the total score and building a map of reaction summaries.

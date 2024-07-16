@@ -2,41 +2,6 @@ export const standard_findMany = {
   "edges": {
     "cursor": true,
     "node": {
-      "versions": {
-        "translations": {
-          "id": true,
-          "language": true,
-          "description": true,
-          "jsonVariable": true,
-          "name": true
-        },
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "isComplete": true,
-        "isFile": true,
-        "isLatest": true,
-        "isPrivate": true,
-        "default": true,
-        "standardType": true,
-        "props": true,
-        "yup": true,
-        "versionIndex": true,
-        "versionLabel": true,
-        "commentsCount": true,
-        "directoryListingsCount": true,
-        "forksCount": true,
-        "reportsCount": true,
-        "you": {
-          "canComment": true,
-          "canCopy": true,
-          "canDelete": true,
-          "canReport": true,
-          "canUpdate": true,
-          "canUse": true,
-          "canRead": true
-        }
-      },
       "id": true,
       "created_at": true,
       "updated_at": true,
@@ -156,6 +121,41 @@ export const standard_findMany = {
         "isBookmarked": true,
         "isViewed": true,
         "reaction": true
+      },
+      "versions": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "isComplete": true,
+        "isFile": true,
+        "isLatest": true,
+        "isPrivate": true,
+        "default": true,
+        "standardType": true,
+        "props": true,
+        "yup": true,
+        "versionIndex": true,
+        "versionLabel": true,
+        "commentsCount": true,
+        "directoryListingsCount": true,
+        "forksCount": true,
+        "reportsCount": true,
+        "you": {
+          "canComment": true,
+          "canCopy": true,
+          "canDelete": true,
+          "canReport": true,
+          "canUpdate": true,
+          "canUse": true,
+          "canRead": true
+        },
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true,
+          "jsonVariable": true,
+          "name": true
+        }
       }
     }
   },

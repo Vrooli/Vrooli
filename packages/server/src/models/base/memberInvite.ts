@@ -86,8 +86,12 @@ export const MemberInviteModel: MemberInviteModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<MemberInviteModelInfo["PrismaSelect"]>([["team", "Team"]], ...rest),
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({
                 team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId),
             }),

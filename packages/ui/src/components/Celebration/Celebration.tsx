@@ -24,7 +24,7 @@ export const Celebration = () => {
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const lastIdRef = useRef<string | null>(null);
 
-    useEffect(() => {
+    useEffect(function subscribeCelebrationEffect() {
         const unsubscribe = PubSub.get().subscribe("celebration", (data) => {
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
@@ -86,7 +86,7 @@ export const Celebration = () => {
         };
     }, []);
 
-    useEffect(() => {
+    useEffect(function rewardEffect() {
         if (state.isActive && state.id !== lastIdRef.current) {
             lastIdRef.current = state.id;
             reward();

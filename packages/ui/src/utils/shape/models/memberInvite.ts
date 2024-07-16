@@ -1,4 +1,4 @@
-import { MemberInvite, MemberInviteCreateInput, MemberInviteUpdateInput } from "@local/shared";
+import { MemberInvite, MemberInviteCreateInput, MemberInviteUpdateInput, User } from "@local/shared";
 import { CanConnect, ShapeModel } from "types";
 import { TeamShape } from "./team";
 import { createPrims, createRel, shapeUpdate, updatePrims } from "./tools";
@@ -6,7 +6,7 @@ import { createPrims, createRel, shapeUpdate, updatePrims } from "./tools";
 export type MemberInviteShape = Pick<MemberInvite, "id" | "message" | "willBeAdmin" | "willHavePermissions"> & {
     __typename: "MemberInvite";
     team: CanConnect<TeamShape>;
-    user: { __typename: "User", id: string };
+    user: Pick<User, "__typename" | "updated_at" | "handle" | "id" | "isBot" | "name" | "profileImage">;
 }
 
 export const shapeMemberInvite: ShapeModel<MemberInviteShape, MemberInviteCreateInput, MemberInviteUpdateInput> = {

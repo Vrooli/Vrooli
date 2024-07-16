@@ -23,7 +23,7 @@ const CODE_BLOCK_REG_EXP = /^```(\w{1,10})?\s?$/;
 /**
  * Escapes special characters in a string to prevent them from being interpreted as regex symbols.
  */
-const escapeSpecialCharacters = (text: string) => text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
+function escapeSpecialCharacters(text: string) { return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&"); }
 
 /**
  * Finds first "<tag>content<tag>" match that is not nested into another tag
@@ -31,10 +31,10 @@ const escapeSpecialCharacters = (text: string) => text.replace(/[-[\]{}()*+?.,\\
  * @param textTransformersIndex - Information about available text transformers
  * @returns Tuple of start tag and content match or null if no match found
  */
-const findOutermostMatch = (
+function findOutermostMatch(
     textContent: string,
     textTransformersIndex: TextMatchTransformersIndex,
-): [string, RegExpMatchArray] | null => {
+): [string, RegExpMatchArray] | null {
     const openTagsMatch = textContent.match(textTransformersIndex.openTagsRegExp);
     if (!openTagsMatch) {
         return null;
@@ -58,7 +58,7 @@ const findOutermostMatch = (
         }
     }
     return null;
-};
+}
 
 /**
  * Processes text content and replaces text format tags.
@@ -335,7 +335,7 @@ type TextMatchTransformersIndex = {
  *   - openTagsRegExp: A regex pattern for matching opening tags.
  *   - transformersByTag: An object mapping each tag to its corresponding transformer.
  */
-const createTextFormatTransformersIndex = (textTransformers: TextFormatTransformer[]): TextMatchTransformersIndex => {
+function createTextFormatTransformersIndex(textTransformers: TextFormatTransformer[]): TextMatchTransformersIndex {
     console.log("creating text format transformers index - which is currently missing custom transformers", textTransformers);
     const transformersByTag = {};
     const fullMatchRegExpByTag = {};
@@ -362,7 +362,7 @@ const createTextFormatTransformersIndex = (textTransformers: TextFormatTransform
         openTagsRegExp,
         transformersByTag,
     };
-};
+}
 
 const MAX_LINES_TO_PROCESS = 2048;
 
@@ -387,9 +387,9 @@ const MAX_LINES_TO_PROCESS = 2048;
  *                     processes the markdown string using the provided transformers and inserts the resulting
  *                     nodes into the Lexical document, either under the specified node or at the root level.
  */
-const createMarkdownImport = (
+function createMarkdownImport(
     transformers: LexicalTransformer[],
-): ((markdownString: string, node?: ElementNode) => void) => {
+): ((markdownString: string, node?: ElementNode) => void) {
     console.log("creating markdown input - transformers", transformers);
     const byType = transformersByType(transformers);
     console.log("creating markdown import - transformers by type", byType);
@@ -423,13 +423,13 @@ const createMarkdownImport = (
         console.log("end of createMarkdownImport", root.getTextContent());
         console.log("createMarkdownImport end");
     };
-};
+}
 
 /**
  * Get next or previous text sibling a text node, including cases 
  * when it's a child of inline element (e.g. link)
  */
-const getTextSibling = (node: LexicalNode, backward: boolean) => {
+function getTextSibling(node: LexicalNode, backward: boolean) {
     let sibling = backward ? getPreviousSibling(node) : getNextSibling(node);
     if (!sibling) {
         const parent = getParent(node, { throwIfNull: true });
@@ -457,9 +457,9 @@ const getTextSibling = (node: LexicalNode, backward: boolean) => {
         }
     }
     return null;
-};
+}
 
-const exportTextFormat = (node: LexicalNode, textContent: string, textFormatTransformers: TextFormatTransformer[]) => {
+function exportTextFormat(node: LexicalNode, textContent: string, textFormatTransformers: TextFormatTransformer[]) {
     // This function handles the case of a string looking like this: "   foo   "
     // Where it would be invalid markdown to generate: "**   foo   **"
     // We instead want to trim the whitespace out, apply formatting, and then
@@ -489,9 +489,9 @@ const exportTextFormat = (node: LexicalNode, textContent: string, textFormatTran
 
     // Replace trimmed version of textContent ensuring surrounding whitespace is not modified
     return textContent.replace(frozenString, output);
-};
+}
 
-const exportChildren = (node: ElementNode, textFormatTransformers: TextFormatTransformer[], textMatchTransformers: TextMatchTransformer[]) => {
+function exportChildren(node: ElementNode, textFormatTransformers: TextFormatTransformer[], textMatchTransformers: TextMatchTransformer[]) {
     const output: string[] = [];
     const children = node.getChildren();
     mainLoop: for (const child of children) {
@@ -517,7 +517,7 @@ const exportChildren = (node: ElementNode, textFormatTransformers: TextFormatTra
         }
     }
     return output.join("");
-};
+}
 
 /**
  * Converts a markdown string to Lexical nodes using the specified transformers.
@@ -533,11 +533,15 @@ const exportChildren = (node: ElementNode, textFormatTransformers: TextFormatTra
  * @param node - An optional Lexical ElementNode within which the converted nodes will
  *                               be inserted. If not provided, the nodes will be created at the root level.
  */
-export const $convertFromMarkdownString = (markdown: string, transformers: LexicalTransformer[], node?: ElementNode) => {
+export function $convertFromMarkdownString(markdown: string, transformers: LexicalTransformer[], node?: ElementNode) {
+    if (typeof markdown !== "string") {
+        console.error("$convertFromMarkdownString: markdown is not a string", markdown);
+        return;
+    }
     console.log("in $convertFromMarkdownString", markdown);
     const importMarkdown = createMarkdownImport(transformers);
     importMarkdown(markdown, node);
-};
+}
 
 /**
  * Checks if a substring of `stringA` starting from index `aStart` is equal to a substring of `stringB` starting from index `bStart`.
@@ -549,13 +553,13 @@ export const $convertFromMarkdownString = (markdown: string, transformers: Lexic
  * @param length - The length of the substrings to compare.
  * @returns `true` if the substrings are equal, `false` otherwise.
  */
-const isEqualSubString = (
+function isEqualSubString(
     stringA: string,
     aStart: number,
     stringB: string,
     bStart: number,
     length: number,
-): boolean => {
+): boolean {
     for (let i = 0; i < length; i++) {
         if (stringA[aStart + i] !== stringB[bStart + i]) {
             return false;
@@ -563,13 +567,13 @@ const isEqualSubString = (
     }
 
     return true;
-};
+}
 
-const getOpenTagStartIndex = (
+function getOpenTagStartIndex(
     string: string,
     maxIndex: number,
     tag: string,
-): number => {
+): number {
     const tagLength = tag.length;
 
     for (let i = maxIndex; i >= tagLength; i--) {
@@ -584,7 +588,7 @@ const getOpenTagStartIndex = (
     }
 
     return -1;
-};
+}
 
 const runElementTransformers = (
     parentNode: ElementNode,

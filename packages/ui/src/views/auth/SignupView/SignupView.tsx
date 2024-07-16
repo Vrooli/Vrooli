@@ -1,100 +1,142 @@
 import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, endpointPostAuthEmailSignup, LINKS, Session } from "@local/shared";
-import { Box, Button, Checkbox, FormControl, FormControlLabel, FormHelperText, Grid, InputAdornment, Link, Typography, useTheme } from "@mui/material";
+import { Box, BoxProps, Button, Checkbox, FormControl, FormControlLabel, FormHelperText, Grid, IconButton, InputAdornment, Link, Modal, styled, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper, hasErrorCode } from "api";
-import AiDrivenConvo from "assets/img/AiDrivenConvo.png";
-import CollaborativeRoutines from "assets/img/CollaborativeRoutines.png";
-import OrganizationalManagement from "assets/img/OrganizationalManagement.png";
 import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { RandomBlobs } from "components/RandomBlobs/RandomBlobs";
-import { Testimonials } from "components/Testimonials/Testimonials";
-import { Field, Formik } from "formik";
+import { PageTabs } from "components/PageTabs/PageTabs";
+import { Field, Formik, FormikHelpers } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { formNavLink, formPaper, formSubmit } from "forms/styles";
+import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useLazyFetch } from "hooks/useLazyFetch";
+import { useTabs } from "hooks/useTabs";
 import { useWindowSize } from "hooks/useWindowSize";
-import { EmailIcon, UserIcon } from "icons";
+import { CloseIcon, EmailIcon, UserIcon } from "icons";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { clickSize } from "styles";
 import { removeCookie } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
 import { setupPush } from "utils/push";
+import { SignUpPageTabOption, signUpTabParams } from "utils/search/objectToSearch";
 import { SignupViewProps } from "views/types";
 
-const SignupForm = () => {
+type FormInput = EmailSignUpInput & {
+    agreeToTerms: boolean;
+}
+
+const initialValues: FormInput = {
+    agreeToTerms: false,
+    marketingEmails: true,
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    theme: "",
+};
+
+const baseFormStyle = {
+    ...formPaper,
+    paddingBottom: "unset",
+    position: "sticky",
+    top: "80px",
+} as const;
+
+const logInLinkStyle = {
+    ...clickSize,
+    ...formNavLink,
+} as const;
+
+const forgotPasswordLinkStyle = {
+    ...clickSize,
+    ...formNavLink,
+    flexDirection: "row-reverse",
+} as const;
+
+const nameInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <UserIcon />
+        </InputAdornment>
+    ),
+} as const;
+
+const emailInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <EmailIcon />
+        </InputAdornment>
+    ),
+} as const;
+
+const checkboxGridStyle = { display: "flex", justifyContent: "left" } as const;
+
+function SignupForm() {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const [emailSignUp, { loading }] = useLazyFetch<EmailSignUpInput, Session>(endpointPostAuthEmailSignup);
 
+    const handleSubmit = useCallback(function handleSubmitCallback(values: FormInput, helpers: FormikHelpers<FormInput>) {
+        if (values.password !== values.confirmPassword) {
+            PubSub.get().publish("snack", { messageKey: "PasswordsDontMatch", severity: "Error" });
+            helpers.setSubmitting(false);
+            return;
+        }
+        fetchLazyWrapper<EmailSignUpInput, Session>({
+            fetch: emailSignUp,
+            inputs: {
+                name: values.name,
+                email: values.email,
+                password: values.password,
+                confirmPassword: values.confirmPassword,
+                marketingEmails: Boolean(values.marketingEmails),
+                theme: palette.mode ?? "light",
+            },
+            onSuccess: (data) => {
+                removeCookie("FormData"); // Clear old form data cache
+                setupPush(false);
+                PubSub.get().publish("session", data);
+                PubSub.get().publish("celebration", { targetId: "sign-up-button" });
+                PubSub.get().publish("alertDialog", {
+                    messageKey: "WelcomeVerifyEmail",
+                    messageVariables: { appName: BUSINESS_NAME },
+                    buttons: [{
+                        labelKey: "Ok", onClick: () => {
+                            setLocation(LINKS.Home);
+                            PubSub.get().publish("tutorial");
+                        },
+                    }],
+                });
+            },
+            onError: (response) => {
+                if (hasErrorCode(response, "EmailInUse")) {
+                    PubSub.get().publish("alertDialog", {
+                        messageKey: "EmailInUseWrongPassword",
+                        buttons: [
+                            { labelKey: "Yes", onClick: () => { setLocation(LINKS.ForgotPassword); } },
+                            { labelKey: "No" },
+                        ],
+                    });
+                }
+                helpers.setSubmitting(false);
+            },
+        });
+    }, [emailSignUp, palette.mode, setLocation]);
+
     return (
         <>
             <Formik
-                initialValues={{
-                    agreeToTerms: false,
-                    marketingEmails: true,
-                    name: "",
-                    email: "",
-                    password: "",
-                    confirmPassword: "",
-                }}
-                onSubmit={(values, helpers) => {
-                    if (values.password !== values.confirmPassword) {
-                        PubSub.get().publish("snack", { messageKey: "PasswordsDontMatch", severity: "Error" });
-                        helpers.setSubmitting(false);
-                        return;
-                    }
-                    fetchLazyWrapper<EmailSignUpInput, Session>({
-                        fetch: emailSignUp,
-                        inputs: {
-                            name: values.name,
-                            email: values.email,
-                            password: values.password,
-                            confirmPassword: values.confirmPassword,
-                            marketingEmails: Boolean(values.marketingEmails),
-                            theme: palette.mode ?? "light",
-                        },
-                        onSuccess: (data) => {
-                            removeCookie("FormData"); // Clear old form data cache
-                            setupPush(false);
-                            PubSub.get().publish("session", data);
-                            PubSub.get().publish("celebration", { targetId: "sign-up-button" });
-                            PubSub.get().publish("alertDialog", {
-                                messageKey: "WelcomeVerifyEmail",
-                                messageVariables: { appName: BUSINESS_NAME },
-                                buttons: [{
-                                    labelKey: "Ok", onClick: () => {
-                                        setLocation(LINKS.Home);
-                                        PubSub.get().publish("tutorial");
-                                    },
-                                }],
-                            });
-                        },
-                        onError: (response) => {
-                            if (hasErrorCode(response, "EmailInUse")) {
-                                PubSub.get().publish("alertDialog", {
-                                    messageKey: "EmailInUseWrongPassword",
-                                    buttons: [
-                                        { labelKey: "Yes", onClick: () => { setLocation(LINKS.ForgotPassword); } },
-                                        { labelKey: "No" },
-                                    ],
-                                });
-                            }
-                            helpers.setSubmitting(false);
-                        },
-                    });
-                }}
+                initialValues={initialValues}
+                onSubmit={handleSubmit}
                 validationSchema={emailSignUpFormValidation}
             >
                 {(formik) => <BaseForm
                     display={"dialog"}
                     isLoading={loading}
-                    style={{
-                        ...formPaper,
-                        paddingBottom: "unset",
-                    }}
+                    style={baseFormStyle}
                 >
                     <Grid container spacing={2}>
                         <Grid item xs={12}>
@@ -106,13 +148,7 @@ const SignupForm = () => {
                                 label={t("Name")}
                                 placeholder={t("NamePlaceholder")}
                                 as={TextInput}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <UserIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={nameInputProps}
                             />
                         </Grid>
                         <Grid item xs={12}>
@@ -123,13 +159,7 @@ const SignupForm = () => {
                                 label={t("Email", { count: 1 })}
                                 placeholder={t("EmailPlaceholder")}
                                 as={TextInput}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <EmailIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={emailInputProps}
                                 helperText={formik.touched.email && formik.errors.email}
                                 error={formik.touched.email && Boolean(formik.errors.email)}
                             />
@@ -150,7 +180,7 @@ const SignupForm = () => {
                                 label={t("PasswordConfirm")}
                             />
                         </Grid>
-                        <Grid item xs={12} sx={{ display: "flex", justifyContent: "left" }}>
+                        <Grid item xs={12} sx={checkboxGridStyle}>
                             <FormControlLabel
                                 control={
                                     <Checkbox
@@ -165,7 +195,7 @@ const SignupForm = () => {
                                 label="I agree to receive marketing promotions and updates via email."
                             />
                         </Grid>
-                        <Grid item xs={12} sx={{ display: "flex", justifyContent: "left" }}>
+                        <Grid item xs={12} sx={checkboxGridStyle}>
                             <FormControl required error={!formik.values.agreeToTerms && formik.touched.agreeToTerms}>
                                 <FormControlLabel
                                     control={
@@ -185,7 +215,7 @@ const SignupForm = () => {
                                                 href="/terms-and-conditions"
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                onClick={(event) => event.stopPropagation()}
+                                                onClick={stopPropagation}
                                             >
                                                 terms and conditions
                                             </Link>
@@ -194,7 +224,7 @@ const SignupForm = () => {
                                     }
                                 />
                                 <FormHelperText>
-                                    {formik.touched.agreeToTerms && !formik.values.agreeToTerms && "You must agree to the terms and conditions"}
+                                    {formik.touched.agreeToTerms !== true && "You must agree to the terms and conditions"}
                                 </FormHelperText>
                             </FormControl>
                         </Grid>
@@ -218,21 +248,14 @@ const SignupForm = () => {
                     }}>
                         <Link href={LINKS.Login}>
                             <Typography
-                                sx={{
-                                    ...clickSize,
-                                    ...formNavLink,
-                                }}
+                                sx={logInLinkStyle}
                             >
                                 {t("LogIn")}
                             </Typography>
                         </Link>
                         <Link href={LINKS.ForgotPassword}>
                             <Typography
-                                sx={{
-                                    ...clickSize,
-                                    ...formNavLink,
-                                    flexDirection: "row-reverse",
-                                }}
+                                sx={forgotPasswordLinkStyle}
                             >
                                 {t("ForgotPassword")}
                             </Typography>
@@ -242,129 +265,228 @@ const SignupForm = () => {
             </Formik>
         </>
     );
-};
+}
 
-const blueRadial = "radial-gradient(circle, rgb(6 46 46) 12%, rgb(1 36 36) 52%, rgb(3 20 20) 80%)";
+interface ScreenshotProps extends BoxProps {
+    isMobile: boolean;
+}
 
-const ImageWithCaption = ({ src, alt, caption }) => (
-    <Box sx={{
-        flex: "0 0 auto",
-        margin: "0 10px",
-        minWidth: { xs: "250px", lg: "300px" },
-        maxWidth: { xs: "250px", lg: "300px" },
-    }}>
-        <img src={src} alt={alt} style={{ width: "100%", borderRadius: "8px" }} />
-        <Typography variant="caption" align="center" sx={{ whiteSpace: "nowrap" }}>{caption}</Typography>
-    </Box>
-);
+const Screenshot = styled("img", {
+    shouldForwardProp: (prop) => prop !== "isMobile",
+})<ScreenshotProps>(({ isMobile }) => ({
+    cursor: "pointer",
+    width: isMobile ? "-webkit-fill-available" : "100%",
+    maxWidth: isMobile ? "720px" : "800px",
+    margin: "auto",
+    borderRadius: "8px",
+    display: "inline-block",
+    maxHeight: isMobile ? "1280px" : "400px",
+    zIndex: 5,
+}));
 
-const Promo = () => {
+const screenshots = [{
+    src: "1-intro.png",
+    alt: "Chatting with bot from main page",
+}, {
+    src: "2-build.png",
+    alt: "Building a multi-step routine",
+}, {
+    src: "3-team.png",
+    alt: "Viewing a team",
+}, {
+    src: "4-search.png",
+    alt: "Searching for existing routines",
+}];
+
+function getFullSrc(src: string, isMobile: boolean) {
+    return `${window.location.origin}/screenshots/${isMobile ? "narrow" : "wide"}-${src}`;
+}
+
+function stopPropagation(event: React.MouseEvent) {
+    event.stopPropagation();
+}
+
+function Promo({
+    isMobile,
+}: {
+    isMobile: boolean;
+}) {
+    const [openedImage, setOpenedImage] = useState<number | null>(null);
+    const handleCloseImage = useCallback(() => { setOpenedImage(null); }, []);
+    const handleImageOpen = useCallback((index: number) => { setOpenedImage(index); }, []);
+
     return (
         <>
-            <RandomBlobs numberOfBlobs={5} />
-            <Box sx={{ position: "relative", zIndex: 1 }}>
-                <Typography variant="h4" sx={{ marginBottom: 2 }}>
-                    Where Imagination Drives Automation
-                </Typography>
-                <Typography variant="body1" sx={{ marginBottom: 2 }}>
-                    Welcome to Vrooli: Where autonomous agents turn your dreams into action. Discover the Vrooli difference:
-                </Typography>
-                <ul style={{ marginBottom: "32px" }}>
-                    <Typography component="li" variant="body1" sx={{ marginBottom: 1 }}>
-                        Meet our bots: Like having a helpful friend, they chat with you and help you get things done.
-                    </Typography>
-                    <Typography component="li" variant="body1" sx={{ marginBottom: 1 }}>
-                        Introducing Routines: Think of them as step-by-step guides that can be used, shared, or tweaked to suit your needs. Whether it's writing a blog or sending an email, there's a routine for that.
-                    </Typography>
-                    <Typography component="li" variant="body1" sx={{ marginBottom: 1 }}>
-                        Share and Grow: Got a cool routine? Share it! Need one? Use one shared by others and even combine them for new solutions.
-                    </Typography>
-                    <Typography component="li" variant="body1" sx={{ marginBottom: 1 }}>
-                        Personality Matters: Our bots have their own styles! For instance, get a story written by one bot and it might sound poetic, while another might give it a thrilling twist.
-                    </Typography>
-                    <Typography component="li" variant="body1" sx={{ marginBottom: 1 }}>
-                        Teamwork made easy: Chat with humans and bots all in one space. Everyone's in the loop and tasks get done faster!
-                    </Typography>
-                    <Typography component="li" variant="body1" sx={{ marginBottom: 1 }}>
-                        Set and Forget: Have recurring tasks? Just schedule them and let the bots handle the rest.
-                    </Typography>
-                </ul>
-                <Box sx={{
-                    margin: "20px 0",
-                    display: "flex",
-                    gap: { xs: 0, md: 4 },
-                    overflowX: "auto",
-                    alignItems: "center",
-                }}>
-                    <ImageWithCaption
-                        src={AiDrivenConvo}
-                        alt="A conversation between a user and a bot. The user asks the bot about starting a business, and the bot gives suggestions on how to get started."
-                        caption="Chat seamlessly with bots"
-                    />
-                    <ImageWithCaption
-                        src={CollaborativeRoutines}
-                        alt="A graphical representation of the nodes and edges of a routine."
-                        caption="Design routines tailored for you"
-                    />
-                    <ImageWithCaption
-                        src={OrganizationalManagement}
-                        alt="The page for a team, showing the team's name, bio, picture, and members."
-                        caption="Build and showcase your automated team"
-                    />
-                </Box>
-                <Testimonials />
+            <Box sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+            }}>
+                {screenshots.map(({ src, alt }, index) => {
+                    const fullSrc = getFullSrc(src, isMobile);
+
+                    function handleClick() {
+                        handleImageOpen(index);
+                    }
+
+                    return (
+                        <Screenshot
+                            key={src}
+                            src={fullSrc}
+                            alt={alt}
+                            isMobile={isMobile}
+                            onClick={handleClick}
+                        />
+                    );
+                })}
+                <Modal
+                    open={openedImage !== null}
+                    onClose={handleCloseImage}
+                    aria-labelledby="full-size-image"
+                    aria-describedby="full-size-screenshot"
+                    sx={{
+                        backgroundColor: "black",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                    }}
+                >
+                    <Box
+                        sx={{
+                            position: "relative",
+                            width: "100%",
+                            height: "100%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                        }}
+                        onClick={handleCloseImage}
+                    >
+                        <img
+                            src={getFullSrc(screenshots[openedImage ?? 0].src, isMobile)}
+                            alt={screenshots[openedImage ?? 0].alt}
+                            onClick={stopPropagation}
+                            style={{
+                                maxWidth: "90%",
+                                maxHeight: "90%",
+                                objectFit: "contain",
+                            }}
+                        />
+                        <IconButton
+                            aria-label="close"
+                            onClick={handleCloseImage}
+                            sx={{
+                                position: "absolute",
+                                right: 20,
+                                top: 20,
+                                color: "white",
+                            }}
+                        >
+                            <CloseIcon />
+                        </IconButton>
+                    </Box>
+                </Modal>
             </Box>
         </>
     );
-};
+}
 
-export const SignupView = ({
+const OuterBox = styled(Box)(({ theme }) => ({
+    background: theme.palette.background.paper,
+    height: "100%",
+}));
+
+export function SignupView({
     display,
     onClose,
-}: SignupViewProps) => {
+}: SignupViewProps) {
     const { breakpoints, palette } = useTheme();
     const { t } = useTranslation();
-    const isXs = useWindowSize(({ width }) => width <= breakpoints.values.sm);
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+    const isLeftHanded = useIsLeftHanded();
+
+    const {
+        currTab,
+        handleTabChange,
+        tabs,
+    } = useTabs({ id: "sign-up-tabs", tabParams: signUpTabParams, disableHistory: true, display });
+
+    const innerBoxStyle = useMemo(function innerBoxStyleMemo() {
+        if (isMobile) {
+            return {
+                display: "flex",
+                flexDirection: "column",
+                height: "100%",
+                width: "100vw",
+            } as const;
+        } else {
+            return {
+                display: "flex",
+                flexDirection: isLeftHanded ? "row-reverse" : "row",
+                height: "100%",
+                width: "100vw",
+            } as const;
+        }
+    }, [isLeftHanded, isMobile]);
+
+    const signUpBoxStyle = useMemo(function signUpBoxStyleMemo() {
+        return {
+            flexGrow: 1,
+            maxWidth: isMobile ? "unset" : "min(400px, 30%)",
+            background: palette.background.paper,
+            display: isMobile && currTab.key !== SignUpPageTabOption.SignUp
+                ? "none"
+                : "block",
+            overflow: "unset",
+            position: "relative",
+            zIndex: 3,
+        } as const;
+    }, [currTab, isMobile, palette.background.paper]);
+
+    const promoBoxStyle = useMemo(function promoBoxStyleMemo() {
+        return {
+            padding: 2,
+            background: palette.background.default,
+            backgroundAttachment: "fixed",
+            color: "white",
+            display: isMobile && currTab.key !== SignUpPageTabOption.MoreInfo
+                ? "none"
+                : "block",
+            overflow: "auto",
+            width: "100%",
+        } as const;
+    }, [currTab.key, isMobile, palette.background.default]);
 
     return (
-        <Box sx={{ maxHeight: "100vh", overflow: "hidden" }}>
+        <OuterBox>
             <TopBar
                 display={display}
                 onClose={onClose}
-                hideTitleOnDesktop
                 title={t("SignUp")}
+                titleBehaviorDesktop="ShowIn"
+                below={isMobile && (
+                    <PageTabs
+                        ariaLabel="sign-up-tabs"
+                        fullWidth
+                        id="sign-up-tabs"
+                        ignoreIcons
+                        currTab={currTab}
+                        onChange={handleTabChange}
+                        tabs={tabs}
+                    />
+                )}
             />
-            <Box sx={{
-                display: "flex",
-                flexDirection: "row",
-                height: "100vh",
-            }}>
-                <Box sx={{
-                    width: { xs: "100%", sm: "min(400px, 100%)" },
-                    height: "100vh",
-                    background: palette.background.paper,
-                    borderRadius: 0,
-                    overflow: "auto",
-                    paddingBottom: "100px",
-                    zIndex: 3,
-                }}>
+            <Box sx={innerBoxStyle}>
+                <Box sx={signUpBoxStyle}>
                     <SignupForm />
                 </Box>
-                {!isXs && <Box sx={{
-                    flex: 1,
-                    background: blueRadial,
-                    backgroundAttachment: "fixed",
-                    color: "white",
-                    padding: 2,
-                    paddingBottom: "64px",
-                    overflowY: "auto",
-                }}>
-                    <Promo />
-                </Box>}
+                <Box sx={promoBoxStyle}>
+                    <Promo isMobile={isMobile} />
+                </Box>
             </Box>
-        </Box>
+        </OuterBox>
     );
-};
+}
 
 
 // // Wallet provider popups

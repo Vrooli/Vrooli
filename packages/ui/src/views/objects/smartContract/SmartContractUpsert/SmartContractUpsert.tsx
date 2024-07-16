@@ -2,6 +2,7 @@ import { CodeType, CodeVersion, CodeVersionCreateInput, CodeVersionUpdateInput, 
 import { Button, Divider, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { CodeInput, CodeLanguage } from "components/inputs/CodeInput/CodeInput";
@@ -21,7 +22,7 @@ import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { HelpIcon, SearchIcon } from "icons";
+import { HelpIcon } from "icons";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
@@ -151,7 +152,7 @@ contract HelloWorld {
 }
 `.trim();
 
-const SmartContractForm = ({
+function SmartContractForm({
     disabled,
     dirty,
     display,
@@ -167,7 +168,7 @@ const SmartContractForm = ({
     values,
     versions,
     ...props
-}: SmartContractFormProps) => {
+}: SmartContractFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const { palette } = useTheme();
@@ -190,6 +191,7 @@ const SmartContractForm = ({
         isCreate,
         objectId: values.id,
         objectType: "CodeVersion",
+        rootObjectId: values.root?.id,
         ...props,
     });
     const {
@@ -237,20 +239,10 @@ const SmartContractForm = ({
                 onClose={onClose}
                 title={t(isCreate ? "CreateSmartContract" : "UpdateSmartContract")}
             />
-            <Button
-                href={`${LINKS.Search}?type=${SearchPageTabOption.Code}`}
-                sx={{
-                    color: palette.background.textSecondary,
-                    display: "flex",
-                    marginTop: 2,
-                    textAlign: "center",
-                    textTransform: "none",
-                }}
-                variant="text"
-                endIcon={<SearchIcon />}
-            >
-                Search existing codes
-            </Button>
+            <SearchExistingButton
+                href={`${LINKS.Search}?type="${SearchPageTabOption.Code}"`}
+                text="Search existing contracts"
+            />
             <BaseForm
                 display={display}
                 isLoading={isLoading}
@@ -347,14 +339,14 @@ const SmartContractForm = ({
             />
         </MaybeLargeDialog>
     );
-};
+}
 
-export const SmartContractUpsert = ({
+export function SmartContractUpsert({
     isCreate,
     isOpen,
     overrideObject,
     ...props
-}: SmartContractUpsertProps) => {
+}: SmartContractUpsertProps) {
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<CodeVersion, CodeVersionShape>({
@@ -365,12 +357,16 @@ export const SmartContractUpsert = ({
         transform: (existing) => smartContractInitialValues(session, existing),
     });
 
+    async function validateValues(values: CodeVersionShape) {
+        return await validateFormValues(values, existing, isCreate, transformCodeVersionValues, codeVersionValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformCodeVersionValues, codeVersionValidation)}
+            validate={validateValues}
         >
             {(formik) => <SmartContractForm
                 disabled={!(isCreate || permissions.canUpdate)}
@@ -385,4 +381,4 @@ export const SmartContractUpsert = ({
             />}
         </Formik>
     );
-};
+}

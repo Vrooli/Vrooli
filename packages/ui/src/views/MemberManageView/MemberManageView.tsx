@@ -14,12 +14,12 @@ import { MemberManageViewProps } from "../types";
 /**
  * View members and invited members of a team
  */
-export const MemberManageView = ({
+export function MemberManageView({
     display,
     onClose,
     isOpen,
     team,
-}: MemberManageViewProps) => {
+}: MemberManageViewProps) {
     console.log("in MemberManageView", team);
 
     const {
@@ -37,6 +37,16 @@ export const MemberManageView = ({
         take: 20,
         where: where({ teamId: team.id }),
     });
+
+    // const handleMemberSelect = useCallback((member: RelationshipItemUser) => {
+    //     membersFieldHelpers.setValue([...(membersField.value ?? []), member]);
+    //     closeDialog();
+    // }, [membersFieldHelpers, membersField.value, closeDialog]);
+
+    // const searchData = useMemo(() => ({
+    //     searchType: "User" as const,
+    //     where: { memberInTeamId: membersField?.value?.id },
+    // }), [membersField?.value?.id]);
 
     //    // Handle add/update invite dialog
     //    const [invitesToUpsert, setInvitesToUpsert] = useState<MemberInviteShape[]>([]);
@@ -120,7 +130,6 @@ export const MemberManageView = ({
                 {...findManyData}
                 id="member-manage-list"
                 display={display}
-                dummyLength={display === "page" ? 5 : 3}
                 sxs={showSearchFilters ? {
                     search: { marginTop: 2 },
                     listContainer: { borderRadius: 0 },
@@ -131,13 +140,13 @@ export const MemberManageView = ({
                 }}
             />}
             {/* <SideActionsButtons display={display}>
-                <IconButton aria-label={t("FilterList")} onClick={toggleSearchFilters} sx={{ background: palette.secondary.main }}>
+                <SideActionsButton aria-label={t("FilterList")} onClick={toggleSearchFilters}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </IconButton>
-                <IconButton aria-label={t("CreateInvite")} onClick={onInviteStart} sx={{ background: palette.secondary.main }}>
+                </SideActionsButton>
+                <SideActionsButton aria-label={t("CreateInvite")} onClick={onInviteStart}>
                     <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                </IconButton>
+                </SideActionsButton>
             </SideActionsButtons> */}
         </MaybeLargeDialog>
     );
-};
+}

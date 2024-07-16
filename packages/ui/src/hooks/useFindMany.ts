@@ -60,16 +60,18 @@ type GetUrlSearchParamsResult = {
     timeFrame: TimeFrame | undefined;
 }
 
+const DEFAULT_TAKE = 20;
+
 /**
  * Helper method for converting fetched data to an array of object data
  * @param data data returned from a findMany query
  * @param resolve function for resolving the data
  * @returns List of objects from the data, without any pagination information
  */
-export const parseData = (
+export function parseData(
     data: object | undefined,
     resolve?: (data: any) => object[],
-) => {
+) {
     // Ensure data is properly formatted
     if (!data || typeof data !== "object") return [];
     // If there is a custom resolver, use it
@@ -77,13 +79,13 @@ export const parseData = (
     // Otherwise, treat as typically-shaped paginated data
     if (!Array.isArray((data as { edges?: unknown }).edges)) return [];
     return (data as { edges: any[] }).edges.map((edge) => edge.node);
-};
+}
 
 /**
  * Finds updated value for sortBy
  * @returns the sortBy param if it's valid, or searchParams.defaultSortBy if it's not
  */
-export const updateSortBy = (searchParams: Pick<FullSearchParams, "defaultSortBy" | "sortByOptions">, sortBy: string) => {
+export function updateSortBy(searchParams: Pick<FullSearchParams, "defaultSortBy" | "sortByOptions">, sortBy: string) {
     if (typeof sortBy === "string") {
         if (exists(searchParams.sortByOptions) && sortBy in searchParams.sortByOptions) {
             return sortBy;
@@ -91,21 +93,21 @@ export const updateSortBy = (searchParams: Pick<FullSearchParams, "defaultSortBy
             return searchParams.defaultSortBy ?? "";
         }
     }
-};
+}
 
 /**
  * Determines if we have sufficient search params to perform a search
  * @param params search params
  */
-export const readyToSearch = ({ canSearch, findManyEndpoint, hasMore, loading, sortBy }: FullSearchParams) => {
+export function readyToSearch({ canSearch, findManyEndpoint, hasMore, loading, sortBy }: FullSearchParams) {
     return Boolean(
         canSearch &&
         !loading &&
         hasMore &&
         findManyEndpoint && findManyEndpoint.length > 0 &&
-        sortBy && sortBy.length > 0
+        sortBy && sortBy.length > 0,
     );
-};
+}
 
 /**
  * Extracts and returns basic search-related parameters from the URL, if we're currently
@@ -123,7 +125,7 @@ export const readyToSearch = ({ canSearch, findManyEndpoint, hasMore, loading, s
  *         - timeFrame: Optional object containing 'after' and/or 'before' date limits; included if either
  *                      date is validly specified in the URL.
  */
-export const getUrlSearchParams = (controlsUrl: boolean, searchType: string): GetUrlSearchParamsResult => {
+export function getUrlSearchParams(controlsUrl: boolean, searchType: string): GetUrlSearchParamsResult {
     const result: GetUrlSearchParamsResult = {
         searchString: "",
         sortBy: "",
@@ -135,14 +137,14 @@ export const getUrlSearchParams = (controlsUrl: boolean, searchType: string): Ge
     if (typeof searchParams.search === "string") result.searchString = searchParams.search;
     // Find sortBy
     const searchParamsConfig = searchTypeToParams[searchType];
-    if (typeof searchParamsConfig === 'function') {
+    if (typeof searchParamsConfig === "function") {
         result.sortBy = updateSortBy(searchParamsConfig(), typeof searchParams.sort === "string" ? searchParams.sort : "");
     } else {
         console.warn(`Invalid search type provided: ${searchType}`);
     }
     // Find timeFrame
     if (typeof searchParams.time === "object" && !Array.isArray(searchParams.time)) {
-        let timeFrame: TimeFrame = {};
+        const timeFrame: TimeFrame = {};
         if (Object.prototype.hasOwnProperty.call(searchParams.time, "after")) {
             timeFrame.after = new Date((searchParams.time as { after: string }).after);
         }
@@ -154,7 +156,7 @@ export const getUrlSearchParams = (controlsUrl: boolean, searchType: string): Ge
         }
     }
     return result;
-};
+}
 
 /**
  * The opposite of getUrlSearchParams. Updates the URL with the current search parameters.
@@ -165,11 +167,11 @@ export const getUrlSearchParams = (controlsUrl: boolean, searchType: string): Ge
  * @param timeFrame The current time frame.
  * @param setLocation Function for updating the URL.
  */
-export const updateSearchUrl = (
+export function updateSearchUrl(
     controlsUrl: boolean,
     { searchString, sortBy, timeFrame }: FullSearchParams,
     setLocation: SetLocation,
-) => {
+) {
     if (!controlsUrl) return;
     addSearchParams(setLocation, {
         search: searchString.length > 0 ? searchString : undefined,
@@ -179,19 +181,19 @@ export const updateSearchUrl = (
             before: timeFrame.before?.toISOString() ?? "",
         } : undefined,
     });
-};
+}
 
 /**
  * Logic for displaying search options and querying a findMany endpoint
  */
-export const useFindMany = <DataType extends Record<string, any>>({
+export function useFindMany<DataType extends Record<string, any>>({
     canSearch,
     controlsUrl = true,
     searchType,
     resolve,
-    take = 20,
+    take = DEFAULT_TAKE,
     where,
-}: UseFindManyProps): UseFindManyResult<DataType> => {
+}: UseFindManyProps): UseFindManyResult<DataType> {
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
 
@@ -329,14 +331,16 @@ export const useFindMany = <DataType extends Record<string, any>>({
     useEffect(() => {
         // params.current.loading = false;
         // If params have changed since this fetch started, invalidate it and refetch
-        const toCompareShape = (obj: any) => ({
-            advancedSearchParams: obj.advancedSearchParams,
-            findManyEndpoint: obj.findManyEndpoint,
-            searchString: obj.searchString,
-            sortBy: obj.sortBy,
-            timeFrame: obj.timeFrame,
-            where: obj.where,
-        });
+        function toCompareShape(obj: any) {
+            return {
+                advancedSearchParams: obj.advancedSearchParams,
+                findManyEndpoint: obj.findManyEndpoint,
+                searchString: obj.searchString,
+                sortBy: obj.sortBy,
+                timeFrame: obj.timeFrame,
+                where: obj.where,
+            };
+        }
         const last = toCompareShape(lastParams.current);
         const current = toCompareShape(params.current);
         if (JSON.stringify(last) !== JSON.stringify(current)) {
@@ -422,4 +426,4 @@ export const useFindMany = <DataType extends Record<string, any>>({
         timeFrame: params?.current?.timeFrame,
         updateItem,
     };
-};
+}

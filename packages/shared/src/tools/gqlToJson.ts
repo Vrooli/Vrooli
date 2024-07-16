@@ -33,7 +33,7 @@ const dirname = path.dirname(fileURLToPath(import.meta.url));
 /**
  * Converts plaintext of REST endpoint pairs file to an array of RestPair objects.
  */
-const parseEndpoints = (): RestPair[] => {
+function parseEndpoints(): RestPair[] {
     // Initialize the REST endpoint pairs array
     const restPairs: RestPair[] = [];
 
@@ -72,12 +72,12 @@ const parseEndpoints = (): RestPair[] => {
     }
 
     return restPairs;
-};
+}
 
 /**
  * Adds an array of RestPair objects as operations in an OpenAPI schema.
  */
-const addOperationsToSchema = (schema: Record<string, any>, restPairs: RestPair[]): void => {
+function addOperationsToSchema(schema: Record<string, any>, restPairs: RestPair[]): void {
     for (const pair of restPairs) {
         // Convert the path to OpenAPI format (colon-prefixed path parameters to curly braces)
         const path = pair.endpoint.replace(/:(\w+)/g, "{$1}");
@@ -101,12 +101,12 @@ const addOperationsToSchema = (schema: Record<string, any>, restPairs: RestPair[
             },
         };
     }
-};
+}
 
 /**
  * Shapes plaintext of GraphQL types file for conversion to OpenAPI schema.
  */
-const parseGqlTypes = (): string => {
+function parseGqlTypes(): string {
     // Read the file containing the GraphQL types
     const pathsToGqlTypesFile = path.resolve(dirname, GQL_TYPES_FILE);
     let gqlData = fs.readFileSync(pathsToGqlTypesFile, "utf8");
@@ -220,9 +220,9 @@ const parseGqlTypes = (): string => {
 
     // Return shaped GraphQL types
     return gqlData;
-};
+}
 
-const main = async () => {
+async function main() {
 
     // Create the reader and writer
     const reader = getTypeScriptReader();
@@ -251,8 +251,8 @@ const main = async () => {
         email: "support@vrooli.com",
     };
     openApiSchema.info.license = {
-        name: "GPL-3.0",
-        url: "https://opensource.org/licenses/GPL-3.0",
+        "name": "AGPL-3.0",
+        "url": "https://choosealicense.com/licenses/agpl-3.0/",
     };
 
     // Add the REST endpoints as operations (paths)
@@ -266,6 +266,6 @@ const main = async () => {
         if (err) throw err;
         console.info("The OpenAPI schema has been saved!");
     });
-};
+}
 
 main().catch(console.error);

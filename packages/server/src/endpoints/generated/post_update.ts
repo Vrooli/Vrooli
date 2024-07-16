@@ -1,4 +1,12 @@
 export const post_update = {
+  "id": true,
+  "created_at": true,
+  "updated_at": true,
+  "commentsCount": true,
+  "repostsCount": true,
+  "score": true,
+  "bookmarks": true,
+  "views": true,
   "resourceList": {
     "id": true,
     "created_at": true,
@@ -29,13 +37,5 @@ export const post_update = {
     "description": true,
     "name": true
   },
-  "id": true,
-  "created_at": true,
-  "updated_at": true,
-  "commentsCount": true,
-  "repostsCount": true,
-  "score": true,
-  "bookmarks": true,
-  "views": true,
   "__typename": "Post"
 } as const;

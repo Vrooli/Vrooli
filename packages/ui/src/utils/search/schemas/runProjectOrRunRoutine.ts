@@ -4,9 +4,9 @@ import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
 export const runProjectOrRunRoutineSearchSchema = (): FormSchema => ({
-    formLayout: searchFormLayout("SearchRunProjectOrRunRoutine"),
+    layout: searchFormLayout("SearchRunProjectOrRunRoutine"),
     containers: [], //TODO
-    fields: [], //TODO
+    elements: [], //TODO
 });
 
 export const runProjectOrRunRoutineSearchParams = () => toParams(runProjectOrRunRoutineSearchSchema(), endpointGetUnionsRunProjectOrRunRoutines, undefined, RunProjectOrRunRoutineSortBy, RunProjectOrRunRoutineSortBy.DateStartedDesc);

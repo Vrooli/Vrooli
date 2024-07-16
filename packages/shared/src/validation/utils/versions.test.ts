@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { calculateVersionsFromString, getMinVersion, meetsMinVersion, minVersionTest, sortVersions } from "./versions";
+import { calculateVersionsFromString, getMinVersion, meetsMinVersion } from "./versions";
 
 describe("Version Calculation Tests", () => {
     // Test suite for valid version strings
@@ -122,75 +122,4 @@ describe("Minimum Version Requirement Tests", () => {
     });
 });
 
-describe("minVersionTest function tests", () => {
-    const minVersion = "1.0.0";
-
-    test("version meets the minimum version requirement", () => {
-        const [, , testFn] = minVersionTest(minVersion);
-        expect(testFn("1.0.1")).toBe(true);
-    });
-
-    test("version does not meet the minimum version requirement", () => {
-        const [, , testFn] = minVersionTest(minVersion);
-        expect(testFn("0.9.9")).toBe(false);
-    });
-
-    test("undefined version", () => {
-        const [, , testFn] = minVersionTest(minVersion);
-        expect(testFn(undefined)).toBe(true);
-    });
-
-    test("minimum version as input version", () => {
-        const [, , testFn] = minVersionTest(minVersion);
-        expect(testFn(minVersion)).toBe(true);
-    });
-});
-
-describe("sortVersions", () => {
-    it("should correctly sort an array of versions by major, moderate, and minor", () => {
-        const versions = [
-            { versionLabel: "1.2.3" },
-            { versionLabel: "1.2.1" },
-            { versionLabel: "2.1.1" },
-            { versionLabel: "1.3.1" },
-            { versionLabel: "0.9.9" },
-        ];
-        const sorted = sortVersions(versions);
-        expect(sorted.map(v => v.versionLabel)).toEqual(["0.9.9", "1.2.1", "1.2.3", "1.3.1", "2.1.1"]);
-    });
-
-    it("should return an empty array when provided with a non-array input", () => {
-        const invalidInput = "not an array";
-        // @ts-ignore: Testing runtime scenario
-        const sorted = sortVersions(invalidInput);
-        expect(sorted).toEqual([]);
-    });
-
-    it("should return an empty array when provided with an empty array", () => {
-        const emptyArray = [];
-        const sorted = sortVersions(emptyArray);
-        expect(sorted).toEqual([]);
-    });
-
-    it("should sort versions that are identical", () => {
-        const versions = [
-            { versionLabel: "1.1.1" },
-            { versionLabel: "1.1.1" },
-            { versionLabel: "1.1.1" },
-        ];
-        const sorted = sortVersions(versions);
-        expect(sorted.map(v => v.versionLabel)).toEqual(["1.1.1", "1.1.1", "1.1.1"]);
-    });
-
-    it("should maintain the order of elements with the same version", () => {
-        // Assuming stable sort
-        const versions = [
-            { versionLabel: "1.1.1", name: "A" },
-            { versionLabel: "1.1.1", name: "B" },
-            { versionLabel: "1.1.1", name: "C" },
-        ];
-        const sorted = sortVersions(versions);
-        expect(sorted.map(v => v.name)).toEqual(["A", "B", "C"]);
-    });
-});
 

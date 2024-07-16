@@ -55,7 +55,7 @@ export const QuizModel: QuizModelLogic = ({
                     routine: await shapeHelper({ relation: "routine", relTypes: ["Connect"], isOneToOne: true, objectType: "Routine", parentRelationshipName: "quizzes", data, ...rest }),
                     quizQuestions: await shapeHelper({ relation: "quizQuestions", relTypes: ["Create"], isOneToOne: false, objectType: "QuizQuestion", parentRelationshipName: "answers", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
-                }
+                };
             },
             update: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as QuizPre;
@@ -71,7 +71,7 @@ export const QuizModel: QuizModelLogic = ({
                     routine: await shapeHelper({ relation: "routine", relTypes: ["Connect", "Disconnect"], isOneToOne: true, objectType: "Routine", parentRelationshipName: "quizzes", data, ...rest }),
                     quizQuestions: await shapeHelper({ relation: "quizQuestions", relTypes: ["Create", "Update", "Delete"], isOneToOne: false, objectType: "QuizQuestion", parentRelationshipName: "answers", data, ...rest }),
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
-                }
+                };
             },
         },
         trigger: {
@@ -141,19 +141,23 @@ export const QuizModel: QuizModelLogic = ({
             routine: "Routine",
         }),
         visibility: {
-            private: {
-                OR: [
-                    { isPrivate: true },
-                    { project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.private },
-                    { routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.private },
-                ],
+            private: function getVisibilityPrivate(...params) {
+                return {
+                    OR: [
+                        { isPrivate: true },
+                        { project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.private(...params) },
+                        { routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.private(...params) },
+                    ],
+                };
             },
-            public: {
-                AND: [
-                    { isPrivate: false },
-                    { project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.public },
-                    { routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.public },
-                ],
+            public: function getVisibilityPublic(...params) {
+                return {
+                    AND: [
+                        { isPrivate: false },
+                        { project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.public(...params) },
+                        { routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.public(...params) },
+                    ],
+                };
             },
             owner: (userId) => ({ createdBy: { id: userId } }),
         },

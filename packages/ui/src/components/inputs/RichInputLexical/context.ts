@@ -4,7 +4,7 @@ import { LexicalEditor } from "./editor";
 export const LexicalComposerContext: React.Context<LexicalEditor | null> =
     createReactContext<LexicalEditor | null>(null);
 
-export const useLexicalComposerContext = () => {
+export function useLexicalComposerContext() {
     const composerContext = useContext(LexicalComposerContext);
     return composerContext;
-};
+}

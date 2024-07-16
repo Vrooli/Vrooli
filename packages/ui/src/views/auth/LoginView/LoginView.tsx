@@ -5,13 +5,13 @@ import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordT
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
-import { Field, Formik } from "formik";
+import { Field, Formik, FormikHelpers } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { formNavLink, formPaper, formSubmit } from "forms/styles";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useReactSearch } from "hooks/useReactSearch";
 import { EmailIcon } from "icons";
-import { useContext, useEffect, useMemo } from "react";
+import { useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { clickSize } from "styles";
@@ -23,10 +23,40 @@ import { LoginViewProps } from "views/types";
 interface LoginFormProps {
     onClose?: () => unknown;
 }
+type FormValues = typeof initialValues;
 
-const LoginForm = ({
+const initialValues = {
+    email: "",
+    password: "",
+};
+
+const baseFormStyle = {
+    ...formPaper,
+    paddingBottom: "unset",
+} as const;
+
+const forgotPasswordLinkStyle = {
+    ...clickSize,
+    ...formNavLink,
+} as const;
+
+const signUpLinkStyle = {
+    ...clickSize,
+    ...formNavLink,
+    flexDirection: "row-reverse",
+} as const;
+
+const emailStartAdornment = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <EmailIcon />
+        </InputAdornment>
+    ),
+};
+
+function LoginForm({
     onClose,
-}: LoginFormProps) => {
+}: LoginFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -53,6 +83,7 @@ const LoginForm = ({
                     onSuccess: (data) => {
                         PubSub.get().publish("snack", { messageKey: "EmailVerified", severity: "Success" });
                         PubSub.get().publish("session", data);
+                        localStorage.setItem("isLoggedIn", "true");
                         setLocation(redirect ?? LINKS.Home);
                     },
                     onError: (response) => {
@@ -70,6 +101,44 @@ const LoginForm = ({
         }
     }, [emailLogIn, verificationCode, redirect, setLocation, userId]);
 
+    const onSubmit = useCallback(function onSubmitCallback(values: FormValues, helpers: FormikHelpers<FormValues>) {
+        fetchLazyWrapper<EmailLogInInput, Session>({
+            fetch: emailLogIn,
+            inputs: { ...values, verificationCode },
+            successCondition: (data) => data !== null,
+            onSuccess: (data) => {
+                removeCookie("FormData"); // Clear old form data cache
+                if (verificationCode) PubSub.get().publish("snack", { messageKey: "EmailVerified", severity: "Success" });
+                PubSub.get().publish("session", data);
+                setLocation(redirect ?? LINKS.Home);
+            },
+            showDefaultErrorSnack: false,
+            onError: (response) => {
+                // Custom dialog for changing password
+                if (hasErrorCode(response, "MustResetPassword")) {
+                    PubSub.get().publish("alertDialog", {
+                        messageKey: "ChangePasswordBeforeLogin",
+                        buttons: [
+                            { labelKey: "Ok", onClick: () => { setLocation(redirect ?? LINKS.Home); } },
+                        ],
+                    });
+                }
+                // Custom snack for invalid email, that has sign up link
+                else if (hasErrorCode(response, "EmailNotFound")) {
+                    PubSub.get().publish("snack", {
+                        messageKey: "EmailNotFound",
+                        severity: "Error",
+                        buttonKey: "SignUp",
+                        buttonClicked: () => { setLocation(LINKS.Signup); },
+                    });
+                } else {
+                    PubSub.get().publish("snack", { message: errorToMessage(response, ["en"]), severity: "Error", data: response });
+                }
+                helpers.setSubmitting(false);
+            },
+        });
+    }, [emailLogIn, redirect, setLocation, verificationCode]);
+
     return (
         <>
             <TopBar
@@ -78,56 +147,14 @@ const LoginForm = ({
                 title={t("LogIn")}
             />
             <Formik
-                initialValues={{
-                    email: "",
-                    password: "",
-                }}
-                onSubmit={(values, helpers) => {
-                    fetchLazyWrapper<EmailLogInInput, Session>({
-                        fetch: emailLogIn,
-                        inputs: { ...values, verificationCode },
-                        successCondition: (data) => data !== null,
-                        onSuccess: (data) => {
-                            removeCookie("FormData"); // Clear old form data cache
-                            if (verificationCode) PubSub.get().publish("snack", { messageKey: "EmailVerified", severity: "Success" });
-                            PubSub.get().publish("session", data);
-                            setLocation(redirect ?? LINKS.Home);
-                        },
-                        showDefaultErrorSnack: false,
-                        onError: (response) => {
-                            // Custom dialog for changing password
-                            if (hasErrorCode(response, "MustResetPassword")) {
-                                PubSub.get().publish("alertDialog", {
-                                    messageKey: "ChangePasswordBeforeLogin",
-                                    buttons: [
-                                        { labelKey: "Ok", onClick: () => { setLocation(redirect ?? LINKS.Home); } },
-                                    ],
-                                });
-                            }
-                            // Custom snack for invalid email, that has sign up link
-                            else if (hasErrorCode(response, "EmailNotFound")) {
-                                PubSub.get().publish("snack", {
-                                    messageKey: "EmailNotFound",
-                                    severity: "Error",
-                                    buttonKey: "SignUp",
-                                    buttonClicked: () => { setLocation(LINKS.Signup); },
-                                });
-                            } else {
-                                PubSub.get().publish("snack", { message: errorToMessage(response, ["en"]), severity: "Error", data: response });
-                            }
-                            helpers.setSubmitting(false);
-                        },
-                    });
-                }}
+                initialValues={initialValues}
+                onSubmit={onSubmit}
                 validationSchema={emailLogInFormValidation}
             >
                 {(formik) => <BaseForm
                     display={"dialog"}
                     isLoading={loading}
-                    style={{
-                        ...formPaper,
-                        paddingBottom: "unset",
-                    }}
+                    style={baseFormStyle}
                 >
                     <Grid container spacing={2}>
                         <Grid item xs={12}>
@@ -139,13 +166,7 @@ const LoginForm = ({
                                 label={t("Email", { count: 1 })}
                                 placeholder={t("EmailPlaceholder")}
                                 as={TextInput}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <EmailIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={emailStartAdornment}
                                 helperText={formik.touched.email && formik.errors.email}
                                 error={formik.touched.email && Boolean(formik.errors.email)}
                             />
@@ -164,33 +185,26 @@ const LoginForm = ({
                         type="submit"
                         color="secondary"
                         variant='contained'
-                        sx={{ ...formSubmit }}
+                        sx={formSubmit}
                     >
                         {t("LogIn")}
                     </Button>
-                    <Box sx={{
-                        display: "flex",
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                    }}>
+                    <Box
+                        display="flex"
+                        flexDirection="row"
+                        justifyContent="space-between"
+                        alignItems="center"
+                    >
                         <Link href={LINKS.ForgotPassword}>
                             <Typography
-                                sx={{
-                                    ...clickSize,
-                                    ...formNavLink,
-                                }}
+                                sx={forgotPasswordLinkStyle}
                             >
                                 {t("ForgotPassword")}
                             </Typography>
                         </Link>
                         <Link href={LINKS.Signup}>
                             <Typography
-                                sx={{
-                                    ...clickSize,
-                                    ...formNavLink,
-                                    flexDirection: "row-reverse",
-                                }}
+                                sx={signUpLinkStyle}
                             >
                                 {t("SignUp")}
                             </Typography>
@@ -200,12 +214,12 @@ const LoginForm = ({
             </Formik>
         </>
     );
-};
+}
 
-export const LoginView = ({
+export function LoginView({
     display,
     onClose,
-}: LoginViewProps) => {
+}: LoginViewProps) {
     const { palette } = useTheme();
 
     return (
@@ -213,7 +227,7 @@ export const LoginView = ({
             <TopBar
                 display={display}
                 onClose={onClose}
-                hideTitleOnDesktop
+                titleBehaviorDesktop="ShowBelow"
             />
             <Box
                 sx={{
@@ -231,4 +245,4 @@ export const LoginView = ({
             </Box>
         </Box>
     );
-};
+}

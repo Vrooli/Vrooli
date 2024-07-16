@@ -1,15 +1,16 @@
-import { ChatParticipant, ChatSocketEventPayloads, DUMMY_ID, LlmTask, LlmTaskInfo, Session } from "@local/shared";
+import { ChatSocketEventPayloads, DUMMY_ID, JOIN_CHAT_ROOM_ERRORS, LlmTask, LlmTaskInfo, Session } from "@local/shared";
 import { emitSocketEvent, onSocketEvent } from "api";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
-import { getCookieTasksForMessage, removeCookieMatchingChat, setCookieMatchingChat, setCookieTaskForMessage } from "utils/cookies";
+import { getCookieTasksForMessage, removeCookieMatchingChat, removeCookiesWithChatId, setCookieMatchingChat, setCookieTaskForMessage } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
 import { ChatShape } from "utils/shape/models/chat";
 import { ChatMessageShape } from "utils/shape/models/chatMessage";
+import { ChatParticipantShape } from "utils/shape/models/chatParticipant";
 import { useThrottle } from "./useThrottle";
 
-type ParticipantWithoutChat = Omit<ChatParticipant, "chat">;
+type ParticipantWithoutChat = Omit<ChatParticipantShape, "chat">;
 
 type UseWebSocketEventsProps = {
     addMessages: (newMessages: ChatMessageShape[]) => unknown;
@@ -26,12 +27,12 @@ type UseWebSocketEventsProps = {
     usersTyping: ParticipantWithoutChat[];
 }
 
-export const processMessages = (
+export function processMessages(
     { added, deleted, edited }: ChatSocketEventPayloads["messages"],
     addMessages: UseWebSocketEventsProps["addMessages"],
     removeMessages: UseWebSocketEventsProps["removeMessages"],
     editMessage: UseWebSocketEventsProps["editMessage"],
-) => {
+) {
     if (Array.isArray(added) && added.length > 0) {
         addMessages(added.map(m => ({ ...m, status: "sent" })));
     }
@@ -43,15 +44,15 @@ export const processMessages = (
             editMessage({ ...message, status: "sent" });
         });
     }
-};
+}
 
-export const processTypingUpdates = (
+export function processTypingUpdates(
     { starting, stopping }: ChatSocketEventPayloads["typing"],
     usersTyping: UseWebSocketEventsProps["usersTyping"],
     participants: UseWebSocketEventsProps["participants"],
     session: Session | undefined,
     setUsersTyping: UseWebSocketEventsProps["setUsersTyping"],
-) => {
+) {
     // Add every user that's typing
     const newTyping = JSON.parse(JSON.stringify(usersTyping)) as ParticipantWithoutChat[];
     for (const id of starting ?? []) {
@@ -75,15 +76,15 @@ export const processTypingUpdates = (
         return;
     }
     setUsersTyping(newTyping);
-};
+}
 
-export const processParticipantsUpdates = (
+export function processParticipantsUpdates(
     { joining, leaving }: ChatSocketEventPayloads["participants"],
     participants: UseWebSocketEventsProps["participants"],
     chat: UseWebSocketEventsProps["chat"],
     task: UseWebSocketEventsProps["task"],
     setParticipants: UseWebSocketEventsProps["setParticipants"],
-) => {
+) {
     // Remove cache data for old participants group
     const existingUserIds = participants.map(p => p.user.id);
     removeCookieMatchingChat(existingUserIds, task);
@@ -107,13 +108,13 @@ export const processParticipantsUpdates = (
         return;
     }
     setParticipants(updatedParticipants);
-};
+}
 
-export const processLlmTasks = (
+export function processLlmTasks(
     { tasks, updates }: ChatSocketEventPayloads["llmTasks"],
     messageTasks: UseWebSocketEventsProps["messageTasks"],
     updateTasksForMessage: UseWebSocketEventsProps["updateTasksForMessage"],
-) => {
+) {
     console.log("yeeeet processing new llm tasks", messageTasks, updates);
     // Combine full tasks and updates into a single operation per messageId
     const combinedTasksByMessageId: Record<string, LlmTaskInfo[]> = {};
@@ -179,14 +180,14 @@ export const processLlmTasks = (
             updateTasksForMessage(messageId, JSON.parse(JSON.stringify(updatedTasks.tasks)));
         }
     });
-};
+}
 
-export const processResponseStream = (
+export function processResponseStream(
     { __type, botId, message }: ChatSocketEventPayloads["responseStream"],
     messageStreamRef: React.MutableRefObject<ChatSocketEventPayloads["responseStream"] | null>,
     setMessageStream: (stream: ChatSocketEventPayloads["responseStream"] | null) => void,
     throttledSetMessageStream: (stream: ChatSocketEventPayloads["responseStream"] | null) => void,
-) => {
+) {
     // Initialize ref if it doesn't exist
     if (!messageStreamRef.current) {
         messageStreamRef.current = { __type, message: "" };
@@ -218,13 +219,13 @@ export const processResponseStream = (
         // Update state on throttle
         throttledSetMessageStream(messageStreamRef.current);
     }
-};
+}
 
 /** 
  * Handles the modification of a chat through web socket events, 
  * as well as the relevant localStorage caching.
  */
-export const useSocketChat = ({
+export function useSocketChat({
     addMessages,
     chat,
     editMessage,
@@ -236,16 +237,21 @@ export const useSocketChat = ({
     task,
     updateTasksForMessage,
     usersTyping,
-}: UseWebSocketEventsProps) => {
+}: UseWebSocketEventsProps) {
     const session = useContext(SessionContext);
 
     // Handle connection/disconnection
-    useEffect(() => {
+    useEffect(function connectToChatEffect() {
         if (!chat?.id || chat.id === DUMMY_ID) return;
 
         emitSocketEvent("joinChatRoom", { chatId: chat.id }, (response) => {
             if (response.error) {
                 PubSub.get().publish("snack", { messageKey: "ChatRoomJoinFailed", severity: "Error" });
+                // If the response indicates that the chat was deleted or is unauthorized,
+                // we should remove all references to this chat from local storage
+                if (response.error === JOIN_CHAT_ROOM_ERRORS.ChatNotFoundOrUnauthorized) {
+                    removeCookiesWithChatId(chat.id);
+                }
             }
         });
 
@@ -288,4 +294,4 @@ export const useSocketChat = ({
     useEffect(() => onSocketEvent("responseStream", (payload) => processResponseStream(payload, messageStreamRef, setMessageStream, throttledSetMessageStream)), [throttledSetMessageStream]);
 
     return { messageStream };
-};
+}

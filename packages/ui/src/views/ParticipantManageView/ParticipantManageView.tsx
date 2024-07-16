@@ -1,5 +1,5 @@
 import { ChatInvite, ChatInviteStatus, DUMMY_ID, ListObject, noop, User, uuidValidate } from "@local/shared";
-import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
+import { Box, Tooltip, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
@@ -12,6 +12,7 @@ import { useTabs } from "hooks/useTabs";
 import { ActionIcon, AddIcon, CancelIcon, DeleteIcon, EditIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { SideActionsButton } from "styles";
 import { BulkObjectAction } from "utils/actions/bulkObjectActions";
 import { ParticipantManagePageTabOption, participantTabParams } from "utils/search/objectToSearch";
 import { ChatInviteShape } from "utils/shape/models/chatInvite";
@@ -21,12 +22,12 @@ import { ParticipantManageViewProps } from "../types";
 /**
  * View participants and invited participants of an chat
  */
-export const ParticipantManageView = ({
+export function ParticipantManageView({
     chat,
     display,
     onClose,
     isOpen,
-}: ParticipantManageViewProps) => {
+}: ParticipantManageViewProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -78,9 +79,9 @@ export const ParticipantManageView = ({
         } as const));
         setInvitesToUpsert(asInvites);
     }, [chat.id, currTab.key, selectedData]);
-    const onInviteCompleted = (invites: ChatInvite[]) => {
+    function onInviteCompleted(invites: ChatInvite[]) {
         setInvitesToUpsert([]);
-    };
+    }
 
     // Handle deleting participants
     const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions<ListObject>({
@@ -99,9 +100,9 @@ export const ParticipantManageView = ({
         // If not selecting, show select button
         if (!isSelecting) {
             buttons.push(<Tooltip title={t("Select")}>
-                <IconButton aria-label={t("Select")} onClick={handleToggleSelecting} sx={{ background: palette.secondary.main }}>
+                <SideActionsButton aria-label={t("Select")} onClick={handleToggleSelecting} sx={{ background: palette.secondary.main }}>
                     <ActionIcon {...actionIconProps} />
-                </IconButton>
+                </SideActionsButton>
             </Tooltip>);
             return buttons;
         }
@@ -109,31 +110,31 @@ export const ParticipantManageView = ({
         if (selectedData.length > 0) {
             if ([ParticipantManagePageTabOption.ChatParticipant, ParticipantManagePageTabOption.ChatInvite].includes(currTab.key as ParticipantManagePageTabOption)) {
                 buttons.push(<Tooltip title={t("Delete")}>
-                    <IconButton aria-label={t("Delete")} onClick={() => { onBulkActionStart(BulkObjectAction.Delete); }} sx={{ background: palette.secondary.main }}>
+                    <SideActionsButton aria-label={t("Delete")} onClick={() => { onBulkActionStart(BulkObjectAction.Delete); }}>
                         <DeleteIcon {...actionIconProps} />
-                    </IconButton>
+                    </SideActionsButton>
                 </Tooltip>);
             }
             if (currTab.key === ParticipantManagePageTabOption.ChatInvite) {
                 buttons.push(<Tooltip title={t("Edit")}>
-                    <IconButton aria-label={t("Edit")} onClick={handleInvitesUpdate} sx={{ background: palette.secondary.main }}>
+                    <SideActionsButton aria-label={t("Edit")} onClick={handleInvitesUpdate}>
                         <EditIcon {...actionIconProps} />
-                    </IconButton>
+                    </SideActionsButton>
                 </Tooltip>);
             }
             if (currTab.key === ParticipantManagePageTabOption.Add) {
                 buttons.push(<Tooltip title={t("Add")}>
-                    <IconButton aria-label={t("Add")} onClick={handleInvitesCreate} sx={{ background: palette.secondary.main }}>
+                    <SideActionsButton aria-label={t("Add")} onClick={handleInvitesCreate}>
                         <AddIcon {...actionIconProps} />
-                    </IconButton>
+                    </SideActionsButton>
                 </Tooltip>);
             }
         }
         // Show cancel button to exit selection mode
         buttons.push(<Tooltip title={t("Cancel")}>
-            <IconButton aria-label={t("Cancel")} onClick={handleToggleSelecting} sx={{ background: palette.secondary.main }}>
+            <SideActionsButton aria-label={t("Cancel")} onClick={handleToggleSelecting}>
                 <CancelIcon {...actionIconProps} />
-            </IconButton>
+            </SideActionsButton>
         </Tooltip>);
         return buttons;
     }, [palette.secondary.contrastText, palette.secondary.main, isSelecting, selectedData.length, t, handleToggleSelecting, currTab.key, onBulkActionStart, handleInvitesUpdate, handleInvitesCreate]);
@@ -183,7 +184,6 @@ export const ParticipantManageView = ({
                     {...findManyData}
                     id="participant-manage-list"
                     display={display}
-                    dummyLength={display === "page" ? 5 : 3}
                     handleToggleSelect={handleToggleSelect}
                     isSelecting={isSelecting}
                     selectedItems={selectedData}
@@ -214,4 +214,4 @@ export const ParticipantManageView = ({
             </SideActionsButtons>
         </MaybeLargeDialog>
     );
-};
+}

@@ -505,8 +505,12 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             user: "User",
         }),
         visibility: {
-            private: {},
-            public: {},
+            private: function getVisibilityPrivate() {
+                return {};
+            },
+            public: function getVisibilityPublic() {
+                return {};
+            },
             owner: (userId) => ({
                 chat: ModelMap.get<ChatModelLogic>("Chat").validate().visibility.owner(userId),
             }),

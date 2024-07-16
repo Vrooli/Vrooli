@@ -6,6 +6,12 @@ import { SlideContainer } from "styles";
 import { SlideContainerNeonProps } from "../types";
 
 const blackRadial = "radial-gradient(circle, rgb(6 6 46) 12%, rgb(1 1 36) 52%, rgb(3 3 20) 80%)";
+const slideStyle = {
+    background: blackRadial,
+    backgroundAttachment: "fixed",
+    color: "white",
+    zIndex: 5,
+} as const;
 
 type Config = {
     X_CHUNK: number;
@@ -46,10 +52,12 @@ const POINT_SLOW_DOWN_RATE = 0.8;
 const CHUNK_SIZE_CONSTANT = 0.8;
 /** The number of particle that a chunk can contain. */
 const CHUNK_CAPACITY = 15;
+/** Multiplier for adding/removing decimals */
+const DECIMAL_MULTIPLIER = 100;
 
 const canvasStyle = `position:fixed;top:0;left:0;opacity:${OPACITY}`;
 
-const rand = (min: number, max: number) => (max - min) * Math.random() + min;
+function rand(min: number, max: number) { return (max - min) * Math.random() + min; }
 
 class Point {
     x: number;
@@ -261,8 +269,8 @@ class Simulator {
             for (let cj = 0; cj < this.c.Y_CHUNK; cj++) {
                 const chunk = this.grid.chunks[ci][cj];
                 const index = (ci * this.c.Y_CHUNK + cj) * 2;
-                this.chunkBoundaries[index] = (chunk.x + chunk.w) * 100; //Remove decimal places
-                this.chunkBoundaries[index + 1] = (chunk.y + chunk.h) * 100; //Remove decimal places
+                this.chunkBoundaries[index] = (chunk.x + chunk.w) * DECIMAL_MULTIPLIER; //Remove decimal places
+                this.chunkBoundaries[index + 1] = (chunk.y + chunk.h) * DECIMAL_MULTIPLIER; //Remove decimal places
             }
         }
     }
@@ -359,8 +367,8 @@ class Simulator {
         for (let cj = 0; cj <= MAX_Y; cj++) {
             const chunk = this.grid.chunks[ci][cj];
             const boundariesIndex = (ci * this.c.Y_CHUNK + cj) * 2;
-            const right_x = this.chunkBoundaries[boundariesIndex] / 100; // Add decimal places back
-            const right_y = this.chunkBoundaries[boundariesIndex + 1] / 100; // Add decimal places back
+            const right_x = this.chunkBoundaries[boundariesIndex] / DECIMAL_MULTIPLIER; // Add decimal places back
+            const right_y = this.chunkBoundaries[boundariesIndex + 1] / DECIMAL_MULTIPLIER; // Add decimal places back
 
             chunk.traversed = false; // reset status for next frame
 
@@ -562,14 +570,12 @@ class ParticleCanvas {
  * Custom slide container for hero section. 
  * Background is black with neon blobs that move around and grow/shrink
  */
-export const SlideContainerNeon = ({
+export function SlideContainerNeon({
     id,
     children,
-    show,
-    sx,
-}: SlideContainerNeonProps) => {
+}: SlideContainerNeonProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const { breakpoints, palette } = useTheme();
+    const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
     useEffect(() => {
@@ -583,17 +589,11 @@ export const SlideContainerNeon = ({
         <SlideContainer
             id={id}
             key={id}
-            sx={{
-                // Set background and color
-                background: blackRadial,
-                backgroundAttachment: "fixed",
-                color: "white",
-                ...sx,
-            }}
+            sx={slideStyle}
         >
             <canvas ref={canvasRef} />
             <RandomBlobs numberOfBlobs={isMobile ? 5 : 8} />
             {children}
         </SlideContainer>
     );
-};
+}

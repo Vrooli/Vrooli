@@ -3,11 +3,11 @@ import usePress from "hooks/usePress";
 import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";
 import { BuildAction } from "utils/consts";
-import { calculateNodeSize, NodeContextMenu, NodeWidth } from "../..";
+import { NodeContextMenu, NodeWidth, calculateNodeSize } from "../..";
 import { nodeLabel } from "../styles";
 import { StartNodeProps } from "../types";
 
-export const StartNode = ({
+export function StartNode({
     handleAction,
     node,
     scale = 1,
@@ -15,7 +15,7 @@ export const StartNode = ({
     label = "Start",
     labelVisible = true,
     linksOut,
-}: StartNodeProps) => {
+}: StartNodeProps) {
     const { palette } = useTheme();
 
     /**
@@ -57,13 +57,19 @@ export const StartNode = ({
         onRightClick: openContext,
     });
 
+    const availableActions = useMemo(() => {
+        return isEditing ?
+            [BuildAction.AddOutgoingLink] :
+            [];
+    }, [isEditing]);
+
     return (
         <>
             {/* Right-click context menu */}
             <NodeContextMenu
                 id={contextId}
                 anchorEl={contextAnchor}
-                availableActions={[BuildAction.AddOutgoingLink]}
+                availableActions={availableActions}
                 handleClose={closeContext}
                 handleSelect={(option) => { handleAction(option as BuildAction.AddOutgoingLink, node.id); }}
             />
@@ -96,4 +102,4 @@ export const StartNode = ({
             </Tooltip>
         </>
     );
-};
+}

@@ -1,5 +1,5 @@
 import { RoutineType } from "../../api/generated";
-import { YupModel, bool, configCallData, description, enumToYup, id, instructions, name, opt, req, transRel, versionLabel, versionNotes, yupObj } from "../utils";
+import { YupModel, bool, configCallData, configFormInput, configFormOutput, description, enumToYup, id, instructions, name, opt, req, transRel, versionLabel, versionNotes, yupObj } from "../utils";
 import { nodeValidation } from "./node";
 import { nodeLinkValidation } from "./nodeLink";
 import { resourceListValidation } from "./resourceList";
@@ -26,6 +26,8 @@ export const routineVersionValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         configCallData: opt(configCallData),
+        configFormInput: opt(configFormInput),
+        configFormOutput: opt(configFormOutput),
         isComplete: opt(bool),
         isInternal: opt(bool),
         isPrivate: opt(bool),
@@ -37,10 +39,10 @@ export const routineVersionValidation: YupModel<["create", "update"]> = {
         ["apiVersion", ["Connect"], "one", "opt"],
         ["codeVersion", ["Connect"], "one", "opt"],
         ["resourceList", ["Create"], "one", "opt", resourceListValidation],
-        ["nodes", ["Create"], "many", "req", nodeValidation],
-        ["nodeLinks", ["Create"], "many", "req", nodeLinkValidation],
-        ["inputs", ["Create"], "many", "req", routineVersionInputValidation],
-        ["outputs", ["Create"], "many", "req", routineVersionOutputValidation],
+        ["nodes", ["Create"], "many", "opt", nodeValidation],
+        ["nodeLinks", ["Create"], "many", "opt", nodeLinkValidation],
+        ["inputs", ["Create"], "many", "opt", routineVersionInputValidation],
+        ["outputs", ["Create"], "many", "opt", routineVersionOutputValidation],
         ["translations", ["Create"], "many", "opt", routineVersionTranslationValidation],
         ["directoryListings", ["Connect"], "many", "opt"],
         ["suggestedNextByProject", ["Connect"], "many", "opt"],
@@ -48,6 +50,8 @@ export const routineVersionValidation: YupModel<["create", "update"]> = {
     update: (d) => yupObj({
         id: req(id),
         configCallData: opt(configCallData),
+        configFormInput: opt(configFormInput),
+        configFormOutput: opt(configFormOutput),
         isComplete: opt(bool),
         isInternal: opt(bool),
         isPrivate: opt(bool),
