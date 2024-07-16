@@ -232,7 +232,6 @@ export function PageTabs<TabList extends TabsInfo>({
                     palette.primary.contrastText :
                     palette.primary.light);
                 const labelStyle = { color: tabColor } as const;
-                console.log("got tab color", tabColor, providedColor, palette.primary.light, palette.primary.contrastText);
                 function handleClick(event: React.MouseEvent) {
                     handleTabChange(event, index);
                 }

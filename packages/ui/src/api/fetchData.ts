@@ -44,13 +44,13 @@ type FetchDataProps<Input extends object | undefined> = {
  *
  * @throws Will throw an error if the fetch request fails.
  */
-export const fetchData = async <Input extends object | undefined, Output>({
+export async function fetchData<Input extends object | undefined, Output>({
     endpoint,
     method,
     inputs,
     options,
     omitRestBase = false,
-}: FetchDataProps<Input>): Promise<ServerResponseWithTimestamp<Output>> => {
+}: FetchDataProps<Input>): Promise<ServerResponseWithTimestamp<Output>> {
 
     // Replace variables in the endpoint with their values from inputs.
     if (inputs !== undefined) {
@@ -99,4 +99,4 @@ export const fetchData = async <Input extends object | undefined, Output>({
     return fetch(url, finalOptions)
         .then(response => response.json())
         .then(data => ({ ...data, __fetchTimestamp }));
-};
+}

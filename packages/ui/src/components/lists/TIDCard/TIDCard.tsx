@@ -5,7 +5,7 @@ import { TIDCardProps } from "../types";
 /**
  * A card with a title, description, and icon
  */
-export const TIDCard = ({
+export function TIDCard({
     buttonText,
     description,
     Icon,
@@ -14,7 +14,7 @@ export const TIDCard = ({
     title,
     warning,
     ...props
-}: TIDCardProps) => {
+}: TIDCardProps) {
     const { breakpoints, palette } = useTheme();
 
     return (
@@ -84,4 +84,4 @@ export const TIDCard = ({
             </Box>
         </Box >
     );
-};
+}

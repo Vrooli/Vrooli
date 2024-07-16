@@ -8,6 +8,9 @@ import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 import { getDeviceInfo } from "./utils/display/device";
 import { PubSub } from "./utils/pubsub";
 
+// eslint-disable-next-line no-magic-numbers
+const HOURS_1_MS = 60 * 60 * 1000;
+
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
     <Router>
@@ -21,9 +24,12 @@ root.render(
 if (process.env.PROD) {
     serviceWorkerRegistration.register({
         onUpdate: (registration) => {
+            console.log("onUpdate", registration);
             if (registration && registration.waiting) {
                 registration.waiting.postMessage({ type: "SKIP_WAITING" });
                 PubSub.get().publish("snack", {
+                    autoHideDuration: "persist",
+                    id: "pwa-update",
                     message: "New version available!",
                     buttonKey: "Reload",
                     buttonClicked: function updateVersionButtonClicked() {
@@ -35,13 +41,51 @@ if (process.env.PROD) {
     });
     if ("serviceWorker" in navigator) {
         navigator.serviceWorker.ready.then((registration) => {
-            // Add listener to detect new updates, so we can show a message to the user
-            // registration.addEventListener("updatefound", () => {
-            //     PubSub.get().publish("snack", { message: "Downloading updates...", autoHideDuration: "persist" });
-            // });
-            // Send message to service worker to let it know if this is a standalone (i.e. downloaded) PWA. 
-            // Standalone PWAs come with more assets, like splash screens.
-            //TODO not used yet
+            // Check for updates periodically
+            setInterval(() => { registration.update(); }, HOURS_1_MS);
+
+            // Listen for updatefound event
+            registration.addEventListener("updatefound", () => {
+                console.log("New service worker found", registration.installing, registration);
+                const newWorker = registration.installing;
+
+                function handleUpdateState() {
+                    console.log("in handleUpdateState", newWorker.state);
+                    if (newWorker.state === "installing") {
+                        PubSub.get().publish("snack", {
+                            autoHideDuration: "persist",
+                            id: "pwa-update",
+                            message: "Downloading updates...",
+                        });
+                    } else if (newWorker.state === "activated") {
+                        PubSub.get().publish("snack", {
+                            autoHideDuration: "persist",
+                            id: "pwa-update",
+                            message: "New version available!",
+                            buttonKey: "Reload",
+                            buttonClicked: function updateVersionButtonClicked() {
+                                window.location.reload();
+                            },
+                        });
+                    }
+                }
+
+                newWorker.addEventListener("statechange", () => {
+                    console.log("in statechange", newWorker.state);
+                    handleUpdateState();
+                });
+                handleUpdateState();
+            });
+
+            // Listen for controlling change
+            navigator.serviceWorker.addEventListener("controllerchange", () => {
+                if (!refreshing) {
+                    refreshing = true;
+                    window.location.reload();
+                }
+            });
+
+            // Send message about standalone status
             registration.active.postMessage({
                 type: "IS_STANDALONE",
                 isStandalone: getDeviceInfo().isStandalone,

@@ -17,8 +17,9 @@ const { registerRoute } = (workbox.routing);
 const { CacheFirst } = (workbox.strategies);
 
 const CACHE_NAME = "vrooli-cache";
-const CURRENT_CACHE_VERSION = "2023-08-01"; // Change this value to force a cache update
+const CURRENT_CACHE_VERSION = "2024-07-16-g"; // Change this value to force a cache update
 
+// eslint-disable-next-line no-magic-numbers
 const DAYS_30_SECONDS = 30 * 24 * 60 * 60;
 const CACHE_EXPIRATION = DAYS_30_SECONDS;
 
@@ -87,37 +88,25 @@ registerRoute(
     }),
 );
 
-// This allows the web app to trigger skipWaiting via
-// registration.waiting.postMessage({type: 'SKIP_WAITING'})
+// Listen to events sent from the main application (`index.jsx`)
 self.addEventListener("message", (event) => {
     if (event.data && event.data.type === "SKIP_WAITING") {
         self.skipWaiting();
     }
+    // if (event.data && event.data.type === "SW_UPDATE_CHECK") {
+    //     console.log("post received from client: SW_UPDATE_CHECK");
+    //     event.source.postMessage({ type: "SW_UPDATE_START" });
+    // }
 });
 
-// self.addEventListener('install', (event) => {
-//     console.log('Service worker installing...', event);
-//     // Send a message to the main application, so we can show a snack 
-//     // message warning the user that the application is being updated
-//     self.clients.matchAll().then((clients) => {
-//         clients.forEach((client) => {
-//             console.log('service worker sending message to client', client)
-//             client.postMessage({ type: 'SW_UPDATE_START' });
-//         });
-//     });
-//     event.waitUntil(self.skipWaiting());
-// });
-
+// Listen for the install event
 self.addEventListener("install", (event) => {
     console.log("Service worker installing...", event);
+    // Instruct the service worker to skip waiting and immediately become active
     event.waitUntil(self.skipWaiting());
-});
-
-self.addEventListener("message", (event) => {
-    if (event.data && event.data.type === "SW_UPDATE_CHECK") {
-        console.log("post received from client: SW_UPDATE_CHECK");
-        event.source.postMessage({ type: "SW_UPDATE_START" });
-    }
+    // NOTE: You can't send a message to the main application here, because
+    // the OLD service worker is still in control of the page. That means the 
+    // NEW one (i.e. this one) can't communicate with the main application yet.
 });
 
 self.addEventListener("activate", (event) => {

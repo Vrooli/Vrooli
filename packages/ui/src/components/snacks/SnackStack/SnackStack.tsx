@@ -8,12 +8,14 @@ import { BasicSnack, SnackSeverity } from "../BasicSnack/BasicSnack";
 import { CookiesSnack } from "../CookiesSnack/CookiesSnack";
 import { BasicSnackProps } from "../types";
 
+const MAX_SNACKS = 3;
+
 /**
  * Displays a stack of snack messages. 
  * Most messages disappear after a few seconds, but some are persistent (e.g. No Internet Connection).
  * No more than 3 ephemeral messages are displayed at once.
  */
-export const SnackStack = () => {
+export function SnackStack() {
     const { t } = useTranslation();
 
     // FIFO queue of basic snackbars
@@ -22,19 +24,23 @@ export const SnackStack = () => {
     const [isCookieSnackOpen, setIsCookieSnackOpen] = useState<boolean>(false);
 
     // Remove an item from the queue by id
-    const handleClose = (id: string) => {
+    function handleClose(id: string) {
         setSnacks((prev) => [...prev.filter((snack) => snack.id !== id)]);
-    };
+    }
+
+    function closeCookieSnack() {
+        setIsCookieSnackOpen(false);
+    }
 
     // Subscribe to snack events
-    useEffect(() => {
+    useEffect(function subscribeEffect() {
         // Subscribe to basic snacks
         const snackSub = PubSub.get().subscribe("snack", (o) => {
             // Add the snack to the queue
             setSnacks((snacks) => {
                 // event can define an id, or we generate one
                 const id = o.id ?? uuid();
-                let newSnacks = [...snacks, {
+                const newSnack: BasicSnackProps = {
                     autoHideDuration: o.autoHideDuration,
                     buttonClicked: (props) => { o.buttonClicked?.(props); handleClose(id); },
                     buttonText: o.buttonKey ? t(o.buttonKey, { ...o.buttonVariables, defaultValue: o.buttonKey }) : undefined,
@@ -45,14 +51,18 @@ export const SnackStack = () => {
                         (o as UntranslatedSnackMessage).message :
                         translateSnackMessage((o as TranslatedSnackMessage).messageKey, (o as TranslatedSnackMessage).messageVariables, o.severity === "Error" ? "error" : undefined).message,
                     severity: o.severity as SnackSeverity,
-                }];
-                // Filter out same ids
-                newSnacks = newSnacks.filter((snack, index, self) => { return self.findIndex((s) => s.id === snack.id) === index; });
-                // Limit the number of snacks
-                if (newSnacks.length > 3) {
-                    newSnacks = newSnacks.slice(1);
+                };
+                // If a snack with the same id is already in the queue, replace it
+                const alreadyHasId = snacks.some((snack) => snack.id === id);
+                let updatedSnacks = [...snacks.map((snack) => snack.id === id ? newSnack : snack)];
+                // If snack did not replace any existing snack, add it to the end
+                if (!alreadyHasId) {
+                    updatedSnacks.push(newSnack);
                 }
-                return newSnacks;
+                if (updatedSnacks.length > MAX_SNACKS) {
+                    updatedSnacks = updatedSnacks.slice(1);
+                }
+                return updatedSnacks;
             });
         });
         // Subscribe to special snack events
@@ -87,7 +97,7 @@ export const SnackStack = () => {
             ))}
             {/* Special snacks below */}
             {/* Cookie snack */}
-            {isCookieSnackOpen && <CookiesSnack handleClose={() => setIsCookieSnackOpen(false)} />}
+            {isCookieSnackOpen && <CookiesSnack handleClose={closeCookieSnack} />}
         </Stack>
     );
-};
+}

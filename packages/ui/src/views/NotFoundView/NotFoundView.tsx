@@ -7,6 +7,10 @@ import { useTranslation } from "react-i18next";
 import { Link } from "route";
 import { SlideImage, SlideImageContainer } from "styles";
 
+function goBack() {
+    window.history.back();
+}
+
 export function NotFoundView() {
     const { t } = useTranslation();
     const hasPreviousPage = Boolean(sessionStorage.getItem("lastPath"));
@@ -15,8 +19,8 @@ export function NotFoundView() {
         <>
             <TopBar
                 display="page"
-                title={t("PageNotFound", { ns: "error", defaultValue: "Page Not Found" })}
                 titleBehaviorDesktop="Hide"
+                titleBehaviorMobile="Hide"
             />
             <Box
                 sx={{
@@ -43,7 +47,7 @@ export function NotFoundView() {
                     {hasPreviousPage ? (
                         <Button
                             variant="contained"
-                            onClick={() => { window.history.back(); }}
+                            onClick={goBack}
                             startIcon={<ArrowLeftIcon />}
                         >{t("GoBack")}</Button>
                     ) : null}

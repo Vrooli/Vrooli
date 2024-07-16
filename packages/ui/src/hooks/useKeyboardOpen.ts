@@ -5,7 +5,7 @@ import { getDeviceInfo } from "utils/display/device";
  * Hook to detect if the keyboard is open or not. 
  * Useful for hiding fixed elements (e.g. BottomNav).
  */
-export const useKeyboardOpen = (): boolean => {
+export function useKeyboardOpen(): boolean {
     const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
     useEffect(() => {
@@ -42,4 +42,4 @@ export const useKeyboardOpen = (): boolean => {
     // }, []);
 
     return isKeyboardOpen;
-};
+}

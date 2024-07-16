@@ -12,7 +12,7 @@ export enum SnackSeverity {
     Warning = "Warning",
 }
 
-const iconColor = (severity: SnackSeverity | `${SnackSeverity}` | undefined, palette: Palette) => {
+function iconColor(severity: SnackSeverity | `${SnackSeverity}` | undefined, palette: Palette) {
     switch (severity) {
         case "Error":
             return palette.error.dark;
@@ -25,13 +25,13 @@ const iconColor = (severity: SnackSeverity | `${SnackSeverity}` | undefined, pal
         default:
             return palette.primary.light;
     }
-};
+}
 /**
  * Basic snack item in the snack stack. 
  * Look changes based on severity. 
  * Supports a button with a callback.
  */
-export const BasicSnack = ({
+export function BasicSnack({
     autoHideDuration,
     buttonClicked,
     buttonText,
@@ -40,7 +40,7 @@ export const BasicSnack = ({
     id,
     message,
     severity,
-}: BasicSnackProps) => {
+}: BasicSnackProps) {
     const { palette } = useTheme();
     const [open, setOpen] = useState<boolean>(true);
     const [isHovered, setIsHovered] = useState<boolean>(false);
@@ -53,12 +53,12 @@ export const BasicSnack = ({
     const snackRef = useRef<HTMLDivElement>(null);
 
     // Handle the start of a touch
-    const handleTouchStart = useCallback((e: TouchEvent) => {
+    const handleTouchStart = useCallback(function handleTouchStartCallback(e: TouchEvent) {
         setTouchStart(e.targetTouches[0].clientX);
     }, []);
 
     // Handle the touch movement
-    const handleTouchMove = useCallback((e: TouchEvent) => {
+    const handleTouchMove = useCallback(function handleTouchMoveCallback(e: TouchEvent) {
         if (touchStart === null) return;
         const moveDistance = e.targetTouches[0].clientX - touchStart;
         if (Math.abs(moveDistance) > 10) {  // Threshold to determine a swipe
@@ -68,7 +68,7 @@ export const BasicSnack = ({
     }, [touchStart]);
 
     // Handle the end of a touch
-    const handleTouchEnd = useCallback(() => {
+    const handleTouchEnd = useCallback(function handleTouchEndCallback() {
         // Define the minimum swipe distance
         const minSwipeDistance = 50;
         if (touchPosition && Math.abs(touchPosition) > minSwipeDistance) {
@@ -83,7 +83,7 @@ export const BasicSnack = ({
     }, [touchPosition, handleClose]);
 
     // Side effects to handle the touch events
-    useEffect(() => {
+    useEffect(function touchEventListenersEffect() {
         const snackElement = snackRef.current;
         if (snackElement) {
             snackElement.addEventListener("touchstart", handleTouchStart);
@@ -123,10 +123,10 @@ export const BasicSnack = ({
         };
     }, [autoHideDuration, handleClose, startAutoHideTimeout]);
 
-    const copyMessage = () => {
+    const copyMessage = useCallback(function copyMessageCallback() {
         navigator.clipboard.writeText(message ?? "");
         PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
-    };
+    }, [message]);
 
     // Clear timeout when interacting with the snack
     const handleMouseEnter = () => {
@@ -234,4 +234,4 @@ export const BasicSnack = ({
             </IconButton>
         </Box>
     );
-};
+}

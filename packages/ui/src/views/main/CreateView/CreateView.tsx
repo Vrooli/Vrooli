@@ -97,7 +97,7 @@ export const createCards: CreateInfo[] = [
     },
 ] as const;
 
-const sortCardsByUsageHistory = (cards: CreateInfo[]) => {
+function sortCardsByUsageHistory(cards: CreateInfo[]) {
     const history = getCookie("CreateOrder");
     cards.sort((a, b) => {
         const aIndex = history.indexOf(a.id);
@@ -106,7 +106,7 @@ const sortCardsByUsageHistory = (cards: CreateInfo[]) => {
         if (bIndex === -1) return -1;
         return aIndex - bIndex;
     });
-};
+}
 
 export function CreateView({
     display,
