@@ -108,6 +108,13 @@ export interface BaseStep {
      */
     location: number[],
 }
+/** Step information for all nodes in a routine */
+export interface NodeStep extends BaseStep {
+    /** Location of the next node to run */
+    nextLocation: number[] | null,
+    /** The ID of this node */
+    nodeId: string,
+}
 /**
  * Implicit step (i.e. created based on how nodes are linked, rather 
  * than being a node itself) that represents a decision point in a routine.
@@ -123,20 +130,17 @@ export interface DecisionStep extends BaseStep {
 /**
  * Node that marks the end of a routine. No action needed from the user.
  */
-export interface EndStep extends BaseStep {
+export interface EndStep extends NodeStep {
     __type: RunStepType.End,
-    /** The ID of this node */
-    nodeId: string,
+    nextLocation: null, // End of the routine, so no next location
     /** Whether this is considered a "success" or not */
     wasSuccessful: boolean,
 }
 /**
  * Node that marks the start of a routine. No action needed from the user.
  */
-export interface StartStep extends BaseStep {
+export interface StartStep extends NodeStep {
     __type: RunStepType.Start,
-    /** The ID of this node */
-    nodeId: string,
 }
 /**
  * Either a leaf node (i.e. does not contain any subroutines/substeps of its own) 
@@ -155,21 +159,14 @@ export interface SingleRoutineStep extends BaseStep {
 /**
  * A list of related steps in an individual routine node
  */
-export interface RoutineListStep extends BaseStep {
+export interface RoutineListStep extends NodeStep {
     __type: RunStepType.RoutineList,
     /** Whether or not the steps must be run in order */
     isOrdered: boolean,
-    /** The ID of the node this corresponds to */
-    nodeId: string,
     /**
      * The ID of the routine version containing this node
      */
     parentRoutineVersionId: string,
-    /**
-     * The ID of the next node in the routine, if its outgoing link is cyclic
-     * (i.e. it points to a node with a lower location in the routine)
-     */
-    redirectId: string | null,
     /**
      * The steps in this list. Leaf nodes are represented as SingleRoutineSteps,
      * while subroutines with their own steps (i.e. nodes and links) are represented

@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { Node, NodeLink, RoutineType, RoutineVersion, uuid } from "@local/shared";
-import { DirectoryStep, EndStep, MultiRoutineStep, RoutineListStep, RunStep, SingleRoutineStep, StartStep } from "../../../types";
+import { DecisionStep, DirectoryStep, EndStep, MultiRoutineStep, RootStep, RoutineListStep, RunStep, SingleRoutineStep, StartStep } from "../../../types";
 import { RunStepType } from "../../../utils/consts";
-import { getNextLocation, getPreviousLocation, getStepComplexity, insertStep, parseChildOrder, sortStepsAndAddDecisions, stepFromLocation, stepNeedsQuerying } from "./RunView";
+import { getNextLocation, getPreviousLocation, getStepComplexity, insertStep, parseChildOrder, siblingsAtLocaiton, sortStepsAndAddDecisions, stepFromLocation, stepNeedsQuerying } from "./RunView";
 
 describe("insertStep", () => {
     beforeAll(() => {
@@ -14,13 +14,14 @@ describe("insertStep", () => {
     });
 
     it("adds project data to a project", () => {
-        const mockStepData: Omit<DirectoryStep, "location"> = {
+        const mockStepData: DirectoryStep = {
             __type: RunStepType.Directory,
             description: "a",
             directoryId: null,
             hasBeenQueried: true,
             isOrdered: false,
             isRoot: true,
+            location: [1, 2, 3],
             name: "a",
             projectVersionId: "projectVersion123",
             steps: [],
@@ -53,14 +54,20 @@ describe("insertStep", () => {
     });
 
     it("adds multi-step routine data to a multi-step routine", () => {
-        const mockStepData: Omit<MultiRoutineStep, "location"> = {
+        const mockStepData: MultiRoutineStep = {
             __type: RunStepType.MultiRoutine,
             description: "newBoi",
+            location: [3, 3, 2],
             name: "hello",
             nodes: [],
             nodeLinks: [],
             routineVersionId: "routineVersion999",
         };
+        //TODO when multi-step routines are inserted, we need to make sure its node's locations and nextLocations are updated.
+        // For good measure, should do the same with directories that might contain multi-step routines.
+        // Can accomplish this either by creating a new function which updates the base location recursively, 
+        // or better would be getting the steps beforehand using something like stepFromLocation and creating the steps with the correct 
+        // location from the start
         const mockRootStep: MultiRoutineStep = {
             __type: RunStepType.MultiRoutine,
             description: "root",
@@ -69,14 +76,16 @@ describe("insertStep", () => {
             nodes: [{
                 __type: RunStepType.Start,
                 description: "",
-                name: "",
                 location: [1, 1],
+                name: "",
+                nextLocation: [1, 2],
                 nodeId: "node123",
             }, {
                 __type: RunStepType.RoutineList,
                 description: "boop",
-                name: "beep",
                 location: [1, 2],
+                name: "beep",
+                nextLocation: [1, 3],
                 nodeId: "node234",
                 steps: [{
                     __type: RunStepType.SingleRoutine,
@@ -89,6 +98,7 @@ describe("insertStep", () => {
                 __type: RunStepType.End,
                 description: "",
                 name: "",
+                nextLocation: null,
                 location: [1, 3],
                 nodeId: "node345",
             }],
@@ -100,9 +110,10 @@ describe("insertStep", () => {
     });
 
     it("does not add data to a root that's a subroutine", () => {
-        const mockStepData: Omit<MultiRoutineStep, "location"> = {
+        const mockStepData: MultiRoutineStep = {
             __type: RunStepType.MultiRoutine,
             description: "newBoi",
+            location: [999],
             name: "hello",
             nodes: [],
             nodeLinks: [],
@@ -120,13 +131,14 @@ describe("insertStep", () => {
     });
 
     it("adds project data to a deeply-nested project", () => {
-        const mockStepData: Omit<DirectoryStep, "location"> = {
+        const mockStepData: DirectoryStep = {
             __type: RunStepType.Directory,
             description: "new data",
             directoryId: null,
             hasBeenQueried: false,
             isOrdered: false,
             isRoot: true,
+            location: [],
             name: "new data",
             projectVersionId: "projectVersionNested",
             steps: [],
@@ -185,9 +197,10 @@ describe("insertStep", () => {
     });
 
     it("adds routine data to a deeply-nested routine", () => {
-        const mockStepData: Omit<MultiRoutineStep, "location"> = {
+        const mockStepData: MultiRoutineStep = {
             __type: RunStepType.MultiRoutine,
             description: "deep routine",
+            location: [3, 3, 3, 3, 3],
             name: "deep routine",
             nodes: [],
             nodeLinks: [],
@@ -204,12 +217,14 @@ describe("insertStep", () => {
                 description: "start",
                 location: [1, 1],
                 name: "start",
+                nextLocation: [8, 33, 3],
                 nodeId: "startNode",
             }, {
                 __type: RunStepType.RoutineList,
                 description: "routine list level 1",
                 location: [1, 2],
                 name: "routine list level 1",
+                nextLocation: [],
                 nodeId: "routineListNode1",
                 steps: [{
                     __type: RunStepType.MultiRoutine,
@@ -220,6 +235,7 @@ describe("insertStep", () => {
                         __type: RunStepType.RoutineList,
                         description: "routine list level 3",
                         name: "routine list level 3",
+                        nextLocation: [],
                         location: [1, 2, 1, 1],
                         nodeId: "routineListNode3",
                         steps: [{
@@ -238,6 +254,7 @@ describe("insertStep", () => {
                 description: "end",
                 location: [1, 3],
                 name: "end",
+                nextLocation: null,
                 nodeId: "endNode",
             }],
             nodeLinks: [],
@@ -251,9 +268,10 @@ describe("insertStep", () => {
     });
 
     it("does not change the root if the data doesn't match", () => {
-        const mockStepData: Omit<MultiRoutineStep, "location"> = {
+        const mockStepData: MultiRoutineStep = {
             __type: RunStepType.MultiRoutine,
             description: "non-matching data",
+            location: [4, 3, 1, 3],
             name: "non-matching data",
             nodes: [],
             nodeLinks: [],
@@ -270,12 +288,14 @@ describe("insertStep", () => {
                 description: "start",
                 location: [1, 1],
                 name: "start",
+                nextLocation: [1, 2],
                 nodeId: "startNode",
             }, {
                 __type: RunStepType.RoutineList,
                 description: "routine list",
                 location: [1, 2],
                 name: "routine list",
+                nextLocation: [],
                 nodeId: "routineListNode",
                 steps: [{
                     __type: RunStepType.SingleRoutine,
@@ -355,6 +375,7 @@ describe("stepFromLocation", () => {
                     description: "start",
                     location: [1, 1],
                     name: "start",
+                    nextLocation: [],
                     nodeId: "startNode",
                 },
                 {
@@ -362,6 +383,7 @@ describe("stepFromLocation", () => {
                     description: "routine list",
                     location: [1, 2],
                     name: "routine list",
+                    nextLocation: [9, 1, 1],
                     nodeId: "routineListNode1",
                     steps: [
                         {
@@ -378,6 +400,7 @@ describe("stepFromLocation", () => {
                     description: "routine list",
                     location: [1, 3],
                     name: "routine list",
+                    nextLocation: [],
                     nodeId: "routineListNode2",
                     steps: [
                         {
@@ -398,6 +421,7 @@ describe("stepFromLocation", () => {
                                     description: "routine list",
                                     location: [1, 3, 2, 1],
                                     name: "routine list",
+                                    nextLocation: [1],
                                     nodeId: "routineListNode3",
                                     steps: [
                                         {
@@ -420,6 +444,7 @@ describe("stepFromLocation", () => {
                     description: "end",
                     location: [1, 3],
                     name: "end",
+                    nextLocation: null,
                     nodeId: "endNode",
                 },
             ],
@@ -458,6 +483,155 @@ describe("stepFromLocation", () => {
         expect(result1).toBeNull();
         const result2 = stepFromLocation([], rootStep);
         expect(result2).toBeNull();
+    });
+});
+
+describe("siblingsAtLocaiton", () => {
+    // Mock console.error to prevent actual console output during tests
+    const originalConsoleError = console.error;
+    beforeEach(() => {
+        console.error = jest.fn();
+    });
+    afterEach(() => {
+        console.error = originalConsoleError;
+    });
+
+    it("should return 0 for an empty location array", () => {
+        const rootStep: DirectoryStep = {
+            __type: RunStepType.Directory,
+            description: "a",
+            directoryId: null,
+            hasBeenQueried: true,
+            isOrdered: false,
+            isRoot: true,
+            location: [1, 2, 3],
+            name: "a",
+            projectVersionId: "projectVersion123",
+            steps: [],
+        };
+        expect(siblingsAtLocaiton([], rootStep)).toBe(0);
+    });
+
+    it("should return 1 for a location array with only one element", () => {
+        const rootStep: DirectoryStep = {
+            __type: RunStepType.Directory,
+            description: "a",
+            directoryId: null,
+            hasBeenQueried: true,
+            isOrdered: false,
+            isRoot: true,
+            location: [1, 2, 3],
+            name: "a",
+            projectVersionId: "projectVersion123",
+            steps: [],
+        };
+        expect(siblingsAtLocaiton([1], rootStep)).toBe(1);
+    });
+
+    it("should return the correct number of siblings for a DirectoryStep", () => {
+        const rootStep: DirectoryStep = {
+            __type: RunStepType.Directory,
+            steps: [
+                { __type: RunStepType.SingleRoutine } as SingleRoutineStep,
+                { __type: RunStepType.SingleRoutine } as SingleRoutineStep,
+                { __type: RunStepType.SingleRoutine } as SingleRoutineStep,
+            ],
+        } as DirectoryStep;
+
+        expect(siblingsAtLocaiton([1, 2], rootStep)).toBe(3);
+    });
+
+    it("should return the correct number of siblings for a MultiRoutineStep", () => {
+        const rootStep: MultiRoutineStep = {
+            __type: RunStepType.MultiRoutine,
+            nodes: [
+                { __type: RunStepType.Start },
+                { __type: RunStepType.RoutineList },
+                { __type: RunStepType.End },
+            ],
+        } as MultiRoutineStep;
+
+        expect(siblingsAtLocaiton([1, 2], rootStep)).toBe(3);
+    });
+
+    it("should return the correct number of siblings for a RoutineListStep", () => {
+        const rootStep: RoutineListStep = {
+            __type: RunStepType.RoutineList,
+            steps: [
+                { __type: RunStepType.SingleRoutine } as SingleRoutineStep,
+                { __type: RunStepType.SingleRoutine } as SingleRoutineStep,
+            ],
+        } as RoutineListStep;
+
+        expect(siblingsAtLocaiton([1, 2], rootStep)).toBe(2);
+    });
+
+    it("should return 1 for an unknown step type", () => {
+        const rootStep: RootStep = {
+            __type: "UnknownType" as RunStepType,
+        } as unknown as RootStep;
+
+        expect(siblingsAtLocaiton([1, 2], rootStep)).toBe(1);
+    });
+
+    it("should handle deeply nested locations", () => {
+        const rootStep: DirectoryStep = {
+            __type: RunStepType.Directory,
+            location: [1],
+            steps: [
+                {
+                    __type: RunStepType.MultiRoutine,
+                    location: [1, 1],
+                    nodes: [
+                        {
+                            __type: RunStepType.Start,
+                            location: [1, 1, 1],
+                        },
+                        {
+                            __type: RunStepType.RoutineList,
+                            location: [1, 1, 2],
+                            steps: [
+                                { __type: RunStepType.SingleRoutine } as SingleRoutineStep,
+                                { __type: RunStepType.SingleRoutine } as SingleRoutineStep,
+                                { __type: RunStepType.SingleRoutine } as SingleRoutineStep,
+                                { __type: RunStepType.SingleRoutine } as SingleRoutineStep,
+                            ],
+                        },
+                        {
+                            __type: RunStepType.End,
+                            location: [1, 1, 3],
+                        },
+                    ],
+                } as MultiRoutineStep,
+            ],
+        } as DirectoryStep;
+
+        expect(siblingsAtLocaiton([1, 1, 1], rootStep)).toBe(3);
+        expect(siblingsAtLocaiton([1, 1, 2], rootStep)).toBe(3);
+        expect(siblingsAtLocaiton([1, 1, 3], rootStep)).toBe(3);
+        expect(siblingsAtLocaiton([1, 1, 2, 1], rootStep)).toBe(4);
+        expect(siblingsAtLocaiton([1, 1, 2, 2], rootStep)).toBe(4);
+        expect(siblingsAtLocaiton([1, 1, 2, 3], rootStep)).toBe(4);
+        expect(siblingsAtLocaiton([1, 1, 2, 4], rootStep)).toBe(4);
+    });
+
+    it("should return 0 and log an error when parent is not found", () => {
+        const rootStep: DirectoryStep = {
+            __type: RunStepType.Directory,
+            description: "root",
+            directoryId: "directory123",
+            hasBeenQueried: false,
+            isOrdered: false,
+            isRoot: true,
+            location: [1],
+            name: "root",
+            projectVersionId: "projectVersion123",
+            steps: [],
+        };
+
+        const result = siblingsAtLocaiton([1, 2, 3], rootStep);
+        expect(result).toBe(0);
+        expect(console.error).toHaveBeenCalled();
     });
 });
 
@@ -550,6 +724,7 @@ describe("getNextLocation", () => {
                     description: "start",
                     location: [1, 1],
                     name: "start",
+                    nextLocation: [1, 4],
                     nodeId: "startNode",
                 },
                 {
@@ -557,6 +732,7 @@ describe("getNextLocation", () => {
                     description: "routine list",
                     location: [1, 2],
                     name: "routine list",
+                    nextLocation: [1, 5],
                     nodeId: "routineListNode1",
                     steps: [
                         {
@@ -569,10 +745,19 @@ describe("getNextLocation", () => {
                     ],
                 },
                 {
+                    __type: RunStepType.End,
+                    description: "end",
+                    location: [1, 4],
+                    name: "end",
+                    nextLocation: null,
+                    nodeId: "endNode",
+                },
+                {
                     __type: RunStepType.RoutineList,
                     description: "routine list",
                     location: [1, 3],
                     name: "routine list",
+                    nextLocation: [1, 5],
                     nodeId: "routineListNode2",
                     steps: [
                         {
@@ -593,6 +778,7 @@ describe("getNextLocation", () => {
                                     description: "routine list",
                                     location: [1, 3, 2, 1],
                                     name: "routine list",
+                                    nextLocation: null,
                                     nodeId: "routineListNode3",
                                     steps: [
                                         {
@@ -611,28 +797,39 @@ describe("getNextLocation", () => {
                     ],
                 },
                 {
-                    __type: RunStepType.End,
-                    description: "end",
-                    location: [1, 4],
-                    name: "end",
-                    nodeId: "endNode",
+                    __type: RunStepType.RoutineList,
+                    description: "routine list",
+                    location: [1, 5],
+                    name: "routine list",
+                    nextLocation: [1, 2],
+                    nodeId: "routineListNode1",
+                    steps: [],
                 },
             ],
             nodeLinks: [],
             routineVersionId: "rootRoutine",
         };
+        // Root step to first node
         expect(getNextLocation([1], rootStep)).toEqual([1, 1]);
-        expect(getNextLocation([1, 1], rootStep)).toEqual([1, 2]);
+        // First node to its `nextLocation` field
+        expect(getNextLocation([1, 1], rootStep)).toEqual([1, 4]);
+        // Second node prefers its child over `nextLocation`
         expect(getNextLocation([1, 2], rootStep)).toEqual([1, 2, 1]);
-        expect(getNextLocation([1, 2, 1], rootStep)).toEqual([1, 3]);
+        // Second node's child has no more siblings, to goes to parent's `nextLocation`
+        expect(getNextLocation([1, 2, 1], rootStep)).toEqual([1, 5]);
+        // Go to first child
         expect(getNextLocation([1, 3], rootStep)).toEqual([1, 3, 1]);
+        // Go to second child
         expect(getNextLocation([1, 3, 1], rootStep)).toEqual([1, 3, 2]);
+        // Go to first child
         expect(getNextLocation([1, 3, 2], rootStep)).toEqual([1, 3, 2, 1]);
+        // Go to first child
         expect(getNextLocation([1, 3, 2, 1], rootStep)).toEqual([1, 3, 2, 1, 1]);
-        expect(getNextLocation([1, 3, 2, 1, 1], rootStep)).toEqual([1, 4]);
+        // Backtrack multiple times to [1, 3]'s `nextLocation`
+        expect(getNextLocation([1, 3, 2, 1, 1], rootStep)).toEqual([1, 5]);
     });
 
-    it("returns null if we're in a decision step", () => {
+    it("another multi-step routine test", () => {
         const rootStep: MultiRoutineStep = {
             __type: RunStepType.MultiRoutine,
             description: "root",
@@ -644,6 +841,7 @@ describe("getNextLocation", () => {
                     description: "start",
                     location: [1, 1],
                     name: "start",
+                    nextLocation: [1, 2],
                     nodeId: "startNode",
                 },
                 {
@@ -699,6 +897,7 @@ describe("getNextLocation", () => {
                     description: "routine list",
                     location: [1, 3],
                     name: "routine list",
+                    nextLocation: [1, 4],
                     nodeId: "routineListNode2",
                     steps: [
                         {
@@ -719,6 +918,7 @@ describe("getNextLocation", () => {
                                     description: "routine list",
                                     location: [1, 3, 2, 1],
                                     name: "routine list",
+                                    nextLocation: null,
                                     nodeId: "routineListNode3",
                                     steps: [
                                         {
@@ -741,15 +941,16 @@ describe("getNextLocation", () => {
                     description: "end",
                     location: [1, 4],
                     name: "end",
+                    nextLocation: null,
                     nodeId: "endNode",
                 },
             ],
             nodeLinks: [],
             routineVersionId: "rootRoutine",
         };
-        // Points to a decision, so it should be fine
+        // To `nextLocation`
         expect(getNextLocation([1, 1], rootStep)).toEqual([1, 2]);
-        // Start location is a decision, so it should return null
+        // Decisions should return null
         expect(getNextLocation([1, 2], rootStep)).toBeNull();
     });
 });
@@ -776,6 +977,7 @@ describe("stepNeedsQuerying", () => {
             __type: RunStepType.End,
             description: "hi",
             name: "End",
+            nextLocation: null,
             nodeId: "node123",
             location: [1, 2],
             wasSuccessful: true,
@@ -788,6 +990,7 @@ describe("stepNeedsQuerying", () => {
             __type: RunStepType.Start,
             description: "hey",
             name: "Start",
+            nextLocation: [2, 2, 2],
             nodeId: "node123",
             location: [1, 1],
         };
@@ -871,17 +1074,38 @@ describe("getStepComplexity", () => {
     });
 
     it("should return 0 for End step", () => {
-        const endStep: RunStep = { __type: RunStepType.End, description: "", name: "", nodeId: "1", location: [1] };
+        const endStep: RunStep = {
+            __type: RunStepType.End,
+            description: "",
+            location: [1, 2, 3],
+            name: "",
+            nextLocation: null,
+            nodeId: "1",
+        };
         expect(getStepComplexity(endStep)).toBe(0);
     });
 
     it("should return 0 for Start step", () => {
-        const startStep: RunStep = { __type: RunStepType.Start, description: "", name: "", nodeId: "1", location: [1] };
+        const startStep: RunStep = {
+            __type: RunStepType.Start,
+            description: "",
+            name: "",
+            nextLocation: [1, 2, 3, 4, 5],
+            nodeId: "1",
+            location: [1],
+        };
         expect(getStepComplexity(startStep)).toBe(0);
     });
 
     it("should return 1 for Decision step", () => {
-        const decisionStep: RunStep = { __type: RunStepType.Decision, description: "", name: "", nodeId: "1", location: [1], options: [] };
+        const decisionStep: RunStep = {
+            __type: RunStepType.Decision,
+            description: "",
+            name: "",
+            nodeId: "1",
+            location: [1],
+            options: [],
+        };
         expect(getStepComplexity(decisionStep)).toBe(1);
     });
 
@@ -903,12 +1127,27 @@ describe("getStepComplexity", () => {
             name: "",
             location: [1],
             nodes: [
-                { __type: RunStepType.Start, description: "", name: "", nodeId: "1", location: [1, 1] },
-                { __type: RunStepType.Decision, description: "", name: "", nodeId: "2", location: [1, 2], options: [] },
+                {
+                    __type: RunStepType.Start,
+                    description: "",
+                    name: "",
+                    nextLocation: [],
+                    nodeId: "1",
+                    location: [1, 1],
+                },
+                {
+                    __type: RunStepType.Decision,
+                    description: "",
+                    name: "",
+                    nodeId: "2",
+                    location: [1, 2],
+                    options: [],
+                },
                 {
                     __type: RunStepType.RoutineList,
                     description: "",
                     name: "",
+                    nextLocation: [2, 2, 2],
                     nodeId: "1",
                     location: [1],
                     steps: [
@@ -928,7 +1167,14 @@ describe("getStepComplexity", () => {
                         },
                     ],
                 },
-                { __type: RunStepType.End, description: "", name: "", nodeId: "3", location: [1, 3] },
+                {
+                    __type: RunStepType.End,
+                    description: "",
+                    name: "",
+                    nextLocation: null,
+                    nodeId: "3",
+                    location: [1, 3],
+                },
             ],
             nodeLinks: [],
             routineVersionId: "1",
@@ -942,6 +1188,7 @@ describe("getStepComplexity", () => {
             description: "",
             isOrdered: false,
             name: "",
+            nextLocation: null,
             nodeId: "1",
             location: [1],
             parentRoutineVersionId: "420",
@@ -964,6 +1211,7 @@ describe("getStepComplexity", () => {
                             description: "start",
                             location: [1, 1],
                             name: "start",
+                            nextLocation: [1, 2],
                             nodeId: "startNode",
                         },
                         {
@@ -1019,6 +1267,7 @@ describe("getStepComplexity", () => {
                             description: "routine list",
                             location: [1, 3],
                             name: "routine list",
+                            nextLocation: [1, 4],
                             nodeId: "routineListNode2",
                             steps: [
                                 {
@@ -1039,6 +1288,7 @@ describe("getStepComplexity", () => {
                                             description: "routine list",
                                             location: [1, 3, 2, 1],
                                             name: "routine list",
+                                            nextLocation: null,
                                             nodeId: "routineListNode3",
                                             steps: [
                                                 {
@@ -1061,6 +1311,7 @@ describe("getStepComplexity", () => {
                             description: "end",
                             location: [1, 4],
                             name: "end",
+                            nextLocation: null,
                             nodeId: "endNode",
                         },
                     ],
@@ -1227,88 +1478,142 @@ describe("parseChildOrder", () => {
 });
 
 /**
- * Jest helper function to validate the sequence of steps in a routine.
- * It ensures that steps appear in a logical order based on the node links.
+ * Helper function to validate that routine steps are in a logical order
  */
 function expectValidStepSequence(
     steps: MultiRoutineStep["nodes"],
     nodeLinks: NodeLink[],
 ) {
     if (steps.length === 0) return;
-    expect(steps[0].__type).toBe(RunStepType.Start);
+    // Length of location array
+    let locationLength = 0;
+    const usedLocations = new Set<string>();
 
-    // Check that the next step logically follows the current step
-    for (let i = 0; i < steps.length - 1; i++) {
-        const currentStep = steps[i];
-        const nextStep = steps[i + 1];
+    // For each step
+    for (let i = 0; i < steps.length; i++) {
+        const step = steps[i];
 
-        // Ignore end steps, as they are the last step in the sequence
-        if (currentStep.__type === RunStepType.End) {
-            continue;
-        }
+        const locationStr = step.location.join(",");
+        // Location should be unique
+        expect(usedLocations.has(locationStr)).toBe(
+            false,
+            // @ts-ignore: expect-message
+            `Expected location ${locationStr} to be unique`,
+        );
+        usedLocations.add(locationStr);
 
-        // Ignore decision steps, as they jump to a different step instead of following the sequence
-        if (currentStep.__type === RunStepType.Decision) {
-            continue;
-        }
-
-        // Multiple outgoing links indicate a decision step next
-        const outgoingLinks = nodeLinks.filter(link => link.from?.id === (currentStep as RoutineListStep | StartStep).nodeId);
-        if (outgoingLinks.length > 1) {
-            expect(nextStep.__type).toBe(
-                RunStepType.Decision,
+        // Should only be one StartStep, and should be first
+        if (i === 0) {
+            expect(step.__type).toBe(
+                RunStepType.Start,
                 // @ts-ignore: expect-message
-                `Expected a Decision step after a step with multiple outgoing links. Step index: ${i}`,
+                `Expected StartStep to be first in the sequence. Got ${step.__type}`,
             );
-            continue;
+            locationLength = step.location.length;
+            // Last number in location should be 1
+            expect(step.location[locationLength - 1]).toBe(
+                1,
+                // @ts-ignore: expect-message
+                `Expected StartStep to have a location ending in 1. Got ${step.location[locationLength - 1]}`,
+            );
         } else {
-            expect(nextStep.__type).not.toBe(
-                RunStepType.Decision,
+            expect(step.__type).not.toBe(
+                RunStepType.Start,
                 // @ts-ignore: expect-message
-                `Expected a non-Decision step after a step with a single outgoing link. Step index: ${i}`,
+                `Expected StartStep in a different position than index 0. Got ${step.__type} at index ${i}`,
+            );
+            // Last number in location should not be 1
+            expect(step.location[locationLength - 1]).not.toBe(
+                1,
+                // @ts-ignore: expect-message
+                `Expected StartStep to have a location ending in 1. Got ${step.location[locationLength - 1]}`,
             );
         }
 
-        // Needs at least 1 outgoing link to the next step
-        const hasLinkToNextStep = outgoingLinks.some(link => link.to?.id === (nextStep as EndStep | RoutineListStep | StartStep).nodeId);
-        expect(hasLinkToNextStep).toBe(
-            true,
-            // @ts-ignore: expect-message
-            `Expected a link from step ${currentStep.nodeId} to ${nextStep.nodeId}. Step index: ${i}`,
-        );
-    }
-
-    // Validate the last step is either:
-    // - An EndStep
-    // - A DecisionStep (as it'll move you to another part of the list)
-    // - A RoutineListStep with a `redirect` property (indicates cycle, and will move you to another part of the list)
-    const lastStep = steps[steps.length - 1];
-    if (![RunStepType.End, RunStepType.Decision, RunStepType.RoutineList].includes(lastStep.__type)) {
-        throw new Error(`Unexpected last step type: ${lastStep.__type}`);
-    }
-    if (lastStep.__type === RunStepType.RoutineList) {
-        const redirect = Object.prototype.hasOwnProperty.call(lastStep, "redirectId") ? lastStep.redirectId : undefined;
-        if (!redirect) {
-            throw new Error("Cannot end on a RoutineList without a redirect property");
+        // If it's an EndStep or DecisionStep, `nextLocation` should be null or undefined
+        if ([RunStepType.End, RunStepType.Decision].includes(step.__type)) {
+            const nextLocation = (step as { nextLocation?: string | null }).nextLocation;
+            expect(nextLocation === null || nextLocation === undefined).toBe(
+                true,
+                // @ts-ignore: expect-message
+                `Expected EndStep or DecisionStep to have a null/undefined nextLocation. Got ${nextLocation}`,
+            );
+            // Rest of the checks don't apply to EndStep or DecisionStep
+            continue;
         }
-    }
-    expect(
-        lastStep.__type === RunStepType.End ||
-        lastStep.__type === RunStepType.Decision ||
-        (lastStep.__type === RunStepType.RoutineList && "redirect" in lastStep && lastStep.redirect !== undefined),
-        // @ts-ignore: expect-message
-        `Expected the last step to be an EndStep, DecisionStep, or RoutineListStep with a redirect property. Got ${lastStep.__type}`,
-    ).toBe(true);
+        // If it's a RoutineList or StartStep, `nextLocation` should be defined and valid
+        else if ([RunStepType.RoutineList, RunStepType.Start].includes(step.__type)) {
+            const currNodeId = (step as StartStep | RoutineListStep).nodeId;
+            const currLocation = step.location;
+            const nextLocation = (step as StartStep | RoutineListStep).nextLocation;
+            const outgoingLinks = nodeLinks.filter(link => link.from?.id === currNodeId);
+            const nextStep = steps.find(s => s.location.join(",") === nextLocation?.join(","));
 
-    // If the last step is a RoutineListStep with a redirect, validate the redirect
-    if (lastStep.__type === RunStepType.RoutineList && "redirect" in lastStep && lastStep.redirect !== undefined) {
-        const redirectTarget = steps.find(step =>
-            (step as RoutineListStep | StartStep).nodeId === lastStep.redirect,
-        );
-        expect(redirectTarget).toBeDefined(
-            // @ts-ignore: expect-message
-            `Redirect target ${lastStep.redirect} not found in steps`,
-        );
+            expect(Array.isArray(nextLocation)).toBe(
+                true,
+                // @ts-ignore: expect-message
+                `Expected StartStep or RoutineListStep to have a defined nextLocation. Got ${typeof nextLocation} ${nextLocation}`,
+            );
+            expect(JSON.stringify(nextLocation)).not.toBe(
+                JSON.stringify(currLocation),
+                // @ts-ignore: expect-message
+                `Expected nextLocation to not point to itself. Got ${nextLocation}`,
+            );
+            expect(Boolean(nextStep)).toBe(
+                true,
+                // @ts-ignore: expect-message
+                `Expected nextLocation to point to a valid step. Got ${nextLocation}`,
+            );
+            expect(outgoingLinks.length).toBeGreaterThanOrEqual(
+                1,
+                // @ts-ignore: expect-message
+                `Expected at least one outgoing link from step ${currNodeId}. Got ${outgoingLinks.length}`,
+            );
+
+            // If there are multiple paths to take, we should point to a valid DecisionStep
+            if (outgoingLinks.length > 1) {
+                expect(nextStep?.__type).toBe(
+                    RunStepType.Decision,
+                    // @ts-ignore: expect-message
+                    `Expected nextLocation to point to a DecisionStep. Got ${nextStep?.__type}`,
+                );
+                outgoingLinks.forEach(link => {
+                    expect((nextStep as DecisionStep).options.some(option => option.link.to?.id === link.to?.id)).toBe(
+                        true,
+                        // @ts-ignore: expect-message
+                        `Expected outgoing link ${link.to?.id} to be an option in the DecisionStep`,
+                    );
+                });
+                (nextStep as DecisionStep).options.forEach(option => {
+                    expect(outgoingLinks.some(link => link.to?.id === option.link.to?.id)).toBe(
+                        true,
+                        // @ts-ignore: expect-message
+                        `Expected DecisionStep option ${option.link.to?.id} to have a corresponding outgoing link`,
+                    );
+                });
+            }
+            // If there is only one path to take, we should point to anythign but a DecisionStep
+            else {
+                expect(nextStep?.__type).not.toBe(
+                    RunStepType.Decision,
+                    // @ts-ignore: expect-message
+                    `Expected nextLocation to not point to a DecisionStep. Got ${nextStep?.__type}`,
+                );
+                expect(outgoingLinks[0].to?.id).toBe(
+                    (nextStep as EndStep | RoutineListStep | StartStep).nodeId,
+                    // @ts-ignore: expect-message
+                    `Expected outgoing link to match nextLocation. Got ${outgoingLinks[0].to?.id}, expected ${nextLocation}`,
+                );
+            }
+        }
+        // Otherwise, it's an invalid step type
+        else {
+            expect(false).toBe(
+                true,
+                // @ts-ignore: expect-message
+                `Expected step to be a StartStep, RoutineListStep, DecisionStep, or EndStep. Got ${step.__type}`,
+            );
+        }
     }
 }
 
@@ -1322,13 +1627,29 @@ describe("sortStepsAndAddDecisions", () => {
         expect(result).toEqual(steps); // Result should be unchanged
     });
 
-    //TODO test unlinked steps removed
-
     it("should sort steps in correct order for a linear path", () => {
+        const commonProps = { description: "", name: "", location: [69] };
         const steps = [
-            { __type: RunStepType.Start, description: "", name: "", nodeId: "1", location: [1, 1] },
-            { __type: RunStepType.RoutineList, description: "", name: "", nodeId: "2", location: [1, 2], steps: [] },
-            { __type: RunStepType.End, description: "", name: "", nodeId: "3", location: [1, 3] },
+            {
+                __type: RunStepType.Start,
+                nextLocation: [],
+                nodeId: "1",
+                ...commonProps,
+            } as StartStep,
+            {
+                __type: RunStepType.RoutineList,
+                isOrdered: true,
+                parentRoutineVersionId: "routineVersion123",
+                nextLocation: [],
+                nodeId: "2",
+                steps: [],
+                ...commonProps,
+            } as RoutineListStep,
+            {
+                __type: RunStepType.End,
+                nodeId: "3",
+                ...commonProps,
+            } as EndStep,
         ];
         const nodeLinks = [
             { from: { id: "1" }, to: { id: "2" } },
@@ -1339,18 +1660,44 @@ describe("sortStepsAndAddDecisions", () => {
     });
 
     it("should add a decision step when there are multiple outgoing links", () => {
+        const commonProps = { description: "", name: "", location: [1, 3, 2, 1, 69] };
         const steps = [
-            { __type: RunStepType.Start, description: "", name: "", nodeId: "1", location: [1, 1] },
-            { __type: RunStepType.RoutineList, description: "", name: "", nodeId: "2", location: [1, 2], steps: [] },
-            { __type: RunStepType.RoutineList, description: "", name: "", nodeId: "3", location: [1, 3], steps: [] },
-            { __type: RunStepType.End, description: "", name: "", nodeId: "4", location: [1, 4] },
+            {
+                __type: RunStepType.Start,
+                nextLocation: [],
+                nodeId: "1",
+                ...commonProps,
+            } as StartStep,
+            {
+                __type: RunStepType.RoutineList,
+                isOrdered: true,
+                parentRoutineVersionId: "routineVersion123",
+                nextLocation: [],
+                nodeId: "2",
+                steps: [],
+                ...commonProps,
+            } as RoutineListStep,
+            {
+                __type: RunStepType.RoutineList,
+                isOrdered: true,
+                parentRoutineVersionId: "routineVersion123",
+                nextLocation: [],
+                nodeId: "3",
+                steps: [],
+                ...commonProps,
+            } as RoutineListStep,
+            {
+                __type: RunStepType.End,
+                nodeId: "4",
+                ...commonProps,
+            } as EndStep,
         ];
         const nodeLinks = [
             // Start to both RoutineLists
             { from: { id: "1" }, to: { id: "2" } },
             { from: { id: "1" }, to: { id: "3" } },
+            // RoutineLists to End
             { from: { id: "2" }, to: { id: "4" } },
-            // RoutineList to End
             { from: { id: "3" }, to: { id: "4" } },
         ] as NodeLink[];
         const result = sortStepsAndAddDecisions(steps, nodeLinks);
@@ -1359,12 +1706,46 @@ describe("sortStepsAndAddDecisions", () => {
     });
 
     it("should handle cycles in the graph", () => {
+        const commonProps = { description: "", name: "", location: [1, 3, 2, 420] };
         const steps = [
-            { __type: RunStepType.Start, description: "", name: "", nodeId: "1", location: [1, 1] },
-            { __type: RunStepType.RoutineList, description: "", name: "", nodeId: "2", location: [1, 2], steps: [] },
-            { __type: RunStepType.RoutineList, description: "", name: "", nodeId: "3", location: [1, 3], steps: [] },
-            { __type: RunStepType.RoutineList, description: "", name: "", nodeId: "4", location: [1, 2], steps: [] },
-            { __type: RunStepType.End, description: "", name: "", nodeId: "5", location: [1, 3] },
+            {
+                __type: RunStepType.Start,
+                nextLocation: [],
+                nodeId: "1",
+                ...commonProps,
+            } as StartStep,
+            {
+                __type: RunStepType.RoutineList,
+                isOrdered: true,
+                parentRoutineVersionId: "routineVersion123",
+                nextLocation: [],
+                nodeId: "2",
+                steps: [],
+                ...commonProps,
+            } as RoutineListStep,
+            {
+                __type: RunStepType.RoutineList,
+                isOrdered: true,
+                parentRoutineVersionId: "routineVersion123",
+                nextLocation: [],
+                nodeId: "3",
+                steps: [],
+                ...commonProps,
+            } as RoutineListStep,
+            {
+                __type: RunStepType.RoutineList,
+                isOrdered: true,
+                parentRoutineVersionId: "routineVersion123",
+                nextLocation: [],
+                nodeId: "4",
+                steps: [],
+                ...commonProps,
+            } as RoutineListStep,
+            {
+                __type: RunStepType.End,
+                nodeId: "5",
+                ...commonProps,
+            } as EndStep,
         ];
         const nodeLinks = [
             // Start to first RoutineList
@@ -1377,134 +1758,130 @@ describe("sortStepsAndAddDecisions", () => {
             // Third RoutineList to first RoutineList
             { from: { id: "4" }, to: { id: "2" } },
         ] as NodeLink[];
-        console.log("yeet before");
         const result = sortStepsAndAddDecisions(steps, nodeLinks);
-        console.log("yeet after", JSON.stringify(result));
         expectValidStepSequence(result, nodeLinks);
         expect(result.length).toBe(steps.length + 1); // One decision step
     });
 
-    // it("should set correct locations for all steps", () => {
-    //     const steps = [
-    //         { __type: RunStepType.Start, description: "", name: "", nodeId: "1", location: [1, 1] },
-    //         { __type: RunStepType.RoutineList, description: "", name: "", nodeId: "2", location: [1, 2], steps: [] },
-    //         { __type: RunStepType.End, description: "", name: "", nodeId: "3", location: [1, 3] },
-    //     ];
-    //     const nodeLinks = [
-    //         { from: { id: "1" }, to: { id: "2" } },
-    //         { from: { id: "2" }, to: { id: "3" } },
-    //     ] as NodeLink[];
-    //     const result = sortStepsAndAddDecisions(steps, nodeLinks);
-    //     expect(result[0].location).toEqual([1, 1]);
-    //     expect(result[1].location).toEqual([1, 2]);
-    //     expect(result[2].location).toEqual([1, 3]);
-    // });
+    it("should handle complex graphs with multiple decision points", () => {
+        const commonProps = { description: "", name: "", location: [1, 3] };
+        const steps = [
+            {
+                __type: RunStepType.Start,
+                nextLocation: [],
+                nodeId: "1",
+                ...commonProps,
+            } as StartStep,
+            {
+                __type: RunStepType.RoutineList,
+                isOrdered: true,
+                parentRoutineVersionId: "routineVersion123",
+                nextLocation: [],
+                nodeId: "2",
+                steps: [],
+                ...commonProps,
+            } as RoutineListStep,
+            {
+                __type: RunStepType.RoutineList,
+                isOrdered: true,
+                parentRoutineVersionId: "routineVersion123",
+                nextLocation: [],
+                nodeId: "3",
+                steps: [],
+                ...commonProps,
+            } as RoutineListStep,
+            {
+                __type: RunStepType.RoutineList,
+                isOrdered: true,
+                parentRoutineVersionId: "routineVersion123",
+                nextLocation: [],
+                nodeId: "4",
+                steps: [],
+                ...commonProps,
+            } as RoutineListStep,
+            {
+                __type: RunStepType.End,
+                nodeId: "5",
+                ...commonProps,
+            } as EndStep,
+            {
+                __type: RunStepType.RoutineList,
+                isOrdered: true,
+                parentRoutineVersionId: "routineVersion123",
+                nextLocation: [],
+                nodeId: "6",
+                steps: [],
+                ...commonProps,
+            } as RoutineListStep,
+            {
+                __type: RunStepType.End,
+                nodeId: "7",
+                ...commonProps,
+            } as EndStep,
+        ];
+        const nodeLinks = [
+            // Start to first three RoutineLists
+            { from: { id: "1" }, to: { id: "2" } },
+            { from: { id: "1" }, to: { id: "3" } },
+            { from: { id: "1" }, to: { id: "4" } },
+            // First RoutineList points to second two
+            { from: { id: "2" }, to: { id: "3" } },
+            { from: { id: "2" }, to: { id: "4" } },
+            // Second RoutineList points to first RoutineList and first End
+            { from: { id: "3" }, to: { id: "2" } },
+            { from: { id: "3" }, to: { id: "5" } },
+            // Third RoutineList points to first and fourth RoutineLists
+            { from: { id: "4" }, to: { id: "2" } },
+            { from: { id: "4" }, to: { id: "6" } },
+            // Fourth RoutineList points to second End
+            { from: { id: "6" }, to: { id: "7" } },
+        ] as NodeLink[];
+        const result = sortStepsAndAddDecisions(steps, nodeLinks);
+        expectValidStepSequence(result, nodeLinks);
+        expect(result.length).toBe(steps.length + 4); // Four decision steps
+    });
 
-    // it("should not add decision step for single outgoing link", () => {
-    //     const steps = [
-    //         { __type: RunStepType.Start, description: "", name: "", nodeId: "1", location: [1, 1] },
-    //         { __type: RunStepType.RoutineList, description: "", name: "", nodeId: "2", location: [1, 2], steps: [] },
-    //         { __type: RunStepType.End, description: "", name: "", nodeId: "3", location: [1, 3] },
-    //     ];
-    //     const nodeLinks = [
-    //         { from: { id: "1" }, to: { id: "2" } },
-    //         { from: { id: "2" }, to: { id: "3" } },
-    //     ] as NodeLink[];
-    //     const result = sortStepsAndAddDecisions(steps, nodeLinks);
-    //     expect(result.every(step => step.__type !== RunStepType.Decision)).toBe(true);
-    // });
-
-    // it("should handle complex graphs with multiple decision points", () => {
-    //     const steps = [
-    //         { __type: RunStepType.Start, description: "", name: "", nodeId: "1", location: [1, 1] },
-    //         { __type: RunStepType.RoutineList, description: "", name: "", nodeId: "2", location: [1, 2], steps: [] },
-    //         { __type: RunStepType.RoutineList, description: "", name: "", nodeId: "3", location: [1, 3], steps: [] },
-    //         { __type: RunStepType.RoutineList, description: "", name: "", nodeId: "4", location: [1, 4], steps: [] },
-    //         { __type: RunStepType.RoutineList, description: "", name: "", nodeId: "5", location: [1, 5], steps: [] },
-    //         { __type: RunStepType.End, description: "", name: "", nodeId: "6", location: [1, 6] },
-    //     ];
-    //     const nodeLinks = [
-    //         { from: { id: "1" }, to: { id: "2" } },
-    //         { from: { id: "1" }, to: { id: "3" } },
-    //         { from: { id: "2" }, to: { id: "4" } },
-    //         { from: { id: "2" }, to: { id: "5" } },
-    //         { from: { id: "3" }, to: { id: "4" } },
-    //         { from: { id: "3" }, to: { id: "5" } },
-    //         { from: { id: "4" }, to: { id: "6" } },
-    //         { from: { id: "5" }, to: { id: "6" } },
-    //     ] as NodeLink[];
-    //     const result = sortStepsAndAddDecisions(steps, nodeLinks);
-    //     expect(result.filter(step => step.__type === RunStepType.Decision).length).toBe(3);
-    // });
-
-    // it("should ignore visited nodes when creating decision steps", () => {
-    //     const steps = [
-    //         { __type: RunStepType.Start, description: "", name: "", nodeId: "1", location: [1, 1] },
-    //         { __type: RunStepType.RoutineList, description: "", name: "", nodeId: "2", location: [1, 2], steps: [] },
-    //         { __type: RunStepType.RoutineList, description: "", name: "", nodeId: "3", location: [1, 3], steps: [] },
-    //         { __type: RunStepType.End, description: "", name: "", nodeId: "4", location: [1, 4] },
-    //     ];
-    //     const nodeLinks = [
-    //         { from: { id: "1" }, to: { id: "2" } },
-    //         { from: { id: "1" }, to: { id: "3" } },
-    //         { from: { id: "2" }, to: { id: "4" } },
-    //         { from: { id: "3" }, to: { id: "2" } },
-    //     ] as NodeLink[];
-    //     const result = sortStepsAndAddDecisions(steps, nodeLinks);
-    //     const decisionStep = result.find(step => step.__type === RunStepType.Decision);
-    //     expect(decisionStep.options.length).toBe(2);
-    //     expect(decisionStep.options.every(option => option.step.nodeId !== "4")).toBe(true);
-    // });
-
-    // it("should handle graphs with isolated nodes", () => {
-    //     const steps = [
-    //         { __type: RunStepType.Start, description: "", name: "", nodeId: "1", location: [1, 1] },
-    //         { __type: RunStepType.RoutineList, description: "", name: "", nodeId: "2", location: [1, 2], steps: [] },
-    //         { __type: RunStepType.End, description: "", name: "", nodeId: "3", location: [1, 3] },
-    //     ];
-    //     const nodeLinks = [
-    //         { from: { id: "1" }, to: { id: "3" } },
-    //     ] as NodeLink[];
-    //     const result = sortStepsAndAddDecisions(steps, nodeLinks);
-    //     expect(result.map(step => step.nodeId)).toEqual(["1", "3"]);
-    // });
-
-    // it("should correctly handle RoutineList steps with nested SingleRoutine steps", () => {
-    //     const steps = [
-    //         { __type: RunStepType.Start, description: "", name: "", nodeId: "1", location: [1, 1] },
-    //         {
-    //             __type: RunStepType.RoutineList,
-    //             description: "",
-    //             name: "",
-    //             nodeId: "2",
-    //             location: [1, 2],
-    //             steps: [
-    //                 {
-    //                     __type: RunStepType.SingleRoutine,
-    //                     description: "",
-    //                     name: "",
-    //                     location: [1, 2, 1],
-    //                     routineVersion: { complexity: 1, id: "3", routineType: RoutineType.Informational } as RoutineVersion,
-    //                 },
-    //                 {
-    //                     __type: RunStepType.SingleRoutine,
-    //                     description: "",
-    //                     name: "",
-    //                     location: [1, 2, 2],
-    //                     routineVersion: { complexity: 9, id: "4", routineType: RoutineType.MultiStep } as RoutineVersion,
-    //                 },
-    //             ],
-    //         },
-    //         { __type: RunStepType.End, description: "", name: "", nodeId: "5", location: [1, 3] },
-    //     ];
-    //     const nodeLinks = [
-    //         { from: { id: "1" }, to: { id: "2" } },
-    //         { from: { id: "2" }, to: { id: "5" } },
-    //     ] as NodeLink[];
-    //     const result = sortStepsAndAddDecisions(steps, nodeLinks);
-    //     expect(result.map(step => step.nodeId)).toEqual(["1", "2", "5"]);
-    //     expect((result[1] as any).steps.length).toBe(2);
-    //     expect((result[1] as any).steps[0].__type).toBe(RunStepType.SingleRoutine);
-    //     expect((result[1] as any).steps[1].__type).toBe(RunStepType.SingleRoutine);
-    // });
+    it("should ignore unlinked steps", () => {
+        const commonProps = { description: "", name: "", location: [1, 3] };
+        const steps = [
+            {
+                __type: RunStepType.Start,
+                nextLocation: [],
+                nodeId: "1",
+                ...commonProps,
+            } as StartStep,
+            {
+                __type: RunStepType.RoutineList,
+                isOrdered: true,
+                parentRoutineVersionId: "routineVersion123",
+                nextLocation: [],
+                nodeId: "2",
+                steps: [],
+                ...commonProps,
+            } as RoutineListStep,
+            {
+                __type: RunStepType.End,
+                nodeId: "3",
+                ...commonProps,
+            } as EndStep,
+            {
+                __type: RunStepType.RoutineList,
+                isOrdered: true,
+                parentRoutineVersionId: "routineVersion123",
+                nextLocation: [],
+                nodeId: "4",
+                steps: [],
+                ...commonProps,
+            } as RoutineListStep,
+        ];
+        const nodeLinks = [
+            // Start to first RoutineList
+            { from: { id: "1" }, to: { id: "2" } },
+            // First RoutineList to End
+            { from: { id: "2" }, to: { id: "3" } },
+            // Second RoutineList has no links
+        ] as NodeLink[];
+        const result = sortStepsAndAddDecisions(steps, nodeLinks);
+        expect(result.map(step => step.nodeId)).toEqual(["1", "2", "3"]);
+    });
 });

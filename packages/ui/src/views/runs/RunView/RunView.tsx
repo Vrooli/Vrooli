@@ -12,7 +12,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "r
 import { useTranslation } from "react-i18next";
 import { addSearchParams, removeSearchParams, useLocation } from "route";
 import { pagePaddingBottom } from "styles";
-import { DecisionStep, DirectoryStep, EndStep, MultiRoutineStep, RootStep, RoutineListStep, RunStep, SingleRoutineStep, StartStep } from "types";
+import { DecisionStep, DirectoryStep, EndStep, MultiRoutineStep, NodeStep, RootStep, RoutineListStep, RunStep, SingleRoutineStep, StartStep } from "types";
 import { ProjectStepType, RunStepType } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
@@ -40,7 +40,7 @@ export const MAX_NESTING = 20;
  * @returns Updated root step object with the step inserted.
  */
 export function insertStep(
-    stepData: Omit<DirectoryStep, "location"> | Omit<MultiRoutineStep, "location">,
+    stepData: DirectoryStep | MultiRoutineStep,
     rootStep: RootStep,
 ): RootStep {
     // Helper function to perform recursive insert
@@ -170,6 +170,47 @@ export function stepFromLocation(
 }
 
 /**
+ * Uses a location array to find the number of sibling steps at a given location
+ * 
+ * NOTE: Must be queried already
+ * @param location A list of natural numbers representing the location of the step in the root step
+ * @param rootStep The root step object for the project or routine
+ * @returns The number of sibling steps. Or in other words, the number of steps which share the same base location 
+ * array (e.g. [4, 2, 1, 1], [4, 2, 1, 2], [4, 2, 1, 3], ...)
+ */
+export function siblingsAtLocaiton(
+    location: number[],
+    rootStep: RootStep,
+) {
+    // If there are no numbers in the location, it's invalid
+    if (location.length === 0) return 0;
+    // If there is one number in the location, it's the root. 
+    // There can only be one root.
+    if (location.length === 1) return 1;
+
+    // Get parent
+    const parentLocation = location.slice(0, -1);
+    const parent = stepFromLocation(parentLocation, rootStep);
+    if (!parent) {
+        console.error(`Could not find parent to count siblings. Location: ${location}`);
+        return 0;
+    }
+
+    // Determine siblings based on step type
+    switch (parent.__type) {
+        case RunStepType.Directory:
+            return parent.steps.length;
+        case RunStepType.MultiRoutine:
+            return parent.nodes.length;
+        case RunStepType.RoutineList:
+            return parent.steps.length;
+        // Other types can't have children, but if you're somehow here let's just return 1
+        default:
+            return 1;
+    }
+}
+
+/**
  * Finds the previous location
  * @param location The current location
  * @returns The previous location, or null if already at the first step
@@ -194,8 +235,18 @@ export function getPreviousLocation(location: number[]): number[] | null {
     return previousLocation.length > 0 ? previousLocation : null;
 }
 
+//TODO update to follow new rules
 /**
- * Finds the next available location.
+ * Finds the next available location. Rules (in order):
+ * - If the step is a DecisionStep or EndStep, it cannot have a next location, so return null
+ * // At this point, the step is valid
+ * - If the step has children, go to the first child
+ * - If the step has a `nextLocation` field, return that if it's not null
+ * - If the step has siblings and is not the last sibling, go to the next sibling
+ * // At this point, we start backtracking up the parent chain
+ * - If the parent has a `nextLocation` field, return that if it's not null
+ * - If the parent has siblings and is not the last sibling, go to the next sibling
+ * - If all else fails, return null
  * @param location The current location
  * @param rootStep The root step object for the project or routine
  * @returns The next available location, or null if not found (either because there is not next 
@@ -212,35 +263,59 @@ export function getNextLocation(
     // If the location is empty, return the first step
     if (currentLocation.length === 0) return [1];
 
+    // Retrieve the current step based on the location provided
+    const currentStep = stepFromLocation(location, rootStep);
+    if (!currentStep) return null;
+
     // If the first location points to a DecisionStep, return null. 
-    // This is because decisions don't have a determined next step, as the user must choose.
+    // DecisionSteps don't have a determined next step, since the user has to choose
     const firstStep = stepFromLocation(currentLocation, rootStep);
-    if (firstStep?.__type === RunStepType.Decision) return null;
+    if (firstStep?.__type === RunStepType.Decision) {
+        return null;
+    }
 
-    while (currentLocation.length > 0) {
-        // Check if we can navigate to the first child
-        const childLocation = [...currentLocation, 1];
-        const childStep = stepFromLocation(childLocation, rootStep);
-        if (childStep) {
-            return childLocation;
+    // Attempt to go to the first child if present
+    const childLocation = [...location, 1];
+    const childStep = stepFromLocation(childLocation, rootStep);
+    if (childStep) return childLocation;
+
+    // If the current step has a defined next location, return that location (even if it's null)
+    if (Object.prototype.hasOwnProperty.call(currentStep, "nextLocation")) {
+        const nextLocation = (currentStep as NodeStep).nextLocation;
+        if (nextLocation) return nextLocation;
+    }
+
+    // Attempt to navigate to the next sibling if available
+    const nextSiblingLocation = [...location];
+    nextSiblingLocation[nextSiblingLocation.length - 1]++;
+    const siblingStep = stepFromLocation(nextSiblingLocation, rootStep);
+    if (siblingStep) return nextSiblingLocation;
+
+    // Start backtracking to find a valid next location from parents
+    while (location.length > 0) {
+        location.pop(); // Move up to the parent
+        console.log("backtracking...", location);
+        if (location.length === 0) break; // If we've reached the root, stop
+
+        // Check the parent's next location
+        const parentStep = stepFromLocation(location, rootStep);
+        console.log("parentStep", parentStep);
+        if (parentStep && Object.prototype.hasOwnProperty.call(parentStep, "nextLocation")) {
+            const parentNextLocation = (parentStep as NodeStep).nextLocation;
+            if (parentNextLocation) return parentNextLocation;
         }
 
-        // Check if we can naviate to the next sibling
-        currentLocation[currentLocation.length - 1]++;
-        const siblingStep = stepFromLocation(currentLocation, rootStep);
-        if (siblingStep) {
-            return currentLocation;
-        }
-
-        // If not, backtrack to the parent's next sibling
-        currentLocation.pop();
-        currentLocation[currentLocation.length - 1]++;
-        const parentSiblingStep = stepFromLocation(currentLocation, rootStep);
+        // Check the next sibling of the parent
+        const parentSiblingLocation = [...location];
+        parentSiblingLocation[parentSiblingLocation.length - 1]++;
+        const parentSiblingStep = stepFromLocation(parentSiblingLocation, rootStep);
+        console.log("parentSiblingStep", parentSiblingStep);
         if (parentSiblingStep) {
-            return currentLocation;
+            return parentSiblingLocation;
         }
     }
 
+    console.log("No next location found");
     return null;
 }
 
@@ -338,65 +413,8 @@ export function parseChildOrder(childOrder: string): string[] {
     return validParts.length === parts.length ? validParts : [];
 }
 
-//TODO remove
-// /**
-//  * Converts a project version into a ProjectStep
-//  * @param projectVersion The projectVersion to convert
-//  * @param languages Preferred languages to display step data in
-//  * @returns ProjectStep for the given project, or null if invalid
-//  */
-// function convertProjectVersionToStep(
-//     projectVersion: Pick<ProjectVersion, "directories" | "translations"> | null | undefined,
-//     languages: string[],
-// ): DirectoryStep | null {
-//     // Check if the projectVersion object and its directories array are not null or undefined
-//     if (!projectVersion || !projectVersion.directories) {
-//         console.log("projectVersion does not have enough data to calculate steps");
-//         return null;
-//     }
-//     let directories = [...projectVersion.directories];
-//     // Find the root directory in the directories array
-//     const rootDirectory = directories.find(directory => directory.isRoot);
-//     if (rootDirectory) {
-//         // If a root directory is found, parse its childOrder string into an array of child IDs
-//         const rootChildOrder = parseChildOrder(rootDirectory.childOrder || "");
-//         // Sort the directories array based on the order of child IDs
-//         directories = directories.sort((a, b) => rootChildOrder.indexOf(a.id) - rootChildOrder.indexOf(b.id));
-//     }
-//     // Initialize an array to store the steps for the entire project
-//     const resultSteps: ProjectStep[] = [];
-//     // Loop through each directory
-//     for (const directory of directories) {
-//         // Parse the childOrder string of the directory into an array of child IDs
-//         const childOrder = parseChildOrder(directory.childOrder || "");
-//         // Sort the childRoutineVersions array of the directory based on the order of child IDs
-//         const sortedChildRoutines = directory.childRoutineVersions.sort((a, b) => childOrder.indexOf(a.id) - childOrder.indexOf(b.id));
-//         // Convert each child routine into a step and store them in an array
-//         const directorySteps: RoutineListStep[] = sortedChildRoutines.map(routineVersion => convertRoutineVersionToStep(routineVersion, languages) as RoutineListStep);
-//         // Create a ProjectStep object for the directory and push it into the resultSteps array
-//         resultSteps.push({
-//             type: ProjectStepType.Directory,
-//             directoryId: directory.id,
-//             isOrdered: true,
-//             isRoot: false,
-//             name: getTranslation(directory, languages, true).name || "Untitled",
-//             description: getTranslation(directory, languages, true).description ?? "Description not found matching selected language",
-//             steps: directorySteps,
-//         });
-//     }
-//     // Return a ProjectListStep object for the entire project, which includes all the steps calculated above
-//     return {
-//         type: ProjectStepType.Directory,
-//         isOrdered: true,
-//         isRoot: true,
-//         name: getTranslation(projectVersion, languages, true).name || "Untitled",
-//         description: getTranslation(projectVersion, languages, true).description ?? "Description not found matching selected language",
-//         steps: resultSteps,
-//     };
-// }
-
-type UnsortedSteps = Array<EndStep | RoutineListStep | StartStep>;
-type SortedStepsWithDecisions = Array<DecisionStep | EndStep | RoutineListStep | StartStep>;
+export type UnsortedSteps = Array<EndStep | RoutineListStep | StartStep>;
+export type SortedStepsWithDecisions = Array<DecisionStep | EndStep | RoutineListStep | StartStep>;
 
 /**
  * Traverses the routine graph using Depth-First Search (DFS) and sorts steps by visitation order. 
@@ -418,7 +436,11 @@ export function sortStepsAndAddDecisions(
     }
 
     const visited: { [nodeId: string]: boolean } = {};
+    let lastEndLocation = 1;
     const result: SortedStepsWithDecisions = [];
+
+    // Get all but the last element
+    const baseLocation = startStep.location.slice(0, -1);
 
     // Helper function to perform DFS
     function dfs(currentStep: StartStep | EndStep | RoutineListStep) {
@@ -426,26 +448,41 @@ export function sortStepsAndAddDecisions(
 
         // Mark the current step as visited
         visited[currentStep.nodeId] = true;
-        // Add current step to result
-        console.log("pushing step", currentStep.nodeId);
-        result.push(currentStep);
+        // Update location for the current step
+        currentStep.location = [...baseLocation, lastEndLocation];
+        lastEndLocation++;
 
         // Get all outgoing links from the current step's node
         const outgoingLinks = nodeLinks.filter(link => link.from?.id === currentStep.nodeId);
+        // If there's one outgoing link, set the nextLocation to the next node's location
+        if (outgoingLinks.length === 1) {
+            const nextNode = steps.find(step => step.nodeId === outgoingLinks[0].to?.id);
+            if (nextNode) {
+                currentStep.nextLocation = visited[nextNode.nodeId] ? nextNode.location : [...baseLocation, lastEndLocation];
+            }
+        }
+        // If there are multiple outgoing links, set the nextLocation to the DecisionStep we're about to create
+        else if (outgoingLinks.length > 1) {
+            currentStep.nextLocation = [...baseLocation, lastEndLocation];
+        } else {
+            currentStep.nextLocation = null;
+        }
+
+        // Add current step to result
+        result.push(currentStep);
+
         // If there is more than one outgoing link, generate a DecisionStep
         if (outgoingLinks.length > 1) {
-            console.log("adding decision step");
             const decisionStep: DecisionStep = {
                 __type: RunStepType.Decision,
                 description: "Select a path to continue",
-                location: [], // Placeholder location. It'll be updated after sorting all nodes
+                location: [...baseLocation, lastEndLocation],
                 name: "Decision",
                 options: outgoingLinks.map(link => {
                     const nextStep = steps.find(step => step.nodeId === link.to?.id);
                     if (
                         nextStep !== null &&
                         nextStep !== undefined &&
-                        !visited[nextStep.nodeId] &&
                         nextStep.__type !== RunStepType.Start
                     ) {
                         return {
@@ -456,10 +493,10 @@ export function sortStepsAndAddDecisions(
                     return null;
                 }).filter(Boolean) as unknown as DecisionStep["options"],
             };
+            lastEndLocation++;
             // Add DecisionStep to result
             result.push(decisionStep);
         }
-        //TODO handle adding `redirect` property to cyclic nodes
         // Traverse all outgoing links
         outgoingLinks.forEach(link => {
             const nextNode = steps.find(step => step.nodeId === link.to?.id);
@@ -471,12 +508,6 @@ export function sortStepsAndAddDecisions(
 
     // Start DFS from the start node
     dfs(startStep as StartStep);
-
-    // Set location after sorting all nodes
-    const baseLocation = startStep.location.slice(0, -1); // Get all but the last element
-    result.forEach((step, index) => {
-        step.location = [...baseLocation, index + 1];
-    });
 
     return result;
 }
@@ -553,6 +584,7 @@ function multiRoutineToStep(
     return {
         __type: RunStepType.MultiRoutine,
         description: getTranslation(routineVersion, languages, true).description || null,
+        location: asdf,
         name: getTranslation(routineVersion, languages, true).name || "Untitled",
         nodeLinks: routineVersion.nodeLinks || [],
         nodes: sorted,
@@ -571,6 +603,10 @@ function projectToStep(
     languages: string[],
 ): DirectoryStep | null {
     // Projects are represented as root directories
+    const steps = projectVersion.directories?.
+        map(directory => directoryToStep(directory, languages))?.
+        filter(Boolean) as DirectoryStep[];
+    //TODO project version does not have order field, so can't order directories. Maybe change this in future
     return {
         __type: RunStepType.Directory,
         description: getTranslation(projectVersion, languages, true).description || null,
@@ -578,9 +614,10 @@ function projectToStep(
         hasBeenQueried: true,
         isOrdered: false,
         isRoot: true,
+        location: asdf,
         name: getTranslation(projectVersion, languages, true).name || "Untitled",
         projectVersionId: projectVersion.id,
-        steps: asdf,
+        steps,
     };
 }
 
@@ -594,6 +631,22 @@ function directoryToStep(
     projectVersionDirectory: ProjectVersionDirectory,
     languages: string[],
 ): DirectoryStep | null {
+    // TODO we currently only generate steps for routines in the directory. 
+    // We can add more types to support other children later, and update the 
+    // directory type to support nested directories.
+    // const childOrder = parseChildOrder(projectVersionDirectory.childOrder || "");
+    return {
+        __type: RunStepType.Directory,
+        description: getTranslation(projectVersionDirectory, languages, true).description || null,
+        directoryId: null,
+        hasBeenQueried: true,
+        isOrdered: false,
+        isRoot: true,
+        location: asdf,
+        name: getTranslation(projectVersionDirectory, languages, true).name || "Untitled",
+        projectVersionId: projectVersionDirectory.projectVersion?.id ?? "",
+        steps: [],
+    };
 }
 
 /**
@@ -703,6 +756,11 @@ const ActionBar = styled(Box)(({ theme }) => ({
     alignItems: "center",
 }));
 
+const actionBarGridStyle = {
+    width: "min(100%, 700px)",
+    margin: 0,
+} as const;
+
 export function RunView({
     display,
     isOpen,
@@ -778,35 +836,10 @@ export function RunView({
         return currStepLocation.length === 0 ? -1 : Number(currStepLocation[currStepLocation.length - 1]);
     }, [currStepLocation]);
 
-    /**
-     * The number of steps in the current-level node, or -1 if not found.
-     */
-    const stepsInCurrentNode = useMemo(() => {
-        if (!currStepLocation || !steps) return -1;
-        // For each step in ids array (except for the last id), find the nested step in the steps array.
-        // If it doesn't exist, return -1;
-        let currNestedSteps: RoutineStep | DirectoryStep = steps;
-        for (let i = 0; i < currStepLocation.length - 1; i++) {
-            if (currNestedSteps.__type === RunStepType.RoutineList) {
-                const currStepNum = Math.max(0, currStepLocation[i] - 1);
-                const curr = currNestedSteps.steps.length > currStepNum ? currNestedSteps.steps[currStepNum] : null;
-                if (curr && "type" in curr) currNestedSteps = curr;
-            } else if (currNestedSteps.__type === ProjectStepType.Directory) {
-                const currStepNum = Math.max(0, currStepLocation[i] - 1);
-                const curr = currNestedSteps.steps.length > currStepNum ? currNestedSteps.steps[currStepNum] : null;
-                if (curr && "type" in curr) currNestedSteps = curr;
-            }
-        }
-        // Return number of steps in current node
-        if (currNestedSteps.__type === RunStepType.RoutineList) {
-            return (currNestedSteps as RoutineListStep).steps.length;
-        } else if (currNestedSteps.__type === ProjectStepType.Directory) {
-            return (currNestedSteps as DirectoryStep).steps.length;
-        } else {
-            return -1;
-        }
-    }, [currStepLocation, steps]);
-
+    const stepsInCurrentNode = useMemo(function stepsInCurrentNodeMemo() {
+        if (!currStepLocation || !rootStep) return 1;
+        return siblingsAtLocaiton(currStepLocation, rootStep);
+    }, [currStepLocation, rootStep]);
 
     /**
      * Current step run data
@@ -900,11 +933,11 @@ export function RunView({
             return;
         }
         // Current step is the last step in steps list
-        const currStep = stepFromLocation(currStepLocation, steps);
+        const currStep = stepFromLocation(currStepLocation, rootStep);
         // If current step was not found
         if (!currStep) {
             // Check if this is because the top level step list is empty
-            if (currStepLocation.length === 1 && steps?.steps.length === 0) {
+            if (currStepLocation.length === 1 && rootStep?.steps.length === 0) {
                 // Navigate to the next step in the parent list or directory
                 navigateToNextStepInParent();
             } else if (currStepLocation.length > 1) {
@@ -938,7 +971,7 @@ export function RunView({
         }
         // Finally, if we don't need to query, we set the current step.
         setCurrentStep(currStep);
-    }, [currStepLocation, getSubroutines, getDirectories, params, setCurrStepLocation, steps, navigateToNextStepInParent, navigateBackToParentStep]);
+    }, [currStepLocation, getSubroutines, getDirectories, params, setCurrStepLocation, rootStep, navigateToNextStepInParent, navigateBackToParentStep]);
 
 
     useEffect(function addQueriedSubroutinesToRootEffect() {
@@ -953,16 +986,16 @@ export function RunView({
         setRootStep(root => root ? addSubdirectoriesToStep(subdirectories, root, languages) : null);
     }, [languages, queriedSubdirectories]);
 
-    const { instructions, name } = useMemo(() => {
+    const { instructions, name } = useMemo(function parentDisplayInfoMemo() {
         const languages = getUserLanguages(session);
         // Find step above current step
-        const currStepParent = stepFromLocation(currStepLocation.slice(0, -1), steps);
+        const currStepParent = rootStep ? stepFromLocation(currStepLocation.slice(0, -1), rootStep) : null;
         return {
             instructions: (run && run?.__typename === "RunRoutine" && run.routineVersion) ? getTranslation(run.routineVersion, languages, true).instructions : "",
             // Ignore name if it's for the main routine (i.e. step is still loading, probably)
             name: (currStepParent?.name && currStepLocation.length > 1) ? currStepParent.name : "",
         };
-    }, [currStepLocation, run, session, steps]);
+    }, [currStepLocation, run, session, rootStep]);
 
     const previousLocation = useMemo<number[] | null>(function previousLocationMemo() {
         if (!currentStep) return null;
@@ -994,7 +1027,7 @@ export function RunView({
      */
     const toNext = useCallback(function toNextCallback() {
         // Find step data
-        const currStep = stepFromLocation(currStepLocation, steps);
+        const currStep = stepFromLocation(currStepLocation, rootStep);
         // Calculate new progress and percent complete
         const newProgress = Array.isArray(progress) ? [...progress] : [];
         const newlyCompletedComplexity: number = (currStep ? getStepComplexity(currStep) : 0);
@@ -1030,7 +1063,7 @@ export function RunView({
             contextSwitches: contextSwitches.current,
         }];
         // If a next step exists, update
-        if (nextStep) {
+        if (nextLocation) {
             fetchLazyWrapper<RunRoutineUpdateInput, RunRoutine>({
                 fetch: logRunUpdate,
                 inputs: {
@@ -1073,7 +1106,7 @@ export function RunView({
                 },
             });
         }
-    }, [currStepLocation, currStepRunData, onClose, logRunComplete, logRunUpdate, nextStep, progress, run, runnableObject, setLocation, steps, testMode]);
+    }, [currStepLocation, rootStep, progress, nextLocation, testMode, run, currStepRunData, logRunUpdate, logRunComplete, runnableObject, setLocation, onClose]);
 
     /**
      * End run after reaching an EndStep
@@ -1193,7 +1226,7 @@ export function RunView({
             default:
                 return null;
         }
-    }, [currentStep, handleUserInputsUpdate, run, saveProgress, steps, subroutinesLoading, toDecision]);
+    }, [currentStep, handleUserInputsUpdate, run, saveProgress, subroutinesLoading, toDecision]);
 
     return (
         <MaybeLargeDialog
@@ -1226,14 +1259,14 @@ export function RunView({
                                 {instructions && <HelpButton markdown={instructions} />}
                             </TitleStepsStack>
                             {/* Steps explorer drawer */}
-                            <RunStepsDialog
+                            {rootStep !== null && rootStep.__type !== RunStepType.SingleRoutine && <RunStepsDialog
                                 currStep={currStepLocation}
                                 handleLoadSubroutine={handleLoadSubroutine}
                                 handleCurrStepLocationUpdate={setCurrStepLocation}
                                 history={progress}
                                 percentComplete={progressPercentage}
-                                rootStep={steps}
-                            />
+                                rootStep={rootStep}
+                            />}
                         </TopBar>
                         {/* Progress bar */}
                         <LinearProgress color="secondary" variant="determinate" value={completedComplexity / ((run as RunRoutine)?.routineVersion?.complexity ?? (run as RunProject)?.projectVersion?.complexity ?? 1) * 100} sx={{ height: "15px" }} />
@@ -1242,15 +1275,12 @@ export function RunView({
                         {childView}
                     </ContentBox>
                     <ActionBar>
-                        <Grid container spacing={2} sx={{
-                            width: "min(100%, 700px)",
-                            margin: 0,
-                        }}>
+                        <Grid container spacing={2} sx={actionBarGridStyle}>
                             {/* There are only ever 1 or 2 options shown. 
                         In either case, we want the buttons to be placed as 
                         if there are always 2 */}
                             <Grid item xs={6} p={1}>
-                                {previousStep && <Button
+                                {previousLocation && <Button
                                     fullWidth
                                     startIcon={<ArrowLeftIcon />}
                                     onClick={toPrevious}
@@ -1261,7 +1291,7 @@ export function RunView({
                                 </Button>}
                             </Grid>
                             <Grid item xs={6} p={1}>
-                                {nextStep && (<Button
+                                {nextLocation && (<Button
                                     fullWidth
                                     startIcon={<ArrowRightIcon />}
                                     onClick={toNext} // NOTE: changes are saved on next click
@@ -1270,7 +1300,7 @@ export function RunView({
                                 >
                                     {t("Next")}
                                 </Button>)}
-                                {!nextStep && currentStep?.__type !== RunStepType.Decision && (<Button
+                                {!nextLocation && currentStep?.__type !== RunStepType.Decision && (<Button
                                     fullWidth
                                     startIcon={<SuccessIcon />}
                                     onClick={toNext}

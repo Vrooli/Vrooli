@@ -2,7 +2,7 @@ import { ProjectVersion, RoutineVersion, RunRoutine } from "@local/shared";
 import { DecisionStep, EndStep, RoutineListStep } from "types";
 import { ViewProps } from "views/types";
 
-export type RunnableRoutineVersion = Pick<RoutineVersion, "__typename" | "id" | "nodeLinks" | "nodes" | "routineType" | "translations" | "you">
+export type RunnableRoutineVersion = Pick<RoutineVersion, "__typename" | "id" | "complexity" | "nodeLinks" | "nodes" | "routineType" | "translations" | "you">
 export type RunnableProjectVersion = Pick<ProjectVersion, "__typename" | "id" | "directories" | "translations" | "you">
 
 export type DecisionViewProps = Omit<ViewProps, "display" | "isOpen"> & {
