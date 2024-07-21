@@ -635,36 +635,7 @@ describe("siblingsAtLocaiton", () => {
     });
 });
 
-describe("getPreviousLocation", () => {
-    beforeAll(() => {
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        jest.spyOn(console, "warn").mockImplementation(() => { });
-    });
-    afterAll(() => {
-        jest.restoreAllMocks();
-    });
-
-    it("returns null if already at the root", () => {
-        expect(getPreviousLocation([])).toBeNull();
-    });
-
-    it("returns the previous location when decremented", () => {
-        expect(getPreviousLocation([1, 2, 3])).toEqual([1, 2, 2]);
-        expect(getPreviousLocation([1, 2, 1])).toEqual([1, 2]);
-    });
-
-    it("returns the previous location and handles multiple decrements", () => {
-        expect(getPreviousLocation([1, 1])).toEqual([1]);
-        expect(getPreviousLocation([1])).toBeNull();
-        expect(getPreviousLocation([2])).toEqual([1]);
-    });
-
-    it("handles deeply nested steps", () => {
-        expect(getPreviousLocation([1, 2, 3, 4, 5])).toEqual([1, 2, 3, 4, 4]);
-    });
-});
-
-describe("getNextLocation", () => {
+describe("getNextLocation and getPreviousLocation", () => {
     beforeAll(() => {
         // eslint-disable-next-line @typescript-eslint/no-empty-function
         jest.spyOn(console, "warn").mockImplementation(() => { });
@@ -706,10 +677,17 @@ describe("getNextLocation", () => {
             ],
         };
         expect(getNextLocation([1], rootStep)).toEqual([1, 1]);
+        expect(getPreviousLocation([1, 1], rootStep)).toEqual([1]);
+
         expect(getNextLocation([1, 1], rootStep)).toEqual([1, 2]);
+        expect(getPreviousLocation([1, 2], rootStep)).toEqual([1, 1]);
+
         expect(getNextLocation([1, 2], rootStep)).toBeNull();
+
         expect(getNextLocation([2], rootStep)).toBeNull();
+
         expect(getNextLocation([], rootStep)).toEqual([1]);
+        expect(getPreviousLocation([1], rootStep)).toBeNull();
     });
 
     it("works with multi-step routines", () => {
@@ -811,22 +789,40 @@ describe("getNextLocation", () => {
         };
         // Root step to first node
         expect(getNextLocation([1], rootStep)).toEqual([1, 1]);
+        expect(getPreviousLocation([1, 1], rootStep)).toEqual([1]);
+
         // First node to its `nextLocation` field
-        expect(getNextLocation([1, 1], rootStep)).toEqual([1, 4]);
+        expect(getPreviousLocation([1, 4], rootStep)).toEqual([1, 1]);
+
         // Second node prefers its child over `nextLocation`
         expect(getNextLocation([1, 2], rootStep)).toEqual([1, 2, 1]);
+        expect(getPreviousLocation([1, 2, 1], rootStep)).toEqual([1, 2]);
+
         // Second node's child has no more siblings, to goes to parent's `nextLocation`
         expect(getNextLocation([1, 2, 1], rootStep)).toEqual([1, 5]);
+        expect(getPreviousLocation([1, 5], rootStep)).toEqual([1, 2]); // Doesn't go down children
+
         // Go to first child
         expect(getNextLocation([1, 3], rootStep)).toEqual([1, 3, 1]);
+        expect(getPreviousLocation([1, 3, 1], rootStep)).toEqual([1, 3]);
+
         // Go to second child
         expect(getNextLocation([1, 3, 1], rootStep)).toEqual([1, 3, 2]);
+        expect(getPreviousLocation([1, 3, 2], rootStep)).toEqual([1, 3, 1]);
+
         // Go to first child
         expect(getNextLocation([1, 3, 2], rootStep)).toEqual([1, 3, 2, 1]);
+        expect(getPreviousLocation([1, 3, 2, 1], rootStep)).toEqual([1, 3, 2]);
+
         // Go to first child
         expect(getNextLocation([1, 3, 2, 1], rootStep)).toEqual([1, 3, 2, 1, 1]);
+        expect(getPreviousLocation([1, 3, 2, 1, 1], rootStep)).toEqual([1, 3, 2, 1]);
+
         // Backtrack multiple times to [1, 3]'s `nextLocation`
         expect(getNextLocation([1, 3, 2, 1, 1], rootStep)).toEqual([1, 5]);
+        expect(getNextLocation([1, 1], rootStep)).toEqual([1, 4]);
+        // There are actually 2 locations that can lead to [1, 5], so either is valid
+        expect([[1, 2], [1, 3]]).toContainEqual(getPreviousLocation([1, 5], rootStep));
     });
 
     it("another multi-step routine test", () => {
@@ -950,6 +946,8 @@ describe("getNextLocation", () => {
         };
         // To `nextLocation`
         expect(getNextLocation([1, 1], rootStep)).toEqual([1, 2]);
+        expect(getPreviousLocation([1, 2], rootStep)).toEqual([1, 1]);
+
         // Decisions should return null
         expect(getNextLocation([1, 2], rootStep)).toBeNull();
     });

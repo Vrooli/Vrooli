@@ -1,6 +1,5 @@
-import { CommentFor, exists, noop, ResourceList as ResourceListType, RoutineVersion, Tag } from "@local/shared";
+import { exists, noop, ResourceList as ResourceListType, RoutineVersion, Tag } from "@local/shared";
 import { Box, Button, LinearProgress, Stack, Typography, useTheme } from "@mui/material";
-import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
@@ -31,6 +30,20 @@ import { RoutineShape } from "utils/shape/models/routine";
 import { TagShape } from "utils/shape/models/tag";
 import { routineInitialValues } from "views/objects/routine";
 import { SubroutineViewProps } from "../types";
+
+const titleLoadingStyle = {
+    borderRadius: 1,
+    width: "50vw",
+    height: 8,
+    marginTop: "12px !important",
+    marginBottom: "12px !important",
+    maxWidth: "300px",
+} as const;
+const titleDisplayStyle = {
+    textAlign: "center",
+    sx: { marginTop: 2, marginBottom: 2 },
+    fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem" },
+} as const;
 
 //TODO update to latest from RoutineView
 export function SubroutineView({
@@ -176,21 +189,10 @@ export function SubroutineView({
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
     // Display title or loading bar
-    const titleComponent = loading ? <LinearProgress color="inherit" sx={{
-        borderRadius: 1,
-        width: "50vw",
-        height: 8,
-        marginTop: "12px !important",
-        marginBottom: "12px !important",
-        maxWidth: "300px",
-    }} /> : <Typography
+    const titleComponent = loading ? <LinearProgress color="inherit" sx={titleLoadingStyle} /> : <Typography
         component="h1"
         variant="h3"
-        sx={{
-            textAlign: "center",
-            sx: { marginTop: 2, marginBottom: 2 },
-            fontSize: { xs: "1.5rem", sm: "2rem", md: "2.5rem" },
-        }}
+        sx={titleDisplayStyle}
     >{name}</Typography>;
 
     return (
@@ -301,24 +303,7 @@ export function SubroutineView({
                                 versions={internalRoutineVersion?.root?.versions}
                             />
                         </Stack>
-                        {/* Votes, reports, and other basic stats */}
-                        {/* <StatsCompact
-                        handleObjectUpdate={updateRoutine}
-                        loading={loading}
-                        object={internalRoutineVersion ?? null}
-                    /> */}
                     </ContentCollapse>
-                </FormSection>
-                {/* Comments */}
-                <FormSection>
-                    <CommentContainer
-                        forceAddCommentOpen={isAddCommentOpen}
-                        isOpen={false}
-                        language={language}
-                        objectId={internalRoutineVersion?.id ?? ""}
-                        objectType={CommentFor.RoutineVersion}
-                        onAddCommentClose={closeAddCommentDialog}
-                    />
                 </FormSection>
             </Box>
         </>

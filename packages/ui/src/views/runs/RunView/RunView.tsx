@@ -211,42 +211,78 @@ export function siblingsAtLocaiton(
 }
 
 /**
- * Finds the previous location
+ * Finds the previous location in a routine or project structure. Rules (in order):
+ * 1. If the location is empty or the first step, return null.
+ * - If the step is a type of NodeStep (i.e. part of a MultiRoutineStep), 
+ * then we need to check the `nextLocation` and `DecisionStep.options` for every sibling node. 
+ * If there are any matches, return the first one found.
+ * - If the step has siblings and is not the first sibling, go to the first sibling
+ * - Return the parent
+ * 
+ * NOTE: This is not a perfect inverse of `getNextLocation`, as for that we'd have to drill down 
+ * the children of the parent's previous sibling. That behavior may not be preferable anyway.
  * @param location The current location
- * @returns The previous location, or null if already at the first step
- * @example getPreviousLocation([1, 2, 3]) => [1, 2, 2], getPreviousLocation([1, 2, 1]) => [1, 2]
+ * @param rootStep The root step object for the project or routine
+ * @returns The previous location, or null if not found (e.g., at the start of the routine)
  */
-export function getPreviousLocation(location: number[]): number[] | null {
-    if (location.length === 0) {
-        return null; // Already at the root
+export function getPreviousLocation(
+    location: number[],
+    rootStep: RootStep | null,
+): number[] | null {
+    if (!rootStep) return null;
+
+    const currentLocation = [...location];
+
+    // If the location is empty or 1 (i.e. the root step), return null
+    if (currentLocation.length <= 1) return null;
+
+    // Retrieve the current step based on the location provided
+    const currentStep = stepFromLocation(currentLocation, rootStep);
+    if (!currentStep) return null;
+
+    // Check if any sibling or decision option points to the current location
+    const parentLocation = currentLocation.slice(0, -1);
+    const parentStep = stepFromLocation(parentLocation, rootStep);
+    if (!parentStep) return null;
+    // This only applies for multi-step routines
+    if (parentStep.__type === RunStepType.MultiRoutine) {
+        const matchingNextLocations = parentStep.nodes
+            .filter(node => Array.isArray((node as NodeStep).nextLocation) && locationArraysMatch((node as NodeStep).nextLocation as number[], currentLocation)) as NodeStep[];
+        const matchingDecisions = parentStep.nodes
+            .filter(node => node.__type === RunStepType.Decision)
+            .filter(node => (node as DecisionStep).options.some(option => locationArraysMatch(option.step.location, currentLocation))) as DecisionStep[];
+        if (matchingNextLocations.length > 0) {
+            return matchingNextLocations[0].location as number[];
+        }
+        if (matchingDecisions.length > 0) {
+            return matchingDecisions[0].location;
+        }
     }
 
-    const previousLocation = [...location];
-
-    // Decrement the last number
-    previousLocation[previousLocation.length - 1]--;
-
-    // If we've decremented to 0, remove the last number
-    while (previousLocation.length > 0 && previousLocation[previousLocation.length - 1] === 0) {
-        previousLocation.pop();
+    // If there is a sibling before the current step, return it
+    const prevSiblingLocation = [...currentLocation];
+    prevSiblingLocation[prevSiblingLocation.length - 1]--;
+    const prevSiblingStep = stepFromLocation(prevSiblingLocation, rootStep);
+    if (prevSiblingStep) {
+        return prevSiblingStep.location;
     }
 
-    // If we've popped all numbers, we've gone before the first step
-    return previousLocation.length > 0 ? previousLocation : null;
+    // Return parent
+    return parentLocation;
 }
 
-//TODO update to follow new rules
 /**
- * Finds the next available location. Rules (in order):
- * - If the step is a DecisionStep or EndStep, it cannot have a next location, so return null
+ * Finds the next available location in a routine or project structure. Rules (in order):
+ * 1. If the location is empty, return [1] (i.e. the first step)
+ * 2. If the step is a DecisionStep or EndStep, it cannot have a next location, so return null
  * // At this point, the step is valid
- * - If the step has children, go to the first child
- * - If the step has a `nextLocation` field, return that if it's not null
- * - If the step has siblings and is not the last sibling, go to the next sibling
+ * 3. If the step has children, go to the first child
+ * 4. If the step has a `nextLocation` field, return that if it's not null
+ * 5. If the step has siblings and is not the last sibling, go to the next sibling
  * // At this point, we start backtracking up the parent chain
- * - If the parent has a `nextLocation` field, return that if it's not null
- * - If the parent has siblings and is not the last sibling, go to the next sibling
- * - If all else fails, return null
+ * 6. If the parent has a `nextLocation` field, return that if it's not null
+ * 7. If the parent has siblings and is not the last sibling, go to the next sibling
+ * 8. If all else fails, return null
  * @param location The current location
  * @param rootStep The root step object for the project or routine
  * @returns The next available location, or null if not found (either because there is not next 
@@ -294,12 +330,10 @@ export function getNextLocation(
     // Start backtracking to find a valid next location from parents
     while (location.length > 0) {
         location.pop(); // Move up to the parent
-        console.log("backtracking...", location);
         if (location.length === 0) break; // If we've reached the root, stop
 
         // Check the parent's next location
         const parentStep = stepFromLocation(location, rootStep);
-        console.log("parentStep", parentStep);
         if (parentStep && Object.prototype.hasOwnProperty.call(parentStep, "nextLocation")) {
             const parentNextLocation = (parentStep as NodeStep).nextLocation;
             if (parentNextLocation) return parentNextLocation;
@@ -309,13 +343,11 @@ export function getNextLocation(
         const parentSiblingLocation = [...location];
         parentSiblingLocation[parentSiblingLocation.length - 1]++;
         const parentSiblingStep = stepFromLocation(parentSiblingLocation, rootStep);
-        console.log("parentSiblingStep", parentSiblingStep);
         if (parentSiblingStep) {
             return parentSiblingLocation;
         }
     }
 
-    console.log("No next location found");
     return null;
 }
 
@@ -999,7 +1031,7 @@ export function RunView({
 
     const previousLocation = useMemo<number[] | null>(function previousLocationMemo() {
         if (!currentStep) return null;
-        return getPreviousLocation(currentStep.location);
+        return getPreviousLocation(currentStep.location, rootStep);
     }, [currentStep]);
 
     const nextLocation = useMemo<number[] | null>(function nextLocationMemo() {
@@ -1026,6 +1058,7 @@ export function RunView({
      * Also log progress, time elapsed, and other metrics
      */
     const toNext = useCallback(function toNextCallback() {
+        if (!rootStep) return;
         // Find step data
         const currStep = stepFromLocation(currStepLocation, rootStep);
         // Calculate new progress and percent complete

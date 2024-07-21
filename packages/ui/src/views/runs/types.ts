@@ -25,6 +25,6 @@ export type SubroutineViewProps = Omit<ViewProps, "display" | "isOpen"> & {
      * Owner of overall routine, not subroutine
      */
     owner: RoutineVersion["root"]["owner"] | null | undefined;
-    routineVersion: RoutineVersion | null | undefined;
+    routineVersion: RunnableRoutineVersion | null | undefined;
     run: RunRoutine | null | undefined;
 }
