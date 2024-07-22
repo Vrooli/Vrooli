@@ -52,6 +52,7 @@ export const runRoutine_create = {
     "canUpdate": true,
     "canRead": true
   },
+  "lastStep": true,
   "inputs": {
     "id": true,
     "data": true,

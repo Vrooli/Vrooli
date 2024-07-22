@@ -28,9 +28,6 @@ export const routineVersionYou: GqlPartial<RoutineVersionYou> = {
         canRead: true,
         canReact: true,
     },
-    full: {
-        runs: async () => rel((await import("./runRoutine")).runRoutine, "full", { omit: "input.routineVersion" }),
-    },
 };
 
 export const routineVersion: GqlPartial<RoutineVersion> = {

@@ -8,8 +8,8 @@ import { useZIndex } from "hooks/useZIndex";
 import { ListNumberIcon } from "icons";
 import React, { useCallback, useMemo, useState } from "react";
 import { addSearchParams, useLocation } from "route";
-import { ProjectStep } from "types";
-import { ProjectStepType, RoutineStepType, RunStepType } from "utils/consts";
+import { RunStep } from "types";
+import { RunStepType } from "utils/consts";
 import { locationArraysMatch, routineVersionHasSubroutines } from "utils/runUtils";
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { RunStepsDialogProps } from "../types";
@@ -23,7 +23,7 @@ interface StyledTreeItemProps {
     onLoad?: (ev: React.MouseEvent) => unknown;
     onToStep?: (ev: React.MouseEvent) => unknown;
     palette: Palette;
-    type: RoutineStepType | ProjectStepType | "placeholder";
+    type: RunStepType | "placeholder";
 }
 
 //TODO implement tree structure myself, since MUI TreeView not supported anymore
@@ -39,7 +39,7 @@ interface StyledTreeItemProps {
 //         ...other
 //     } = props;
 
-//     const canToStep = typeof onToStep === "function" && (type === RoutineStepType.Decision || type === RoutineStepType.Subroutine);
+//     const canToStep = typeof onToStep === "function" && (type === RunStepType.Decision || type === RunStepType.Subroutine);
 
 //     /**
 //      * Only trigger onToStep if the onToStep function is supplied, and the type is a decision or subroutine. 
@@ -112,6 +112,8 @@ interface StyledTreeItemProps {
 //     },
 // }));
 
+const zIndexOffset = 1000;
+
 export function RunStepsDialog({
     currStep,
     handleLoadSubroutine,
@@ -123,7 +125,7 @@ export function RunStepsDialog({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
     const [isOpen, setIsOpen] = useState(false);
-    const zIndex = useZIndex(isOpen, false, 1000);
+    const zIndex = useZIndex(isOpen, false, zIndexOffset);
     const toggleOpen = useCallback(function toggleOpenCallback() {
         setIsOpen(!isOpen);
     }, [isOpen]);
@@ -137,7 +139,7 @@ export function RunStepsDialog({
      * @param step current step
      * @param location Array indicating step location
      */
-    const isComplete = useCallback((step: ProjectStep, location: number[]) => {
+    const isComplete = useCallback((step: RunStep, location: number[]) => {
         switch (step.__type) {
             // If RoutineList, check all child steps
             case RunStepType.RoutineList:
@@ -154,7 +156,7 @@ export function RunStepsDialog({
                 // If simple routine
                 return history.some(h => locationArraysMatch(h, location));
             // If decision
-            case RoutineStepType.Decision:
+            case RunStepType.Decision:
                 return history.some(h => locationArraysMatch(h, location));
         }
     }, [history]);
@@ -172,7 +174,7 @@ export function RunStepsDialog({
     /**
      * Generate a tree of the subroutine's steps
      */
-    const getTreeItem = useCallback((step: ProjectStep, location: number[] = [1]) => {
+    const getTreeItem = useCallback((step: RunStep, location: number[] = [1]) => {
         // Ignore first number in location array, as it only exists to group the tree items
         const realLocation = location.slice(1);
         // Determine if step is completed/selected
@@ -192,7 +194,7 @@ export function RunStepsDialog({
         // Item displayed differently depending on its type
         switch (step.__type) {
             // A decision step never has children
-            case RoutineStepType.Decision:
+            case RunStepType.Decision:
                 return null;
             // return <StyledTreeItem
             //     isComplete={completed}
@@ -204,7 +206,7 @@ export function RunStepsDialog({
             //     type={step.type}
             // />;
             // A subroutine may have children, but they may not be loaded
-            case RoutineStepType.Subroutine:
+            case RunStepType.SingleRoutine:
                 // If there are further steps, add a "Loading" node
                 if (routineVersionHasSubroutines(step.routineVersion)) {
                     return null;
@@ -242,8 +244,8 @@ export function RunStepsDialog({
             // />;
 
             // A routine list always has children
-            case RoutineStepType.RoutineList:
-            case ProjectStepType.Directory: {
+            case RunStepType.RoutineList:
+            case RunStepType.Directory: {
                 const stepItems = step.steps;
                 // Don't wrap in a tree item if location is one element long (i.e. the root)
                 if (location.length === 1) return stepItems.map((substep, i) => getTreeItem(substep, [...location, i + 1]));
@@ -262,7 +264,7 @@ export function RunStepsDialog({
                 // );
             }
         }
-    }, [isComplete, isSelected, setLocation, handleCurrStepLocationUpdate]);
+    }, [isComplete, isSelected, setLocation, handleCurrStepLocationUpdate, closeDialog]);
 
     return (
         <>

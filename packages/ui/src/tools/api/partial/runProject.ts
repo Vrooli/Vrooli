@@ -36,10 +36,12 @@ export const runProject: GqlPartial<RunProject> = {
         you: () => rel(runProjectYou, "full"),
     },
     full: {
+        lastStep: true,
         projectVersion: async () => rel((await import("./projectVersion")).projectVersion, "list", { omit: "you" }),
         steps: async () => rel((await import("./runProjectStep")).runProjectStep, "full", { omit: "run" }),
     },
     list: {
+        lastStep: true,
         projectVersion: async () => rel((await import("./projectVersion")).projectVersion, "nav", { omit: "you" }),
     },
 };

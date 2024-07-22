@@ -13,3 +13,7 @@ export function noop() {
 export function funcTrue() {
     return true;
 }
+
+export function funcFalse() {
+    return false;
+}

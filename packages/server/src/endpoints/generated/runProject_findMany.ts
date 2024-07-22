@@ -51,6 +51,7 @@ export const runProject_findMany = {
         "canUpdate": true,
         "canRead": true
       },
+      "lastStep": true,
       "projectVersion": {
         "id": true,
         "complexity": true,

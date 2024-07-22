@@ -373,6 +373,7 @@ export const meeting_findMany = {
             "canUpdate": true,
             "canRead": true
           },
+          "lastStep": true,
           "projectVersion": {
             "id": true,
             "complexity": true,
@@ -444,6 +445,7 @@ export const meeting_findMany = {
             "canUpdate": true,
             "canRead": true
           },
+          "lastStep": true,
           "routineVersion": {
             "id": true,
             "complexity": true,

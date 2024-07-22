@@ -22,10 +22,10 @@ import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { ApiViewProps } from "../types";
 
-export const ApiView = ({
+export function ApiView({
     display,
     onClose,
-}: ApiViewProps) => {
+}: ApiViewProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -215,4 +215,4 @@ export const ApiView = ({
             </Box>
         </>
     );
-};
+}

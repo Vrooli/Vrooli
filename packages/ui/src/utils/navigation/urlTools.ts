@@ -91,10 +91,10 @@ export function parseSingleItemUrl({ href, pathname }: { href?: string, pathname
  * try to navigate back if previous url is this site. 
  * Otherwise, navigate to the home page.
  */
-export const tryOnClose = (
+export function tryOnClose(
     onClose: (() => unknown) | null | undefined,
     setLocation: SetLocation,
-) => {
+) {
     if (typeof onClose === "function") {
         onClose();
         return;
@@ -102,4 +102,4 @@ export const tryOnClose = (
     const hasPreviousPage = Boolean(sessionStorage.getItem("lastPath"));
     if (hasPreviousPage) window.history.back();
     else setLocation(LINKS.Home);
-};
+}

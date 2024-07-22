@@ -1,19 +1,13 @@
 import { MaxObjects, RoutineVersionCreateInput, RoutineVersionSortBy, RoutineVersionUpdateInput, routineVersionValidation } from "@local/shared";
 import { ModelMap } from ".";
-import { addSupplementalFields } from "../../builders/addSupplementalFields";
-import { modelToGql } from "../../builders/modelToGql";
 import { noNull } from "../../builders/noNull";
-import { selectHelper } from "../../builders/selectHelper";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
-import { PartialGraphQLInfo } from "../../builders/types";
-import { prismaInstance } from "../../db/instance";
 import { SubroutineWeightData, bestTranslation, calculateWeightData, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { PreShapeVersionResult, afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { RoutineVersionFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { RoutineModelInfo, RoutineModelLogic, RoutineVersionModelInfo, RoutineVersionModelLogic, RunRoutineModelLogic } from "./types";
+import { RoutineModelInfo, RoutineModelLogic, RoutineVersionModelInfo, RoutineVersionModelLogic } from "./types";
 
 type RoutineVersionPre = PreShapeVersionResult & {
     /** Map of routine version ID to graph complexity metrics */
@@ -209,36 +203,9 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
         supplemental: {
             graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, objects, partial, userData }) => {
-                async function runs() {
-                    if (!userData || !partial.runs) return new Array(objects.length).fill([]);
-                    // Find requested fields of runs. Also add routineVersionId, so we 
-                    // can associate runs with their routine
-                    const runPartial: PartialGraphQLInfo = {
-                        ...toPartialGqlInfo(partial.runs as PartialGraphQLInfo, ModelMap.get<RunRoutineModelLogic>("RunRoutine").format.gqlRelMap, userData.languages, true),
-                        routineVersionId: true,
-                    };
-                    // Query runs made by user
-                    let runs: any[] = await prismaInstance.run_routine.findMany({
-                        where: {
-                            AND: [
-                                { routineVersion: { root: { id: { in: ids } } } },
-                                { user: { id: userData.id } },
-                            ],
-                        },
-                        ...selectHelper(runPartial),
-                    });
-                    // Format runs to GraphQL
-                    runs = runs.map(r => modelToGql(r, runPartial));
-                    // Add supplemental fields
-                    runs = await addSupplementalFields(userData, runs, runPartial);
-                    // Split runs by id
-                    const routineRuns = ids.map((id) => runs.filter(r => r.routineVersionId === id));
-                    return routineRuns;
-                }
                 return {
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
-                        runs: await runs(),
                     },
                 };
             },

@@ -60,21 +60,24 @@ const { RoutineUpsert, RoutineView } = lazily(() => import("./views/objects/rout
 const { SmartContractUpsert, SmartContractView } = lazily(() => import("./views/objects/smartContract"));
 const { StandardUpsert, StandardView } = lazily(() => import("./views/objects/standard"));
 const { UserView } = lazily(() => import("./views/objects/user"));
+const { RunView } = lazily(() => import("./views/runs/RunView/RunView"));
+
+const fallbackNavbarStyle = {
+    background: (t) => t.palette.primary.dark,
+    height: "64px!important",
+    zIndex: 1000,
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+} as const;
 
 /**
  * Fallback displayed while route is being loaded.
  */
 const Fallback = <Box>
     {/* A blank Navbar to display before the actual one (which is dynamic depending on the page) is rendered. */}
-    <Box sx={{
-        background: (t) => t.palette.primary.dark,
-        height: "64px!important",
-        zIndex: 1000,
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-    }} />
+    <Box sx={fallbackNavbarStyle} />
     {/* Loading spinner */}
     <FullPageSpinner />
 </Box>;
@@ -292,6 +295,9 @@ export function Routes(props: { sessionChecked: boolean }) {
                 <NavRoute path={`${LINKS.Routine}/:rootId/:versionId?`} {...props}>
                     <RoutineView display="page" />
                 </NavRoute>
+                {/* <NavRoute path={`${LINKS.Run}/:objectType/:id`} {...props}>
+                    <RunView display="page" />
+                </NavRoute> */}
                 <NavRoute
                     path={`${LINKS.Search}/:params*`}
                     sitemapIndex

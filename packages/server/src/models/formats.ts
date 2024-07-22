@@ -1513,7 +1513,6 @@ export const RoutineVersionFormat: Formatter<RoutineVersionModelInfo> = {
         reports: "Report",
         root: "Routine",
         suggestedNextByRoutineVersion: "RoutineVersion",
-        // you.runs: 'RunRoutine', //TODO
     },
     prismaRelMap: {
         __typename: "RoutineVersion",

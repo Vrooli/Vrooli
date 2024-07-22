@@ -50,6 +50,7 @@ export const runProject_update = {
     "canUpdate": true,
     "canRead": true
   },
+  "lastStep": true,
   "projectVersion": {
     "id": true,
     "created_at": true,

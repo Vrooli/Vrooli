@@ -1,7 +1,9 @@
 import { MaxObjects, RunProjectSortBy, runProjectValidation, RunStatus } from "@local/shared";
+import { RunStepStatus } from "@prisma/client";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { prismaInstance } from "../../db/instance";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { RunProjectFormat } from "../formats";
@@ -86,7 +88,21 @@ export const RunProjectModel: RunProjectModelLogic = ({
         supplemental: {
             graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, userData }) => {
+                // Find the step with the highest "completedAt" Date for each run
+                const recentSteps = await prismaInstance.$queryRaw`
+                    SELECT DISTINCT ON ("runProjectId")
+                    "runProjectId",
+                    step
+                    FROM run_project_step
+                    WHERE "runProjectId" = ANY(${ids}::uuid[])
+                    AND "completedAt" IS NOT NULL
+                    AND status = 'Completed'
+                    ORDER BY "runProjectId", "completedAt" DESC
+                ` as { runProjectId: string, step: RunStepStatus }[];
+                const stepMap = new Map(recentSteps.map(step => [step.runProjectId, step.step]));
+                const lastSteps = ids.map(id => stepMap.get(id) || null);
                 return {
+                    lastStep: lastSteps,
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },

@@ -99,10 +99,18 @@ export function getYou(
     };
     if (isOfType(object, "RunRoutine")) return {
         ...getYou((object as Partial<RunRoutine>).routineVersion),
+        canBookmark: false,
+        canComment: false,
+        canReact: false,
+        canShare: false,
         canDelete: getPermission("canDelete"),
     };
     if (isOfType(object, "RunProject")) return {
         ...getYou((object as Partial<RunProject>).projectVersion),
+        canBookmark: false,
+        canComment: false,
+        canReact: false,
+        canShare: false,
         canDelete: getPermission("canDelete"),
     };
     if (isOfType(object, "Member", "MemberInvite", "ChatParticipant", "ChatInvite")) return {

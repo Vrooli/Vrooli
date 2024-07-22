@@ -1,11 +1,11 @@
-import { ApiVersion, Bookmark, BookmarkFor, CodeVersion, CommonKey, FocusMode, ListObject, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, ProjectVersion, Question, RoutineVersion, RunProject, RunRoutine, StandardVersion, Team, User } from "@local/shared";
+import { ApiVersion, Bookmark, BookmarkFor, CodeVersion, CommonKey, FocusMode, ListObject, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, ProjectVersion, Question, RoutineVersion, StandardVersion, Team, User } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
 import { TitleProps } from "components/text/types";
 import { FormProps } from "forms/types";
 import { UseObjectActionsReturn } from "hooks/useObjectActions";
 import { ReactNode } from "react";
-import { DirectoryStep, RoutineListStep, SvgComponent, SxType } from "types";
+import { RootStep, SvgComponent, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { CookiePreferences } from "utils/cookies";
 import { NodeShape } from "utils/shape/models/node";
@@ -228,7 +228,7 @@ export interface RunStepsDialogProps {
     history: number[][];
     /** Out of 100 */
     percentComplete: number;
-    rootStep: RoutineListStep | DirectoryStep | null;
+    rootStep: RootStep | null;
 }
 
 export interface DeleteBookmarkListDialogProps {
@@ -258,15 +258,6 @@ export interface SelectLanguageMenuProps {
     /** Languages that currently have a translation */
     languages: string[];
     sxs?: { root: SxType; };
-}
-
-export interface RunPickerMenuProps {
-    anchorEl: HTMLElement | null;
-    handleClose: () => unknown;
-    onAdd: (run: RunProject | RunRoutine) => unknown;
-    onDelete: (run: RunProject | RunRoutine) => unknown;
-    onSelect: (run: RunProject | RunRoutine | null) => unknown;
-    runnableObject?: Partial<RoutineVersion | ProjectVersion> | null;
 }
 
 export interface LargeDialogProps {

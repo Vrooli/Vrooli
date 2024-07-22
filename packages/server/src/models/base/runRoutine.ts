@@ -1,5 +1,5 @@
 import { Count, MaxObjects, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineSortBy, runRoutineValidation } from "@local/shared";
-import { RunStatus, run_routine } from "@prisma/client";
+import { RunStatus, RunStepStatus, run_routine } from "@prisma/client";
 import { ModelMap } from ".";
 import { addSupplementalFields } from "../../builders/addSupplementalFields";
 import { modelToGql } from "../../builders/modelToGql";
@@ -288,7 +288,21 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
             dbFields: ["name"],
             graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, userData }) => {
+                // Find the step with the highest "completedAt" Date for each run
+                const recentSteps = await prismaInstance.$queryRaw`
+                    SELECT DISTINCT ON ("runRoutineId")
+                    "runRoutineId",
+                    step
+                    FROM run_routine_step
+                    WHERE "runRoutineId" = ANY(${ids}::uuid[])
+                    AND "completedAt" IS NOT NULL
+                    AND status = 'Completed'
+                    ORDER BY "runRoutineId", "completedAt" DESC
+                ` as { runRoutineId: string, step: RunStepStatus }[];
+                const stepMap = new Map(recentSteps.map(step => [step.runRoutineId, step.step]));
+                const lastSteps = ids.map(id => stepMap.get(id) || null);
                 return {
+                    lastStep: lastSteps,
                     you: {
                         ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
                     },

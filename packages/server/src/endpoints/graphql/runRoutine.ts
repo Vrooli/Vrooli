@@ -56,6 +56,7 @@ export const typeDef = gql`
         startedAt: Date
         timeElapsed: Int
         completedAt: Date
+        lastStep: [Int!]
         name: String!
         status: RunStatus!
         wasRunAutomatically: Boolean!

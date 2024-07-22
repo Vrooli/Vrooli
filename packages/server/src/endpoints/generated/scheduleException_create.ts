@@ -557,6 +557,7 @@ export const scheduleException_create = {
         "canUpdate": true,
         "canRead": true
       },
+      "lastStep": true,
       "projectVersion": {
         "id": true,
         "created_at": true,
@@ -802,6 +803,7 @@ export const scheduleException_create = {
         "canUpdate": true,
         "canRead": true
       },
+      "lastStep": true,
       "inputs": {
         "id": true,
         "data": true,

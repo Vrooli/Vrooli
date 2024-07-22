@@ -1,8 +1,247 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Node, NodeLink, RoutineType, RoutineVersion, uuid } from "@local/shared";
-import { DecisionStep, DirectoryStep, EndStep, MultiRoutineStep, RootStep, RoutineListStep, RunStep, SingleRoutineStep, StartStep } from "../../../types";
-import { RunStepType } from "../../../utils/consts";
-import { getNextLocation, getPreviousLocation, getStepComplexity, insertStep, parseChildOrder, siblingsAtLocaiton, sortStepsAndAddDecisions, stepFromLocation, stepNeedsQuerying } from "./RunView";
+import { DecisionStep, DirectoryStep, EndStep, MultiRoutineStep, RootStep, RoutineListStep, RunStep, SingleRoutineStep, StartStep } from "../types";
+import { RunStepType } from "./consts";
+import { findStep, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, insertStep, locationArraysMatch, parseChildOrder, parseSchemaInputOutput, routineVersionHasSubroutines, siblingsAtLocation, sortStepsAndAddDecisions, stepFromLocation, stepNeedsQuerying } from "./runUtils";
+
+
+describe("getRunPercentComplete", () => {
+    it("should return 0 when completedComplexity is null", () => {
+        expect(getRunPercentComplete(null, 100)).toBe(0);
+    });
+
+    it("should return 0 when completedComplexity is undefined", () => {
+        expect(getRunPercentComplete(undefined, 100)).toBe(0);
+    });
+
+    it("should return 0 when totalComplexity is null", () => {
+        expect(getRunPercentComplete(50, null)).toBe(0);
+    });
+
+    it("should return 0 when totalComplexity is undefined", () => {
+        expect(getRunPercentComplete(50, undefined)).toBe(0);
+    });
+
+    it("should return 0 when totalComplexity is 0", () => {
+        expect(getRunPercentComplete(50, 0)).toBe(0);
+    });
+
+    it("should return 50 when half of the complexity is completed", () => {
+        expect(getRunPercentComplete(50, 100)).toBe(50);
+    });
+
+    it("should return 100 when all complexity is completed", () => {
+        expect(getRunPercentComplete(100, 100)).toBe(100);
+    });
+
+    it("should return 100 when completed complexity exceeds total complexity", () => {
+        expect(getRunPercentComplete(150, 100)).toBe(100);
+    });
+
+    it("should round down to the nearest integer", () => {
+        expect(getRunPercentComplete(66, 100)).toBe(66);
+    });
+
+    it("should round up to the nearest integer", () => {
+        expect(getRunPercentComplete(67, 100)).toBe(67);
+    });
+
+    it("should handle very small fractions", () => {
+        expect(getRunPercentComplete(1, 1000)).toBe(0);
+    });
+
+    it("should handle very large numbers", () => {
+        expect(getRunPercentComplete(1000000, 2000000)).toBe(50);
+    });
+
+    it("should return 100 for equal non-zero values", () => {
+        expect(getRunPercentComplete(5, 5)).toBe(100);
+    });
+
+    it("should handle decimal inputs", () => {
+        expect(getRunPercentComplete(2.5, 5)).toBe(50);
+    });
+});
+
+describe("locationArraysMatch", () => {
+    it("should return true for two empty arrays", () => {
+        expect(locationArraysMatch([], [])).toBe(true);
+    });
+
+    it("should return true for identical single-element arrays", () => {
+        expect(locationArraysMatch([1], [1])).toBe(true);
+    });
+
+    it("should return false for different single-element arrays", () => {
+        expect(locationArraysMatch([1], [2])).toBe(false);
+    });
+
+    it("should return true for identical multi-element arrays", () => {
+        expect(locationArraysMatch([1, 2, 3], [1, 2, 3])).toBe(true);
+    });
+
+    it("should return false for arrays with different lengths", () => {
+        expect(locationArraysMatch([1, 2], [1, 2, 3])).toBe(false);
+    });
+
+    it("should return false for arrays with same length but different elements", () => {
+        expect(locationArraysMatch([1, 2, 3], [1, 2, 4])).toBe(false);
+    });
+
+    it("should return false for arrays with elements in different order", () => {
+        expect(locationArraysMatch([1, 2, 3], [3, 2, 1])).toBe(false);
+    });
+
+    it("should handle large arrays", () => {
+        const largeArray = Array.from({ length: 1000 }, (_, i) => i);
+        expect(locationArraysMatch(largeArray, largeArray)).toBe(true);
+    });
+
+    it("should return true for arrays with negative numbers", () => {
+        expect(locationArraysMatch([-1, -2, -3], [-1, -2, -3])).toBe(true);
+    });
+
+    it("should return false for arrays with mixed positive and negative numbers", () => {
+        expect(locationArraysMatch([1, -2, 3], [1, 2, 3])).toBe(false);
+    });
+
+    it("should handle arrays with repeated elements", () => {
+        expect(locationArraysMatch([1, 1, 2, 2], [1, 1, 2, 2])).toBe(true);
+    });
+
+    it("should return false for arrays with different repeated elements", () => {
+        expect(locationArraysMatch([1, 1, 2, 2], [1, 2, 2, 2])).toBe(false);
+    });
+
+    it("should handle arrays with zero", () => {
+        expect(locationArraysMatch([0, 1, 2], [0, 1, 2])).toBe(true);
+    });
+
+    it("should return false when comparing with undefined", () => {
+        expect(locationArraysMatch([1, 2, 3], undefined as any)).toBe(false);
+    });
+
+    it("should return false when comparing with null", () => {
+        expect(locationArraysMatch([1, 2, 3], null as any)).toBe(false);
+    });
+});
+
+describe("routineVersionHasSubroutines", () => {
+    it("should return false for null input", () => {
+        expect(routineVersionHasSubroutines(null as any)).toBe(false);
+    });
+
+    it("should return false for undefined input", () => {
+        expect(routineVersionHasSubroutines(undefined as any)).toBe(false);
+    });
+
+    it("should return false for empty object", () => {
+        expect(routineVersionHasSubroutines({})).toBe(false);
+    });
+
+    it("should return false for non-MultiStep routine type", () => {
+        const routineVersion: Partial<RoutineVersion> = { routineType: RoutineType.Generate };
+        expect(routineVersionHasSubroutines(routineVersion)).toBe(false);
+    });
+
+    it("should return true for MultiStep routine with nodes", () => {
+        const routineVersion: Partial<RoutineVersion> = {
+            routineType: RoutineType.MultiStep,
+            nodes: [{ __typename: "Node" } as any],
+        };
+        expect(routineVersionHasSubroutines(routineVersion)).toBe(true);
+    });
+
+    it("should return true for MultiStep routine with nodeLinks", () => {
+        const routineVersion: Partial<RoutineVersion> = {
+            routineType: RoutineType.MultiStep,
+            nodeLinks: [{ __typename: "NodeLink" } as any],
+        };
+        expect(routineVersionHasSubroutines(routineVersion)).toBe(true);
+    });
+
+    it("should return true for MultiStep routine with nodesCount > 0", () => {
+        const routineVersion: Partial<RoutineVersion> = {
+            routineType: RoutineType.MultiStep,
+            nodesCount: 1,
+        };
+        expect(routineVersionHasSubroutines(routineVersion)).toBe(true);
+    });
+
+    it("should return false for MultiStep routine with empty nodes, nodeLinks, and nodesCount = 0", () => {
+        const routineVersion: Partial<RoutineVersion> = {
+            routineType: RoutineType.MultiStep,
+            nodes: [],
+            nodeLinks: [],
+            nodesCount: 0,
+        };
+        expect(routineVersionHasSubroutines(routineVersion)).toBe(false);
+    });
+
+    it("should return false for MultiStep routine with undefined nodes, nodeLinks, and nodesCount", () => {
+        const routineVersion: Partial<RoutineVersion> = {
+            routineType: RoutineType.MultiStep,
+        };
+        expect(routineVersionHasSubroutines(routineVersion)).toBe(false);
+    });
+
+    it("should return true if any of nodes, nodeLinks, or nodesCount indicate subroutines", () => {
+        const routineVersion: Partial<RoutineVersion> = {
+            routineType: RoutineType.MultiStep,
+            nodes: [{ __typename: "Node" } as any],
+            nodeLinks: [],
+            nodesCount: 1,
+        };
+        expect(routineVersionHasSubroutines(routineVersion)).toBe(true);
+    });
+});
+
+const defaultSchema = {
+    containers: [],
+    elements: [],
+};
+
+describe("parseSchemaInputOutput function tests", () => {
+    test("parses valid JSON string correctly", () => {
+        const input = JSON.stringify({ containers: [{ id: 1 }], elements: [{ id: 1 }] });
+        const expected = { containers: [{ id: 1 }], elements: [{ id: 1 }] };
+        expect(parseSchemaInputOutput(input, defaultSchema)).toEqual(expected);
+    });
+
+    test("falls back to default schema on invalid JSON string", () => {
+        const input = "{ containers: [}";
+        expect(parseSchemaInputOutput(input, defaultSchema)).toEqual(defaultSchema);
+    });
+
+    test("handles non-string, non-object inputs by returning default schema", () => {
+        const input = 12345; // Non-object, non-string input
+        expect(parseSchemaInputOutput(input, defaultSchema)).toEqual(defaultSchema);
+    });
+
+    test("handles valid object input without parsing", () => {
+        const input = { containers: [{ id: 2 }], elements: [{ id: 2 }] };
+        expect(parseSchemaInputOutput(input, defaultSchema)).toEqual(input);
+    });
+
+    test("adds missing containers and elements as empty arrays", () => {
+        const input = "{}";
+        const expected = { containers: [], elements: [] };
+        expect(parseSchemaInputOutput(input, defaultSchema)).toEqual(expected);
+    });
+
+    test("replaces non-array containers and elements with empty arrays", () => {
+        const input = JSON.stringify({ containers: "not-an-array", elements: "not-an-array" });
+        const expected = { containers: [], elements: [] };
+        expect(parseSchemaInputOutput(input, defaultSchema)).toEqual(expected);
+    });
+
+    test("handles malformed object inputs", () => {
+        const input = { someRandomKey: 123 };
+        const expected = { containers: [], elements: [], someRandomKey: 123 }; // Keeps the malformed key
+        expect(parseSchemaInputOutput(input, defaultSchema)).toEqual(expected);
+    });
+});
 
 describe("insertStep", () => {
     beforeAll(() => {
@@ -486,7 +725,220 @@ describe("stepFromLocation", () => {
     });
 });
 
-describe("siblingsAtLocaiton", () => {
+describe("findStep", () => {
+    // Helper function to create a basic DirectoryStep
+    function createDirectoryStep(name: string, location: number[]): DirectoryStep {
+        return {
+            __type: RunStepType.Directory,
+            name,
+            description: `Description of ${name}`,
+            location,
+            directoryId: null,
+            hasBeenQueried: true,
+            isOrdered: false,
+            isRoot: location.length === 1,
+            projectVersionId: "project123",
+            steps: [],
+        };
+    }
+
+    // Helper function to create a basic SingleRoutineStep
+    function createSingleRoutineStep(name: string, location: number[]): SingleRoutineStep {
+        return {
+            __type: RunStepType.SingleRoutine,
+            name,
+            description: `Description of ${name}`,
+            location,
+            routineVersion: { id: "routine123" } as any,
+        };
+    }
+
+    it("should find a step in a simple DirectoryStep structure", () => {
+        const rootStep: DirectoryStep = {
+            ...createDirectoryStep("Root", [1]),
+            steps: [
+                createSingleRoutineStep("Child1", [1, 1]),
+                createSingleRoutineStep("Child2", [1, 2]),
+            ],
+        };
+
+        const result = findStep(rootStep, step => step.name === "Child2");
+        expect(result).toEqual(rootStep.steps[1]);
+    });
+
+    it("should find a step in a nested DirectoryStep structure", () => {
+        const rootStep: DirectoryStep = {
+            ...createDirectoryStep("Root", [1]),
+            steps: [
+                {
+                    ...createDirectoryStep("Nested", [1, 1]),
+                    steps: [
+                        createSingleRoutineStep("Target", [1, 1, 1]),
+                    ],
+                },
+                createSingleRoutineStep("Sibling", [1, 2]),
+            ],
+        };
+
+        const result = findStep(rootStep, step => step.name === "Target");
+        expect(result).toEqual((rootStep.steps[0] as DirectoryStep).steps[0]);
+    });
+
+    it("should find a step in a MultiRoutineStep structure", () => {
+        const rootStep: MultiRoutineStep = {
+            __type: RunStepType.MultiRoutine,
+            name: "Root",
+            description: "Root MultiRoutine",
+            location: [1],
+            routineVersionId: "multiRoutine123",
+            nodes: [
+                {
+                    __type: RunStepType.Start,
+                    name: "Start",
+                    description: "Start node",
+                    location: [1, 1],
+                    nextLocation: [1, 2],
+                    nodeId: "start123",
+                },
+                {
+                    __type: RunStepType.RoutineList,
+                    name: "RoutineList",
+                    description: "Routine List",
+                    location: [1, 2],
+                    nextLocation: [1, 3],
+                    nodeId: "routineList123",
+                    steps: [
+                        createSingleRoutineStep("Target", [1, 2, 1]),
+                    ],
+                },
+                {
+                    __type: RunStepType.End,
+                    name: "End",
+                    description: "End node",
+                    location: [1, 3],
+                    nextLocation: null,
+                    nodeId: "end123",
+                },
+            ],
+            nodeLinks: [],
+        };
+
+        const result = findStep(rootStep, step => step.name === "Target");
+        expect(result).toEqual((rootStep.nodes[1] as RoutineListStep).steps[0]);
+    });
+
+    it("should find a step in a DecisionStep structure", () => {
+        const rootStep: DecisionStep = {
+            __type: RunStepType.Decision,
+            name: "Decision",
+            description: "Decision step",
+            location: [1],
+            options: [
+                {
+                    link: { id: "link1" } as any,
+                    step: {
+                        __type: RunStepType.RoutineList,
+                        name: "RoutineList",
+                        description: "Routine List",
+                        isOrdered: false,
+                        location: [1, 2],
+                        nextLocation: [1, 3],
+                        nodeId: "routineList123",
+                        parentRoutineVersionId: "routineVersion123",
+                        steps: [
+                            createSingleRoutineStep("Option1", [1, 1]),
+                        ],
+                    },
+                },
+                {
+                    link: { id: "link1" } as any,
+                    step: {
+                        __type: RunStepType.RoutineList,
+                        name: "RoutineList",
+                        description: "Routine List",
+                        isOrdered: false,
+                        location: [1, 2],
+                        nextLocation: [1, 3],
+                        nodeId: "routineList123",
+                        parentRoutineVersionId: "routineVersion123",
+                        steps: [
+                            createSingleRoutineStep("Target", [1, 2]),
+                        ],
+                    },
+                },
+            ],
+        };
+
+        const result = findStep(rootStep, step => step.name === "Target");
+        expect(result).toEqual((rootStep.options[1].step as RoutineListStep).steps[0]);
+    });
+
+    it("should return null if no step matches the predicate", () => {
+        const rootStep: DirectoryStep = {
+            ...createDirectoryStep("Root", [1]),
+            steps: [
+                createSingleRoutineStep("Child1", [1, 1]),
+                createSingleRoutineStep("Child2", [1, 2]),
+            ],
+        };
+
+        const result = findStep(rootStep, step => step.name === "NonExistent");
+        expect(result).toBeNull();
+    });
+
+    it("should handle empty structures", () => {
+        const emptyDirectory: DirectoryStep = createDirectoryStep("Empty", [1]);
+        const emptyMultiRoutine: MultiRoutineStep = {
+            __type: RunStepType.MultiRoutine,
+            name: "Empty",
+            description: "Empty MultiRoutine",
+            location: [1],
+            routineVersionId: "emptyMultiRoutine123",
+            nodes: [],
+            nodeLinks: [],
+        };
+
+        expect(findStep(emptyDirectory, () => true)).toEqual(emptyDirectory);
+        expect(findStep(emptyMultiRoutine, () => true)).toEqual(emptyMultiRoutine);
+    });
+
+    it("should find a step based on a complex predicate", () => {
+        const rootStep: DirectoryStep = {
+            ...createDirectoryStep("Root", [1]),
+            steps: [
+                createSingleRoutineStep("Child1", [1, 1]),
+                {
+                    ...createDirectoryStep("Nested", [1, 2]),
+                    steps: [
+                        createSingleRoutineStep("Target", [1, 2, 1]),
+                    ],
+                },
+            ],
+        };
+
+        const result = findStep(rootStep, step =>
+            step.__type === RunStepType.SingleRoutine &&
+            step.name === "Target" &&
+            step.location.length === 3,
+        );
+        expect(result).toEqual((rootStep.steps[1] as DirectoryStep).steps[0]);
+    });
+
+    it("should return the first matching step when multiple steps match", () => {
+        const rootStep: DirectoryStep = {
+            ...createDirectoryStep("Root", [1]),
+            steps: [
+                createSingleRoutineStep("Target", [1, 1]),
+                createSingleRoutineStep("Target", [1, 2]),
+            ],
+        };
+
+        const result = findStep(rootStep, step => step.name === "Target");
+        expect(result).toEqual(rootStep.steps[0]);
+    });
+});
+
+describe("siblingsAtLocation", () => {
     // Mock console.error to prevent actual console output during tests
     const originalConsoleError = console.error;
     beforeEach(() => {
@@ -509,7 +961,7 @@ describe("siblingsAtLocaiton", () => {
             projectVersionId: "projectVersion123",
             steps: [],
         };
-        expect(siblingsAtLocaiton([], rootStep)).toBe(0);
+        expect(siblingsAtLocation([], rootStep)).toBe(0);
     });
 
     it("should return 1 for a location array with only one element", () => {
@@ -525,7 +977,7 @@ describe("siblingsAtLocaiton", () => {
             projectVersionId: "projectVersion123",
             steps: [],
         };
-        expect(siblingsAtLocaiton([1], rootStep)).toBe(1);
+        expect(siblingsAtLocation([1], rootStep)).toBe(1);
     });
 
     it("should return the correct number of siblings for a DirectoryStep", () => {
@@ -538,7 +990,7 @@ describe("siblingsAtLocaiton", () => {
             ],
         } as DirectoryStep;
 
-        expect(siblingsAtLocaiton([1, 2], rootStep)).toBe(3);
+        expect(siblingsAtLocation([1, 2], rootStep)).toBe(3);
     });
 
     it("should return the correct number of siblings for a MultiRoutineStep", () => {
@@ -551,7 +1003,7 @@ describe("siblingsAtLocaiton", () => {
             ],
         } as MultiRoutineStep;
 
-        expect(siblingsAtLocaiton([1, 2], rootStep)).toBe(3);
+        expect(siblingsAtLocation([1, 2], rootStep)).toBe(3);
     });
 
     it("should return the correct number of siblings for a RoutineListStep", () => {
@@ -563,7 +1015,7 @@ describe("siblingsAtLocaiton", () => {
             ],
         } as RoutineListStep;
 
-        expect(siblingsAtLocaiton([1, 2], rootStep)).toBe(2);
+        expect(siblingsAtLocation([1, 2], rootStep)).toBe(2);
     });
 
     it("should return 1 for an unknown step type", () => {
@@ -571,7 +1023,7 @@ describe("siblingsAtLocaiton", () => {
             __type: "UnknownType" as RunStepType,
         } as unknown as RootStep;
 
-        expect(siblingsAtLocaiton([1, 2], rootStep)).toBe(1);
+        expect(siblingsAtLocation([1, 2], rootStep)).toBe(1);
     });
 
     it("should handle deeply nested locations", () => {
@@ -606,13 +1058,13 @@ describe("siblingsAtLocaiton", () => {
             ],
         } as DirectoryStep;
 
-        expect(siblingsAtLocaiton([1, 1, 1], rootStep)).toBe(3);
-        expect(siblingsAtLocaiton([1, 1, 2], rootStep)).toBe(3);
-        expect(siblingsAtLocaiton([1, 1, 3], rootStep)).toBe(3);
-        expect(siblingsAtLocaiton([1, 1, 2, 1], rootStep)).toBe(4);
-        expect(siblingsAtLocaiton([1, 1, 2, 2], rootStep)).toBe(4);
-        expect(siblingsAtLocaiton([1, 1, 2, 3], rootStep)).toBe(4);
-        expect(siblingsAtLocaiton([1, 1, 2, 4], rootStep)).toBe(4);
+        expect(siblingsAtLocation([1, 1, 1], rootStep)).toBe(3);
+        expect(siblingsAtLocation([1, 1, 2], rootStep)).toBe(3);
+        expect(siblingsAtLocation([1, 1, 3], rootStep)).toBe(3);
+        expect(siblingsAtLocation([1, 1, 2, 1], rootStep)).toBe(4);
+        expect(siblingsAtLocation([1, 1, 2, 2], rootStep)).toBe(4);
+        expect(siblingsAtLocation([1, 1, 2, 3], rootStep)).toBe(4);
+        expect(siblingsAtLocation([1, 1, 2, 4], rootStep)).toBe(4);
     });
 
     it("should return 0 and log an error when parent is not found", () => {
@@ -629,7 +1081,7 @@ describe("siblingsAtLocaiton", () => {
             steps: [],
         };
 
-        const result = siblingsAtLocaiton([1, 2, 3], rootStep);
+        const result = siblingsAtLocation([1, 2, 3], rootStep);
         expect(result).toBe(0);
         expect(console.error).toHaveBeenCalled();
     });

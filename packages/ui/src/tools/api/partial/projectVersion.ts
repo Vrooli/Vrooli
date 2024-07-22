@@ -26,9 +26,6 @@ export const projectVersionYou: GqlPartial<ProjectVersionYou> = {
         canUse: true,
         canRead: true,
     },
-    full: {
-        runs: async () => rel((await import("./runProject")).runProject, "full", { omit: "projectVersion" }),
-    },
 };
 
 export const projectVersion: GqlPartial<ProjectVersion> = {

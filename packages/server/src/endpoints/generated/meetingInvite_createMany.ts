@@ -548,6 +548,7 @@ export const meetingInvite_createMany = {
           "canUpdate": true,
           "canRead": true
         },
+        "lastStep": true,
         "projectVersion": {
           "id": true,
           "created_at": true,
@@ -793,6 +794,7 @@ export const meetingInvite_createMany = {
           "canUpdate": true,
           "canRead": true
         },
+        "lastStep": true,
         "inputs": {
           "id": true,
           "data": true,

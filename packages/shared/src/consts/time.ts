@@ -1,4 +1,6 @@
 /* eslint-disable no-magic-numbers */
+export const SECONDS_1_MS = 1000;
+
 export const MINUTES_1_MS = 60 * 1000;
 export const MINUTES_10_MS = 10 * MINUTES_1_MS;
 export const MINUTES_15_S = 15 * 60;

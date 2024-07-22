@@ -53,6 +53,7 @@ export const runRoutine_findMany = {
         "canUpdate": true,
         "canRead": true
       },
+      "lastStep": true,
       "routineVersion": {
         "id": true,
         "complexity": true,

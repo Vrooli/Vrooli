@@ -873,6 +873,7 @@ export const notificationSubscription_findMany = {
                 "canUpdate": true,
                 "canRead": true
               },
+              "lastStep": true,
               "projectVersion": {
                 "id": true,
                 "complexity": true,
@@ -944,6 +945,7 @@ export const notificationSubscription_findMany = {
                 "canUpdate": true,
                 "canRead": true
               },
+              "lastStep": true,
               "routineVersion": {
                 "id": true,
                 "complexity": true,
