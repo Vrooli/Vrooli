@@ -1,12 +1,125 @@
-import { arraysEqual, exists, Node, NodeLink, NodeType, ProjectVersion, RoutineType, RoutineVersion, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput, uniqBy, uuid, uuidValidate } from "@local/shared";
+import { arraysEqual, exists, isOfType, Node, NodeLink, NodeType, ProjectVersion, ProjectVersionDirectory, ProjectVersionDirectorySearchInput, RoutineType, RoutineVersion, RoutineVersionSearchInput, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput, uniqBy, uuid, uuidValidate } from "@local/shared";
 import { FormSchema } from "forms/types";
-import { DecisionStep, DirectoryStep, EndStep, MultiRoutineStep, NodeStep, RootStep, RoutineListStep, RunStep, SingleRoutineStep, StartStep } from "types";
 import { BotStyle, ConfigCallData, ConfigCallDataGenerate } from "views/objects/routine/RoutineTypeForms/RoutineTypeForms";
 import { RunStepType, Status } from "./consts";
+import { getTranslation } from "./display/translationTools";
 import { NodeShape } from "./shape/models/node";
 import { NodeLinkShape } from "./shape/models/nodeLink";
 import { shapeRunRoutineInput } from "./shape/models/runRoutineInput";
 import { updateRel } from "./shape/models/tools";
+
+export type RunnableRoutineVersion = Pick<RoutineVersion, "__typename" | "created_at" | "id" | "complexity" | "configCallData" | "configFormInput" | "configFormOutput" | "nodeLinks" | "nodes" | "root" | "routineType" | "translations" | "versionLabel" | "you">
+export type RunnableProjectVersion = Pick<ProjectVersion, "__typename" | "created_at" | "id" | "directories" | "root" | "translations" | "versionLabel" | "you">
+
+/** Basic information provided to all routine steps */
+export interface BaseStep {
+    /** The step's name, taken from its node if relevant */
+    name: string,
+    /** The step's description, taken from its node if relevant */
+    description: string | null,
+    /** 
+     * The step's location in the run, as a list of natural numbers. Examples:
+     * - Root step: []
+     * - First node in MultiRoutineStep root: [1]
+     * - Second node in MultiRoutineStep root: [2]
+     * - Third node in a RoutineListStep belonging to a MultiRoutineStep root: [3, 1]
+     */
+    location: number[],
+}
+/** Step information for all nodes in a routine */
+export interface NodeStep extends BaseStep {
+    /** Location of the next node to run */
+    nextLocation: number[] | null,
+    /** The ID of this node */
+    nodeId: string,
+}
+/**
+ * Implicit step (i.e. created based on how nodes are linked, rather 
+ * than being a node itself) that represents a decision point in a routine.
+ */
+export interface DecisionStep extends BaseStep {
+    __type: RunStepType.Decision,
+    /** The options to pick */
+    options: {
+        link: NodeLink,
+        step: DecisionStep | EndStep | RoutineListStep,
+    }[];
+}
+/**
+ * Node that marks the end of a routine. No action needed from the user.
+ */
+export interface EndStep extends NodeStep {
+    __type: RunStepType.End,
+    nextLocation: null, // End of the routine, so no next location
+    /** Whether this is considered a "success" or not */
+    wasSuccessful: boolean,
+}
+/**
+ * Node that marks the start of a routine. No action needed from the user.
+ */
+export interface StartStep extends NodeStep {
+    __type: RunStepType.Start,
+}
+/**
+ * Either a leaf node (i.e. does not contain any subroutines/substeps of its own) 
+ * or a step that needs further querying/processing to build the substeps.
+ * 
+ * If further processing is needed, this should be replaced with a MultiRoutineStep.
+ */
+export interface SingleRoutineStep extends BaseStep {
+    __type: RunStepType.SingleRoutine,
+    /**
+     * The routine version that we'll be running in this step, or a multi-step 
+     * routine that will be used to convert this step into a MultiRoutineStep
+     */
+    routineVersion: RunnableRoutineVersion
+}
+/**
+ * A list of related steps in an individual routine node
+ */
+export interface RoutineListStep extends NodeStep {
+    __type: RunStepType.RoutineList,
+    /** Whether or not the steps must be run in order */
+    isOrdered: boolean,
+    /**
+     * The ID of the routine version containing this node
+     */
+    parentRoutineVersionId: string,
+    /**
+     * The steps in this list. Leaf nodes are represented as SingleRoutineSteps,
+     * while subroutines with their own steps (i.e. nodes and links) are represented
+     * as MultiRoutineSteps.
+     * 
+     * Steps that haven't been processed yet are represented as SingleRoutineSteps
+     */
+    steps: (MultiRoutineStep | SingleRoutineStep)[],
+}
+/** Step information for a full multi-step routine */
+export interface MultiRoutineStep extends BaseStep {
+    __type: RunStepType.MultiRoutine,
+    /** The nodes in this routine version. Unordered */
+    nodes: (DecisionStep | EndStep | RoutineListStep | StartStep)[],
+    /** The links in thie routine version. Unordered */
+    nodeLinks: NodeLink[],
+    /** The ID of this routine version */
+    routineVersionId: string,
+}
+export interface DirectoryStep extends BaseStep {
+    __type: RunStepType.Directory,
+    /** ID of directory, if this is not the root directory */
+    directoryId: string | null,
+    hasBeenQueried: boolean,
+    isOrdered: boolean,
+    isRoot: boolean,
+    /** ID of the project version this step is from */
+    projectVersionId: string,
+    steps: ProjectStep[],
+}
+export type ProjectStep = DirectoryStep | SingleRoutineStep | MultiRoutineStep;
+/** All available step types */
+export type RunStep = DecisionStep | DirectoryStep | EndStep | MultiRoutineStep | RoutineListStep | StartStep | SingleRoutineStep;
+/** All step types that can be the root step */
+export type RootStep = DirectoryStep | MultiRoutineStep | SingleRoutineStep;
 
 const PERCENTS = 100;
 /**
@@ -565,7 +678,7 @@ export function insertStep(
             // Return stepData with location. Since these are different types, we can't 
             // do the field-by-field assignment like we did with the other step types
             const result = stepData as MultiRoutineStep;
-            result.location = currStep.location;
+            result.location = [...currStep.location];
             return result;
         }
 
@@ -587,7 +700,7 @@ export function insertStep(
  */
 export function stepFromLocation(
     location: number[],
-    rootStep: RootStep,
+    rootStep: RunStep,
 ): RunStep | null {
     let currentStep: RunStep = rootStep;
 
@@ -681,9 +794,8 @@ export function findStep(step: RunStep, predicate: (step: RunStep) => boolean): 
  */
 export function siblingsAtLocation(
     location: number[],
-    rootStep: RootStep,
+    rootStep: RunStep,
 ) {
-    console.log("qqqqqqqqq in siblingsAtLocation", location, rootStep);
     // If there are no numbers in the location, it's invalid
     if (location.length === 0) return 0;
     // If there is one number in the location, it's the root. 
@@ -691,7 +803,7 @@ export function siblingsAtLocation(
     if (location.length === 1) return 1;
 
     // Get parent
-    const parentLocation = location.slice(0, -1);
+    const parentLocation = [...location].slice(0, -1);
     const parent = stepFromLocation(parentLocation, rootStep);
     if (!parent) {
         console.error(`Could not find parent to count siblings. Location: ${location}`);
@@ -743,7 +855,7 @@ export function getPreviousLocation(
     if (!currentStep) return null;
 
     // Check if any sibling or decision option points to the current location
-    const parentLocation = currentLocation.slice(0, -1);
+    const parentLocation = [...currentLocation].slice(0, -1);
     const parentStep = stepFromLocation(parentLocation, rootStep);
     if (!parentStep) return null;
     // This only applies for multi-step routines
@@ -754,10 +866,10 @@ export function getPreviousLocation(
             .filter(node => node.__type === RunStepType.Decision)
             .filter(node => (node as DecisionStep).options.some(option => locationArraysMatch(option.step.location, currentLocation))) as DecisionStep[];
         if (matchingNextLocations.length > 0) {
-            return matchingNextLocations[0].location as number[];
+            return [...(matchingNextLocations[0].location as number[])];
         }
         if (matchingDecisions.length > 0) {
-            return matchingDecisions[0].location;
+            return [...matchingDecisions[0].location];
         }
     }
 
@@ -766,7 +878,7 @@ export function getPreviousLocation(
     prevSiblingLocation[prevSiblingLocation.length - 1]--;
     const prevSiblingStep = stepFromLocation(prevSiblingLocation, rootStep);
     if (prevSiblingStep) {
-        return prevSiblingStep.location;
+        return [...prevSiblingStep.location];
     }
 
     // Return parent
@@ -820,7 +932,7 @@ export function getNextLocation(
     // If the current step has a defined next location, return that location (even if it's null)
     if (Object.prototype.hasOwnProperty.call(currentStep, "nextLocation")) {
         const nextLocation = (currentStep as NodeStep).nextLocation;
-        if (nextLocation) return nextLocation;
+        if (nextLocation) return [...nextLocation];
     }
 
     // Attempt to navigate to the next sibling if available
@@ -830,19 +942,19 @@ export function getNextLocation(
     if (siblingStep) return nextSiblingLocation;
 
     // Start backtracking to find a valid next location from parents
-    while (location.length > 0) {
-        location.pop(); // Move up to the parent
-        if (location.length === 0) break; // If we've reached the root, stop
+    while (currentLocation.length > 0) {
+        currentLocation.pop(); // Move up to the parent
+        if (currentLocation.length === 0) break; // If we've reached the root, stop
 
         // Check the parent's next location
-        const parentStep = stepFromLocation(location, rootStep);
+        const parentStep = stepFromLocation(currentLocation, rootStep);
         if (parentStep && Object.prototype.hasOwnProperty.call(parentStep, "nextLocation")) {
             const parentNextLocation = (parentStep as NodeStep).nextLocation;
             if (parentNextLocation) return parentNextLocation;
         }
 
         // Check the next sibling of the parent
-        const parentSiblingLocation = [...location];
+        const parentSiblingLocation = [...currentLocation];
         parentSiblingLocation[parentSiblingLocation.length - 1]++;
         const parentSiblingStep = stepFromLocation(parentSiblingLocation, rootStep);
         if (parentSiblingStep) {
@@ -866,8 +978,7 @@ export function stepNeedsQuerying(
     // If it's a subroutine, we need to query when it has its own subroutines. 
     // This works because when the data is queried, the step is replaced with a MultiRoutineStep.
     if (step.__type === RunStepType.SingleRoutine) {
-        const currSubroutine: Partial<RoutineVersion> = (step as SingleRoutineStep).routineVersion;
-        return routineVersionHasSubroutines(currSubroutine);
+        return step.routineVersion?.routineType === RoutineType.MultiStep;
     }
     // If it's a directory, we need to query when it has not been marked as being queried. 
     // This step type has a query flag because when the data is queried, we add information to the 
@@ -974,7 +1085,7 @@ export function sortStepsAndAddDecisions(
     const result: SortedStepsWithDecisions = [];
 
     // Get all but the last element
-    const baseLocation = startStep.location.slice(0, -1);
+    const baseLocation = [...startStep.location].slice(0, -1);
 
     // Helper function to perform DFS
     function dfs(currentStep: StartStep | EndStep | RoutineListStep) {
@@ -992,7 +1103,7 @@ export function sortStepsAndAddDecisions(
         if (outgoingLinks.length === 1) {
             const nextNode = steps.find(step => step.nodeId === outgoingLinks[0].to?.id);
             if (nextNode) {
-                currentStep.nextLocation = visited[nextNode.nodeId] ? nextNode.location : [...baseLocation, lastEndLocation];
+                currentStep.nextLocation = visited[nextNode.nodeId] ? [...nextNode.location] : [...baseLocation, lastEndLocation];
             }
         }
         // If there are multiple outgoing links, set the nextLocation to the DecisionStep we're about to create
@@ -1000,6 +1111,13 @@ export function sortStepsAndAddDecisions(
             currentStep.nextLocation = [...baseLocation, lastEndLocation];
         } else {
             currentStep.nextLocation = null;
+        }
+
+        // If the step is a RoutineListStep, update its steps' locations
+        if (currentStep.__type === RunStepType.RoutineList) {
+            (currentStep as RoutineListStep).steps.forEach((step, index) => {
+                step.location = [...currentStep.location, index + 1];
+            });
         }
 
         // Add current step to result
@@ -1042,6 +1160,359 @@ export function sortStepsAndAddDecisions(
 
     // Start DFS from the start node
     dfs(startStep as StartStep);
+
+    return result;
+}
+
+/**
+ * Converts a single-step routine into a Step object
+ * @param routineVersion The routineVersion being run
+ * @param location The location we should give to the step we're creating
+ * @param languages Preferred languages to display step data in
+ * @returns RootStep for the given object, or null if invalid
+ */
+export function singleRoutineToStep(
+    routineVersion: RunnableRoutineVersion,
+    location: number[],
+    languages: string[],
+): SingleRoutineStep | null {
+    return {
+        __type: RunStepType.SingleRoutine,
+        description: getTranslation(routineVersion, languages, true).description || null,
+        location: [...location],
+        name: getTranslation(routineVersion, languages, true).name || "Untitled",
+        routineVersion,
+    };
+}
+
+/**
+ * Converts a multi-step routine into a Step object.
+ * 
+ * NOTE: This is only designed for one level of nodes. All subroutines will be 
+ * treated as SingleStepRoutines, and must be converted to MultiStepRoutines separately.
+ * @param routineVersion The routineVersion being run
+ * @param location The location we should give to the step we're creating
+ * @param languages Preferred languages to display step data in
+ * @returns RootStep for the given object, or null if invalid
+ */
+export function multiRoutineToStep(
+    routineVersion: RunnableRoutineVersion,
+    location: number[],
+    languages: string[],
+): MultiRoutineStep | null {
+    // Convert existing nodes into steps
+    const unsorted = (routineVersion.nodes || []).map(node => {
+        const description = getTranslation(node, languages, true).description || null;
+        const name = getTranslation(node, languages, true).name || "Untitled";
+        const nodeId = node.id;
+
+        switch (node.nodeType) {
+            case NodeType.End: {
+                return {
+                    __type: RunStepType.End,
+                    description,
+                    location: [...location, 1], // Sort function will correct this
+                    name,
+                    nextLocation: null,
+                    nodeId,
+                    wasSuccessful: node.end?.wasSuccessful ?? false,
+                } as EndStep;
+            }
+            case NodeType.RoutineList: {
+                const sortedRoutineListSteps = node.routineList?.items?.sort((a, b) => {
+                    return (a.index || 0) - (b.index || 0);
+                }) || [];
+                return {
+                    __type: RunStepType.RoutineList,
+                    description,
+                    location: [...location, 1], // Sort function will correct this
+                    name,
+                    nextLocation: [...location, 1], // Sort function will correct this
+                    nodeId,
+                    isOrdered: node.routineList?.isOrdered ?? false,
+                    parentRoutineVersionId: routineVersion.id,
+                    steps: sortedRoutineListSteps.map(item => {
+                        return {
+                            __type: RunStepType.SingleRoutine,
+                            description: getTranslation(item.routineVersion, languages, true).description || null,
+                            location: [...location, 1, 1], // Sort function will correct this
+                            name: getTranslation(item.routineVersion, languages, true).name || "Untitled",
+                            routineVersion: item.routineVersion,
+                        };
+                    }) ?? [],
+                } as RoutineListStep;
+            }
+            case NodeType.Start: {
+                return {
+                    __type: RunStepType.Start,
+                    description,
+                    location: [...location, 1], // Sort function will correct this
+                    name,
+                    nextLocation: [...location, 1], // Sort function will correct this
+                    nodeId,
+                } as StartStep;
+            }
+            default:
+                return null;
+        }
+    }).filter(Boolean) as UnsortedSteps;
+    // Sort steps by visitation order and add DecisionSteps where needed
+    const sorted = sortStepsAndAddDecisions(unsorted, routineVersion.nodeLinks || []);
+    return {
+        __type: RunStepType.MultiRoutine,
+        description: getTranslation(routineVersion, languages, true).description || null,
+        location: [...location],
+        name: getTranslation(routineVersion, languages, true).name || "Untitled",
+        nodeLinks: routineVersion.nodeLinks || [],
+        nodes: sorted,
+        routineVersionId: routineVersion.id,
+    };
+}
+
+/**
+ * Converts a project into a Step object
+ * @param projectVersion The projectVersion being run
+ * @param location The location we should give to the step we're creating
+ * @param languages Preferred languages to display step data in
+ * @returns RootStep for the given object, or null if invalid
+ */
+export function projectToStep(
+    projectVersion: RunnableProjectVersion,
+    location: number[],
+    languages: string[],
+): DirectoryStep | null {
+    // Projects are represented as root directories
+    const steps: DirectoryStep[] = [];
+    for (let i = 0; i < projectVersion.directories.length; i++) {
+        const directory = projectVersion.directories[i];
+        const directoryStep = directoryToStep(directory, [...location, i + 1], languages, projectVersion.id);
+        if (directoryStep) {
+            steps.push(directoryStep);
+        }
+    }
+    //TODO project version does not have order field, so can't order directories. Maybe change this in future
+    return {
+        __type: RunStepType.Directory,
+        description: getTranslation(projectVersion, languages, true).description || null,
+        directoryId: null,
+        hasBeenQueried: true,
+        isOrdered: false,
+        isRoot: true,
+        location: [...location],
+        name: getTranslation(projectVersion, languages, true).name || "Untitled",
+        projectVersionId: projectVersion.id,
+        steps,
+    };
+}
+
+/**
+ * Converts a directory into a Step object
+ * @param projectVersionDirectory The projectVersionDirectory being run
+ * @param location The location we should give to the step we're creating
+ * @param languages Preferred languages to display step data in
+ * @param projectVersionId The project version ID that the directory belongs to, if calling from projectToStep
+ * @returns RootStep for the given object, or null if invalid
+ */
+export function directoryToStep(
+    projectVersionDirectory: ProjectVersionDirectory,
+    location: number[],
+    languages: string[],
+    projectVersionId?: string,
+): DirectoryStep | null {
+    // TODO we currently only generate steps for routines in the directory. 
+    // We can add more types to support other children later, and update the 
+    // directory type to support nested directories.
+    // const childOrder = parseChildOrder(projectVersionDirectory.childOrder || "");
+    return {
+        __type: RunStepType.Directory,
+        description: getTranslation(projectVersionDirectory, languages, true).description || null,
+        directoryId: projectVersionDirectory.id,
+        hasBeenQueried: true,
+        isOrdered: false,
+        isRoot: false,
+        location: [...location],
+        name: getTranslation(projectVersionDirectory, languages, true).name || "Untitled",
+        projectVersionId: projectVersionId || projectVersionDirectory.projectVersion?.id || "",
+        steps: [],
+    };
+}
+
+/**
+ * Converts a runnable object into a Step object
+ * @param runnableObject The projectVersion or routineVersion being run
+ * @param location The location we should give to the step we're creating
+ * @param languages Preferred languages to display step data in
+ * @returns RootStep for the given object, or null if invalid
+ */
+export function runnableObjectToStep(
+    runnableObject: RunnableProjectVersion | RunnableRoutineVersion | null | undefined,
+    location: number[],
+    languages: string[],
+): RootStep | null {
+    if (isOfType(runnableObject, "RoutineVersion")) {
+        if (runnableObject.routineType === RoutineType.MultiStep) {
+            return multiRoutineToStep(runnableObject, [...location], languages);
+        } else {
+            return singleRoutineToStep(runnableObject, [...location], languages);
+        }
+    } else if (isOfType(runnableObject, "ProjectVersion")) {
+        return projectToStep(runnableObject, [...location], languages);
+    }
+    console.error("Invalid runnable object type in runnableObjectToStep", runnableObject);
+    return null;
+}
+
+export type DetectSubstepLoadResult = {
+    needsFurtherQuerying: boolean;
+};
+
+/**
+ * Adds a list of subroutines to the root step object
+ * @param subroutines List of subroutines to add
+ * @param rootStep The root step object to add the subroutines to
+ * @param languages Preferred languages to display step data in
+ * @returns Updated root step object with the subroutines added
+ */
+export function addSubroutinesToStep(
+    subroutines: RoutineVersion[],
+    rootStep: RootStep,
+    languages: string[],
+): RootStep {
+    let updatedRootStep = rootStep;
+    for (const routineVersion of subroutines) {
+        // We can only inject multi-step routines, as they carry all subroutines with them
+        if (routineVersion.routineType !== RoutineType.MultiStep) continue;
+        // Find the location we should insert the routine at
+        const location = findStep(
+            rootStep,
+            // We use single-step routines as a placeholder before loading the full routine
+            (step) => step.__type === RunStepType.SingleRoutine && (step as SingleRoutineStep).routineVersion?.id === routineVersion.id,
+        )?.location;
+        if (!location) {
+            console.error("Could not find location to insert routine", routineVersion);
+            continue;
+        }
+        const subroutineStep = multiRoutineToStep(routineVersion, [...location], languages);
+        if (!subroutineStep) {
+            console.error("Could not convert routine to step", routineVersion);
+            continue;
+        }
+        updatedRootStep = insertStep(subroutineStep as MultiRoutineStep, updatedRootStep);
+    }
+    return updatedRootStep;
+}
+
+/**
+ * Adds a list of subdirectories to the root step object
+ * @param subdirectories List of subdirectories to add
+ * @param rootStep The root step object to add the subdirectories to
+ * @param languages Preferred languages to display step data in
+ * @returns Updated root step object with the subdirectories added
+ */
+export function addSubdirectoriesToStep(
+    subdirectories: ProjectVersionDirectory[],
+    rootStep: RootStep,
+    languages: string[],
+): RootStep {
+    let updatedRootStep = rootStep;
+    for (const directory of subdirectories) {
+        // Find location to insert the directory at
+        const location = findStep(
+            rootStep,
+            (step) => step.__type === RunStepType.Directory && (step as DirectoryStep).directoryId === directory.id,
+        )?.location;
+        if (!location) {
+            console.error("Could not find location to insert directory", directory);
+            continue;
+        }
+        const projectStep = directoryToStep(directory, [...location], languages);
+        if (!projectStep) {
+            console.error("Could not convert directory to step", directory);
+            continue;
+        }
+        updatedRootStep = insertStep(projectStep, updatedRootStep);
+    }
+    return updatedRootStep;
+}
+
+/**
+ * Decides if a new step location should trigger loading of new 
+ * subroutine/subdirectory data
+ * @param newLocation The new location to check
+ * @param rootStep The root step object for the project or routine
+ * @param getDirectories Callback to load directory data
+ * @param getSubroutines Callback to load subroutine data
+ * @returns An object indicating if further querying is needed
+ */
+export function detectSubstepLoad(
+    newLocation: number[],
+    rootStep: RootStep | null,
+    getDirectories: (input: ProjectVersionDirectorySearchInput) => unknown,
+    getSubroutines: (input: RoutineVersionSearchInput) => unknown,
+): DetectSubstepLoadResult {
+    const result = { needsFurtherQuerying: false };
+    if (!rootStep || newLocation.length === 0) return result;
+
+    const directoryIds: string[] = [];
+    const routineVersionIds: string[] = [];
+
+    // Find the deepest existing ancestor
+    const currentLocation = [...newLocation];
+    let currentStep: RunStep | null = null;
+    while (currentLocation.length > 0 && !currentStep) {
+        currentStep = stepFromLocation(currentLocation, rootStep);
+        if (!currentStep) {
+            currentLocation.pop();
+        }
+    }
+
+    // If we didn't find an ancestor, the location is probably invalid
+    if (!currentStep) return { needsFurtherQuerying: false };
+
+    // Helper function to check if a step needs querying
+    function checkStep(step: RunStep) {
+        if (stepNeedsQuerying(step)) {
+            if (step.__type === RunStepType.Directory) {
+                if (step.directoryId) {
+                    directoryIds.push(step.directoryId);
+                } else {
+                    console.error("DirectoryStep has no directoryId. Cannot query subdirectories");
+                }
+            } else if (step.__type === RunStepType.SingleRoutine) {
+                if (step.routineVersion?.id) {
+                    routineVersionIds.push(step.routineVersion.id);
+                } else {
+                    console.error("SingleRoutineStep has no routineVersionId. Cannot query subroutines");
+                }
+            }
+        }
+    }
+
+    // Check if the step needs querying
+    checkStep(currentStep);
+
+    // Check if any children need querying
+    if (currentStep.__type === RunStepType.Directory || currentStep.__type === RunStepType.RoutineList) {
+        for (const step of currentStep.steps) {
+            checkStep(step);
+        }
+    } else if (currentStep.__type === RunStepType.MultiRoutine) {
+        for (const node of currentStep.nodes) {
+            checkStep(node);
+        }
+    }
+
+    // Query subdirectories
+    if (directoryIds.length > 0) {
+        getDirectories({ ids: directoryIds });
+    }
+    // Query subroutines
+    if (routineVersionIds.length > 0) {
+        getSubroutines({ ids: routineVersionIds });
+    }
+
+    // If an intermediate step is missing, we need to query further
+    result.needsFurtherQuerying = currentLocation.length < newLocation.length;
 
     return result;
 }

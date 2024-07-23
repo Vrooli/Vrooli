@@ -1158,6 +1158,7 @@ export const meetingInvite_updateOne = {
               "isInternal": true,
               "isPrivate": true
             },
+            "routineType": true,
             "translations": {
               "id": true,
               "language": true,

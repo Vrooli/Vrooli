@@ -141,6 +141,7 @@ export const routine_update = {
       "isPrivate": true,
       "__typename": "Routine"
     },
+    "routineType": true,
     "translations": {
       "id": true,
       "language": true,
@@ -858,6 +859,7 @@ export const routine_update = {
             "isPrivate": true,
             "__typename": "Routine"
           },
+          "routineType": true,
           "translations": {
             "id": true,
             "language": true,
@@ -884,6 +886,32 @@ export const routine_update = {
             "language": true,
             "description": true,
             "name": true
+          },
+          "routineVersion": {
+            "id": true,
+            "complexity": true,
+            "isAutomatable": true,
+            "isComplete": true,
+            "isDeleted": true,
+            "isLatest": true,
+            "isPrivate": true,
+            "root": {
+              "id": true,
+              "isInternal": true,
+              "isPrivate": true,
+              "__typename": "Routine"
+            },
+            "routineType": true,
+            "translations": {
+              "id": true,
+              "language": true,
+              "description": true,
+              "instructions": true,
+              "name": true
+            },
+            "versionIndex": true,
+            "versionLabel": true,
+            "__typename": "RoutineVersion"
           },
           "__typename": "NodeRoutineListItem"
         },
@@ -1168,6 +1196,7 @@ export const routine_update = {
         "isPrivate": true,
         "__typename": "Routine"
       },
+      "routineType": true,
       "translations": {
         "id": true,
         "language": true,

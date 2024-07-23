@@ -1169,6 +1169,7 @@ export const schedule_update = {
           "isInternal": true,
           "isPrivate": true
         },
+        "routineType": true,
         "translations": {
           "id": true,
           "language": true,

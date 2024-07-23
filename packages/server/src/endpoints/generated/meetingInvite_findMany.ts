@@ -469,6 +469,7 @@ export const meetingInvite_findMany = {
                 "isInternal": true,
                 "isPrivate": true
               },
+              "routineType": true,
               "translations": {
                 "id": true,
                 "language": true,

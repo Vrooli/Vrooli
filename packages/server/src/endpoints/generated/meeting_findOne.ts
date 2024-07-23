@@ -1160,6 +1160,7 @@ export const meeting_findOne = {
             "isInternal": true,
             "isPrivate": true
           },
+          "routineType": true,
           "translations": {
             "id": true,
             "language": true,

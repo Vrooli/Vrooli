@@ -100,6 +100,7 @@ export const routineVersion: GqlPartial<RoutineVersion> = {
         isLatest: true,
         isPrivate: true,
         root: async () => rel((await import("./routine")).routine, "nav", { omit: "versions" }),
+        routineType: true,
         translations: () => rel(routineVersionTranslation, "list"),
         versionIndex: true,
         versionLabel: true,

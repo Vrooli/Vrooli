@@ -416,6 +416,7 @@ export const runRoutine_cancel = {
         "isInternal": true,
         "isPrivate": true
       },
+      "routineType": true,
       "translations": {
         "id": true,
         "language": true,

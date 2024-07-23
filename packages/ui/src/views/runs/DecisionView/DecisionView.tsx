@@ -2,8 +2,8 @@ import { ListItem, ListItemButton, ListItemProps, ListItemText, Stack, Typograph
 import { OpenInNewIcon } from "icons";
 import { useCallback, useMemo } from "react";
 import { multiLineEllipsis } from "styles";
-import { DecisionStep } from "types";
 import { RunStepType } from "utils/consts";
+import { DecisionStep } from "utils/runUtils";
 import { DecisionViewProps } from "../types";
 
 type Decision = DecisionStep["options"][0] & {

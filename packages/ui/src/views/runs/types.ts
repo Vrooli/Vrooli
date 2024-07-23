@@ -1,9 +1,6 @@
-import { ProjectVersion, RoutineVersion, RunRoutine } from "@local/shared";
-import { DecisionStep, EndStep, RoutineListStep } from "types";
+import { RoutineVersion, RunRoutine } from "@local/shared";
+import { DecisionStep, EndStep, RoutineListStep, RunnableProjectVersion, RunnableRoutineVersion } from "utils/runUtils";
 import { ViewProps } from "views/types";
-
-export type RunnableRoutineVersion = Pick<RoutineVersion, "__typename" | "id" | "complexity" | "configCallData" | "configFormInput" | "configFormOutput" | "nodeLinks" | "nodes" | "root" | "routineType" | "translations" | "versionLabel" | "you">
-export type RunnableProjectVersion = Pick<ProjectVersion, "__typename" | "id" | "directories" | "root" | "translations" | "versionLabel" | "you">
 
 export type DecisionViewProps = Omit<ViewProps, "display" | "isOpen"> & {
     /** The decision step data */

@@ -1,4 +1,4 @@
-import { base36ToUuid, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointGetRunProject, endpointGetRunRoutine, endpointPutRunRoutine, endpointPutRunRoutineComplete, FindByIdInput, isOfType, NodeType, noop, parseSearchParams, ProjectVersionDirectory, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, RoutineType, RoutineVersion, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunProjectStep, RunRoutine, RunRoutineCompleteInput, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, RunRoutineUpdateInput, SECONDS_1_MS, uuid, uuidValidate } from "@local/shared";
+import { base36ToUuid, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointGetRunProject, endpointGetRunRoutine, endpointPutRunRoutine, endpointPutRunRoutineComplete, FindByIdInput, noop, parseSearchParams, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunProjectStep, RunRoutine, RunRoutineCompleteInput, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, RunRoutineUpdateInput, SECONDS_1_MS, uuid, uuidValidate } from "@local/shared";
 import { Box, Button, Grid, IconButton, LinearProgress, Stack, styled, Typography } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
@@ -11,262 +11,17 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "r
 import { useTranslation } from "react-i18next";
 import { addSearchParams, removeSearchParams, useLocation } from "route";
 import { pagePaddingBottom } from "styles";
-import { DecisionStep, DirectoryStep, EndStep, MultiRoutineStep, RootStep, RoutineListStep, RunStep, SingleRoutineStep, StartStep } from "types";
 import { RunStepType } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
 import { getTranslation, getUserLanguages } from "utils/display/translationTools";
 import { tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
-import { findStep, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, insertStep, locationArraysMatch, runInputsUpdate, siblingsAtLocation, sortStepsAndAddDecisions, stepFromLocation, stepNeedsQuerying, UnsortedSteps } from "utils/runUtils";
+import { addSubdirectoriesToStep, addSubroutinesToStep, DecisionStep, detectSubstepLoad, DetectSubstepLoadResult, EndStep, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, locationArraysMatch, MultiRoutineStep, RootStep, RoutineListStep, runInputsUpdate, runnableObjectToStep, siblingsAtLocation, SingleRoutineStep, stepFromLocation } from "utils/runUtils";
 import { DecisionView } from "../DecisionView/DecisionView";
 import { SubroutineView } from "../SubroutineView/SubroutineView";
-import { RunnableProjectVersion, RunnableRoutineVersion, RunViewProps } from "../types";
+import { RunViewProps } from "../types";
 
 const ROOT_LOCATION = [1];
-
-/**
- * Converts a single-step routine into a Step object
- * @param routineVersion The routineVersion being run
- * @param location The location we should give to the step we're creating
- * @param languages Preferred languages to display step data in
- * @returns RootStep for the given object, or null if invalid
- */
-function singleRoutineToStep(
-    routineVersion: RunnableRoutineVersion,
-    location: number[],
-    languages: string[],
-): SingleRoutineStep | null {
-    return {
-        __type: RunStepType.SingleRoutine,
-        description: getTranslation(routineVersion, languages, true).description || null,
-        location,
-        name: getTranslation(routineVersion, languages, true).name || "Untitled",
-        routineVersion,
-    };
-}
-
-/**
- * Converts a multi-step routine into a Step object
- * @param routineVersion The routineVersion being run
- * @param location The location we should give to the step we're creating
- * @param languages Preferred languages to display step data in
- * @returns RootStep for the given object, or null if invalid
- */
-function multiRoutineToStep(
-    routineVersion: RunnableRoutineVersion,
-    location: number[],
-    languages: string[],
-): MultiRoutineStep | null {
-    // Convert existing nodes into steps
-    const unsorted = (routineVersion.nodes || []).map(node => {
-        const description = getTranslation(node, languages, true).description || null;
-        const name = getTranslation(node, languages, true).name || "Untitled";
-        const nodeId = node.id;
-
-        switch (node.nodeType) {
-            case NodeType.End:
-                return {
-                    __type: RunStepType.End,
-                    description,
-                    location: [...location, 1], // Sort function will correct this
-                    name,
-                    nodeId,
-                    wasSuccessful: node.end?.wasSuccessful ?? false,
-                } as EndStep;
-            case NodeType.RoutineList:
-                return {
-                    __type: RunStepType.RoutineList,
-                    description,
-                    location: [...location, 1], // Sort function will correct this
-                    name,
-                    nodeId,
-                    isOrdered: node.routineList?.isOrdered ?? false,
-                    parentRoutineVersionId: routineVersion.id,
-                } as RoutineListStep;
-            case NodeType.Start:
-                return {
-                    __type: RunStepType.Start,
-                    description,
-                    location: [...location, 1], // Sort function will correct this
-                    name,
-                    nodeId,
-                } as StartStep;
-            default:
-                return null;
-        }
-    }).filter(Boolean) as UnsortedSteps;
-    // Sort steps by visitation order and add DecisionSteps where needed
-    const sorted = sortStepsAndAddDecisions(unsorted, routineVersion.nodeLinks || []);
-    return {
-        __type: RunStepType.MultiRoutine,
-        description: getTranslation(routineVersion, languages, true).description || null,
-        location,
-        name: getTranslation(routineVersion, languages, true).name || "Untitled",
-        nodeLinks: routineVersion.nodeLinks || [],
-        nodes: sorted,
-        routineVersionId: routineVersion.id,
-    };
-}
-
-/**
- * Converts a project into a Step object
- * @param projectVersion The projectVersion being run
- * @param location The location we should give to the step we're creating
- * @param languages Preferred languages to display step data in
- * @returns RootStep for the given object, or null if invalid
- */
-function projectToStep(
-    projectVersion: RunnableProjectVersion,
-    location: number[],
-    languages: string[],
-): DirectoryStep | null {
-    // Projects are represented as root directories
-    const steps: DirectoryStep[] = [];
-    for (let i = 0; i < projectVersion.directories.length; i++) {
-        const directory = projectVersion.directories[i];
-        const directoryStep = directoryToStep(directory, location, languages);
-        if (directoryStep) {
-            steps.push(directoryStep);
-        }
-    }
-    //TODO project version does not have order field, so can't order directories. Maybe change this in future
-    return {
-        __type: RunStepType.Directory,
-        description: getTranslation(projectVersion, languages, true).description || null,
-        directoryId: null,
-        hasBeenQueried: true,
-        isOrdered: false,
-        isRoot: true,
-        location,
-        name: getTranslation(projectVersion, languages, true).name || "Untitled",
-        projectVersionId: projectVersion.id,
-        steps,
-    };
-}
-
-/**
- * Converts a directory into a Step object
- * @param projectVersionDirectory The projectVersionDirectory being run
- * @param location The location we should give to the step we're creating
- * @param languages Preferred languages to display step data in
- * @returns RootStep for the given object, or null if invalid
- */
-function directoryToStep(
-    projectVersionDirectory: ProjectVersionDirectory,
-    location: number[],
-    languages: string[],
-): DirectoryStep | null {
-    // TODO we currently only generate steps for routines in the directory. 
-    // We can add more types to support other children later, and update the 
-    // directory type to support nested directories.
-    // const childOrder = parseChildOrder(projectVersionDirectory.childOrder || "");
-    return {
-        __type: RunStepType.Directory,
-        description: getTranslation(projectVersionDirectory, languages, true).description || null,
-        directoryId: null,
-        hasBeenQueried: true,
-        isOrdered: false,
-        isRoot: true,
-        location,
-        name: getTranslation(projectVersionDirectory, languages, true).name || "Untitled",
-        projectVersionId: projectVersionDirectory.projectVersion?.id ?? "",
-        steps: [],
-    };
-}
-
-/**
- * Converts a runnable object into a Step object
- * @param runnableObject The projectVersion or routineVersion being run
- * @param location The location we should give to the step we're creating
- * @param languages Preferred languages to display step data in
- * @returns RootStep for the given object, or null if invalid
- */
-function runnableObjectToStep(
-    runnableObject: RunnableProjectVersion | RunnableRoutineVersion | null | undefined,
-    location: number[],
-    languages: string[],
-): RootStep | null {
-    if (isOfType(runnableObject, "RoutineVersion")) {
-        if (runnableObject.routineType === RoutineType.MultiStep) {
-            return multiRoutineToStep(runnableObject, location, languages);
-        } else {
-            return singleRoutineToStep(runnableObject, location, languages);
-        }
-    } else if (isOfType(runnableObject, "ProjectVersion")) {
-        return projectToStep(runnableObject, location, languages);
-    }
-    console.error("Invalid runnable object type in runnableObjectToStep", runnableObject);
-    return null;
-}
-
-/**
- * Adds a list of subroutines to the root step object
- * @param subroutines List of subroutines to add
- * @param rootStep The root step object to add the subroutines to
- * @param languages Preferred languages to display step data in
- * @returns Updated root step object with the subroutines added
- */
-export function addSubroutinesToStep(
-    subroutines: RoutineVersion[],
-    rootStep: RootStep,
-    languages: string[],
-): RootStep {
-    let updatedRootStep = rootStep;
-    for (const routineVersion of subroutines) {
-        // We can only inject multi-step routines, as they carry all subroutines with them
-        if (routineVersion.routineType !== RoutineType.MultiStep) continue;
-        // Find the location we should insert the routine at
-        const location = findStep(
-            rootStep,
-            // We use single-step routines as a placeholder before loading the full routine
-            (step) => step.__type === RunStepType.SingleRoutine && (step as SingleRoutineStep).routineVersion?.id === routineVersion.id,
-        )?.location;
-        if (!location) {
-            console.error("Could not find location to insert routine", routineVersion);
-            continue;
-        }
-        const subroutineStep = multiRoutineToStep(routineVersion, location, languages);
-        if (!subroutineStep) {
-            console.error("Could not convert routine to step", routineVersion);
-            continue;
-        }
-        updatedRootStep = insertStep(subroutineStep as MultiRoutineStep, updatedRootStep);
-    }
-    return updatedRootStep;
-}
-
-/**
- * Adds a list of subdirectories to the root step object
- * @param subdirectories List of subdirectories to add
- * @param rootStep The root step object to add the subdirectories to
- * @param languages Preferred languages to display step data in
- * @returns Updated root step object with the subdirectories added
- */
-export function addSubdirectoriesToStep(
-    subdirectories: ProjectVersionDirectory[],
-    rootStep: RootStep,
-    languages: string[],
-): RootStep {
-    let updatedRootStep = rootStep;
-    for (const directory of subdirectories) {
-        // Find location to insert the directory at
-        const location = findStep(
-            rootStep,
-            (step) => step.__type === RunStepType.Directory && (step as DirectoryStep).directoryId === directory.id,
-        )?.location;
-        if (!location) {
-            console.error("Could not find location to insert directory", directory);
-            continue;
-        }
-        const projectStep = directoryToStep(directory, location, languages);
-        if (!projectStep) {
-            console.error("Could not convert directory to step", directory);
-            continue;
-        }
-        updatedRootStep = insertStep(projectStep, updatedRootStep);
-    }
-    return updatedRootStep;
-}
 
 const TopBar = styled(Box)(({ theme }) => ({
     display: "flex",
@@ -336,7 +91,12 @@ export function RunView({
         const params = parseSearchParams();
         return {
             runId: (typeof params.run === "string" && uuidValidate(base36ToUuid(params.run))) ? base36ToUuid(params.run) : undefined,
-            startingStepLocation: Array.isArray(params.step) && params.step.every(n => typeof n === "number") ? params.step as number[] : [],
+            startingStepLocation:
+                Array.isArray(params.step) &&
+                    params.step.length > 0 &&
+                    params.step.every(n => typeof n === "number")
+                    ? params.step as number[]
+                    : [...ROOT_LOCATION],
             testMode: params.run === "test",
         };
     }, []);
@@ -354,10 +114,13 @@ export function RunView({
         if (runData) setRun(runData);
     }, [runData]);
 
-    const [currStepLocation, setCurrStepLocation] = useState<number[]>(startingStepLocation);
+    const [currentLocation, setCurrentLocation] = useState<number[]>([...startingStepLocation]);
+    const handleLocationUpdate = useCallback(function handleLocationUpdateCallback(step: number[]) {
+        setCurrentLocation(step);
+    }, []);
     useEffect(function updateLocationInUrlEffect() {
-        addSearchParams(setLocation, { step: currStepLocation });
-    }, [currStepLocation, setLocation]);
+        addSearchParams(setLocation, { step: currentLocation });
+    }, [currentLocation, setLocation]);
 
     /**
      * The amount of routine completed so far, measured in complexity. 
@@ -380,7 +143,7 @@ export function RunView({
     const [rootStep, setRootStep] = useState<RootStep | null>(null);
 
     useEffect(function convertRunnableObjectToStepTreeEffect() {
-        setRootStep(runnableObjectToStep(runnableObject, ROOT_LOCATION, languages));
+        setRootStep(runnableObjectToStep(runnableObject, [...ROOT_LOCATION], languages));
     }, [languages, runnableObject]);
 
     useEffect(function calculateRunStatsEffect() {
@@ -398,19 +161,15 @@ export function RunView({
         setProgress(existingProgress);
     }, [run]);
 
-    const currentStepNumber = useMemo(function currentStepNumberMemo() {
-        return currStepLocation.length === 0 ? 1 : Number(currStepLocation[currStepLocation.length - 1]);
-    }, [currStepLocation]);
-
     const stepsInCurrentNode = useMemo(function stepsInCurrentNodeMemo() {
-        if (!currStepLocation || !rootStep) return 1;
-        return siblingsAtLocation(currStepLocation, rootStep);
-    }, [currStepLocation, rootStep]);
+        if (!currentLocation || !rootStep) return 1;
+        return siblingsAtLocation(currentLocation, rootStep);
+    }, [currentLocation, rootStep]);
 
-    const currStepRunData = useMemo<RunProjectStep | RunRoutineStep | undefined>(function currStepRunDataMemo() {
-        const runStep = run?.steps?.find((step) => locationArraysMatch(step.step, currStepLocation));
+    const currentStepRunData = useMemo<RunProjectStep | RunRoutineStep | undefined>(function currentStepRunDataMemo() {
+        const runStep = run?.steps?.find((step) => locationArraysMatch(step.step, currentLocation));
         return runStep;
-    }, [run?.steps, currStepLocation]);
+    }, [run?.steps, currentLocation]);
 
     /**
      * Stores user inputs, which are uploaded to the run's data
@@ -436,7 +195,7 @@ export function RunView({
     const timeElapsed = useRef<number>(0);
     const contextSwitches = useRef<number>(0);
     useEffect(function trackUserBehaviorMemo() {
-        if (!currStepRunData) return;
+        if (!currentStepRunData) return;
         // Start tracking time
         intervalRef.current = setInterval(() => { timeElapsed.current += 1; }, SECONDS_1_MS);
         // Reset context switches
@@ -444,12 +203,12 @@ export function RunView({
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
-    }, [currStepRunData]);
+    }, [currentStepRunData]);
 
     /** On tab change, add to contextSwitches */
     useEffect(function contextSwitchesMemo() {
         function handleTabChange() {
-            if (currStepRunData) {
+            if (currentStepRunData) {
                 contextSwitches.current += 1;
             }
         }
@@ -457,94 +216,72 @@ export function RunView({
         return () => {
             window.removeEventListener("focus", handleTabChange);
         };
-    }, [currStepRunData]);
+    }, [currentStepRunData]);
 
     const progressPercentage = useMemo(function progressPercentageMemo() {
         // Measured in complexity / total complexity * 100
         return getRunPercentComplete(completedComplexity, (run as RunProject)?.projectVersion?.complexity ?? (run as RunRoutine)?.routineVersion?.complexity);
     }, [completedComplexity, run]);
 
-    const navigateToNextStepInParent = useCallback(() => {
-        // make sure there are steps in the current location
-        if (currStepLocation.length > 0) {
-            const newCurrStepLocation = [...currStepLocation];
-            newCurrStepLocation[newCurrStepLocation.length - 1] += 1; // increment the last index
-            setCurrStepLocation(newCurrStepLocation);
-        }
-    }, [currStepLocation]);
-
-    const navigateBackToParentStep = useCallback(() => {
-        // make sure there are steps in the current location
-        if (currStepLocation.length > 0) {
-            const newCurrStepLocation = currStepLocation.slice(0, currStepLocation.length - 1); // remove the last index
-            setCurrStepLocation(newCurrStepLocation);
-        }
-    }, [currStepLocation]);
-
-    // Query current subroutine or directory, if needed. Main routine may have the data
+    // Query subroutines and subdirectories, since the whole run may not be able to load at once
     const [getSubroutines, { data: queriedSubroutines, loading: subroutinesLoading }] = useLazyFetch<RoutineVersionSearchInput, RoutineVersionSearchResult>(endpointGetRoutineVersions);
     const [getDirectories, { data: queriedSubdirectories, loading: directoriesLoading }] = useLazyFetch<ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult>(endpointGetProjectVersionDirectories);
-    const [currentStep, setCurrentStep] = useState<RunStep | null>(null);
-    useEffect(() => {
-        // If no steps, redirect to first step
-        if (!rootStep || currStepLocation.length === 0) {
-            setCurrStepLocation(ROOT_LOCATION);
-            return;
-        }
-        // Current step is the last step in steps list
-        const currStep = stepFromLocation(currStepLocation, rootStep);
-        // If current step was not found
-        if (!currStep) {
-            //TODO
-            // // Check if this is because the top level step list is empty
-            // if (currStepLocation.length === 1 && rootStep?.steps.length === 0) {
-            //     // Navigate to the next step in the parent list or directory
-            //     navigateToNextStepInParent();
-            // } else if (currStepLocation.length > 1) {
-            //     // Navigate back to the parent step
-            //     navigateBackToParentStep();
-            // }
-            return;
-        }
-        // If current step is a list or directory, then redirect to first step in list or directory
-        if (currStep.__type === RunStepType.RoutineList || currStep.__type === RunStepType.Directory) {
-            // But first, make sure the list or directory is not empty
-            // If it is, skip to the next step
-            if (currStep.steps.length === 0) {
-                // Navigate to the next step in the parent list or directory
-                navigateToNextStepInParent();
-                return;
-            } else {
-                const newStepList = [...currStepLocation, 1];
-                setCurrStepLocation(newStepList);
+
+    // Store queried IDs to make sure we don't query the same thing multiple times
+    const queriedIdsRef = useRef<{ [key: string]: boolean }>({});
+    useEffect(function clearQueriedIdsEffect() {
+        queriedIdsRef.current = {};
+    }, [runId]);
+
+    // Store result of `detectSubstepLoad` to determine loading behavior
+    const substepLoadResult = useRef<DetectSubstepLoadResult | null>(null);
+
+    const loadSubsteps = useCallback(function loadSubstepsCallback() {
+        // Helper function to query without duplicates
+        function safeQuery(ids: string[], fetch: ((input: ProjectVersionDirectorySearchInput) => unknown) | ((input: RoutineVersionSearchInput) => unknown)) {
+            const newIds = ids.filter(id => !queriedIdsRef.current[id]);
+            newIds.forEach(id => {
+                queriedIdsRef.current[id] = true;
+            });
+            if (newIds.length > 0) {
+                fetch({ ids: newIds });
             }
         }
-        // If current step is a Directory and needs querying, then query the data
-        if (currStep.__type === RunStepType.Directory && stepNeedsQuerying(currStep)) {
-            getDirectories({ parentDirectoryId: currStep.directoryId });
-            return;
-        }
-        // If current step is a Subroutine and needs querying, then query the data
-        if (currStep.__type === RunStepType.SingleRoutine && stepNeedsQuerying(currStep)) {
-            getSubroutines({ ids: [currStep.routineVersion.id] });
-            return;
-        }
-        // Finally, if we don't need to query, we set the current step.
-        setCurrentStep(currStep);
-    }, [currStepLocation, getSubroutines, getDirectories, setCurrStepLocation, rootStep, navigateToNextStepInParent, navigateBackToParentStep]);
+        const result = detectSubstepLoad(
+            currentLocation,
+            rootStep,
+            (input) => safeQuery(input.ids || [], getDirectories),
+            (input) => safeQuery(input.ids || [], getSubroutines),
+        );
+        substepLoadResult.current = result;
+    }, [currentLocation, getDirectories, getSubroutines, rootStep]);
+    // Load substeps on initial render
+    useEffect(function loadSubstepsEffect() {
+        loadSubsteps();
+    }, [loadSubsteps]);
 
+    const currentStep = useMemo(function currentStepMemo() {
+        if (!rootStep) return null;
+        return stepFromLocation(currentLocation, rootStep);
+    }, [currentLocation, rootStep]);
 
     useEffect(function addQueriedSubroutinesToRootEffect() {
         if (!queriedSubroutines) return;
         const subroutines = queriedSubroutines.edges.map(e => e.node);
         setRootStep(root => root ? addSubroutinesToStep(subroutines, root, languages) : null);
-    }, [languages, queriedSubroutines]);
+        if (substepLoadResult.current && substepLoadResult.current.needsFurtherQuerying) {
+            loadSubsteps();
+        }
+    }, [languages, loadSubsteps, queriedSubroutines]);
 
     useEffect(function addQueriedSubdirectoriesToRootEffect() {
         if (!queriedSubdirectories) return;
         const subdirectories = queriedSubdirectories.edges.map(e => e.node);
         setRootStep(root => root ? addSubdirectoriesToStep(subdirectories, root, languages) : null);
-    }, [languages, queriedSubdirectories]);
+        if (substepLoadResult.current && substepLoadResult.current.needsFurtherQuerying) {
+            loadSubsteps();
+        }
+    }, [languages, loadSubsteps, queriedSubdirectories]);
 
     const { instructions, name } = useMemo(function displayInfoMemo() {
         if (!currentStep) {
@@ -579,8 +316,8 @@ export function RunView({
       */
     const toPrevious = useCallback(function toPreviousCallback() {
         if (!previousLocation) return;
-        setCurrStepLocation(previousLocation);
-    }, [previousLocation, setCurrStepLocation]);
+        handleLocationUpdate(previousLocation);
+    }, [previousLocation, handleLocationUpdate]);
 
     const [logRunUpdate] = useLazyFetch<RunRoutineUpdateInput, RunRoutine>(endpointPutRunRoutine);
     const [logRunComplete] = useLazyFetch<RunRoutineCompleteInput, RunRoutine>(endpointPutRunRoutineComplete);
@@ -591,38 +328,40 @@ export function RunView({
     const toNext = useCallback(function toNextCallback() {
         if (!rootStep) return;
         // Find step data
-        const currStep = stepFromLocation(currStepLocation, rootStep);
+        const currStep = stepFromLocation(currentLocation, rootStep);
         // Calculate new progress and percent complete
         const newProgress = Array.isArray(progress) ? [...progress] : [];
         const newlyCompletedComplexity: number = (currStep ? getStepComplexity(currStep) : 0);
-        const alreadyComplete = Boolean(newProgress.find(p => locationArraysMatch(p, currStepLocation)));
+        const alreadyComplete = Boolean(newProgress.find(p => locationArraysMatch(p, currentLocation)));
         // If step was not already completed, update progress
         if (!alreadyComplete) {
-            newProgress.push(currStepLocation);
+            newProgress.push(currentLocation);
             setProgress(newProgress);
             setCompletedComplexity(c => c + newlyCompletedComplexity);
         }
         // Update current step
-        if (nextLocation) setCurrStepLocation(nextLocation);
+        if (nextLocation) {
+            handleLocationUpdate(nextLocation);
+        }
         // If in test mode return
         if (testMode || !run) return;
         // Now we can calculate data for the logs
         // Find parent RoutineList step, so we can get the nodeId 
-        const currParentListStep: RoutineListStep = {} as any;//TODO stepFromLocation(currStepLocation.slice(0, currStepLocation.length - 1), steps) as RoutineListStep;
+        const currParentListStep: RoutineListStep = {} as any;//TODO stepFromLocation(currentLocation.slice(0, currentLocation.length - 1), steps) as RoutineListStep;
         // Current step will be updated if it already exists in logged data, or created if not
-        const stepsUpdate = currStepRunData ? [{
-            id: currStepRunData.id,
+        const stepsUpdate = currentStepRunData ? [{
+            id: currentStepRunData.id,
             status: RunRoutineStepStatus.Completed,
-            timeElapsed: (currStepRunData.timeElapsed ?? 0) + timeElapsed.current,
-            contextSwitches: currStepRunData.contextSwitches + contextSwitches.current,
+            timeElapsed: (currentStepRunData.timeElapsed ?? 0) + timeElapsed.current,
+            contextSwitches: currentStepRunData.contextSwitches + contextSwitches.current,
         }] : undefined;
-        const stepsCreate = currStepRunData ? undefined : [{
+        const stepsCreate = currentStepRunData ? undefined : [{
             id: uuid(),
             order: newProgress.length,
             name: currStep?.name ?? "",
             nodeId: currParentListStep.nodeId,
             subroutineId: currParentListStep.parentRoutineVersionId,
-            step: currStepLocation,
+            step: currentLocation,
             timeElapsed: timeElapsed.current,
             contextSwitches: contextSwitches.current,
         }];
@@ -646,7 +385,7 @@ export function RunView({
         // TODO if running a project, the overall run may not be complete - just one routine in the project
         else {
             // Find node data
-            const currNodeId = currStepRunData?.node?.id;
+            const currNodeId = currentStepRunData?.node?.id;
             // const currNode = routineVersion.nodes?.find(n => n.id === currNodeId);
             // const wasSuccessful = currNode?.end?.wasSuccessful ?? true;
             const wasSuccessful = true; //TODO
@@ -670,7 +409,7 @@ export function RunView({
                 },
             });
         }
-    }, [currStepLocation, rootStep, progress, nextLocation, testMode, run, currStepRunData, logRunUpdate, logRunComplete, runnableObject, setLocation, onClose]);
+    }, [rootStep, currentLocation, progress, nextLocation, testMode, run, currentStepRunData, handleLocationUpdate, logRunUpdate, logRunComplete, runnableObject, setLocation, onClose]);
 
     /**
      * End run after reaching an EndStep
@@ -713,10 +452,10 @@ export function RunView({
         // Dont do this in test mode, or if there's no run data
         if (testMode || !run) return;
         // Find current step in run data
-        const stepUpdate = currStepRunData ? {
-            id: currStepRunData.id,
-            timeElapsed: (currStepRunData.timeElapsed ?? 0) + timeElapsed.current,
-            contextSwitches: currStepRunData.contextSwitches + contextSwitches.current,
+        const stepUpdate = currentStepRunData ? {
+            id: currentStepRunData.id,
+            timeElapsed: (currentStepRunData.timeElapsed ?? 0) + timeElapsed.current,
+            contextSwitches: currentStepRunData.contextSwitches + contextSwitches.current,
         } : undefined;
         // Send data to server
         //TODO support run projects
@@ -731,7 +470,7 @@ export function RunView({
                 setRun(data);
             },
         });
-    }, [currStepRunData, logRunUpdate, run, testMode]);
+    }, [currentStepRunData, logRunUpdate, run, testMode]);
 
     /**
      * End routine early
@@ -752,8 +491,8 @@ export function RunView({
             return;
         }
         // Navigate to current step
-        setCurrStepLocation(step.location);
-    }, [reachedEndStep, setCurrStepLocation]);
+        handleLocationUpdate(step.location);
+    }, [reachedEndStep, handleLocationUpdate]);
 
     const handleLoadSubroutine = useCallback(function handleLoadSubroutineCallback(id: string) {
         getSubroutines({ ids: [id] });
@@ -763,7 +502,6 @@ export function RunView({
      * Displays either a subroutine view or decision view
      */
     const childView = useMemo(function childViewMemo() {
-        console.log("calculating childview", currentStep, run);
         if (!currentStep) return null;
         switch (currentStep.__type) {
             case RunStepType.SingleRoutine:
@@ -817,17 +555,17 @@ export function RunView({
                             {/* Title and steps */}
                             <TitleStepsStack direction="row" spacing={1}>
                                 <Typography variant="h5" component="h2">{name}</Typography>
-                                {(currentStepNumber >= 0 && stepsInCurrentNode >= 0) ?
-                                    <Typography variant="h5" component="h2">({currentStepNumber} of {stepsInCurrentNode})</Typography>
+                                {stepsInCurrentNode >= 0 ?
+                                    <Typography variant="h5" component="h2">({currentLocation[currentLocation.length - 1] ?? 1} of {stepsInCurrentNode})</Typography>
                                     : null}
                                 {/* Help icon */}
                                 {instructions && <HelpButton markdown={instructions} />}
                             </TitleStepsStack>
                             {/* Steps explorer drawer */}
                             {rootStep !== null && rootStep.__type !== RunStepType.SingleRoutine ? <RunStepsDialog
-                                currStep={currStepLocation}
+                                currStep={currentLocation}
                                 handleLoadSubroutine={handleLoadSubroutine}
-                                handleCurrStepLocationUpdate={setCurrStepLocation}
+                                handleCurrStepLocationUpdate={handleLocationUpdate}
                                 history={progress}
                                 percentComplete={progressPercentage}
                                 rootStep={rootStep}

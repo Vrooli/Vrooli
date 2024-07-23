@@ -1014,6 +1014,7 @@ export const notificationSubscription_findOne = {
               "isPrivate": true,
               "__typename": "Routine"
             },
+            "routineType": true,
             "translations": {
               "id": true,
               "language": true,

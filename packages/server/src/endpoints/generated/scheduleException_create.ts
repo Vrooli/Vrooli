@@ -1167,6 +1167,7 @@ export const scheduleException_create = {
             "isInternal": true,
             "isPrivate": true
           },
+          "routineType": true,
           "translations": {
             "id": true,
             "language": true,

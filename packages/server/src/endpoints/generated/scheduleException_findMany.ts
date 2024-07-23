@@ -466,6 +466,7 @@ export const scheduleException_findMany = {
               "isInternal": true,
               "isPrivate": true
             },
+            "routineType": true,
             "translations": {
               "id": true,
               "language": true,

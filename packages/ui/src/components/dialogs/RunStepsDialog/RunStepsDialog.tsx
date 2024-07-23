@@ -8,9 +8,8 @@ import { useZIndex } from "hooks/useZIndex";
 import { ListNumberIcon } from "icons";
 import React, { useCallback, useMemo, useState } from "react";
 import { addSearchParams, useLocation } from "route";
-import { RunStep } from "types";
 import { RunStepType } from "utils/consts";
-import { locationArraysMatch, routineVersionHasSubroutines } from "utils/runUtils";
+import { RunStep, locationArraysMatch, routineVersionHasSubroutines } from "utils/runUtils";
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { RunStepsDialogProps } from "../types";
 
@@ -168,26 +167,24 @@ export function RunStepsDialog({
 
     const selectedItem = useMemo<string | undefined>(() => {
         if (!currStep) return undefined;
-        return `1.${currStep.join(".")}`;
+        return currStep.join(".");
     }, [currStep]);
 
     /**
      * Generate a tree of the subroutine's steps
      */
     const getTreeItem = useCallback((step: RunStep, location: number[] = [1]) => {
-        // Ignore first number in location array, as it only exists to group the tree items
-        const realLocation = location.slice(1);
         // Determine if step is completed/selected
-        const completed = isComplete(step, realLocation);
-        const selected = isSelected(realLocation);
+        const completed = isComplete(step, location);
+        const selected = isSelected(location);
         const locationLabel = location.join(".");
-        const realLocationLabel = realLocation.join(".");
         // Helper function for navigating to step
         function toLocation() {
             // Update URL
-            addSearchParams(setLocation, { step: realLocation });
+            addSearchParams(setLocation, { step: location });
             // Update current step location
-            handleCurrStepLocationUpdate(realLocation);
+            console.log("updating current step location from dialog", location);
+            handleCurrStepLocationUpdate(location);
             // Close dialog
             closeDialog();
         }

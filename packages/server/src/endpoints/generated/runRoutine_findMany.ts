@@ -67,6 +67,7 @@ export const runRoutine_findMany = {
           "isInternal": true,
           "isPrivate": true
         },
+        "routineType": true,
         "translations": {
           "id": true,
           "language": true,

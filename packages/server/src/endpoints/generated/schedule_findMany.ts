@@ -467,6 +467,7 @@ export const schedule_findMany = {
             "isInternal": true,
             "isPrivate": true
           },
+          "routineType": true,
           "translations": {
             "id": true,
             "language": true,

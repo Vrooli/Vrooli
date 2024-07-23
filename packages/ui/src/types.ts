@@ -1,9 +1,7 @@
 // Defines common props
-import { AwardCategory, CommonKey, NodeLink } from "@local/shared";
+import { AwardCategory, CommonKey } from "@local/shared";
 import { Theme } from "@mui/material";
 import { SystemStyleObject } from "@mui/system";
-import { RunStepType } from "utils/consts";
-import { RunnableRoutineVersion } from "views/runs/types";
 
 /** 
  * An object which at least includes its type.
@@ -90,119 +88,6 @@ export type ShapeModel<
         update: (o: T, u: T, assertHasUpdate?: boolean) => TUpdate | undefined,
         hasObjectChanged?: (o: T, u: T) => boolean,
     }) & { idField?: keyof T & string }
-
-
-
-/** Basic information provided to all routine steps */
-export interface BaseStep {
-    /** The step's name, taken from its node if relevant */
-    name: string,
-    /** The step's description, taken from its node if relevant */
-    description: string | null,
-    /** 
-     * The step's location in the run, as a list of natural numbers. Examples:
-     * - Root step: []
-     * - First node in MultiRoutineStep root: [1]
-     * - Second node in MultiRoutineStep root: [2]
-     * - Third node in a RoutineListStep belonging to a MultiRoutineStep root: [3, 1]
-     */
-    location: number[],
-}
-/** Step information for all nodes in a routine */
-export interface NodeStep extends BaseStep {
-    /** Location of the next node to run */
-    nextLocation: number[] | null,
-    /** The ID of this node */
-    nodeId: string,
-}
-/**
- * Implicit step (i.e. created based on how nodes are linked, rather 
- * than being a node itself) that represents a decision point in a routine.
- */
-export interface DecisionStep extends BaseStep {
-    __type: RunStepType.Decision,
-    /** The options to pick */
-    options: {
-        link: NodeLink,
-        step: DecisionStep | EndStep | RoutineListStep,
-    }[];
-}
-/**
- * Node that marks the end of a routine. No action needed from the user.
- */
-export interface EndStep extends NodeStep {
-    __type: RunStepType.End,
-    nextLocation: null, // End of the routine, so no next location
-    /** Whether this is considered a "success" or not */
-    wasSuccessful: boolean,
-}
-/**
- * Node that marks the start of a routine. No action needed from the user.
- */
-export interface StartStep extends NodeStep {
-    __type: RunStepType.Start,
-}
-/**
- * Either a leaf node (i.e. does not contain any subroutines/substeps of its own) 
- * or a step that needs further querying/processing to build the substeps.
- * 
- * If further processing is needed, this should be replaced with a MultiRoutineStep.
- */
-export interface SingleRoutineStep extends BaseStep {
-    __type: RunStepType.SingleRoutine,
-    /**
-     * The routine version that we'll be running in this step, or a multi-step 
-     * routine that will be used to convert this step into a MultiRoutineStep
-     */
-    routineVersion: RunnableRoutineVersion
-}
-/**
- * A list of related steps in an individual routine node
- */
-export interface RoutineListStep extends NodeStep {
-    __type: RunStepType.RoutineList,
-    /** Whether or not the steps must be run in order */
-    isOrdered: boolean,
-    /**
-     * The ID of the routine version containing this node
-     */
-    parentRoutineVersionId: string,
-    /**
-     * The steps in this list. Leaf nodes are represented as SingleRoutineSteps,
-     * while subroutines with their own steps (i.e. nodes and links) are represented
-     * as MultiRoutineSteps.
-     * 
-     * Steps that haven't been processed yet are represented as SingleRoutineSteps
-     */
-    steps: (MultiRoutineStep | SingleRoutineStep)[],
-}
-/** Step information for a full multi-step routine */
-export interface MultiRoutineStep extends BaseStep {
-    __type: RunStepType.MultiRoutine,
-    /** The nodes in this routine version. Unordered */
-    nodes: (DecisionStep | EndStep | RoutineListStep | StartStep)[],
-    /** The links in thie routine version. Unordered */
-    nodeLinks: NodeLink[],
-    /** The ID of this routine version */
-    routineVersionId: string,
-}
-export interface DirectoryStep extends BaseStep {
-    __type: RunStepType.Directory,
-    /** ID of directory, if this is not the root directory */
-    directoryId: string | null,
-    hasBeenQueried: boolean,
-    isOrdered: boolean,
-    isRoot: boolean,
-    /** ID of the project version this step is from */
-    projectVersionId: string,
-    steps: ProjectStep[],
-}
-export type ProjectStep = DirectoryStep | SingleRoutineStep | MultiRoutineStep;
-/** All available step types */
-export type RunStep = DecisionStep | DirectoryStep | EndStep | MultiRoutineStep | RoutineListStep | StartStep | SingleRoutineStep;
-/** All step types that can be the root step */
-export type RootStep = DirectoryStep | MultiRoutineStep | SingleRoutineStep;
-
 
 export type CanConnect<
     RelationShape extends ({ [key in IDField]: string } & { __typename: string }),

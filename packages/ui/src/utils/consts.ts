@@ -95,7 +95,7 @@ export enum RunStepType {
      * 
      * When run, the user sees information about the routine.
      */
-    MultiRoutine = "Routine",
+    MultiRoutine = "MultiRoutine",
     /**
      * Takes in inputs and performs an action (or used as a placeholder until more data is loaded).
      * 

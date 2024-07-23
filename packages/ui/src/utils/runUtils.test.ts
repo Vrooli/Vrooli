@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Node, NodeLink, RoutineType, RoutineVersion, uuid } from "@local/shared";
-import { DecisionStep, DirectoryStep, EndStep, MultiRoutineStep, RootStep, RoutineListStep, RunStep, SingleRoutineStep, StartStep } from "../types";
+import { Node, NodeLink, NodeType, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionYou, Routine, RoutineType, RoutineVersion, RoutineVersionYou, uuid } from "@local/shared";
 import { RunStepType } from "./consts";
-import { findStep, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, insertStep, locationArraysMatch, parseChildOrder, parseSchemaInputOutput, routineVersionHasSubroutines, siblingsAtLocation, sortStepsAndAddDecisions, stepFromLocation, stepNeedsQuerying } from "./runUtils";
+import { DecisionStep, DirectoryStep, EndStep, MultiRoutineStep, RootStep, RoutineListStep, RunStep, RunnableProjectVersion, RunnableRoutineVersion, SingleRoutineStep, StartStep, directoryToStep, findStep, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, insertStep, locationArraysMatch, multiRoutineToStep, parseChildOrder, parseSchemaInputOutput, projectToStep, routineVersionHasSubroutines, runnableObjectToStep, siblingsAtLocation, singleRoutineToStep, sortStepsAndAddDecisions, stepFromLocation, stepNeedsQuerying } from "./runUtils";
 
 
 describe("getRunPercentComplete", () => {
@@ -289,7 +288,7 @@ describe("insertStep", () => {
             }],
         };
         const result = insertStep(mockStepData, mockRootStep);
-        expect(result.steps[0]).toEqual({ ...mockStepData, location: [1, 1] });
+        expect((result as DirectoryStep).steps[0]).toEqual({ ...mockStepData, location: [1, 1] });
     });
 
     it("adds multi-step routine data to a multi-step routine", () => {
@@ -322,10 +321,12 @@ describe("insertStep", () => {
             }, {
                 __type: RunStepType.RoutineList,
                 description: "boop",
+                isOrdered: false,
                 location: [1, 2],
                 name: "beep",
                 nextLocation: [1, 3],
                 nodeId: "node234",
+                parentRoutineVersionId: "routine123",
                 steps: [{
                     __type: RunStepType.SingleRoutine,
                     description: "",
@@ -340,12 +341,13 @@ describe("insertStep", () => {
                 nextLocation: null,
                 location: [1, 3],
                 nodeId: "node345",
+                wasSuccessful: true,
             }],
             nodeLinks: [],
             routineVersionId: "routineVersion123",
         };
         const result = insertStep(mockStepData, mockRootStep);
-        expect((result.nodes[1] as RoutineListStep).steps[0]).toEqual({ ...mockStepData, location: [1, 2, 1] });
+        expect(((result as MultiRoutineStep).nodes[1] as RoutineListStep).steps[0]).toEqual({ ...mockStepData, location: [1, 2, 1] });
     });
 
     it("does not add data to a root that's a subroutine", () => {
@@ -432,7 +434,7 @@ describe("insertStep", () => {
         const result = insertStep(mockStepData, mockRootStep);
 
         // Traversing down to the deeply-nested step
-        expect(result.steps[0].steps[0].steps[0]).toEqual({ ...mockStepData, location: [1, 1, 1, 1] });
+        expect((((result as DirectoryStep).steps[0] as DirectoryStep).steps[0] as DirectoryStep).steps[0]).toEqual({ ...mockStepData, location: [1, 1, 1, 1] });
     });
 
     it("adds routine data to a deeply-nested routine", () => {
@@ -461,10 +463,12 @@ describe("insertStep", () => {
             }, {
                 __type: RunStepType.RoutineList,
                 description: "routine list level 1",
+                isOrdered: false,
                 location: [1, 2],
                 name: "routine list level 1",
                 nextLocation: [],
                 nodeId: "routineListNode1",
+                parentRoutineVersionId: "routine123",
                 steps: [{
                     __type: RunStepType.MultiRoutine,
                     description: "multi routine level 2",
@@ -473,10 +477,12 @@ describe("insertStep", () => {
                     nodes: [{
                         __type: RunStepType.RoutineList,
                         description: "routine list level 3",
+                        isOrdered: false,
                         name: "routine list level 3",
                         nextLocation: [],
                         location: [1, 2, 1, 1],
                         nodeId: "routineListNode3",
+                        parentRoutineVersionId: "routine123",
                         steps: [{
                             __type: RunStepType.SingleRoutine,
                             description: "subroutine",
@@ -495,6 +501,7 @@ describe("insertStep", () => {
                 name: "end",
                 nextLocation: null,
                 nodeId: "endNode",
+                wasSuccessful: false,
             }],
             nodeLinks: [],
             routineVersionId: "rootRoutine",
@@ -503,7 +510,7 @@ describe("insertStep", () => {
         const result = insertStep(mockStepData, mockRootStep);
 
         // Traversing down to the deeply-nested step
-        expect((((result.nodes[1] as RoutineListStep).steps[0] as MultiRoutineStep).nodes[0] as RoutineListStep).steps[0]).toEqual({ ...mockStepData, location: [1, 2, 1, 1, 1] });
+        expect(((((result as MultiRoutineStep).nodes[1] as RoutineListStep).steps[0] as MultiRoutineStep).nodes[0] as RoutineListStep).steps[0]).toEqual({ ...mockStepData, location: [1, 2, 1, 1, 1] });
     });
 
     it("does not change the root if the data doesn't match", () => {
@@ -532,10 +539,12 @@ describe("insertStep", () => {
             }, {
                 __type: RunStepType.RoutineList,
                 description: "routine list",
+                isOrdered: false,
                 location: [1, 2],
                 name: "routine list",
                 nextLocation: [],
                 nodeId: "routineListNode",
+                parentRoutineVersionId: "routine123",
                 steps: [{
                     __type: RunStepType.SingleRoutine,
                     description: "subroutine",
@@ -620,10 +629,12 @@ describe("stepFromLocation", () => {
                 {
                     __type: RunStepType.RoutineList,
                     description: "routine list",
+                    isOrdered: false,
                     location: [1, 2],
                     name: "routine list",
                     nextLocation: [9, 1, 1],
                     nodeId: "routineListNode1",
+                    parentRoutineVersionId: "routine123",
                     steps: [
                         {
                             __type: RunStepType.SingleRoutine,
@@ -637,10 +648,12 @@ describe("stepFromLocation", () => {
                 {
                     __type: RunStepType.RoutineList,
                     description: "routine list",
+                    isOrdered: true,
                     location: [1, 3],
                     name: "routine list",
                     nextLocation: [],
                     nodeId: "routineListNode2",
+                    parentRoutineVersionId: "routine123",
                     steps: [
                         {
                             __type: RunStepType.SingleRoutine,
@@ -658,10 +671,12 @@ describe("stepFromLocation", () => {
                                 {
                                     __type: RunStepType.RoutineList,
                                     description: "routine list",
+                                    isOrdered: true,
                                     location: [1, 3, 2, 1],
                                     name: "routine list",
                                     nextLocation: [1],
                                     nodeId: "routineListNode3",
+                                    parentRoutineVersionId: "routine234",
                                     steps: [
                                         {
                                             __type: RunStepType.SingleRoutine,
@@ -685,6 +700,7 @@ describe("stepFromLocation", () => {
                     name: "end",
                     nextLocation: null,
                     nodeId: "endNode",
+                    wasSuccessful: true,
                 },
             ],
             nodeLinks: [],
@@ -804,9 +820,11 @@ describe("findStep", () => {
                     __type: RunStepType.RoutineList,
                     name: "RoutineList",
                     description: "Routine List",
+                    isOrdered: false,
                     location: [1, 2],
                     nextLocation: [1, 3],
                     nodeId: "routineList123",
+                    parentRoutineVersionId: "routineVersion123",
                     steps: [
                         createSingleRoutineStep("Target", [1, 2, 1]),
                     ],
@@ -818,6 +836,7 @@ describe("findStep", () => {
                     location: [1, 3],
                     nextLocation: null,
                     nodeId: "end123",
+                    wasSuccessful: true,
                 },
             ],
             nodeLinks: [],
@@ -1160,10 +1179,12 @@ describe("getNextLocation and getPreviousLocation", () => {
                 {
                     __type: RunStepType.RoutineList,
                     description: "routine list",
+                    isOrdered: false,
                     location: [1, 2],
                     name: "routine list",
                     nextLocation: [1, 5],
                     nodeId: "routineListNode1",
+                    parentRoutineVersionId: "routine123",
                     steps: [
                         {
                             __type: RunStepType.SingleRoutine,
@@ -1181,14 +1202,17 @@ describe("getNextLocation and getPreviousLocation", () => {
                     name: "end",
                     nextLocation: null,
                     nodeId: "endNode",
+                    wasSuccessful: false,
                 },
                 {
                     __type: RunStepType.RoutineList,
                     description: "routine list",
+                    isOrdered: false,
                     location: [1, 3],
                     name: "routine list",
                     nextLocation: [1, 5],
                     nodeId: "routineListNode2",
+                    parentRoutineVersionId: "routine123",
                     steps: [
                         {
                             __type: RunStepType.SingleRoutine,
@@ -1206,10 +1230,12 @@ describe("getNextLocation and getPreviousLocation", () => {
                                 {
                                     __type: RunStepType.RoutineList,
                                     description: "routine list",
+                                    isOrdered: true,
                                     location: [1, 3, 2, 1],
                                     name: "routine list",
                                     nextLocation: null,
                                     nodeId: "routineListNode3",
+                                    parentRoutineVersionId: "routine234",
                                     steps: [
                                         {
                                             __type: RunStepType.SingleRoutine,
@@ -1229,11 +1255,13 @@ describe("getNextLocation and getPreviousLocation", () => {
                 {
                     __type: RunStepType.RoutineList,
                     description: "routine list",
+                    isOrdered: false,
                     location: [1, 5],
                     name: "routine list",
                     nextLocation: [1, 2],
                     nodeId: "routineListNode1",
                     steps: [],
+                    parentRoutineVersionId: "routine123",
                 },
             ],
             nodeLinks: [],
@@ -1307,6 +1335,8 @@ describe("getNextLocation and getPreviousLocation", () => {
                                 location: [1, 3, 2, 1],
                                 name: "routine list a",
                                 nodeId: "routineListNode3",
+                                nextLocation: [1, 4],
+                                parentRoutineVersionId: "routine123",
                                 steps: [
                                     {
                                         __type: RunStepType.SingleRoutine,
@@ -1326,7 +1356,9 @@ describe("getNextLocation and getPreviousLocation", () => {
                                 isOrdered: true,
                                 location: [1, 4, 2, 1, 2, 2, 2],
                                 name: "routine list b",
+                                nextLocation: [1, 4, 2, 1, 2, 2, 3],
                                 nodeId: "routineListNode3",
+                                parentRoutineVersionId: "routine123",
                                 steps: [
                                     {
                                         __type: RunStepType.SingleRoutine,
@@ -1343,10 +1375,12 @@ describe("getNextLocation and getPreviousLocation", () => {
                 {
                     __type: RunStepType.RoutineList,
                     description: "routine list",
+                    isOrdered: false,
                     location: [1, 3],
                     name: "routine list",
                     nextLocation: [1, 4],
                     nodeId: "routineListNode2",
+                    parentRoutineVersionId: "routine123",
                     steps: [
                         {
                             __type: RunStepType.SingleRoutine,
@@ -1364,10 +1398,12 @@ describe("getNextLocation and getPreviousLocation", () => {
                                 {
                                     __type: RunStepType.RoutineList,
                                     description: "routine list",
+                                    isOrdered: true,
                                     location: [1, 3, 2, 1],
                                     name: "routine list",
-                                    nextLocation: null,
+                                    nextLocation: null as unknown as number[], // Done on purpose,
                                     nodeId: "routineListNode3",
+                                    parentRoutineVersionId: "routine234",
                                     steps: [
                                         {
                                             __type: RunStepType.SingleRoutine,
@@ -1391,6 +1427,7 @@ describe("getNextLocation and getPreviousLocation", () => {
                     name: "end",
                     nextLocation: null,
                     nodeId: "endNode",
+                    wasSuccessful: true,
                 },
             ],
             nodeLinks: [],
@@ -1531,6 +1568,7 @@ describe("getStepComplexity", () => {
             name: "",
             nextLocation: null,
             nodeId: "1",
+            wasSuccessful: true,
         };
         expect(getStepComplexity(endStep)).toBe(0);
     });
@@ -1552,7 +1590,6 @@ describe("getStepComplexity", () => {
             __type: RunStepType.Decision,
             description: "",
             name: "",
-            nodeId: "1",
             location: [1],
             options: [],
         };
@@ -1589,17 +1626,18 @@ describe("getStepComplexity", () => {
                     __type: RunStepType.Decision,
                     description: "",
                     name: "",
-                    nodeId: "2",
                     location: [1, 2],
                     options: [],
                 },
                 {
                     __type: RunStepType.RoutineList,
                     description: "",
+                    isOrdered: true,
+                    location: [3, 3, 3, 3, 3],
                     name: "",
                     nextLocation: [2, 2, 2],
                     nodeId: "1",
-                    location: [1],
+                    parentRoutineVersionId: "133",
                     steps: [
                         {
                             __type: RunStepType.SingleRoutine,
@@ -1624,6 +1662,7 @@ describe("getStepComplexity", () => {
                     nextLocation: null,
                     nodeId: "3",
                     location: [1, 3],
+                    wasSuccessful: false,
                 },
             ],
             nodeLinks: [],
@@ -1678,7 +1717,9 @@ describe("getStepComplexity", () => {
                                         isOrdered: false,
                                         location: [1, 3, 2, 1],
                                         name: "routine list a",
+                                        nextLocation: [],
                                         nodeId: "routineListNode3",
+                                        parentRoutineVersionId: "23fdhsaf",
                                         steps: [
                                             {
                                                 __type: RunStepType.SingleRoutine,
@@ -1698,7 +1739,9 @@ describe("getStepComplexity", () => {
                                         isOrdered: true,
                                         location: [1, 4, 2, 1, 2, 2, 2],
                                         name: "routine list b",
+                                        nextLocation: [1, 4, 2, 1, 2, 2, 3],
                                         nodeId: "routineListNode3",
+                                        parentRoutineVersionId: "23fdhsaf",
                                         steps: [
                                             {
                                                 __type: RunStepType.SingleRoutine,
@@ -1715,10 +1758,12 @@ describe("getStepComplexity", () => {
                         {
                             __type: RunStepType.RoutineList,
                             description: "routine list",
+                            isOrdered: true,
                             location: [1, 3],
                             name: "routine list",
                             nextLocation: [1, 4],
                             nodeId: "routineListNode2",
+                            parentRoutineVersionId: "routine123",
                             steps: [
                                 {
                                     __type: RunStepType.SingleRoutine,
@@ -1736,10 +1781,12 @@ describe("getStepComplexity", () => {
                                         {
                                             __type: RunStepType.RoutineList,
                                             description: "routine list",
+                                            isOrdered: true,
                                             location: [1, 3, 2, 1],
                                             name: "routine list",
-                                            nextLocation: null,
+                                            nextLocation: [1, 1, 1, 1],
                                             nodeId: "routineListNode3",
+                                            parentRoutineVersionId: "chicken",
                                             steps: [
                                                 {
                                                     __type: RunStepType.SingleRoutine,
@@ -1763,6 +1810,7 @@ describe("getStepComplexity", () => {
                             name: "end",
                             nextLocation: null,
                             nodeId: "endNode",
+                            wasSuccessful: true,
                         },
                     ],
                     nodeLinks: [],
@@ -2070,7 +2118,15 @@ function expectValidStepSequence(
 describe("sortStepsAndAddDecisions", () => {
     it("doesn't sort if start step missing", () => {
         const steps = [
-            { __type: RunStepType.End, description: "", name: "", nodeId: "1", location: [1, 3] },
+            {
+                __type: RunStepType.End,
+                description: "",
+                location: [1, 3],
+                name: "",
+                nextLocation: null,
+                nodeId: "1",
+                wasSuccessful: true,
+            } as EndStep,
         ];
         const nodeLinks = [] as NodeLink[];
         const result = sortStepsAndAddDecisions(steps, nodeLinks);
@@ -2106,7 +2162,7 @@ describe("sortStepsAndAddDecisions", () => {
             { from: { id: "2" }, to: { id: "3" } },
         ] as NodeLink[];
         const result = sortStepsAndAddDecisions(steps, nodeLinks);
-        expect(result.map(step => step.nodeId)).toEqual(["1", "2", "3"]);
+        expect(result.map(step => (step as { nodeId: string | null }).nodeId)).toEqual(["1", "2", "3"]);
     });
 
     it("should add a decision step when there are multiple outgoing links", () => {
@@ -2332,6 +2388,650 @@ describe("sortStepsAndAddDecisions", () => {
             // Second RoutineList has no links
         ] as NodeLink[];
         const result = sortStepsAndAddDecisions(steps, nodeLinks);
-        expect(result.map(step => step.nodeId)).toEqual(["1", "2", "3"]);
+        expect(result.map(step => (step as { nodeId: string | null }).nodeId)).toEqual(["1", "2", "3"]);
+    });
+
+    it("should update the location of steps within a RoutineListStep", () => {
+        const baseLocation = [69, 420];
+        const commonProps = { description: "", name: "" };
+        const steps = [
+            {
+                __type: RunStepType.Start,
+                location: [...baseLocation, 44444],
+                nextLocation: [],
+                nodeId: "1",
+                ...commonProps,
+            } as StartStep,
+            {
+                __type: RunStepType.RoutineList,
+                isOrdered: true,
+                location: [...baseLocation, 23],
+                parentRoutineVersionId: "routineVersion123",
+                nextLocation: [],
+                nodeId: "2",
+                steps: [{
+                    __type: RunStepType.SingleRoutine,
+                    description: "",
+                    name: "",
+                    location: [5, 3],
+                    routineVersion: { complexity: 2, id: "1", routineType: RoutineType.MultiStep } as RoutineVersion,
+                }, {
+                    __type: RunStepType.SingleRoutine,
+                    description: "",
+                    name: "",
+                    location: [5, 4],
+                    routineVersion: { complexity: 3, id: "2", routineType: RoutineType.MultiStep } as RoutineVersion,
+                }],
+                ...commonProps,
+            } as RoutineListStep,
+            {
+                __type: RunStepType.End,
+                location: [...baseLocation, 999999],
+                nodeId: "3",
+                ...commonProps,
+            } as EndStep,
+        ];
+        const nodeLinks = [
+            { from: { id: "1" }, to: { id: "2" } },
+            { from: { id: "2" }, to: { id: "3" } },
+        ] as NodeLink[];
+        const result = sortStepsAndAddDecisions(steps, nodeLinks);
+        const routineListStep = result.find(step => step.__type === RunStepType.RoutineList) as RoutineListStep;
+        expect(routineListStep.steps[0].location).toEqual([...routineListStep.location, 1]);
+        expect(routineListStep.steps[1].location).toEqual([...routineListStep.location, 2]);
+    });
+});
+
+describe("singleRoutineToStep", () => {
+    it("should convert a RoutineVersion to a SingleRoutineStep", () => {
+        const routineVersion: RunnableRoutineVersion = {
+            __typename: "RoutineVersion",
+            id: uuid(),
+            created_at: new Date().toISOString(),
+            complexity: 2,
+            configCallData: "{}",
+            configFormInput: "{}",
+            configFormOutput: "{}",
+            nodeLinks: [],
+            nodes: [],
+            root: {
+                __typename: "Routine",
+                id: uuid(),
+            } as Routine,
+            routineType: RoutineType.Informational,
+            translations: [{
+                __typename: "RoutineVersionTranslation",
+                id: uuid(),
+                language: "en",
+                name: "english name",
+                description: "english description",
+            }, {
+                __typename: "RoutineVersionTranslation",
+                id: uuid(),
+                language: "es",
+                name: "spanish name",
+                description: "spanish description",
+            }],
+            versionLabel: "1.0.0",
+            you: {} as RoutineVersionYou,
+        };
+        const englishResult = singleRoutineToStep(routineVersion, [1], ["en"]);
+        expect(englishResult).toEqual({
+            __type: RunStepType.SingleRoutine,
+            description: "english description",
+            name: "english name",
+            location: [1],
+            routineVersion,
+        });
+        const spanishResult = singleRoutineToStep(routineVersion, [1], ["es"]);
+        expect(spanishResult).toEqual({
+            __type: RunStepType.SingleRoutine,
+            description: "spanish description",
+            name: "spanish name",
+            location: [1],
+            routineVersion,
+        });
+        const secondLanguageResult = singleRoutineToStep(routineVersion, [1], ["fr", "es"]);
+        expect(secondLanguageResult).toEqual({
+            __type: RunStepType.SingleRoutine,
+            description: "spanish description",
+            name: "spanish name",
+            location: [1],
+            routineVersion,
+        });
+    });
+});
+
+describe("multiRoutineToStep", () => {
+    it("should convert a RoutineVersion to a MultiRoutineStep", () => {
+        const startId = uuid();
+        const routineListId = uuid();
+        const endId = uuid();
+
+        const routineVersion: RunnableRoutineVersion = {
+            __typename: "RoutineVersion",
+            id: uuid(),
+            created_at: new Date().toISOString(),
+            complexity: 2,
+            configCallData: "{}",
+            configFormInput: "{}",
+            configFormOutput: "{}",
+            nodeLinks: [{
+                __typename: "NodeLink",
+                id: uuid(),
+                from: { id: startId },
+                to: { id: routineListId },
+            } as NodeLink, {
+                __typename: "NodeLink",
+                id: uuid(),
+                from: { id: routineListId },
+                to: { id: endId },
+            } as NodeLink],
+            nodes: [{
+                __typename: "Node",
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                id: startId,
+                columnIndex: 0,
+                rowIndex: 0,
+                nodeType: NodeType.Start,
+            } as Node, {
+                __typename: "Node",
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                id: routineListId,
+                columnIndex: 0,
+                rowIndex: 0,
+                nodeType: NodeType.RoutineList,
+                routineList: {
+                    __typename: "NodeRoutineList",
+                    id: uuid(),
+                    isOptional: true,
+                    isOrdered: false,
+                    items: [{
+                        __typename: "NodeRoutineListItem",
+                        id: uuid(),
+                        index: 0,
+                        routineVersion: {
+                            __typename: "RoutineVersion",
+                            id: uuid(),
+                            complexity: 3,
+                        },
+                    }, {
+                        __typename: "NodeRoutineListItem",
+                        id: uuid(),
+                        index: 1,
+                        routineVersion: {
+                            __typename: "RoutineVersion",
+                            id: uuid(),
+                            complexity: 4,
+                            translations: [{
+                                __typename: "RoutineVersionTranslation",
+                                id: uuid(),
+                                language: "en",
+                                description: "thee description",
+                                name: "thee name",
+                            }],
+                        },
+                    }],
+                },
+            } as Node, {
+                __typename: "Node",
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                id: endId,
+                columnIndex: 0,
+                rowIndex: 0,
+                nodeType: NodeType.End,
+                end: {
+                    __typename: "NodeEnd",
+                    id: uuid(),
+                    wasSuccessful: true,
+                },
+            } as Node],
+            root: {
+                __typename: "Routine",
+                id: uuid(),
+            } as Routine,
+            routineType: RoutineType.Informational,
+            translations: [{
+                __typename: "RoutineVersionTranslation",
+                id: uuid(),
+                language: "en",
+                name: "english name",
+                description: "english description",
+            }, {
+                __typename: "RoutineVersionTranslation",
+                id: uuid(),
+                language: "es",
+                name: "spanish name",
+                description: "spanish description",
+            }],
+            versionLabel: "1.0.0",
+            you: {} as RoutineVersionYou,
+        };
+        const result = multiRoutineToStep(routineVersion, [1, 2], ["en"]);
+        expect(result).toEqual({
+            __type: RunStepType.MultiRoutine,
+            description: "english description",
+            name: "english name",
+            location: [1, 2],
+            routineVersionId: routineVersion.id,
+            nodeLinks: routineVersion.nodeLinks,
+            nodes: [{
+                __type: RunStepType.Start,
+                description: null,
+                location: [1, 2, 1],
+                name: "Untitled",
+                nextLocation: [1, 2, 2],
+                nodeId: routineVersion.nodes[0].id,
+            }, {
+                __type: RunStepType.RoutineList,
+                description: null,
+                isOrdered: false,
+                location: [1, 2, 2],
+                name: "Untitled",
+                nextLocation: [1, 2, 3],
+                nodeId: routineVersion.nodes[1].id,
+                parentRoutineVersionId: routineVersion.id,
+                steps: [
+                    {
+                        __type: RunStepType.SingleRoutine,
+                        description: null,
+                        location: [1, 2, 2, 1],
+                        name: "Untitled",
+                        routineVersion: (routineVersion as any).nodes[1].routineList.items[0].routineVersion,
+                    },
+                    {
+                        __type: RunStepType.SingleRoutine,
+                        description: "thee description",
+                        location: [1, 2, 2, 2],
+                        name: "thee name",
+                        routineVersion: (routineVersion as any).nodes[1].routineList.items[1].routineVersion,
+                    },
+                ],
+            }, {
+                __type: RunStepType.End,
+                description: null,
+                location: [1, 2, 3],
+                name: "Untitled",
+                nextLocation: null,
+                nodeId: routineVersion.nodes[2].id,
+                wasSuccessful: true,
+            }],
+        });
+    });
+});
+
+describe("projectToStep", () => {
+    it("should convert a ProjectVersion to a DirectoryStep", () => {
+        const projectVersion: RunnableProjectVersion = {
+            __typename: "ProjectVersion",
+            id: uuid(),
+            created_at: new Date().toISOString(),
+            directories: [{
+                __typename: "ProjectVersionDirectory",
+                id: uuid(),
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                isRoot: false,
+                translations: [{
+                    __typename: "ProjectVersionDirectoryTranslation",
+                    id: uuid(),
+                    language: "en",
+                    description: "directory description",
+                    name: "directory name",
+                }],
+            } as ProjectVersionDirectory],
+            root: {
+                __typename: "Project",
+                id: uuid(),
+            } as Project,
+            translations: [{
+                __typename: "ProjectVersionTranslation",
+                id: uuid(),
+                language: "en",
+                description: "english description",
+                name: "english name",
+            }],
+            versionLabel: "1.2.3",
+            you: {} as ProjectVersionYou,
+        };
+        const result = projectToStep(projectVersion, [1, 2], ["en"]);
+        expect(result).toEqual({
+            __type: RunStepType.Directory,
+            description: "english description",
+            name: "english name",
+            location: [1, 2],
+            directoryId: null,
+            hasBeenQueried: true,
+            isOrdered: false,
+            isRoot: true,
+            projectVersionId: projectVersion.id,
+            steps: [{
+                __type: RunStepType.Directory,
+                description: "directory description",
+                location: [1, 2, 1],
+                name: "directory name",
+                directoryId: (projectVersion as any).directories[0].id,
+                hasBeenQueried: true,
+                isOrdered: false,
+                isRoot: false,
+                projectVersionId: projectVersion.id,
+                steps: [],
+            }],
+        });
+    });
+});
+
+describe("directoryToStep", () => {
+    it("should convert a ProjectVersionDirectory to a DirectoryStep", () => {
+        const projectVersionDirectory: ProjectVersionDirectory = {
+            __typename: "ProjectVersionDirectory",
+            id: uuid(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            isRoot: false,
+            projectVersion: {
+                __typename: "ProjectVersion",
+                id: uuid(),
+            } as ProjectVersion,
+            translations: [{
+                __typename: "ProjectVersionDirectoryTranslation",
+                id: uuid(),
+                language: "en",
+                description: "directory description",
+                name: "directory name",
+            }],
+        } as ProjectVersionDirectory;
+        const result1 = directoryToStep(projectVersionDirectory, [9, 3], ["en"]);
+        expect(result1).toEqual({
+            __type: RunStepType.Directory,
+            description: "directory description",
+            location: [9, 3],
+            name: "directory name",
+            directoryId: projectVersionDirectory.id,
+            hasBeenQueried: true,
+            isOrdered: false,
+            isRoot: false,
+            projectVersionId: (projectVersionDirectory as any).projectVersion.id,
+            steps: [],
+        });
+        delete projectVersionDirectory.projectVersion;
+        const result2 = directoryToStep(projectVersionDirectory, [9, 3], ["en"], "anotherProjectVersionId");
+        expect(result2).toEqual({
+            __type: RunStepType.Directory,
+            description: "directory description",
+            location: [9, 3],
+            name: "directory name",
+            directoryId: projectVersionDirectory.id,
+            hasBeenQueried: true,
+            isOrdered: false,
+            isRoot: false,
+            projectVersionId: "anotherProjectVersionId",
+            steps: [],
+        });
+    });
+});
+
+describe("runnableObjectToStep", () => {
+    it("should convert a single-step routine", () => {
+        const routineVersion: RunnableRoutineVersion = {
+            __typename: "RoutineVersion",
+            id: uuid(),
+            created_at: new Date().toISOString(),
+            complexity: 2,
+            configCallData: "{}",
+            configFormInput: "{}",
+            configFormOutput: "{}",
+            nodeLinks: [],
+            nodes: [],
+            root: {
+                __typename: "Routine",
+                id: uuid(),
+            } as Routine,
+            routineType: RoutineType.Informational,
+            translations: [{
+                __typename: "RoutineVersionTranslation",
+                id: uuid(),
+                language: "en",
+                name: "english name",
+                description: "english description",
+            }, {
+                __typename: "RoutineVersionTranslation",
+                id: uuid(),
+                language: "es",
+                name: "spanish name",
+                description: "spanish description",
+            }],
+            versionLabel: "1.0.0",
+            you: {} as RoutineVersionYou,
+        };
+        const result = runnableObjectToStep(routineVersion, [1], ["en"]);
+        expect(result).toEqual({
+            __type: RunStepType.SingleRoutine,
+            description: "english description",
+            name: "english name",
+            location: [1],
+            routineVersion,
+        });
+    });
+
+    it("should convert a multi-step routine", () => {
+        const startId = uuid();
+        const routineListId = uuid();
+        const endId = uuid();
+
+        const routineVersion: RunnableRoutineVersion = {
+            __typename: "RoutineVersion",
+            id: uuid(),
+            created_at: new Date().toISOString(),
+            complexity: 2,
+            configCallData: "{}",
+            configFormInput: "{}",
+            configFormOutput: "{}",
+            nodeLinks: [{
+                __typename: "NodeLink",
+                id: uuid(),
+                from: { id: startId },
+                to: { id: routineListId },
+            } as NodeLink, {
+                __typename: "NodeLink",
+                id: uuid(),
+                from: { id: routineListId },
+                to: { id: endId },
+            } as NodeLink],
+            nodes: [{
+                __typename: "Node",
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                id: startId,
+                columnIndex: 0,
+                rowIndex: 0,
+                nodeType: NodeType.Start,
+            } as Node, {
+                __typename: "Node",
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                id: routineListId,
+                columnIndex: 0,
+                rowIndex: 0,
+                nodeType: NodeType.RoutineList,
+                routineList: {
+                    __typename: "NodeRoutineList",
+                    id: uuid(),
+                    isOptional: true,
+                    isOrdered: false,
+                    items: [{
+                        __typename: "NodeRoutineListItem",
+                        id: uuid(),
+                        index: 0,
+                        routineVersion: {
+                            __typename: "RoutineVersion",
+                            id: uuid(),
+                            complexity: 3,
+                        },
+                    }, {
+                        __typename: "NodeRoutineListItem",
+                        id: uuid(),
+                        index: 1,
+                        routineVersion: {
+                            __typename: "RoutineVersion",
+                            id: uuid(),
+                            complexity: 4,
+                            translations: [{
+                                __typename: "RoutineVersionTranslation",
+                                id: uuid(),
+                                language: "en",
+                                description: "thee description",
+                                name: "thee name",
+                            }],
+                        },
+                    }],
+                },
+            } as Node, {
+                __typename: "Node",
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                id: endId,
+                columnIndex: 0,
+                rowIndex: 0,
+                nodeType: NodeType.End,
+                end: {
+                    __typename: "NodeEnd",
+                    id: uuid(),
+                    wasSuccessful: true,
+                },
+            } as Node],
+            root: {
+                __typename: "Routine",
+                id: uuid(),
+            } as Routine,
+            routineType: RoutineType.MultiStep,
+            translations: [{
+                __typename: "RoutineVersionTranslation",
+                id: uuid(),
+                language: "en",
+                name: "english name",
+                description: "english description",
+            }, {
+                __typename: "RoutineVersionTranslation",
+                id: uuid(),
+                language: "es",
+                name: "spanish name",
+                description: "spanish description",
+            }],
+            versionLabel: "1.0.0",
+            you: {} as RoutineVersionYou,
+        };
+        const result = runnableObjectToStep(routineVersion, [1, 2], ["en"]);
+        expect(result).toEqual({
+            __type: RunStepType.MultiRoutine,
+            description: "english description",
+            name: "english name",
+            location: [1, 2],
+            routineVersionId: routineVersion.id,
+            nodeLinks: routineVersion.nodeLinks,
+            nodes: [{
+                __type: RunStepType.Start,
+                description: null,
+                location: [1, 2, 1],
+                name: "Untitled",
+                nextLocation: [1, 2, 2],
+                nodeId: routineVersion.nodes[0].id,
+            }, {
+                __type: RunStepType.RoutineList,
+                description: null,
+                isOrdered: false,
+                location: [1, 2, 2],
+                name: "Untitled",
+                nextLocation: [1, 2, 3],
+                nodeId: routineVersion.nodes[1].id,
+                parentRoutineVersionId: routineVersion.id,
+                steps: [
+                    {
+                        __type: RunStepType.SingleRoutine,
+                        description: null,
+                        location: [1, 2, 2, 1],
+                        name: "Untitled",
+                        routineVersion: (routineVersion as any).nodes[1].routineList.items[0].routineVersion,
+                    },
+                    {
+                        __type: RunStepType.SingleRoutine,
+                        description: "thee description",
+                        location: [1, 2, 2, 2],
+                        name: "thee name",
+                        routineVersion: (routineVersion as any).nodes[1].routineList.items[1].routineVersion,
+                    },
+                ],
+            }, {
+                __type: RunStepType.End,
+                description: null,
+                location: [1, 2, 3],
+                name: "Untitled",
+                nextLocation: null,
+                nodeId: routineVersion.nodes[2].id,
+                wasSuccessful: true,
+            }],
+        });
+    });
+
+    it("should convert a project", () => {
+        const projectVersion: RunnableProjectVersion = {
+            __typename: "ProjectVersion",
+            id: uuid(),
+            created_at: new Date().toISOString(),
+            directories: [{
+                __typename: "ProjectVersionDirectory",
+                id: uuid(),
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                isRoot: false,
+                translations: [{
+                    __typename: "ProjectVersionDirectoryTranslation",
+                    id: uuid(),
+                    language: "en",
+                    description: "directory description",
+                    name: "directory name",
+                }],
+            } as ProjectVersionDirectory],
+            root: {
+                __typename: "Project",
+                id: uuid(),
+            } as Project,
+            translations: [{
+                __typename: "ProjectVersionTranslation",
+                id: uuid(),
+                language: "en",
+                description: "english description",
+                name: "english name",
+            }],
+            versionLabel: "1.2.3",
+            you: {} as ProjectVersionYou,
+        };
+        const result = runnableObjectToStep(projectVersion, [1, 2], ["en"]);
+        expect(result).toEqual({
+            __type: RunStepType.Directory,
+            description: "english description",
+            name: "english name",
+            location: [1, 2],
+            directoryId: null,
+            hasBeenQueried: true,
+            isOrdered: false,
+            isRoot: true,
+            projectVersionId: projectVersion.id,
+            steps: [{
+                __type: RunStepType.Directory,
+                description: "directory description",
+                location: [1, 2, 1],
+                name: "directory name",
+                directoryId: (projectVersion as any).directories[0].id,
+                hasBeenQueried: true,
+                isOrdered: false,
+                isRoot: false,
+                projectVersionId: projectVersion.id,
+                steps: [],
+            }],
+        });
     });
 });
