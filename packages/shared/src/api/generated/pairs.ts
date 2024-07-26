@@ -1378,6 +1378,12 @@ export const endpointGetRunRoutineInputs = {
     tag: "runRoutineInput",
 } as const;
 
+export const endpointGetRunRoutineOutputs = {
+    endpoint: "/runRoutineOutputs",
+    method: "GET",
+    tag: "runRoutineOutput",
+} as const;
+
 export const endpointGetSchedule = {
     endpoint: "/schedule/:id",
     method: "GET",

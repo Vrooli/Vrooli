@@ -1158,7 +1158,8 @@ export const meeting_create = {
           "root": {
             "id": true,
             "isInternal": true,
-            "isPrivate": true
+            "isPrivate": true,
+            "__typename": "Routine"
           },
           "routineType": true,
           "translations": {
@@ -1170,7 +1171,7 @@ export const meeting_create = {
           },
           "versionIndex": true,
           "versionLabel": true,
-          "__typename": "Routine"
+          "__typename": "RoutineVersion"
         },
         "__typename": "RunRoutineStep"
       },

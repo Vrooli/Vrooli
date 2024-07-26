@@ -237,6 +237,7 @@ export * from "./runRoutine_create";
 export * from "./runRoutine_update";
 export * from "./runRoutine_deleteAll";
 export * from "./runRoutineInput_findMany";
+export * from "./runRoutineOutput_findMany";
 export * from "./schedule_findOne";
 export * from "./schedule_findMany";
 export * from "./schedule_create";

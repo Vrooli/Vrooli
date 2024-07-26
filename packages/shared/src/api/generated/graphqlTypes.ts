@@ -1735,6 +1735,7 @@ export enum GqlModelType {
   RunProjectStep = 'RunProjectStep',
   RunRoutine = 'RunRoutine',
   RunRoutineInput = 'RunRoutineInput',
+  RunRoutineOutput = 'RunRoutineOutput',
   RunRoutineStep = 'RunRoutineStep',
   Schedule = 'Schedule',
   ScheduleException = 'ScheduleException',
@@ -5358,6 +5359,7 @@ export type Query = {
   runProjects: RunProjectSearchResult;
   runRoutine?: Maybe<RunRoutine>;
   runRoutineInputs: RunRoutineInputSearchResult;
+  runRoutineOutputs: RunRoutineOutputSearchResult;
   runRoutines: RunRoutineSearchResult;
   schedule?: Maybe<Schedule>;
   scheduleException?: Maybe<ScheduleException>;
@@ -5883,6 +5885,11 @@ export type QueryRunRoutineArgs = {
 
 export type QueryRunRoutineInputsArgs = {
   input: RunRoutineInputSearchInput;
+};
+
+
+export type QueryRunRoutineOutputsArgs = {
+  input: RunRoutineOutputSearchInput;
 };
 
 
@@ -8119,6 +8126,7 @@ export type RunRoutineCreateInput = {
   inputsCreate?: InputMaybe<Array<RunRoutineInputCreateInput>>;
   isPrivate: Scalars['Boolean'];
   name: Scalars['String'];
+  outputsCreate?: InputMaybe<Array<RunRoutineOutputCreateInput>>;
   routineVersionConnect: Scalars['ID'];
   runProjectConnect?: InputMaybe<Scalars['ID']>;
   scheduleCreate?: InputMaybe<ScheduleCreateInput>;
@@ -8160,8 +8168,7 @@ export type RunRoutineInputSearchInput = {
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
   ids?: InputMaybe<Array<Scalars['ID']>>;
-  routineIds?: InputMaybe<Array<Scalars['ID']>>;
-  standardIds?: InputMaybe<Array<Scalars['ID']>>;
+  runRoutineIds?: InputMaybe<Array<Scalars['ID']>>;
   take?: InputMaybe<Scalars['Int']>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
 };
@@ -8180,6 +8187,55 @@ export enum RunRoutineInputSortBy {
 }
 
 export type RunRoutineInputUpdateInput = {
+  data: Scalars['String'];
+  id: Scalars['ID'];
+};
+
+export type RunRoutineOutput = {
+  __typename: 'RunRoutineOutput';
+  data: Scalars['String'];
+  id: Scalars['ID'];
+  output: RoutineVersionOutput;
+  runRoutine: RunRoutine;
+};
+
+export type RunRoutineOutputCreateInput = {
+  data: Scalars['String'];
+  id: Scalars['ID'];
+  outputConnect: Scalars['ID'];
+  runRoutineConnect: Scalars['ID'];
+};
+
+export type RunRoutineOutputEdge = {
+  __typename: 'RunRoutineOutputEdge';
+  cursor: Scalars['String'];
+  node: RunRoutineOutput;
+};
+
+export type RunRoutineOutputSearchInput = {
+  after?: InputMaybe<Scalars['String']>;
+  createdTimeFrame?: InputMaybe<TimeFrame>;
+  excludeIds?: InputMaybe<Array<Scalars['ID']>>;
+  ids?: InputMaybe<Array<Scalars['ID']>>;
+  runRoutineIds?: InputMaybe<Array<Scalars['ID']>>;
+  take?: InputMaybe<Scalars['Int']>;
+  updatedTimeFrame?: InputMaybe<TimeFrame>;
+};
+
+export type RunRoutineOutputSearchResult = {
+  __typename: 'RunRoutineOutputSearchResult';
+  edges: Array<RunRoutineOutputEdge>;
+  pageInfo: PageInfo;
+};
+
+export enum RunRoutineOutputSortBy {
+  DateCreatedAsc = 'DateCreatedAsc',
+  DateCreatedDesc = 'DateCreatedDesc',
+  DateUpdatedAsc = 'DateUpdatedAsc',
+  DateUpdatedDesc = 'DateUpdatedDesc'
+}
+
+export type RunRoutineOutputUpdateInput = {
   data: Scalars['String'];
   id: Scalars['ID'];
 };
@@ -8287,6 +8343,9 @@ export type RunRoutineUpdateInput = {
   inputsDelete?: InputMaybe<Array<Scalars['ID']>>;
   inputsUpdate?: InputMaybe<Array<RunRoutineInputUpdateInput>>;
   isPrivate?: InputMaybe<Scalars['Boolean']>;
+  outputsCreate?: InputMaybe<Array<RunRoutineOutputCreateInput>>;
+  outputsDelete?: InputMaybe<Array<Scalars['ID']>>;
+  outputsUpdate?: InputMaybe<Array<RunRoutineOutputUpdateInput>>;
   scheduleCreate?: InputMaybe<ScheduleCreateInput>;
   scheduleUpdate?: InputMaybe<ScheduleUpdateInput>;
   status?: InputMaybe<RunStatus>;
@@ -10703,6 +10762,13 @@ export type ResolversTypes = {
   RunRoutineInputSearchResult: ResolverTypeWrapper<RunRoutineInputSearchResult>;
   RunRoutineInputSortBy: RunRoutineInputSortBy;
   RunRoutineInputUpdateInput: RunRoutineInputUpdateInput;
+  RunRoutineOutput: ResolverTypeWrapper<RunRoutineOutput>;
+  RunRoutineOutputCreateInput: RunRoutineOutputCreateInput;
+  RunRoutineOutputEdge: ResolverTypeWrapper<RunRoutineOutputEdge>;
+  RunRoutineOutputSearchInput: RunRoutineOutputSearchInput;
+  RunRoutineOutputSearchResult: ResolverTypeWrapper<RunRoutineOutputSearchResult>;
+  RunRoutineOutputSortBy: RunRoutineOutputSortBy;
+  RunRoutineOutputUpdateInput: RunRoutineOutputUpdateInput;
   RunRoutineSearchInput: RunRoutineSearchInput;
   RunRoutineSearchResult: ResolverTypeWrapper<RunRoutineSearchResult>;
   RunRoutineSortBy: RunRoutineSortBy;
@@ -11403,6 +11469,12 @@ export type ResolversParentTypes = {
   RunRoutineInputSearchInput: RunRoutineInputSearchInput;
   RunRoutineInputSearchResult: RunRoutineInputSearchResult;
   RunRoutineInputUpdateInput: RunRoutineInputUpdateInput;
+  RunRoutineOutput: RunRoutineOutput;
+  RunRoutineOutputCreateInput: RunRoutineOutputCreateInput;
+  RunRoutineOutputEdge: RunRoutineOutputEdge;
+  RunRoutineOutputSearchInput: RunRoutineOutputSearchInput;
+  RunRoutineOutputSearchResult: RunRoutineOutputSearchResult;
+  RunRoutineOutputUpdateInput: RunRoutineOutputUpdateInput;
   RunRoutineSearchInput: RunRoutineSearchInput;
   RunRoutineSearchResult: RunRoutineSearchResult;
   RunRoutineStep: RunRoutineStep;
@@ -13411,6 +13483,7 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   runProjects?: Resolver<ResolversTypes['RunProjectSearchResult'], ParentType, ContextType, RequireFields<QueryRunProjectsArgs, 'input'>>;
   runRoutine?: Resolver<Maybe<ResolversTypes['RunRoutine']>, ParentType, ContextType, RequireFields<QueryRunRoutineArgs, 'input'>>;
   runRoutineInputs?: Resolver<ResolversTypes['RunRoutineInputSearchResult'], ParentType, ContextType, RequireFields<QueryRunRoutineInputsArgs, 'input'>>;
+  runRoutineOutputs?: Resolver<ResolversTypes['RunRoutineOutputSearchResult'], ParentType, ContextType, RequireFields<QueryRunRoutineOutputsArgs, 'input'>>;
   runRoutines?: Resolver<ResolversTypes['RunRoutineSearchResult'], ParentType, ContextType, RequireFields<QueryRunRoutinesArgs, 'input'>>;
   schedule?: Resolver<Maybe<ResolversTypes['Schedule']>, ParentType, ContextType, RequireFields<QueryScheduleArgs, 'input'>>;
   scheduleException?: Resolver<Maybe<ResolversTypes['ScheduleException']>, ParentType, ContextType, RequireFields<QueryScheduleExceptionArgs, 'input'>>;
@@ -14276,6 +14349,26 @@ export type RunRoutineInputEdgeResolvers<ContextType = any, ParentType extends R
 
 export type RunRoutineInputSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['RunRoutineInputSearchResult'] = ResolversParentTypes['RunRoutineInputSearchResult']> = {
   edges?: Resolver<Array<ResolversTypes['RunRoutineInputEdge']>, ParentType, ContextType>;
+  pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type RunRoutineOutputResolvers<ContextType = any, ParentType extends ResolversParentTypes['RunRoutineOutput'] = ResolversParentTypes['RunRoutineOutput']> = {
+  data?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  output?: Resolver<ResolversTypes['RoutineVersionOutput'], ParentType, ContextType>;
+  runRoutine?: Resolver<ResolversTypes['RunRoutine'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type RunRoutineOutputEdgeResolvers<ContextType = any, ParentType extends ResolversParentTypes['RunRoutineOutputEdge'] = ResolversParentTypes['RunRoutineOutputEdge']> = {
+  cursor?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  node?: Resolver<ResolversTypes['RunRoutineOutput'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type RunRoutineOutputSearchResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['RunRoutineOutputSearchResult'] = ResolversParentTypes['RunRoutineOutputSearchResult']> = {
+  edges?: Resolver<Array<ResolversTypes['RunRoutineOutputEdge']>, ParentType, ContextType>;
   pageInfo?: Resolver<ResolversTypes['PageInfo'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
@@ -15450,6 +15543,9 @@ export type Resolvers<ContextType = any> = {
   RunRoutineInput?: RunRoutineInputResolvers<ContextType>;
   RunRoutineInputEdge?: RunRoutineInputEdgeResolvers<ContextType>;
   RunRoutineInputSearchResult?: RunRoutineInputSearchResultResolvers<ContextType>;
+  RunRoutineOutput?: RunRoutineOutputResolvers<ContextType>;
+  RunRoutineOutputEdge?: RunRoutineOutputEdgeResolvers<ContextType>;
+  RunRoutineOutputSearchResult?: RunRoutineOutputSearchResultResolvers<ContextType>;
   RunRoutineSearchResult?: RunRoutineSearchResultResolvers<ContextType>;
   RunRoutineStep?: RunRoutineStepResolvers<ContextType>;
   RunRoutineYou?: RunRoutineYouResolvers<ContextType>;

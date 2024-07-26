@@ -32,8 +32,7 @@ export const typeDef = gql`
         createdTimeFrame: TimeFrame
         excludeIds: [ID!]
         ids: [ID!]
-        routineIds: [ID!]
-        standardIds: [ID!]
+        runRoutineIds: [ID!]
         take: Int
         updatedTimeFrame: TimeFrame
     }

@@ -1,41 +1,41 @@
-import { MaxObjects, RunRoutineInputSortBy, runRoutineInputValidation } from "@local/shared";
+import { MaxObjects, RunRoutineOutputSortBy, runRoutineOutputValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { defaultPermissions, oneIsPublic } from "../../utils";
-import { RunRoutineInputFormat } from "../formats";
-import { RoutineVersionInputModelInfo, RoutineVersionInputModelLogic, RunRoutineInputModelInfo, RunRoutineInputModelLogic, RunRoutineModelInfo, RunRoutineModelLogic } from "./types";
+import { RunRoutineOutputFormat } from "../formats";
+import { RoutineVersionOutputModelInfo, RoutineVersionOutputModelLogic, RunRoutineModelInfo, RunRoutineModelLogic, RunRoutineOutputModelInfo, RunRoutineOutputModelLogic } from "./types";
 
-const __typename = "RunRoutineInput" as const;
-export const RunRoutineInputModel: RunRoutineInputModelLogic = ({
+const __typename = "RunRoutineOutput" as const;
+export const RunRoutineOutputModel: RunRoutineOutputModelLogic = ({
     __typename,
-    dbTable: "run_routine_input",
+    dbTable: "run_routine_output",
     display: () => ({
         label: {
             select: () => ({
                 id: true,
-                input: { select: ModelMap.get<RoutineVersionInputModelLogic>("RoutineVersionInput").display().label.select() },
+                output: { select: ModelMap.get<RoutineVersionOutputModelLogic>("RoutineVersionOutput").display().label.select() },
                 runRoutine: { select: ModelMap.get<RunRoutineModelLogic>("RunRoutine").display().label.select() },
             }),
-            // Label combines runRoutine's label and input's label
+            // Label combines runRoutine's label and output's label
             get: (select, languages) => {
                 const runRoutineLabel = ModelMap.get<RunRoutineModelLogic>("RunRoutine").display().label.get(select.runRoutine as RunRoutineModelInfo["PrismaModel"], languages);
-                const inputLabel = ModelMap.get<RoutineVersionInputModelLogic>("RoutineVersionInput").display().label.get(select.input as RoutineVersionInputModelInfo["PrismaModel"], languages);
+                const outputLabel = ModelMap.get<RoutineVersionOutputModelLogic>("RoutineVersionOutput").display().label.get(select.output as RoutineVersionOutputModelInfo["PrismaModel"], languages);
                 if (runRoutineLabel.length > 0) {
-                    return `${runRoutineLabel} - ${inputLabel}`;
+                    return `${runRoutineLabel} - ${outputLabel}`;
                 }
-                return inputLabel;
+                return outputLabel;
             },
         },
     }),
-    format: RunRoutineInputFormat,
+    format: RunRoutineOutputFormat,
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => {
                 return {
                     id: data.id,
                     data: data.data,
-                    input: await shapeHelper({ relation: "input", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersionInput", parentRelationshipName: "runInputs", data, ...rest }),
-                    runRoutine: await shapeHelper({ relation: "runRoutine", relTypes: ["Connect"], isOneToOne: true, objectType: "RunRoutine", parentRelationshipName: "inputs", data, ...rest }),
+                    output: await shapeHelper({ relation: "output", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersionOutput", parentRelationshipName: "runOutputs", data, ...rest }),
+                    runRoutine: await shapeHelper({ relation: "runRoutine", relTypes: ["Connect"], isOneToOne: true, objectType: "RunRoutine", parentRelationshipName: "outputs", data, ...rest }),
                 };
             },
             update: async ({ data }) => {
@@ -44,11 +44,11 @@ export const RunRoutineInputModel: RunRoutineInputModelLogic = ({
                 };
             },
         },
-        yup: runRoutineInputValidation,
+        yup: runRoutineOutputValidation,
     },
     search: {
-        defaultSort: RunRoutineInputSortBy.DateUpdatedDesc,
-        sortBy: RunRoutineInputSortBy,
+        defaultSort: RunRoutineOutputSortBy.DateUpdatedDesc,
+        sortBy: RunRoutineOutputSortBy,
         searchFields: {
             createdTimeFrame: true,
             excludeIds: true,
@@ -68,7 +68,7 @@ export const RunRoutineInputModel: RunRoutineInputModelLogic = ({
         profanityFields: ["data"],
         owner: (data, userId) => ModelMap.get<RunRoutineModelLogic>("RunRoutine").validate().owner(data?.runRoutine as RunRoutineModelInfo["PrismaModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<RunRoutineInputModelInfo["PrismaSelect"]>([["runRoutine", "RunRoutine"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<RunRoutineOutputModelInfo["PrismaSelect"]>([["runRoutine", "RunRoutine"]], ...rest),
         visibility: {
             private: function getVisibilityPrivate() {
                 return {

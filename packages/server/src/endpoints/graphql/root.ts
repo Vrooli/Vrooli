@@ -87,6 +87,7 @@ export const typeDef = gql`
         RunProjectStep
         RunRoutine
         RunRoutineInput
+        RunRoutineOutput
         RunRoutineStep
         Schedule
         ScheduleException

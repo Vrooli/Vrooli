@@ -73,6 +73,7 @@ import * as RunProject from "./runProject";
 import * as RunProjectStep from "./runProjectStep";
 import * as RunRoutine from "./runRoutine";
 import * as RunRoutineInput from "./runRoutineInput";
+import * as RunRoutineOutput from "./runRoutineOutput";
 import * as RunRoutineStep from "./runRoutineStep";
 import * as Schedule from "./schedule";
 import * as ScheduleException from "./scheduleException";
@@ -177,6 +178,7 @@ const schemas: SchemaType[] = [
     RunProjectStep,
     RunRoutine,
     RunRoutineInput,
+    RunRoutineOutput,
     RunRoutineStep,
     Schedule,
     ScheduleException,

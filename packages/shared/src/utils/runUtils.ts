@@ -214,26 +214,6 @@ export function routineVersionHasSubroutines(routineVersion: Partial<RoutineVers
     return false;
 }
 
-/**
- * Converts formik into object with run input data
- * @param values The formik values object
- * @returns object where keys are inputIds, and values are the run input data
- */
-export function formikToRunInputs(values: { [x: string]: string }): { [x: string]: string } {
-    const result: { [x: string]: string } = {};
-    // Get user inputs, and ignore empty values and blank strings.
-    const inputValues = Object.entries(values).filter(([key, value]) =>
-        key.startsWith("inputs-") &&
-        typeof value === "string" &&
-        value.length > 0);
-    // Input keys are in the form of inputs-<inputId>. We need the inputId
-    for (const [key, value] of inputValues) {
-        const inputId = key.substring(key.indexOf("-") + 1);
-        result[inputId] = JSON.stringify(value);
-    }
-    return result;
-}
-
 export type ExistingInput = Pick<RunRoutineInput, "id" | "data"> & { input: Pick<RunRoutineInput["input"], "id" | "name"> };
 
 /**

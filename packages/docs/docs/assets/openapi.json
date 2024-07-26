@@ -3138,6 +3138,20 @@
         }
       }
     },
+    "/runRoutineOutputs": {
+      "get": {
+        "operationId": "endpointGetRunRoutineOutputs",
+        "tags": [
+          "runRoutineOutput"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
     "/schedule/{id}": {
       "get": {
         "operationId": "endpointGetSchedule",
@@ -38804,6 +38818,22 @@
             "title": "RunRoutineCreateInput.name",
             "type": "string"
           },
+          "outputsCreate": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RunRoutineOutputCreateInput"
+                },
+                "title": "RunRoutineCreateInput.outputsCreate",
+                "type": "array"
+              },
+              {
+                "title": "RunRoutineCreateInput.outputsCreate",
+                "nullable": true
+              }
+            ],
+            "title": "RunRoutineCreateInput.outputsCreate"
+          },
           "routineVersionConnect": {
             "title": "RunRoutineCreateInput.routineVersionConnect",
             "type": "string"
@@ -39047,37 +39077,21 @@
             ],
             "title": "RunRoutineInputSearchInput.ids"
           },
-          "routineIds": {
+          "runRoutineIds": {
             "anyOf": [
               {
                 "items": {
                   "type": "string"
                 },
-                "title": "RunRoutineInputSearchInput.routineIds",
+                "title": "RunRoutineInputSearchInput.runRoutineIds",
                 "type": "array"
               },
               {
-                "title": "RunRoutineInputSearchInput.routineIds",
+                "title": "RunRoutineInputSearchInput.runRoutineIds",
                 "nullable": true
               }
             ],
-            "title": "RunRoutineInputSearchInput.routineIds"
-          },
-          "standardIds": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "title": "RunRoutineInputSearchInput.standardIds",
-                "type": "array"
-              },
-              {
-                "title": "RunRoutineInputSearchInput.standardIds",
-                "nullable": true
-              }
-            ],
-            "title": "RunRoutineInputSearchInput.standardIds"
+            "title": "RunRoutineInputSearchInput.runRoutineIds"
           },
           "take": {
             "title": "RunRoutineInputSearchInput.take",
@@ -39149,6 +39163,239 @@
         ],
         "additionalProperties": false,
         "title": "RunRoutineInputUpdateInput",
+        "type": "object"
+      },
+      "RunRoutineOutput": {
+        "properties": {
+          "__typename": {
+            "title": "RunRoutineOutput.__typename",
+            "enum": [
+              "RunRoutineOutput"
+            ],
+            "type": "string"
+          },
+          "data": {
+            "title": "RunRoutineOutput.data",
+            "type": "string"
+          },
+          "id": {
+            "title": "RunRoutineOutput.id",
+            "type": "string"
+          },
+          "output": {
+            "$ref": "#/components/schemas/RoutineVersionOutput",
+            "title": "RunRoutineOutput.output"
+          },
+          "runRoutine": {
+            "$ref": "#/components/schemas/RunRoutine",
+            "title": "RunRoutineOutput.runRoutine"
+          }
+        },
+        "required": [
+          "__typename",
+          "data",
+          "id",
+          "output",
+          "runRoutine"
+        ],
+        "additionalProperties": false,
+        "title": "RunRoutineOutput",
+        "type": "object"
+      },
+      "RunRoutineOutputCreateInput": {
+        "properties": {
+          "data": {
+            "title": "RunRoutineOutputCreateInput.data",
+            "type": "string"
+          },
+          "id": {
+            "title": "RunRoutineOutputCreateInput.id",
+            "type": "string"
+          },
+          "outputConnect": {
+            "title": "RunRoutineOutputCreateInput.outputConnect",
+            "type": "string"
+          },
+          "runRoutineConnect": {
+            "title": "RunRoutineOutputCreateInput.runRoutineConnect",
+            "type": "string"
+          }
+        },
+        "required": [
+          "data",
+          "id",
+          "outputConnect",
+          "runRoutineConnect"
+        ],
+        "additionalProperties": false,
+        "title": "RunRoutineOutputCreateInput",
+        "type": "object"
+      },
+      "RunRoutineOutputEdge": {
+        "properties": {
+          "__typename": {
+            "title": "RunRoutineOutputEdge.__typename",
+            "enum": [
+              "RunRoutineOutputEdge"
+            ],
+            "type": "string"
+          },
+          "cursor": {
+            "title": "RunRoutineOutputEdge.cursor",
+            "type": "string"
+          },
+          "node": {
+            "$ref": "#/components/schemas/RunRoutineOutput",
+            "title": "RunRoutineOutputEdge.node"
+          }
+        },
+        "required": [
+          "__typename",
+          "cursor",
+          "node"
+        ],
+        "additionalProperties": false,
+        "title": "RunRoutineOutputEdge",
+        "type": "object"
+      },
+      "RunRoutineOutputSearchInput": {
+        "properties": {
+          "after": {
+            "title": "RunRoutineOutputSearchInput.after",
+            "nullable": true,
+            "type": "string"
+          },
+          "createdTimeFrame": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TimeFrame",
+                "title": "RunRoutineOutputSearchInput.createdTimeFrame"
+              },
+              {
+                "title": "RunRoutineOutputSearchInput.createdTimeFrame",
+                "nullable": true
+              }
+            ],
+            "title": "RunRoutineOutputSearchInput.createdTimeFrame"
+          },
+          "excludeIds": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "title": "RunRoutineOutputSearchInput.excludeIds",
+                "type": "array"
+              },
+              {
+                "title": "RunRoutineOutputSearchInput.excludeIds",
+                "nullable": true
+              }
+            ],
+            "title": "RunRoutineOutputSearchInput.excludeIds"
+          },
+          "ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "title": "RunRoutineOutputSearchInput.ids",
+                "type": "array"
+              },
+              {
+                "title": "RunRoutineOutputSearchInput.ids",
+                "nullable": true
+              }
+            ],
+            "title": "RunRoutineOutputSearchInput.ids"
+          },
+          "runRoutineIds": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "title": "RunRoutineOutputSearchInput.runRoutineIds",
+                "type": "array"
+              },
+              {
+                "title": "RunRoutineOutputSearchInput.runRoutineIds",
+                "nullable": true
+              }
+            ],
+            "title": "RunRoutineOutputSearchInput.runRoutineIds"
+          },
+          "take": {
+            "title": "RunRoutineOutputSearchInput.take",
+            "nullable": true,
+            "type": "number"
+          },
+          "updatedTimeFrame": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TimeFrame",
+                "title": "RunRoutineOutputSearchInput.updatedTimeFrame"
+              },
+              {
+                "title": "RunRoutineOutputSearchInput.updatedTimeFrame",
+                "nullable": true
+              }
+            ],
+            "title": "RunRoutineOutputSearchInput.updatedTimeFrame"
+          }
+        },
+        "additionalProperties": false,
+        "title": "RunRoutineOutputSearchInput",
+        "type": "object"
+      },
+      "RunRoutineOutputSearchResult": {
+        "properties": {
+          "__typename": {
+            "title": "RunRoutineOutputSearchResult.__typename",
+            "enum": [
+              "RunRoutineOutputSearchResult"
+            ],
+            "type": "string"
+          },
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/RunRoutineOutputEdge"
+            },
+            "title": "RunRoutineOutputSearchResult.edges",
+            "type": "array"
+          },
+          "pageInfo": {
+            "$ref": "#/components/schemas/PageInfo",
+            "title": "RunRoutineOutputSearchResult.pageInfo"
+          }
+        },
+        "required": [
+          "__typename",
+          "edges",
+          "pageInfo"
+        ],
+        "additionalProperties": false,
+        "title": "RunRoutineOutputSearchResult",
+        "type": "object"
+      },
+      "RunRoutineOutputUpdateInput": {
+        "properties": {
+          "data": {
+            "title": "RunRoutineOutputUpdateInput.data",
+            "type": "string"
+          },
+          "id": {
+            "title": "RunRoutineOutputUpdateInput.id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "data",
+          "id"
+        ],
+        "additionalProperties": false,
+        "title": "RunRoutineOutputUpdateInput",
         "type": "object"
       },
       "RunRoutineSearchInput": {
@@ -39694,6 +39941,54 @@
             "title": "RunRoutineUpdateInput.isPrivate",
             "nullable": true,
             "type": "boolean"
+          },
+          "outputsCreate": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RunRoutineOutputCreateInput"
+                },
+                "title": "RunRoutineUpdateInput.outputsCreate",
+                "type": "array"
+              },
+              {
+                "title": "RunRoutineUpdateInput.outputsCreate",
+                "nullable": true
+              }
+            ],
+            "title": "RunRoutineUpdateInput.outputsCreate"
+          },
+          "outputsDelete": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "title": "RunRoutineUpdateInput.outputsDelete",
+                "type": "array"
+              },
+              {
+                "title": "RunRoutineUpdateInput.outputsDelete",
+                "nullable": true
+              }
+            ],
+            "title": "RunRoutineUpdateInput.outputsDelete"
+          },
+          "outputsUpdate": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RunRoutineOutputUpdateInput"
+                },
+                "title": "RunRoutineUpdateInput.outputsUpdate",
+                "type": "array"
+              },
+              {
+                "title": "RunRoutineUpdateInput.outputsUpdate",
+                "nullable": true
+              }
+            ],
+            "title": "RunRoutineUpdateInput.outputsUpdate"
           },
           "scheduleCreate": {
             "anyOf": [

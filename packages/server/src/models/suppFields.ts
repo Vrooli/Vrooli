@@ -66,6 +66,7 @@ export const SuppFields = {
     RunProjectStep: [],
     RunRoutine: ["lastStep", "you"],
     RunRoutineInput: [],
+    RunRoutineOutput: [],
     RunRoutineStep: [],
     Schedule: [],
     ScheduleException: [],

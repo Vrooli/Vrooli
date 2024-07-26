@@ -2005,6 +2005,7 @@ model routine_version_output {
     routineVersion    routine_version                       @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
     standardVersion   standard_version?                     @relation(fields: [standardVersionId], references: [id], onDelete: SetNull)
     translations      routine_verstion_output_translation[]
+    runOutputs        run_routine_output[]
 }
 
 model routine_verstion_output_translation {
@@ -2117,6 +2118,7 @@ model run_routine {
     user                 user?                       @relation("run_routine_user", fields: [userId], references: [id], onDelete: Cascade)
     steps                run_routine_step[]          @relation("run_routine_step_run")
     inputs               run_routine_input[]         @relation("run_routine_input_run")
+    outputs              run_routine_output[]        @relation("run_routine_output_run")
 }
 
 model run_routine_input {
@@ -2128,6 +2130,17 @@ model run_routine_input {
     runRoutineId String                @db.Uuid
     input        routine_version_input @relation(fields: [inputId], references: [id], onDelete: Cascade)
     runRoutine   run_routine           @relation("run_routine_input_run", fields: [runRoutineId], references: [id], onDelete: Cascade)
+}
+
+model run_routine_output {
+    id           String                 @id @default(uuid()) @db.Uuid
+    created_at   DateTime               @default(now()) @db.Timestamptz(6)
+    updated_at   DateTime               @default(now()) @db.Timestamptz(6)
+    data         String                 @db.VarChar(8192)
+    outputId     String                 @db.Uuid
+    runRoutineId String                 @db.Uuid
+    output       routine_version_output @relation(fields: [outputId], references: [id], onDelete: Cascade)
+    runRoutine   run_routine            @relation("run_routine_output_run", fields: [runRoutineId], references: [id], onDelete: Cascade)
 }
 
 model run_routine_step {

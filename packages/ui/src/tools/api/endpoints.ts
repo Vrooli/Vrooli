@@ -590,6 +590,12 @@ export const endpoints = {
             findMany: toQuery("runRoutineInputs", "RunRoutineInputSearchInput", ...(await toSearch(runRoutineInput))),
         };
     },
+    runRoutineOutput: async () => {
+        const { runRoutineOutput } = await import("./partial/runRoutineOutput");
+        return {
+            findMany: toQuery("runRoutineOutputs", "RunRoutineOutputSearchInput", ...(await toSearch(runRoutineOutput))),
+        };
+    },
     schedule: async () => {
         const { schedule } = await import("./partial/schedule");
         return {

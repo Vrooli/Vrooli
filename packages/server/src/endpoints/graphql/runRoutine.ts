@@ -28,6 +28,7 @@ export const typeDef = gql`
         timeElapsed: Int
         stepsCreate: [RunRoutineStepCreateInput!]
         inputsCreate: [RunRoutineInputCreateInput!]
+        outputsCreate: [RunRoutineOutputCreateInput!]
         scheduleCreate: ScheduleCreateInput
         routineVersionConnect: ID!
         runProjectConnect: ID
@@ -46,6 +47,9 @@ export const typeDef = gql`
         inputsDelete: [ID!]
         inputsCreate: [RunRoutineInputCreateInput!]
         inputsUpdate: [RunRoutineInputUpdateInput!]
+        outputsDelete: [ID!]
+        outputsCreate: [RunRoutineOutputCreateInput!]
+        outputsUpdate: [RunRoutineOutputUpdateInput!]
         scheduleCreate: ScheduleCreateInput
         scheduleUpdate: ScheduleUpdateInput
     }
