@@ -133,9 +133,17 @@ function CommentForm({
                         },
                     }]}
                     sxs={{
-                        root: { width: "100%", background: palette.primary.dark, borderRadius: 1, overflow: "overlay", marginTop: 1 },
+                        root: {
+                            width: "100%",
+                            background: palette.primary.dark,
+                            color: palette.primary.contrastText,
+                            borderRadius: 1,
+                            overflow: "overlay",
+                            marginTop: 1,
+                        }
+                        ,
                         topBar: { borderRadius: 0 },
-                        textArea: { borderRadius: 0, paddingRight: 4, height: "100%" },
+                        inputRoot: { background: palette.background.paper },
                     }}
                 />
             </BaseForm>

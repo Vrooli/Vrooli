@@ -1,8 +1,8 @@
-import { MaxObjects, QuestionForType, QuestionSortBy, questionValidation } from "@local/shared";
+import { MaxObjects, QuestionForType, QuestionSortBy, getTranslation, questionValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
-import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { defaultPermissions, getEmbeddableString } from "../../utils";
 import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
 import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
@@ -30,15 +30,15 @@ export const QuestionModel: QuestionModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+            get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
         embed: {
             select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } }),
             get: ({ translations }, languages) => {
-                const trans = bestTranslation(translations, languages);
+                const trans = getTranslation({ translations }, languages);
                 return getEmbeddableString({
-                    description: trans?.description,
-                    name: trans?.name,
+                    description: trans.description,
+                    name: trans.name,
                 }, languages[0]);
             },
         },

@@ -1,8 +1,8 @@
-import { MaxObjects, projectVersionDirectoryValidation } from "@local/shared";
+import { MaxObjects, getTranslation, projectVersionDirectoryValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { ProjectVersionDirectoryFormat } from "../formats";
 import { ProjectVersionDirectoryModelInfo, ProjectVersionDirectoryModelLogic, ProjectVersionModelInfo, ProjectVersionModelLogic } from "./types";
@@ -15,7 +15,7 @@ export const ProjectVersionDirectoryModel: ProjectVersionDirectoryModelLogic = (
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+            get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
     }),
     format: ProjectVersionDirectoryFormat,

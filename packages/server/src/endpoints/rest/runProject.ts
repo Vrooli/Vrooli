@@ -1,4 +1,4 @@
-import { runProject_cancel, runProject_complete, runProject_create, runProject_deleteAll, runProject_findMany, runProject_findOne, runProject_update } from "../generated";
+import { runProject_create, runProject_deleteAll, runProject_findMany, runProject_findOne, runProject_update } from "../generated";
 import { RunProjectEndpoints } from "../logic/runProject";
 import { setupRoutes } from "./base";
 
@@ -15,11 +15,5 @@ export const RunProjectRest = setupRoutes({
     },
     "/runProject/deleteAll": {
         delete: [RunProjectEndpoints.Mutation.runProjectDeleteAll, runProject_deleteAll],
-    },
-    "/runProject/:id/complete": {
-        put: [RunProjectEndpoints.Mutation.runProjectComplete, runProject_complete],
-    },
-    "/runProject/:id/cancel": {
-        put: [RunProjectEndpoints.Mutation.runProjectCancel, runProject_cancel],
     },
 });

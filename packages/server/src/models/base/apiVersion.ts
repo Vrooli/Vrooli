@@ -1,8 +1,8 @@
-import { ApiVersionSortBy, apiVersionValidation, MaxObjects } from "@local/shared";
+import { ApiVersionSortBy, apiVersionValidation, getTranslation, MaxObjects } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
+import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { afterMutationsVersion, preShapeVersion, PreShapeVersionResult, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { ApiVersionFormat } from "../formats";
@@ -21,7 +21,7 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
             get: ({ callLink, translations }, languages) => {
                 // Return name if exists, or callLink host
-                const name = bestTranslation(translations, languages)?.name ?? "";
+                const name = getTranslation({ translations }, languages).name ?? "";
                 if (name.length > 0) return name;
                 const url = new URL(callLink);
                 return url.host;
@@ -35,11 +35,11 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
                 translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, summary: true } },
             }),
             get: ({ callLink, root, translations }, languages) => {
-                const trans = bestTranslation(translations, languages);
+                const trans = getTranslation({ translations }, languages);
                 return getEmbeddableString({
                     callLink,
-                    name: trans?.name,
-                    summary: trans?.summary,
+                    name: trans.name,
+                    summary: trans.summary,
                     tags: (root as any).tags.map(({ tag }) => tag),
                 }, languages[0]);
             },

@@ -1,11 +1,10 @@
-import { BotSettings, BotSettingsTranslation, ChatSocketEventPayloads, CommandToTask, ExistingTaskData, LlmTask, ServerLlmTaskInfo, getStructuredTaskConfig, getValidTasksFromMessage, toBotSettings } from "@local/shared";
+import { BotSettings, BotSettingsTranslation, ChatSocketEventPayloads, CommandToTask, ExistingTaskData, LlmTask, ServerLlmTaskInfo, getStructuredTaskConfig, getTranslation, getValidTasksFromMessage, toBotSettings } from "@local/shared";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
 import { emitSocketEvent } from "../../sockets/events";
 import { SessionUserToken } from "../../types";
 import { objectToYaml } from "../../utils";
-import { bestTranslation } from "../../utils/bestTranslation";
 import { PreMapUserData } from "../../utils/chat";
 import { ChatContextCollector, CollectMessageContextInfoParams, ContextInfo, MessageContextInfo } from "./context";
 import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry, LlmServiceState } from "./registry";
@@ -156,7 +155,7 @@ export const getDefaultConfigObject = async ({
     force,
 }: GetConfigObjectParams) => {
     const translationsList = Object.entries(botSettings?.translations ?? {}).map(([language, translation]) => ({ language, ...translation })) as { language: string }[];
-    let translation = (bestTranslation(translationsList, userData.languages) ?? {}) as BotSettingsTranslation & { language?: string };
+    let translation = getTranslation({ translations: translationsList }, userData.languages) as BotSettingsTranslation & { language?: string };
 
     const name: string | undefined = botSettings.name;
     const initMessage = translation.startingMessage?.length
@@ -239,7 +238,7 @@ export const generateDefaultContext = async <GenerateNameType extends string, To
                 // Find bot personality
                 const botSettings = toBotSettings(data, logger);
                 const translationsList = Object.entries(botSettings?.translations ?? {}).map(([language, translation]) => ({ language, ...translation })) as { language: string }[];
-                const translation = (bestTranslation(translationsList, userData.languages) ?? {}) as BotSettingsTranslation & { language?: string };
+                const translation = getTranslation({ translations: translationsList }, userData.languages) as BotSettingsTranslation & { language?: string };
                 delete translation.language;
                 // Construct an object with the bot's configuration
                 const botConfig = {

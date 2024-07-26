@@ -1,4 +1,4 @@
-import { ChatCreateInput, ChatInviteCreateInput, chatInviteValidation, ChatMessage, ChatMessageCreateInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageSortBy, ChatMessageUpdateInput, ChatUpdateInput, MaxObjects, uuidValidate } from "@local/shared";
+import { ChatCreateInput, ChatInviteCreateInput, chatInviteValidation, ChatMessage, ChatMessageCreateInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageSortBy, ChatMessageUpdateInput, ChatUpdateInput, getTranslation, MaxObjects, uuidValidate } from "@local/shared";
 import { Request } from "express";
 import { ModelMap } from ".";
 import { readManyHelper } from "../../actions/reads";
@@ -17,7 +17,7 @@ import { Trigger } from "../../events/trigger";
 import { emitSocketEvent } from "../../sockets/events";
 import { ChatContextManager, determineRespondingBots } from "../../tasks/llm/context";
 import { requestBotResponse } from "../../tasks/llm/queue";
-import { bestTranslation, getAuthenticatedData, SortMap } from "../../utils";
+import { getAuthenticatedData, SortMap } from "../../utils";
 import { ChatMessageBeforeDeletedData, getChatParticipantData, PreMapChatData, PreMapMessageData, PreMapUserData } from "../../utils/chat";
 import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, isOwnerAdminCheck, permissionsCheck } from "../../validators";
@@ -43,7 +43,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
             get: (select, languages) => {
-                const best = bestTranslation(select.translations, languages)?.text ?? "";
+                const best = getTranslation(select, languages).text ?? "";
                 return best.length > 30 ? best.slice(0, 30) + "..." : best;
             },
         },
@@ -67,7 +67,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 for (const { node, input } of [...Create, ...Update]) {
                     const translations = [...((input as ChatMessageCreateInput).translationsCreate ?? []), ...((input as ChatMessageUpdateInput).translationsUpdate ?? [])].filter(t => t.text) as { language: string, text: string }[];
                     // While messages can technically be created in multiple languages, we'll only worry about one
-                    const best = bestTranslation(translations, userData.languages);
+                    const best = getTranslation({ translations }, userData.languages);
                     // Collect chat information
                     let chatId = (input as ChatMessageCreateInput).chatConnect ?? null;
                     // If chat is being created or updated, we may not need to query for it later

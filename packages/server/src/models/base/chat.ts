@@ -1,8 +1,8 @@
-import { ChatInviteStatus, ChatSortBy, chatValidation, MaxObjects, uuidValidate } from "@local/shared";
+import { ChatInviteStatus, ChatSortBy, chatValidation, getTranslation, MaxObjects, uuidValidate } from "@local/shared";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { prismaInstance } from "../../db/instance";
-import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { defaultPermissions, getEmbeddableString } from "../../utils";
 import { labelShapeHelper, preShapeEmbeddableTranslatable, PreShapeEmbeddableTranslatableResult, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
 import { ChatFormat } from "../formats";
@@ -177,15 +177,15 @@ export const ChatModel: ChatModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: ({ translations }, languages) => bestTranslation(translations, languages)?.name ?? "",
+            get: ({ translations }, languages) => getTranslation({ translations }, languages).name ?? "",
         },
         embed: {
             select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } }),
             get: ({ translations }, languages) => {
-                const trans = bestTranslation(translations, languages);
+                const trans = getTranslation({ translations }, languages);
                 return getEmbeddableString({
-                    description: trans?.description,
-                    name: trans?.name,
+                    description: trans.description,
+                    name: trans.name,
                 }, languages[0]);
             },
         },

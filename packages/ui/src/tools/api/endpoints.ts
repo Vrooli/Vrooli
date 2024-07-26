@@ -559,8 +559,6 @@ export const endpoints = {
             create: toMutation("runProjectCreate", "RunProjectCreateInput", runProject, "full"),
             update: toMutation("runProjectUpdate", "RunProjectUpdateInput", runProject, "full"),
             deleteAll: toMutation("runProjectDeleteAll", null, count, "full"),
-            complete: toMutation("runProjectComplete", "RunProjectCompleteInput", runProject, "full"),
-            cancel: toMutation("runProjectCancel", "RunProjectCancelInput", runProject, "full"),
         };
     },
     runProjectOrRunRoutine: async () => {
@@ -584,8 +582,6 @@ export const endpoints = {
             create: toMutation("runRoutineCreate", "RunRoutineCreateInput", runRoutine, "full"),
             update: toMutation("runRoutineUpdate", "RunRoutineUpdateInput", runRoutine, "full"),
             deleteAll: toMutation("runRoutineDeleteAll", null, count, "full"),
-            complete: toMutation("runRoutineComplete", "RunRoutineCompleteInput", runRoutine, "full"),
-            cancel: toMutation("runRoutineCancel", "RunRoutineCancelInput", runRoutine, "full"),
         };
     },
     runRoutineInput: async () => {

@@ -1,8 +1,8 @@
-import { MaxObjects, nodeRoutineListItemValidation } from "@local/shared";
+import { MaxObjects, getTranslation, nodeRoutineListItemValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { NodeRoutineListItemFormat } from "../formats";
 import { NodeRoutineListItemModelInfo, NodeRoutineListItemModelLogic, NodeRoutineListModelInfo, NodeRoutineListModelLogic, RoutineVersionModelInfo, RoutineVersionModelLogic } from "./types";
@@ -21,7 +21,7 @@ export const NodeRoutineListItemModel: NodeRoutineListItemModelLogic = ({
             }),
             get: (select, languages) => {
                 // Prefer item translations over routineVersion's
-                const itemLabel = bestTranslation(select.translations, languages)?.name ?? "";
+                const itemLabel = getTranslation(select, languages).name ?? "";
                 if (itemLabel.length > 0) return itemLabel;
                 return ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").display().label.get(select.routineVersion as RoutineVersionModelInfo["PrismaModel"], languages);
             },

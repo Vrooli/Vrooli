@@ -1,4 +1,4 @@
-import { InputType, mergeDeep, noop, noopSubmit } from "@local/shared";
+import { InputType, mergeDeep, noop, noopSubmit, preventFormSubmit } from "@local/shared";
 import { Box, BoxProps, Divider, Grid, GridSpacing, IconButton, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover, Stack, Typography, styled, useTheme } from "@mui/material";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { FormInput } from "components/inputs/form";
@@ -114,7 +114,7 @@ interface ElementBuildOuterBoxProps extends BoxProps {
 
 const ElementBuildOuterBox = styled(Box, {
     shouldForwardProp: (prop) => prop !== "isSelected",
-})<ElementBuildOuterBoxProps>(({ theme, isSelected }) => ({
+})<ElementBuildOuterBoxProps>(({ isSelected, theme }) => ({
     display: "flex",
     background: theme.palette.background.paper,
     border: isSelected ? `4px solid ${theme.palette.secondary.main}` : "none",
@@ -367,7 +367,7 @@ export function FormBuildView({
 
     const handleAddInput = useCallback(function handleAddInputCallback(data: Omit<Partial<FormInputType>, "type"> & { type: InputType }) {
         const newElement = createFormInput({
-            fieldName: `input-${randomString()}`,
+            fieldName: `input-${randomString(10)}`,
             label: `Input #${selectedElementIndex !== null ? selectedElementIndex + 1 : schema.elements.length + 1}`,
             ...data,
         } as CreateFormInputProps);
@@ -475,6 +475,7 @@ export function FormBuildView({
                     ref={handleElementButtonRef}
                     onClick={onElementButtonClick}
                     onKeyDown={onElementButtonKeyDown}
+                    onSubmit={preventFormSubmit} // Form elements should never submit the form
                     type="button"
                 >
                     {element.type === FormStructureType.Header && (

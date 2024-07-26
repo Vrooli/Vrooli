@@ -14,6 +14,7 @@ export const runRoutineValidation: YupModel<["create", "update"]> = {
         isPrivate: opt(bool),
         status: req(runStatus),
         name: req(name),
+        timeElapsed: opt(intPositiveOrZero),
     }, [
         ["inputs", ["Create"], "many", "opt", runRoutineInputValidation],
         ["routineVersion", ["Connect"], "one", "req"],

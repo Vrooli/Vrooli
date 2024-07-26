@@ -1,7 +1,7 @@
-import { IssueFor, IssueSortBy, issueValidation, MaxObjects } from "@local/shared";
+import { getTranslation, IssueFor, IssueSortBy, issueValidation, MaxObjects } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { ModelMap } from ".";
-import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
+import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { labelShapeHelper, preShapeEmbeddableTranslatable, PreShapeEmbeddableTranslatableResult, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
 import { IssueFormat } from "../formats";
@@ -28,15 +28,15 @@ export const IssueModel: IssueModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+            get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
         embed: {
             select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } }),
             get: ({ translations }, languages) => {
-                const trans = bestTranslation(translations, languages);
+                const trans = getTranslation({ translations }, languages);
                 return getEmbeddableString({
-                    description: trans?.description,
-                    name: trans?.name,
+                    description: trans.description,
+                    name: trans.name,
                 }, languages[0]);
             },
         },

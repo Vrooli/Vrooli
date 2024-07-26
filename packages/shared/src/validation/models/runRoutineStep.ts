@@ -14,7 +14,8 @@ export const runRoutineStepValidation: YupModel<["create", "update"]> = {
         timeElapsed: opt(intPositiveOrZero),
     }, [
         ["node", ["Connect"], "one", "opt"],
-        ["subroutineVersion", ["Connect"], "one", "opt"],
+        ["runRoutine", ["Connect"], "one", "req"],
+        ["subroutine", ["Connect"], "one", "opt"],
     ], [], d),
     update: (d) => yupObj({
         id: req(id),

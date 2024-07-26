@@ -1,27 +1,257 @@
-import { base36ToUuid, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointGetRunProject, endpointGetRunRoutine, endpointPutRunRoutine, endpointPutRunRoutineComplete, FindByIdInput, noop, parseSearchParams, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunProjectStep, RunRoutine, RunRoutineCompleteInput, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, RunRoutineUpdateInput, SECONDS_1_MS, uuid, uuidValidate } from "@local/shared";
-import { Box, Button, Grid, IconButton, LinearProgress, Stack, styled, Typography } from "@mui/material";
+import { FindByIdInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunProjectStep, RunProjectUpdateInput, RunRoutine, RunRoutineStep, RunRoutineUpdateInput, RunStatus, base36ToUuid, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointGetRunProject, endpointGetRunRoutine, endpointPutRunProject, endpointPutRunRoutine, getTranslation, noop, parseSearchParams, uuidValidate } from "@local/shared";
+import { Box, BoxProps, Button, Grid, IconButton, LinearProgress, Stack, Typography, styled, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { RunStepsDialog } from "components/dialogs/RunStepsDialog/RunStepsDialog";
 import { SessionContext } from "contexts/SessionContext";
+import { FormikProps } from "formik";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, SuccessIcon } from "icons";
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useWindowSize } from "hooks/useWindowSize";
+import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, RefreshIcon, SaveIcon, SuccessIcon, WarningIcon } from "icons";
+import { RefObject, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { addSearchParams, removeSearchParams, useLocation } from "route";
 import { pagePaddingBottom } from "styles";
 import { RunStepType } from "utils/consts";
-import { getDisplay } from "utils/display/listTools";
-import { getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { getUserLanguages } from "utils/display/translationTools";
 import { tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
-import { addSubdirectoriesToStep, addSubroutinesToStep, DecisionStep, detectSubstepLoad, DetectSubstepLoadResult, EndStep, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, locationArraysMatch, MultiRoutineStep, RootStep, RoutineListStep, runInputsUpdate, runnableObjectToStep, siblingsAtLocation, SingleRoutineStep, stepFromLocation } from "utils/runUtils";
+import { DecisionStep, DetectSubstepLoadResult, RootStep, RunStep, SingleRoutineStep, addSubdirectoriesToStep, addSubroutinesToStep, detectSubstepLoad, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, locationArraysMatch, parseRunInputs, runnableObjectToStep, saveRunProgress, siblingsAtLocation, stepFromLocation } from "utils/runUtils";
 import { DecisionView } from "../DecisionView/DecisionView";
 import { SubroutineView } from "../SubroutineView/SubroutineView";
 import { RunViewProps } from "../types";
 
+type AutoSaveIndicatorProps = {
+    formikRef: RefObject<FormikProps<object>>;
+}
+
+type SaveStatus = "Saving" | "Saved" | "Unsaved";
+
+const SAVED_INDICATOR_TIMEOUT_MS = 3000;
+const CHECK_SAVE_STATUS_INTERVAL_MS = 1000;
+
+const statusToIconColor = {
+    Saving: "#0288d1",
+    Saved: "#2e7d32",
+    Unsaved: "#ed6c02",
+} as const;
+const statusToBackgroundColor = {
+    Saving: "#e5f6fdbb",
+    Saved: "#edf7edbb",
+    Unsaved: "#fff4e5bb",
+} as const;
+const statusToLabelColor = {
+    Saving: "#014361",
+    Saved: "#1e4620",
+    Unsaved: "#663c00",
+} as const;
+const statusToLabel = {
+    Saving: "Saving...",
+    Saved: "Saved",
+    Unsaved: "Not saved",
+} as const;
+const statusToIcon = {
+    Saving: RefreshIcon,
+    Saved: SaveIcon,
+    Unsaved: WarningIcon,
+} as const;
+
+interface AutoSaveAlertProps extends BoxProps {
+    isLabelVisible: boolean;
+    isVisible: boolean;
+    status: SaveStatus;
+}
+
+const AutoSaveAlert = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "isLabelVisible" && prop !== "isVisible" && prop !== "status",
+})<AutoSaveAlertProps>(({ isLabelVisible, isVisible, status, theme }) => ({
+    display: isVisible ? "flex" : "none",
+    alignItems: "center",
+    justifyContent: "center",
+    background: statusToBackgroundColor[status],
+    borderRadius: "4px",
+    // eslint-disable-next-line no-magic-numbers
+    padding: isLabelVisible ? theme.spacing(0.75) : `${theme.spacing(0.5)} ${theme.spacing(1)}`,
+    "& .save-alert-icon": {
+        paddingTop: 0,
+        paddingBottom: 0,
+    },
+    "& .save-alert-label": {
+        display: isLabelVisible ? "block" : "none",
+        padding: 0,
+        marginLeft: theme.spacing(1),
+    },
+}));
+
+function AutoSaveIndicator({
+    formikRef,
+}: AutoSaveIndicatorProps) {
+    const { breakpoints } = useTheme();
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+
+    const [saveStatus, setSaveStatus] = useState<SaveStatus>("Saved");
+    const [isVisible, setIsVisible] = useState(false);
+    const [showLabelOnMobile, setShowLabelOnMobile] = useState(false);
+    const toggleShowLabelOnMobile = useCallback(function toggleShowLabelOnMobileCallback() {
+        setShowLabelOnMobile((prev) => !prev);
+    }, []);
+
+    useEffect(function checkStatusTimeout() {
+        let timeoutId: NodeJS.Timeout;
+
+        function checkFormStatus() {
+            if (formikRef.current) {
+                const { dirty, isSubmitting } = formikRef.current;
+
+                if (isSubmitting) {
+                    setSaveStatus("Saving");
+                    setIsVisible(true);
+                } else if (dirty) {
+                    setSaveStatus("Unsaved");
+                    setIsVisible(true);
+                } else {
+                    setSaveStatus("Saved");
+                    // Hide the indicator after 3 seconds when saved
+                    timeoutId = setTimeout(() => setIsVisible(false), SAVED_INDICATOR_TIMEOUT_MS);
+                }
+            }
+        }
+
+        const intervalId = setInterval(checkFormStatus, CHECK_SAVE_STATUS_INTERVAL_MS);
+
+        return () => {
+            clearInterval(intervalId);
+            clearTimeout(timeoutId);
+        };
+    }, [formikRef]);
+
+    const Icon = statusToIcon[saveStatus];
+    return (
+        <AutoSaveAlert
+            isLabelVisible={!isMobile || showLabelOnMobile}
+            isVisible={isVisible}
+            onClick={toggleShowLabelOnMobile}
+            status={saveStatus}
+        >
+            <Icon
+                className="save-alert-icon"
+                width={20}
+                height={20}
+                fill={statusToIconColor[saveStatus]}
+            />
+            <Typography
+                className="save-alert-label"
+                variant="body2"
+                color={statusToLabelColor[saveStatus]}
+            >
+                {statusToLabel[saveStatus]}
+            </Typography>
+        </AutoSaveAlert>
+    );
+}
+
+type UseAutoSaveProps = {
+    disabled?: boolean;
+    formikRef: RefObject<FormikProps<object>>;
+    handleSave: () => unknown;
+}
+
+const AUTO_SAVE_INTERVAL_MS = 10000;
+
+export function useAutoSave({
+    disabled,
+    formikRef,
+    handleSave,
+}: UseAutoSaveProps) {
+    const maybeSave = useCallback(function maybeSaveCallback() {
+        if (disabled !== true && formikRef.current && formikRef.current.dirty && !formikRef.current.isSubmitting) {
+            handleSave();
+        }
+    }, [disabled, formikRef, handleSave]);
+
+    useEffect(function maybeAutoSaveEffect() {
+        const intervalId = setInterval(maybeSave, AUTO_SAVE_INTERVAL_MS);
+        return () => {
+            clearInterval(intervalId);
+        };
+    }, [formikRef, maybeSave]);
+}
+
+interface StepRunData {
+    contextSwitches?: number;
+    elapsedTime?: number;
+    // Add other properties of currentStepRunData if needed
+}
+
+export function useStepMetrics(
+    currentLocation: number[], // Only provided to reinitialize metrics when location changes
+    currentStepRunData: StepRunData | null | undefined,
+) {
+    const contextSwitches = useRef<number>(0);
+    const elapsedTimeRef = useRef<number>(0);
+    const lastFocusTime = useRef<number>(0);
+    const isTabFocused = useRef<boolean>(false);
+
+    const updateElapsedTime = useCallback(() => {
+        if (isTabFocused.current) {
+            const now = Date.now();
+            elapsedTimeRef.current += now - lastFocusTime.current;
+            lastFocusTime.current = now;
+        }
+    }, []);
+
+    const getElapsedTime = useCallback(() => {
+        updateElapsedTime();
+        return elapsedTimeRef.current;
+    }, [updateElapsedTime]);
+
+    useEffect(function initializeStepMetricsEffect() {
+        console.log("qqqq initializing step metrics", currentStepRunData);
+        contextSwitches.current = currentStepRunData?.contextSwitches ?? 0;
+        elapsedTimeRef.current = currentStepRunData?.elapsedTime ?? 0;
+        lastFocusTime.current = Date.now();
+        isTabFocused.current = document.hasFocus();
+    }, [currentLocation, currentStepRunData]);
+
+    useEffect(() => {
+        function handleVisibilityChange() {
+            if (document.hidden) {
+                updateElapsedTime();
+                isTabFocused.current = false;
+            } else {
+                lastFocusTime.current = Date.now();
+                isTabFocused.current = true;
+                contextSwitches.current += 1;  // Increment context switches when tab gains focus
+            }
+        }
+
+        function handleBeforeUnload() {
+            updateElapsedTime();
+        }
+
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        window.addEventListener("beforeunload", handleBeforeUnload);
+
+        if (document.hasFocus()) {
+            isTabFocused.current = true;
+            lastFocusTime.current = Date.now();
+        }
+
+        return () => {
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+        };
+    }, [updateElapsedTime]);
+
+    return {
+        getElapsedTime,
+        getContextSwitches: useCallback(() => contextSwitches.current, []),
+    };
+}
+
 const ROOT_LOCATION = [1];
+const PERCENTS = 100;
 
 const TopBar = styled(Box)(({ theme }) => ({
     display: "flex",
@@ -76,6 +306,7 @@ const actionBarGridStyle = {
 } as const;
 const progressBarStyle = { height: "15px" } as const;
 
+//TODO: when the current step performs an action (e.g. Generate subroutine), the "Next" button should be a "Run" button instead, and trigger the action
 export function RunView({
     display,
     isOpen,
@@ -99,10 +330,11 @@ export function RunView({
                     : [...ROOT_LOCATION],
             testMode: params.run === "test",
         };
-    }, []);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen]);
 
     const lastQueriedRunId = useRef<string | null>(null);
-    const [getRun, { data: runData, errors: fetchedErrors, loading: isRunLoading }] = useLazyFetch<FindByIdInput, RunProject | RunRoutine>(runnableObject?.__typename === "ProjectVersion" ? endpointGetRunProject : endpointGetRunRoutine);
+    const [getRun, { data: runData, loading: isRunLoading }] = useLazyFetch<FindByIdInput, RunProject | RunRoutine>(runnableObject?.__typename === "ProjectVersion" ? endpointGetRunProject : endpointGetRunRoutine);
     useEffect(function fetchRunEffect() {
         if (runId && runId !== lastQueriedRunId.current) {
             lastQueriedRunId.current = runId;
@@ -119,20 +351,12 @@ export function RunView({
         setCurrentLocation(step);
     }, []);
     useEffect(function updateLocationInUrlEffect() {
-        addSearchParams(setLocation, { step: currentLocation });
-    }, [currentLocation, setLocation]);
-
-    /**
-     * The amount of routine completed so far, measured in complexity. 
-     * Used with the routine's total complexity to calculate percent complete
-     */
-    const [completedComplexity, setCompletedComplexity] = useState(0);
-
-    /**
-     * Every step completed so far, as an array of arrays.
-     * Each step is an array that describes its nesting, like they appear in the URL (e.g. [1], [1,3], [1,5,2]).
-     */
-    const [progress, setProgress] = useState<number[][]>([]);
+        if (isOpen && currentLocation.length > 0) {
+            addSearchParams(setLocation, { step: currentLocation });
+        } else {
+            removeSearchParams(setLocation, ["step"]);
+        }
+    }, [currentLocation, isOpen, setLocation]);
 
     const languages = useMemo(() => getUserLanguages(session), [session]);
 
@@ -141,11 +365,19 @@ export function RunView({
      * This can be traversed to find step data at a given location.
      */
     const [rootStep, setRootStep] = useState<RootStep | null>(null);
-
     useEffect(function convertRunnableObjectToStepTreeEffect() {
-        setRootStep(runnableObjectToStep(runnableObject, [...ROOT_LOCATION], languages));
+        setRootStep(runnableObjectToStep(runnableObject, [...ROOT_LOCATION], languages, console));
     }, [languages, runnableObject]);
 
+    /**
+     * The amount of routine completed so far, measured in complexity. 
+     * Used with the routine's total complexity to calculate percent complete
+     */
+    const [completedComplexity, setCompletedComplexity] = useState(0);
+    /**
+     * Ordered list of location arrays for every completed step in the routine.
+     */
+    const [progress, setProgress] = useState<number[][]>([]);
     useEffect(function calculateRunStatsEffect() {
         if (!run) return;
         // Set completedComplexity
@@ -163,7 +395,7 @@ export function RunView({
 
     const stepsInCurrentNode = useMemo(function stepsInCurrentNodeMemo() {
         if (!currentLocation || !rootStep) return 1;
-        return siblingsAtLocation(currentLocation, rootStep);
+        return siblingsAtLocation(currentLocation, rootStep, console);
     }, [currentLocation, rootStep]);
 
     const currentStepRunData = useMemo<RunProjectStep | RunRoutineStep | undefined>(function currentStepRunDataMemo() {
@@ -171,61 +403,29 @@ export function RunView({
         return runStep;
     }, [run?.steps, currentLocation]);
 
-    /**
-     * Stores user inputs, which are uploaded to the run's data
-     */
-    const currUserInputs = useRef<{ [inputId: string]: string }>({});
-    const handleUserInputsUpdate = useCallback((inputs: { [inputId: string]: string }) => {
-        currUserInputs.current = inputs;
-    }, []);
-    useEffect(() => {
-        const inputs: { [inputId: string]: string } = {};
+    /** Stores user inputs, which are uploaded to the run's data */
+    const inputFormikRef = useRef<FormikProps<object>>(null);
+    useEffect(function setInputsOnRunLoad() {
+        let inputs: object = {};
+
         // Only set inputs for RunRoutine
         if (run && run.__typename === "RunRoutine" && Array.isArray(run.inputs)) {
-            for (const input of run.inputs) {
-                inputs[input.input.id] = input.data;
-            }
+            inputs = parseRunInputs(run.inputs, console);
         }
-        if (JSON.stringify(inputs) !== JSON.stringify(currUserInputs.current)) {
-            handleUserInputsUpdate(inputs);
-        }
-    }, [run, handleUserInputsUpdate]);
 
-    const intervalRef = useRef<NodeJS.Timeout | null>(null);
-    const timeElapsed = useRef<number>(0);
-    const contextSwitches = useRef<number>(0);
-    useEffect(function trackUserBehaviorMemo() {
-        if (!currentStepRunData) return;
-        // Start tracking time
-        intervalRef.current = setInterval(() => { timeElapsed.current += 1; }, SECONDS_1_MS);
-        // Reset context switches
-        contextSwitches.current = 0;
-        return () => {
-            if (intervalRef.current) clearInterval(intervalRef.current);
-        };
-    }, [currentStepRunData]);
+        inputFormikRef.current?.setValues(inputs);
+    }, [run, currentLocation]);
 
-    /** On tab change, add to contextSwitches */
-    useEffect(function contextSwitchesMemo() {
-        function handleTabChange() {
-            if (currentStepRunData) {
-                contextSwitches.current += 1;
-            }
-        }
-        window.addEventListener("focus", handleTabChange);
-        return () => {
-            window.removeEventListener("focus", handleTabChange);
-        };
-    }, [currentStepRunData]);
+    const { getContextSwitches, getElapsedTime } = useStepMetrics(currentLocation, currentStepRunData);
 
     const progressPercentage = useMemo(function progressPercentageMemo() {
         // Measured in complexity / total complexity * 100
         return getRunPercentComplete(completedComplexity, (run as RunProject)?.projectVersion?.complexity ?? (run as RunRoutine)?.routineVersion?.complexity);
     }, [completedComplexity, run]);
 
-    // Query subroutines and subdirectories, since the whole run may not be able to load at once
-    const [getSubroutines, { data: queriedSubroutines, loading: subroutinesLoading }] = useLazyFetch<RoutineVersionSearchInput, RoutineVersionSearchResult>(endpointGetRoutineVersions);
-    const [getDirectories, { data: queriedSubdirectories, loading: directoriesLoading }] = useLazyFetch<ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult>(endpointGetProjectVersionDirectories);
+    // Query subdirectories and subroutines, since the whole run may not be able to load at once
+    const [getDirectories, { data: queriedSubdirectories, loading: isDirectoriesLoading }] = useLazyFetch<ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult>(endpointGetProjectVersionDirectories);
+    const [getSubroutines, { data: queriedSubroutines, loading: isSubroutinesLoading }] = useLazyFetch<RoutineVersionSearchInput, RoutineVersionSearchResult>(endpointGetRoutineVersions);
 
     // Store queried IDs to make sure we don't query the same thing multiple times
     const queriedIdsRef = useRef<{ [key: string]: boolean }>({});
@@ -252,6 +452,7 @@ export function RunView({
             rootStep,
             (input) => safeQuery(input.ids || [], getDirectories),
             (input) => safeQuery(input.ids || [], getSubroutines),
+            console,
         );
         substepLoadResult.current = result;
     }, [currentLocation, getDirectories, getSubroutines, rootStep]);
@@ -268,7 +469,7 @@ export function RunView({
     useEffect(function addQueriedSubroutinesToRootEffect() {
         if (!queriedSubroutines) return;
         const subroutines = queriedSubroutines.edges.map(e => e.node);
-        setRootStep(root => root ? addSubroutinesToStep(subroutines, root, languages) : null);
+        setRootStep(root => root ? addSubroutinesToStep(subroutines, root, languages, console) : null);
         if (substepLoadResult.current && substepLoadResult.current.needsFurtherQuerying) {
             loadSubsteps();
         }
@@ -277,7 +478,7 @@ export function RunView({
     useEffect(function addQueriedSubdirectoriesToRootEffect() {
         if (!queriedSubdirectories) return;
         const subdirectories = queriedSubdirectories.edges.map(e => e.node);
-        setRootStep(root => root ? addSubdirectoriesToStep(subdirectories, root, languages) : null);
+        setRootStep(root => root ? addSubdirectoriesToStep(subdirectories, root, languages, console) : null);
         if (substepLoadResult.current && substepLoadResult.current.needsFurtherQuerying) {
             loadSubsteps();
         }
@@ -309,190 +510,139 @@ export function RunView({
 
     //TODO
     const unsavedChanges = false;
-    const subroutineComplete = true;
+
+    const [updateRunRoutine] = useLazyFetch<RunRoutineUpdateInput, RunRoutine>(endpointPutRunRoutine);
+    const [updateRunProject] = useLazyFetch<RunProjectUpdateInput, RunProject>(endpointPutRunProject);
 
     /**
-      * Navigate to the previous subroutine
-      */
-    const toPrevious = useCallback(function toPreviousCallback() {
-        if (!previousLocation) return;
-        handleLocationUpdate(previousLocation);
-    }, [previousLocation, handleLocationUpdate]);
-
-    const [logRunUpdate] = useLazyFetch<RunRoutineUpdateInput, RunRoutine>(endpointPutRunRoutine);
-    const [logRunComplete] = useLazyFetch<RunRoutineCompleteInput, RunRoutine>(endpointPutRunRoutineComplete);
-    /**
-     * Navigate to the next subroutine, or complete the routine.
-     * Also log progress, time elapsed, and other metrics
+     * Navigate to a step
+     * @param nextStep The step to navigate to, or null if the run is completed
      */
-    const toNext = useCallback(function toNextCallback() {
+    const toStep = useCallback(function toStepCallback(nextStep: RunStep) {
         if (!rootStep) return;
-        // Find step data
-        const currStep = stepFromLocation(currentLocation, rootStep);
-        // Calculate new progress and percent complete
-        const newProgress = Array.isArray(progress) ? [...progress] : [];
-        const newlyCompletedComplexity: number = (currStep ? getStepComplexity(currStep) : 0);
-        const alreadyComplete = Boolean(newProgress.find(p => locationArraysMatch(p, currentLocation)));
-        // If step was not already completed, update progress
-        if (!alreadyComplete) {
-            newProgress.push(currentLocation);
-            setProgress(newProgress);
-            setCompletedComplexity(c => c + newlyCompletedComplexity);
-        }
-        // Update current step
-        if (nextLocation) {
-            handleLocationUpdate(nextLocation);
-        }
-        // If in test mode return
-        if (testMode || !run) return;
-        // Now we can calculate data for the logs
-        // Find parent RoutineList step, so we can get the nodeId 
-        const currParentListStep: RoutineListStep = {} as any;//TODO stepFromLocation(currentLocation.slice(0, currentLocation.length - 1), steps) as RoutineListStep;
-        // Current step will be updated if it already exists in logged data, or created if not
-        const stepsUpdate = currentStepRunData ? [{
-            id: currentStepRunData.id,
-            status: RunRoutineStepStatus.Completed,
-            timeElapsed: (currentStepRunData.timeElapsed ?? 0) + timeElapsed.current,
-            contextSwitches: currentStepRunData.contextSwitches + contextSwitches.current,
-        }] : undefined;
-        const stepsCreate = currentStepRunData ? undefined : [{
-            id: uuid(),
-            order: newProgress.length,
-            name: currStep?.name ?? "",
-            nodeId: currParentListStep.nodeId,
-            subroutineId: currParentListStep.parentRoutineVersionId,
-            step: currentLocation,
-            timeElapsed: timeElapsed.current,
-            contextSwitches: contextSwitches.current,
-        }];
-        // If a next step exists, update
-        if (nextLocation) {
-            fetchLazyWrapper<RunRoutineUpdateInput, RunRoutine>({
-                fetch: logRunUpdate,
-                inputs: {
-                    id: run.id,
-                    completedComplexity: alreadyComplete ? undefined : newlyCompletedComplexity,
-                    stepsCreate,
-                    stepsUpdate,
-                    ...runInputsUpdate((run as any)?.inputs as RunRoutineInput[], currUserInputs.current), //TODO
-                },
-                onSuccess: (data) => {
-                    setRun(data);
-                },
-            });
-        }
-        // Otherwise, mark as complete
-        // TODO if running a project, the overall run may not be complete - just one routine in the project
-        else {
-            // Find node data
-            const currNodeId = currentStepRunData?.node?.id;
-            // const currNode = routineVersion.nodes?.find(n => n.id === currNodeId);
-            // const wasSuccessful = currNode?.end?.wasSuccessful ?? true;
-            const wasSuccessful = true; //TODO
-            fetchLazyWrapper<RunRoutineCompleteInput, RunRoutine>({
-                fetch: logRunComplete,
-                inputs: {
-                    id: run.id,
-                    exists: true,
-                    completedComplexity: alreadyComplete ? undefined : newlyCompletedComplexity,
-                    finalStepCreate: stepsCreate ? stepsCreate[0] : undefined,
-                    finalStepUpdate: stepsUpdate ? stepsUpdate[0] : undefined,
-                    name: run.name ?? getDisplay(runnableObject).title ?? "Unnamed Routine",
-                    wasSuccessful,
-                    ...runInputsUpdate((run as RunRoutine)?.inputs as RunRoutineInput[], currUserInputs.current),
-                },
-                successMessage: () => ({ messageKey: "RoutineCompleted" }),
-                onSuccess: () => {
-                    PubSub.get().publish("celebration");
-                    removeSearchParams(setLocation, ["run", "step"]);
-                    tryOnClose(onClose, setLocation);
-                },
-            });
-        }
-    }, [rootStep, currentLocation, progress, nextLocation, testMode, run, currentStepRunData, handleLocationUpdate, logRunUpdate, logRunComplete, runnableObject, setLocation, onClose]);
 
-    /**
-     * End run after reaching an EndStep
-     * TODO if run is a project, this is not the end. Just the end of a routine in the project
-     */
-    const reachedEndStep = useCallback(function reachedEndStepCallback(step: EndStep) {
-        // Check if end was successfully reached
-        const success = step.wasSuccessful ?? true;
-        // Don't actually do it if in test mode
-        if (testMode || !run) {
-            if (success) PubSub.get().publish("celebration");
-            removeSearchParams(setLocation, ["run", "step"]);
-            tryOnClose(onClose, setLocation);
-            return;
-        }
-        // Log complete. No step data because this function was called from a decision node, 
-        // which we currently don't store data about
-        fetchLazyWrapper<RunRoutineCompleteInput, RunRoutine>({
-            fetch: logRunComplete,
-            inputs: {
-                id: run.id,
-                exists: true,
-                name: run.name ?? getDisplay(runnableObject).title ?? "Unnamed Routine",
-                wasSuccessful: success,
-                ...runInputsUpdate((run as RunRoutine)?.inputs as RunRoutineInput[], currUserInputs.current),
-            },
-            successMessage: () => ({ messageKey: "RoutineCompleted" }),
-            onSuccess: () => {
-                PubSub.get().publish("celebration");
+        // Find step data
+        const currentStep = stepFromLocation(currentLocation, rootStep);
+        if (!currentStep) return;
+
+        const isRunCompleted = !nextStep || nextStep.__type === RunStepType.End;
+
+        function onSuccess(data: RunProject | RunRoutine) {
+            if (isRunCompleted) {
+                if (data.status === RunStatus.Completed) PubSub.get().publish("celebration");
                 removeSearchParams(setLocation, ["run", "step"]);
                 tryOnClose(onClose, setLocation);
-            },
-        });
-    }, [testMode, run, runnableObject, logRunComplete, setLocation, onClose]);
-
-    /**
-     * Stores current progress, both for overall routine and the current subroutine
-     */
-    const saveProgress = useCallback(function saveProgressCallback() {
-        // Dont do this in test mode, or if there's no run data
-        if (testMode || !run) return;
-        // Find current step in run data
-        const stepUpdate = currentStepRunData ? {
-            id: currentStepRunData.id,
-            timeElapsed: (currentStepRunData.timeElapsed ?? 0) + timeElapsed.current,
-            contextSwitches: currentStepRunData.contextSwitches + contextSwitches.current,
-        } : undefined;
-        // Send data to server
-        //TODO support run projects
-        fetchLazyWrapper<RunRoutineUpdateInput, RunRoutine>({
-            fetch: logRunUpdate,
-            inputs: {
-                id: run.id,
-                stepsUpdate: stepUpdate ? [stepUpdate] : undefined,
-                ...runInputsUpdate((run as RunRoutine)?.inputs as RunRoutineInput[], currUserInputs.current),
-            },
-            onSuccess: (data) => {
+            } else {
                 setRun(data);
+            }
+        }
+
+        const isStepAlreadyCompleted = currentStepRunData?.status === "Completed";
+        const newProgress = [...(progress ?? [])];
+        // If step was not already marked as completed, update progress and complexity
+        if (!isStepAlreadyCompleted && currentStep) {
+            if (!newProgress.some((p) => locationArraysMatch(p, currentLocation))) {
+                newProgress.push(currentLocation);
+            }
+            setProgress(newProgress);
+            setCompletedComplexity(c => c + getStepComplexity(currentStep, console));
+        }
+
+        // Update run data
+        if (!testMode && run) {
+            saveRunProgress({
+                contextSwitches: Math.max(getContextSwitches(), currentStepRunData?.contextSwitches ?? 0),
+                currentStep,
+                currentStepOrder: (newProgress.findIndex((p) => locationArraysMatch(p, currentLocation)) ?? newProgress.length) + 1,
+                currentStepRunData,
+                formData: inputFormikRef.current?.values ?? {},
+                handleRunProjectUpdate: function updateRun(inputs) {
+                    fetchLazyWrapper<RunProjectUpdateInput, RunProject>({
+                        fetch: updateRunProject,
+                        inputs,
+                        onSuccess,
+                    });
+                },
+                handleRunRoutineUpdate: function updateRun(inputs) {
+                    fetchLazyWrapper<RunRoutineUpdateInput, RunRoutine>({
+                        fetch: updateRunRoutine,
+                        inputs,
+                        onSuccess,
+                    });
+                },
+                isStepCompleted: true, //TODO shouldn't always be true
+                isRunCompleted,
+                run,
+                runnableObject,
+                timeElapsed: Math.max(getElapsedTime(), currentStepRunData?.timeElapsed ?? 0)
+            });
+        }
+    }, [currentLocation, currentStepRunData, getContextSwitches, getElapsedTime, onClose, progress, rootStep, run, runnableObject, setLocation, testMode, updateRunProject, updateRunRoutine]);
+
+    const toNext = useCallback(function toNextCallback() {
+        if (!rootStep || !nextLocation) return;
+        const nextStep = stepFromLocation(nextLocation, rootStep);
+        if (!nextStep) return;
+        toStep(nextStep);
+    }, [nextLocation, rootStep, toStep]);
+
+    const toPrevious = useCallback(function toPreviousCallback() {
+        if (!rootStep || !previousLocation) return;
+        const previousStep = stepFromLocation(previousLocation, rootStep);
+        if (!previousStep) return;
+        toStep(previousStep);
+    }, [previousLocation, rootStep, toStep]);
+
+    const handleAutoSave = useCallback(function handleAutoSaveCallback() {
+        console.log("qqqq in handleAutoSave", getElapsedTime(), getContextSwitches());
+        if (testMode || !run || !rootStep) return;
+
+        // Find step data
+        const currentStep = stepFromLocation(currentLocation, rootStep);
+        if (!currentStep) return;
+
+        function onSuccess(data: RunProject | RunRoutine) {
+            setRun(data);
+        }
+
+        saveRunProgress({
+            contextSwitches: Math.max(getContextSwitches(), currentStepRunData?.contextSwitches ?? 0),
+            currentStep,
+            currentStepOrder: (progress.findIndex((p) => locationArraysMatch(p, currentLocation)) ?? progress.length) + 1,
+            currentStepRunData,
+            formData: inputFormikRef.current?.values ?? {},
+            handleRunProjectUpdate: function updateRun(inputs) {
+                fetchLazyWrapper<RunProjectUpdateInput, RunProject>({
+                    fetch: updateRunProject,
+                    inputs,
+                    onSuccess,
+                });
             },
+            handleRunRoutineUpdate: function updateRun(inputs) {
+                fetchLazyWrapper<RunRoutineUpdateInput, RunRoutine>({
+                    fetch: updateRunRoutine,
+                    inputs,
+                    onSuccess,
+                });
+            },
+            isStepCompleted: false,
+            isRunCompleted: false,
+            run,
+            runnableObject,
+            timeElapsed: Math.max(getElapsedTime(), currentStepRunData?.timeElapsed ?? 0),
         });
-    }, [currentStepRunData, logRunUpdate, run, testMode]);
+    }, [currentLocation, currentStepRunData, getContextSwitches, getElapsedTime, progress, rootStep, run, runnableObject, testMode, updateRunProject, updateRunRoutine]);
+
+    useAutoSave({ formikRef: inputFormikRef, handleSave: handleAutoSave });
 
     /**
      * End routine early
      */
     const toFinishNotComplete = useCallback(function toFinishNotCompleteCallback() {
-        saveProgress();
+        handleAutoSave();
         removeSearchParams(setLocation, ["run", "step"]);
         tryOnClose(onClose, setLocation);
-    }, [onClose, saveProgress, setLocation]);
-
-    /**
-     * Navigate to selected decision
-     */
-    const toDecision = useCallback(function toDecisionCallback(step: MultiRoutineStep["nodes"][0]) {
-        // If end node, finish
-        if (step.__type === RunStepType.End) {
-            reachedEndStep(step);
-            return;
-        }
-        // Navigate to current step
-        handleLocationUpdate(step.location);
-    }, [reachedEndStep, handleLocationUpdate]);
+    }, [handleAutoSave, onClose, setLocation]);
 
     const handleLoadSubroutine = useCallback(function handleLoadSubroutineCallback(id: string) {
         getSubroutines({ ids: [id] });
@@ -506,13 +656,10 @@ export function RunView({
         switch (currentStep.__type) {
             case RunStepType.SingleRoutine:
                 return <SubroutineView
-                    handleUserInputsUpdate={handleUserInputsUpdate}
-                    handleSaveProgress={saveProgress}
+                    inputFormikRef={inputFormikRef}
                     onClose={noop}
-                    owner={run?.team ?? run?.user} //TODO not right, but also unused right now
                     routineVersion={(currentStep as SingleRoutineStep).routineVersion}
-                    run={run as RunRoutine}
-                    loading={subroutinesLoading}
+                    loading={isDirectoriesLoading || isSubroutinesLoading}
                 />;
             case RunStepType.Directory:
                 return null; //TODO
@@ -521,14 +668,14 @@ export function RunView({
             case RunStepType.Decision:
                 return <DecisionView
                     data={currentStep as DecisionStep}
-                    handleDecisionSelect={toDecision}
+                    handleDecisionSelect={toStep}
                     onClose={noop}
                 />;
             // TODO come up with default view
             default:
                 return null;
         }
-    }, [currentStep, handleUserInputsUpdate, run, saveProgress, subroutinesLoading, toDecision]);
+    }, [currentStep, isDirectoriesLoading, isSubroutinesLoading, toStep]);
 
     return (
         <MaybeLargeDialog
@@ -552,14 +699,14 @@ export function RunView({
                             >
                                 <CloseIcon width='32px' height='32px' />
                             </IconButton>
-                            {/* Title and steps */}
+                            {/* Title */}
                             <TitleStepsStack direction="row" spacing={1}>
                                 <Typography variant="h5" component="h2">{name}</Typography>
-                                {stepsInCurrentNode >= 0 ?
+                                {rootStep !== null && rootStep.__type !== RunStepType.SingleRoutine && stepsInCurrentNode >= 0 ?
                                     <Typography variant="h5" component="h2">({currentLocation[currentLocation.length - 1] ?? 1} of {stepsInCurrentNode})</Typography>
                                     : null}
-                                {/* Help icon */}
                                 {instructions && <HelpButton markdown={instructions} />}
+                                <AutoSaveIndicator formikRef={inputFormikRef} />
                             </TitleStepsStack>
                             {/* Steps explorer drawer */}
                             {rootStep !== null && rootStep.__type !== RunStepType.SingleRoutine ? <RunStepsDialog
@@ -575,7 +722,7 @@ export function RunView({
                         {rootStep !== null && rootStep.__type !== RunStepType.SingleRoutine && <LinearProgress
                             color="secondary"
                             variant="determinate"
-                            value={completedComplexity / ((run as RunRoutine)?.routineVersion?.complexity ?? (run as RunProject)?.projectVersion?.complexity ?? 1) * 100}
+                            value={completedComplexity / ((run as RunRoutine)?.routineVersion?.complexity ?? (run as RunProject)?.projectVersion?.complexity ?? 1) * PERCENTS}
                             sx={progressBarStyle}
                         />}
                     </Stack>

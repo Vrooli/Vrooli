@@ -1,4 +1,4 @@
-import { CodeVersion, CommentFor, LINKS, ResourceList as ResourceListType, Tag, endpointGetCodeVersion, exists, noopSubmit } from "@local/shared";
+import { CodeVersion, CommentFor, LINKS, ResourceList as ResourceListType, Tag, endpointGetCodeVersion, exists, getTranslation, noopSubmit } from "@local/shared";
 import { Box, Button, Divider, Stack, useTheme } from "@mui/material";
 import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -26,7 +26,7 @@ import { useLocation } from "route";
 import { SideActionsButton } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
 import { firstString } from "utils/display/stringTools";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
 import { SearchVersionPageTabOption } from "utils/search/objectToSearch";
 import { CodeShape } from "utils/shape/models/code";
 import { ResourceListShape } from "utils/shape/models/resourceList";

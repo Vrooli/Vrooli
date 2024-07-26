@@ -1,14 +1,12 @@
-import { arraysEqual, exists, isOfType, Node, NodeLink, NodeType, ProjectVersion, ProjectVersionDirectory, ProjectVersionDirectorySearchInput, RoutineType, RoutineVersion, RoutineVersionSearchInput, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput, uniqBy, uuid, uuidValidate } from "@local/shared";
+import { arraysEqual, exists, getTranslation, InputType, isOfType, Node, NodeLink, NodeType, PassableLogger, ProjectVersion, ProjectVersionDirectory, ProjectVersionDirectorySearchInput, RoutineType, RoutineVersion, RoutineVersionInput, RoutineVersionSearchInput, RunProject, RunProjectStep, RunProjectStepCreateInput, RunProjectUpdateInput, RunRoutine, RunRoutineInput, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepStatus, RunRoutineUpdateInput, RunStatus, uniqBy, uuid, uuidValidate } from "@local/shared";
 import { FormSchema } from "forms/types";
+import i18next from "i18next";
 import { BotStyle, ConfigCallData, ConfigCallDataGenerate } from "views/objects/routine/RoutineTypeForms/RoutineTypeForms";
 import { RunStepType, Status } from "./consts";
-import { getTranslation } from "./display/translationTools";
 import { NodeShape } from "./shape/models/node";
 import { NodeLinkShape } from "./shape/models/nodeLink";
-import { shapeRunRoutineInput } from "./shape/models/runRoutineInput";
-import { updateRel } from "./shape/models/tools";
 
-export type RunnableRoutineVersion = Pick<RoutineVersion, "__typename" | "created_at" | "id" | "complexity" | "configCallData" | "configFormInput" | "configFormOutput" | "nodeLinks" | "nodes" | "root" | "routineType" | "translations" | "versionLabel" | "you">
+export type RunnableRoutineVersion = Pick<RoutineVersion, "__typename" | "created_at" | "id" | "complexity" | "configCallData" | "configFormInput" | "configFormOutput" | "inputs" | "nodeLinks" | "nodes" | "root" | "routineType" | "translations" | "versionLabel" | "you">
 export type RunnableProjectVersion = Pick<ProjectVersion, "__typename" | "created_at" | "id" | "directories" | "root" | "translations" | "versionLabel" | "you">
 
 /** Basic information provided to all routine steps */
@@ -187,66 +185,115 @@ export function formikToRunInputs(values: { [x: string]: string }): { [x: string
     return result;
 }
 
+export type ExistingInput = Pick<RunRoutineInput, "id" | "data"> & { input: Pick<RunRoutineInput["input"], "id" | "name"> };
+
 /**
- * Updates formik values with run input data
+ * Converts existing run inputs into an object for populating formik
  * @param runInputs The run input data
+ * @param logger Logger to log errors
  * @returns Object to pass into formik setValues function
  */
-export function runInputsToFormik(runInputs: { input: { id: string }, data: string }[]): { [x: string]: string } {
-    const result: { [x: string]: string } = {};
-    for (const runInput of runInputs) {
-        result[`inputs-${runInput.input.id}`] = JSON.parse(runInput.data);
+export function parseRunInputs(
+    runInputs: ExistingInput[],
+    logger: PassableLogger,
+): object {
+    const result: object = {};
+
+    if (!Array.isArray(runInputs)) return result;
+
+    for (const input of runInputs) {
+        // Use the input name if available, otherwise fall back to the id
+        const key = input.input?.name || input.input?.id;
+        if (!key) {
+            logger.error(`No input name or ID found for input ${input.input.id}`);
+            continue;
+        }
+        try {
+            result[key] = JSON.parse(input.data);
+        } catch (error) {
+            logger.error(`Error parsing input data for ${input.input.id}:`, typeof error === "object" && error !== null ? error : {});
+            // In case of parsing error, use the raw string data
+            result[key] = input.data;
+        }
     }
+
     return result;
 }
 
-/**
- * Converts a run inputs object to a run input create object
- * @param runInputs The run inputs object
- * @returns The run input create input object
- */
-export function runInputsCreate(
-    runInputs: { [x: string]: string },
-    runRoutineId: string,
-): { inputsCreate: RunRoutineInputCreateInput[] } {
-    return {
-        inputsCreate: Object.entries(runInputs).map(([inputId, data]) => ({
-            id: uuid(),
-            data,
-            inputConnect: inputId,
-            runRoutineConnect: runRoutineId,
-        })),
-    };
+export type RunInputsUpdateParams = {
+    /** Existing run inputs data */
+    existingInputs: ExistingInput[],
+    /** Current input data in form */
+    formData: object,
+    /** Logger */
+    logger: PassableLogger,
+    /** Current routine's inputs */
+    routineInputs: Pick<RoutineVersionInput, "id" | "name">[];
+    /** ID of current run */
+    runRoutineId: string;
 }
+
+export type RunInputsUpdateResult = Pick<RunRoutineUpdateInput, "inputsCreate" | "inputsUpdate" | "inputsDelete">;
 
 /**
  * Converts a run inputs object to a run input update object
- * @param original RunInputs[] array of existing run inputs data
- * @param updated Run input object with updated data
  * @returns The run input update input object
  */
-export function runInputsUpdate(
-    original: RunRoutineInput[],
-    updated: { [x: string]: string },
-): {
-    inputsCreate?: RunRoutineInputCreateInput[],
-    inputsUpdate?: RunRoutineInputUpdateInput[],
-    inputsDelete?: string[],
-} {
-    // Convert user inputs object to RunInput[]
-    const updatedInputs = Object.entries(updated).map(([inputId, data]) => ({
-        id: uuid(),
-        data,
-        input: { id: inputId },
-    }));
-    // Loop through original run inputs. Where input id is in updated inputs, update id
-    for (const currOriginal of original) {
-        const currUpdated = updatedInputs.findIndex((input) => input.input.id === currOriginal.input.id);
-        if (currUpdated !== -1) {
-            updatedInputs[currUpdated].id = currOriginal.id;
+export function runInputsUpdate({
+    existingInputs,
+    formData,
+    logger,
+    routineInputs,
+    runRoutineId,
+}: RunInputsUpdateParams): RunInputsUpdateResult {
+    // Initialize result
+    const result: RunInputsUpdateResult = {};
+
+    // Create a map of existing inputs for quick lookup
+    const existingInputMap = new Map(existingInputs?.map(input => [input.input.id, input]));
+
+    // Process each routine input
+    routineInputs?.forEach(routineInput => {
+        // Find routine input in form data
+        if (!routineInput.name) return;
+        const inputData = formData[routineInput.name];
+        if (inputData === undefined) return;
+
+        // Find existing input if it exists
+        const existingInput = existingInputMap.get(routineInput.id);
+        // Update existing input if found
+        if (existingInput) {
+            try {
+                // Data must be stored as a string
+                const stringifiedData = JSON.stringify(inputData);
+                // Update existing input if data has changed
+                if (existingInput.data !== stringifiedData) {
+                    if (!result.inputsUpdate) result.inputsUpdate = [];
+                    result.inputsUpdate.push({
+                        id: existingInput.id,
+                        data: stringifiedData,
+                    });
+                }
+            } catch (error) {
+                logger.error("Error stringifying input data", typeof error === "object" && error !== null ? error : {});
+            }
         }
-    }
-    return updateRel({ inputs: original }, { inputs: updatedInputs }, "inputs", ["Create", "Update", "Delete"], "many", shapeRunRoutineInput);
+        // Otherwise, create new input 
+        else {
+            if (!result.inputsCreate) result.inputsCreate = [];
+            // Create new input
+            result.inputsCreate.push({
+                id: uuid(),
+                // Data must be stored as a string
+                data: JSON.stringify(inputData),
+                inputConnect: routineInput.id,
+                runRoutineConnect: runRoutineId,
+            });
+        }
+    });
+
+    // Return result
+    return result;
 }
 
 type RoutineVersionStatusBase = {
@@ -356,7 +403,6 @@ export function routineVersionStatusMultiStep(
     const unsuccessfulEndNodes = allEndNodes.filter(node => node?.end?.wasSuccessful !== true);
     if (unsuccessfulEndNodes.length >= allEndNodes.length) {
         statuses.push([Status.Invalid, "No successful end node(s) found"]);
-        console.log("no successful end nodes found", allEndNodes, unsuccessfulEndNodes);
     }
     // Performs checks which make the routine incomplete, but not invalid
     // 1. There are unpositioned nodes
@@ -383,7 +429,6 @@ export function routineVersionStatusMultiStep(
 function routineVersionStatusGenerate(
     routineVersion?: Partial<RoutineVersion> | null,
 ): RoutineVersionStatusGenerate {
-    console.log("in routineVersionStatusGenerate", routineVersion);
     // return { status: Status.Invalid, messages: ["TODO not implemented"] };
     return { status: Status.Valid, messages: [] };
 }
@@ -542,22 +587,85 @@ export function initializeRoutineGraph(
     };
 }
 
-export const defaultSchemaInput = { containers: [], elements: [] };
-export const defaultSchemaOutput = { containers: [], elements: [] };
+/**
+ * @returns The default input form object for a routine. This is a function 
+ * to avoid using the same object in multiple places, which can lead to
+ * unexpected behavior if the object is modified.
+ */
+export function defaultSchemaInput(): FormSchema {
+    return { containers: [], elements: [] };
+}
 
-export function parseSchemaInputOutput(value: unknown, defaultValue: FormSchema): FormSchema {
+/**
+ * @returns The default output form object for a routine. This is a function
+ * to avoid using the same object in multiple places, which can lead to
+ * unexpected behavior if the object is modified.
+ */
+export function defaultSchemaOutput(): FormSchema {
+    return { containers: [], elements: [] };
+}
+
+/**
+ * @return The default output form object for a Generate routine, 
+ * which always returns text (for now, since we only call LLMs)
+ */
+export function defaultSchemaOutputGenerate(): FormSchema {
+    return {
+        containers: [],
+        elements: [
+            {
+                fieldName: "response",
+                id: "response",
+                label: i18next.t("Response"),
+                props: {
+                    placeholder: "Model response will be displayed here",
+                },
+                type: InputType.Text,
+            },
+        ],
+    };
+}
+
+export const defaultConfigFormInputMap: { [key in RoutineType]: (() => FormSchema) } = {
+    [RoutineType.Action]: () => defaultSchemaInput(),
+    [RoutineType.Api]: () => defaultSchemaInput(),
+    [RoutineType.Code]: () => defaultSchemaInput(),
+    [RoutineType.Data]: () => defaultSchemaInput(),
+    [RoutineType.Generate]: () => defaultSchemaInput(),
+    [RoutineType.Informational]: () => defaultSchemaInput(),
+    [RoutineType.MultiStep]: () => defaultSchemaInput(),
+    [RoutineType.SmartContract]: () => defaultSchemaInput(),
+};
+
+export const defaultConfigFormOutputMap: { [key in RoutineType]: (() => FormSchema) } = {
+    [RoutineType.Action]: () => defaultSchemaOutput(),
+    [RoutineType.Api]: () => defaultSchemaOutput(),
+    [RoutineType.Code]: () => defaultSchemaOutput(),
+    [RoutineType.Data]: () => defaultSchemaOutput(),
+    [RoutineType.Generate]: () => defaultSchemaOutputGenerate(),
+    [RoutineType.Informational]: () => defaultSchemaOutput(),
+    [RoutineType.MultiStep]: () => defaultSchemaOutput(),
+    [RoutineType.SmartContract]: () => defaultSchemaOutput(),
+};
+
+export function parseSchema(
+    value: unknown,
+    defaultSchemaFn: () => FormSchema,
+    logger: PassableLogger,
+    schemaType: string,
+): FormSchema {
     let parsedValue: FormSchema;
 
     try {
         parsedValue = JSON.parse(typeof value === "string" ? value : JSON.stringify(value));
     } catch (error) {
-        console.error("Error parsing schema", error);
-        parsedValue = defaultValue;
+        logger.error(`Error parsing schema ${schemaType}: ${JSON.stringify(error)}`);
+        parsedValue = defaultSchemaFn();
     }
 
     // Ensure the parsed value contains `containers` and `elements` arrays
     if (typeof parsedValue !== "object" || parsedValue === null) {
-        parsedValue = defaultValue;
+        parsedValue = defaultSchemaFn();
     }
     if (!Array.isArray(parsedValue.containers)) {
         parsedValue.containers = [];
@@ -569,23 +677,64 @@ export function parseSchemaInputOutput(value: unknown, defaultValue: FormSchema)
     return parsedValue;
 }
 
-export const defaultConfigCallDataGenerate: ConfigCallDataGenerate = {
-    botStyle: BotStyle.Default,
-    model: null,
-    respondingBot: null,
-};
-const defaultConfigDataMap: { [key in RoutineType]?: ConfigCallData } = {
-    [RoutineType.Generate]: defaultConfigCallDataGenerate,
+export function parseSchemaInput(
+    value: unknown,
+    routineType: RoutineType | null | undefined,
+    logger: PassableLogger,
+): FormSchema {
+    return parseSchema(value, () => {
+        if (!routineType) return defaultSchemaInput();
+        return defaultConfigFormInputMap[routineType]();
+    }, logger, "input");
+}
+
+export function parseSchemaOutput(
+    value: unknown,
+    routineType: RoutineType | null | undefined,
+    logger: PassableLogger,
+): FormSchema {
+    return parseSchema(value, () => {
+        if (!routineType) return defaultSchemaOutput();
+        return defaultConfigFormOutputMap[routineType]();
+    }, logger, "output");
+}
+
+export function defaultConfigCallData(): ConfigCallData {
+    return {};
+}
+
+export function defaultConfigCallDataGenerate(): ConfigCallDataGenerate {
+    return {
+        botStyle: BotStyle.Default,
+        maxTokens: null,
+        model: null,
+        respondingBot: null,
+    };
+}
+
+export const defaultConfigCallDataMap: { [key in RoutineType]: (() => ConfigCallData) } = {
+    [RoutineType.Action]: () => defaultConfigCallData(),
+    [RoutineType.Api]: () => defaultConfigCallData(),
+    [RoutineType.Code]: () => defaultConfigCallData(),
+    [RoutineType.Data]: () => defaultConfigCallData(),
+    [RoutineType.Generate]: () => defaultConfigCallDataGenerate(),
+    [RoutineType.Informational]: () => defaultConfigCallData(),
+    [RoutineType.MultiStep]: () => defaultConfigCallData(),
+    [RoutineType.SmartContract]: () => defaultConfigCallData(),
 };
 
-export function parseConfigCallData(value: unknown, routineType: RoutineType | null | undefined): ConfigCallData {
+export function parseConfigCallData(
+    value: unknown,
+    routineType: RoutineType | null | undefined,
+    logger: PassableLogger,
+): ConfigCallData {
     let parsedValue: ConfigCallData;
-    const defaultConfigCallData = routineType ? (defaultConfigDataMap[routineType] || {}) : {};
+    const defaultConfigCallData = routineType ? (defaultConfigCallDataMap[routineType] || {}) : {};
 
     try {
         parsedValue = JSON.parse(typeof value === "string" ? value : JSON.stringify(value));
     } catch (error) {
-        console.error("Error parsing configCallData", error);
+        logger.error(`Error parsing configCallData: ${JSON.stringify(error)}`);
         parsedValue = defaultConfigCallData;
     }
 
@@ -610,16 +759,18 @@ export const MAX_RUN_NESTING = 20;
  * we need to insert steps is to inject newly-fetched routine versions or project versions into the existing step object.
  * @param rootStep The root step object to insert the step into. Either a MultiRoutineStep, DirectoryStep, or SingleRoutineStep, 
  * as we can run multi-step routines, projects, and single-step routines.
+ * @param logger Logger to log errors
  * @returns Updated root step object with the step inserted.
  */
 export function insertStep(
     stepData: DirectoryStep | MultiRoutineStep,
     rootStep: RootStep,
+    logger: PassableLogger,
 ): RootStep {
     // Helper function to perform recursive insert
     function recursiveInsert(currStep: RunStep, depth: number): RunStep {
         if (depth > MAX_RUN_NESTING) {
-            console.error("Recursion depth exceeded in insertStep. No step inserted");
+            logger.error("Recursion depth exceeded in insertStep. No step inserted");
             return currStep;
         }
         // If the current step has a list of steps, recursively search through them
@@ -789,12 +940,14 @@ export function findStep(step: RunStep, predicate: (step: RunStep) => boolean): 
  * NOTE: Must be queried already
  * @param location A list of natural numbers representing the location of the step in the root step
  * @param rootStep The root step object for the project or routine
+ * @param logger Logger to log errors
  * @returns The number of sibling steps. Or in other words, the number of steps which share the same base location 
  * array (e.g. [4, 2, 1, 1], [4, 2, 1, 2], [4, 2, 1, 3], ...)
  */
 export function siblingsAtLocation(
     location: number[],
     rootStep: RunStep,
+    logger: PassableLogger,
 ) {
     // If there are no numbers in the location, it's invalid
     if (location.length === 0) return 0;
@@ -806,7 +959,7 @@ export function siblingsAtLocation(
     const parentLocation = [...location].slice(0, -1);
     const parent = stepFromLocation(parentLocation, rootStep);
     if (!parent) {
-        console.error(`Could not find parent to count siblings. Location: ${location}`);
+        logger.error(`Could not find parent to count siblings. Location: ${location}`);
         return 0;
     }
 
@@ -993,9 +1146,13 @@ export function stepNeedsQuerying(
 /**
  * Calculates the complexity of a step
  * @param step The step to calculate the complexity of
+ * @param logger Logger to log errors
  * @returns The complexity of the step
  */
-export function getStepComplexity(step: RunStep): number {
+export function getStepComplexity(
+    step: RunStep,
+    logger: PassableLogger,
+): number {
     switch (step.__type) {
         // No complexity for start and end steps, since the user doesn't interact with them
         case RunStepType.End:
@@ -1009,14 +1166,14 @@ export function getStepComplexity(step: RunStep): number {
             return (step as SingleRoutineStep).routineVersion.complexity;
         // Complexity of a routine is the sum of its nodes' complexities
         case RunStepType.MultiRoutine:
-            return (step as MultiRoutineStep).nodes.reduce((acc, curr) => acc + getStepComplexity(curr), 0);
+            return (step as MultiRoutineStep).nodes.reduce((acc, curr) => acc + getStepComplexity(curr, logger), 0);
         // Complexity of a list is the sum of its children's complexities
         case RunStepType.RoutineList:
         case RunStepType.Directory:
-            return (step as RoutineListStep).steps.reduce((acc, curr) => acc + getStepComplexity(curr), 0);
+            return (step as RoutineListStep).steps.reduce((acc, curr) => acc + getStepComplexity(curr, logger), 0);
         // Shouldn't reach here
         default:
-            console.warn("Unknown step type in getStepComplexity");
+            logger.error("Unknown step type in getStepComplexity");
             return 0;
     }
 }
@@ -1068,15 +1225,17 @@ export type SortedStepsWithDecisions = Array<DecisionStep | EndStep | RoutineLis
  * when running the routine.
  * @param steps The nodes in the routine version, represented as steps
  * @param nodeLinks The links connecting the nodes in the routine graph.
+ * @param logger Logger to log errors
  * @returns An array of nodes sorted by the order they were visited.
  */
 export function sortStepsAndAddDecisions(
     steps: UnsortedSteps,
     nodeLinks: NodeLink[],
+    logger: PassableLogger,
 ): SortedStepsWithDecisions {
     const startStep = steps.find(step => step.__type === RunStepType.Start);
     if (!startStep) {
-        console.error("Routine does not have a StartStep. Cannot sort steps or generate DecisionSteps");
+        logger.error("Routine does not have a StartStep. Cannot sort steps or generate DecisionSteps");
         return steps;
     }
 
@@ -1189,16 +1348,18 @@ export function singleRoutineToStep(
  * Converts a multi-step routine into a Step object.
  * 
  * NOTE: This is only designed for one level of nodes. All subroutines will be 
- * treated as SingleStepRoutines, and must be converted to MultiStepRoutines separately.
+ * treated as SingleRoutineSteps, and must be converted to MultiRoutineSteps separately.
  * @param routineVersion The routineVersion being run
  * @param location The location we should give to the step we're creating
  * @param languages Preferred languages to display step data in
+ * @param logger Logger to log errors
  * @returns RootStep for the given object, or null if invalid
  */
 export function multiRoutineToStep(
     routineVersion: RunnableRoutineVersion,
     location: number[],
     languages: string[],
+    logger: PassableLogger,
 ): MultiRoutineStep | null {
     // Convert existing nodes into steps
     const unsorted = (routineVersion.nodes || []).map(node => {
@@ -1257,7 +1418,7 @@ export function multiRoutineToStep(
         }
     }).filter(Boolean) as UnsortedSteps;
     // Sort steps by visitation order and add DecisionSteps where needed
-    const sorted = sortStepsAndAddDecisions(unsorted, routineVersion.nodeLinks || []);
+    const sorted = sortStepsAndAddDecisions(unsorted, routineVersion.nodeLinks || [], logger);
     return {
         __type: RunStepType.MultiRoutine,
         description: getTranslation(routineVersion, languages, true).description || null,
@@ -1342,23 +1503,25 @@ export function directoryToStep(
  * @param runnableObject The projectVersion or routineVersion being run
  * @param location The location we should give to the step we're creating
  * @param languages Preferred languages to display step data in
+ * @param logger Logger to log errors
  * @returns RootStep for the given object, or null if invalid
  */
 export function runnableObjectToStep(
     runnableObject: RunnableProjectVersion | RunnableRoutineVersion | null | undefined,
     location: number[],
     languages: string[],
+    logger: PassableLogger,
 ): RootStep | null {
     if (isOfType(runnableObject, "RoutineVersion")) {
         if (runnableObject.routineType === RoutineType.MultiStep) {
-            return multiRoutineToStep(runnableObject, [...location], languages);
+            return multiRoutineToStep(runnableObject, [...location], languages, logger);
         } else {
             return singleRoutineToStep(runnableObject, [...location], languages);
         }
     } else if (isOfType(runnableObject, "ProjectVersion")) {
         return projectToStep(runnableObject, [...location], languages);
     }
-    console.error("Invalid runnable object type in runnableObjectToStep", runnableObject);
+    logger.error(`Invalid runnable object type in runnableObjectToStep: ${runnableObject !== null && typeof runnableObject === "object" ? (runnableObject as { __type: string }).__type : "runnableObject is not defined"}`);
     return null;
 }
 
@@ -1371,12 +1534,14 @@ export type DetectSubstepLoadResult = {
  * @param subroutines List of subroutines to add
  * @param rootStep The root step object to add the subroutines to
  * @param languages Preferred languages to display step data in
+ * @param logger Logger to log errors
  * @returns Updated root step object with the subroutines added
  */
 export function addSubroutinesToStep(
-    subroutines: RoutineVersion[],
+    subroutines: RunnableRoutineVersion[],
     rootStep: RootStep,
     languages: string[],
+    logger: PassableLogger,
 ): RootStep {
     let updatedRootStep = rootStep;
     for (const routineVersion of subroutines) {
@@ -1389,15 +1554,15 @@ export function addSubroutinesToStep(
             (step) => step.__type === RunStepType.SingleRoutine && (step as SingleRoutineStep).routineVersion?.id === routineVersion.id,
         )?.location;
         if (!location) {
-            console.error("Could not find location to insert routine", routineVersion);
+            logger.error("Could not find location to insert routine", routineVersion);
             continue;
         }
-        const subroutineStep = multiRoutineToStep(routineVersion, [...location], languages);
+        const subroutineStep = multiRoutineToStep(routineVersion, [...location], languages, logger);
         if (!subroutineStep) {
-            console.error("Could not convert routine to step", routineVersion);
+            logger.error("Could not convert routine to step", routineVersion);
             continue;
         }
-        updatedRootStep = insertStep(subroutineStep as MultiRoutineStep, updatedRootStep);
+        updatedRootStep = insertStep(subroutineStep as MultiRoutineStep, updatedRootStep, logger);
     }
     return updatedRootStep;
 }
@@ -1407,12 +1572,14 @@ export function addSubroutinesToStep(
  * @param subdirectories List of subdirectories to add
  * @param rootStep The root step object to add the subdirectories to
  * @param languages Preferred languages to display step data in
+ * @param logger Logger to log errors
  * @returns Updated root step object with the subdirectories added
  */
 export function addSubdirectoriesToStep(
     subdirectories: ProjectVersionDirectory[],
     rootStep: RootStep,
     languages: string[],
+    logger: PassableLogger,
 ): RootStep {
     let updatedRootStep = rootStep;
     for (const directory of subdirectories) {
@@ -1422,15 +1589,15 @@ export function addSubdirectoriesToStep(
             (step) => step.__type === RunStepType.Directory && (step as DirectoryStep).directoryId === directory.id,
         )?.location;
         if (!location) {
-            console.error("Could not find location to insert directory", directory);
+            logger.error("Could not find location to insert directory", directory);
             continue;
         }
         const projectStep = directoryToStep(directory, [...location], languages);
         if (!projectStep) {
-            console.error("Could not convert directory to step", directory);
+            logger.error("Could not convert directory to step", directory);
             continue;
         }
-        updatedRootStep = insertStep(projectStep, updatedRootStep);
+        updatedRootStep = insertStep(projectStep, updatedRootStep, logger);
     }
     return updatedRootStep;
 }
@@ -1442,6 +1609,7 @@ export function addSubdirectoriesToStep(
  * @param rootStep The root step object for the project or routine
  * @param getDirectories Callback to load directory data
  * @param getSubroutines Callback to load subroutine data
+ * @param logger Logger to log errors
  * @returns An object indicating if further querying is needed
  */
 export function detectSubstepLoad(
@@ -1449,6 +1617,7 @@ export function detectSubstepLoad(
     rootStep: RootStep | null,
     getDirectories: (input: ProjectVersionDirectorySearchInput) => unknown,
     getSubroutines: (input: RoutineVersionSearchInput) => unknown,
+    logger: PassableLogger,
 ): DetectSubstepLoadResult {
     const result = { needsFurtherQuerying: false };
     if (!rootStep || newLocation.length === 0) return result;
@@ -1476,13 +1645,13 @@ export function detectSubstepLoad(
                 if (step.directoryId) {
                     directoryIds.push(step.directoryId);
                 } else {
-                    console.error("DirectoryStep has no directoryId. Cannot query subdirectories");
+                    logger.error("DirectoryStep has no directoryId. Cannot query subdirectories");
                 }
             } else if (step.__type === RunStepType.SingleRoutine) {
                 if (step.routineVersion?.id) {
                     routineVersionIds.push(step.routineVersion.id);
                 } else {
-                    console.error("SingleRoutineStep has no routineVersionId. Cannot query subroutines");
+                    logger.error("SingleRoutineStep has no routineVersionId. Cannot query subroutines");
                 }
             }
         }
@@ -1515,4 +1684,127 @@ export function detectSubstepLoad(
     result.needsFurtherQuerying = currentLocation.length < newLocation.length;
 
     return result;
+}
+
+type SaveProgressProps = {
+    /** Total context switches in the step, including previously saved context switches */
+    contextSwitches: number;
+    /** The current step data */
+    currentStep: RunStep;
+    /** The current order in the step array */
+    currentStepOrder: number;
+    /** The data stored in the run about the current step */
+    currentStepRunData: RunProjectStep | RunRoutineStep | null | undefined;
+    /** Current input data in form */
+    formData: object,
+    /** Callback to update RunProject data */
+    handleRunProjectUpdate: (inputs: RunProjectUpdateInput) => unknown;
+    /** Callback to update RunRoutine data */
+    handleRunRoutineUpdate: (inputs: RunRoutineUpdateInput) => unknown;
+    /** Whether the current step should be considered completed */
+    isStepCompleted: boolean;
+    /** Whether the entire run should be considered completed */
+    isRunCompleted: boolean;
+    /** The current run */
+    run: RunProject | RunRoutine;
+    /** The overall object being run */
+    runnableObject: RunnableRoutineVersion | RunnableProjectVersion
+    /** Total time elapsed in the step, including previously saved time */
+    timeElapsed: number;
+}
+
+/**
+ * Stores current progress, both for overall routine and the current subroutine
+ */
+export function saveRunProgress({
+    contextSwitches,
+    currentStep,
+    currentStepOrder,
+    currentStepRunData,
+    formData,
+    handleRunProjectUpdate,
+    handleRunRoutineUpdate,
+    isStepCompleted,
+    isRunCompleted,
+    run,
+    runnableObject,
+    timeElapsed,
+}: SaveProgressProps) {
+    const runData: RunProjectUpdateInput | RunRoutineUpdateInput = {
+        id: run.id,
+    };
+
+    // Handle step data
+    const commonStepData = {
+        timeElapsed,
+        contextSwitches,
+        status: isStepCompleted ? RunRoutineStepStatus.Completed : RunRoutineStepStatus.InProgress,
+    } as const;
+    // Update step data if found
+    if (currentStepRunData) {
+        runData.stepsUpdate = [{
+            ...commonStepData,
+            id: currentStepRunData.id,
+        }];
+    }
+    // Create step data if not found
+    else {
+        const stepCreate = {
+            ...commonStepData,
+            id: uuid(),
+            name: currentStep.name,
+            nodeConnect: (currentStep as NodeStep).nodeId ?? undefined,
+            order: currentStepOrder,
+            step: currentStep.location,
+            subroutineConnect: (currentStep as SingleRoutineStep).routineVersion?.id ?? undefined,
+        } as const;
+        if (runnableObject.__typename === "ProjectVersion") {
+            runData.stepsCreate = [{
+                ...stepCreate,
+                runProjectConnect: run.id,
+            }] as unknown as RunProjectStepCreateInput[];
+        } else {
+            runData.stepsCreate = [{
+                ...stepCreate,
+                runRoutineConnect: run.id,
+            }] as RunRoutineStepCreateInput[];
+        }
+    }
+
+    // Handle overall run data
+    const runMetrics = (run.steps ?? []).reduce((acc, curr) => {
+        const isCurrStep = currentStepRunData && curr.id === currentStepRunData.id;
+        if (isCurrStep) {
+            acc.timeElapsed += timeElapsed;
+            acc.contextSwitches += contextSwitches;
+        } else {
+            acc.timeElapsed += (curr.timeElapsed ?? 0);
+            acc.contextSwitches += (curr.contextSwitches ?? 0);
+        }
+        return acc;
+    }, { timeElapsed: 0, contextSwitches: 0 });
+    runData.timeElapsed = runMetrics.timeElapsed;
+    runData.contextSwitches = runMetrics.contextSwitches;
+    runData.status = isRunCompleted ? RunStatus.Completed : RunStatus.InProgress;
+
+    // Handle routine data
+    if (run.__typename === "RunRoutine") {
+        const { inputsCreate, inputsDelete, inputsUpdate } = runInputsUpdate({
+            existingInputs: (run as RunRoutine).inputs,
+            formData,
+            logger: console,
+            routineInputs: (runnableObject as RunnableRoutineVersion).inputs,
+            runRoutineId: runData.id,
+        });
+        const runRoutineData = runData as RunRoutineUpdateInput;
+        runRoutineData.inputsCreate = inputsCreate;
+        runRoutineData.inputsDelete = inputsDelete;
+        runRoutineData.inputsUpdate = inputsUpdate;
+        handleRunRoutineUpdate(runRoutineData);
+    }
+    // Handle project data
+    else {
+        const runProjectData = runData as RunProjectUpdateInput;
+        handleRunProjectUpdate(runProjectData);
+    }
 }

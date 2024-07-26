@@ -13,6 +13,7 @@ export const runProjectValidation: YupModel<["create", "update"]> = {
         isPrivate: opt(bool),
         status: req(runStatus),
         name: req(name),
+        timeElapsed: opt(intPositiveOrZero),
     }, [
         ["projectVersion", ["Connect"], "one", "req"],
         ["schedule", ["Create"], "one", "opt", scheduleValidation],

@@ -1,4 +1,5 @@
-import { RoutineVersion, RunRoutine } from "@local/shared";
+import { FormikProps } from "formik";
+import { RefObject } from "react";
 import { DecisionStep, EndStep, RoutineListStep, RunnableProjectVersion, RunnableRoutineVersion } from "utils/runUtils";
 import { ViewProps } from "views/types";
 
@@ -16,12 +17,6 @@ export type RunViewProps = ViewProps & {
 
 export type SubroutineViewProps = Omit<ViewProps, "display" | "isOpen"> & {
     loading: boolean;
-    handleUserInputsUpdate: (inputs: { [inputId: string]: string }) => unknown;
-    handleSaveProgress: () => unknown;
-    /**
-     * Owner of overall routine, not subroutine
-     */
-    owner: RoutineVersion["root"]["owner"] | null | undefined;
+    inputFormikRef: RefObject<FormikProps<object>>;
     routineVersion: RunnableRoutineVersion;
-    run: RunRoutine | null | undefined;
 }

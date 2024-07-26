@@ -1,11 +1,11 @@
-import { Count, FindByIdInput, RunProject, RunProjectCancelInput, RunProjectCompleteInput, RunProjectCreateInput, RunProjectSearchInput, RunProjectUpdateInput, VisibilityType } from "@local/shared";
+import { Count, FindByIdInput, RunProject, RunProjectCreateInput, RunProjectSearchInput, RunProjectUpdateInput, VisibilityType } from "@local/shared";
 import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { assertRequestFrom } from "../../auth/request";
 import { rateLimit } from "../../middleware/rateLimit";
 import { RunProjectModel } from "../../models/base/runProject";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from "../../types";
+import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
 export type EndpointsRunProject = {
     Query: {
@@ -16,8 +16,6 @@ export type EndpointsRunProject = {
         runProjectCreate: GQLEndpoint<RunProjectCreateInput, CreateOneResult<RunProject>>;
         runProjectUpdate: GQLEndpoint<RunProjectUpdateInput, UpdateOneResult<RunProject>>;
         runProjectDeleteAll: GQLEndpoint<Record<string, never>, Count>;
-        runProjectComplete: GQLEndpoint<RunProjectCompleteInput, RecursivePartial<RunProject>>;
-        runProjectCancel: GQLEndpoint<RunProjectCancelInput, RecursivePartial<RunProject>>;
     }
 }
 
@@ -46,16 +44,6 @@ export const RunProjectEndpoints: EndpointsRunProject = {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 25, req });
             return (RunProjectModel as any).danger.deleteAll({ __typename: "User", id: userData.id });
-        },
-        runProjectComplete: async (_, { input }, { req }, info) => {
-            const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ maxUser: 1000, req });
-            return (RunProjectModel as any).run.complete(userData, input, info);
-        },
-        runProjectCancel: async (_, { input }, { req }, info) => {
-            const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ maxUser: 1000, req });
-            return (RunProjectModel as any).run.cancel(userData, input, info);
         },
     },
 };

@@ -1605,7 +1605,7 @@ export const RunProjectStepFormat: Formatter<RunProjectStepModelInfo> = {
     gqlRelMap: {
         __typename: "RunProjectStep",
         directory: "ProjectVersionDirectory",
-        run: "RunProject",
+        runProject: "RunProject",
     },
     prismaRelMap: {
         __typename: "RunProjectStep",
@@ -1659,9 +1659,9 @@ export const RunRoutineInputFormat: Formatter<RunRoutineInputModelInfo> = {
 export const RunRoutineStepFormat: Formatter<RunRoutineStepModelInfo> = {
     gqlRelMap: {
         __typename: "RunRoutineStep",
-        run: "RunRoutine",
         node: "Node",
-        subroutine: "Routine",
+        runRoutine: "RunRoutine",
+        subroutine: "RoutineVersion",
     },
     prismaRelMap: {
         __typename: "RunRoutineStep",

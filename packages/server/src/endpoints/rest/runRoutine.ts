@@ -1,4 +1,4 @@
-import { runRoutine_cancel, runRoutine_complete, runRoutine_create, runRoutine_deleteAll, runRoutine_findMany, runRoutine_findOne, runRoutine_update } from "../generated";
+import { runRoutine_create, runRoutine_deleteAll, runRoutine_findMany, runRoutine_findOne, runRoutine_update } from "../generated";
 import { RunRoutineEndpoints } from "../logic/runRoutine";
 import { setupRoutes } from "./base";
 
@@ -15,11 +15,5 @@ export const RunRoutineRest = setupRoutes({
     },
     "/runRoutine/deleteAll": {
         delete: [RunRoutineEndpoints.Mutation.runRoutineDeleteAll, runRoutine_deleteAll],
-    },
-    "/runRoutine/:id/complete": {
-        put: [RunRoutineEndpoints.Mutation.runRoutineComplete, runRoutine_complete],
-    },
-    "/runRoutine/:id/cancel": {
-        put: [RunRoutineEndpoints.Mutation.runRoutineCancel, runRoutine_cancel],
     },
 });

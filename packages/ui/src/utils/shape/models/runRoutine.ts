@@ -20,7 +20,7 @@ export type RunRoutineShape = Pick<RunRoutine, "id" | "isPrivate" | "completedCo
 
 export const shapeRunRoutine: ShapeModel<RunRoutineShape, RunRoutineCreateInput, RunRoutineUpdateInput> = {
     create: (d) => ({
-        ...createPrims(d, "id", "isPrivate", "completedComplexity", "contextSwitches", "name", "status"),
+        ...createPrims(d, "id", "isPrivate", "completedComplexity", "contextSwitches", "name", "status", "timeElapsed"),
         ...createRel(d, "steps", ["Create"], "many", shapeRunRoutineStep),
         ...createRel(d, "inputs", ["Create"], "many", shapeRunRoutineInput),
         ...createRel(d, "schedule", ["Create"], "one", shapeSchedule),

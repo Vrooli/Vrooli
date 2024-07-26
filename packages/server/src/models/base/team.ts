@@ -1,4 +1,4 @@
-import { MaxObjects, TeamSortBy, exists, teamValidation, uuid } from "@local/shared";
+import { MaxObjects, TeamSortBy, exists, getTranslation, teamValidation, uuid } from "@local/shared";
 import { role } from "@prisma/client";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
@@ -6,7 +6,7 @@ import { onlyValidIds } from "../../builders/onlyValidIds";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { prismaInstance } from "../../db/instance";
 import { getLabels } from "../../getters";
-import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { defaultPermissions, getEmbeddableString } from "../../utils";
 import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, handlesCheck, lineBreaksCheck } from "../../validators";
 import { TeamFormat } from "../formats";
@@ -23,15 +23,15 @@ export const TeamModel: TeamModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+            get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
         embed: {
             select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, bio: true } } }),
             get: ({ translations }, languages) => {
-                const trans = bestTranslation(translations, languages);
+                const trans = getTranslation({ translations }, languages);
                 return getEmbeddableString({
-                    bio: trans?.bio,
-                    name: trans?.name,
+                    bio: trans.bio,
+                    name: trans.name,
                 }, languages[0]);
             },
         },

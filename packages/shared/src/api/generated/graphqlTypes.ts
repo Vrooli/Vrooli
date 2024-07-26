@@ -2607,13 +2607,9 @@ export type Mutation = {
   routineUpdate: Routine;
   routineVersionCreate: RoutineVersion;
   routineVersionUpdate: RoutineVersion;
-  runProjectCancel: RunProject;
-  runProjectComplete: RunProject;
   runProjectCreate: RunProject;
   runProjectDeleteAll: Count;
   runProjectUpdate: RunProject;
-  runRoutineCancel: RunRoutine;
-  runRoutineComplete: RunRoutine;
   runRoutineCreate: RunRoutine;
   runRoutineDeleteAll: Count;
   runRoutineUpdate: RunRoutine;
@@ -3266,16 +3262,6 @@ export type MutationRoutineVersionUpdateArgs = {
 };
 
 
-export type MutationRunProjectCancelArgs = {
-  input: RunProjectCancelInput;
-};
-
-
-export type MutationRunProjectCompleteArgs = {
-  input: RunProjectCompleteInput;
-};
-
-
 export type MutationRunProjectCreateArgs = {
   input: RunProjectCreateInput;
 };
@@ -3283,16 +3269,6 @@ export type MutationRunProjectCreateArgs = {
 
 export type MutationRunProjectUpdateArgs = {
   input: RunProjectUpdateInput;
-};
-
-
-export type MutationRunRoutineCancelArgs = {
-  input: RunRoutineCancelInput;
-};
-
-
-export type MutationRunRoutineCompleteArgs = {
-  input: RunRoutineCompleteInput;
 };
 
 
@@ -7930,20 +7906,6 @@ export type RunProject = {
   you: RunProjectYou;
 };
 
-export type RunProjectCancelInput = {
-  id: Scalars['ID'];
-};
-
-export type RunProjectCompleteInput = {
-  completedComplexity?: InputMaybe<Scalars['Int']>;
-  exists?: InputMaybe<Scalars['Boolean']>;
-  finalStepCreate?: InputMaybe<RunProjectStepCreateInput>;
-  finalStepUpdate?: InputMaybe<RunProjectStepUpdateInput>;
-  id: Scalars['ID'];
-  name?: InputMaybe<Scalars['String']>;
-  wasSuccessful?: InputMaybe<Scalars['Boolean']>;
-};
-
 export type RunProjectCreateInput = {
   completedComplexity?: InputMaybe<Scalars['Int']>;
   contextSwitches?: InputMaybe<Scalars['Int']>;
@@ -7955,6 +7917,7 @@ export type RunProjectCreateInput = {
   status: RunStatus;
   stepsCreate?: InputMaybe<Array<RunProjectStepCreateInput>>;
   teamConnect?: InputMaybe<Scalars['ID']>;
+  timeElapsed?: InputMaybe<Scalars['Int']>;
 };
 
 export type RunProjectEdge = {
@@ -8070,7 +8033,7 @@ export type RunProjectStep = {
   name: Scalars['String'];
   node?: Maybe<Node>;
   order: Scalars['Int'];
-  run: RunProject;
+  runProject: RunProject;
   startedAt?: Maybe<Scalars['Date']>;
   status: RunProjectStepStatus;
   step: Array<Scalars['Int']>;
@@ -8084,6 +8047,7 @@ export type RunProjectStepCreateInput = {
   name: Scalars['String'];
   nodeConnect?: InputMaybe<Scalars['ID']>;
   order: Scalars['Int'];
+  runProjectConnect: Scalars['ID'];
   status?: InputMaybe<RunProjectStepStatus>;
   step: Array<Scalars['Int']>;
   timeElapsed?: InputMaybe<Scalars['Int']>;
@@ -8148,24 +8112,6 @@ export type RunRoutine = {
   you: RunRoutineYou;
 };
 
-export type RunRoutineCancelInput = {
-  id: Scalars['ID'];
-};
-
-export type RunRoutineCompleteInput = {
-  completedComplexity?: InputMaybe<Scalars['Int']>;
-  exists?: InputMaybe<Scalars['Boolean']>;
-  finalStepCreate?: InputMaybe<RunRoutineStepCreateInput>;
-  finalStepUpdate?: InputMaybe<RunRoutineStepUpdateInput>;
-  id: Scalars['ID'];
-  inputsCreate?: InputMaybe<Array<RunRoutineInputCreateInput>>;
-  inputsDelete?: InputMaybe<Array<Scalars['ID']>>;
-  inputsUpdate?: InputMaybe<Array<RunRoutineInputUpdateInput>>;
-  name?: InputMaybe<Scalars['String']>;
-  routineVersionConnect?: InputMaybe<Scalars['ID']>;
-  wasSuccessful?: InputMaybe<Scalars['Boolean']>;
-};
-
 export type RunRoutineCreateInput = {
   completedComplexity?: InputMaybe<Scalars['Int']>;
   contextSwitches?: InputMaybe<Scalars['Int']>;
@@ -8179,6 +8125,7 @@ export type RunRoutineCreateInput = {
   status: RunStatus;
   stepsCreate?: InputMaybe<Array<RunRoutineStepCreateInput>>;
   teamConnect?: InputMaybe<Scalars['ID']>;
+  timeElapsed?: InputMaybe<Scalars['Int']>;
 };
 
 export type RunRoutineEdge = {
@@ -8285,7 +8232,7 @@ export type RunRoutineStep = {
   name: Scalars['String'];
   node?: Maybe<Node>;
   order: Scalars['Int'];
-  run: RunRoutine;
+  runRoutine: RunRoutine;
   startedAt?: Maybe<Scalars['Date']>;
   status: RunRoutineStepStatus;
   step: Array<Scalars['Int']>;
@@ -8299,9 +8246,10 @@ export type RunRoutineStepCreateInput = {
   name: Scalars['String'];
   nodeConnect?: InputMaybe<Scalars['ID']>;
   order: Scalars['Int'];
+  runRoutineConnect: Scalars['ID'];
   status?: InputMaybe<RunRoutineStepStatus>;
   step: Array<Scalars['Int']>;
-  subroutineVersionConnect?: InputMaybe<Scalars['ID']>;
+  subroutineConnect?: InputMaybe<Scalars['ID']>;
   timeElapsed?: InputMaybe<Scalars['Int']>;
 };
 
@@ -10728,8 +10676,6 @@ export type ResolversTypes = {
   RoutineVersionYou: ResolverTypeWrapper<RoutineVersionYou>;
   RoutineYou: ResolverTypeWrapper<RoutineYou>;
   RunProject: ResolverTypeWrapper<RunProject>;
-  RunProjectCancelInput: RunProjectCancelInput;
-  RunProjectCompleteInput: RunProjectCompleteInput;
   RunProjectCreateInput: RunProjectCreateInput;
   RunProjectEdge: ResolverTypeWrapper<RunProjectEdge>;
   RunProjectOrRunRoutine: ResolversTypes['RunProject'] | ResolversTypes['RunRoutine'];
@@ -10748,8 +10694,6 @@ export type ResolversTypes = {
   RunProjectUpdateInput: RunProjectUpdateInput;
   RunProjectYou: ResolverTypeWrapper<RunProjectYou>;
   RunRoutine: ResolverTypeWrapper<RunRoutine>;
-  RunRoutineCancelInput: RunRoutineCancelInput;
-  RunRoutineCompleteInput: RunRoutineCompleteInput;
   RunRoutineCreateInput: RunRoutineCreateInput;
   RunRoutineEdge: ResolverTypeWrapper<RunRoutineEdge>;
   RunRoutineInput: ResolverTypeWrapper<RunRoutineInput>;
@@ -11436,8 +11380,6 @@ export type ResolversParentTypes = {
   RoutineVersionYou: RoutineVersionYou;
   RoutineYou: RoutineYou;
   RunProject: RunProject;
-  RunProjectCancelInput: RunProjectCancelInput;
-  RunProjectCompleteInput: RunProjectCompleteInput;
   RunProjectCreateInput: RunProjectCreateInput;
   RunProjectEdge: RunProjectEdge;
   RunProjectOrRunRoutine: ResolversParentTypes['RunProject'] | ResolversParentTypes['RunRoutine'];
@@ -11453,8 +11395,6 @@ export type ResolversParentTypes = {
   RunProjectUpdateInput: RunProjectUpdateInput;
   RunProjectYou: RunProjectYou;
   RunRoutine: RunRoutine;
-  RunRoutineCancelInput: RunRoutineCancelInput;
-  RunRoutineCompleteInput: RunRoutineCompleteInput;
   RunRoutineCreateInput: RunRoutineCreateInput;
   RunRoutineEdge: RunRoutineEdge;
   RunRoutineInput: RunRoutineInput;
@@ -12629,13 +12569,9 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   routineUpdate?: Resolver<ResolversTypes['Routine'], ParentType, ContextType, RequireFields<MutationRoutineUpdateArgs, 'input'>>;
   routineVersionCreate?: Resolver<ResolversTypes['RoutineVersion'], ParentType, ContextType, RequireFields<MutationRoutineVersionCreateArgs, 'input'>>;
   routineVersionUpdate?: Resolver<ResolversTypes['RoutineVersion'], ParentType, ContextType, RequireFields<MutationRoutineVersionUpdateArgs, 'input'>>;
-  runProjectCancel?: Resolver<ResolversTypes['RunProject'], ParentType, ContextType, RequireFields<MutationRunProjectCancelArgs, 'input'>>;
-  runProjectComplete?: Resolver<ResolversTypes['RunProject'], ParentType, ContextType, RequireFields<MutationRunProjectCompleteArgs, 'input'>>;
   runProjectCreate?: Resolver<ResolversTypes['RunProject'], ParentType, ContextType, RequireFields<MutationRunProjectCreateArgs, 'input'>>;
   runProjectDeleteAll?: Resolver<ResolversTypes['Count'], ParentType, ContextType>;
   runProjectUpdate?: Resolver<ResolversTypes['RunProject'], ParentType, ContextType, RequireFields<MutationRunProjectUpdateArgs, 'input'>>;
-  runRoutineCancel?: Resolver<ResolversTypes['RunRoutine'], ParentType, ContextType, RequireFields<MutationRunRoutineCancelArgs, 'input'>>;
-  runRoutineComplete?: Resolver<ResolversTypes['RunRoutine'], ParentType, ContextType, RequireFields<MutationRunRoutineCompleteArgs, 'input'>>;
   runRoutineCreate?: Resolver<ResolversTypes['RunRoutine'], ParentType, ContextType, RequireFields<MutationRunRoutineCreateArgs, 'input'>>;
   runRoutineDeleteAll?: Resolver<ResolversTypes['Count'], ParentType, ContextType>;
   runRoutineUpdate?: Resolver<ResolversTypes['RunRoutine'], ParentType, ContextType, RequireFields<MutationRunRoutineUpdateArgs, 'input'>>;
@@ -14278,7 +14214,7 @@ export type RunProjectStepResolvers<ContextType = any, ParentType extends Resolv
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   node?: Resolver<Maybe<ResolversTypes['Node']>, ParentType, ContextType>;
   order?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  run?: Resolver<ResolversTypes['RunProject'], ParentType, ContextType>;
+  runProject?: Resolver<ResolversTypes['RunProject'], ParentType, ContextType>;
   startedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   status?: Resolver<ResolversTypes['RunProjectStepStatus'], ParentType, ContextType>;
   step?: Resolver<Array<ResolversTypes['Int']>, ParentType, ContextType>;
@@ -14357,7 +14293,7 @@ export type RunRoutineStepResolvers<ContextType = any, ParentType extends Resolv
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   node?: Resolver<Maybe<ResolversTypes['Node']>, ParentType, ContextType>;
   order?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  run?: Resolver<ResolversTypes['RunRoutine'], ParentType, ContextType>;
+  runRoutine?: Resolver<ResolversTypes['RunRoutine'], ParentType, ContextType>;
   startedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
   status?: Resolver<ResolversTypes['RunRoutineStepStatus'], ParentType, ContextType>;
   step?: Resolver<Array<ResolversTypes['Int']>, ParentType, ContextType>;

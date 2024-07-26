@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { LlmTask } from "@local/shared";
+import { DEFAULT_LANGUAGE, LlmTask } from "@local/shared";
 import fs from "fs";
-import { DEFAULT_LANGUAGE, getLlmConfigLocation, getStructuredTaskConfig, getUnstructuredTaskConfig, importCommandToTask, importConfig } from "./config";
+import { getLlmConfigLocation, getStructuredTaskConfig, getUnstructuredTaskConfig, importCommandToTask, importConfig } from "./config";
 
 describe("llm config", () => {
     let LLM_CONFIG_LOCATION: string;

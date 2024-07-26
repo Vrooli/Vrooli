@@ -1,4 +1,4 @@
-import { Comment, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, commentValidation, lowercaseFirstLetter, MaxObjects, VisibilityType } from "@local/shared";
+import { Comment, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, commentValidation, getTranslation, lowercaseFirstLetter, MaxObjects, VisibilityType } from "@local/shared";
 import { Request } from "express";
 import { ModelMap } from ".";
 import { getUser } from "../../auth/request";
@@ -12,7 +12,7 @@ import { visibilityBuilderPrisma } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { getSearchStringQuery } from "../../getters";
 import { SessionUserToken } from "../../types";
-import { bestTranslation, defaultPermissions, oneIsPublic, SearchMap } from "../../utils";
+import { defaultPermissions, oneIsPublic, SearchMap } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { SortMap } from "../../utils/sortMap";
 import { afterMutationsPlain } from "../../utils/triggers";
@@ -29,7 +29,7 @@ export const CommentModel: CommentModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.text ?? "",
+            get: (select, languages) => getTranslation(select, languages).text ?? "",
         },
     }),
     format: CommentFormat,

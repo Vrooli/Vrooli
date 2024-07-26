@@ -22,25 +22,28 @@ import { validateFormValues } from "utils/validateFormValues";
 import { ScheduleUpsert } from "views/objects/schedule";
 import { RunProjectFormProps, RunProjectUpsertProps } from "../types";
 
-export const runProjectInitialValues = (
+export function runProjectInitialValues(
     session: Session | undefined,
     existing?: Partial<RunProject> | null | undefined,
-): RunProjectShape => ({
-    __typename: "RunProject" as const,
-    id: DUMMY_ID,
-    completedComplexity: 0,
-    contextSwitches: 0,
-    isPrivate: true,
-    name: existing?.name ?? getDisplay(existing?.projectVersion, getUserLanguages(session)).title ?? "Run",
-    schedule: null,
-    status: RunStatus.Scheduled,
-    steps: [],
-    timeElapsed: 0,
-    ...existing,
-});
+): RunProjectShape {
+    return {
+        __typename: "RunProject" as const,
+        id: DUMMY_ID,
+        completedComplexity: 0,
+        contextSwitches: 0,
+        isPrivate: true,
+        name: existing?.name ?? getDisplay(existing?.projectVersion, getUserLanguages(session)).title ?? "Run",
+        schedule: null,
+        status: RunStatus.Scheduled,
+        steps: [],
+        timeElapsed: 0,
+        ...existing,
+    };
+}
 
-export const transformRunProjectValues = (values: RunProjectShape, existing: RunProjectShape, isCreate: boolean) =>
-    isCreate ? shapeRunProject.create(values) : shapeRunProject.update(existing, values);
+export function transformRunProjectValues(values: RunProjectShape, existing: RunProjectShape, isCreate: boolean) {
+    return isCreate ? shapeRunProject.create(values) : shapeRunProject.update(existing, values);
+}
 
 function RunProjectForm({
     disabled,
@@ -231,12 +234,12 @@ function RunProjectForm({
     );
 }
 
-export const RunProjectUpsert = ({
+export function RunProjectUpsert({
     isCreate,
     isOpen,
     overrideObject,
     ...props
-}: RunProjectUpsertProps) => {
+}: RunProjectUpsertProps) {
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<RunProject, RunProjectShape>({
@@ -266,4 +269,4 @@ export const RunProjectUpsert = ({
             />}
         </Formik>
     );
-};
+}

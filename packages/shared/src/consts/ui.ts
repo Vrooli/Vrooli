@@ -57,3 +57,5 @@ export const THEME = {
     Dark: "dark",
 };
 export type THEME = ValueOf<typeof THEME>;
+
+export const DEFAULT_LANGUAGE = "en";

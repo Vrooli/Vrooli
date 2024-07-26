@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Node, NodeLink, NodeType, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionYou, Routine, RoutineType, RoutineVersion, RoutineVersionYou, uuid } from "@local/shared";
+import { Node, NodeLink, NodeType, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionYou, Routine, RoutineType, RoutineVersion, RoutineVersionYou, RunRoutineInput, uuid, uuidValidate } from "@local/shared";
 import { RunStepType } from "./consts";
-import { DecisionStep, DirectoryStep, EndStep, MultiRoutineStep, RootStep, RoutineListStep, RunStep, RunnableProjectVersion, RunnableRoutineVersion, SingleRoutineStep, StartStep, directoryToStep, findStep, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, insertStep, locationArraysMatch, multiRoutineToStep, parseChildOrder, parseSchemaInputOutput, projectToStep, routineVersionHasSubroutines, runnableObjectToStep, siblingsAtLocation, singleRoutineToStep, sortStepsAndAddDecisions, stepFromLocation, stepNeedsQuerying } from "./runUtils";
+import { DecisionStep, DirectoryStep, EndStep, MultiRoutineStep, RootStep, RoutineListStep, RunInputsUpdateParams, RunStep, RunnableProjectVersion, RunnableRoutineVersion, SingleRoutineStep, StartStep, addSubroutinesToStep, defaultConfigFormInputMap, defaultConfigFormOutputMap, directoryToStep, findStep, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, insertStep, locationArraysMatch, multiRoutineToStep, parseChildOrder, parseRunInputs, parseSchemaInput, parseSchemaOutput, projectToStep, routineVersionHasSubroutines, runInputsUpdate, runnableObjectToStep, siblingsAtLocation, singleRoutineToStep, sortStepsAndAddDecisions, stepFromLocation, stepNeedsQuerying } from "./runUtils";
 
 
 describe("getRunPercentComplete", () => {
@@ -126,6 +126,180 @@ describe("locationArraysMatch", () => {
     });
 });
 
+describe("parseRunInputs", () => {
+    it("should return an empty object for null input", () => {
+        // @ts-ignore: Testing runtime scenario
+        expect(parseRunInputs(null)).toEqual({});
+    });
+
+    it("should return an empty object for invalid input type", () => {
+        const notInputs = { __typename: "SomethingElse" };
+        // @ts-ignore: Testing runtime scenario
+        expect(parseRunInputs(notInputs, console)).toEqual({});
+    });
+
+    it("should parse inputs correctly", () => {
+        const inputs = [
+            { input: { id: "1", name: "input1" }, data: "\"string value\"" },
+            { input: { id: "2", name: "input2" }, data: "42" },
+            { input: { id: "3", name: "input3" }, data: "true" },
+            { input: { id: "4", name: "input4" }, data: "{\"key\": \"value\"}" },
+            { input: { id: "5", name: "input5" }, data: "[1,2,3]" },
+        ] as RunRoutineInput[];
+
+        expect(parseRunInputs(inputs, console)).toEqual({
+            input1: "string value",
+            input2: 42,
+            input3: true,
+            input4: { key: "value" },
+            input5: [1, 2, 3],
+        });
+    });
+
+    it("should use id as key when name is not available", () => {
+        const inputs = [
+            { input: { id: "1" }, data: "\"value\"" },
+        ] as RunRoutineInput[];
+
+        expect(parseRunInputs(inputs, console)).toEqual({
+            "1": "value",
+        });
+    });
+
+    it("should handle parsing errors gracefully", () => {
+        const inputs = [
+            { input: { id: "1", name: "input1" }, data: "invalid json" },
+        ] as RunRoutineInput[];
+
+        expect(parseRunInputs(inputs, console)).toEqual({
+            input1: "invalid json",
+        });
+    });
+});
+
+describe("runInputsUpdate", () => {
+    it("should create new inputs when they do not exist", () => {
+        const params: RunInputsUpdateParams = {
+            existingInputs: [],
+            formData: { routineInputName1: "value1", routineInputName2: 42 },
+            logger: console,
+            routineInputs: [{
+                id: "routineInput1",
+                name: "routineInputName1",
+            }, {
+                id: "routineInput2",
+                name: "routineInputName2",
+            }],
+            runRoutineId: "run1",
+        };
+
+        const result = runInputsUpdate(params);
+
+        expect(result.inputsCreate).toEqual([
+            {
+                id: expect.any(String),
+                data: "\"value1\"",
+                inputConnect: "routineInput1",
+                runRoutineConnect: "run1",
+            },
+            {
+                id: expect.any(String),
+                data: "42",
+                inputConnect: "routineInput2",
+                runRoutineConnect: "run1",
+            },
+        ]);
+        result.inputsCreate?.forEach(input => expect(uuidValidate(input.id)).toBe(true));
+        expect(result.inputsUpdate).toBeUndefined();
+        expect(result.inputsDelete).toBeUndefined();
+    });
+
+    it("should update existing inputs when data has changed", () => {
+        const params: RunInputsUpdateParams = {
+            existingInputs: [{
+                id: "runInput1",
+                data: "\"old-value1\"",
+                input: { id: "routineInput1" },
+            }, {
+                id: "runInput2",
+                data: "999",
+                input: { id: "routineInput2" },
+            }],
+            formData: { routineInputName1: "new-value1", routineInputName2: 42 },
+            logger: console,
+            routineInputs: [{
+                id: "routineInput1",
+                name: "routineInputName1",
+            }, {
+                id: "routineInput2",
+                name: "routineInputName2",
+            }],
+            runRoutineId: "run1",
+        };
+
+        const result = runInputsUpdate(params);
+
+        expect(result.inputsUpdate).toEqual([
+            {
+                id: "runInput1",
+                data: "\"new-value1\"",
+            },
+            {
+                id: "runInput2",
+                data: "42",
+            },
+        ]);
+        expect(result.inputsCreate).toBeUndefined();
+        expect(result.inputsDelete).toBeUndefined();
+    });
+
+    it("should handle creating and updating inputs simultaneously", () => {
+        const params: RunInputsUpdateParams = {
+            existingInputs: [{
+                id: "runInput2",
+                data: "999",
+                input: { id: "routineInput2" },
+            }, {
+                id: "runInput6",
+                data: "\"hello world\"",
+                input: { id: "routineInput6" },
+            }],
+            formData: { routineInputName1: "value1", routineInputName2: 42 },
+            logger: console,
+            routineInputs: [{
+                id: "routineInput1",
+                name: "routineInputName1",
+            }, {
+                id: "routineInput2",
+                name: "routineInputName2",
+            }, {
+                id: "routineInput3",
+                name: "routineInputName3",
+            }],
+            runRoutineId: "run1",
+        };
+
+        const result = runInputsUpdate(params);
+
+        expect(result.inputsCreate).toEqual([
+            {
+                id: expect.any(String),
+                data: "\"value1\"",
+                inputConnect: "routineInput1",
+                runRoutineConnect: "run1",
+            },
+        ]);
+        result.inputsCreate?.forEach(input => expect(uuidValidate(input.id)).toBe(true));
+        expect(result.inputsUpdate).toEqual([
+            {
+                id: "runInput2",
+                data: "42",
+            },
+        ]);
+        expect(result.inputsDelete).toBeUndefined();
+    });
+});
+
 describe("routineVersionHasSubroutines", () => {
     it("should return false for null input", () => {
         expect(routineVersionHasSubroutines(null as any)).toBe(false);
@@ -196,49 +370,87 @@ describe("routineVersionHasSubroutines", () => {
     });
 });
 
-const defaultSchema = {
-    containers: [],
-    elements: [],
-};
+describe("Schema Parsing Functions", () => {
+    describe("parseSchemaInput", () => {
+        test("parses valid JSON string correctly", () => {
+            const input = JSON.stringify({ containers: [{ id: 1 }], elements: [{ id: 1 }] });
+            const expected = { containers: [{ id: 1 }], elements: [{ id: 1 }] };
+            expect(parseSchemaInput(input, RoutineType.Informational, console)).toEqual(expected);
+        });
 
-describe("parseSchemaInputOutput function tests", () => {
-    test("parses valid JSON string correctly", () => {
-        const input = JSON.stringify({ containers: [{ id: 1 }], elements: [{ id: 1 }] });
-        const expected = { containers: [{ id: 1 }], elements: [{ id: 1 }] };
-        expect(parseSchemaInputOutput(input, defaultSchema)).toEqual(expected);
+        test("falls back to default input schema on invalid JSON string", () => {
+            const input = "{ containers: [}";
+            expect(parseSchemaInput(input, RoutineType.Api, console)).toEqual(defaultConfigFormInputMap[RoutineType.Api]());
+        });
+
+        test("handles non-string, non-object inputs by returning default input schema", () => {
+            const input = 12345;
+            expect(parseSchemaInput(input, RoutineType.Generate, console)).toEqual(defaultConfigFormInputMap[RoutineType.Generate]());
+        });
+
+        test("handles valid object input without parsing", () => {
+            const input = { containers: [{ id: 2 }], elements: [{ id: 2 }] };
+            expect(parseSchemaInput(input, RoutineType.SmartContract, console)).toEqual(input);
+        });
+
+        test("adds missing containers and elements as empty arrays", () => {
+            const input = "{}";
+            const expected = { containers: [], elements: [] };
+            expect(parseSchemaInput(input, RoutineType.Code, console)).toEqual(expected);
+        });
+
+        test("replaces non-array containers and elements with empty arrays", () => {
+            const input = JSON.stringify({ containers: "not-an-array", elements: "not-an-array" });
+            const expected = { containers: [], elements: [] };
+            expect(parseSchemaInput(input, RoutineType.Data, console)).toEqual(expected);
+        });
+
+        test("handles malformed object inputs", () => {
+            const input = { someRandomKey: 123 };
+            const expected = { containers: [], elements: [], someRandomKey: 123 };
+            expect(parseSchemaInput(input, RoutineType.Informational, console)).toEqual(expected);
+        });
     });
 
-    test("falls back to default schema on invalid JSON string", () => {
-        const input = "{ containers: [}";
-        expect(parseSchemaInputOutput(input, defaultSchema)).toEqual(defaultSchema);
-    });
+    describe("parseSchemaOutput", () => {
+        test("parses valid JSON string correctly", () => {
+            const input = JSON.stringify({ containers: [{ id: 1 }], elements: [{ id: 1 }] });
+            const expected = { containers: [{ id: 1 }], elements: [{ id: 1 }] };
+            expect(parseSchemaOutput(input, RoutineType.Generate, console)).toEqual(expected);
+        });
 
-    test("handles non-string, non-object inputs by returning default schema", () => {
-        const input = 12345; // Non-object, non-string input
-        expect(parseSchemaInputOutput(input, defaultSchema)).toEqual(defaultSchema);
-    });
+        test("falls back to default output schema on invalid JSON string", () => {
+            const input = "{ containers: [}";
+            expect(parseSchemaOutput(input, RoutineType.Generate, console)).toEqual(defaultConfigFormOutputMap[RoutineType.Generate]());
+        });
 
-    test("handles valid object input without parsing", () => {
-        const input = { containers: [{ id: 2 }], elements: [{ id: 2 }] };
-        expect(parseSchemaInputOutput(input, defaultSchema)).toEqual(input);
-    });
+        test("handles non-string, non-object inputs by returning default output schema", () => {
+            const input = 12345;
+            expect(parseSchemaOutput(input, RoutineType.Action, console)).toEqual(defaultConfigFormOutputMap[RoutineType.Action]());
+        });
 
-    test("adds missing containers and elements as empty arrays", () => {
-        const input = "{}";
-        const expected = { containers: [], elements: [] };
-        expect(parseSchemaInputOutput(input, defaultSchema)).toEqual(expected);
-    });
+        test("handles valid object input without parsing", () => {
+            const input = { containers: [{ id: 2 }], elements: [{ id: 2 }] };
+            expect(parseSchemaOutput(input, RoutineType.Data, console)).toEqual(input);
+        });
 
-    test("replaces non-array containers and elements with empty arrays", () => {
-        const input = JSON.stringify({ containers: "not-an-array", elements: "not-an-array" });
-        const expected = { containers: [], elements: [] };
-        expect(parseSchemaInputOutput(input, defaultSchema)).toEqual(expected);
-    });
+        test("adds missing containers and elements as empty arrays", () => {
+            const input = "{}";
+            const expected = { containers: [], elements: [] };
+            expect(parseSchemaOutput(input, RoutineType.Informational, console)).toEqual(expected);
+        });
 
-    test("handles malformed object inputs", () => {
-        const input = { someRandomKey: 123 };
-        const expected = { containers: [], elements: [], someRandomKey: 123 }; // Keeps the malformed key
-        expect(parseSchemaInputOutput(input, defaultSchema)).toEqual(expected);
+        test("replaces non-array containers and elements with empty arrays", () => {
+            const input = JSON.stringify({ containers: "not-an-array", elements: "not-an-array" });
+            const expected = { containers: [], elements: [] };
+            expect(parseSchemaOutput(input, RoutineType.Code, console)).toEqual(expected);
+        });
+
+        test("handles malformed object inputs", () => {
+            const input = { someRandomKey: 123 };
+            const expected = { containers: [], elements: [], someRandomKey: 123 };
+            expect(parseSchemaOutput(input, RoutineType.SmartContract, console)).toEqual(expected);
+        });
     });
 });
 
@@ -287,7 +499,7 @@ describe("insertStep", () => {
                 steps: [],
             }],
         };
-        const result = insertStep(mockStepData, mockRootStep);
+        const result = insertStep(mockStepData, mockRootStep, console);
         expect((result as DirectoryStep).steps[0]).toEqual({ ...mockStepData, location: [1, 1] });
     });
 
@@ -346,7 +558,7 @@ describe("insertStep", () => {
             nodeLinks: [],
             routineVersionId: "routineVersion123",
         };
-        const result = insertStep(mockStepData, mockRootStep);
+        const result = insertStep(mockStepData, mockRootStep, console);
         expect(((result as MultiRoutineStep).nodes[1] as RoutineListStep).steps[0]).toEqual({ ...mockStepData, location: [1, 2, 1] });
     });
 
@@ -367,7 +579,7 @@ describe("insertStep", () => {
             name: "root",
             routineVersion: { id: "routineVersion529" } as RoutineVersion,
         };
-        const result = insertStep(mockStepData, mockRootStep);
+        const result = insertStep(mockStepData, mockRootStep, console);
         expect(result).toEqual({ ...mockRootStep, location: [1] });
     });
 
@@ -431,7 +643,7 @@ describe("insertStep", () => {
             }],
         };
 
-        const result = insertStep(mockStepData, mockRootStep);
+        const result = insertStep(mockStepData, mockRootStep, console);
 
         // Traversing down to the deeply-nested step
         expect((((result as DirectoryStep).steps[0] as DirectoryStep).steps[0] as DirectoryStep).steps[0]).toEqual({ ...mockStepData, location: [1, 1, 1, 1] });
@@ -507,7 +719,7 @@ describe("insertStep", () => {
             routineVersionId: "rootRoutine",
         };
 
-        const result = insertStep(mockStepData, mockRootStep);
+        const result = insertStep(mockStepData, mockRootStep, console);
 
         // Traversing down to the deeply-nested step
         expect(((((result as MultiRoutineStep).nodes[1] as RoutineListStep).steps[0] as MultiRoutineStep).nodes[0] as RoutineListStep).steps[0]).toEqual({ ...mockStepData, location: [1, 2, 1, 1, 1] });
@@ -557,7 +769,7 @@ describe("insertStep", () => {
             routineVersionId: "rootRoutine",
         };
 
-        const result = insertStep(mockStepData, mockRootStep);
+        const result = insertStep(mockStepData, mockRootStep, console);
         expect(result).toEqual(mockRootStep);
     });
 });
@@ -980,7 +1192,7 @@ describe("siblingsAtLocation", () => {
             projectVersionId: "projectVersion123",
             steps: [],
         };
-        expect(siblingsAtLocation([], rootStep)).toBe(0);
+        expect(siblingsAtLocation([], rootStep, console)).toBe(0);
     });
 
     it("should return 1 for a location array with only one element", () => {
@@ -996,7 +1208,7 @@ describe("siblingsAtLocation", () => {
             projectVersionId: "projectVersion123",
             steps: [],
         };
-        expect(siblingsAtLocation([1], rootStep)).toBe(1);
+        expect(siblingsAtLocation([1], rootStep, console)).toBe(1);
     });
 
     it("should return the correct number of siblings for a DirectoryStep", () => {
@@ -1009,7 +1221,7 @@ describe("siblingsAtLocation", () => {
             ],
         } as DirectoryStep;
 
-        expect(siblingsAtLocation([1, 2], rootStep)).toBe(3);
+        expect(siblingsAtLocation([1, 2], rootStep, console)).toBe(3);
     });
 
     it("should return the correct number of siblings for a MultiRoutineStep", () => {
@@ -1022,7 +1234,7 @@ describe("siblingsAtLocation", () => {
             ],
         } as MultiRoutineStep;
 
-        expect(siblingsAtLocation([1, 2], rootStep)).toBe(3);
+        expect(siblingsAtLocation([1, 2], rootStep, console)).toBe(3);
     });
 
     it("should return the correct number of siblings for a RoutineListStep", () => {
@@ -1034,7 +1246,7 @@ describe("siblingsAtLocation", () => {
             ],
         } as RoutineListStep;
 
-        expect(siblingsAtLocation([1, 2], rootStep)).toBe(2);
+        expect(siblingsAtLocation([1, 2], rootStep, console)).toBe(2);
     });
 
     it("should return 1 for an unknown step type", () => {
@@ -1042,7 +1254,7 @@ describe("siblingsAtLocation", () => {
             __type: "UnknownType" as RunStepType,
         } as unknown as RootStep;
 
-        expect(siblingsAtLocation([1, 2], rootStep)).toBe(1);
+        expect(siblingsAtLocation([1, 2], rootStep, console)).toBe(1);
     });
 
     it("should handle deeply nested locations", () => {
@@ -1077,13 +1289,13 @@ describe("siblingsAtLocation", () => {
             ],
         } as DirectoryStep;
 
-        expect(siblingsAtLocation([1, 1, 1], rootStep)).toBe(3);
-        expect(siblingsAtLocation([1, 1, 2], rootStep)).toBe(3);
-        expect(siblingsAtLocation([1, 1, 3], rootStep)).toBe(3);
-        expect(siblingsAtLocation([1, 1, 2, 1], rootStep)).toBe(4);
-        expect(siblingsAtLocation([1, 1, 2, 2], rootStep)).toBe(4);
-        expect(siblingsAtLocation([1, 1, 2, 3], rootStep)).toBe(4);
-        expect(siblingsAtLocation([1, 1, 2, 4], rootStep)).toBe(4);
+        expect(siblingsAtLocation([1, 1, 1], rootStep, console)).toBe(3);
+        expect(siblingsAtLocation([1, 1, 2], rootStep, console)).toBe(3);
+        expect(siblingsAtLocation([1, 1, 3], rootStep, console)).toBe(3);
+        expect(siblingsAtLocation([1, 1, 2, 1], rootStep, console)).toBe(4);
+        expect(siblingsAtLocation([1, 1, 2, 2], rootStep, console)).toBe(4);
+        expect(siblingsAtLocation([1, 1, 2, 3], rootStep, console)).toBe(4);
+        expect(siblingsAtLocation([1, 1, 2, 4], rootStep, console)).toBe(4);
     });
 
     it("should return 0 and log an error when parent is not found", () => {
@@ -1100,7 +1312,7 @@ describe("siblingsAtLocation", () => {
             steps: [],
         };
 
-        const result = siblingsAtLocation([1, 2, 3], rootStep);
+        const result = siblingsAtLocation([1, 2, 3], rootStep, console);
         expect(result).toBe(0);
         expect(console.error).toHaveBeenCalled();
     });
@@ -1570,7 +1782,7 @@ describe("getStepComplexity", () => {
             nodeId: "1",
             wasSuccessful: true,
         };
-        expect(getStepComplexity(endStep)).toBe(0);
+        expect(getStepComplexity(endStep, console)).toBe(0);
     });
 
     it("should return 0 for Start step", () => {
@@ -1582,7 +1794,7 @@ describe("getStepComplexity", () => {
             nodeId: "1",
             location: [1],
         };
-        expect(getStepComplexity(startStep)).toBe(0);
+        expect(getStepComplexity(startStep, console)).toBe(0);
     });
 
     it("should return 1 for Decision step", () => {
@@ -1593,7 +1805,7 @@ describe("getStepComplexity", () => {
             location: [1],
             options: [],
         };
-        expect(getStepComplexity(decisionStep)).toBe(1);
+        expect(getStepComplexity(decisionStep, console)).toBe(1);
     });
 
     it("should return the complexity of SingleRoutine step", () => {
@@ -1604,7 +1816,7 @@ describe("getStepComplexity", () => {
             location: [1],
             routineVersion: { complexity: 3, id: "1", routineType: RoutineType.MultiStep } as RoutineVersion,
         };
-        expect(getStepComplexity(singleRoutineStep)).toBe(3); // Complexity of the routine version
+        expect(getStepComplexity(singleRoutineStep, console)).toBe(3); // Complexity of the routine version
     });
 
     it("should calculate complexity for MultiRoutine step", () => {
@@ -1668,7 +1880,7 @@ describe("getStepComplexity", () => {
             nodeLinks: [],
             routineVersionId: "1",
         };
-        expect(getStepComplexity(multiRoutineStep)).toBe(11);
+        expect(getStepComplexity(multiRoutineStep, console)).toBe(11);
     });
 
     it("should calculate complexity for RoutineList step", () => {
@@ -1818,7 +2030,7 @@ describe("getStepComplexity", () => {
                 },
             ],
         };
-        expect(getStepComplexity(routineListStep)).toBe(15);
+        expect(getStepComplexity(routineListStep, console)).toBe(15);
     });
 
     it("should calculate complexity for Directory step", () => {
@@ -1860,7 +2072,7 @@ describe("getStepComplexity", () => {
                 },
             ],
         };
-        expect(getStepComplexity(directoryStep)).toBe(14);
+        expect(getStepComplexity(directoryStep, console)).toBe(14);
     });
 });
 
@@ -2129,7 +2341,7 @@ describe("sortStepsAndAddDecisions", () => {
             } as EndStep,
         ];
         const nodeLinks = [] as NodeLink[];
-        const result = sortStepsAndAddDecisions(steps, nodeLinks);
+        const result = sortStepsAndAddDecisions(steps, nodeLinks, console);
         expect(result).toEqual(steps); // Result should be unchanged
     });
 
@@ -2161,7 +2373,7 @@ describe("sortStepsAndAddDecisions", () => {
             { from: { id: "1" }, to: { id: "2" } },
             { from: { id: "2" }, to: { id: "3" } },
         ] as NodeLink[];
-        const result = sortStepsAndAddDecisions(steps, nodeLinks);
+        const result = sortStepsAndAddDecisions(steps, nodeLinks, console);
         expect(result.map(step => (step as { nodeId: string | null }).nodeId)).toEqual(["1", "2", "3"]);
     });
 
@@ -2206,7 +2418,7 @@ describe("sortStepsAndAddDecisions", () => {
             { from: { id: "2" }, to: { id: "4" } },
             { from: { id: "3" }, to: { id: "4" } },
         ] as NodeLink[];
-        const result = sortStepsAndAddDecisions(steps, nodeLinks);
+        const result = sortStepsAndAddDecisions(steps, nodeLinks, console);
         expectValidStepSequence(result, nodeLinks);
         expect(result.length).toBe(steps.length + 1); // One decision step
     });
@@ -2264,7 +2476,7 @@ describe("sortStepsAndAddDecisions", () => {
             // Third RoutineList to first RoutineList
             { from: { id: "4" }, to: { id: "2" } },
         ] as NodeLink[];
-        const result = sortStepsAndAddDecisions(steps, nodeLinks);
+        const result = sortStepsAndAddDecisions(steps, nodeLinks, console);
         expectValidStepSequence(result, nodeLinks);
         expect(result.length).toBe(steps.length + 1); // One decision step
     });
@@ -2342,7 +2554,7 @@ describe("sortStepsAndAddDecisions", () => {
             // Fourth RoutineList points to second End
             { from: { id: "6" }, to: { id: "7" } },
         ] as NodeLink[];
-        const result = sortStepsAndAddDecisions(steps, nodeLinks);
+        const result = sortStepsAndAddDecisions(steps, nodeLinks, console);
         expectValidStepSequence(result, nodeLinks);
         expect(result.length).toBe(steps.length + 4); // Four decision steps
     });
@@ -2387,7 +2599,7 @@ describe("sortStepsAndAddDecisions", () => {
             { from: { id: "2" }, to: { id: "3" } },
             // Second RoutineList has no links
         ] as NodeLink[];
-        const result = sortStepsAndAddDecisions(steps, nodeLinks);
+        const result = sortStepsAndAddDecisions(steps, nodeLinks, console);
         expect(result.map(step => (step as { nodeId: string | null }).nodeId)).toEqual(["1", "2", "3"]);
     });
 
@@ -2435,7 +2647,7 @@ describe("sortStepsAndAddDecisions", () => {
             { from: { id: "1" }, to: { id: "2" } },
             { from: { id: "2" }, to: { id: "3" } },
         ] as NodeLink[];
-        const result = sortStepsAndAddDecisions(steps, nodeLinks);
+        const result = sortStepsAndAddDecisions(steps, nodeLinks, console);
         const routineListStep = result.find(step => step.__type === RunStepType.RoutineList) as RoutineListStep;
         expect(routineListStep.steps[0].location).toEqual([...routineListStep.location, 1]);
         expect(routineListStep.steps[1].location).toEqual([...routineListStep.location, 2]);
@@ -2610,7 +2822,7 @@ describe("multiRoutineToStep", () => {
             versionLabel: "1.0.0",
             you: {} as RoutineVersionYou,
         };
-        const result = multiRoutineToStep(routineVersion, [1, 2], ["en"]);
+        const result = multiRoutineToStep(routineVersion, [1, 2], ["en"], console);
         expect(result).toEqual({
             __type: RunStepType.MultiRoutine,
             description: "english description",
@@ -2807,7 +3019,7 @@ describe("runnableObjectToStep", () => {
             versionLabel: "1.0.0",
             you: {} as RoutineVersionYou,
         };
-        const result = runnableObjectToStep(routineVersion, [1], ["en"]);
+        const result = runnableObjectToStep(routineVersion, [1], ["en"], console);
         expect(result).toEqual({
             __type: RunStepType.SingleRoutine,
             description: "english description",
@@ -2924,7 +3136,7 @@ describe("runnableObjectToStep", () => {
             versionLabel: "1.0.0",
             you: {} as RoutineVersionYou,
         };
-        const result = runnableObjectToStep(routineVersion, [1, 2], ["en"]);
+        const result = runnableObjectToStep(routineVersion, [1, 2], ["en"], console);
         expect(result).toEqual({
             __type: RunStepType.MultiRoutine,
             description: "english description",
@@ -3009,7 +3221,7 @@ describe("runnableObjectToStep", () => {
             versionLabel: "1.2.3",
             you: {} as ProjectVersionYou,
         };
-        const result = runnableObjectToStep(projectVersion, [1, 2], ["en"]);
+        const result = runnableObjectToStep(projectVersion, [1, 2], ["en"], console);
         expect(result).toEqual({
             __type: RunStepType.Directory,
             description: "english description",
@@ -3031,6 +3243,134 @@ describe("runnableObjectToStep", () => {
                 isRoot: false,
                 projectVersionId: projectVersion.id,
                 steps: [],
+            }],
+        });
+    });
+});
+
+describe("addSubroutinesToStep", () => {
+    it("should do nothing when no subroutines are provided", () => {
+        const rootStep = {
+            __type: RunStepType.MultiRoutine,
+            description: "english description",
+            name: "english name",
+            location: [1, 2],
+            routineVersionId: uuid(),
+            nodeLinks: [],
+            nodes: [],
+        } as MultiRoutineStep;
+        const result = addSubroutinesToStep([], rootStep, ["en"], console);
+        expect(result).toEqual(rootStep);
+    });
+
+    it("should add subroutines where the routine ID matches a SingleRoutineStep's routine ID", () => {
+        const rootStep: MultiRoutineStep = {
+            __type: RunStepType.MultiRoutine,
+            description: "root",
+            location: [1],
+            name: "root",
+            nodes: [{
+                __type: RunStepType.Start,
+                description: "start",
+                location: [1, 1],
+                name: "start",
+                nextLocation: [8, 33, 3],
+                nodeId: "startNode",
+            }, {
+                __type: RunStepType.RoutineList,
+                description: "routine list level 1",
+                isOrdered: false,
+                location: [1, 2],
+                name: "routine list level 1",
+                nextLocation: [],
+                nodeId: "routineListNode1",
+                parentRoutineVersionId: "routine123",
+                steps: [{
+                    __type: RunStepType.MultiRoutine,
+                    description: "multi routine level 2",
+                    location: [1, 2, 1],
+                    name: "multi routine level 2",
+                    nodes: [{
+                        __type: RunStepType.RoutineList,
+                        description: "routine list level 3",
+                        isOrdered: false,
+                        name: "routine list level 3",
+                        nextLocation: [],
+                        location: [1, 2, 1, 1],
+                        nodeId: "routineListNode3",
+                        parentRoutineVersionId: "routine123",
+                        steps: [{
+                            __type: RunStepType.SingleRoutine,
+                            description: "subroutine",
+                            location: [1, 2, 1, 1, 1],
+                            name: "subroutine",
+                            routineVersion: { id: "deepRoutineVersion" } as RunnableRoutineVersion,
+                        }],
+                    }],
+                    nodeLinks: [],
+                    routineVersionId: "level2Routine",
+                }],
+            }, {
+                __type: RunStepType.End,
+                description: "end",
+                location: [1, 3],
+                name: "end",
+                nextLocation: null,
+                nodeId: "endNode",
+                wasSuccessful: false,
+            }],
+            nodeLinks: [],
+            routineVersionId: "rootRoutine",
+        };
+        const subroutines: RunnableRoutineVersion[] = [{
+            __typename: "RoutineVersion",
+            id: "deepRoutineVersion",
+            created_at: new Date().toISOString(),
+            complexity: 2,
+            configCallData: "{}",
+            configFormInput: "{}",
+            configFormOutput: "{}",
+            nodeLinks: [],
+            nodes: [],
+            root: {
+                __typename: "Routine",
+                id: uuid(),
+            } as Routine,
+            routineType: RoutineType.MultiStep,
+            translations: [{
+                __typename: "RoutineVersionTranslation",
+                id: uuid(),
+                language: "en",
+                name: "subroutine name",
+                description: "subroutine description",
+            }],
+            versionLabel: "1.0.0",
+            you: {} as RoutineVersionYou,
+        }];
+        const result = addSubroutinesToStep(subroutines, rootStep, ["en"], console);
+        expect(result).toEqual({
+            ...rootStep,
+            nodes: [{
+                ...rootStep.nodes[0],
+            }, {
+                ...rootStep.nodes[1],
+                steps: [{
+                    ...(rootStep.nodes[1] as RoutineListStep).steps[0],
+                    nodes: [{
+                        ...((rootStep.nodes[1] as RoutineListStep).steps[0] as MultiRoutineStep).nodes[0],
+                        steps: [{
+                            __type: RunStepType.MultiRoutine,
+                            description: "subroutine description",
+                            location: [1, 2, 1, 1, 1],
+                            name: "subroutine name",
+                            nodeLinks: [],
+                            nodes: [],
+                            routineVersionId: "deepRoutineVersion",
+                        }],
+                    }],
+                }],
+            }, {
+                ...rootStep.nodes[2],
             }],
         });
     });

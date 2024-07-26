@@ -1,4 +1,4 @@
-import { NodeRoutineListItem } from "@local/shared";
+import { getTranslation, NodeRoutineListItem } from "@local/shared";
 import { Box, Button, Collapse, Container, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { useDebounce } from "hooks/useDebounce";
 import usePress from "hooks/usePress";
@@ -8,11 +8,10 @@ import { useTranslation } from "react-i18next";
 import { multiLineEllipsis, noSelect, textShadow } from "styles";
 import { BuildAction } from "utils/consts";
 import { firstString } from "utils/display/stringTools";
-import { getTranslation } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { NodeWithRoutineListCrud } from "views/objects/node/NodeWithRoutineListCrud/NodeWithRoutineListCrud";
 import { NodeWithRoutineList } from "views/objects/node/types";
-import { DraggableNode, SubroutineNode, calculateNodeSize } from "..";
+import { calculateNodeSize, DraggableNode, SubroutineNode } from "..";
 import { NodeContextMenu, NodeWidth } from "../..";
 import { routineNodeActionStyle, routineNodeCheckboxOption } from "../styles";
 import { RoutineListNodeProps } from "../types";

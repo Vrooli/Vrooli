@@ -25,6 +25,7 @@ export const typeDef = gql`
         contextSwitches: Int
         name: String!
         status: RunStatus!
+        timeElapsed: Int
         stepsCreate: [RunRoutineStepCreateInput!]
         inputsCreate: [RunRoutineInputCreateInput!]
         scheduleCreate: ScheduleCreateInput
@@ -107,23 +108,6 @@ export const typeDef = gql`
         node: RunRoutine!
     }
 
-    input RunRoutineCompleteInput {
-        id: ID! # Run ID if "exists" is true, or routine version ID if "exists" is false
-        completedComplexity: Int # Even though the runRoutine was completed, the user may not have completed every subroutine
-        exists: Boolean # If true, runRoutine ID is provided, otherwise routine ID so we can create a runRoutine
-        name: String # Title of routine, so runRoutine name stays consistent even if routine updates/deletes
-        finalStepCreate: RunRoutineStepCreateInput
-        finalStepUpdate: RunRoutineStepUpdateInput
-        inputsDelete: [ID!]
-        inputsCreate: [RunRoutineInputCreateInput!]
-        inputsUpdate: [RunRoutineInputUpdateInput!]
-        routineVersionConnect: ID # Only needed if "exists" is false
-        wasSuccessful: Boolean
-    }
-    input RunRoutineCancelInput {
-        id: ID!
-    }
-
     extend type Query {
         runRoutine(input: FindByIdInput!): RunRoutine
         runRoutines(input: RunRoutineSearchInput!): RunRoutineSearchResult!
@@ -133,8 +117,6 @@ export const typeDef = gql`
         runRoutineCreate(input: RunRoutineCreateInput!): RunRoutine!
         runRoutineUpdate(input: RunRoutineUpdateInput!): RunRoutine!
         runRoutineDeleteAll: Count!
-        runRoutineComplete(input: RunRoutineCompleteInput!): RunRoutine!
-        runRoutineCancel(input: RunRoutineCancelInput!): RunRoutine!
     }
 `;
 

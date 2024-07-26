@@ -1,9 +1,9 @@
-import { GqlModelType, MaxObjects, ResourceListFor, ResourceListSortBy, resourceListValidation, uppercaseFirstLetter } from "@local/shared";
+import { GqlModelType, MaxObjects, ResourceListFor, ResourceListSortBy, getTranslation, resourceListValidation, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { ModelMap } from ".";
 import { findFirstRel } from "../../builders/findFirstRel";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { ResourceListFormat } from "../formats";
 import { ResourceListModelInfo, ResourceListModelLogic } from "./types";
@@ -27,7 +27,7 @@ export const ResourceListModel: ResourceListModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+            get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
     }),
     format: ResourceListFormat,

@@ -7,7 +7,7 @@ import { CountryCallingCode, CountryCode } from "libphonenumber-js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PhoneNumberInputBaseProps, PhoneNumberInputProps } from "../types";
 
-export const PhoneNumberInputBase = ({
+export function PhoneNumberInputBase({
     autoComplete = "tel",
     autoFocus = false,
     error,
@@ -19,7 +19,7 @@ export const PhoneNumberInputBase = ({
     setError,
     value,
     ...props
-}: PhoneNumberInputBaseProps) => {
+}: PhoneNumberInputBaseProps) {
     const { palette } = useTheme();
     const [selectedCountry, setSelectedCountry] = useState<CountryCode>("US");
     const [phoneNumber, setPhoneNumber] = useState(typeof value === "string" ? value : "");
@@ -119,13 +119,13 @@ export const PhoneNumberInputBase = ({
 
     const [filteredCountries, setFilteredCountries] = useState<{ country: CountryCode, num: CountryCallingCode }[]>([]);
     useMemo(() => {
-        const filterCountries = async () => {
+        async function filterCountries() {
             const libphonenumber = await import("libphonenumber-js");
             return libphonenumber.getCountries().filter((country) => (
                 country.toLowerCase().includes(filter.toLowerCase()) ||
                 libphonenumber.getCountryCallingCode(country as CountryCode).includes(filter)
             )).map((country) => ({ country, num: libphonenumber.getCountryCallingCode(country as CountryCode) }));
-        };
+        }
         filterCountries().then(setFilteredCountries);
     }, [filter]);
 
@@ -198,13 +198,13 @@ export const PhoneNumberInputBase = ({
             </Popover>
         </>
     );
-};
+}
 
-export const PhoneNumberInput = ({
+export function PhoneNumberInput({
     name,
     onChange,
     ...props
-}: PhoneNumberInputProps) => {
+}: PhoneNumberInputProps) {
     const [field, meta, helpers] = useField(name);
 
     return (
@@ -224,4 +224,4 @@ export const PhoneNumberInput = ({
             }}
         />
     );
-};
+}

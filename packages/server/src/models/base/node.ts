@@ -1,10 +1,10 @@
-import { MaxObjects, nodeValidation } from "@local/shared";
+import { MaxObjects, getTranslation, nodeValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
-import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { NodeFormat } from "../formats";
 import { NodeModelInfo, NodeModelLogic, RoutineVersionModelInfo, RoutineVersionModelLogic } from "./types";
@@ -18,7 +18,7 @@ export const NodeModel: NodeModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+            get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
     }),
     format: NodeFormat,

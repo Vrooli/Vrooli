@@ -1,7 +1,7 @@
 /**
  * Prompts user to select which link the new node should be added on
  */
-import { NodeLink } from "@local/shared";
+import { getTranslation, NodeLink } from "@local/shared";
 import { DialogContent, List, ListItem, ListItemText } from "@mui/material";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { ListMenuItemData } from "components/dialogs/types";
@@ -9,7 +9,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { getUserLanguages } from "utils/display/translationTools";
 import { AddAfterLinkDialogProps } from "../types";
 
 const titleId = "add-after-link-dialog-title";

@@ -1,17 +1,10 @@
-import { Count, MaxObjects, RunRoutine, RunRoutineCancelInput, RunRoutineCompleteInput, RunRoutineSortBy, runRoutineValidation } from "@local/shared";
-import { RunStatus, RunStepStatus, run_routine } from "@prisma/client";
+import { Count, MaxObjects, RunRoutineSortBy, runRoutineValidation } from "@local/shared";
+import { RunStatus, RunStepStatus } from "@prisma/client";
 import { ModelMap } from ".";
-import { addSupplementalFields } from "../../builders/addSupplementalFields";
-import { modelToGql } from "../../builders/modelToGql";
 import { noNull } from "../../builders/noNull";
-import { selectHelper } from "../../builders/selectHelper";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
-import { GraphQLInfo } from "../../builders/types";
 import { prismaInstance } from "../../db/instance";
-import { CustomError } from "../../events/error";
 import { Trigger } from "../../events/trigger";
-import { SessionUserToken } from "../../types";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { RunRoutineFormat } from "../formats";
@@ -67,14 +60,19 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
     mutate: {
         shape: {
             create: async ({ data, ...rest }) => {
+                let contextSwitches = noNull(data.contextSwitches);
+                if (contextSwitches !== undefined) contextSwitches = Math.max(contextSwitches, 0);
+                let timeElapsed = noNull(data.timeElapsed);
+                if (timeElapsed !== undefined) timeElapsed = Math.max(timeElapsed, 0);
                 return {
                     id: data.id,
                     completedComplexity: noNull(data.completedComplexity),
-                    contextSwitches: noNull(data.contextSwitches),
+                    contextSwitches,
                     embeddingNeedsUpdate: true,
                     isPrivate: data.isPrivate,
                     name: data.name,
                     status: noNull(data.status),
+                    timeElapsed,
                     startedAt: data.status === RunStatus.InProgress ? new Date() : undefined,
                     completedAt: data.status === RunStatus.Completed ? new Date() : undefined,
                     user: data.teamConnect ? undefined : { connect: { id: rest.userData.id } },
@@ -87,12 +85,16 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                 };
             },
             update: async ({ data, ...rest }) => {
+                let contextSwitches = noNull(data.contextSwitches);
+                if (contextSwitches !== undefined) contextSwitches = Math.max(contextSwitches, 0);
+                let timeElapsed = noNull(data.timeElapsed);
+                if (timeElapsed !== undefined) timeElapsed = Math.max(timeElapsed, 0);
                 return {
                     completedComplexity: noNull(data.completedComplexity),
-                    contextSwitches: noNull(data.contextSwitches),
+                    contextSwitches,
                     isPrivate: noNull(data.isPrivate),
                     status: noNull(data.status),
-                    timeElapsed: noNull(data.timeElapsed),
+                    timeElapsed,
                     // TODO should have way of checking old status, so we don't reset startedAt/completedAt
                     startedAt: data.status === RunStatus.InProgress ? new Date() : undefined,
                     completedAt: data.status === RunStatus.Completed ? new Date() : undefined,
@@ -103,7 +105,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
             },
         },
         trigger: {
-            afterMutations: ({ createInputs, createdIds, updatedIds, updateInputs, userData }) => {
+            afterMutations: ({ createInputs, updatedIds, updateInputs, userData }) => {
                 // Handle run start trigger for every run with status InProgress
                 for (const { id, status } of createInputs) {
                     if (status === RunStatus.InProgress) {
@@ -132,135 +134,6 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
             },
         },
         yup: runRoutineValidation,
-    },
-    run: {
-        /**
-         * Marks a run as completed. Run does not have to exist, since this can be called on simple routines 
-         * via the "Mark as Complete" button. We could create a new run every time a simple routine is viewed 
-         * to get around this, but I'm not sure if that would be a good idea. Most of the time, I imagine users
-         * will just be looking at the routine instead of using it.
-         */
-        async complete(userData: SessionUserToken, input: RunRoutineCompleteInput, info: GraphQLInfo): Promise<RunRoutine> {
-            // Convert info to partial
-            const partial = toPartialGqlInfo(info, ModelMap.get<RunRoutineModelLogic>("RunRoutine").format.gqlRelMap, userData.languages, true);
-            let run: run_routine | null;
-            // Check if run is being created or updated
-            if (input.exists) {
-                // Find in database
-                run = await prismaInstance.run_routine.findFirst({
-                    where: {
-                        AND: [
-                            { userId: userData.id },
-                            { id: input.id },
-                        ],
-                    },
-                });
-                if (!run) throw new CustomError("0180", "NotFound", userData.languages);
-                const { timeElapsed, contextSwitches, completedComplexity } = run;
-                // Update object
-                run = await prismaInstance.run_routine.update({
-                    where: { id: input.id },
-                    data: {
-                        completedComplexity: completedComplexity + (input.completedComplexity ?? 0),
-                        contextSwitches: contextSwitches + (input.finalStepCreate?.contextSwitches ?? input.finalStepUpdate?.contextSwitches ?? 0),
-                        status: input.wasSuccessful === false ? RunStatus.Failed : RunStatus.Completed,
-                        completedAt: new Date(),
-                        timeElapsed: (timeElapsed ?? 0) + (input.finalStepCreate?.timeElapsed ?? input.finalStepUpdate?.timeElapsed ?? 0),
-                        steps: {
-                            create: input.finalStepCreate ? {
-                                order: input.finalStepCreate.order ?? 1,
-                                name: input.finalStepCreate.name ?? "",
-                                contextSwitches: input.finalStepCreate.contextSwitches ?? 0,
-                                timeElapsed: input.finalStepCreate.timeElapsed,
-                                status: input.wasSuccessful === false ? RunStatus.Failed : RunStatus.Completed,
-                            } as any : undefined,
-                            update: input.finalStepUpdate ? {
-                                id: input.finalStepUpdate.id,
-                                contextSwitches: input.finalStepUpdate.contextSwitches ?? 0,
-                                timeElapsed: input.finalStepUpdate.timeElapsed,
-                                status: input.finalStepUpdate.status ?? (input.wasSuccessful === false ? RunStatus.Failed : RunStatus.Completed),
-                            } as any : undefined,
-                        },
-                        //TODO
-                        // inputs: {
-                        //     create: input.finalInputCreate ? {
-                        // }
-                    },
-                    ...selectHelper(partial),
-                });
-            } else {
-                // Create new run
-                run = await prismaInstance.run_routine.create({
-                    data: {
-                        completedComplexity: input.completedComplexity ?? 0,
-                        startedAt: new Date(),
-                        completedAt: new Date(),
-                        timeElapsed: input.finalStepCreate?.timeElapsed ?? input.finalStepUpdate?.timeElapsed ?? 0,
-                        contextSwitches: input.finalStepCreate?.contextSwitches ?? input.finalStepUpdate?.contextSwitches ?? 0,
-                        routineVersionId: input.id,
-                        status: input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed,
-                        name: input.name ?? "",
-                        userId: userData.id,
-                        steps: {
-                            create: input.finalStepCreate ? {
-                                order: input.finalStepCreate.order ?? 1,
-                                name: input.finalStepCreate.name ?? "",
-                                contextSwitches: input.finalStepCreate.contextSwitches ?? 0,
-                                timeElapsed: input.finalStepCreate.timeElapsed,
-                                status: input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed,
-                            } as any : input.finalStepUpdate ? {
-                                id: input.finalStepUpdate.id,
-                                contextSwitches: input.finalStepUpdate.contextSwitches ?? 0,
-                                timeElapsed: input.finalStepUpdate.timeElapsed,
-                                status: input.finalStepUpdate?.status ?? (input.wasSuccessful ? RunStatus.Completed : RunStatus.Failed),
-                            } : undefined,
-                        },
-                        //TODO inputs
-                    },
-                    ...selectHelper(partial),
-                });
-            }
-            // Convert to GraphQL
-            let converted: any = modelToGql(run, partial);
-            // Add supplemental fields
-            converted = (await addSupplementalFields(userData, [converted], partial))[0];
-            // Handle trigger
-            if (input.wasSuccessful) await Trigger(userData.languages).runRoutineComplete(input.id, userData.id, false);
-            else await Trigger(userData.languages).runRoutineFail(input.id, userData.id, false);
-            // Return converted object
-            return converted as RunRoutine;
-        },
-        /**
-         * Cancels a run
-         */
-        async cancel(userData: SessionUserToken, input: RunRoutineCancelInput, info: GraphQLInfo): Promise<RunRoutine> {
-            // Convert info to partial
-            const partial = toPartialGqlInfo(info, ModelMap.get<RunRoutineModelLogic>("RunRoutine").format.gqlRelMap, userData.languages, true);
-            // Find in database
-            const object = await prismaInstance.run_routine.findFirst({
-                where: {
-                    AND: [
-                        { userId: userData.id },
-                        { id: input.id },
-                    ],
-                },
-            });
-            if (!object) throw new CustomError("0182", "NotFound", userData.languages);
-            // Update object
-            const updated = await prismaInstance.run_routine.update({
-                where: { id: input.id },
-                data: {
-                    status: RunStatus.Cancelled,
-                },
-                ...selectHelper(partial),
-            });
-            // Convert to GraphQL
-            let converted: any = modelToGql(updated, partial);
-            // Add supplemental fields
-            converted = (await addSupplementalFields(userData, [converted], partial))[0];
-            // Return converted object
-            return converted as RunRoutine;
-        },
     },
     search: {
         defaultSort: RunRoutineSortBy.DateUpdatedDesc,

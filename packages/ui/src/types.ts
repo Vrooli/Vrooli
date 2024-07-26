@@ -15,6 +15,7 @@ export type PartialOrArrayWithType<T> = T extends { __typename: string }[] ?
     PartialWithType<T> :
     never;
 export interface SvgProps {
+    className?: string;
     fill?: string;
     iconTitle?: string;
     id?: string;

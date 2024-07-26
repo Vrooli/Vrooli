@@ -15,6 +15,7 @@ export const runProjectStepValidation: YupModel<["create", "update"]> = {
     }, [
         ["directory", ["Connect"], "one", "opt"],
         ["node", ["Connect"], "one", "opt"],
+        ["runProject", ["Connect"], "one", "req"],
     ], [], d),
     update: (d) => yupObj({
         id: req(id),

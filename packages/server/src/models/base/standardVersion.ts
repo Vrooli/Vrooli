@@ -1,10 +1,10 @@
-import { MaxObjects, StandardCreateInput, StandardVersionCreateInput, StandardVersionSortBy, StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput, standardVersionValidation } from "@local/shared";
+import { MaxObjects, StandardCreateInput, StandardVersionCreateInput, StandardVersionSortBy, StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput, getTranslation, standardVersionValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { randomString } from "../../auth/codes";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { SessionUserToken } from "../../types";
-import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
+import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { sortify } from "../../utils/objectTools";
 import { PreShapeVersionResult, afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
@@ -80,7 +80,7 @@ const querier = () => ({
      */
     async generateName(userId: string, languages: string[], data: StandardVersionCreateInput): Promise<string> {
         // First, check if name was already provided
-        const translatedName = "";//bestTranslation(data.translationsCreate ?? [], 'name', languages)?.name ?? "";
+        const translatedName = "";//getTranslation(data, 'name', languages).name ?? "";
         if (translatedName.length > 0) return translatedName;
         // Otherwise, generate name based on type and random string
         const name = `${data.standardType} ${randomString(5)}`;
@@ -96,7 +96,7 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+            get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
         embed: {
             select: () => ({
@@ -105,11 +105,11 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
                 translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } },
             }),
             get: ({ root, translations }, languages) => {
-                const trans = bestTranslation(translations, languages);
+                const trans = getTranslation({ translations }, languages);
                 return getEmbeddableString({
-                    name: trans?.name,
+                    name: trans.name,
                     tags: (root as any).tags.map(({ tag }) => tag),
-                    description: trans?.description,
+                    description: trans.description,
                 }, languages[0]);
             },
         },

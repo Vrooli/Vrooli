@@ -1,8 +1,8 @@
-import { MaxObjects, ResourceSortBy, resourceValidation } from "@local/shared";
+import { MaxObjects, ResourceSortBy, getTranslation, resourceValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { bestTranslation, oneIsPublic } from "../../utils";
+import { oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { ResourceFormat } from "../formats";
 import { ResourceListModelInfo, ResourceListModelLogic, ResourceModelInfo, ResourceModelLogic } from "./types";
@@ -15,7 +15,7 @@ export const ResourceModel: ResourceModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+            get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
     }),
     format: ResourceFormat,

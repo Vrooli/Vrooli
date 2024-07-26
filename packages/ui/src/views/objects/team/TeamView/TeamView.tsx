@@ -1,4 +1,4 @@
-import { BookmarkFor, LINKS, ListObject, ResourceList as ResourceListType, Team, endpointGetTeam, uuidValidate } from "@local/shared";
+import { BookmarkFor, LINKS, ListObject, ResourceList as ResourceListType, Team, endpointGetTeam, getTranslation, uuidValidate } from "@local/shared";
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
@@ -26,7 +26,7 @@ import { BannerImageContainer, OverviewContainer, OverviewProfileAvatar, Overvie
 import { extractImageUrl } from "utils/display/imageTools";
 import { placeholderColor } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { TeamPageTabOption, teamTabParams } from "utils/search/objectToSearch";
 import { TeamViewProps } from "../types";

@@ -1,4 +1,4 @@
-import { ApiVersion, BookmarkFor, endpointGetApiVersion, ResourceList as ResourceListType } from "@local/shared";
+import { ApiVersion, BookmarkFor, ResourceList as ResourceListType, endpointGetApiVersion, getTranslation } from "@local/shared";
 import { Avatar, Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
@@ -19,7 +19,7 @@ import { useLocation } from "route";
 import { OverviewContainer } from "styles";
 import { placeholderColor } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
 import { ApiViewProps } from "../types";
 
 export function ApiView({

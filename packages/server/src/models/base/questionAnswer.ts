@@ -1,6 +1,6 @@
-import { MaxObjects, QuestionAnswerSortBy, questionAnswerValidation } from "@local/shared";
+import { MaxObjects, QuestionAnswerSortBy, getTranslation, questionAnswerValidation } from "@local/shared";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { bestTranslation, defaultPermissions } from "../../utils";
+import { defaultPermissions } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { QuestionAnswerFormat } from "../formats";
 import { QuestionAnswerModelLogic } from "./types";
@@ -13,7 +13,7 @@ export const QuestionAnswerModel: QuestionAnswerModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.text ?? "",
+            get: (select, languages) => getTranslation(select, languages).text ?? "",
         },
     }),
     format: QuestionAnswerFormat,

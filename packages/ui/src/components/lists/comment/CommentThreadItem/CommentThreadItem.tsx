@@ -1,4 +1,4 @@
-import { BookmarkFor, Comment, CommentFor, DeleteOneInput, DeleteType, endpointPostDeleteOne, ReactionFor, ReportFor, Success } from "@local/shared";
+import { BookmarkFor, Comment, CommentFor, DeleteOneInput, DeleteType, ReactionFor, ReportFor, Success, endpointPostDeleteOne, getTranslation } from "@local/shared";
 import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
@@ -14,7 +14,7 @@ import { useCallback, useContext, useMemo, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { getYou } from "utils/display/listTools";
 import { displayDate } from "utils/display/stringTools";
-import { getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { getUserLanguages } from "utils/display/translationTools";
 import { ObjectType } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { CommentUpsert } from "views/objects/comment";

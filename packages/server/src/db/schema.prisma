@@ -2131,21 +2131,21 @@ model run_routine_input {
 }
 
 model run_routine_step {
-    id                  String           @id @default(uuid()) @db.Uuid
-    order               Int
-    contextSwitches     Int              @default(0)
-    runRoutineId        String           @db.Uuid
-    nodeId              String?          @db.Uuid
-    subroutineVersionId String?          @db.Uuid
-    startedAt           DateTime?        @db.Timestamptz(6)
-    timeElapsed         Int?
-    completedAt         DateTime?        @db.Timestamptz(6)
-    step                Int[]
-    status              RunStepStatus    @default(InProgress)
-    name                String           @db.VarChar(128)
-    node                node?            @relation("run_routine_step_node", fields: [nodeId], references: [id], onDelete: SetNull)
-    runRoutine          run_routine      @relation("run_routine_step_run", fields: [runRoutineId], references: [id], onDelete: Cascade)
-    subroutine          routine_version? @relation("run_routine_step_subroutine", fields: [subroutineVersionId], references: [id])
+    id              String           @id @default(uuid()) @db.Uuid
+    order           Int
+    contextSwitches Int              @default(0)
+    runRoutineId    String           @db.Uuid
+    nodeId          String?          @db.Uuid
+    subroutineId    String?          @db.Uuid
+    startedAt       DateTime?        @db.Timestamptz(6)
+    timeElapsed     Int?
+    completedAt     DateTime?        @db.Timestamptz(6)
+    step            Int[]
+    status          RunStepStatus    @default(InProgress)
+    name            String           @db.VarChar(128)
+    node            node?            @relation("run_routine_step_node", fields: [nodeId], references: [id], onDelete: SetNull)
+    runRoutine      run_routine      @relation("run_routine_step_run", fields: [runRoutineId], references: [id], onDelete: Cascade)
+    subroutine      routine_version? @relation("run_routine_step_subroutine", fields: [subroutineId], references: [id])
 }
 
 model schedule {

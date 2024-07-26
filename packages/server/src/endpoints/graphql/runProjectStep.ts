@@ -18,6 +18,7 @@ export const typeDef = gql`
         timeElapsed: Int
         directoryConnect: ID
         nodeConnect: ID
+        runProjectConnect: ID!
     }
     input RunProjectStepUpdateInput {
         id: ID!
@@ -35,9 +36,9 @@ export const typeDef = gql`
         name: String!
         status: RunProjectStepStatus!
         step: [Int!]!
-        run: RunProject!
-        node: Node
         directory: ProjectVersionDirectory
+        node: Node
+        runProject: RunProject!
     }
 
 `;

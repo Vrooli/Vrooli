@@ -1,8 +1,8 @@
-import { MaxObjects, QuizQuestionSortBy, quizQuestionValidation } from "@local/shared";
+import { MaxObjects, QuizQuestionSortBy, getTranslation, quizQuestionValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
 import { QuizQuestionFormat } from "../formats";
@@ -17,7 +17,7 @@ export const QuizQuestionModel: QuizQuestionModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, questionText: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.questionText ?? "",
+            get: (select, languages) => getTranslation(select, languages).questionText ?? "",
         },
     }),
     format: QuizQuestionFormat,

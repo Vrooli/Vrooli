@@ -1,8 +1,8 @@
-import { MaxObjects, RoleSortBy, roleValidation } from "@local/shared";
+import { MaxObjects, RoleSortBy, getTranslation, roleValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { RoleFormat } from "../formats";
 import { RoleModelInfo, RoleModelLogic, TeamModelInfo, TeamModelLogic } from "./types";
@@ -21,7 +21,7 @@ export const RoleModel: RoleModelLogic = ({
             }),
             get: (select, languages) => {
                 // Prefer translated name over default name
-                const translated = bestTranslation(select.translations, languages)?.name ?? "";
+                const translated = getTranslation(select, languages).name ?? "";
                 if (translated.length > 0) return translated;
                 return select.name;
             },

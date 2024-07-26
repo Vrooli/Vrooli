@@ -16,7 +16,7 @@ export type RunProjectShape = Pick<RunProject, "id" | "isPrivate" | "completedCo
 
 export const shapeRunProject: ShapeModel<RunProjectShape, RunProjectCreateInput, RunProjectUpdateInput> = {
     create: (d) => ({
-        ...createPrims(d, "id", "isPrivate", "completedComplexity", "contextSwitches", "name", "status"),
+        ...createPrims(d, "id", "isPrivate", "completedComplexity", "contextSwitches", "name", "status", "timeElapsed"),
         ...createRel(d, "steps", ["Create"], "many", shapeRunProjectStep),
         ...createRel(d, "schedule", ["Create"], "one", shapeSchedule),
         ...createRel(d, "projectVersion", ["Connect"], "one"),

@@ -1,9 +1,9 @@
-import { BotUpdateInput, MaxObjects, ProfileUpdateInput, UserSortBy, userValidation } from "@local/shared";
+import { BotUpdateInput, MaxObjects, ProfileUpdateInput, UserSortBy, getTranslation, userValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { withRedis } from "../../redisConn";
-import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { defaultPermissions, getEmbeddableString } from "../../utils";
 import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, handlesCheck } from "../../validators";
 import { UserFormat } from "../formats";
@@ -78,9 +78,9 @@ export const UserModel: UserModelLogic = ({
         embed: {
             select: () => ({ id: true, name: true, handle: true, translations: { select: { id: true, bio: true, embeddingNeedsUpdate: true } } }),
             get: ({ name, handle, translations }, languages) => {
-                const trans = bestTranslation(translations, languages);
+                const trans = getTranslation({ translations }, languages);
                 return getEmbeddableString({
-                    bio: trans?.bio,
+                    bio: trans.bio,
                     handle,
                     name,
                 }, languages[0]);

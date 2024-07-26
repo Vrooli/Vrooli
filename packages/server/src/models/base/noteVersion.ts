@@ -1,8 +1,8 @@
-import { MaxObjects, NoteVersionSortBy, noteVersionValidation } from "@local/shared";
+import { MaxObjects, NoteVersionSortBy, getTranslation, noteVersionValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
+import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { PreShapeVersionResult, afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { NoteVersionFormat } from "../formats";
@@ -19,7 +19,7 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+            get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
         embed: {
             select: () => ({
@@ -28,11 +28,11 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
                 translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } },
             }),
             get: ({ root, translations }, languages) => {
-                const trans = bestTranslation(translations, languages);
+                const trans = getTranslation({ translations }, languages);
                 return getEmbeddableString({
-                    name: trans?.name,
+                    name: trans.name,
                     tags: (root as any).tags.map(({ tag }) => tag),
-                    description: trans?.description?.slice(0, 256),
+                    description: trans.description?.slice(0, 256),
                 }, languages[0]);
             },
         },

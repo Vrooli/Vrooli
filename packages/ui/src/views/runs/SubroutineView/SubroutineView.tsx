@@ -1,23 +1,20 @@
-import { exists, noop, noopSubmit, ResourceList as ResourceListType, RoutineType, RoutineVersion, Tag } from "@local/shared";
+import { ResourceList as ResourceListType, RoutineType, Tag, exists, getTranslation, noop, noopSubmit } from "@local/shared";
 import { Box, Stack } from "@mui/material";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { ResourceList } from "components/lists/resource";
 import { TagList } from "components/lists/TagList/TagList";
+import { ResourceList } from "components/lists/resource";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { generateInitialValues, generateYupSchema } from "forms/generators";
-import { useObjectActions } from "hooks/useObjectActions";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
 import { FormSection } from "styles";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
-import { defaultSchemaInput, defaultSchemaOutput, parseConfigCallData, parseSchemaInputOutput } from "utils/runUtils";
+import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
+import { parseConfigCallData, parseSchemaInput, parseSchemaOutput } from "utils/runUtils";
 import { ResourceListShape } from "utils/shape/models/resourceList";
 import { RoutineShape } from "utils/shape/models/routine";
 import { TagShape } from "utils/shape/models/tag";
@@ -32,26 +29,19 @@ const basicInfoStackStyle = {
     padding: 2,
 } as const;
 
-//TODO update to latest from RoutineView
 export function SubroutineView({
     loading,
-    handleUserInputsUpdate,
-    handleSaveProgress,
-    onClose,
-    owner,
+    inputFormikRef,
     routineVersion,
-    run,
 }: SubroutineViewProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
-    const [, setLocation] = useLocation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     const [internalRoutineVersion, setInternalRoutineVersion] = useState(routineVersion);
     useEffect(() => {
         setInternalRoutineVersion(routineVersion);
     }, [routineVersion]);
-    const updateRoutine = useCallback((routineVersion: RoutineVersion) => { setInternalRoutineVersion(routineVersion); }, [setInternalRoutineVersion]);
 
     const availableLanguages = useMemo<string[]>(() => (internalRoutineVersion?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [internalRoutineVersion?.translations]);
     useEffect(() => {
@@ -59,40 +49,24 @@ export function SubroutineView({
         setLanguage(getPreferredLanguage(availableLanguages, getUserLanguages(session)));
     }, [availableLanguages, setLanguage, session]);
 
-    const { description, instructions, name } = useMemo(() => {
+    const { description, instructions } = useMemo(() => {
         const languages = getUserLanguages(session);
-        const { description, instructions, name } = getTranslation(internalRoutineVersion, languages, true);
+        const { description, instructions } = getTranslation(internalRoutineVersion, languages, true);
         return {
             description,
             instructions,
-            name,
         };
     }, [internalRoutineVersion, session]);
 
-    const confirmLeave = useCallback((callback: () => any) => {
-        // Confirmation dialog for leaving routine
-        PubSub.get().publish("alertDialog", {
-            messageKey: "RunStopConfirm",
-            buttons: [
-                {
-                    labelKey: "Yes",
-                    onClick: () => {
-                        // Save progress
-                        handleSaveProgress();
-                        // Trigger callback
-                        callback();
-                    },
-                },
-                { labelKey: "Cancel" },
-            ],
-        });
-    }, [handleSaveProgress]);
-
     const configCallData = useMemo(function configCallDataMemo() {
-        return parseConfigCallData(routineVersion.configCallData, routineVersion.routineType);
+        return parseConfigCallData(routineVersion.configCallData, routineVersion.routineType, console);
     }, [routineVersion.configCallData, routineVersion.routineType]);
-    const schemaInput = useMemo(() => parseSchemaInputOutput(routineVersion.configFormInput, defaultSchemaInput), [routineVersion.configFormInput]);
-    const schemaOutput = useMemo(() => parseSchemaInputOutput(routineVersion.configFormOutput, defaultSchemaOutput), [routineVersion.configFormOutput]);
+    const schemaInput = useMemo(function schemaInputMemo() {
+        return parseSchemaInput(routineVersion.configFormInput, routineVersion.routineType, console);
+    }, [routineVersion.configFormInput, routineVersion.routineType]);
+    const schemaOutput = useMemo(function schemaOutputMemo() {
+        return parseSchemaOutput(routineVersion.configFormOutput, routineVersion.routineType, console);
+    }, [routineVersion.configFormOutput, routineVersion.routineType]);
 
     const routineTypeBaseProps = useMemo(function routineTypeBasePropsMemo() {
         return {
@@ -136,37 +110,6 @@ export function SubroutineView({
         return schemaInput ? generateYupSchema(schemaInput) : undefined;
     }, [schemaInput]);
 
-    //TODO
-    // /**
-    //  * Update formik values with the current user inputs, if any
-    //  */
-    // useEffect(() => {
-    //     if (!run?.inputs || !Array.isArray(run?.inputs) || run.inputs.length === 0) return;
-    //     const updatedValues = runInputsToFormik(run.inputs);
-    //     formik.setValues(updatedValues);
-    //     // eslint-disable-next-line react-hooks/exhaustive-deps
-    // }, [formik.setValues, run?.inputs]);
-
-    //TODO
-    // /**
-    //  * Update run with updated user inputs
-    //  */
-    // useEffect(() => {
-    //     if (!formik.values) return;
-    //     const updatedValues = formikToRunInputs(formik.values);
-    //     handleUserInputsUpdate(updatedValues);
-    // }, [handleUserInputsUpdate, formik.values, run?.inputs]);
-
-    const markAsComplete = () => { }; //TODO
-
-    const actionData = useObjectActions({
-        object: internalRoutineVersion,
-        objectType: "RoutineVersion",
-        openAddCommentDialog: noop,
-        setLocation,
-        setObject: setInternalRoutineVersion,
-    });
-
     const initialValues = useMemo(() => routineInitialValues(session, internalRoutineVersion), [internalRoutineVersion, session]);
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
@@ -206,10 +149,11 @@ export function SubroutineView({
                         <Formik
                             enableReinitialize={true}
                             initialValues={inputInitialValues}
-                            onSubmit={markAsComplete}
+                            innerRef={inputFormikRef}
+                            onSubmit={noopSubmit} // Form submission is handled elsewhere
                             validationSchema={inputValidationSchema}
                         >
-                            {(formik) => (
+                            {() => (
                                 <FormSection>
                                     {routineTypeComponents}
                                 </FormSection>

@@ -1,4 +1,4 @@
-import { BookmarkFor, FindByIdOrHandleInput, LINKS, ListObject, User, endpointGetProfile, endpointGetUser, getObjectUrl, noop, uuid, uuidValidate } from "@local/shared";
+import { BookmarkFor, FindByIdOrHandleInput, LINKS, ListObject, User, endpointGetProfile, endpointGetUser, getObjectUrl, getTranslation, noop, uuid, uuidValidate } from "@local/shared";
 import { Box, IconButton, InputAdornment, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import BannerDefault from "assets/img/BannerDefault.png";
 import BannerDefaultBot from "assets/img/BannerDefaultBot.png";
@@ -31,7 +31,7 @@ import { findBotData } from "utils/botUtils";
 import { getCookieMatchingChat, getCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
 import { defaultYou, getDisplay, getYou, placeholderColor } from "utils/display/listTools";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
 import { UrlInfo, parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { UserPageTabOption, userTabParams } from "utils/search/objectToSearch";
@@ -190,10 +190,8 @@ export function UserView({
         if (user.isBot) {
             const bestLanguage = getUserLanguages(session)[0];
             const { translations } = findBotData(bestLanguage, user);
-            const bestTranslation = translations.length > 0
-                ? translations.find(t => t.language === bestLanguage) ?? translations[0]
-                : undefined;
-            const startingMessage = bestTranslation?.startingMessage ?? "";
+            const bestTranslation = getTranslation({ translations }, [bestLanguage]);
+            const startingMessage = bestTranslation.startingMessage ?? "";
             if (startingMessage.length > 0) {
                 (initialChatData as unknown as { messages: Partial<ChatShape["messages"]> }).messages = [{
                     id: uuid(),

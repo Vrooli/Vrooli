@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { LlmTask } from "../api/generated/graphqlTypes";
 import { PassableLogger } from "../consts/commonTypes";
+import { DEFAULT_LANGUAGE } from "../consts/ui";
 import { CommandToTask, LlmTaskConfig, LlmTaskStructuredConfig, LlmTaskUnstructuredConfig } from "./types";
-
-export const DEFAULT_LANGUAGE = "en";
 
 export const getLlmConfigLocation = async (): Promise<string> => {
     // Test environment - Use absolute path

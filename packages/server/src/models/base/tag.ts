@@ -1,7 +1,7 @@
-import { MaxObjects, TagSortBy, tagValidation } from "@local/shared";
+import { MaxObjects, TagSortBy, getTranslation, tagValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { prismaInstance } from "../../db/instance";
-import { bestTranslation, defaultPermissions } from "../../utils";
+import { defaultPermissions } from "../../utils";
 import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString";
 import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { TagFormat } from "../formats";
@@ -23,9 +23,9 @@ export const TagModel: TagModelLogic = ({
         embed: {
             select: () => ({ id: true, tag: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, description: true } } }),
             get: ({ tag, translations }, languages) => {
-                const trans = bestTranslation(translations, languages);
+                const trans = getTranslation({ translations }, languages);
                 return getEmbeddableString({
-                    description: trans?.description,
+                    description: trans.description,
                     tag,
                 }, languages[0]);
             },

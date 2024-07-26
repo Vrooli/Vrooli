@@ -1342,18 +1342,6 @@ export const endpointDeleteRunProjectDeleteAll = {
     tag: "runProject",
 } as const;
 
-export const endpointPutRunProjectComplete = {
-    endpoint: "/runProject/:id/complete",
-    method: "PUT",
-    tag: "runProject",
-} as const;
-
-export const endpointPutRunProjectCancel = {
-    endpoint: "/runProject/:id/cancel",
-    method: "PUT",
-    tag: "runProject",
-} as const;
-
 export const endpointGetRunRoutine = {
     endpoint: "/runRoutine/:id",
     method: "GET",
@@ -1381,18 +1369,6 @@ export const endpointPostRunRoutine = {
 export const endpointDeleteRunRoutineDeleteAll = {
     endpoint: "/runRoutine/deleteAll",
     method: "DELETE",
-    tag: "runRoutine",
-} as const;
-
-export const endpointPutRunRoutineComplete = {
-    endpoint: "/runRoutine/:id/complete",
-    method: "PUT",
-    tag: "runRoutine",
-} as const;
-
-export const endpointPutRunRoutineCancel = {
-    endpoint: "/runRoutine/:id/cancel",
-    method: "PUT",
     tag: "runRoutine",
 } as const;
 

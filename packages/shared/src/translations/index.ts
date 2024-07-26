@@ -41,3 +41,5 @@ export const i18nConfig = (debug: boolean, appendNS = true) => ({
     },
     appendNamespaceToCIMode: appendNS,
 });
+
+export * from "./translationTools";

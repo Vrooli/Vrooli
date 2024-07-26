@@ -1,7 +1,7 @@
+import { DEFAULT_LANGUAGE, getTranslation } from "@local/shared";
 import { prismaInstance } from "../db/instance";
 import { logger } from "../events/logger";
 import { SessionUserToken } from "../types";
-import { bestTranslation } from "./bestTranslation";
 
 /** Information for a message, collected in mutate.shape.pre */
 export type PreMapMessageData = {
@@ -185,18 +185,18 @@ export const populateMessageDataMap = (
         // If we've already populated this message, skip it
         if (messageMap[message.id]) return;
 
-        const bestTrans = bestTranslation<{ language: string, text: string }>(message.translations, userData.languages);
-        if (!bestTrans) {
+        const bestTrans = getTranslation<{ language: string, text: string }>(message, userData.languages);
+        if (Object.keys(bestTrans).length === 0) {
             logger.warning("No translation found for message", { trace: "0441", message: message?.id, user: userData.id });
             return;
         }
 
         const messageData: PreMapMessageData = {
             chatId: message.chat?.id ?? null,
-            content: bestTrans.text,
+            content: bestTrans.text ?? "",
             id: message.id,
             isNew: false, // Any message fetched from the database is not new by definition
-            language: bestTrans.language,
+            language: bestTrans.language ?? DEFAULT_LANGUAGE,
             parentId: message.parent?.id ?? undefined,
             translations: message.translations.map((t: { language: string; text: string }) => ({
                 language: t.language,

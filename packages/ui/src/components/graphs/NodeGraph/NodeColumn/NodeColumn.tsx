@@ -1,14 +1,13 @@
 /**
  * Displays a list of nodes vertically.
  */
-import { NodeType } from "@local/shared";
+import { getTranslation, NodeType } from "@local/shared";
 import { Box, Stack } from "@mui/material";
 import { useMemo } from "react";
 import { BuildAction } from "utils/consts";
-import { getTranslation } from "utils/display/translationTools";
 import { NodeShape } from "utils/shape/models/node";
 import { NodeWithEndShape, NodeWithRoutineListShape } from "views/objects/node/types";
-import { EndNode, RedirectNode, RoutineListNode, StartNode, calculateNodeSize } from "../nodes";
+import { calculateNodeSize, EndNode, RedirectNode, RoutineListNode, StartNode } from "../nodes";
 import { NodeColumnProps } from "../types";
 
 export function NodeColumn({

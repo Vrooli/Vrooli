@@ -3056,34 +3056,6 @@
         }
       }
     },
-    "/runProject/{id}/complete": {
-      "put": {
-        "operationId": "endpointPutRunProjectComplete",
-        "tags": [
-          "runProject"
-        ],
-        "parameters": [],
-        "responses": {
-          "default": {
-            "description": "Default response. Replace this with real responses."
-          }
-        }
-      }
-    },
-    "/runProject/{id}/cancel": {
-      "put": {
-        "operationId": "endpointPutRunProjectCancel",
-        "tags": [
-          "runProject"
-        ],
-        "parameters": [],
-        "responses": {
-          "default": {
-            "description": "Default response. Replace this with real responses."
-          }
-        }
-      }
-    },
     "/runRoutine/{id}": {
       "get": {
         "operationId": "endpointGetRunRoutine",
@@ -3141,34 +3113,6 @@
     "/runRoutine/deleteAll": {
       "delete": {
         "operationId": "endpointDeleteRunRoutineDeleteAll",
-        "tags": [
-          "runRoutine"
-        ],
-        "parameters": [],
-        "responses": {
-          "default": {
-            "description": "Default response. Replace this with real responses."
-          }
-        }
-      }
-    },
-    "/runRoutine/{id}/complete": {
-      "put": {
-        "operationId": "endpointPutRunRoutineComplete",
-        "tags": [
-          "runRoutine"
-        ],
-        "parameters": [],
-        "responses": {
-          "default": {
-            "description": "Default response. Replace this with real responses."
-          }
-        }
-      }
-    },
-    "/runRoutine/{id}/cancel": {
-      "put": {
-        "operationId": "endpointPutRunRoutineCancel",
         "tags": [
           "runRoutine"
         ],
@@ -37562,80 +37506,6 @@
         "title": "RunProject",
         "type": "object"
       },
-      "RunProjectCancelInput": {
-        "properties": {
-          "id": {
-            "title": "RunProjectCancelInput.id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id"
-        ],
-        "additionalProperties": false,
-        "title": "RunProjectCancelInput",
-        "type": "object"
-      },
-      "RunProjectCompleteInput": {
-        "properties": {
-          "completedComplexity": {
-            "title": "RunProjectCompleteInput.completedComplexity",
-            "nullable": true,
-            "type": "number"
-          },
-          "exists": {
-            "title": "RunProjectCompleteInput.exists",
-            "nullable": true,
-            "type": "boolean"
-          },
-          "finalStepCreate": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/RunProjectStepCreateInput",
-                "title": "RunProjectCompleteInput.finalStepCreate"
-              },
-              {
-                "title": "RunProjectCompleteInput.finalStepCreate",
-                "nullable": true
-              }
-            ],
-            "title": "RunProjectCompleteInput.finalStepCreate"
-          },
-          "finalStepUpdate": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/RunProjectStepUpdateInput",
-                "title": "RunProjectCompleteInput.finalStepUpdate"
-              },
-              {
-                "title": "RunProjectCompleteInput.finalStepUpdate",
-                "nullable": true
-              }
-            ],
-            "title": "RunProjectCompleteInput.finalStepUpdate"
-          },
-          "id": {
-            "title": "RunProjectCompleteInput.id",
-            "type": "string"
-          },
-          "name": {
-            "title": "RunProjectCompleteInput.name",
-            "nullable": true,
-            "type": "string"
-          },
-          "wasSuccessful": {
-            "title": "RunProjectCompleteInput.wasSuccessful",
-            "nullable": true,
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "id"
-        ],
-        "additionalProperties": false,
-        "title": "RunProjectCompleteInput",
-        "type": "object"
-      },
       "RunProjectCreateInput": {
         "properties": {
           "completedComplexity": {
@@ -37708,6 +37578,11 @@
             "title": "RunProjectCreateInput.teamConnect",
             "nullable": true,
             "type": "string"
+          },
+          "timeElapsed": {
+            "title": "RunProjectCreateInput.timeElapsed",
+            "nullable": true,
+            "type": "number"
           }
         },
         "required": [
@@ -38381,9 +38256,9 @@
             "title": "RunProjectStep.order",
             "type": "number"
           },
-          "run": {
+          "runProject": {
             "$ref": "#/components/schemas/RunProject",
-            "title": "RunProjectStep.run"
+            "title": "RunProjectStep.runProject"
           },
           "startedAt": {
             "title": "RunProjectStep.startedAt",
@@ -38418,7 +38293,7 @@
           "id",
           "name",
           "order",
-          "run",
+          "runProject",
           "status",
           "step"
         ],
@@ -38455,6 +38330,10 @@
             "title": "RunProjectStepCreateInput.order",
             "type": "number"
           },
+          "runProjectConnect": {
+            "title": "RunProjectStepCreateInput.runProjectConnect",
+            "type": "string"
+          },
           "status": {
             "anyOf": [
               {
@@ -38490,6 +38369,7 @@
           "id",
           "name",
           "order",
+          "runProjectConnect",
           "step"
         ],
         "additionalProperties": false,
@@ -38884,133 +38764,6 @@
         "title": "RunRoutine",
         "type": "object"
       },
-      "RunRoutineCancelInput": {
-        "properties": {
-          "id": {
-            "title": "RunRoutineCancelInput.id",
-            "type": "string"
-          }
-        },
-        "required": [
-          "id"
-        ],
-        "additionalProperties": false,
-        "title": "RunRoutineCancelInput",
-        "type": "object"
-      },
-      "RunRoutineCompleteInput": {
-        "properties": {
-          "completedComplexity": {
-            "title": "RunRoutineCompleteInput.completedComplexity",
-            "nullable": true,
-            "type": "number"
-          },
-          "exists": {
-            "title": "RunRoutineCompleteInput.exists",
-            "nullable": true,
-            "type": "boolean"
-          },
-          "finalStepCreate": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/RunRoutineStepCreateInput",
-                "title": "RunRoutineCompleteInput.finalStepCreate"
-              },
-              {
-                "title": "RunRoutineCompleteInput.finalStepCreate",
-                "nullable": true
-              }
-            ],
-            "title": "RunRoutineCompleteInput.finalStepCreate"
-          },
-          "finalStepUpdate": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/RunRoutineStepUpdateInput",
-                "title": "RunRoutineCompleteInput.finalStepUpdate"
-              },
-              {
-                "title": "RunRoutineCompleteInput.finalStepUpdate",
-                "nullable": true
-              }
-            ],
-            "title": "RunRoutineCompleteInput.finalStepUpdate"
-          },
-          "id": {
-            "title": "RunRoutineCompleteInput.id",
-            "type": "string"
-          },
-          "inputsCreate": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/RunRoutineInputCreateInput"
-                },
-                "title": "RunRoutineCompleteInput.inputsCreate",
-                "type": "array"
-              },
-              {
-                "title": "RunRoutineCompleteInput.inputsCreate",
-                "nullable": true
-              }
-            ],
-            "title": "RunRoutineCompleteInput.inputsCreate"
-          },
-          "inputsDelete": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "string"
-                },
-                "title": "RunRoutineCompleteInput.inputsDelete",
-                "type": "array"
-              },
-              {
-                "title": "RunRoutineCompleteInput.inputsDelete",
-                "nullable": true
-              }
-            ],
-            "title": "RunRoutineCompleteInput.inputsDelete"
-          },
-          "inputsUpdate": {
-            "anyOf": [
-              {
-                "items": {
-                  "$ref": "#/components/schemas/RunRoutineInputUpdateInput"
-                },
-                "title": "RunRoutineCompleteInput.inputsUpdate",
-                "type": "array"
-              },
-              {
-                "title": "RunRoutineCompleteInput.inputsUpdate",
-                "nullable": true
-              }
-            ],
-            "title": "RunRoutineCompleteInput.inputsUpdate"
-          },
-          "name": {
-            "title": "RunRoutineCompleteInput.name",
-            "nullable": true,
-            "type": "string"
-          },
-          "routineVersionConnect": {
-            "title": "RunRoutineCompleteInput.routineVersionConnect",
-            "nullable": true,
-            "type": "string"
-          },
-          "wasSuccessful": {
-            "title": "RunRoutineCompleteInput.wasSuccessful",
-            "nullable": true,
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "id"
-        ],
-        "additionalProperties": false,
-        "title": "RunRoutineCompleteInput",
-        "type": "object"
-      },
       "RunRoutineCreateInput": {
         "properties": {
           "completedComplexity": {
@@ -39104,6 +38857,11 @@
             "title": "RunRoutineCreateInput.teamConnect",
             "nullable": true,
             "type": "string"
+          },
+          "timeElapsed": {
+            "title": "RunRoutineCreateInput.timeElapsed",
+            "nullable": true,
+            "type": "number"
           }
         },
         "required": [
@@ -39693,9 +39451,9 @@
             "title": "RunRoutineStep.order",
             "type": "number"
           },
-          "run": {
+          "runRoutine": {
             "$ref": "#/components/schemas/RunRoutine",
-            "title": "RunRoutineStep.run"
+            "title": "RunRoutineStep.runRoutine"
           },
           "startedAt": {
             "title": "RunRoutineStep.startedAt",
@@ -39743,7 +39501,7 @@
           "id",
           "name",
           "order",
-          "run",
+          "runRoutine",
           "status",
           "step"
         ],
@@ -39775,6 +39533,10 @@
             "title": "RunRoutineStepCreateInput.order",
             "type": "number"
           },
+          "runRoutineConnect": {
+            "title": "RunRoutineStepCreateInput.runRoutineConnect",
+            "type": "string"
+          },
           "status": {
             "anyOf": [
               {
@@ -39800,8 +39562,8 @@
             "title": "RunRoutineStepCreateInput.step",
             "type": "array"
           },
-          "subroutineVersionConnect": {
-            "title": "RunRoutineStepCreateInput.subroutineVersionConnect",
+          "subroutineConnect": {
+            "title": "RunRoutineStepCreateInput.subroutineConnect",
             "nullable": true,
             "type": "string"
           },
@@ -39815,6 +39577,7 @@
           "id",
           "name",
           "order",
+          "runRoutineConnect",
           "step"
         ],
         "additionalProperties": false,

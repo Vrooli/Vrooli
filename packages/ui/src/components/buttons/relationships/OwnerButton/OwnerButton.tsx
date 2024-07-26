@@ -1,4 +1,4 @@
-import { User, exists, noop } from "@local/shared";
+import { User, exists, getTranslation, noop } from "@local/shared";
 import { Tooltip } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { ListMenu } from "components/dialogs/ListMenu/ListMenu";
@@ -16,7 +16,7 @@ import { getCurrentUser } from "utils/authentication/session";
 import { extractImageUrl } from "utils/display/imageTools";
 import { placeholderColor } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
-import { getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { getUserLanguages } from "utils/display/translationTools";
 import { openObject } from "utils/navigation/openObject";
 import { OwnerShape } from "utils/shape/models/types";
 import { RelationshipAvatar, RelationshipButton, RelationshipChip } from "../styles";
