@@ -1,5 +1,5 @@
-import { RunRoutineStepStatus } from "@local/shared";
 import * as yup from "yup";
+import { RunRoutineStepStatus } from "../../api/generated/graphqlTypes";
 import { enumToYup, id, intPositiveOrOne, intPositiveOrZero, name, opt, req, YupModel, yupObj } from "../utils";
 
 const runRoutineStepStatus = enumToYup(RunRoutineStepStatus);

@@ -1,7 +1,7 @@
 /**
  * Displays all search options for a team
  */
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkSearchInput, BookmarkSearchResult, Count, DeleteManyInput, DeleteType, endpointGetBookmarks, endpointPostBookmark, endpointPostDeleteMany, lowercaseFirstLetter, uuid } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkSearchInput, BookmarkSearchResult, Count, DeleteManyInput, DeleteType, endpointGetBookmarks, endpointPostBookmark, endpointPostDeleteMany, lowercaseFirstLetter, shapeBookmark, uuid } from "@local/shared";
 import { Checkbox, DialogTitle, FormControlLabel, IconButton, List, ListItem, useTheme } from "@mui/material";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { SessionContext } from "contexts/SessionContext";
@@ -10,7 +10,6 @@ import { AddIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getCurrentUser } from "utils/authentication/session";
-import { shapeBookmark } from "utils/shape/models/bookmark";
 import { BookmarkListUpsert } from "views/objects/bookmarkList";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { SelectBookmarkListDialogProps } from "../types";

@@ -1,4 +1,4 @@
-import { ApiVersion, Bookmark, BookmarkFor, CodeVersion, CommonKey, FocusMode, ListObject, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, ProjectVersion, Question, RoutineVersion, StandardVersion, Team, User } from "@local/shared";
+import { ApiVersion, Bookmark, BookmarkFor, CodeVersion, CommonKey, FocusMode, ListObject, Meeting, Node, NodeLinkShape, NodeRoutineList, NodeRoutineListItem, NodeRoutineListItemShape, NodeShape, NoteVersion, ProjectVersion, Question, RootStep, RoutineVersion, StandardVersion, Team, User } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
 import { TitleProps } from "components/text/types";
@@ -8,10 +8,6 @@ import { ReactNode } from "react";
 import { SvgComponent, SxType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { CookiePreferences } from "utils/cookies";
-import { RootStep } from "utils/runUtils";
-import { NodeShape } from "utils/shape/models/node";
-import { NodeLinkShape } from "utils/shape/models/nodeLink";
-import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
 import { ViewDisplayType } from "views/types";
 import { FindObjectTabOption } from "./FindObjectDialog/FindObjectDialog";
 

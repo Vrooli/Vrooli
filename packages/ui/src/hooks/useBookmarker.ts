@@ -1,11 +1,10 @@
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, DeleteOneInput, DeleteType, endpointGetBookmarks, endpointPostBookmark, endpointPostDeleteOne, GqlModelType, Success, uuid } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, DeleteOneInput, DeleteType, endpointGetBookmarks, endpointPostBookmark, endpointPostDeleteOne, GqlModelType, shapeBookmark, Success, uuid } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useMemo, useRef, useState } from "react";
 import { ActionCompletePayloads, ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
-import { shapeBookmark } from "utils/shape/models/bookmark";
 import { useLazyFetch } from "./useLazyFetch";
 
 type UseBookmarkerProps = {

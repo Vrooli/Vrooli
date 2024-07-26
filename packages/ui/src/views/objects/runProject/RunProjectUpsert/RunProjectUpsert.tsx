@@ -1,4 +1,4 @@
-import { DUMMY_ID, endpointGetRunProject, endpointPostRunProject, endpointPutRunProject, noopSubmit, RunProject, RunProjectCreateInput, RunProjectUpdateInput, runProjectValidation, RunStatus, Schedule, Session } from "@local/shared";
+import { DUMMY_ID, endpointGetRunProject, endpointPostRunProject, endpointPutRunProject, noopSubmit, RunProject, RunProjectCreateInput, RunProjectShape, RunProjectUpdateInput, runProjectValidation, RunStatus, Schedule, Session, shapeRunProject } from "@local/shared";
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -17,7 +17,6 @@ import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { RunProjectShape, shapeRunProject } from "utils/shape/models/runProject";
 import { validateFormValues } from "utils/validateFormValues";
 import { ScheduleUpsert } from "views/objects/schedule";
 import { RunProjectFormProps, RunProjectUpsertProps } from "../types";

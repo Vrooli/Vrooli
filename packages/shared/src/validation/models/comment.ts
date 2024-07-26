@@ -1,5 +1,5 @@
-import { CommentFor } from "@local/shared";
 import * as yup from "yup";
+import { CommentFor } from "../../api/generated/graphqlTypes";
 import { enumToYup, id, maxStrErr, minStrErr, opt, req, transRel, YupModel, yupObj } from "../utils";
 
 const createdFor = enumToYup(CommentFor);

@@ -1,9 +1,8 @@
-import { LlmTaskInfo } from "@local/shared";
+import { ChatMessageShape, LlmTaskInfo } from "@local/shared";
 import { LinearProgressProps } from "@mui/material";
 import { PageTab } from "hooks/useTabs";
 import { SxType } from "types";
 import { TabsInfo } from "utils/search/objectToSearch";
-import { ChatMessageShape } from "utils/shape/models/chatMessage";
 
 export interface ChatBubbleProps {
     /** Which sibling (version) is currently being displayed */

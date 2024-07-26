@@ -1,6 +1,5 @@
-import { Report } from "@local/shared";
+import { Report, ReportShape } from "@local/shared";
 import { FormProps } from "forms/types";
-import { ReportShape } from "utils/shape/models/report";
 import { CrudPropsDialog, CrudPropsPage } from "../types";
 import { NewReportShape } from "./ReportUpsert/ReportUpsert";
 

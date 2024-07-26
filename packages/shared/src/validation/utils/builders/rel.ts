@@ -1,5 +1,5 @@
-import { YupModelOptions } from "@local/shared";
 import * as yup from "yup";
+import { YupModelOptions } from "../../../validation/utils/types";
 import { id } from "../commonFields";
 import { YupModel, YupMutateParams } from "../types";
 import { opt } from "./opt";

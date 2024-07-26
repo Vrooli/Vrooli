@@ -1,5 +1,5 @@
+import { ChatShape } from "@local/shared";
 import { FormProps } from "forms/types";
-import { ChatShape } from "utils/shape/models/chat";
 import { CrudProps } from "../types";
 
 export type ChatCrudProps = CrudProps<ChatShape> & {

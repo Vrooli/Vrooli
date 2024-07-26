@@ -1,4 +1,4 @@
-import { FindByIdInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunProjectStep, RunProjectUpdateInput, RunRoutine, RunRoutineStep, RunRoutineUpdateInput, RunStatus, base36ToUuid, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointGetRunProject, endpointGetRunRoutine, endpointPutRunProject, endpointPutRunRoutine, getTranslation, noop, parseSearchParams, uuidValidate } from "@local/shared";
+import { DecisionStep, DetectSubstepLoadResult, FindByIdInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, RootStep, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunProjectStep, RunProjectUpdateInput, RunRoutine, RunRoutineStep, RunRoutineUpdateInput, RunStatus, RunStep, RunStepType, SingleRoutineStep, addSubdirectoriesToStep, addSubroutinesToStep, base36ToUuid, detectSubstepLoad, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointGetRunProject, endpointGetRunRoutine, endpointPutRunProject, endpointPutRunRoutine, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, getTranslation, locationArraysMatch, noop, parseRunInputs, parseSearchParams, runnableObjectToStep, saveRunProgress, siblingsAtLocation, stepFromLocation, uuidValidate } from "@local/shared";
 import { Box, BoxProps, Button, Grid, IconButton, LinearProgress, Stack, Typography, styled, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
@@ -13,11 +13,9 @@ import { RefObject, useCallback, useContext, useEffect, useMemo, useRef, useStat
 import { useTranslation } from "react-i18next";
 import { addSearchParams, removeSearchParams, useLocation } from "route";
 import { pagePaddingBottom } from "styles";
-import { RunStepType } from "utils/consts";
 import { getUserLanguages } from "utils/display/translationTools";
 import { tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
-import { DecisionStep, DetectSubstepLoadResult, RootStep, RunStep, SingleRoutineStep, addSubdirectoriesToStep, addSubroutinesToStep, detectSubstepLoad, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, locationArraysMatch, parseRunInputs, runnableObjectToStep, saveRunProgress, siblingsAtLocation, stepFromLocation } from "utils/runUtils";
 import { DecisionView } from "../DecisionView/DecisionView";
 import { SubroutineView } from "../SubroutineView/SubroutineView";
 import { RunViewProps } from "../types";
@@ -207,7 +205,6 @@ export function useStepMetrics(
     }, [updateElapsedTime]);
 
     useEffect(function initializeStepMetricsEffect() {
-        console.log("qqqq initializing step metrics", currentStepRunData);
         contextSwitches.current = currentStepRunData?.contextSwitches ?? 0;
         elapsedTimeRef.current = currentStepRunData?.elapsedTime ?? 0;
         lastFocusTime.current = Date.now();
@@ -414,6 +411,7 @@ export function RunView({
         }
 
         inputFormikRef.current?.setValues(inputs);
+        setTimeout(() => { inputFormikRef.current?.resetForm({ values: inputs }); }, 100);
     }, [run, currentLocation]);
 
     const { getContextSwitches, getElapsedTime } = useStepMetrics(currentLocation, currentStepRunData);
@@ -574,7 +572,7 @@ export function RunView({
                 isRunCompleted,
                 run,
                 runnableObject,
-                timeElapsed: Math.max(getElapsedTime(), currentStepRunData?.timeElapsed ?? 0)
+                timeElapsed: Math.max(getElapsedTime(), currentStepRunData?.timeElapsed ?? 0),
             });
         }
     }, [currentLocation, currentStepRunData, getContextSwitches, getElapsedTime, onClose, progress, rootStep, run, runnableObject, setLocation, testMode, updateRunProject, updateRunRoutine]);
@@ -594,7 +592,6 @@ export function RunView({
     }, [previousLocation, rootStep, toStep]);
 
     const handleAutoSave = useCallback(function handleAutoSaveCallback() {
-        console.log("qqqq in handleAutoSave", getElapsedTime(), getContextSwitches());
         if (testMode || !run || !rootStep) return;
 
         // Find step data
@@ -603,6 +600,7 @@ export function RunView({
 
         function onSuccess(data: RunProject | RunRoutine) {
             setRun(data);
+            // inputFormikRef.current?.resetForm();
         }
 
         saveRunProgress({

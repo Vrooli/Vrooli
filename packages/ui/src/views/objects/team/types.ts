@@ -1,6 +1,5 @@
-import { Team } from "@local/shared";
+import { Team, TeamShape } from "@local/shared";
 import { FormProps } from "forms/types";
-import { TeamShape } from "utils/shape/models/team";
 import { ObjectViewProps } from "views/types";
 import { CrudPropsDialog, CrudPropsPage } from "../types";
 

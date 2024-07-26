@@ -1,3 +1,4 @@
+import { MemberShape } from "@local/shared";
 import { AvatarGroup, Tooltip } from "@mui/material";
 import { useField, useFormikContext } from "formik";
 import { SettingsIcon, UserIcon } from "icons";
@@ -5,7 +6,6 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { extractImageUrl } from "utils/display/imageTools";
 import { placeholderColor } from "utils/display/listTools";
-import { MemberShape } from "utils/shape/models/member";
 import { MemberManageView } from "views/MemberManageView/MemberManageView";
 import { MemberManageViewProps } from "views/types";
 import { RelationshipAvatar, RelationshipButton, RelationshipChip } from "../styles";

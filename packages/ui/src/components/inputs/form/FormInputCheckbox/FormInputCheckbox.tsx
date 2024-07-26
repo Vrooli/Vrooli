@@ -1,3 +1,4 @@
+import { updateArray } from "@local/shared";
 import { Button, Checkbox, FormControl, FormControlLabel, FormGroup, FormHelperText, IconButton, TextField, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { IntegerInputBase } from "components/inputs/IntegerInput/IntegerInput";
 import { useField } from "formik";
@@ -6,7 +7,6 @@ import { AddIcon, CloseIcon, DragIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { DragDropContext, Draggable, DropResult, Droppable } from "react-beautiful-dnd";
 import { randomString } from "utils/codes";
-import { updateArray } from "utils/shape/general";
 import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles";
 import { FormInputProps } from "../types";
 

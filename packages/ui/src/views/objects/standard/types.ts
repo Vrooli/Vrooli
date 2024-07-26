@@ -1,6 +1,5 @@
-import { StandardVersion } from "@local/shared";
+import { StandardVersion, StandardVersionShape } from "@local/shared";
 import { FormProps } from "forms/types";
-import { StandardVersionShape } from "utils/shape/models/standardVersion";
 import { ObjectViewProps } from "views/types";
 import { CrudPropsDialog, CrudPropsPage } from "../types";
 

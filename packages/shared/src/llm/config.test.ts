@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { DEFAULT_LANGUAGE, LlmTask } from "@local/shared";
 import fs from "fs";
+import { LlmTask } from "../api/generated/graphqlTypes";
+import { DEFAULT_LANGUAGE } from "../consts/ui";
 import { getLlmConfigLocation, getStructuredTaskConfig, getUnstructuredTaskConfig, importCommandToTask, importConfig } from "./config";
 
 describe("llm config", () => {

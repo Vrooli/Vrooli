@@ -76,25 +76,6 @@ export type AwardDisplay = {
     progress: number;
 }
 
-/**
- * Converts objects as represented in the UI (especially forms) to create/update 
- * input objects for the GraphQL API.
- */
-export type ShapeModel<
-    T extends object,
-    TCreate extends object | null,
-    TUpdate extends object | null
-> = (TCreate extends null ? object : { create: (item: T) => TCreate }) &
-    (TUpdate extends null ? object : {
-        update: (o: T, u: T, assertHasUpdate?: boolean) => TUpdate | undefined,
-        hasObjectChanged?: (o: T, u: T) => boolean,
-    }) & { idField?: keyof T & string }
-
-export type CanConnect<
-    RelationShape extends ({ [key in IDField]: string } & { __typename: string }),
-    IDField extends string = "id",
-> = RelationShape | (Pick<RelationShape, IDField | "__typename"> & { __connect?: boolean } & { [key: string]: any });
-
 declare global {
     interface Window {
         // Enable Nami integration

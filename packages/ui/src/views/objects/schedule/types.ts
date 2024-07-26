@@ -1,7 +1,6 @@
-import { CommonKey, Schedule } from "@local/shared";
+import { CommonKey, Schedule, ScheduleShape } from "@local/shared";
 import { FormProps } from "forms/types";
 import { SvgComponent } from "types";
-import { ScheduleShape } from "utils/shape/models/schedule";
 import { ObjectViewProps } from "views/types";
 import { CrudPropsDialog, CrudPropsPage } from "../types";
 

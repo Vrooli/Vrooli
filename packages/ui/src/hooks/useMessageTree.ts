@@ -1,10 +1,9 @@
-import { ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatParticipant, CheckTaskStatusesInput, CheckTaskStatusesResult, DUMMY_ID, LlmTaskInfo, Session, endpointGetChatMessageTree, endpointGetCheckTaskStatuses, getTranslation } from "@local/shared";
+import { ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageShape, ChatParticipant, CheckTaskStatusesInput, CheckTaskStatusesResult, DUMMY_ID, LlmTaskInfo, Session, endpointGetChatMessageTree, endpointGetCheckTaskStatuses, getTranslation } from "@local/shared";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { BranchMap, getCookieMessageTree, getCookieTasksForMessage, setCookieMessageTree, setCookieTaskForMessage } from "utils/cookies";
 import { getUserLanguages } from "utils/display/translationTools";
-import { ChatMessageShape } from "utils/shape/models/chatMessage";
 import { useLazyFetch } from "./useLazyFetch";
 
 export type MinimumChatMessage = {

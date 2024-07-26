@@ -1,4 +1,4 @@
-import { CodeVersion, CommentFor, LINKS, ResourceList as ResourceListType, Tag, endpointGetCodeVersion, exists, getTranslation, noopSubmit } from "@local/shared";
+import { CodeShape, CodeVersion, CommentFor, LINKS, ResourceListShape, ResourceList as ResourceListType, Tag, TagShape, endpointGetCodeVersion, exists, getTranslation, noopSubmit } from "@local/shared";
 import { Box, Button, Divider, Stack, useTheme } from "@mui/material";
 import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -28,9 +28,6 @@ import { ObjectAction } from "utils/actions/objectActions";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
 import { SearchVersionPageTabOption } from "utils/search/objectToSearch";
-import { CodeShape } from "utils/shape/models/code";
-import { ResourceListShape } from "utils/shape/models/resourceList";
-import { TagShape } from "utils/shape/models/tag";
 import { smartContractInitialValues } from "../SmartContractUpsert/SmartContractUpsert";
 import { SmartContractViewProps } from "../types";
 

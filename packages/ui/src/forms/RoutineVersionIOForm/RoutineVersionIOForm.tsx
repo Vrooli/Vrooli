@@ -1,7 +1,5 @@
-import { DUMMY_ID, orDefault, RoutineVersionInput, routineVersionInputValidation, RoutineVersionOutput, routineVersionOutputValidation, Session, uuid } from "@local/shared";
+import { DUMMY_ID, orDefault, RoutineVersionInput, RoutineVersionInputShape, routineVersionInputValidation, RoutineVersionOutput, RoutineVersionOutputShape, routineVersionOutputValidation, Session, shapeRoutineVersionInput, shapeRoutineVersionOutput, uuid } from "@local/shared";
 import { getUserLanguages } from "utils/display/translationTools";
-import { RoutineVersionInputShape, shapeRoutineVersionInput } from "utils/shape/models/routineVersionInput";
-import { RoutineVersionOutputShape, shapeRoutineVersionOutput } from "utils/shape/models/routineVersionOutput";
 import { validateFormValues } from "utils/validateFormValues";
 
 export const routineVersionInputInitialValues = (

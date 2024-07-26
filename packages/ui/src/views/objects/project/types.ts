@@ -1,6 +1,5 @@
-import { ProjectVersion } from "@local/shared";
+import { ProjectVersion, ProjectVersionShape } from "@local/shared";
 import { FormProps } from "forms/types";
-import { ProjectVersionShape } from "utils/shape/models/projectVersion";
 import { CrudProps } from "../types";
 
 export type ProjectCrudProps = CrudProps<ProjectVersion>;

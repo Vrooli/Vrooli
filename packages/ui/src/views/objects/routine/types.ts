@@ -1,6 +1,5 @@
-import { RoutineVersion } from "@local/shared";
+import { RoutineVersion, RoutineVersionShape } from "@local/shared";
 import { FormProps } from "forms/types";
-import { RoutineVersionShape } from "utils/shape/models/routineVersion";
 import { ObjectViewProps, ViewProps } from "views/types";
 import { CrudPropsDialog, CrudPropsPage } from "../types";
 

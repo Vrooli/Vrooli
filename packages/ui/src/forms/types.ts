@@ -1,10 +1,9 @@
-import { InputType, ListObject, OrArray, TimeFrame } from "@local/shared";
+import { InputType, ListObject, OrArray, TagShape, TimeFrame } from "@local/shared";
 import { CodeInputProps, DropzoneProps, IntegerInputProps, LanguageInputProps, SelectorProps, TagSelectorProps } from "components/inputs/types";
 import { FormikProps } from "formik";
 import { Dispatch, SetStateAction } from "react";
 import { FormStructureType } from "utils/consts";
 import { SearchPageTabOption } from "utils/search/objectToSearch";
-import { TagShape } from "utils/shape/models/tag";
 import { CrudProps } from "views/objects/types";
 
 export type FormProps<Model extends OrArray<ListObject>, ModelShape extends OrArray<object>> = Omit<CrudProps<Model>, "isLoading"> & FormikProps<ModelShape> & {

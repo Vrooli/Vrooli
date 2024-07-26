@@ -1,4 +1,4 @@
-import { AutocompleteOption, ListObject, TimeFrame, deepClone, exists, lowercaseFirstLetter, parseSearchParams } from "@local/shared";
+import { AutocompleteOption, ListObject, TimeFrame, deepClone, deleteArrayIndex, exists, lowercaseFirstLetter, parseSearchParams, updateArray } from "@local/shared";
 import { SearchQueryVariablesInput } from "components/lists/types";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -7,7 +7,6 @@ import { listToAutocomplete } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { SearchType, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
-import { deleteArrayIndex, updateArray } from "utils/shape/general";
 import { useLazyFetch } from "./useLazyFetch";
 import { useStableCallback } from "./useStableCallback";
 import { useStableObject } from "./useStableObject";

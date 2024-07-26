@@ -1,4 +1,4 @@
-import { BookmarkFor, FindByIdOrHandleInput, LINKS, ListObject, User, endpointGetProfile, endpointGetUser, getObjectUrl, getTranslation, noop, uuid, uuidValidate } from "@local/shared";
+import { BookmarkFor, ChatShape, FindByIdOrHandleInput, LINKS, ListObject, User, endpointGetProfile, endpointGetUser, findBotData, getObjectUrl, getTranslation, noop, uuid, uuidValidate } from "@local/shared";
 import { Box, IconButton, InputAdornment, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import BannerDefault from "assets/img/BannerDefault.png";
 import BannerDefaultBot from "assets/img/BannerDefaultBot.png";
@@ -27,7 +27,6 @@ import { openLink, useLocation } from "route";
 import { BannerImageContainer, FormSection, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack, SideActionsButton } from "styles";
 import { PartialWithType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
-import { findBotData } from "utils/botUtils";
 import { getCookieMatchingChat, getCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
 import { defaultYou, getDisplay, getYou, placeholderColor } from "utils/display/listTools";
@@ -35,7 +34,6 @@ import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils
 import { UrlInfo, parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
 import { UserPageTabOption, userTabParams } from "utils/search/objectToSearch";
-import { ChatShape } from "utils/shape/models/chat";
 import { FeatureSlider } from "views/objects/bot";
 import { UserViewProps } from "../types";
 

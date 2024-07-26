@@ -1,4 +1,4 @@
-import { DUMMY_ID, endpointPutProfile, ProfileUpdateInput, profileValidation, User, userTranslationValidation } from "@local/shared";
+import { DUMMY_ID, endpointPutProfile, ProfileUpdateInput, profileValidation, shapeProfile, User, userTranslationValidation } from "@local/shared";
 import { Box, InputAdornment, Stack } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -20,7 +20,6 @@ import { useTranslation } from "react-i18next";
 import { FormSection, pagePaddingBottom } from "styles";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
-import { shapeProfile } from "utils/shape/models/profile";
 import { SettingsProfileFormProps, SettingsProfileViewProps } from "../types";
 
 function SettingsProfileForm({

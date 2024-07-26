@@ -1,4 +1,4 @@
-import { calculateOccurrences, CalendarEvent, Chat, ChatCreateInput, ChatInviteStatus, ChatUpdateInput, DAYS_30_MS, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList as ResourceListType, Schedule, uuid, VALYXA_ID } from "@local/shared";
+import { calculateOccurrences, CalendarEvent, Chat, ChatCreateInput, ChatInviteStatus, ChatParticipantShape, ChatShape, ChatUpdateInput, DAYS_30_MS, deleteArrayIndex, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, Reminder, ResourceList as ResourceListType, Schedule, updateArray, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Button, IconButton, styled, useTheme } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse } from "api";
 import { ChatBubbleTree, ScrollToBottomButton, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
@@ -33,9 +33,6 @@ import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { MyStuffPageTabOption } from "utils/search/objectToSearch";
-import { deleteArrayIndex, updateArray } from "utils/shape/general";
-import { ChatShape } from "utils/shape/models/chat";
-import { ChatParticipantShape } from "utils/shape/models/chatParticipant";
 import { chatInitialValues, transformChatValues, VALYXA_INFO, withModifiableMessages, withYourMessages } from "views/objects/chat";
 import { DashboardViewProps } from "../types";
 

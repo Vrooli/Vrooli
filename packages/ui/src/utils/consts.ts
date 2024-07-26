@@ -11,24 +11,6 @@ export const Forms = {
 export type Forms = ValueOf<typeof Forms>;
 
 /**
- * A general status state for an object
- */
-export enum Status {
-    /**
-     * Routine would be valid, except there are unlinked nodes
-     */
-    Incomplete = "Incomplete",
-    /**
-     * Something is wrong with the routine (e.g. no end node)
-     */
-    Invalid = "Invalid",
-    /**
-     * The routine is valid, and all nodes are linked
-     */
-    Valid = "Valid",
-}
-
-/**
  * Prompts Build page to open a specific dialog
  */
 export enum BuildAction {
@@ -61,53 +43,6 @@ export enum BuildRunState {
     Paused,
     Running,
     Stopped,
-}
-
-export enum RunStepType {
-    /**
-     * A list of related objects that are completed together. Like a RoutineList, 
-     * but for projects.
-     * 
-     * When run, the user will be prompted to select one of the objects/subdirectories in the list.
-     */
-    Directory = "Directory",
-    /**
-     * A list of related steps that are completed together.
-     * 
-     * When run, the user will be prompted to select one of the steps in the list. If the list is ordered, 
-     * the user will be suggested to complete the steps in order.
-     */
-    RoutineList = "RoutineList",
-    /**
-     * A choice for what to do next. May require user action if more than one option is available.
-     * 
-     * When run, the user will be prompted to select one of the options.
-     */
-    Decision = "Decision",
-    /**
-     * An end of the routine. No user action needed.
-     * 
-     * When run, the step is completed automatically.
-     */
-    End = "End",
-    /**
-     * Stores nodes and links of a multi-step routine.
-     * 
-     * When run, the user sees information about the routine.
-     */
-    MultiRoutine = "MultiRoutine",
-    /**
-     * Takes in inputs and performs an action (or used as a placeholder until more data is loaded).
-     * 
-     * When run, the user fills out a form and the submit button may perform an action.
-     */
-    SingleRoutine = "SingleRoutine",
-    /**
-     * The start of a routine. No user action needed.
-     * 
-     * When run, the step is completed automatically.
-     */
-    Start = "Start",
 }
 
 /**

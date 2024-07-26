@@ -1,9 +1,8 @@
+import { DecisionStep, RunStepType } from "@local/shared";
 import { ListItem, ListItemButton, ListItemProps, ListItemText, Stack, Typography, styled, useTheme } from "@mui/material";
 import { OpenInNewIcon } from "icons";
 import { useCallback, useMemo } from "react";
 import { multiLineEllipsis } from "styles";
-import { RunStepType } from "utils/consts";
-import { DecisionStep } from "utils/runUtils";
 import { DecisionViewProps } from "../types";
 
 type Decision = DecisionStep["options"][0] & {

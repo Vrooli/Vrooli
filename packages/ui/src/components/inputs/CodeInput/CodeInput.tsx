@@ -1,4 +1,4 @@
-import { ChatInviteStatus, DUMMY_ID, LangsKey, isEqual, uuid } from "@local/shared";
+import { ChatInviteStatus, DUMMY_ID, LangsKey, Status, isEqual, uuid } from "@local/shared";
 import { Box, Grid, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { StatusButton } from "components/buttons/StatusButton/StatusButton";
@@ -6,9 +6,9 @@ import { SelectorBase } from "components/inputs/Selector/Selector";
 import { useField } from "formik";
 import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Status } from "utils/consts";
 import { CodeInputProps } from "../types";
-// import { isJson } from "utils/shape/general"; // Update this so that we can lint JSON standard input type (different from normal JSON)
+// import { isJson } from "@local/shared"; // Update this so that we can lint JSON standard input type (different from normal JSON)
+import { ChatShape } from "@local/shared";
 import { SessionContext } from "contexts/SessionContext";
 import { useDebounce } from "hooks/useDebounce";
 import { MagicIcon, OpenThreadIcon, RedoIcon, RefreshIcon, UndoIcon } from "icons";
@@ -18,7 +18,6 @@ import { getCurrentUser } from "utils/authentication/session";
 import { getCookieMatchingChat } from "utils/cookies";
 import { generateContext } from "utils/display/stringTools";
 import { PubSub } from "utils/pubsub";
-import { ChatShape } from "utils/shape/models/chat";
 import { ChatCrud, VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
 import { ChatCrudProps } from "views/objects/chat/types";
 import { CodeInputBaseProps } from "../types";

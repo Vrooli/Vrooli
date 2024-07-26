@@ -1,4 +1,4 @@
-import { RunStatus } from "@local/shared";
+import { RunStatus } from "../../api/generated/graphqlTypes";
 import { bool, enumToYup, id, intPositiveOrZero, name, opt, req, YupModel, yupObj } from "../utils";
 import { runRoutineInputValidation } from "./runRoutineInput";
 import { runRoutineStepValidation } from "./runRoutineStep";

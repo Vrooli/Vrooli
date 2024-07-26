@@ -1,8 +1,6 @@
-import { ListObject, OrArray } from "@local/shared";
+import { ChatShape, ListObject, MemberInviteShape, OrArray } from "@local/shared";
 import { ReactNode } from "react";
 import { PartialOrArrayWithType, SxType } from "types";
-import { ChatShape } from "utils/shape/models/chat";
-import { MemberInviteShape } from "utils/shape/models/memberInvite";
 
 /** Views can be displayed as full pages or as dialogs */
 export type ViewDisplayType = "dialog" | "page" | "partial";

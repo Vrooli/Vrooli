@@ -1,3 +1,4 @@
+import { convertToDot, valueFromDot } from "@local/shared";
 import { Box, styled } from "@mui/material";
 import termsMarkdown from "assets/policy/terms.md";
 import { PageTabs } from "components/PageTabs/PageTabs";
@@ -9,7 +10,6 @@ import { ChangeEvent, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { PolicyTabsInfo, policyTabParams } from "utils/search/objectToSearch";
-import { convertToDot, valueFromDot } from "utils/shape/general";
 import { BUSINESS_DATA } from "..";
 import { PolicyTabOption } from "../PrivacyPolicyView/PrivacyPolicyView";
 import { TermsViewProps } from "../types";

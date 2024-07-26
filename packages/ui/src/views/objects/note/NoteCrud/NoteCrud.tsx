@@ -1,4 +1,4 @@
-import { DUMMY_ID, DeleteOneInput, DeleteType, ListObject, NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput, Session, Success, endpointGetNoteVersion, endpointPostDeleteOne, endpointPostNoteVersion, endpointPutNoteVersion, noopSubmit, noteVersionTranslationValidation, noteVersionValidation, orDefault } from "@local/shared";
+import { DUMMY_ID, DeleteOneInput, DeleteType, ListObject, NoteVersion, NoteVersionCreateInput, NoteVersionShape, NoteVersionUpdateInput, OwnerShape, Session, Success, endpointGetNoteVersion, endpointPostDeleteOne, endpointPostNoteVersion, endpointPutNoteVersion, noopSubmit, noteVersionTranslationValidation, noteVersionValidation, orDefault, shapeNoteVersion } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper, useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -33,8 +33,6 @@ import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
-import { NoteVersionShape, shapeNoteVersion } from "utils/shape/models/noteVersion";
-import { OwnerShape } from "utils/shape/models/types";
 import { validateFormValues } from "utils/validateFormValues";
 import { NoteCrudProps } from "views/objects/note/types";
 import { NoteFormProps } from "../types";

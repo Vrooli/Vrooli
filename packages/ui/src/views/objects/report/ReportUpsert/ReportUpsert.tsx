@@ -1,4 +1,4 @@
-import { DUMMY_ID, endpointGetReport, endpointPostReport, endpointPutReport, noopSubmit, Report, ReportCreateInput, ReportFor, ReportUpdateInput, reportValidation, Session } from "@local/shared";
+import { DUMMY_ID, endpointGetReport, endpointPostReport, endpointPutReport, noopSubmit, Report, ReportCreateInput, ReportFor, ReportShape, ReportUpdateInput, reportValidation, Session, shapeReport } from "@local/shared";
 import { Link, Typography } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -21,7 +21,6 @@ import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { clickSize, FormContainer } from "styles";
 import { getUserLanguages } from "utils/display/translationTools";
-import { ReportShape, shapeReport } from "utils/shape/models/report";
 import { validateFormValues } from "utils/validateFormValues";
 import { ReportFormProps, ReportUpsertProps } from "../types";
 

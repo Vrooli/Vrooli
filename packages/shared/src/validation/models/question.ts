@@ -1,6 +1,7 @@
-import { maxStrErr, minStrErr, QuestionForType } from "@local/shared";
 import * as yup from "yup";
-import { bool, enumToYup, id, name, opt, referencing, req, transRel, YupModel, yupObj } from "../utils";
+import { QuestionForType } from "../../api/generated/graphqlTypes";
+import { YupModel, bool, enumToYup, id, name, opt, referencing, req, transRel, yupObj } from "../utils";
+import { maxStrErr, minStrErr } from "../utils/errors";
 
 const forObjectType = enumToYup(QuestionForType);
 const description = yup.string().trim().removeEmptyString().min(1, minStrErr).max(16384, maxStrErr);

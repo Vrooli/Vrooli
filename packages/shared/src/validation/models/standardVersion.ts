@@ -1,5 +1,5 @@
-import { InputType } from "@local/shared";
 import * as yup from "yup";
+import { InputType } from "../../consts/model";
 import { bool, description, enumToYup, id, jsonVariable, maxStrErr, name, opt, req, transRel, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
 import { resourceListValidation } from "./resourceList";
 import { standardValidation } from "./standard";

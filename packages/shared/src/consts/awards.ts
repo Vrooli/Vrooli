@@ -1,5 +1,5 @@
-import { AwardKey } from "@local/shared";
 import { AwardCategory } from "../api/generated/graphqlTypes";
+import { type AwardKey } from "../types";
 
 /**
  * Maps award categories to their tiers, if applicable. Special cases are handled

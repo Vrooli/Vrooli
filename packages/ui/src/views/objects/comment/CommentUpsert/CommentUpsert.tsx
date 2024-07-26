@@ -1,4 +1,4 @@
-import { camelCase, Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, commentTranslationValidation, CommentUpdateInput, commentValidation, DUMMY_ID, endpointGetComments, endpointPostComment, endpointPutComment, noopSubmit, orDefault, Session, uuidValidate } from "@local/shared";
+import { camelCase, Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentShape, commentTranslationValidation, CommentUpdateInput, commentValidation, DUMMY_ID, endpointGetComments, endpointPostComment, endpointPutComment, noopSubmit, orDefault, Session, shapeComment, uuidValidate } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -20,7 +20,6 @@ import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { defaultYou, getDisplay, getYou } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { CommentShape, shapeComment } from "utils/shape/models/comment";
 import { validateFormValues } from "utils/validateFormValues";
 import { CommentFormProps, CommentUpsertProps } from "../types";
 

@@ -1,6 +1,5 @@
-import { Resource } from "@local/shared";
+import { Resource, ResourceShape } from "@local/shared";
 import { FormProps } from "forms/types";
-import { ResourceShape } from "utils/shape/models/resource";
 import { CrudPropsDialog, CrudPropsPage } from "../types";
 
 type ResourceUpsertPropsPage = CrudPropsPage & {

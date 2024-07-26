@@ -1,4 +1,4 @@
-import { DUMMY_ID, endpointPostReact, getObjectUrl, getTranslation, ListObject, LlmTaskInfo, NavigableObject, ReactInput, ReactionFor, ReactionSummary, ReportFor, Success } from "@local/shared";
+import { ChatMessageStatus, DUMMY_ID, endpointPostReact, getObjectUrl, getTranslation, ListObject, LlmTaskInfo, NavigableObject, ReactInput, ReactionFor, ReactionSummary, ReportFor, Success } from "@local/shared";
 import { Avatar, Box, Chip, Grid, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import CircularProgress from "@mui/material/CircularProgress";
 import { green, red } from "@mui/material/colors";
@@ -25,7 +25,6 @@ import { getDisplay } from "utils/display/listTools";
 import { displayDate, fontSizeToPixels } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
-import { ChatMessageStatus } from "utils/shape/models/chatMessage";
 
 /**
  * Displays a visual indicator for the status of a chat message (that you sent).

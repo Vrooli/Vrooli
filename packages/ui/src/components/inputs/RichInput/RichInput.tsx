@@ -1,4 +1,4 @@
-import { ChatInviteStatus, DUMMY_ID, getDotNotationValue, noop, setDotNotationValue, uuid } from "@local/shared";
+import { ChatInviteStatus, ChatShape, DUMMY_ID, getDotNotationValue, noop, setDotNotationValue, uuid } from "@local/shared";
 import { Box, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
 import { SessionContext } from "contexts/SessionContext";
@@ -12,7 +12,6 @@ import { getDeviceInfo, keyComboToString } from "utils/display/device";
 import { generateContext } from "utils/display/stringTools";
 import { getTranslationData, handleTranslationChange } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
-import { ChatShape } from "utils/shape/models/chat";
 import { ChatCrud, VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
 import { ChatCrudProps } from "views/objects/chat/types";
 import { RichInputLexical } from "../RichInputLexical/RichInputLexical";

@@ -1,13 +1,10 @@
-import { ChatSocketEventPayloads, DUMMY_ID, JOIN_CHAT_ROOM_ERRORS, LlmTask, LlmTaskInfo, Session } from "@local/shared";
+import { ChatMessageShape, ChatParticipantShape, ChatShape, ChatSocketEventPayloads, DUMMY_ID, JOIN_CHAT_ROOM_ERRORS, LlmTask, LlmTaskInfo, Session } from "@local/shared";
 import { emitSocketEvent, onSocketEvent } from "api";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { getCookieTasksForMessage, removeCookieMatchingChat, removeCookiesWithChatId, setCookieMatchingChat, setCookieTaskForMessage } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
-import { ChatShape } from "utils/shape/models/chat";
-import { ChatMessageShape } from "utils/shape/models/chatMessage";
-import { ChatParticipantShape } from "utils/shape/models/chatParticipant";
 import { useThrottle } from "./useThrottle";
 
 type ParticipantWithoutChat = Omit<ChatParticipantShape, "chat">;

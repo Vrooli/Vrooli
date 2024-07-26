@@ -1,4 +1,4 @@
-import { DeleteOneInput, DeleteType, DUMMY_ID, endpointGetSchedule, endpointPostDeleteOne, endpointPostSchedule, endpointPutSchedule, HOURS_1_MS, isOfType, LINKS, noopSubmit, Schedule, ScheduleCreateInput, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, ScheduleUpdateInput, scheduleValidation, Session, Success, uuid } from "@local/shared";
+import { CanConnect, DeleteOneInput, DeleteType, DUMMY_ID, endpointGetSchedule, endpointPostDeleteOne, endpointPostSchedule, endpointPutSchedule, FocusModeShape, HOURS_1_MS, isOfType, LINKS, MeetingShape, noopSubmit, RunProjectShape, RunRoutineShape, Schedule, ScheduleCreateInput, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, ScheduleShape, ScheduleUpdateInput, scheduleValidation, Session, shapeSchedule, Success, uuid } from "@local/shared";
 import { Box, Button, Card, Divider, FormControl, IconButton, InputLabel, MenuItem, Select, SelectChangeEvent, Stack, styled, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -25,15 +25,9 @@ import { memo, useCallback, useContext, useEffect, useMemo, useState } from "rea
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { FormSection, ProfileAvatar } from "styles";
-import { CanConnect } from "types";
 import { getDisplay, placeholderColor } from "utils/display/listTools";
 import { openObject } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
-import { FocusModeShape } from "utils/shape/models/focusMode";
-import { MeetingShape } from "utils/shape/models/meeting";
-import { RunProjectShape } from "utils/shape/models/runProject";
-import { RunRoutineShape } from "utils/shape/models/runRoutine";
-import { ScheduleShape, shapeSchedule } from "utils/shape/models/schedule";
 import { validateFormValues } from "utils/validateFormValues";
 import { ScheduleFormProps, ScheduleForOption, ScheduleUpsertProps } from "../types";
 

@@ -1,11 +1,4 @@
-import { ProjectVersionDirectory } from "@local/shared";
-import { ApiVersionShape } from "utils/shape/models/apiVersion";
-import { CodeVersionShape } from "utils/shape/models/codeVersion";
-import { NoteVersionShape } from "utils/shape/models/noteVersion";
-import { ProjectVersionShape } from "utils/shape/models/projectVersion";
-import { RoutineVersionShape } from "utils/shape/models/routineVersion";
-import { StandardVersionShape } from "utils/shape/models/standardVersion";
-import { TeamShape } from "utils/shape/models/team";
+import { ApiVersionShape, CodeVersionShape, NoteVersionShape, ProjectVersionDirectory, ProjectVersionShape, RoutineVersionShape, StandardVersionShape, TeamShape } from "@local/shared";
 import { ObjectListActions } from "../types";
 
 export type DirectoryItem = ApiVersionShape |

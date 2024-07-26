@@ -1,4 +1,4 @@
-import { SubscribableObject } from "@local/shared";
+import { SubscribableObject } from "../../api/generated/graphqlTypes";
 import { bool, enumToYup, id, opt, req, YupModel, yupObj } from "../utils";
 
 const subscribableObject = enumToYup(SubscribableObject);

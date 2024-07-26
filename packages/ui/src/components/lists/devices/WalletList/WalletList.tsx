@@ -1,4 +1,4 @@
-import { DeleteOneInput, endpointPostDeleteOne, endpointPutWallet, Success, Wallet, WalletUpdateInput } from "@local/shared";
+import { DeleteOneInput, endpointPostDeleteOne, endpointPutWallet, Success, updateArray, Wallet, WalletUpdateInput } from "@local/shared";
 import { Box, Button, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -11,7 +11,6 @@ import { useTranslation } from "react-i18next";
 import { multiLineEllipsis } from "styles";
 import { hasWalletExtension, validateWallet } from "utils/authentication/walletIntegration";
 import { PubSub } from "utils/pubsub";
-import { updateArray } from "utils/shape/general";
 import { WalletListItemProps, WalletListProps } from "../types";
 
 export function WalletListItem({

@@ -1,4 +1,4 @@
-import { ChatInvite, ChatInviteCreateInput, ChatInviteUpdateInput, chatInviteValidation, endpointPostChatInvites, endpointPutChatInvites, noop, noopSubmit } from "@local/shared";
+import { ChatInvite, ChatInviteCreateInput, ChatInviteShape, ChatInviteUpdateInput, chatInviteValidation, endpointPostChatInvites, endpointPutChatInvites, noop, noopSubmit, shapeChatInvite, validateAndGetYupErrors } from "@local/shared";
 import { Box, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -14,8 +14,6 @@ import { useWindowSize } from "hooks/useWindowSize";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PubSub } from "utils/pubsub";
-import { validateAndGetYupErrors } from "utils/shape/general";
-import { ChatInviteShape, shapeChatInvite } from "utils/shape/models/chatInvite";
 import { ChatInvitesFormProps, ChatInvitesUpsertProps } from "../types";
 
 function transformChatInviteValues(values: ChatInviteShape[], existing: ChatInviteShape[], isCreate: boolean) {

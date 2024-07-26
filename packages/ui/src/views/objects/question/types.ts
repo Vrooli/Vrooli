@@ -1,6 +1,5 @@
-import { Question } from "@local/shared";
+import { Question, QuestionShape } from "@local/shared";
 import { FormProps } from "forms/types";
-import { QuestionShape } from "utils/shape/models/question";
 import { ObjectViewProps } from "views/types";
 import { CrudPropsDialog, CrudPropsPage } from "../types";
 

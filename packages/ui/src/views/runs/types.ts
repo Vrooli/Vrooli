@@ -1,6 +1,6 @@
+import { DecisionStep, EndStep, RoutineListStep, RunnableProjectVersion, RunnableRoutineVersion } from "@local/shared";
 import { FormikProps } from "formik";
 import { RefObject } from "react";
-import { DecisionStep, EndStep, RoutineListStep, RunnableProjectVersion, RunnableRoutineVersion } from "utils/runUtils";
 import { ViewProps } from "views/types";
 
 export type DecisionViewProps = Omit<ViewProps, "display" | "isOpen"> & {

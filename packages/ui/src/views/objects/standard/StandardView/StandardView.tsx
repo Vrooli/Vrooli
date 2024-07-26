@@ -1,4 +1,4 @@
-import { CommentFor, StandardVersion, endpointGetStandardVersion, exists, getTranslation, noop, noopSubmit } from "@local/shared";
+import { CommentFor, ResourceListShape, StandardShape, StandardVersion, TagShape, endpointGetStandardVersion, exists, getTranslation, noop, noopSubmit } from "@local/shared";
 import { Box, Stack, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
@@ -23,9 +23,6 @@ import { FormSection, SideActionsButton } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
-import { ResourceListShape } from "utils/shape/models/resourceList";
-import { StandardShape } from "utils/shape/models/standard";
-import { TagShape } from "utils/shape/models/tag";
 import { standardInitialValues } from "../StandardUpsert/StandardUpsert";
 import { StandardViewProps } from "../types";
 

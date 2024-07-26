@@ -1,12 +1,10 @@
-import { CancelTaskInput, Chat, DUMMY_ID, LlmTask, LlmTaskInfo, RegenerateResponseInput, StartTaskInput, Success, VALYXA_ID, endpointPostCancelTask, endpointPostRegenerateResponse, endpointPostStartTask, uuid } from "@local/shared";
+import { CancelTaskInput, Chat, ChatMessageShape, ChatShape, DUMMY_ID, LlmTask, LlmTaskInfo, RegenerateResponseInput, StartTaskInput, Success, VALYXA_ID, endpointPostCancelTask, endpointPostRegenerateResponse, endpointPostStartTask, uuid } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { setCookieTaskForMessage } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
-import { ChatShape } from "utils/shape/models/chat";
-import { ChatMessageShape } from "utils/shape/models/chatMessage";
 import { useLazyFetch } from "./useLazyFetch";
 import { MessageTree } from "./useMessageTree";
 

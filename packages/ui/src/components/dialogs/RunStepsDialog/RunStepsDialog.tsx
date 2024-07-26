@@ -3,13 +3,12 @@
  */
 import { noop } from "@local/shared";
 // import { TreeItem, treeItemClasses, TreeView } from "@mui/lab";
+import { RunStep, RunStepType, locationArraysMatch, routineVersionHasSubroutines } from "@local/shared";
 import { IconButton, Palette, SwipeableDrawer, useTheme } from "@mui/material";
 import { useZIndex } from "hooks/useZIndex";
 import { ListNumberIcon } from "icons";
 import React, { useCallback, useMemo, useState } from "react";
 import { addSearchParams, useLocation } from "route";
-import { RunStepType } from "utils/consts";
-import { RunStep, locationArraysMatch, routineVersionHasSubroutines } from "utils/runUtils";
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { RunStepsDialogProps } from "../types";
 

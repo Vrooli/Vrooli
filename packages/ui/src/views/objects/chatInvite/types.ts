@@ -1,6 +1,5 @@
-import { ChatInvite } from "@local/shared";
+import { ChatInvite, ChatInviteShape } from "@local/shared";
 import { FormProps } from "forms/types";
-import { ChatInviteShape } from "utils/shape/models/chatInvite";
 import { CrudPropsDialog } from "../types";
 
 type ChatInvitesUpsertPropsDialog = Omit<CrudPropsDialog<ChatInvite[]>, "overrideObject"> & {

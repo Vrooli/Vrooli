@@ -1,4 +1,4 @@
-import { ApiVersion, CodeVersion, ListObject, NoteVersion, ProjectVersion, ResourceListFor, RoutineVersion, StandardVersion, Tag } from "@local/shared";
+import { ApiVersion, CodeVersion, ListObject, NoteVersion, ProjectVersion, ResourceListFor, RoutineVersion, StandardVersion, Tag, TagShape } from "@local/shared";
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
 import { FindObjectTabOption } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { ResourceListProps } from "components/lists/resource/types";
@@ -6,7 +6,6 @@ import { FieldProps } from "formik";
 import { JSONVariable } from "forms/types";
 import { CSSProperties, RefObject } from "react";
 import { SvgComponent, SxType } from "types";
-import { TagShape } from "utils/shape/models/tag";
 import { CodeLanguage } from "./CodeInput/CodeInput";
 
 export interface CharLimitIndicatorProps {

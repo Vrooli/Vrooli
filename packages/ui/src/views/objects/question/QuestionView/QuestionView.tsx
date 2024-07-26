@@ -1,4 +1,4 @@
-import { CommentFor, endpointGetQuestion, exists, Question, Tag } from "@local/shared";
+import { CommentFor, endpointGetQuestion, exists, Question, Tag, TagShape } from "@local/shared";
 import { Stack, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
@@ -22,7 +22,6 @@ import { ObjectAction } from "utils/actions/objectActions";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
-import { TagShape } from "utils/shape/models/tag";
 import { questionInitialValues } from "../QuestionUpsert/QuestionUpsert";
 import { QuestionViewProps } from "../types";
 

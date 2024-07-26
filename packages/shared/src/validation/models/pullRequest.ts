@@ -1,5 +1,5 @@
-import { PullRequestStatus, PullRequestToObjectType } from "@local/shared";
 import * as yup from "yup";
+import { PullRequestStatus, PullRequestToObjectType } from "../../api/generated/graphqlTypes";
 import { YupModel, enumToYup, id, maxStrErr, minStrErr, opt, req, transRel, yupObj } from "../utils";
 
 const pullRequestTo = enumToYup(PullRequestToObjectType);

@@ -1,4 +1,4 @@
-import { DUMMY_ID, ResourceList as ResourceListType, Session, exists, getTranslation, nodeRoutineListItemValidation, noopSubmit, orDefault, routineVersionTranslationValidation, uuid } from "@local/shared";
+import { DUMMY_ID, NodeRoutineListItemShape, ResourceList as ResourceListType, RoutineVersionInputShape, RoutineVersionOutputShape, Session, TagShape, exists, getTranslation, nodeRoutineListItemValidation, noopSubmit, orDefault, routineVersionTranslationValidation, shapeNodeRoutineListItem, uuid } from "@local/shared";
 import { Box, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
@@ -23,10 +23,6 @@ import { FormContainer } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
-import { NodeRoutineListItemShape, shapeNodeRoutineListItem } from "utils/shape/models/nodeRoutineListItem";
-import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
-import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
-import { TagShape } from "utils/shape/models/tag";
 import { validateFormValues } from "utils/validateFormValues";
 import { routineInitialValues } from "views/objects/routine";
 import { LargeDialog } from "../LargeDialog/LargeDialog";

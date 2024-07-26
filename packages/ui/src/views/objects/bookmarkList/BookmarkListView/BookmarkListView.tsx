@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkCreateInput, BookmarkList, endpointGetBookmarkList, endpointPostBookmark, LINKS, uuid } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkList, deleteArrayIndex, endpointGetBookmarkList, endpointPostBookmark, LINKS, shapeBookmark, updateArray, uuid } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -24,8 +24,6 @@ import { listToAutocomplete } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { HistoryPageTabOption } from "utils/search/objectToSearch";
-import { deleteArrayIndex, updateArray } from "utils/shape/general";
-import { shapeBookmark } from "utils/shape/models/bookmark";
 import { BookmarkListViewProps } from "../types";
 
 export function BookmarkListView({

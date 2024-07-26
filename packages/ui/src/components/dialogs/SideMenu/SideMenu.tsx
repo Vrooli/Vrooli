@@ -1,4 +1,4 @@
-import { API_CREDITS_MULTIPLIER, ActionOption, LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User, endpointPostAuthLogout, endpointPostAuthSwitchCurrentAccount, endpointPutProfile, noop, profileValidation } from "@local/shared";
+import { API_CREDITS_MULTIPLIER, ActionOption, LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User, endpointPostAuthLogout, endpointPostAuthSwitchCurrentAccount, endpointPutProfile, noop, profileValidation, shapeProfile } from "@local/shared";
 import { Avatar, Box, Collapse, Divider, IconButton, Link, List, ListItem, ListItemIcon, ListItemText, Palette, SwipeableDrawer, Typography, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
 import { fetchLazyWrapper } from "api";
@@ -28,7 +28,6 @@ import { Actions, performAction, toActionOption } from "utils/navigation/quickAc
 import { NAV_ACTION_TAGS, NavAction, getUserActions } from "utils/navigation/userActions";
 import { PubSub } from "utils/pubsub";
 import { HistoryPageTabOption } from "utils/search/objectToSearch";
-import { shapeProfile } from "utils/shape/models/profile";
 
 export const sideMenuDisplayData = {
     persistentOnDesktop: true,

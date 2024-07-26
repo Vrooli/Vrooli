@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkList, BookmarkListCreateInput, BookmarkListUpdateInput, bookmarkListValidation, DeleteOneInput, DeleteType, DUMMY_ID, endpointGetBookmarkList, endpointPostBookmarkList, endpointPostDeleteOne, endpointPutBookmarkList, ListObject, noopSubmit, Session, Success, uuid } from "@local/shared";
+import { Bookmark, BookmarkList, BookmarkListCreateInput, BookmarkListShape, BookmarkListUpdateInput, bookmarkListValidation, BookmarkShape, DeleteOneInput, DeleteType, DUMMY_ID, endpointGetBookmarkList, endpointPostBookmarkList, endpointPostDeleteOne, endpointPutBookmarkList, ListObject, noopSubmit, Session, shapeBookmarkList, Success, uuid } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper, useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -32,8 +32,6 @@ import { BulkObjectAction } from "utils/actions/bulkObjectActions";
 import { DUMMY_LIST_LENGTH } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
 import { PubSub } from "utils/pubsub";
-import { BookmarkShape } from "utils/shape/models/bookmark";
-import { BookmarkListShape, shapeBookmarkList } from "utils/shape/models/bookmarkList";
 import { validateFormValues } from "utils/validateFormValues";
 import { BookmarkListFormProps, BookmarkListUpsertProps } from "../types";
 

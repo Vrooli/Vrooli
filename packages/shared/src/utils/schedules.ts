@@ -1,5 +1,5 @@
-import { type Schedule, type ScheduleRecurrence } from "@local/shared";
 import { Moment } from "moment-timezone";
+import { type Schedule, type ScheduleRecurrence } from "../api/generated/graphqlTypes";
 import { HOURS_1_MS, MINUTES_1_MS, YEARS_1_MS } from "../consts/time";
 
 // Native Date objects don't handle time zones well, so we use moment-timezone instead.

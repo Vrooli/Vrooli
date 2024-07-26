@@ -1,4 +1,4 @@
-import { CommonKey, DUMMY_ID, endpointGetResource, endpointPostResource, endpointPutResource, noopSubmit, orDefault, Resource, ResourceCreateInput, ResourceUpdateInput, ResourceUsedFor, resourceValidation, Session, userTranslationValidation } from "@local/shared";
+import { CommonKey, DUMMY_ID, endpointGetResource, endpointPostResource, endpointPutResource, noopSubmit, orDefault, Resource, ResourceCreateInput, ResourceShape, ResourceUpdateInput, ResourceUsedFor, resourceValidation, Session, shapeResource, userTranslationValidation } from "@local/shared";
 import { Button, Divider, Stack } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -23,7 +23,6 @@ import { combineErrorsWithTranslations, getUserLanguages, handleTranslationChang
 import { shortcuts } from "utils/navigation/quickActions";
 import { PubSub } from "utils/pubsub";
 import { PreSearchItem } from "utils/search/siteToSearch";
-import { ResourceShape, shapeResource } from "utils/shape/models/resource";
 import { validateFormValues } from "utils/validateFormValues";
 import { ResourceFormProps, ResourceUpsertProps } from "../types";
 

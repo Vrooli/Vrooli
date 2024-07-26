@@ -1,8 +1,7 @@
-import { Node, NodeLink, NodeLoop, NodeRoutineListItem, NodeType } from "@local/shared";
+import { Node, NodeLink, NodeLoop, NodeRoutineListItem, NodeShape, NodeType } from "@local/shared";
 import { BoxProps } from "@mui/material";
 import { MouseEvent, ReactNode } from "react";
 import { BuildAction } from "utils/consts";
-import { NodeShape } from "utils/shape/models/node";
 import { NodeWithEndShape, NodeWithRoutineListShape } from "views/objects/node/types";
 
 /**

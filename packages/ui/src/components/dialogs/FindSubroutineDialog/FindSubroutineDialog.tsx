@@ -1,8 +1,7 @@
-import { RoutineVersion, uuidValidate, VisibilityType } from "@local/shared";
+import { OwnerShape, RoutineVersion, uuidValidate, VisibilityType } from "@local/shared";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { useField } from "formik";
 import { useCallback, useMemo } from "react";
-import { OwnerShape } from "utils/shape/models/types";
 import { FindSubroutineDialogProps } from "../types";
 
 export const FindSubroutineDialog = ({

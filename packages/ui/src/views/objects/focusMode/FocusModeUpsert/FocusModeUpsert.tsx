@@ -1,4 +1,4 @@
-import { DUMMY_ID, endpointGetFocusMode, endpointPostFocusMode, endpointPutFocusMode, FocusMode, FocusModeCreateInput, FocusModeUpdateInput, focusModeValidation, noopSubmit, Schedule, Session } from "@local/shared";
+import { DUMMY_ID, endpointGetFocusMode, endpointPostFocusMode, endpointPutFocusMode, FocusMode, FocusModeCreateInput, FocusModeShape, FocusModeUpdateInput, focusModeValidation, noopSubmit, Schedule, Session, shapeFocusMode } from "@local/shared";
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -20,7 +20,6 @@ import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { AddIcon, DeleteIcon, EditIcon, HeartFilledIcon, InvisibleIcon } from "icons";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FocusModeShape, shapeFocusMode } from "utils/shape/models/focusMode";
 import { validateFormValues } from "utils/validateFormValues";
 import { ScheduleUpsert } from "views/objects/schedule";
 import { FocusModeFormProps, FocusModeUpsertProps } from "../types";

@@ -1,4 +1,4 @@
-import { IssueFor } from "@local/shared";
+import { IssueFor } from "../../api/generated/graphqlTypes";
 import { description, enumToYup, id, name, opt, req, transRel, YupModel, yupObj } from "../utils";
 import { labelValidation } from "./label";
 

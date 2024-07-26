@@ -1,4 +1,4 @@
-import { endpointGetApi, nodeTranslationValidation, nodeValidation, noopSubmit } from "@local/shared";
+import { endpointGetApi, nodeTranslationValidation, nodeValidation, noopSubmit, shapeNode } from "@local/shared";
 import { Checkbox, FormControlLabel, Tooltip } from "@mui/material";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
@@ -18,7 +18,6 @@ import { FormContainer } from "styles";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { shapeNode } from "utils/shape/models/node";
 import { validateFormValues } from "utils/validateFormValues";
 import { NodeWithEnd, NodeWithEndCrudProps, NodeWithEndFormProps, NodeWithEndShape } from "../types";
 

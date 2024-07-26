@@ -1,5 +1,5 @@
-import { RunProjectStepStatus } from "@local/shared";
 import * as yup from "yup";
+import { RunProjectStepStatus } from "../../api/generated/graphqlTypes";
 import { enumToYup, id, intPositiveOrOne, intPositiveOrZero, name, opt, req, YupModel, yupObj } from "../utils";
 
 const runProjectStepStatus = enumToYup(RunProjectStepStatus);

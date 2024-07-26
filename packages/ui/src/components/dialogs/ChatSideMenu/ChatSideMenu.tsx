@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkCreateInput, BookmarkFor, LINKS, ListObject, endpointPostBookmark, funcTrue, getObjectUrlBase, noop, uuid } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkShape, LINKS, ListObject, endpointPostBookmark, funcTrue, getObjectUrlBase, noop, shapeBookmark, uuid } from "@local/shared";
 import { Box, Button, Divider, IconButton, SwipeableDrawer, SwipeableDrawerProps, Typography, styled, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { PageTabs } from "components/PageTabs/PageTabs";
@@ -21,7 +21,6 @@ import { ArgsType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 import { ChatPageTabOption, HistoryPageTabOption, InboxPageTabOption, MyStuffPageTabOption, SearchPageTabOption, chatTabParams } from "utils/search/objectToSearch";
-import { BookmarkShape, shapeBookmark } from "utils/shape/models/bookmark";
 import { FindObjectDialog } from "../FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "../types";
 

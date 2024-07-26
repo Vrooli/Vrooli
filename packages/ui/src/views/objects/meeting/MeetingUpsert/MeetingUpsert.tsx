@@ -1,4 +1,4 @@
-import { DUMMY_ID, endpointGetMeeting, endpointPostMeeting, endpointPutMeeting, Meeting, MeetingCreateInput, MeetingUpdateInput, meetingValidation, noopSubmit, orDefault, Schedule, Session } from "@local/shared";
+import { DUMMY_ID, endpointGetMeeting, endpointPostMeeting, endpointPutMeeting, Meeting, MeetingCreateInput, MeetingShape, MeetingUpdateInput, meetingValidation, noopSubmit, orDefault, Schedule, Session, shapeMeeting } from "@local/shared";
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -16,7 +16,6 @@ import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getUserLanguages } from "utils/display/translationTools";
-import { MeetingShape, shapeMeeting } from "utils/shape/models/meeting";
 import { validateFormValues } from "utils/validateFormValues";
 import { ScheduleUpsert } from "views/objects/schedule";
 import { MeetingFormProps, MeetingUpsertProps } from "../types";
