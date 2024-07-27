@@ -45,7 +45,7 @@ export function RunProjectListItem({
             {...props}
             belowSubtitle={
                 <Stack direction="row" spacing={1} sx={{
-                    "& > .MuiBox-root:first-child": {
+                    "& > .MuiBox-root:first-of-type": {
                         flex: "1 1 auto",
                     },
                 }}>

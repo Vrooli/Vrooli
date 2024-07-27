@@ -15,8 +15,8 @@ export type RunViewProps = ViewProps & {
     runnableObject: RunnableRoutineVersion | RunnableProjectVersion;
 }
 
-export type SubroutineViewProps = Omit<ViewProps, "display" | "isOpen"> & {
+export type SubroutineViewProps = {
+    formikRef: RefObject<FormikProps<object>>;
     loading: boolean;
-    inputFormikRef: RefObject<FormikProps<object>>;
     routineVersion: RunnableRoutineVersion;
 }

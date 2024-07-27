@@ -38653,6 +38653,17 @@
             "title": "RunRoutine.name",
             "type": "string"
           },
+          "outputs": {
+            "items": {
+              "$ref": "#/components/schemas/RunRoutineOutput"
+            },
+            "title": "RunRoutine.outputs",
+            "type": "array"
+          },
+          "outputsCount": {
+            "title": "RunRoutine.outputsCount",
+            "type": "number"
+          },
           "routineVersion": {
             "anyOf": [
               {
@@ -38768,6 +38779,8 @@
           "inputsCount",
           "isPrivate",
           "name",
+          "outputs",
+          "outputsCount",
           "status",
           "steps",
           "stepsCount",

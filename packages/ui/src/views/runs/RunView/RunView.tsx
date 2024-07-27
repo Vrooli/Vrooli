@@ -1,4 +1,4 @@
-import { DecisionStep, DetectSubstepLoadResult, FindByIdInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, RootStep, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunProjectStep, RunProjectUpdateInput, RunRoutine, RunRoutineStep, RunRoutineUpdateInput, RunStatus, RunStep, RunStepType, SingleRoutineStep, addSubdirectoriesToStep, addSubroutinesToStep, base36ToUuid, detectSubstepLoad, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointGetRunProject, endpointGetRunRoutine, endpointPutRunProject, endpointPutRunRoutine, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, getTranslation, locationArraysMatch, noop, parseRunInputs, parseSearchParams, runnableObjectToStep, saveRunProgress, siblingsAtLocation, stepFromLocation, uuidValidate } from "@local/shared";
+import { DecisionStep, DetectSubstepLoadResult, FindByIdInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, RootStep, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunProjectStep, RunProjectUpdateInput, RunRoutine, RunRoutineStep, RunRoutineUpdateInput, RunStatus, RunStep, RunStepType, SingleRoutineStep, addSubdirectoriesToStep, addSubroutinesToStep, base36ToUuid, detectSubstepLoad, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointGetRunProject, endpointGetRunRoutine, endpointPutRunProject, endpointPutRunRoutine, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, getTranslation, locationArraysMatch, noop, parseRunInputs, parseRunOutputs, parseSearchParams, runnableObjectToStep, saveRunProgress, siblingsAtLocation, stepFromLocation, uuidValidate } from "@local/shared";
 import { Box, BoxProps, Button, Grid, IconButton, LinearProgress, Stack, Typography, styled, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
@@ -400,18 +400,25 @@ export function RunView({
         return runStep;
     }, [run?.steps, currentLocation]);
 
-    /** Stores user inputs, which are uploaded to the run's data */
-    const inputFormikRef = useRef<FormikProps<object>>(null);
+    /** Stores user inputs and generated outputs */
+    const formikRef = useRef<FormikProps<object>>(null);
     useEffect(function setInputsOnRunLoad() {
-        let inputs: object = {};
+        let values: object = {};
 
-        // Only set inputs for RunRoutine
+        // Only set inputs and outputs for RunRoutine
         if (run && run.__typename === "RunRoutine" && Array.isArray(run.inputs)) {
-            inputs = parseRunInputs(run.inputs, console);
+            //TODO not using form default values
+            values = {
+                ...parseRunInputs(run.inputs, console),
+                ...parseRunOutputs(run.outputs, console),
+            };
         }
+        console.log("qqqq got formik initial values", values);
 
-        inputFormikRef.current?.setValues(inputs);
-        setTimeout(() => { inputFormikRef.current?.resetForm({ values: inputs }); }, 100);
+        // Formik doesn't seem to like setting the values normally
+        //TODO may be able to simplify now that we removed initialValues from SubroutineView
+        formikRef.current?.setValues(values);
+        setTimeout(() => { formikRef.current?.resetForm({ values }); }, 100);
     }, [run, currentLocation]);
 
     const { getContextSwitches, getElapsedTime } = useStepMetrics(currentLocation, currentStepRunData);
@@ -553,7 +560,7 @@ export function RunView({
                 currentStep,
                 currentStepOrder: (newProgress.findIndex((p) => locationArraysMatch(p, currentLocation)) ?? newProgress.length) + 1,
                 currentStepRunData,
-                formData: inputFormikRef.current?.values ?? {},
+                formData: formikRef.current?.values ?? {},
                 handleRunProjectUpdate: function updateRun(inputs) {
                     fetchLazyWrapper<RunProjectUpdateInput, RunProject>({
                         fetch: updateRunProject,
@@ -568,6 +575,7 @@ export function RunView({
                         onSuccess,
                     });
                 },
+                logger: console,
                 isStepCompleted: true, //TODO shouldn't always be true
                 isRunCompleted,
                 run,
@@ -600,7 +608,6 @@ export function RunView({
 
         function onSuccess(data: RunProject | RunRoutine) {
             setRun(data);
-            // inputFormikRef.current?.resetForm();
         }
 
         saveRunProgress({
@@ -608,7 +615,7 @@ export function RunView({
             currentStep,
             currentStepOrder: (progress.findIndex((p) => locationArraysMatch(p, currentLocation)) ?? progress.length) + 1,
             currentStepRunData,
-            formData: inputFormikRef.current?.values ?? {},
+            formData: formikRef.current?.values ?? {},
             handleRunProjectUpdate: function updateRun(inputs) {
                 fetchLazyWrapper<RunProjectUpdateInput, RunProject>({
                     fetch: updateRunProject,
@@ -625,13 +632,14 @@ export function RunView({
             },
             isStepCompleted: false,
             isRunCompleted: false,
+            logger: console,
             run,
             runnableObject,
             timeElapsed: Math.max(getElapsedTime(), currentStepRunData?.timeElapsed ?? 0),
         });
     }, [currentLocation, currentStepRunData, getContextSwitches, getElapsedTime, progress, rootStep, run, runnableObject, testMode, updateRunProject, updateRunRoutine]);
 
-    useAutoSave({ formikRef: inputFormikRef, handleSave: handleAutoSave });
+    useAutoSave({ formikRef, handleSave: handleAutoSave });
 
     /**
      * End routine early
@@ -654,10 +662,9 @@ export function RunView({
         switch (currentStep.__type) {
             case RunStepType.SingleRoutine:
                 return <SubroutineView
-                    inputFormikRef={inputFormikRef}
-                    onClose={noop}
-                    routineVersion={(currentStep as SingleRoutineStep).routineVersion}
+                    formikRef={formikRef}
                     loading={isDirectoriesLoading || isSubroutinesLoading}
+                    routineVersion={(currentStep as SingleRoutineStep).routineVersion}
                 />;
             case RunStepType.Directory:
                 return null; //TODO
@@ -704,7 +711,7 @@ export function RunView({
                                     <Typography variant="h5" component="h2">({currentLocation[currentLocation.length - 1] ?? 1} of {stepsInCurrentNode})</Typography>
                                     : null}
                                 {instructions && <HelpButton markdown={instructions} />}
-                                <AutoSaveIndicator formikRef={inputFormikRef} />
+                                <AutoSaveIndicator formikRef={formikRef} />
                             </TitleStepsStack>
                             {/* Steps explorer drawer */}
                             {rootStep !== null && rootStep.__type !== RunStepType.SingleRoutine ? <RunStepsDialog

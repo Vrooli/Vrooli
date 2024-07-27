@@ -65,13 +65,15 @@ export const typeDef = gql`
         name: String!
         status: RunStatus!
         wasRunAutomatically: Boolean!
+        inputs: [RunRoutineInput!]!
+        outputs: [RunRoutineOutput!]!
         routineVersion: RoutineVersion
         runProject: RunProject
         schedule: Schedule
         steps: [RunRoutineStep!]!
-        stepsCount: Int!
-        inputs: [RunRoutineInput!]!
         inputsCount: Int!
+        outputsCount: Int!
+        stepsCount: Int!
         team: Team
         user: User
         you: RunRoutineYou!

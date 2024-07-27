@@ -8105,6 +8105,8 @@ export type RunRoutine = {
   isPrivate: Scalars['Boolean'];
   lastStep?: Maybe<Array<Scalars['Int']>>;
   name: Scalars['String'];
+  outputs: Array<RunRoutineOutput>;
+  outputsCount: Scalars['Int'];
   routineVersion?: Maybe<RoutineVersion>;
   runProject?: Maybe<RunProject>;
   schedule?: Maybe<Schedule>;
@@ -14312,6 +14314,8 @@ export type RunRoutineResolvers<ContextType = any, ParentType extends ResolversP
   isPrivate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   lastStep?: Resolver<Maybe<Array<ResolversTypes['Int']>>, ParentType, ContextType>;
   name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  outputs?: Resolver<Array<ResolversTypes['RunRoutineOutput']>, ParentType, ContextType>;
+  outputsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   routineVersion?: Resolver<Maybe<ResolversTypes['RoutineVersion']>, ParentType, ContextType>;
   runProject?: Resolver<Maybe<ResolversTypes['RunProject']>, ParentType, ContextType>;
   schedule?: Resolver<Maybe<ResolversTypes['Schedule']>, ParentType, ContextType>;

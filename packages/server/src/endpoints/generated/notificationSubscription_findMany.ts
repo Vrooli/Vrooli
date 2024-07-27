@@ -903,8 +903,9 @@ export const notificationSubscription_findMany = {
               "completedAt": true,
               "name": true,
               "status": true,
-              "stepsCount": true,
               "inputsCount": true,
+              "outputsCount": true,
+              "stepsCount": true,
               "wasRunAutomatically": true,
               "team": {
                 "id": true,

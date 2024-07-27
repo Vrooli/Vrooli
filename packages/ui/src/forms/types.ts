@@ -14,6 +14,11 @@ export type FormProps<Model extends OrArray<ListObject>, ModelShape extends OrAr
 };
 
 export type FormBuildViewProps = {
+    /** 
+     * Prefix for the field names, in case you need to store multiple 
+     * element sets in one formik (e.g. both inputs and outputs) 
+     */
+    fieldNamePrefix?: string;
     limits?: {
         inputs?: {
             types?: readonly InputType[];
@@ -28,6 +33,11 @@ export type FormBuildViewProps = {
 
 export type FormRunViewProps = {
     disabled: boolean;
+    /** 
+    * Prefix for the field names, in case you need to store multiple 
+    * element sets in one formik (e.g. both inputs and outputs) 
+    */
+    fieldNamePrefix?: string;
     schema: FormSchema;
 };
 

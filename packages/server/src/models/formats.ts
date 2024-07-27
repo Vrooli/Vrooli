@@ -1619,6 +1619,7 @@ export const RunRoutineFormat: Formatter<RunRoutineModelInfo> = {
     gqlRelMap: {
         __typename: "RunRoutine",
         inputs: "RunRoutineInput",
+        outputs: "RunRoutineOutput",
         team: "Team",
         routineVersion: "RoutineVersion",
         runProject: "RunProject",
@@ -1629,6 +1630,7 @@ export const RunRoutineFormat: Formatter<RunRoutineModelInfo> = {
     prismaRelMap: {
         __typename: "RunRoutine",
         inputs: "RunRoutineInput",
+        outputs: "RunRoutineOutput",
         team: "Team",
         routineVersion: "RoutineVersion",
         runProject: "RunProject",
@@ -1638,6 +1640,7 @@ export const RunRoutineFormat: Formatter<RunRoutineModelInfo> = {
     },
     countFields: {
         inputsCount: true,
+        outputsCount: true,
         stepsCount: true,
     },
 };

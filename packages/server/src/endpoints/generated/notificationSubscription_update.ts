@@ -955,8 +955,9 @@ export const notificationSubscription_update = {
           "completedAt": true,
           "name": true,
           "status": true,
-          "stepsCount": true,
           "inputsCount": true,
+          "outputsCount": true,
+          "stepsCount": true,
           "wasRunAutomatically": true,
           "team": {
             "id": true,

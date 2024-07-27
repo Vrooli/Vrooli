@@ -1,4 +1,4 @@
-import { Node, NodeLink, NodeType, ProjectVersion, ProjectVersionDirectory, ProjectVersionDirectorySearchInput, RoutineType, RoutineVersion, RoutineVersionInput, RoutineVersionSearchInput, RunProject, RunProjectStep, RunProjectStepCreateInput, RunProjectUpdateInput, RunRoutine, RunRoutineInput, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepStatus, RunRoutineUpdateInput, RunStatus } from "../api/generated/graphqlTypes";
+import { Node, NodeLink, NodeType, ProjectVersion, ProjectVersionDirectory, ProjectVersionDirectorySearchInput, RoutineType, RoutineVersion, RoutineVersionInput, RoutineVersionOutput, RoutineVersionSearchInput, RunProject, RunProjectStep, RunProjectStepCreateInput, RunProjectUpdateInput, RunRoutine, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput, RunRoutineOutput, RunRoutineOutputUpdateInput, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepStatus, RunRoutineUpdateInput, RunStatus } from "../api/generated/graphqlTypes";
 import { PassableLogger, Status } from "../consts/commonTypes";
 import { uuid, uuidValidate } from "../id/uuid";
 import { NodeShape } from "../shape/models/node";
@@ -55,7 +55,7 @@ export enum RunStepType {
     Start = "Start",
 }
 
-export type RunnableRoutineVersion = Pick<RoutineVersion, "__typename" | "created_at" | "id" | "complexity" | "configCallData" | "configFormInput" | "configFormOutput" | "inputs" | "nodeLinks" | "nodes" | "root" | "routineType" | "translations" | "versionLabel" | "you">
+export type RunnableRoutineVersion = Pick<RoutineVersion, "__typename" | "created_at" | "id" | "complexity" | "configCallData" | "configFormInput" | "configFormOutput" | "inputs" | "nodeLinks" | "nodes" | "outputs" | "root" | "routineType" | "translations" | "versionLabel" | "you">
 export type RunnableProjectVersion = Pick<ProjectVersion, "__typename" | "created_at" | "id" | "directories" | "root" | "translations" | "versionLabel" | "you">
 
 /** Basic information provided to all routine steps */
@@ -214,82 +214,141 @@ export function routineVersionHasSubroutines(routineVersion: Partial<RoutineVers
     return false;
 }
 
-export type ExistingInput = Pick<RunRoutineInput, "id" | "data"> & { input: Pick<RunRoutineInput["input"], "id" | "name"> };
+type IOKeyObject = { id?: string | null; name?: string | null };
 
 /**
- * Converts existing run inputs into an object for populating formik
- * @param runInputs The run input data
+ * Creates the formik key for a given input or output object
+ * @param io The input or output object. Both RunRoutineInput/Output and RoutineVersionInput/Output should work
+ * @param ioType The type of IO being sanitized ('input' or 'output')
+ * @returns A sanitized key for the input or output object, or null 
+ * if we couldn't generate a key
+ */
+export function getIOKey(
+    io: IOKeyObject,
+    ioType: "input" | "output",
+): string | null {
+    // Prefer to use name, but fall back to ID
+    let identifier = io?.name || io?.id;
+    if (!identifier) {
+        return null;
+    }
+    // Sanitize identifier by replacing any non-alphanumeric characters (except underscores) with underscores
+    identifier = identifier.replace(/[^a-zA-Z0-9_]/g, "_");
+    // Prepend the ioType to the identifier so we can store both inputs and outputs in one formik object
+    return `${ioType}-${identifier}`;
+}
+
+export type ExistingInput = Pick<RunRoutineInput, "id" | "data"> & { input: Pick<RunRoutineInput["input"], "id" | "name"> };
+export type ExistingOutput = Pick<RunRoutineOutput, "id" | "data"> & { output: Pick<RunRoutineOutput["output"], "id" | "name"> };
+
+type RunIO = ExistingInput | ExistingOutput;
+
+/**
+ * Converts existing run inputs or outputs into an object for populating formik
+ * @param runIOs The run input or output data
  * @param logger Logger to log errors
+ * @param ioType The type of IO being parsed ('input' or 'output')
  * @returns Object to pass into formik setValues function
  */
-export function parseRunInputs(
-    runInputs: ExistingInput[],
+export function parseRunIO(
+    runIOs: RunIO[],
     logger: PassableLogger,
+    ioType: "input" | "output",
 ): object {
     const result: object = {};
 
-    if (!Array.isArray(runInputs)) return result;
+    if (!Array.isArray(runIOs)) return result;
 
-    for (const input of runInputs) {
-        // Use the input name if available, otherwise fall back to the id
-        const key = input.input?.name || input.input?.id;
-        if (!key) {
-            logger.error(`No input name or ID found for input ${input.input.id}`);
-            continue;
-        }
+    for (const io of runIOs) {
+        const ioData = io[ioType as keyof RunIO] as IOKeyObject | undefined;
+        if (!ioData) continue;
+        const key = getIOKey(io[ioType], ioType);
+        if (!key) continue;
         try {
-            result[key] = JSON.parse(input.data);
+            result[key] = JSON.parse(io.data);
         } catch (error) {
-            logger.error(`Error parsing input data for ${input.input.id}:`, typeof error === "object" && error !== null ? error : {});
+            logger.error(`Error parsing ${ioType} data for ${ioData.id}:`, typeof error === "object" && error !== null ? error : {});
             // In case of parsing error, use the raw string data
-            result[key] = input.data;
+            result[key] = io.data;
         }
     }
 
     return result;
 }
 
-export type RunInputsUpdateParams = {
-    /** Existing run inputs data */
-    existingInputs: ExistingInput[],
+// Function for parsing inputs (maintains backwards compatibility)
+export function parseRunInputs(
+    runInputs: ExistingInput[],
+    logger: PassableLogger,
+): object {
+    return parseRunIO(runInputs, logger, "input");
+}
+
+// New function for parsing outputs
+export function parseRunOutputs(
+    runOutputs: ExistingOutput[],
+    logger: PassableLogger,
+): object {
+    return parseRunIO(runOutputs, logger, "output");
+}
+
+export type RunIOUpdateParams<IOType extends "input" | "output"> = {
+    /** Existing run inputs or outputs data */
+    existingIO: IOType extends "input" ? ExistingInput[] : ExistingOutput[],
     /** Current input data in form */
     formData: object,
+    /** If we're updating input or output data */
+    ioType: IOType,
     /** Logger */
     logger: PassableLogger,
-    /** Current routine's inputs */
-    routineInputs: Pick<RoutineVersionInput, "id" | "name">[];
+    /** Current routine's inputs or outputs */
+    routineIO: IOType extends "input" ? Pick<RoutineVersionInput, "id" | "name">[] : Pick<RoutineVersionOutput, "id" | "name">[],
     /** ID of current run */
     runRoutineId: string;
 }
 
-export type RunInputsUpdateResult = Pick<RunRoutineUpdateInput, "inputsCreate" | "inputsUpdate" | "inputsDelete">;
+// export type RunInputsUpdateResult = Pick<RunRoutineUpdateInput, "inputsCreate" | "inputsUpdate" | "inputsDelete">;
+export type RunIOUpdateResult<IOType extends "input" | "output"> =
+    IOType extends "input" ?
+    Pick<RunRoutineUpdateInput, "inputsCreate" | "inputsUpdate" | "inputsDelete"> :
+    Pick<RunRoutineUpdateInput, "outputsCreate" | "outputsUpdate" | "outputsDelete">;
 
 /**
  * Converts a run inputs object to a run input update object
  * @returns The run input update input object
  */
-export function runInputsUpdate({
-    existingInputs,
+export function runIOUpdate<IOType extends "input" | "output">({
+    existingIO,
     formData,
+    ioType,
     logger,
-    routineInputs,
+    routineIO,
     runRoutineId,
-}: RunInputsUpdateParams): RunInputsUpdateResult {
+}: RunIOUpdateParams<IOType>): RunIOUpdateResult<IOType> {
     // Initialize result
-    const result: RunInputsUpdateResult = {};
+    const result: Record<string, object> = {};
 
     // Create a map of existing inputs for quick lookup
-    const existingInputMap = new Map(existingInputs?.map(input => [input.input.id, input]));
+    const existingIOMap = new Map<string, RunIO>();
+    existingIO?.forEach((io: ExistingInput | ExistingOutput) => {
+        const ioObject = io[ioType as keyof RunIO] as IOKeyObject;
+        // In case some data is missing, store keys for both name and ID
+        const keyName = getIOKey({ name: ioObject?.name }, ioType);
+        const keyId = getIOKey({ id: ioObject?.id }, ioType);
+        if (keyName) existingIOMap.set(keyName, io);
+        if (keyId) existingIOMap.set(keyId, io);
+    });
 
     // Process each routine input
-    routineInputs?.forEach(routineInput => {
+    routineIO?.forEach(currRoutineIO => {
         // Find routine input in form data
-        if (!routineInput.name) return;
-        const inputData = formData[routineInput.name];
+        const keyName = getIOKey({ name: currRoutineIO?.name }, ioType);
+        const keyId = getIOKey({ id: currRoutineIO?.id }, ioType);
+        const inputData = (keyName ? formData[keyName] : undefined) || (keyId ? formData[keyId] : undefined);
         if (inputData === undefined) return;
 
         // Find existing input if it exists
-        const existingInput = existingInputMap.get(routineInput.id);
+        const existingInput = (keyName ? existingIOMap.get(keyName) : undefined) || (keyId ? existingIOMap.get(keyId) : undefined);
         // Update existing input if found
         if (existingInput) {
             try {
@@ -297,8 +356,11 @@ export function runInputsUpdate({
                 const stringifiedData = JSON.stringify(inputData);
                 // Update existing input if data has changed
                 if (existingInput.data !== stringifiedData) {
-                    if (!result.inputsUpdate) result.inputsUpdate = [];
-                    result.inputsUpdate.push({
+                    const updateKey = `${ioType as IOType}sUpdate` as const;
+                    if (!result[updateKey]) {
+                        result[updateKey] = [];
+                    }
+                    (result[updateKey] as RunRoutineInputUpdateInput[] | RunRoutineOutputUpdateInput[]).push({
                         id: existingInput.id,
                         data: stringifiedData,
                     });
@@ -309,13 +371,16 @@ export function runInputsUpdate({
         }
         // Otherwise, create new input 
         else {
-            if (!result.inputsCreate) result.inputsCreate = [];
+            const createKey = `${ioType as IOType}sCreate` as const;
+            if (!result[createKey]) {
+                result[createKey] = [];
+            }
             // Create new input
-            result.inputsCreate.push({
+            (result[createKey] as RunRoutineInputCreateInput[]).push({
                 id: uuid(),
                 // Data must be stored as a string
                 data: JSON.stringify(inputData),
-                inputConnect: routineInput.id,
+                [`${ioType}Connect` as "inputConnect"]: currRoutineIO.id,
                 runRoutineConnect: runRoutineId,
             });
         }
@@ -323,6 +388,14 @@ export function runInputsUpdate({
 
     // Return result
     return result;
+}
+
+export function runInputsUpdate(params: Omit<RunIOUpdateParams<"input">, "ioType">): RunIOUpdateResult<"input"> {
+    return runIOUpdate({ ...params, ioType: "input" });
+}
+
+export function runOutputsUpdate(params: Omit<RunIOUpdateParams<"output">, "ioType">): RunIOUpdateResult<"output"> {
+    return runIOUpdate({ ...params, ioType: "output" });
 }
 
 type RoutineVersionStatusBase = {
@@ -1577,6 +1650,8 @@ type SaveProgressProps = {
     isStepCompleted: boolean;
     /** Whether the entire run should be considered completed */
     isRunCompleted: boolean;
+    /** Logger to log erros */
+    logger: PassableLogger;
     /** The current run */
     run: RunProject | RunRoutine;
     /** The overall object being run */
@@ -1598,6 +1673,7 @@ export function saveRunProgress({
     handleRunRoutineUpdate,
     isStepCompleted,
     isRunCompleted,
+    logger,
     run,
     runnableObject,
     timeElapsed,
@@ -1662,16 +1738,26 @@ export function saveRunProgress({
     // Handle routine data
     if (run.__typename === "RunRoutine") {
         const { inputsCreate, inputsDelete, inputsUpdate } = runInputsUpdate({
-            existingInputs: (run as RunRoutine).inputs,
+            existingIO: (run as RunRoutine).inputs,
             formData,
-            logger: console,
-            routineInputs: (runnableObject as RunnableRoutineVersion).inputs,
+            logger,
+            routineIO: (runnableObject as RunnableRoutineVersion).inputs,
+            runRoutineId: runData.id,
+        });
+        const { outputsCreate, outputsDelete, outputsUpdate } = runOutputsUpdate({
+            existingIO: (run as RunRoutine).outputs,
+            formData,
+            logger,
+            routineIO: (runnableObject as RunnableRoutineVersion).outputs,
             runRoutineId: runData.id,
         });
         const runRoutineData = runData as RunRoutineUpdateInput;
         runRoutineData.inputsCreate = inputsCreate;
         runRoutineData.inputsDelete = inputsDelete;
         runRoutineData.inputsUpdate = inputsUpdate;
+        runRoutineData.outputsCreate = outputsCreate;
+        runRoutineData.outputsDelete = outputsDelete;
+        runRoutineData.outputsUpdate = outputsUpdate;
         handleRunRoutineUpdate(runRoutineData);
     }
     // Handle project data

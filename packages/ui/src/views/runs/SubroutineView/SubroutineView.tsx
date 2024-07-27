@@ -9,7 +9,7 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { generateInitialValues, generateYupSchema } from "forms/generators";
+import { generateYupSchema } from "forms/generators";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormSection } from "styles";
@@ -27,8 +27,8 @@ const basicInfoStackStyle = {
 } as const;
 
 export function SubroutineView({
+    formikRef,
     loading,
-    inputFormikRef,
     routineVersion,
 }: SubroutineViewProps) {
     const session = useContext(SessionContext);
@@ -99,11 +99,8 @@ export function SubroutineView({
         }
     }, [routineTypeBaseProps, routineVersion.routineType]);
 
-    const inputInitialValues = useMemo(function inputInitialValuesMemo() {
-        console.log("calculating inputInitialValues", schemaInput.elements, generateInitialValues(schemaInput.elements));
-        return generateInitialValues(schemaInput.elements);
-    }, [schemaInput]);
     const inputValidationSchema = useMemo(function inputValidationSchemaMemo() {
+        // TODO need one to combine inputs and outputs together
         return schemaInput ? generateYupSchema(schemaInput) : undefined;
     }, [schemaInput]);
 
@@ -144,9 +141,9 @@ export function SubroutineView({
                     </FormSection>}
                     {Boolean(routineTypeComponents) && (
                         <Formik
-                            enableReinitialize={true}
-                            initialValues={inputInitialValues}
-                            innerRef={inputFormikRef}
+                            // enableReinitialize={true}
+                            // initialValues={inputInitialValues}
+                            innerRef={formikRef}
                             onSubmit={noopSubmit} // Form submission is handled elsewhere
                             validationSchema={inputValidationSchema}
                         >

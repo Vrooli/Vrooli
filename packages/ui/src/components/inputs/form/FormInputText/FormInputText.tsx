@@ -57,7 +57,9 @@ export function FormInputText({
 
     const props = useMemo(() => fieldData.props, [fieldData.props]);
 
-    const [field, meta, helpers] = useField(fieldData.fieldName);
+    const [field, meta, helpers] = useField(fieldData.fieldName); // `input-${fieldData.fieldName}` or `output-${fieldData.fieldName}`
+    const [tempField] = useField(`input-${fieldData.fieldName}`);
+    console.log("in forminputtext", field.value, tempField.value);
     const handleChange = useCallback(function handleChangeCallback(value: string) {
         // When editing the config, we're changing the default value
         if (isEditing) {

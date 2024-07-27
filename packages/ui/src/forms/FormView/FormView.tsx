@@ -6,7 +6,7 @@ import { FormDivider } from "components/inputs/form/FormDivider/FormDivider";
 import { FormHeader } from "components/inputs/form/FormHeader/FormHeader";
 import { Formik } from "formik";
 import { FormErrorBoundary } from "forms/FormErrorBoundary/FormErrorBoundary";
-import { CreateFormInputProps, createFormInput, generateInitialValues, generateYupSchema } from "forms/generators";
+import { CreateFormInputProps, createFormInput, generateInitialValues } from "forms/generators";
 import { FormBuildViewProps, FormDividerType, FormElement, FormHeaderType, FormInputType, FormRunViewProps, FormSchema, FormViewProps, GridContainer } from "forms/types";
 import { usePopover } from "hooks/usePopover";
 import { useWindowSize } from "hooks/useWindowSize";
@@ -224,6 +224,7 @@ const formDividerStyle = { marginBottom: 2 } as const;
 
 //TODO: Allow titles to collapse sections below them. Need to update the way inputs are rendered so that they're nested within the header using a collapsibetext component
 export function FormBuildView({
+    fieldNamePrefix,
     limits,
     onSchemaChange,
     schema,
@@ -566,7 +567,7 @@ export function FormBuildView({
     }, [inputItems, structureItems, schema.elements.length, isMobile, handleAddInput, handleInputPopoverOpen, handleAddDivider, handleAddHeader, handleStructurePopoverOpen]);
 
     const initialValues = useMemo(function initialValuesMemo() {
-        return generateInitialValues(schema.elements);
+        return generateInitialValues(schema.elements, fieldNamePrefix);
     }, [schema]);
 
     return (
@@ -824,13 +825,6 @@ export function FormRunView({
         }
         return sections;
     }, [renderElement, schema]);
-
-    const initialValues = useMemo(function initialValuesMemo() {
-        return generateInitialValues(schema.elements);
-    }, [schema]);
-    const validationSchema = useMemo(function validationSchemaMemo() {
-        return generateYupSchema(schema);
-    }, [schema]);
 
     return (
         <div>

@@ -142,10 +142,15 @@ export const healFormInputPropsMap: { [key in InputType]: (props: any) => any } 
 /**
  * Creates a Formik `initialValues` object from a form schema
  * @param elements The form schema elements
+ * @param prefix Prefix for the field names, in case you need to store multiple 
+ * element sets in one formik (e.g. both inputs and outputs)
  * @returns An object with keys for each input field in the elements array 
  * (i.e. removes headers and other non-input elements) and their default values
  */
-export function generateInitialValues(elements: FormElement[] | null | undefined): Record<string, never> {
+export function generateInitialValues(
+    elements: FormElement[] | null | undefined,
+    prefix?: string,
+): Record<string, never> {
     if (!Array.isArray(elements)) return {};
     const result: Record<string, never> = {};
     // Loop through each element in the schema
@@ -153,18 +158,19 @@ export function generateInitialValues(elements: FormElement[] | null | undefined
         // Skip non-input elements
         if (!Object.prototype.hasOwnProperty.call(element, "fieldName")) continue;
         const formInput = element as FormInputType;
+        const key = prefix ? `${prefix}.${formInput.fieldName}` : formInput.fieldName;
         // If it exists in the heal map, pass it through and use the resulting default value
         if (formInput.type in healFormInputPropsMap) {
-            result[formInput.fieldName] = healFormInputPropsMap[formInput.type](formInput.props).defaultValue as never;
+            result[key] = healFormInputPropsMap[formInput.type](formInput.props).defaultValue as never;
         }
         // If not, try using the defaultValue prop directly
         else if (formInput.props.defaultValue !== undefined) {
-            result[formInput.fieldName] = formInput.props.defaultValue as never;
+            result[key] = formInput.props.defaultValue as never;
         }
         // Otherwise, set it to an empty string. It's worse to have an undefined value than a
         // possibly incorrect value, at least according to Formike error messages
         else {
-            result[formInput.fieldName] = "" as never;
+            result[key] = "" as never;
         }
     }
     return result;

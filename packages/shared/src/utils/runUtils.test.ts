@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Node, NodeLink, NodeType, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionYou, Routine, RoutineType, RoutineVersion, RoutineVersionYou, RunRoutineInput } from "../api/generated/graphqlTypes";
+import { Node, NodeLink, NodeType, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionYou, Routine, RoutineType, RoutineVersion, RoutineVersionInput, RoutineVersionOutput, RoutineVersionYou, RunRoutineInput } from "../api/generated/graphqlTypes";
 import { uuid, uuidValidate } from "../id/uuid";
-import { DecisionStep, DirectoryStep, EndStep, MultiRoutineStep, RootStep, RoutineListStep, RunInputsUpdateParams, RunStep, RunStepType, RunnableProjectVersion, RunnableRoutineVersion, SingleRoutineStep, StartStep, addSubroutinesToStep, directoryToStep, findStep, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, insertStep, locationArraysMatch, multiRoutineToStep, parseChildOrder, parseRunInputs, projectToStep, routineVersionHasSubroutines, runInputsUpdate, runnableObjectToStep, siblingsAtLocation, singleRoutineToStep, sortStepsAndAddDecisions, stepFromLocation, stepNeedsQuerying } from "./runUtils";
+import { DecisionStep, DirectoryStep, EndStep, MultiRoutineStep, RootStep, RoutineListStep, RunIOUpdateParams, RunStep, RunStepType, RunnableProjectVersion, RunnableRoutineVersion, SingleRoutineStep, StartStep, addSubroutinesToStep, directoryToStep, findStep, getIOKey, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, insertStep, locationArraysMatch, multiRoutineToStep, parseChildOrder, parseRunIO, parseRunInputs, parseRunOutputs, projectToStep, routineVersionHasSubroutines, runInputsUpdate, runOutputsUpdate, runnableObjectToStep, siblingsAtLocation, singleRoutineToStep, sortStepsAndAddDecisions, stepFromLocation, stepNeedsQuerying } from "./runUtils";
 
 
 describe("getRunPercentComplete", () => {
@@ -126,6 +126,118 @@ describe("locationArraysMatch", () => {
     });
 });
 
+describe("getIOKey", () => {
+    it("should return a key based on name for input", () => {
+        const result = getIOKey({ name: "test input" }, "input");
+        expect(result).toBe("input-test_input");
+    });
+
+    it("should return a key based on name for output", () => {
+        const result = getIOKey({ name: "test output" }, "output");
+        expect(result).toBe("output-test_output");
+    });
+
+    it("should use id if name is not provided for input", () => {
+        const result = getIOKey({ id: "test-id" }, "input");
+        expect(result).toBe("input-test_id");
+    });
+
+    it("should use id if name is not provided for output", () => {
+        const result = getIOKey({ id: "test-id" }, "output");
+        expect(result).toBe("output-test_id");
+    });
+
+    it("should sanitize special characters in name", () => {
+        const result = getIOKey({ name: "test@input#123\n\t" }, "input");
+        expect(result).toBe("input-test_input_123__");
+    });
+
+    it("should sanitize special characters in id", () => {
+        const result = getIOKey({ id: "test@id#123" }, "input");
+        expect(result).toBe("input-test_id_123");
+    });
+
+    it("should return null and if both name and id are missing", () => {
+        const result = getIOKey({}, "input");
+        expect(result).toBeNull();
+    });
+
+    it("should return null if both name and id are null", () => {
+        const result = getIOKey({ name: null, id: null }, "output");
+        expect(result).toBeNull();
+    });
+
+    it("shouldn't use empty string name", () => {
+        const result = getIOKey({ name: "", id: "123" }, "input");
+        expect(result).toBe("input-123");
+    });
+
+    it("should return null for no name and empty string id", () => {
+        const result = getIOKey({ id: "" }, "output");
+        expect(result).toBeNull();
+    });
+
+    it("should prefer name over id when both are provided", () => {
+        const result = getIOKey({ name: "test-name", id: "test-id" }, "input");
+        expect(result).toBe("input-test_name");
+    });
+
+    it("should handle numeric name", () => {
+        const result = getIOKey({ name: "123" }, "input");
+        expect(result).toBe("input-123");
+    });
+
+    it("should handle numeric id", () => {
+        const result = getIOKey({ id: "456" }, "output");
+        expect(result).toBe("output-456");
+    });
+});
+
+describe("parseRunIO", () => {
+    it("should handle both inputs and outputs", () => {
+        const inputs = [
+            { input: { id: "1", name: "input1" }, data: "\"input value\"" },
+        ] as any[]; // Using 'any' to simulate ExistingInput type
+
+        const outputs = [
+            { output: { id: "2", name: "output2" }, data: "\"output value\"" },
+        ] as any[]; // Using 'any' to simulate ExistingOutput type
+
+        expect(parseRunIO(inputs, console, "input")).toEqual({
+            "input-input1": "input value",
+        });
+
+        expect(parseRunIO(outputs, console, "output")).toEqual({
+            "output-output2": "output value",
+        });
+    });
+
+    it("should handle various data types", () => {
+        const mixedIO = [
+            { input: { id: "1", name: "string" }, data: "\"text\"" },
+            { input: { id: "2", name: "number" }, data: "42" },
+            { input: { id: "3", name: "boolean" }, data: "true" },
+            { input: { id: "4", name: "object" }, data: "{\"key\": \"value\"}" },
+            { input: { id: "5", name: "array" }, data: "[1,2,3]" },
+        ] as any[];
+
+        expect(parseRunIO(mixedIO, console, "input")).toEqual({
+            "input-string": "text",
+            "input-number": 42,
+            "input-boolean": true,
+            "input-object": { key: "value" },
+            "input-array": [1, 2, 3],
+        });
+    });
+
+    it("should return an empty object for non-array input", () => {
+        // @ts-ignore: Testing runtime scenario
+        expect(parseRunIO({}, console, "input")).toEqual({});
+        // @ts-ignore: Testing runtime scenario
+        expect(parseRunIO(null, console, "output")).toEqual({});
+    });
+});
+
 describe("parseRunInputs", () => {
     it("should return an empty object for null input", () => {
         // @ts-ignore: Testing runtime scenario
@@ -148,11 +260,11 @@ describe("parseRunInputs", () => {
         ] as RunRoutineInput[];
 
         expect(parseRunInputs(inputs, console)).toEqual({
-            input1: "string value",
-            input2: 42,
-            input3: true,
-            input4: { key: "value" },
-            input5: [1, 2, 3],
+            "input-input1": "string value",
+            "input-input2": 42,
+            "input-input3": true,
+            "input-input4": { key: "value" },
+            "input-input5": [1, 2, 3],
         });
     });
 
@@ -162,7 +274,7 @@ describe("parseRunInputs", () => {
         ] as RunRoutineInput[];
 
         expect(parseRunInputs(inputs, console)).toEqual({
-            "1": "value",
+            "input-1": "value",
         });
     });
 
@@ -172,18 +284,73 @@ describe("parseRunInputs", () => {
         ] as RunRoutineInput[];
 
         expect(parseRunInputs(inputs, console)).toEqual({
-            input1: "invalid json",
+            "input-input1": "invalid json",
+        });
+    });
+});
+
+describe("parseRunOutputs", () => {
+    it("should return an empty object for null input", () => {
+        // @ts-ignore: Testing runtime scenario
+        expect(parseRunOutputs(null, console)).toEqual({});
+    });
+
+    it("should return an empty object for invalid input type", () => {
+        const notOutputs = { __typename: "SomethingElse" };
+        // @ts-ignore: Testing runtime scenario
+        expect(parseRunOutputs(notOutputs, console)).toEqual({});
+    });
+
+    it("should parse outputs correctly", () => {
+        const outputs = [
+            { output: { id: "1", name: "output1" }, data: "\"string value\"" },
+            { output: { id: "2", name: "output2" }, data: "42" },
+            { output: { id: "3", name: "output3" }, data: "true" },
+            { output: { id: "4", name: "output4" }, data: "{\"key\": \"value\"}" },
+            { output: { id: "5", name: "output5" }, data: "[1,2,3]" },
+        ] as any[]; // Using 'any' to simulate RunRoutineOutput type
+
+        expect(parseRunOutputs(outputs, console)).toEqual({
+            "output-output1": "string value",
+            "output-output2": 42,
+            "output-output3": true,
+            "output-output4": { key: "value" },
+            "output-output5": [1, 2, 3],
+        });
+    });
+
+    it("should use id as key when name is not available", () => {
+        const outputs = [
+            { output: { id: "1" }, data: "\"value\"" },
+        ] as any[]; // Using 'any' to simulate RunRoutineOutput type
+
+        expect(parseRunOutputs(outputs, console)).toEqual({
+            "output-1": "value",
+        });
+    });
+
+    it("should handle parsing errors gracefully", () => {
+        const outputs = [
+            { output: { id: "1", name: "output1" }, data: "invalid json" },
+        ] as any[]; // Using 'any' to simulate RunRoutineOutput type
+
+        expect(parseRunOutputs(outputs, console)).toEqual({
+            "output-output1": "invalid json",
         });
     });
 });
 
 describe("runInputsUpdate", () => {
     it("should create new inputs when they do not exist", () => {
-        const params: RunInputsUpdateParams = {
-            existingInputs: [],
-            formData: { routineInputName1: "value1", routineInputName2: 42 },
+        const params: Omit<RunIOUpdateParams<"input">, "ioType"> = {
+            existingIO: [],
+            formData: {
+                "output-routineInputName1": "valueBoop",
+                "input-routineInputName1": "value1",
+                "input-routineInputName2": 42,
+            },
             logger: console,
-            routineInputs: [{
+            routineIO: [{
                 id: "routineInput1",
                 name: "routineInputName1",
             }, {
@@ -215,19 +382,19 @@ describe("runInputsUpdate", () => {
     });
 
     it("should update existing inputs when data has changed", () => {
-        const params: RunInputsUpdateParams = {
-            existingInputs: [{
+        const params: Omit<RunIOUpdateParams<"input">, "ioType"> = {
+            existingIO: [{
                 id: "runInput1",
                 data: "\"old-value1\"",
-                input: { id: "routineInput1" },
+                input: { name: "routineInputName1" } as RoutineVersionInput,
             }, {
                 id: "runInput2",
                 data: "999",
                 input: { id: "routineInput2" },
             }],
-            formData: { routineInputName1: "new-value1", routineInputName2: 42 },
+            formData: { "input-routineInputName1": "new-value1", "input-routineInputName2": 42 },
             logger: console,
-            routineInputs: [{
+            routineIO: [{
                 id: "routineInput1",
                 name: "routineInputName1",
             }, {
@@ -254,19 +421,19 @@ describe("runInputsUpdate", () => {
     });
 
     it("should handle creating and updating inputs simultaneously", () => {
-        const params: RunInputsUpdateParams = {
-            existingInputs: [{
+        const params: Omit<RunIOUpdateParams<"input">, "ioType"> = {
+            existingIO: [{
                 id: "runInput2",
                 data: "999",
-                input: { id: "routineInput2" },
+                input: { id: "routineInput2", name: null },
             }, {
                 id: "runInput6",
                 data: "\"hello world\"",
                 input: { id: "routineInput6" },
             }],
-            formData: { routineInputName1: "value1", routineInputName2: 42 },
+            formData: { "input-routineInputName1": "value1", "input-routineInputName2": 42 },
             logger: console,
-            routineInputs: [{
+            routineIO: [{
                 id: "routineInput1",
                 name: "routineInputName1",
             }, {
@@ -297,6 +464,129 @@ describe("runInputsUpdate", () => {
             },
         ]);
         expect(result.inputsDelete).toBeUndefined();
+    });
+});
+
+describe("runOutputsUpdate", () => {
+    it("should create new outputs when they do not exist", () => {
+        const params: Omit<RunIOUpdateParams<"output">, "ioType"> = {
+            existingIO: [],
+            formData: { "output-routineOutputName1": "value1", "output-routineOutputName2": 42 },
+            logger: console,
+            routineIO: [{
+                id: "routineOutput1",
+                name: "routineOutputName1",
+            }, {
+                id: "routineOutput2",
+                name: "routineOutputName2",
+            }],
+            runRoutineId: "run1",
+        };
+
+        const result = runOutputsUpdate(params);
+
+        expect(result.outputsCreate).toEqual([
+            {
+                id: expect.any(String),
+                data: "\"value1\"",
+                outputConnect: "routineOutput1",
+                runRoutineConnect: "run1",
+            },
+            {
+                id: expect.any(String),
+                data: "42",
+                outputConnect: "routineOutput2",
+                runRoutineConnect: "run1",
+            },
+        ]);
+        result.outputsCreate?.forEach(output => expect(uuidValidate(output.id)).toBe(true));
+        expect(result.outputsUpdate).toBeUndefined();
+        expect(result.outputsDelete).toBeUndefined();
+    });
+
+    it("should update existing outputs when data has changed", () => {
+        const params: Omit<RunIOUpdateParams<"output">, "ioType"> = {
+            existingIO: [{
+                id: "runOutput1",
+                data: "\"old-value1\"",
+                output: { name: "routineOutputName1" } as RoutineVersionOutput,
+            }, {
+                id: "runOutput2",
+                data: "999",
+                output: { id: "routineOutput2" },
+            }],
+            formData: { "output-routineOutputName1": "new-value1", "output-routineOutputName2": 42 },
+            logger: console,
+            routineIO: [{
+                id: "routineOutput1",
+                name: "routineOutputName1",
+            }, {
+                id: "routineOutput2",
+                name: "routineOutputName2",
+            }],
+            runRoutineId: "run1",
+        };
+
+        const result = runOutputsUpdate(params);
+
+        expect(result.outputsUpdate).toEqual([
+            {
+                id: "runOutput1",
+                data: "\"new-value1\"",
+            },
+            {
+                id: "runOutput2",
+                data: "42",
+            },
+        ]);
+        expect(result.outputsCreate).toBeUndefined();
+        expect(result.outputsDelete).toBeUndefined();
+    });
+
+    it("should handle creating and updating outputs simultaneously", () => {
+        const params: Omit<RunIOUpdateParams<"output">, "ioType"> = {
+            existingIO: [{
+                id: "runOutput2",
+                data: "999",
+                output: { id: "routineOutput2", name: null },
+            }, {
+                id: "runOutput6",
+                data: "\"hello world\"",
+                output: { id: "routineOutput6" },
+            }],
+            formData: { "output-routineOutputName1": "value1", "output-routineOutputName2": 42 },
+            logger: console,
+            routineIO: [{
+                id: "routineOutput1",
+                name: "routineOutputName1",
+            }, {
+                id: "routineOutput2",
+                name: "routineOutputName2",
+            }, {
+                id: "routineOutput3",
+                name: "routineOutputName3",
+            }],
+            runRoutineId: "run1",
+        };
+
+        const result = runOutputsUpdate(params);
+
+        expect(result.outputsCreate).toEqual([
+            {
+                id: expect.any(String),
+                data: "\"value1\"",
+                outputConnect: "routineOutput1",
+                runRoutineConnect: "run1",
+            },
+        ]);
+        result.outputsCreate?.forEach(output => expect(uuidValidate(output.id)).toBe(true));
+        expect(result.outputsUpdate).toEqual([
+            {
+                id: "runOutput2",
+                data: "42",
+            },
+        ]);
+        expect(result.outputsDelete).toBeUndefined();
     });
 });
 
@@ -429,11 +719,6 @@ describe("insertStep", () => {
             nodeLinks: [],
             routineVersionId: "routineVersion999",
         };
-        //TODO when multi-step routines are inserted, we need to make sure its node's locations and nextLocations are updated.
-        // For good measure, should do the same with directories that might contain multi-step routines.
-        // Can accomplish this either by creating a new function which updates the base location recursively, 
-        // or better would be getting the steps beforehand using something like stepFromLocation and creating the steps with the correct 
-        // location from the start
         const mockRootStep: MultiRoutineStep = {
             __type: RunStepType.MultiRoutine,
             description: "root",
@@ -2580,8 +2865,10 @@ describe("singleRoutineToStep", () => {
             configCallData: "{}",
             configFormInput: "{}",
             configFormOutput: "{}",
+            inputs: [],
             nodeLinks: [],
             nodes: [],
+            outputs: [],
             root: {
                 __typename: "Routine",
                 id: uuid(),
@@ -2644,6 +2931,7 @@ describe("multiRoutineToStep", () => {
             configCallData: "{}",
             configFormInput: "{}",
             configFormOutput: "{}",
+            inputs: [],
             nodeLinks: [{
                 __typename: "NodeLink",
                 id: uuid(),
@@ -2717,6 +3005,7 @@ describe("multiRoutineToStep", () => {
                     wasSuccessful: true,
                 },
             } as Node],
+            outputs: [],
             root: {
                 __typename: "Routine",
                 id: uuid(),
@@ -2912,8 +3201,10 @@ describe("runnableObjectToStep", () => {
             configCallData: "{}",
             configFormInput: "{}",
             configFormOutput: "{}",
+            inputs: [],
             nodeLinks: [],
             nodes: [],
+            outputs: [],
             root: {
                 __typename: "Routine",
                 id: uuid(),
@@ -2958,6 +3249,7 @@ describe("runnableObjectToStep", () => {
             configCallData: "{}",
             configFormInput: "{}",
             configFormOutput: "{}",
+            inputs: [],
             nodeLinks: [{
                 __typename: "NodeLink",
                 id: uuid(),
@@ -3031,6 +3323,7 @@ describe("runnableObjectToStep", () => {
                     wasSuccessful: true,
                 },
             } as Node],
+            outputs: [],
             root: {
                 __typename: "Routine",
                 id: uuid(),
@@ -3246,8 +3539,10 @@ describe("addSubroutinesToStep", () => {
             configCallData: "{}",
             configFormInput: "{}",
             configFormOutput: "{}",
+            inputs: [],
             nodeLinks: [],
             nodes: [],
+            outputs: [],
             root: {
                 __typename: "Routine",
                 id: uuid(),
