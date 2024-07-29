@@ -84,11 +84,19 @@ export function EmailListItem({
     );
 }
 
-export const EmailList = ({
+const emailInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <EmailIcon />
+        </InputAdornment>
+    ),
+} as const;
+
+export function EmailList({
     handleUpdate,
     numOtherVerified,
     list,
-}: EmailListProps) => {
+}: EmailListProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -193,13 +201,7 @@ export const EmailList = ({
                     onChange={formik.handleChange}
                     error={formik.touched.emailAddress && Boolean(formik.errors.emailAddress)}
                     helperText={formik.touched.emailAddress && formik.errors.emailAddress}
-                    InputProps={{
-                        startAdornment: (
-                            <InputAdornment position="start">
-                                <EmailIcon />
-                            </InputAdornment>
-                        ),
-                    }}
+                    InputProps={emailInputProps}
                     sx={{
                         height: "56px",
                         "& .MuiInputBase-root": {
@@ -220,4 +222,4 @@ export const EmailList = ({
             </Stack>
         </form>
     );
-};
+}

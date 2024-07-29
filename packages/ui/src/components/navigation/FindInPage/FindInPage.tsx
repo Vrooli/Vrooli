@@ -75,6 +75,10 @@ function highlightText(
     return highlightSpans;
 }
 
+const findInPageInputProps = {
+    disableUnderline: true,
+} as const;
+
 function FindInPage() {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -216,9 +220,7 @@ function FindInPage() {
                                 },
                             }}
                             variant="standard"
-                            InputProps={{
-                                disableUnderline: true,
-                            }}
+                            InputProps={findInPageInputProps}
                         />
                         {/* Display resultIndex and total results */}
                         {results.length > 0 &&

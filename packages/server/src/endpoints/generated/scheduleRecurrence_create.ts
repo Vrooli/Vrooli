@@ -1205,15 +1205,6 @@ export const scheduleRecurrence_create = {
               },
               "__typename": "ApiVersion"
             },
-            "stats": {
-              "id": true,
-              "periodStart": true,
-              "periodEnd": true,
-              "periodType": true,
-              "calls": true,
-              "routineVersions": true,
-              "__typename": "StatsApi"
-            },
             "__typename": "Api"
           },
           "translations": {
@@ -1459,14 +1450,6 @@ export const scheduleRecurrence_create = {
                 "name": true
               },
               "__typename": "CodeVersion"
-            },
-            "stats": {
-              "id": true,
-              "periodStart": true,
-              "periodEnd": true,
-              "periodType": true,
-              "calls": true,
-              "routineVersions": true
             },
             "__typename": "Code"
           },
@@ -2158,16 +2141,6 @@ export const scheduleRecurrence_create = {
             "versionIndex": true,
             "versionLabel": true,
             "__typename": "RoutineVersion"
-          },
-          "stats": {
-            "id": true,
-            "periodStart": true,
-            "periodEnd": true,
-            "periodType": true,
-            "runsStarted": true,
-            "runsCompleted": true,
-            "runCompletionTimeAverage": true,
-            "runContextSwitchesAverage": true
           },
           "__typename": "Routine"
         },

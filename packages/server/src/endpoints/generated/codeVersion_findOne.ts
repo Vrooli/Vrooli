@@ -231,14 +231,6 @@ export const codeVersion_findOne = {
       },
       "__typename": "CodeVersion"
     },
-    "stats": {
-      "id": true,
-      "periodStart": true,
-      "periodEnd": true,
-      "periodType": true,
-      "calls": true,
-      "routineVersions": true
-    },
     "__typename": "Code"
   },
   "translations": {

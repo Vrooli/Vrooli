@@ -1,8 +1,8 @@
+import { DropzoneFormInput, DropzoneFormInputProps } from "@local/shared";
 import { Autocomplete, Button, Chip, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
 import { Dropzone, MAX_DROPZONE_FILES } from "components/inputs/Dropzone/Dropzone";
 import { IntegerInputBase } from "components/inputs/IntegerInput/IntegerInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";
-import { DropzoneFormInput, DropzoneFormInputProps } from "forms/types";
 import { useCallback, useMemo, useState } from "react";
 import { CHIP_LIST_LIMIT } from "utils/consts";
 import { PubSub } from "utils/pubsub";

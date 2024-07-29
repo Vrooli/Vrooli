@@ -1,11 +1,11 @@
+import { SearchType } from "@local/shared";
 import { Box } from "@mui/material";
-import { SearchType } from "utils/search/objectToSearch";
 import { AdvancedSearchButton } from "../AdvancedSearchButton/AdvancedSearchButton";
 import { SortButton } from "../SortButton/SortButton";
 import { TimeButton } from "../TimeButton/TimeButton";
 import { SearchButtonsProps } from "../types";
 
-export const SearchButtons = ({
+export function SearchButtons({
     advancedSearchParams,
     advancedSearchSchema,
     controlsUrl,
@@ -17,7 +17,7 @@ export const SearchButtons = ({
     sortByOptions,
     sx,
     timeFrame,
-}: SearchButtonsProps) => {
+}: SearchButtonsProps) {
     return (
         <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: 1, ...sx }}>
             <SortButton
@@ -38,4 +38,4 @@ export const SearchButtons = ({
             />}
         </Box>
     );
-};
+}

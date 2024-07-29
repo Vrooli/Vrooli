@@ -1,5 +1,7 @@
 import { Node, NodeLink, NodeType, ProjectVersion, ProjectVersionDirectory, ProjectVersionDirectorySearchInput, RoutineType, RoutineVersion, RoutineVersionInput, RoutineVersionOutput, RoutineVersionSearchInput, RunProject, RunProjectStep, RunProjectStepCreateInput, RunProjectUpdateInput, RunRoutine, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput, RunRoutineOutput, RunRoutineOutputUpdateInput, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepStatus, RunRoutineUpdateInput, RunStatus } from "../api/generated/graphqlTypes";
 import { PassableLogger, Status } from "../consts/commonTypes";
+import { generateInitialValues } from "../forms/defaultGenerator";
+import { FormSchema } from "../forms/types";
 import { uuid, uuidValidate } from "../id/uuid";
 import { NodeShape } from "../shape/models/node";
 import { NodeLinkShape } from "../shape/models/nodeLink";
@@ -216,6 +218,8 @@ export function routineVersionHasSubroutines(routineVersion: Partial<RoutineVers
 
 type IOKeyObject = { id?: string | null; name?: string | null };
 
+const FIELD_NAME_DELIMITER = "-";
+
 /**
  * Creates the formik key for a given input or output object
  * @param io The input or output object. Both RunRoutineInput/Output and RoutineVersionInput/Output should work
@@ -233,9 +237,19 @@ export function getIOKey(
         return null;
     }
     // Sanitize identifier by replacing any non-alphanumeric characters (except underscores) with underscores
-    identifier = identifier.replace(/[^a-zA-Z0-9_]/g, "_");
+    identifier = identifier.replace(/[^a-zA-Z0-9_-]/g, "_");
     // Prepend the ioType to the identifier so we can store both inputs and outputs in one formik object
-    return `${ioType}-${identifier}`;
+    return `${ioType}${FIELD_NAME_DELIMITER}${identifier}`; // Make sure the delimiter is not one of the sanitized characters
+}
+
+/**
+ * Creates the formik field name based on a fieldName and prefix
+ * @param fieldName The field name to use
+ * @param prefix The prefix to use
+ * @returns The formik field name
+ */
+export function getFormikFieldName(fieldName: string, prefix?: string): string {
+    return prefix ? `${prefix}${FIELD_NAME_DELIMITER}${fieldName}` : fieldName;
 }
 
 export type ExistingInput = Pick<RunRoutineInput, "id" | "data"> & { input: Pick<RunRoutineInput["input"], "id" | "name"> };
@@ -276,7 +290,6 @@ export function parseRunIO(
     return result;
 }
 
-// Function for parsing inputs (maintains backwards compatibility)
 export function parseRunInputs(
     runInputs: ExistingInput[],
     logger: PassableLogger,
@@ -284,12 +297,81 @@ export function parseRunInputs(
     return parseRunIO(runInputs, logger, "input");
 }
 
-// New function for parsing outputs
 export function parseRunOutputs(
     runOutputs: ExistingOutput[],
     logger: PassableLogger,
 ): object {
     return parseRunIO(runOutputs, logger, "output");
+}
+
+type GenerateRoutineInitialValuesProps = {
+    configFormInput: FormSchema | null | undefined,
+    configFormOutput: FormSchema | null | undefined,
+    logger: PassableLogger,
+    runInputs: ExistingInput[] | null | undefined,
+    runOutputs: ExistingOutput[] | null | undefined,
+}
+
+//TODO delete inputs/outputs with empty strings when creating run input/output update objects. Needed because inputs that are not set default to "" to avoid formik uncontrolled inputs error (and also so we can remove inputs if the user erases them)
+/**
+ * Combines form schema default values with existing run data
+ * to create Formik initial values for displaying a subroutine.
+ * 
+ * Any run inputs/outputs which don't appear in the form inputs/outpus 
+ * will be ignored, as they're likely for another step.
+ * 
+ * Any form inputs/outputs which don't have a corresponding run and don't have 
+ * default values will be set to the InputType's default value or "" to avoid uncontrolled input warnings.
+ * 
+ * @param configFormInput Form schema for inputs
+ * @param configFormOutput Form schema for outputs
+ * @param runInputs Optional existing run inputs
+ * @param runOutputs Optional existing run outputs
+ * @param logger Logger to log errors
+ * @returns Tnitial values for Formik to display a subroutine
+ */
+export function generateRoutineInitialValues({
+    configFormInput,
+    configFormOutput,
+    logger,
+    runInputs,
+    runOutputs,
+}: GenerateRoutineInitialValuesProps): object {
+    let initialValues: object = {};
+
+    // Generate initial values from form schema elements (defaults)
+    const inputDefaults = generateInitialValues(configFormInput?.elements, "input");
+    const outputDefaults = generateInitialValues(configFormOutput?.elements, "output");
+
+    // Add all form data to result
+    initialValues = {
+        ...inputDefaults,
+        ...outputDefaults,
+    };
+
+    // Collect run data
+    let runData: object = {};
+    if (runInputs) {
+        runData = {
+            ...runData,
+            ...parseRunInputs(runInputs, logger),
+        };
+    }
+    if (runOutputs) {
+        runData = {
+            ...runData,
+            ...parseRunOutputs(runOutputs, logger),
+        };
+    }
+
+    // Override initial values with run data
+    for (const key in runData) {
+        if (Object.prototype.hasOwnProperty.call(runData, key) && Object.prototype.hasOwnProperty.call(initialValues, key)) {
+            initialValues[key] = runData[key];
+        }
+    }
+
+    return initialValues;
 }
 
 export type RunIOUpdateParams<IOType extends "input" | "output"> = {

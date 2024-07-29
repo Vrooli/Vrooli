@@ -1,4 +1,4 @@
-import { AutocompleteOption, FindByIdInput, FindVersionInput, ListObject, getObjectUrl } from "@local/shared";
+import { AutocompleteOption, CalendarPageTabOption, FindByIdInput, FindVersionInput, FormInputBase, ListObject, SearchPageTabOption, SearchType, getObjectUrl } from "@local/shared";
 import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -6,7 +6,6 @@ import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { FormInputBase } from "forms/types";
 import { useFindMany } from "hooks/useFindMany";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useTabs } from "hooks/useTabs";
@@ -18,9 +17,9 @@ import { removeSearchParams, useLocation } from "route";
 import { SideActionsButton } from "styles";
 import { getDisplay } from "utils/display/listTools";
 import { scrollIntoFocusedView } from "utils/display/scroll";
-import { CalendarPageTabOption, SearchPageTabOption, SearchType, findObjectTabParams, searchTypeToParams } from "utils/search/objectToSearch";
+import { findObjectTabParams, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
-import { CrudProps } from "views/objects/types";
+import { CrudProps } from "../../../types";
 import { FindObjectDialogProps, FindObjectDialogType, SelectOrCreateObject, SelectOrCreateObjectType } from "../types";
 
 const { ApiUpsert } = lazily(() => import("../../../views/objects/api/ApiUpsert/ApiUpsert"));

@@ -1,5 +1,4 @@
-import { endpointGetResource, endpointGetResources, ResourceSortBy } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetResource, endpointGetResources, FormSchema, ResourceSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

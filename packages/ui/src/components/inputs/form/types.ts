@@ -1,4 +1,4 @@
-import { FormHeaderType, FormInputType } from "forms/types";
+import { FormHeaderType, FormInputType } from "@local/shared";
 
 export interface FormDividerProps {
     isEditing: boolean;
@@ -15,6 +15,11 @@ export interface FormHeaderProps {
 export interface FormInputProps<FieldData extends FormInputType = FormInputType> {
     disabled?: boolean;
     fieldData: FieldData;
+    /** 
+     * Prefix for the field names, in case you need to store multiple 
+     * element sets in one formik (e.g. both inputs and outputs) 
+     */
+    fieldNamePrefix?: string;
     index: number;
     isEditing: boolean;
     /** Provide when building form to configure input properties */

@@ -1,5 +1,4 @@
-import { endpointGetFeedPopular, PopularSortBy } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetFeedPopular, FormSchema, PopularSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

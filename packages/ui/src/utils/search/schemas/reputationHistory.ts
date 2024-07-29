@@ -1,5 +1,4 @@
-import { endpointGetReputationHistories, endpointGetReputationHistory, ReputationHistorySortBy } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetReputationHistories, endpointGetReputationHistory, FormSchema, ReputationHistorySortBy } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

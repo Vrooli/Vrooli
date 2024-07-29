@@ -1,4 +1,4 @@
-import { GqlModelType, ListObject, getObjectUrlBase, uuidValidate } from "@local/shared";
+import { GqlModelType, ListObject, SearchType, getObjectUrlBase, uuidValidate } from "@local/shared";
 import { ListItemIcon, ListItemText, Menu, MenuItem, Tooltip, useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -18,7 +18,7 @@ import { SideActionsButton } from "styles";
 import { BulkObjectAction } from "utils/actions/bulkObjectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { scrollIntoFocusedView } from "utils/display/scroll";
-import { SearchType, myStuffTabParams } from "utils/search/objectToSearch";
+import { myStuffTabParams } from "utils/search/objectToSearch";
 import { MyStuffViewProps } from "../types";
 
 export function MyStuffView({

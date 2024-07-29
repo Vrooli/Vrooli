@@ -58,7 +58,7 @@ export function ContentCollapse({
                 <Typography component={titleComponent ?? "h6"} variant={titleVariant ?? "h6"}>{titleText}</Typography>
                 {helpText && <HelpButton
                     markdown={helpText}
-                    sx={sxs?.helpButton ?? {}}
+                    sx={sxs?.helpButton}
                 />}
                 {!disableCollapse && <IconButton
                     id={`toggle-expand-icon-button-${title}`}

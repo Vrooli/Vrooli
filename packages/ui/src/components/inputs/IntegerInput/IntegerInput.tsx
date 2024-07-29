@@ -1,5 +1,6 @@
 import { Box, FormControl, FormHelperText, Input, InputLabel, Palette, Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
+import { useMemo } from "react";
 import { IntegerInputBaseProps, IntegerInputProps } from "../types";
 
 export function getNumberInRange(
@@ -60,25 +61,37 @@ export function IntegerInputBase({
     min = Number.MIN_SAFE_INTEGER,
     name,
     offset = 0,
+    onBlur,
     onChange,
     step = 1,
+    sx,
     tooltip = "",
     value,
     zeroText,
-    ...props
 }: IntegerInputBaseProps) {
     const { palette } = useTheme();
 
     const offsetValue = (value ?? 0) + offset;
     const displayValue = offsetValue === 0 && zeroText ? zeroText : offsetValue;
 
+    const inputProps = useMemo(function inputPropsMemo() {
+        return {
+            min,
+            max,
+            pattern: "[0-9]*",
+        } as const;
+    }, [min, max]);
+
     return (
         <Tooltip title={tooltip}>
-            <Box key={key} {...props} sx={{
-                display: "flex",
-                justifyContent: "flex-start",
-                ...props?.sx ?? {},
-            }}>
+            <Box
+                key={key}
+                onBlur={onBlur}
+                sx={{
+                    display: "flex",
+                    justifyContent: "flex-start",
+                    ...sx,
+                }}>
                 <FormControl sx={{
                     background: palette.background.paper,
                     width: "100%",
@@ -102,11 +115,7 @@ export function IntegerInputBase({
                         aria-describedby={`helper-text-${name}`}
                         type="number"
                         inputMode="numeric"
-                        inputProps={{
-                            min,
-                            max,
-                            pattern: "[0-9]*",
-                        }}
+                        inputProps={inputProps}
                         value={displayValue}
                         onChange={(e) => onChange(calculateUpdatedNumber(e.target.value, max, min, allowDecimal))}
                         placeholder={zeroText}

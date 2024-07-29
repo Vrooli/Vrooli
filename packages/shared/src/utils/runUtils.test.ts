@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Node, NodeLink, NodeType, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionYou, Routine, RoutineType, RoutineVersion, RoutineVersionInput, RoutineVersionOutput, RoutineVersionYou, RunRoutineInput } from "../api/generated/graphqlTypes";
+import { InputType } from "../consts";
+import { FormSchema, FormStructureType } from "../forms";
 import { uuid, uuidValidate } from "../id/uuid";
-import { DecisionStep, DirectoryStep, EndStep, MultiRoutineStep, RootStep, RoutineListStep, RunIOUpdateParams, RunStep, RunStepType, RunnableProjectVersion, RunnableRoutineVersion, SingleRoutineStep, StartStep, addSubroutinesToStep, directoryToStep, findStep, getIOKey, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, insertStep, locationArraysMatch, multiRoutineToStep, parseChildOrder, parseRunIO, parseRunInputs, parseRunOutputs, projectToStep, routineVersionHasSubroutines, runInputsUpdate, runOutputsUpdate, runnableObjectToStep, siblingsAtLocation, singleRoutineToStep, sortStepsAndAddDecisions, stepFromLocation, stepNeedsQuerying } from "./runUtils";
-
+import { DecisionStep, DirectoryStep, EndStep, ExistingInput, ExistingOutput, MultiRoutineStep, RootStep, RoutineListStep, RunIOUpdateParams, RunStep, RunStepType, RunnableProjectVersion, RunnableRoutineVersion, SingleRoutineStep, StartStep, addSubroutinesToStep, directoryToStep, findStep, generateRoutineInitialValues, getIOKey, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, insertStep, locationArraysMatch, multiRoutineToStep, parseChildOrder, parseRunIO, parseRunInputs, parseRunOutputs, projectToStep, routineVersionHasSubroutines, runInputsUpdate, runOutputsUpdate, runnableObjectToStep, siblingsAtLocation, singleRoutineToStep, sortStepsAndAddDecisions, stepFromLocation, stepNeedsQuerying } from "./runUtils";
 
 describe("getRunPercentComplete", () => {
     it("should return 0 when completedComplexity is null", () => {
@@ -236,6 +237,16 @@ describe("parseRunIO", () => {
         // @ts-ignore: Testing runtime scenario
         expect(parseRunIO(null, console, "output")).toEqual({});
     });
+
+    it("should use value as-is if JSON parse fails", () => {
+        const invalidData = [
+            { input: { id: "1", name: "invalid" }, data: "invalid json" },
+        ] as any[];
+
+        expect(parseRunIO(invalidData, console, "input")).toEqual({
+            "input-invalid": "invalid json",
+        });
+    });
 });
 
 describe("parseRunInputs", () => {
@@ -285,6 +296,144 @@ describe("parseRunInputs", () => {
 
         expect(parseRunInputs(inputs, console)).toEqual({
             "input-input1": "invalid json",
+        });
+    });
+});
+
+describe("generateRoutineInitialValues", () => {
+    const inputSchema = {
+        containers: [],
+        elements: [{
+            type: FormStructureType.Header,
+            id: "header1",
+            tag: "h1",
+        }, {
+            type: InputType.Text,
+            fieldName: "inputField1", // `fieldName` should match routine input's name
+            id: "inputId1", // `id` should match routine input's id
+            label: "Input #1",
+            props: {}, // No default value for this one
+        }, {
+            type: InputType.IntegerInput,
+            fieldName: "inputField2",
+            id: "inputId2",
+            label: "Input #2",
+            props: {
+                defaultValue: -23.0,
+            },
+        }, {
+            type: InputType.Checkbox,
+            fieldName: "inputField3",
+            id: "inputId3",
+            label: "Input #3",
+            props: {
+                defaultValue: [false, true],
+                options: [{
+                    label: "Option 1",
+                    value: "option1",
+                }, {
+                    label: "Option 2",
+                    value: "option2",
+                }],
+            },
+        },
+        // Not included in run data, and doesn't have default value, so "" should be used in result
+        {
+            type: InputType.IntegerInput,
+            fieldName: "inputField4",
+            id: "inputId4",
+            label: "Input #4",
+        }],
+    } as FormSchema;
+
+    const outputSchema = {
+        containers: [],
+        elements: [{
+            type: FormStructureType.Header,
+            id: "header9",
+            tag: "h1",
+        }, {
+            type: InputType.Text,
+            fieldName: "outputField1",
+            id: "outputId1",
+            label: "Output #1",
+            props: {
+                defaultValue: "default output",
+            },
+        }, {
+            type: InputType.Text,
+            fieldName: "outputField2",
+            id: "outputId2",
+            label: "Output #2",
+            props: {
+                defaultValue: "\n\t🐇🐇🐇\n\t",
+            },
+        },
+        // Not included in run data, so default value should be used in result
+        {
+            type: InputType.IntegerInput,
+            fieldName: "outputField3",
+            id: "outputId3",
+            label: "Output #3",
+            props: {
+                defaultValue: 23,
+                max: 912,
+                min: 2,
+            },
+        }],
+    } as FormSchema;
+
+    const runInputs = [
+        { input: { id: "inputId1", name: "inputField1" }, data: "\"string value\"" },
+        { input: { id: "inputId2", name: "inputField2" }, data: "-1234.20" },
+        { input: { id: "inputId3", name: "inputField3" }, data: "\"hello world\"" },
+        { input: { id: "inputId9999", name: "inputField9999" }, data: "{\"key\": \"value\"}" }, // Doesn't match any inputs, so should be ignored
+    ] as ExistingInput[];
+
+    const runOutputs = [
+        { output: { id: "outputId999", name: "outputField9999" }, data: "\"boopies\"" }, // Doesn't match any outputs, so should be ignored
+        { output: { id: "outputId123", name: "inputField1" }, data: "999999" }, // Name matches input instead of output, so should be ignored
+        { output: { id: "outputId1", name: "outputField1" }, data: "\"fdksjafl;sa\\n\\nfjdkls;fj;ldsa\"" },
+        { output: { id: "outputId2", name: "outputField2" }, data: "{\"key2\": \"value2\"}" },
+    ] as ExistingOutput[];
+
+    it("should work when no run data is provided", () => {
+        const result = generateRoutineInitialValues({
+            configFormInput: inputSchema,
+            configFormOutput: outputSchema,
+            logger: console,
+            runInputs: null,
+            runOutputs: undefined,
+        });
+
+        expect(result).toEqual({
+            "input-inputField1": "",
+            "input-inputField2": -23.0,
+            "input-inputField3": [false, true],
+            "input-inputField4": 0, // This is the default value for integer inputs if not provided
+            "output-outputField1": "default output",
+            "output-outputField2": "\n\t🐇🐇🐇\n\t",
+            "output-outputField3": 23,
+        });
+    });
+
+    it("should work when run data is provided", () => {
+        const result = generateRoutineInitialValues({
+            configFormInput: inputSchema,
+            configFormOutput: outputSchema,
+            logger: console,
+            runInputs,
+            runOutputs,
+        });
+
+        expect(result).toEqual({
+            "input-inputField1": "string value", // Overridden by run data
+            "input-inputField2": -1234.20, // Overridden by run data
+            "input-inputField3": "hello world", // Overridden by run data
+            "input-inputField4": 0, // Default value for integer inputs if not provided
+            "output-outputField1": "fdksjafl;sa\n\nfjdkls;fj;ldsa", // Overridden by run data
+            "output-outputField2": { key2: "value2" }, // Overridden by run data
+            "output-outputField3": 23,
         });
     });
 });

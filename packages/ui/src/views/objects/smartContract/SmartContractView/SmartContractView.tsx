@@ -1,4 +1,4 @@
-import { CodeShape, CodeVersion, CommentFor, LINKS, ResourceListShape, ResourceList as ResourceListType, Tag, TagShape, endpointGetCodeVersion, exists, getTranslation, noopSubmit } from "@local/shared";
+import { CodeLanguage, CodeShape, CodeVersion, CommentFor, LINKS, ResourceListShape, ResourceList as ResourceListType, SearchVersionPageTabOption, Tag, TagShape, endpointGetCodeVersion, exists, getTranslation, noopSubmit } from "@local/shared";
 import { Box, Button, Divider, Stack, useTheme } from "@mui/material";
 import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -6,7 +6,7 @@ import { CommentContainer } from "components/containers/CommentContainer/Comment
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { CodeInput, CodeLanguage } from "components/inputs/CodeInput/CodeInput";
+import { CodeInput } from "components/inputs/CodeInput/CodeInput";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TagList } from "components/lists/TagList/TagList";
@@ -27,9 +27,11 @@ import { SideActionsButton } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
-import { SearchVersionPageTabOption } from "utils/search/objectToSearch";
 import { smartContractInitialValues } from "../SmartContractUpsert/SmartContractUpsert";
 import { SmartContractViewProps } from "../types";
+
+const actionsRowExclude = [ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp] as const;
+const codeLimitTo = [CodeLanguage.Javascript] as const;
 
 export function SmartContractView({
     display,
@@ -133,7 +135,7 @@ export function SmartContractView({
                     >
                         <CodeInput
                             disabled={true}
-                            limitTo={[CodeLanguage.Javascript]}
+                            limitTo={codeLimitTo}
                             name="content"
                         />
                     </ContentCollapse>
@@ -179,7 +181,7 @@ export function SmartContractView({
                         {/* Action buttons */}
                         <ObjectActionsRow
                             actionData={actionData}
-                            exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
+                            exclude={actionsRowExclude} // Handled elsewhere
                             object={existing}
                         />
                     </Box>

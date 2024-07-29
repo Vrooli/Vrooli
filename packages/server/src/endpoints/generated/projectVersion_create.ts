@@ -1296,24 +1296,6 @@ export const projectVersion_create = {
       },
       "__typename": "ProjectVersion"
     },
-    "stats": {
-      "id": true,
-      "periodStart": true,
-      "periodEnd": true,
-      "periodType": true,
-      "directories": true,
-      "apis": true,
-      "codes": true,
-      "notes": true,
-      "projects": true,
-      "routines": true,
-      "standards": true,
-      "runsStarted": true,
-      "runsCompleted": true,
-      "runCompletionTimeAverage": true,
-      "runContextSwitchesAverage": true,
-      "teams": true
-    },
     "__typename": "Project"
   },
   "translations": {

@@ -1,5 +1,4 @@
-import { endpointGetNoteVersion, endpointGetNoteVersions, NoteVersionSortBy } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetNoteVersion, endpointGetNoteVersions, FormSchema, NoteVersionSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { bookmarksRootContainer, bookmarksRootFields, isLatestContainer, isLatestFields, languagesContainer, languagesFields, searchFormLayout, tagsRootContainer, tagsRootFields, votesRootContainer, votesRootFields } from "./common";
 

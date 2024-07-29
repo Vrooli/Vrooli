@@ -1,5 +1,4 @@
-import { endpointGetNotification, endpointGetNotifications, NotificationSortBy } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetNotification, endpointGetNotifications, FormSchema, NotificationSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

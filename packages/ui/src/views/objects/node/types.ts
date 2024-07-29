@@ -1,6 +1,5 @@
 import { Node, NodeEnd, NodeEndShape, NodeRoutineList, NodeRoutineListShape, NodeShape } from "@local/shared";
-import { FormProps } from "forms/types";
-import { CrudProps } from "../types";
+import { CrudProps, FormProps } from "../../../types";
 
 export type NodeWithEnd = Node & { end: NodeEnd };
 export type NodeWithEndShape = NodeShape & { end: NodeEndShape };

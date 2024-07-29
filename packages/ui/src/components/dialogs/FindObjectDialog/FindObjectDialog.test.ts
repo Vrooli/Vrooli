@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { SearchPageTabOption, findObjectTabParams } from "../../../utils/search/objectToSearch";
+import { SearchPageTabOption, findObjectTabParams } from "@local/shared";
 import { convertRootObjectToVersion, getFilteredTabs } from "./FindObjectDialog";
 
 describe("getFilteredTabs function", () => {

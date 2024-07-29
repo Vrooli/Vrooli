@@ -17,6 +17,14 @@ interface ForgotPasswordFormProps {
     onClose?: () => unknown;
 }
 
+const emailInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <EmailIcon />
+        </InputAdornment>
+    ),
+} as const;
+
 function ForgotPasswordForm({
     onClose,
 }: ForgotPasswordFormProps) {
@@ -65,13 +73,7 @@ function ForgotPasswordForm({
                                 label={t("Email", { count: 1 })}
                                 placeholder={t("EmailPlaceholder")}
                                 as={TextInput}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <EmailIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={emailInputProps}
                                 helperText={formik.touched.email && formik.errors.email}
                                 error={formik.touched.email && Boolean(formik.errors.email)}
                             />
@@ -121,10 +123,10 @@ function ForgotPasswordForm({
     );
 }
 
-export const ForgotPasswordView = ({
+export function ForgotPasswordView({
     display,
     onClose,
-}: ForgotPasswordViewProps) => {
+}: ForgotPasswordViewProps) {
     const { palette } = useTheme();
 
     return (
@@ -150,4 +152,4 @@ export const ForgotPasswordView = ({
             </Box>
         </Box>
     );
-};
+}

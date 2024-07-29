@@ -1,8 +1,8 @@
+import { SwitchFormInput, SwitchFormInputProps, getFormikFieldName } from "@local/shared";
 import { Box, Button, FormControlLabel, Switch, TextField, Typography, useTheme } from "@mui/material";
 import { SelectorBase } from "components/inputs/Selector/Selector";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useField } from "formik";
-import { SwitchFormInput, SwitchFormInputProps } from "forms/types";
 import { useEditableLabel } from "hooks/useEditableLabel";
 import { useCallback, useMemo, useState } from "react";
 import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles";
@@ -11,6 +11,7 @@ import { FormInputProps } from "../types";
 export function FormInputSwitch({
     disabled,
     fieldData,
+    fieldNamePrefix,
     isEditing,
     onConfigUpdate,
 }: FormInputProps<SwitchFormInput>) {
@@ -18,7 +19,7 @@ export function FormInputSwitch({
 
     const props = useMemo(() => fieldData.props, [fieldData.props]);
 
-    const [field, , helpers] = useField(fieldData.fieldName);
+    const [field, meta, helpers] = useField(getFormikFieldName(fieldData.fieldName, fieldNamePrefix));
     const handleChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = event.target.checked;
         if (isEditing) {

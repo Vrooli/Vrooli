@@ -1,4 +1,4 @@
-import { ChatInviteStatus, DUMMY_ID, LangsKey, Status, isEqual, uuid } from "@local/shared";
+import { ChatInviteStatus, CodeLanguage, DUMMY_ID, LangsKey, Status, isEqual, uuid } from "@local/shared";
 import { Box, Grid, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { StatusButton } from "components/buttons/StatusButton/StatusButton";
@@ -6,7 +6,6 @@ import { SelectorBase } from "components/inputs/Selector/Selector";
 import { useField } from "formik";
 import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CodeInputProps } from "../types";
 // import { isJson } from "@local/shared"; // Update this so that we can lint JSON standard input type (different from normal JSON)
 import { ChatShape } from "@local/shared";
 import { SessionContext } from "contexts/SessionContext";
@@ -20,7 +19,7 @@ import { generateContext } from "utils/display/stringTools";
 import { PubSub } from "utils/pubsub";
 import { ChatCrud, VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
 import { ChatCrudProps } from "views/objects/chat/types";
-import { CodeInputBaseProps } from "../types";
+import { CodeInputBaseProps, CodeInputProps } from "../types";
 
 // Stub types for code splitting
 type Extension = {
@@ -71,48 +70,6 @@ type ReactCodeMirrorRef = {
 }
 
 const LazyCodeMirror = React.lazy(() => import("@uiw/react-codemirror"));
-
-export enum CodeLanguage {
-    Angular = "angular",
-    Cpp = "cpp",
-    Css = "css",
-    Dockerfile = "dockerfile",
-    Go = "go",
-    Graphql = "graphql",
-    Groovy = "groovy",
-    Haskell = "haskell",
-    Html = "html",
-    Java = "java",
-    Javascript = "javascript",
-    Json = "json", // JSON which may or may not conform to a standard
-    JsonStandard = "jsonStandard", // JSON which defines a standard for some data (could be JSON, a file, etc.)
-    Nginx = "nginx",
-    Nix = "nix",
-    Php = "php",
-    Powershell = "powershell",
-    Protobuf = "protobuf",
-    Puppet = "puppet",
-    Python = "python",
-    R = "r",
-    Ruby = "ruby",
-    Rust = "rust",
-    Sass = "sass",
-    Shell = "shell",
-    Solidity = "solidity",
-    Spreadsheet = "spreadsheet",
-    Sql = "sql",
-    Svelte = "svelte",
-    Swift = "swift",
-    Typescript = "typescript",
-    Vb = "vb",
-    Vbscript = "vbscript",
-    Verilog = "verilog",
-    Vhdl = "vhdl",
-    Vue = "vue",
-    Xml = "xml",
-    Yacas = "yacas",
-    Yaml = "yaml",
-}
 
 async function loadDecorations() {
     const { Decoration, EditorView, showTooltip } = await import("@codemirror/view");

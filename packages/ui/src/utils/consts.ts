@@ -29,14 +29,6 @@ export enum BuildAction {
 }
 
 /**
- * Non-input form elements
- */
-export enum FormStructureType {
-    Divider = "Divider",
-    Header = "Header",
-}
-
-/**
  * State of build page's routine run simulation
  */
 export enum BuildRunState {

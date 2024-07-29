@@ -22,6 +22,21 @@ import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/t
 import { PubSub } from "utils/pubsub";
 import { SettingsProfileFormProps, SettingsProfileViewProps } from "../types";
 
+const nameInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <UserIcon />
+        </InputAdornment>
+    ),
+} as const;
+const handleInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <HandleIcon />
+        </InputAdornment>
+    ),
+} as const;
+
 function SettingsProfileForm({
     display,
     dirty,
@@ -75,13 +90,7 @@ function SettingsProfileForm({
                         label={t("Name")}
                         placeholder={t("NamePlaceholder")}
                         as={TextInput}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <UserIcon />
-                                </InputAdornment>
-                            ),
-                        }}
+                        InputProps={nameInputProps}
                         error={props.touched.name && Boolean(props.errors.name)}
                         helperText={props.touched.name && props.errors.name}
                     />
@@ -92,13 +101,7 @@ function SettingsProfileForm({
                         label={t("Handle")}
                         placeholder={t("HandlePlaceholder")}
                         as={TextInput}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <HandleIcon />
-                                </InputAdornment>
-                            ),
-                        }}
+                        InputProps={handleInputProps}
                         error={props.touched.handle && Boolean(props.errors.handle)}
                         helperText={props.touched.handle && props.errors.handle}
                     />

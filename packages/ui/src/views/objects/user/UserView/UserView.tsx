@@ -1,4 +1,4 @@
-import { BookmarkFor, ChatShape, FindByIdOrHandleInput, LINKS, ListObject, User, endpointGetProfile, endpointGetUser, findBotData, getObjectUrl, getTranslation, noop, uuid, uuidValidate } from "@local/shared";
+import { BookmarkFor, ChatShape, FindByIdOrHandleInput, LINKS, ListObject, User, UserPageTabOption, endpointGetProfile, endpointGetUser, findBotData, getObjectUrl, getTranslation, noop, uuid, uuidValidate } from "@local/shared";
 import { Box, IconButton, InputAdornment, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import BannerDefault from "assets/img/BannerDefault.png";
 import BannerDefaultBot from "assets/img/BannerDefaultBot.png";
@@ -33,9 +33,59 @@ import { defaultYou, getDisplay, getYou, placeholderColor } from "utils/display/
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
 import { UrlInfo, parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
-import { UserPageTabOption, userTabParams } from "utils/search/objectToSearch";
+import { userTabParams } from "utils/search/objectToSearch";
 import { FeatureSlider } from "views/objects/bot";
 import { UserViewProps } from "../types";
+
+const occupationInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <TeamIcon />
+        </InputAdornment>
+    ),
+} as const;
+const personaInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <PersonaIcon />
+        </InputAdornment>
+    ),
+} as const;
+const startMessageInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <CommentIcon />
+        </InputAdornment>
+    ),
+} as const;
+const toneInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <RoutineValidIcon />
+        </InputAdornment>
+    ),
+} as const;
+const keyPhrasesInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <KeyPhrasesIcon />
+        </InputAdornment>
+    ),
+} as const;
+const domainKnowledgeInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <LearnIcon />
+        </InputAdornment>
+    ),
+} as const;
+const biasInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <HeartFilledIcon />
+        </InputAdornment>
+    ),
+} as const;
 
 export function UserView({
     display,
@@ -364,91 +414,49 @@ export function UserView({
                             fullWidth
                             label={t("Occupation")}
                             value={botData.occupation}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <TeamIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
+                            InputProps={occupationInputProps}
                         />}
                         {botData.persona && <TextInput
                             disabled
                             fullWidth
                             label={t("Persona")}
                             value={botData.persona}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <PersonaIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
+                            InputProps={personaInputProps}
                         />}
                         {botData.startingMessage && <TextInput
                             disabled
                             fullWidth
                             label={t("StartMessage")}
                             value={botData.startingMessage}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <CommentIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
+                            InputProps={startMessageInputProps}
                         />}
                         {botData.tone && <TextInput
                             disabled
                             fullWidth
                             label={t("Tone")}
                             value={botData.tone}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <RoutineValidIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
+                            InputProps={toneInputProps}
                         />}
                         {botData.keyPhrases && <TextInput
                             disabled
                             fullWidth
                             label={t("KeyPhrases")}
                             value={botData.keyPhrases}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <KeyPhrasesIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
+                            InputProps={keyPhrasesInputProps}
                         />}
                         {botData.domainKnowledge && <TextInput
                             disabled
                             fullWidth
                             label={t("DomainKnowledge")}
                             value={botData.domainKnowledge}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <LearnIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
+                            InputProps={domainKnowledgeInputProps}
                         />}
                         {botData.bias && <TextInput
                             disabled
                             fullWidth
                             label={t("Bias")}
                             value={botData.bias}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <HeartFilledIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
+                            InputProps={biasInputProps}
                         />}
                         <FeatureSlider
                             id="creativity-slider"

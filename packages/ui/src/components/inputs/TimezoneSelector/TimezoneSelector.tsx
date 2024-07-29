@@ -8,14 +8,14 @@ import { FixedSizeList } from "react-window";
 import { TextInput } from "../TextInput/TextInput";
 import { TimezoneSelectorProps } from "../types";
 
-const formatOffset = (offset) => {
+function formatOffset(offset) {
     const sign = offset > 0 ? "-" : "+";
     const hours = Math.abs(Math.floor(offset / 60));
     const minutes = Math.abs(offset % 60);
     return `${sign}${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
-};
+}
 
-const getTimezoneOffset = (timezone) => {
+function getTimezoneOffset(timezone) {
     const now = new Date();
     const localTime = now.getTime();
     const localOffset = now.getTimezoneOffset() * 60 * 1000;
@@ -28,12 +28,12 @@ const getTimezoneOffset = (timezone) => {
     const roundedOffset = Math.round((targetOffset / (60 * 1000)) * 10) / 10;
 
     return -roundedOffset;
-};
+}
 
-export const TimezoneSelector = ({
+export function TimezoneSelector({
     onChange,
     ...props
-}: TimezoneSelectorProps) => {
+}: TimezoneSelectorProps) {
     const { palette } = useTheme();
 
     const [field, , helpers] = useField(props.name);
@@ -154,4 +154,4 @@ export const TimezoneSelector = ({
             />
         </>
     );
-};
+}

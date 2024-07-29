@@ -1,5 +1,4 @@
-import { endpointGetUnionsProjectOrTeams, InputType, ProjectOrTeamSortBy } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetUnionsProjectOrTeams, FormSchema, InputType, ProjectOrTeamSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields } from "./common";
 

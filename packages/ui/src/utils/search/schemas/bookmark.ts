@@ -1,5 +1,4 @@
-import { BookmarkSortBy, endpointGetBookmark, endpointGetBookmarks } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { BookmarkSortBy, FormSchema, endpointGetBookmark, endpointGetBookmarks } from "@local/shared";
 import i18next from "i18next";
 import { toParams } from "./base";
 import { searchFormLayout, yesNoDontCare } from "./common";

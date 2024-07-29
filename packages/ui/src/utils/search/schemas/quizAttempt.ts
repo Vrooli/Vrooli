@@ -1,5 +1,4 @@
-import { endpointGetQuizAttempt, endpointGetQuizAttempts, QuizAttemptSortBy } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetQuizAttempt, endpointGetQuizAttempts, FormSchema, QuizAttemptSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

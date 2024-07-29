@@ -5,8 +5,8 @@ import { ScrollToTop } from "components/ScrollToTop";
 import { NavbarProps } from "components/navigation/types";
 import { lazily } from "react-lazily";
 import { Route, RouteProps, Switch } from "route";
+import { PageProps } from "types";
 import { BotUpsert } from "views/objects/bot";
-import { PageProps } from "views/types";
 import { Page } from "./components/Page/Page";
 
 // Lazy loading in the Routes component is a recommended way to improve performance. See https://reactjs.org/docs/code-splitting.html#route-based-code-splitting

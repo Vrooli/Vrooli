@@ -59,3 +59,45 @@ export const THEME = {
 export type THEME = ValueOf<typeof THEME>;
 
 export const DEFAULT_LANGUAGE = "en";
+
+export enum CodeLanguage {
+    Angular = "angular",
+    Cpp = "cpp",
+    Css = "css",
+    Dockerfile = "dockerfile",
+    Go = "go",
+    Graphql = "graphql",
+    Groovy = "groovy",
+    Haskell = "haskell",
+    Html = "html",
+    Java = "java",
+    Javascript = "javascript",
+    Json = "json", // JSON which may or may not conform to a standard
+    JsonStandard = "jsonStandard", // JSON which defines a standard for some data (could be JSON, a file, etc.)
+    Nginx = "nginx",
+    Nix = "nix",
+    Php = "php",
+    Powershell = "powershell",
+    Protobuf = "protobuf",
+    Puppet = "puppet",
+    Python = "python",
+    R = "r",
+    Ruby = "ruby",
+    Rust = "rust",
+    Sass = "sass",
+    Shell = "shell",
+    Solidity = "solidity",
+    Spreadsheet = "spreadsheet",
+    Sql = "sql",
+    Svelte = "svelte",
+    Swift = "swift",
+    Typescript = "typescript",
+    Vb = "vb",
+    Vbscript = "vbscript",
+    Verilog = "verilog",
+    Vhdl = "vhdl",
+    Vue = "vue",
+    Xml = "xml",
+    Yacas = "yacas",
+    Yaml = "yaml",
+}

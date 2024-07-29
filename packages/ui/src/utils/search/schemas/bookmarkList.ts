@@ -1,5 +1,4 @@
-import { BookmarkListSortBy, endpointGetBookmarkList, endpointGetBookmarkLists } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { BookmarkListSortBy, FormSchema, endpointGetBookmarkList, endpointGetBookmarkLists } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

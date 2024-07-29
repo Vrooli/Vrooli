@@ -1,12 +1,10 @@
-import { ApiVersion, CodeVersion, ListObject, NoteVersion, ProjectVersion, ResourceListFor, RoutineVersion, StandardVersion, Tag, TagShape } from "@local/shared";
+import { ApiVersion, CodeLanguage, CodeVersion, JSONVariable, ListObject, NoteVersion, ProjectVersion, ResourceListFor, RoutineVersion, StandardVersion, Tag, TagShape } from "@local/shared";
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
 import { FindObjectTabOption } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { ResourceListProps } from "components/lists/resource/types";
 import { FieldProps } from "formik";
-import { JSONVariable } from "forms/types";
 import { CSSProperties, RefObject } from "react";
 import { SvgComponent, SxType } from "types";
-import { CodeLanguage } from "./CodeInput/CodeInput";
 
 export interface CharLimitIndicatorProps {
     chars: number;
@@ -73,7 +71,7 @@ export interface CodeInputBaseProps {
     /**
      * Limit the languages that can be selected in the language dropdown.
      */
-    limitTo?: CodeLanguage[];
+    limitTo?: readonly CodeLanguage[];
     name: string;
     /**
      * Dictionary which describes variables (e.g. <name>, <age>) in
@@ -114,14 +112,41 @@ export interface DropzoneProps {
     uploadText?: string;
 }
 
-export type LanguageInputProps = {
+export type IntegerInputBaseProps = {
+    allowDecimal?: boolean;
+    autoFocus?: boolean;
     disabled?: boolean;
+    error?: boolean;
+    fullWidth?: boolean;
+    helperText?: string | boolean | null | undefined;
+    key?: string;
+    initial?: number;
+    label?: string;
+    max?: number;
+    min?: number;
+    name: string;
+    offset?: number;
+    onBlur?: (event: React.FocusEvent<HTMLElement>) => unknown;
+    onChange: (newValue: number) => unknown;
+    step?: number;
+    sx?: SxType;
+    tooltip?: string;
+    value: number;
+    /** If provided, displays this text instead of 0 */
+    zeroText?: string;
+}
+
+export type IntegerInputProps = Omit<IntegerInputBaseProps, "onChange" | "value">;
+
+export type LanguageInputProps = {
     /**
      * Currently-selected language, if using this component to add/edit an object
      * with translations. Not needed if using this component to select languages 
      * for an advanced search, for example.
      */
     currentLanguage: string;
+    disabled?: boolean;
+    flexDirection?: "row" | "row-reverse";
     handleAdd: (language: string) => unknown;
     handleDelete: (language: string) => unknown;
     handleCurrent: (language: string) => unknown;
@@ -129,7 +154,6 @@ export type LanguageInputProps = {
      * All languages that currently have translations for the object being edited.
      */
     languages: string[];
-    sx?: SxType
 }
 
 export interface LinkInputBaseProps {
@@ -283,30 +307,6 @@ export interface ProfilePictureInputProps {
         updated_at?: string;
     } | null | undefined;
 }
-
-export interface IntegerInputBaseProps extends Omit<BoxProps, "onChange"> {
-    allowDecimal?: boolean;
-    autoFocus?: boolean;
-    disabled?: boolean;
-    error?: boolean;
-    fullWidth?: boolean;
-    helperText?: string | boolean | null | undefined;
-    key?: string;
-    initial?: number;
-    label?: string;
-    max?: number;
-    min?: number;
-    name: string;
-    offset?: number;
-    onChange: (newValue: number) => unknown;
-    step?: number;
-    tooltip?: string;
-    value: number;
-    /** If provided, displays this text instead of 0 */
-    zeroText?: string;
-}
-
-export type IntegerInputProps = Omit<IntegerInputBaseProps, "onChange" | "value">;
 
 export type ResourceListInputProps = Pick<ResourceListProps, "sxs"> & {
     disabled?: boolean;

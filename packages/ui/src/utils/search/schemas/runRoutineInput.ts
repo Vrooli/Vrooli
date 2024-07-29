@@ -1,5 +1,4 @@
-import { endpointGetRunRoutineInputs, RunRoutineInputSortBy } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetRunRoutineInputs, FormSchema, RunRoutineInputSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

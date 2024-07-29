@@ -1,4 +1,4 @@
-import { GqlModelType, LINKS, ListObject, getObjectUrlBase } from "@local/shared";
+import { GqlModelType, LINKS, ListObject, SearchType, getObjectUrlBase } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -15,8 +15,8 @@ import { SideActionsButton } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { scrollIntoFocusedView } from "utils/display/scroll";
 import { PubSub } from "utils/pubsub";
-import { SearchType, searchViewTabParams } from "utils/search/objectToSearch";
-import { SearchViewProps } from "../types";
+import { searchViewTabParams } from "utils/search/objectToSearch";
+import { SearchViewProps } from "views/types";
 
 const searchListStyle = { search: { marginTop: 2 } } as const;
 

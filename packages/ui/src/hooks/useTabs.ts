@@ -3,9 +3,9 @@ import { useTheme } from "@mui/material";
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { addSearchParams, useLocation } from "route";
+import { ViewDisplayType } from "types";
 import { getCookie, setCookie } from "utils/cookies";
 import { TabParam, TabsInfo } from "utils/search/objectToSearch";
-import { ViewDisplayType } from "views/types";
 
 export type PageTab<TabList extends TabsInfo> = Omit<TabParam<TabList>, "color" | "searchPlaceholderKey" | "titleKey"> & {
     color: string,
@@ -25,13 +25,13 @@ type UseTabsProps<TabList extends TabsInfo = TabsInfo> = {
 /**
  * Contains logic for displaying tabs and handling tab changes.
  */
-export const useTabs = <TabList extends TabsInfo>({
+export function useTabs<TabList extends TabsInfo>({
     defaultTab,
     disableHistory,
     display,
     id,
     tabParams,
-}: UseTabsProps<TabList>) => {
+}: UseTabsProps<TabList>) {
     const [location, setLocation] = useLocation();
     const { t } = useTranslation();
     const { palette } = useTheme();
@@ -84,4 +84,4 @@ export const useTabs = <TabList extends TabsInfo>({
     const currTabParams = useMemo(() => tabParams[currTab.index] as TabParam<TabList>, [currTab, tabParams]);
 
     return { tabs, currTab, setCurrTab, handleTabChange, changeTab, ...currTabParams };
-};
+}

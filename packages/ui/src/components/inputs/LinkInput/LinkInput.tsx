@@ -10,6 +10,14 @@ import { LinkInputBaseProps, LinkInputProps } from "../types";
 
 const MAX_LINK_TITLE_CHARS = 100;
 
+const linkInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <LinkIcon />
+        </InputAdornment>
+    ),
+} as const;
+
 export function LinkInputBase({
     autoFocus,
     disabled,
@@ -98,13 +106,7 @@ export function LinkInputBase({
                         onChange={(e) => onChange(e.target.value)}
                         tabIndex={tabIndex}
                         value={value}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <LinkIcon />
-                                </InputAdornment>
-                            ),
-                        }}
+                        InputProps={linkInputProps}
                         sx={{
                             "& .MuiInputBase-root": {
                                 borderRadius: "5px 0 0 5px",

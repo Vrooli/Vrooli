@@ -239,13 +239,5 @@ export const standard_findOne = {
     },
     "__typename": "StandardVersion"
   },
-  "stats": {
-    "id": true,
-    "periodStart": true,
-    "periodEnd": true,
-    "periodType": true,
-    "linksToInputs": true,
-    "linksToOutputs": true
-  },
   "__typename": "Standard"
 } as const;

@@ -47,7 +47,6 @@ export const quiz: GqlPartial<Quiz> = {
     },
     full: {
         quizQuestions: async () => rel((await import("./quizQuestion")).quizQuestion, "full", { omit: "quiz" }),
-        stats: async () => rel((await import("./statsQuiz")).statsQuiz, "full"),
         translations: () => rel(quizTranslation, "full"),
     },
     list: {

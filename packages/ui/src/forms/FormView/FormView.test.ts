@@ -1,4 +1,4 @@
-import { FormSchema, GridContainer } from "../types";
+import { FormSchema, GridContainer } from "@local/shared";
 import { normalizeFormContainers } from "./FormView";
 
 describe("normalizeFormContainers", () => {

@@ -1,7 +1,5 @@
 import { Team, TeamShape } from "@local/shared";
-import { FormProps } from "forms/types";
-import { ObjectViewProps } from "views/types";
-import { CrudPropsDialog, CrudPropsPage } from "../types";
+import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps } from "../../../types";
 
 type TeamUpsertPropsPage = CrudPropsPage;
 type TeamUpsertPropsDialog = CrudPropsDialog<Team>;

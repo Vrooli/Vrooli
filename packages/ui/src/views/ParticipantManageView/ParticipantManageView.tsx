@@ -1,4 +1,4 @@
-import { ChatInvite, ChatInviteShape, ChatInviteStatus, DUMMY_ID, ListObject, noop, User, uuidValidate } from "@local/shared";
+import { ChatInvite, ChatInviteShape, ChatInviteStatus, DUMMY_ID, ListObject, noop, ParticipantManagePageTabOption, User, uuidValidate } from "@local/shared";
 import { Box, Tooltip, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -14,7 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SideActionsButton } from "styles";
 import { BulkObjectAction } from "utils/actions/bulkObjectActions";
-import { ParticipantManagePageTabOption, participantTabParams } from "utils/search/objectToSearch";
+import { participantTabParams } from "utils/search/objectToSearch";
 import { ChatInvitesUpsert } from "views/objects/chatInvite";
 import { ParticipantManageViewProps } from "../types";
 

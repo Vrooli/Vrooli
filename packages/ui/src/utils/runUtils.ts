@@ -1,5 +1,4 @@
-import { InputType, PassableLogger, RoutineType } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { FormSchema, InputType, PassableLogger, RoutineType } from "@local/shared";
 import i18next from "i18next";
 import { BotStyle, ConfigCallData, ConfigCallDataGenerate } from "views/objects/routine/RoutineTypeForms/RoutineTypeForms";
 

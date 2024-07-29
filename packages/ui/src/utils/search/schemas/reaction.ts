@@ -1,5 +1,4 @@
-import { endpointGetReactions, ReactionSortBy } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetReactions, FormSchema, ReactionSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

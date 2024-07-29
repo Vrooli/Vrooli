@@ -1,10 +1,10 @@
+import { TextFormInput, TextFormInputProps, getFormikFieldName } from "@local/shared";
 import { Button, Slider, Typography } from "@mui/material";
 import { IntegerInputBase } from "components/inputs/IntegerInput/IntegerInput";
 import { RichInputBase } from "components/inputs/RichInput/RichInput";
 import { SelectorBase } from "components/inputs/Selector/Selector";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useField } from "formik";
-import { TextFormInput, TextFormInputProps } from "forms/types";
 import { ChangeEvent, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles";
@@ -50,6 +50,7 @@ const sliderStyle = {
 export function FormInputText({
     disabled,
     fieldData,
+    fieldNamePrefix,
     isEditing,
     onConfigUpdate,
 }: FormInputProps<TextFormInput>) {
@@ -57,9 +58,7 @@ export function FormInputText({
 
     const props = useMemo(() => fieldData.props, [fieldData.props]);
 
-    const [field, meta, helpers] = useField(fieldData.fieldName); // `input-${fieldData.fieldName}` or `output-${fieldData.fieldName}`
-    const [tempField] = useField(`input-${fieldData.fieldName}`);
-    console.log("in forminputtext", field.value, tempField.value);
+    const [field, meta, helpers] = useField(getFormikFieldName(fieldData.fieldName, fieldNamePrefix));
     const handleChange = useCallback(function handleChangeCallback(value: string) {
         // When editing the config, we're changing the default value
         if (isEditing) {

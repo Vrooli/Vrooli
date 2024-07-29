@@ -12,10 +12,10 @@ import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
 import { MeetingViewProps } from "../types";
 
-export const MeetingView = ({
+export function MeetingView({
     display,
     onClose,
-}: MeetingViewProps) => {
+}: MeetingViewProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -58,4 +58,4 @@ export const MeetingView = ({
             </>
         </>
     );
-};
+}

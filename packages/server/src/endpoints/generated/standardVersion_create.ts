@@ -230,14 +230,6 @@ export const standardVersion_create = {
       },
       "__typename": "StandardVersion"
     },
-    "stats": {
-      "id": true,
-      "periodStart": true,
-      "periodEnd": true,
-      "periodType": true,
-      "linksToInputs": true,
-      "linksToOutputs": true
-    },
     "__typename": "Standard"
   },
   "translations": {

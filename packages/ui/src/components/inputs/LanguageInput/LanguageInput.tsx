@@ -8,15 +8,15 @@ import { useCallback, useContext } from "react";
 import { getLanguageSubtag, getUserLanguages } from "utils/display/translationTools";
 import { LanguageInputProps } from "../types";
 
-export const LanguageInput = ({
+export function LanguageInput({
     currentLanguage,
     disabled,
+    flexDirection,
     handleAdd,
     handleDelete,
     handleCurrent,
     languages,
-    sx,
-}: LanguageInputProps) => {
+}: LanguageInputProps) {
     const session = useContext(SessionContext);
     // TODO for morning: improve look of this component, fix bugs with translations when creating/updating, then fix other bugs with creating/updating
 
@@ -55,7 +55,7 @@ export const LanguageInput = ({
     }, [handleAdd, handleCurrent, handleDelete, session, languages]);
 
     return (
-        <Stack direction="row" spacing={1} sx={sx}>
+        <Stack direction="row" spacing={1} flexDirection={flexDirection || "row"}>
             <SelectLanguageMenu
                 currentLanguage={currentLanguage}
                 handleDelete={deleteLanguage}
@@ -79,4 +79,4 @@ export const LanguageInput = ({
             }
         </Stack>
     );
-};
+}

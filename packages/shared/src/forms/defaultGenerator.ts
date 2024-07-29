@@ -1,5 +1,5 @@
 import { InputType, isObject, uuid } from "@local/shared";
-import { CheckboxFormInputProps, CodeFormInputProps, DropzoneFormInputProps, FormElement, FormInputType, IntegerFormInputProps, LanguageFormInputProps, LinkItemFormInputProps, LinkUrlFormInputProps, RadioFormInputProps, SelectorFormInputOption, SelectorFormInputProps, SliderFormInputProps, SwitchFormInputProps, TagSelectorFormInputProps, TextFormInputProps, YupField } from "forms/types";
+import { CheckboxFormInputProps, CodeFormInputProps, DropzoneFormInputProps, FormElement, FormInputType, IntegerFormInputProps, LanguageFormInputProps, LinkItemFormInputProps, LinkUrlFormInputProps, RadioFormInputProps, SelectorFormInputOption, SelectorFormInputProps, SliderFormInputProps, SwitchFormInputProps, TagSelectorFormInputProps, TextFormInputProps, YupField } from "./types";
 
 const DEFAULT_SLIDER_MIN = 0;
 const DEFAULT_SLIDER_MAX = 100;
@@ -20,50 +20,68 @@ function nearest(value: number, min: number, max: number, steps: number) {
  * @returns The properly-shaped props for the given input type
  */
 export const healFormInputPropsMap: { [key in InputType]: (props: any) => any } = {
-    [InputType.Checkbox]: (props: Partial<CheckboxFormInputProps>): CheckboxFormInputProps => ({
-        color: "secondary",
-        defaultValue: new Array(props.options?.length ?? 0).fill(false),
-        options: [],
-        maxSelection: 0,
-        minSelection: 0,
-        row: false,
-        ...props,
-    }),
-    [InputType.Dropzone]: (props: Partial<DropzoneFormInputProps>): DropzoneFormInputProps => ({
-        defaultValue: [],
-        ...props,
-    }),
-    [InputType.JSON]: (props: Partial<Omit<CodeFormInputProps, "id">>): Omit<CodeFormInputProps, "id" | "name"> => ({
-        defaultValue: "",
-        ...props,
-    }),
-    [InputType.LanguageInput]: (props: Partial<LanguageFormInputProps>): LanguageFormInputProps => ({
-        defaultValue: [],
-        ...props,
-    }),
-    [InputType.LinkItem]: (props: Partial<LinkItemFormInputProps>): LinkItemFormInputProps => ({
-        defaultValue: "",
-        limitTo: [],
-        ...props,
-    }),
-    [InputType.LinkUrl]: (props: Partial<LinkUrlFormInputProps>): LinkUrlFormInputProps => ({
-        acceptedHosts: [],
-        defaultValue: "",
-        ...props,
-    }),
-    [InputType.IntegerInput]: (props: Partial<Omit<IntegerFormInputProps, "name">>): Omit<IntegerFormInputProps, "name"> => ({
-        defaultValue: 0,
-        max: Number.MAX_SAFE_INTEGER,
-        min: Number.MIN_SAFE_INTEGER,
-        step: 1,
-        ...props,
-    }),
+    [InputType.Checkbox]: function healCheckboxProps(props: Partial<CheckboxFormInputProps>): CheckboxFormInputProps {
+        return {
+            color: "secondary",
+            defaultValue: new Array(props.options?.length ?? 0).fill(false),
+            options: [],
+            maxSelection: 0,
+            minSelection: 0,
+            row: false,
+            ...props,
+        } as const;
+    },
+    [InputType.Dropzone]: function healDropzoneProps(props: Partial<DropzoneFormInputProps>): DropzoneFormInputProps {
+        return {
+            defaultValue: [],
+            ...props,
+        } as const;
+    },
+    [InputType.JSON]: function healJsonProps(props: Partial<CodeFormInputProps>): CodeFormInputProps {
+        return {
+            defaultValue: "",
+            ...props,
+        } as const;
+    },
+    [InputType.LanguageInput]: function healLanguageInputProps(props: Partial<LanguageFormInputProps>): LanguageFormInputProps {
+        return {
+            defaultValue: [],
+            ...props,
+        } as const;
+    },
+    [InputType.LinkItem]: function healLinkItemProps(props: Partial<LinkItemFormInputProps>): LinkItemFormInputProps {
+        return {
+            defaultValue: "",
+            limitTo: [],
+            ...props,
+        } as const;
+    },
+    [InputType.LinkUrl]: function healLinkUrlProps(props: Partial<LinkUrlFormInputProps>): LinkUrlFormInputProps {
+        return {
+            acceptedHosts: [],
+            defaultValue: "",
+            ...props,
+        } as const;
+    },
+    [InputType.IntegerInput]: function healIntegerInputProps(props: Partial<IntegerFormInputProps>): IntegerFormInputProps {
+        const max = (isNumeric(props.max) ? props.max : Number.MAX_SAFE_INTEGER) as number;
+        const min = (isNumeric(props.min) ? props.min : Number.MIN_SAFE_INTEGER) as number;
+        const step = (isNumeric(props.step) ? props.step : 1) as number;
+        const defaultValue = (isNumeric(props.defaultValue) ? props.defaultValue : 0) as number;
+        return {
+            defaultValue,
+            max,
+            min,
+            step,
+            ...props,
+        } as const;
+    },
     [InputType.Radio]: (props: Partial<RadioFormInputProps>): RadioFormInputProps => ({
-        defaultValue: (Array.isArray(props.options) && props.options.length > 0) ? props.options[0].value : "",
+        defaultValue: (Array.isArray(props.options) && props.options.length > 0) ? props.options[0]!.value : "",
         options: [],
         ...props,
     }),
-    [InputType.Selector]: (props: Partial<SelectorFormInputProps<any>>): Omit<SelectorFormInputProps<any>, "name"> => ({
+    [InputType.Selector]: (props: Partial<SelectorFormInputProps<any>>): SelectorFormInputProps<any> => ({
         options: [],
         getOptionDescription: (option: SelectorFormInputOption) =>
             typeof option === "object"
@@ -119,26 +137,6 @@ export const healFormInputPropsMap: { [key in InputType]: (props: any) => any } 
     }),
 };
 
-// /**
-//  * Populates a form input array with unset default values
-//  * @param fields The form's field data
-//  */
-// export function generateDefaultProps(fields: any[]): FormInputType[] {
-//     if (!Array.isArray(fields)) return [];
-//     // Remove invalid types
-//     let result = fields.filter(field => field.type in healFormInputPropsMap);
-//     // Heal each field
-//     result = result.map(field => {
-//         const { props, ...otherKeys } = field;
-//         return {
-//             props: healFormInputPropsMap[field.type](props as any),
-//             ...otherKeys,
-//         };
-//     });
-//     // Return the result
-//     return result;
-// }
-
 /**
  * Creates a Formik `initialValues` object from a form schema
  * @param elements The form schema elements
@@ -158,13 +156,13 @@ export function generateInitialValues(
         // Skip non-input elements
         if (!Object.prototype.hasOwnProperty.call(element, "fieldName")) continue;
         const formInput = element as FormInputType;
-        const key = prefix ? `${prefix}.${formInput.fieldName}` : formInput.fieldName;
+        const key = prefix ? `${prefix}-${formInput.fieldName}` : formInput.fieldName;
         // If it exists in the heal map, pass it through and use the resulting default value
         if (formInput.type in healFormInputPropsMap) {
-            result[key] = healFormInputPropsMap[formInput.type](formInput.props).defaultValue as never;
+            result[key] = healFormInputPropsMap[formInput.type](formInput.props ?? {}).defaultValue as never;
         }
         // If not, try using the defaultValue prop directly
-        else if (formInput.props.defaultValue !== undefined) {
+        else if (formInput.props?.defaultValue !== undefined) {
             result[key] = formInput.props.defaultValue as never;
         }
         // Otherwise, set it to an empty string. It's worse to have an undefined value than a

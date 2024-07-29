@@ -1,17 +1,14 @@
-import { InputType, ListObject, OrArray, TagShape, TimeFrame } from "@local/shared";
-import { CodeInputProps, DropzoneProps, IntegerInputProps, LanguageInputProps, SelectorProps, TagSelectorProps } from "components/inputs/types";
-import { FormikProps } from "formik";
-import { Dispatch, SetStateAction } from "react";
-import { FormStructureType } from "utils/consts";
-import { SearchPageTabOption } from "utils/search/objectToSearch";
-import { CrudProps } from "views/objects/types";
+import { InputType, TagShape, TimeFrame } from "@local/shared";
+import { SearchPageTabOption } from "../consts/search";
+import { CodeLanguage } from "../consts/ui";
 
-export type FormProps<Model extends OrArray<ListObject>, ModelShape extends OrArray<object>> = Omit<CrudProps<Model>, "isLoading"> & FormikProps<ModelShape> & {
-    disabled: boolean;
-    existing: ModelShape;
-    handleUpdate: Dispatch<SetStateAction<ModelShape>>;
-    isReadLoading: boolean;
-};
+/**
+ * Non-input form elements
+ */
+export enum FormStructureType {
+    Divider = "Divider",
+    Header = "Header",
+}
 
 export type FormBuildViewProps = {
     /** 
@@ -123,8 +120,11 @@ export interface CheckboxFormInput extends FormInputBase {
 }
 
 /** Code-specific form input props */
-export interface CodeFormInputProps extends Omit<CodeInputProps, "id" | "onChange" | "value" | "zIndex"> {
+export type CodeFormInputProps = {
     defaultValue?: string;
+    disabled?: boolean;
+    /** Limit the languages that can be selected in the language dropdown. */
+    limitTo?: readonly CodeLanguage[];
 }
 /** Type-props pair for Code input components */
 export interface CodeFormInput extends FormInputBase {
@@ -135,11 +135,18 @@ export interface CodeFormInput extends FormInputBase {
 }
 
 /** Dropzone-specific form input props */
-export interface DropzoneFormInputProps extends Omit<DropzoneProps, "onUpload" | "zIndex"> {
+export type DropzoneFormInputProps = {
+    acceptedFileTypes?: string[];
+    cancelText?: string;
     defaultValue?: [];
-} // onUpload handled by form
+    disabled?: boolean;
+    dropzoneText?: string;
+    maxFiles?: number;
+    showThumbs?: boolean;
+    uploadText?: string;
+}
 /** Type-props pair for Dropzone input components */
-export interface DropzoneFormInput extends FormInputBase {
+export type DropzoneFormInput = FormInputBase & {
     /** The type of the field */
     type: InputType.Checkbox;
     /** Type-specific props */
@@ -147,11 +154,27 @@ export interface DropzoneFormInput extends FormInputBase {
 }
 
 /** Integer-specific form input props */
-export interface IntegerFormInputProps extends Omit<IntegerInputProps, | "name"> {
+export type IntegerFormInputProps = {
+    allowDecimal?: boolean;
+    autoFocus?: boolean;
     defaultValue?: number;
+    disabled?: boolean;
+    error?: boolean;
+    fullWidth?: boolean;
+    helperText?: string | boolean | null | undefined;
+    key?: string;
+    initial?: number;
+    label?: string;
+    max?: number;
+    min?: number;
+    offset?: number;
+    step?: number;
+    tooltip?: string;
+    /** If provided, displays this text instead of 0 */
+    zeroText?: string;
 }
 /** Type-props pair for Integer input components */
-export interface IntegerFormInput extends FormInputBase {
+export type IntegerFormInput = FormInputBase & {
     /** The type of the field */
     type: InputType.IntegerInput;
     /** Type-specific props */
@@ -159,11 +182,12 @@ export interface IntegerFormInput extends FormInputBase {
 }
 
 /** LanguageInput-specific form input props */
-export interface LanguageFormInputProps extends Omit<LanguageInputProps, "currentLanguage" | "handleAdd" | "handleChange" | "handleDelete" | "handleCurrent" | "languages" | "zIndex"> {
+export type LanguageFormInputProps = {
     defaultValue?: string[];
+    disabled?: boolean;
 }
 /** Type-props pair for Language input components */
-export interface LanguageFormInput extends FormInputBase {
+export type LanguageFormInput = FormInputBase & {
     /** The type of the field */
     type: InputType.LanguageInput;
     /** Type-specific props */
@@ -251,12 +275,29 @@ export type SelectorFormInputOption = {
     value: string;
 };
 /** Selector-specific form input props */
-export interface SelectorFormInputProps<T extends SelectorFormInputOption> extends Omit<SelectorProps<T>, "selected" | "handleChange" | "zIndex"> {
+export type SelectorFormInputProps<T extends SelectorFormInputOption> = {
+    addOption?: {
+        label: string;
+        onSelect: () => unknown;
+    };
+    autoFocus?: boolean;
     defaultValue?: T;
+    disabled?: boolean;
+    fullWidth?: boolean;
+    getOptionDescription: (option: T) => string | null | undefined;
+    getOptionLabel: (option: T) => string | null | undefined;
     getOptionValue: (option: T) => string | null | undefined;
+    inputAriaLabel?: string;
+    isRequired?: boolean,
+    label?: string;
+    multiple?: false;
+    noneOption?: boolean;
+    noneText?: string;
+    options: readonly T[];
+    tabIndex?: number;
 }
 /** Type-props pair for Selector input components */
-export interface SelectorFormInput<T extends SelectorFormInputOption> extends FormInputBase {
+export type SelectorFormInput<T extends SelectorFormInputOption> = FormInputBase & {
     /** The type of the field */
     type: InputType.Selector;
     /** Type-specific props */
@@ -295,11 +336,14 @@ export interface SwitchFormInput extends FormInputBase {
 }
 
 /** Tag-specific form input props */
-export interface TagSelectorFormInputProps extends Omit<TagSelectorProps, "currentLanguage" | "tags" | "handleTagsUpdate" | "name" | "zIndex"> {
+export type TagSelectorFormInputProps = {
     defaultValue?: TagShape[];
+    disabled?: boolean;
+    isRequired?: boolean;
+    placeholder?: string;
 }
 /** Type-props pair for TagSelector input components */
-export interface TagSelectorFormInput extends FormInputBase {
+export type TagSelectorFormInput = FormInputBase & {
     /** The type of the field */
     type: InputType.TagSelector;
     /** Type-specific props */

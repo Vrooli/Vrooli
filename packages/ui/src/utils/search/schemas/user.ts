@@ -1,5 +1,4 @@
-import { endpointGetUser, endpointGetUsers, InputType, UserSortBy } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetUser, endpointGetUsers, FormSchema, InputType, UserSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, languagesContainer, languagesFields, searchFormLayout } from "./common";
 

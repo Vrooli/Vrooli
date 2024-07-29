@@ -1,5 +1,4 @@
-import { endpointGetStatsQuiz, StatsQuizSortBy } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetStatsQuiz, FormSchema, StatsQuizSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

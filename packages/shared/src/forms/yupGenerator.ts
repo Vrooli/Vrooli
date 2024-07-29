@@ -1,7 +1,6 @@
 import { InputType } from "@local/shared";
-import { FormikConfig } from "formik";
 import { buildYup } from "schema-to-yup";
-import { FormInputBase, FormSchema, YupSchema, YupType } from "../types";
+import { FormInputBase, FormSchema, YupSchema, YupType } from "./types";
 
 /**
  * Maps input types to their yup types. 
@@ -27,7 +26,7 @@ export const InputToYupType: { [key in InputType]?: YupType } = {
  */
 export function generateYupSchema(
     formSchema: Pick<FormSchema, "elements">,
-): FormikConfig<never>["validationSchema"] {
+) {
     if (!formSchema) return null;
     // Create shape object to describe yup validation
     const shape: YupSchema = {

@@ -1,14 +1,12 @@
-import { BookmarkList, Chat, ChatInvite, ChatParticipant, CommonKey, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, NavigableObject, Notification, OrArray, Project, ProjectVersion, QuestionForType, Reminder, ReminderList, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, Team, TimeFrame, User } from "@local/shared";
+import { BookmarkList, Chat, ChatInvite, ChatParticipant, CommonKey, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, NavigableObject, Notification, OrArray, Project, ProjectVersion, QuestionForType, Reminder, ReminderList, Role, Routine, RoutineVersion, RunProject, RunRoutine, SearchType, Tag, Team, TimeFrame, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { UseFindManyResult } from "hooks/useFindMany";
 import { UseObjectActionsReturn } from "hooks/useObjectActions";
 import { ReactNode } from "react";
-import { SvgComponent, SxType } from "types";
+import { SvgComponent, SxType, ViewDisplayType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { RelationshipButtonType } from "utils/consts";
 import { ObjectType } from "utils/navigation/openObject";
-import { SearchType } from "utils/search/objectToSearch";
-import { ViewDisplayType } from "views/types";
 import { ObjectListProps } from "./ObjectList/ObjectList";
 
 export interface ObjectActionsRowProps<T extends ListObject> {

@@ -1,11 +1,11 @@
 import { DUMMY_ID, GqlModelType, LINKS, ListObject, NavigableObject, OrArray, getObjectUrl } from "@local/shared";
 import { ObjectDialogAction } from "components/dialogs/types";
-import { FormProps } from "forms/types";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { removeCookieFormData, removeCookiePartialData, setCookieAllowFormCache, setCookiePartialData } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
+import { FormProps } from "../types";
 
 type TType = OrArray<{ __typename: ListObject["__typename"], id: string }>;
 type UseUpsertActionsProps<Model extends TType> = Pick<FormProps<Model, object>, "onCancel" | "onCompleted" | "onDeleted"> & {

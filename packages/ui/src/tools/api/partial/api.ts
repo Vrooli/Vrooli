@@ -51,7 +51,6 @@ export const api: GqlPartial<Api> = {
         versionsCount: true,
         parent: async () => rel((await import("./apiVersion")).apiVersion, "nav"),
         versions: async () => rel((await import("./apiVersion")).apiVersion, "full", { omit: "root" }),
-        stats: async () => rel((await import("./statsApi")).statsApi, "full"),
     },
     list: {
         versions: async () => rel((await import("./apiVersion")).apiVersion, "list", { omit: "root" }),

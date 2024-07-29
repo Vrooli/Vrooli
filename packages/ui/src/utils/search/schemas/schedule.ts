@@ -1,5 +1,4 @@
-import { endpointGetSchedule, endpointGetSchedules, ScheduleSortBy } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetSchedule, endpointGetSchedules, FormSchema, ScheduleSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

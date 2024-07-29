@@ -1,8 +1,8 @@
+import { LinkItemFormInput, LinkItemFormInputProps, LinkItemType, getFormikFieldName } from "@local/shared";
 import { Autocomplete, Button, Chip, ListItemIcon, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
 import { LinkInputBase } from "components/inputs/LinkInput/LinkInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useField } from "formik";
-import { LinkItemFormInput, LinkItemFormInputProps, LinkItemType } from "forms/types";
 import { TFunction } from "i18next";
 import { ApiIcon, HelpIcon, NoteIcon, ProjectIcon, RoutineIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
@@ -68,6 +68,7 @@ function withoutInvalidChars(str: string): string {
 export function FormInputLinkItem({
     disabled,
     fieldData,
+    fieldNamePrefix,
     isEditing,
     onConfigUpdate,
 }: FormInputProps<LinkItemFormInput>) {
@@ -76,7 +77,7 @@ export function FormInputLinkItem({
 
     const props = useMemo(() => fieldData.props, [fieldData.props]);
 
-    const [field, meta, helpers] = useField(fieldData.fieldName);
+    const [field, meta, helpers] = useField(getFormikFieldName(fieldData.fieldName, fieldNamePrefix));
     const handleChange = useCallback(function handleChangeCallback(value: string) {
         // When editing the config, we're changing the default value
         if (isEditing) {

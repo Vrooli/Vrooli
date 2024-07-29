@@ -4,8 +4,8 @@ import { PageContainer } from "components/containers/PageContainer/PageContainer
 import { SessionContext } from "contexts/SessionContext";
 import { useContext } from "react";
 import { Redirect, useLocation } from "route";
+import { PageProps } from "types";
 import { PubSub } from "utils/pubsub";
-import { PageProps } from "views/types";
 
 export function Page({
     children,

@@ -1,4 +1,4 @@
-import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, endpointPostAuthEmailSignup, LINKS, Session } from "@local/shared";
+import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, endpointPostAuthEmailSignup, LINKS, Session, SignUpPageTabOption } from "@local/shared";
 import { Box, BoxProps, Button, Checkbox, FormControl, FormControlLabel, FormHelperText, Grid, IconButton, InputAdornment, Link, Modal, styled, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper, hasErrorCode } from "api";
 import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
@@ -20,7 +20,7 @@ import { clickSize } from "styles";
 import { removeCookie } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
 import { setupPush } from "utils/push";
-import { SignUpPageTabOption, signUpTabParams } from "utils/search/objectToSearch";
+import { signUpTabParams } from "utils/search/objectToSearch";
 import { SignupViewProps } from "views/types";
 
 type FormInput = EmailSignUpInput & {

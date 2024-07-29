@@ -1,5 +1,4 @@
-import { endpointGetRole, endpointGetRoles, RoleSortBy } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetRole, endpointGetRoles, FormSchema, RoleSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

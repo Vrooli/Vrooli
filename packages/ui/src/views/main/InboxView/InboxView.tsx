@@ -1,4 +1,4 @@
-import { Chat, endpointPutNotificationsMarkAllAsRead, getObjectUrlBase, ListObject, Notification, Success } from "@local/shared";
+import { Chat, endpointPutNotificationsMarkAllAsRead, getObjectUrlBase, InboxPageTabOption, ListObject, Notification, Success } from "@local/shared";
 import { Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -20,7 +20,7 @@ import { pagePaddingBottom, SideActionsButton } from "styles";
 import { ArgsType } from "types";
 import { BulkObjectAction } from "utils/actions/bulkObjectActions";
 import { DUMMY_LIST_LENGTH } from "utils/consts";
-import { InboxPageTabOption, inboxTabParams } from "utils/search/objectToSearch";
+import { inboxTabParams } from "utils/search/objectToSearch";
 import { InboxViewProps } from "../types";
 
 type InboxObject = Chat | Notification;

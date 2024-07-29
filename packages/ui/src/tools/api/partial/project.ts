@@ -53,7 +53,6 @@ export const project: GqlPartial<Project> = {
         versionsCount: true,
         parent: async () => rel((await import("./projectVersion")).projectVersion, "nav"),
         versions: async () => rel((await import("./projectVersion")).projectVersion, "full", { omit: "root" }),
-        stats: async () => rel((await import("./statsProject")).statsProject, "full"),
     },
     list: {
         versions: async () => rel((await import("./projectVersion")).projectVersion, "list", { omit: "root" }),

@@ -1,10 +1,9 @@
-import { ActionOption, endpointPutProfile, LINKS, ProfileUpdateInput, Session, User } from "@local/shared";
+import { ActionOption, endpointPutProfile, HistoryPageTabOption, LINKS, ProfileUpdateInput, SearchPageTabOption, Session, User } from "@local/shared";
 import { errorToMessage, fetchWrapper } from "api";
 import { getCurrentUser } from "utils/authentication/session";
 import { getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { clearSearchHistory } from "utils/search/clearSearchHistory";
-import { HistoryPageTabOption, SearchPageTabOption } from "utils/search/objectToSearch";
 import { PreSearchItem } from "utils/search/siteToSearch";
 
 export interface ShortcutItem {

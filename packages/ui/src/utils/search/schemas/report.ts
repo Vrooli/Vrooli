@@ -1,5 +1,4 @@
-import { endpointGetReport, endpointGetReports, ReportSortBy } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetReport, endpointGetReports, FormSchema, ReportSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

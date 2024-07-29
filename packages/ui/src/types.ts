@@ -1,7 +1,9 @@
 // Defines common props
-import { AwardCategory, CommonKey } from "@local/shared";
+import { AwardCategory, CommonKey, ListObject, OrArray } from "@local/shared";
 import { Theme } from "@mui/material";
 import { SystemStyleObject } from "@mui/system";
+import { FormikProps } from "formik";
+import { Dispatch, SetStateAction } from "react";
 
 /** 
  * An object which at least includes its type.
@@ -113,3 +115,85 @@ export type MaybeLazyAsync<T> = T | (() => T) | (() => Promise<T>);
 export type SxType = NonNullable<SystemStyleObject<Theme>> & {
     color?: string;
 }
+
+export type CrudPropsBase = {
+    display: "dialog" | "page" | "partial";
+    isCreate: boolean;
+}
+export type CrudPropsPage = CrudPropsBase & ObjectViewPropsPage & {
+    display: "page";
+    onCancel?: never;
+    onClose?: never;
+    onCompleted?: never;
+    onDeleted?: never;
+}
+export type CrudPropsDialog<T extends OrArray<ListObject>> = CrudPropsBase & ObjectViewPropsDialog<T> & {
+    display: "dialog";
+    /** Closes the view and clears cached data */
+    onCancel: () => unknown;
+    /** Closes the view without clearing cached data */
+    onClose: () => unknown;
+    /** Closes the view, clears cached data, and returns created/updated data */
+    onCompleted: (data: T) => unknown;
+    /** Closes the view, clears cached data, and returns deleted object (or objects if arrray) */
+    onDeleted: (data: T) => unknown;
+}
+export type CrudPropsPartial<T extends OrArray<ListObject>> = CrudPropsBase & ObjectViewPropsPartial<T> & {
+    display: "partial";
+    onCancel?: never;
+    onClose?: never;
+    onCompleted?: never;
+    onDeleted?: never;
+}
+export type CrudProps<T extends OrArray<ListObject>> = CrudPropsPage | CrudPropsDialog<T> | CrudPropsPartial<T>;
+
+/** Views can be displayed as full pages or as dialogs */
+export type ViewDisplayType = "dialog" | "page" | "partial";
+export type ViewPropsBase = {
+    display: "dialog" | "page" | "partial";
+};
+export type ViewPropsPartial = ViewPropsBase & {
+    display: "partial";
+    isOpen?: never;
+    onClose?: never;
+}
+export type ViewPropsPage = ViewPropsBase & {
+    display: "page";
+    isOpen?: never;
+    onClose?: never;
+}
+export type ViewPropsDialog = ViewPropsBase & {
+    display: "dialog";
+    isOpen: boolean;
+    onClose: () => unknown;
+}
+export type ViewProps = ViewPropsPartial | ViewPropsPage | ViewPropsDialog;
+
+export type ObjectViewPropsBase = ViewProps;
+export type ObjectViewPropsPage = ObjectViewPropsBase & {
+    overrideObject?: never;
+}
+export type ObjectViewPropsDialog<T extends OrArray<ListObject>> = ObjectViewPropsBase & {
+    /**  Data known about the object, which cannot be fetched from the server or cache. */
+    overrideObject?: PartialOrArrayWithType<T>;
+}
+export type ObjectViewPropsPartial<T extends OrArray<ListObject>> = ObjectViewPropsBase & {
+    /**  Data known about the object, which cannot be fetched from the server or cache. */
+    overrideObject?: PartialOrArrayWithType<T>;
+}
+export type ObjectViewProps<T extends OrArray<ListObject>> = ObjectViewPropsPage | ObjectViewPropsDialog<T> | ObjectViewPropsPartial<T>;
+export interface PageProps {
+    children: JSX.Element;
+    excludePageContainer?: boolean;
+    mustBeLoggedIn?: boolean;
+    sessionChecked: boolean;
+    redirect?: string;
+    sx?: SxType;
+}
+
+export type FormProps<Model extends OrArray<ListObject>, ModelShape extends OrArray<object>> = Omit<CrudProps<Model>, "isLoading"> & FormikProps<ModelShape> & {
+    disabled: boolean;
+    existing: ModelShape;
+    handleUpdate: Dispatch<SetStateAction<ModelShape>>;
+    isReadLoading: boolean;
+};

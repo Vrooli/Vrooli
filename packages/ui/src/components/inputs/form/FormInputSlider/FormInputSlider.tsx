@@ -1,9 +1,9 @@
+import { SliderFormInput, SliderFormInputProps, getFormikFieldName } from "@local/shared";
 import { Button, Slider, Typography, useTheme } from "@mui/material";
 import { IntegerInputBase } from "components/inputs/IntegerInput/IntegerInput";
 import { SelectorBase } from "components/inputs/Selector/Selector";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useField } from "formik";
-import { SliderFormInput, SliderFormInputProps } from "forms/types";
 import { useCallback, useMemo, useState } from "react";
 import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles";
 import { FormInputProps } from "../types";
@@ -11,6 +11,7 @@ import { FormInputProps } from "../types";
 export function FormInputSlider({
     disabled,
     fieldData,
+    fieldNamePrefix,
     isEditing,
     onConfigUpdate,
 }: FormInputProps<SliderFormInput>) {
@@ -18,7 +19,7 @@ export function FormInputSlider({
 
     const props = useMemo(() => fieldData.props, [fieldData.props]);
 
-    const [field, , helpers] = useField(fieldData.fieldName);
+    const [field, meta, helpers] = useField(getFormikFieldName(fieldData.fieldName, fieldNamePrefix));
     const handleChange = useCallback((_, value: number | number[]) => {
         const newValue = Array.isArray(value) ? value[0] : value;
         if (isEditing) {

@@ -200,15 +200,6 @@ export const apiVersion_create = {
       },
       "__typename": "ApiVersion"
     },
-    "stats": {
-      "id": true,
-      "periodStart": true,
-      "periodEnd": true,
-      "periodType": true,
-      "calls": true,
-      "routineVersions": true,
-      "__typename": "StatsApi"
-    },
     "__typename": "Api"
   },
   "translations": {

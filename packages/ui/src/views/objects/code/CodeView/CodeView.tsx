@@ -1,4 +1,4 @@
-import { CodeShape, CodeVersion, CommentFor, LINKS, ResourceListShape, ResourceList as ResourceListType, Tag, TagShape, endpointGetCodeVersion, exists, getTranslation, noopSubmit } from "@local/shared";
+import { CodeLanguage, CodeShape, CodeVersion, CommentFor, LINKS, ResourceListShape, ResourceList as ResourceListType, SearchVersionPageTabOption, Tag, TagShape, endpointGetCodeVersion, exists, getTranslation, noopSubmit } from "@local/shared";
 import { Box, Button, Divider, Stack, useTheme } from "@mui/material";
 import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -6,7 +6,7 @@ import { CommentContainer } from "components/containers/CommentContainer/Comment
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { CodeInput, CodeLanguage } from "components/inputs/CodeInput/CodeInput";
+import { CodeInput } from "components/inputs/CodeInput/CodeInput";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TagList } from "components/lists/TagList/TagList";
@@ -27,9 +27,10 @@ import { SideActionsButton } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
-import { SearchVersionPageTabOption } from "utils/search/objectToSearch";
 import { codeInitialValues } from "../CodeUpsert/CodeUpsert";
 import { CodeViewProps } from "../types";
+
+const codeLimitTo = [CodeLanguage.Javascript] as const;
 
 export function CodeView({
     display,
@@ -133,7 +134,7 @@ export function CodeView({
                     >
                         <CodeInput
                             disabled={true}
-                            limitTo={[CodeLanguage.Javascript]}
+                            limitTo={codeLimitTo}
                             name="content"
                         />
                     </ContentCollapse>

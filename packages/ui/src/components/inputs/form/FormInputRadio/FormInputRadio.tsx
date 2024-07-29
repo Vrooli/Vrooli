@@ -1,6 +1,6 @@
+import { RadioFormInput, RadioFormInputProps, getFormikFieldName } from "@local/shared";
 import { Button, FormControl, FormControlLabel, FormHelperText, IconButton, Radio, RadioGroup, TextField, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { useField } from "formik";
-import { RadioFormInput, RadioFormInputProps } from "forms/types";
 import { AddIcon, CloseIcon, DragIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { DragDropContext, Draggable, DropResult, Droppable } from "react-beautiful-dnd";
@@ -32,12 +32,13 @@ const addOptionStyle = {
 export function FormInputRadio({
     disabled,
     fieldData,
+    fieldNamePrefix,
     isEditing,
     onConfigUpdate,
 }: FormInputProps<RadioFormInput>) {
     const { palette, typography } = useTheme();
 
-    const [field, meta, helpers] = useField(fieldData.fieldName);
+    const [field, meta, helpers] = useField(getFormikFieldName(fieldData.fieldName, fieldNamePrefix));
     const props = useMemo(() => fieldData.props, [fieldData.props]);
 
     const [showMore, setShowMore] = useState(false);

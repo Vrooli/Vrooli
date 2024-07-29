@@ -1,4 +1,4 @@
-import { DecisionStep, DetectSubstepLoadResult, FindByIdInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, RootStep, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunProjectStep, RunProjectUpdateInput, RunRoutine, RunRoutineStep, RunRoutineUpdateInput, RunStatus, RunStep, RunStepType, SingleRoutineStep, addSubdirectoriesToStep, addSubroutinesToStep, base36ToUuid, detectSubstepLoad, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointGetRunProject, endpointGetRunRoutine, endpointPutRunProject, endpointPutRunRoutine, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, getTranslation, locationArraysMatch, noop, parseRunInputs, parseRunOutputs, parseSearchParams, runnableObjectToStep, saveRunProgress, siblingsAtLocation, stepFromLocation, uuidValidate } from "@local/shared";
+import { DecisionStep, DetectSubstepLoadResult, FindByIdInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, RootStep, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunProjectStep, RunProjectUpdateInput, RunRoutine, RunRoutineStep, RunRoutineUpdateInput, RunStatus, RunStep, RunStepType, SingleRoutineStep, addSubdirectoriesToStep, addSubroutinesToStep, base36ToUuid, detectSubstepLoad, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointGetRunProject, endpointGetRunRoutine, endpointPutRunProject, endpointPutRunRoutine, generateRoutineInitialValues, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, getTranslation, locationArraysMatch, noop, parseSearchParams, runnableObjectToStep, saveRunProgress, siblingsAtLocation, stepFromLocation, uuidValidate } from "@local/shared";
 import { Box, BoxProps, Button, Grid, IconButton, LinearProgress, Stack, Typography, styled, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
@@ -16,6 +16,7 @@ import { pagePaddingBottom } from "styles";
 import { getUserLanguages } from "utils/display/translationTools";
 import { tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
+import { parseSchemaInput, parseSchemaOutput } from "utils/runUtils";
 import { DecisionView } from "../DecisionView/DecisionView";
 import { SubroutineView } from "../SubroutineView/SubroutineView";
 import { RunViewProps } from "../types";
@@ -403,23 +404,19 @@ export function RunView({
     /** Stores user inputs and generated outputs */
     const formikRef = useRef<FormikProps<object>>(null);
     useEffect(function setInputsOnRunLoad() {
-        let values: object = {};
-
-        // Only set inputs and outputs for RunRoutine
-        if (run && run.__typename === "RunRoutine" && Array.isArray(run.inputs)) {
-            //TODO not using form default values
-            values = {
-                ...parseRunInputs(run.inputs, console),
-                ...parseRunOutputs(run.outputs, console),
-            };
-        }
-        console.log("qqqq got formik initial values", values);
+        if (!runnableObject || runnableObject.__typename !== "RoutineVersion") return;
+        const values = generateRoutineInitialValues({
+            configFormInput: parseSchemaInput(runnableObject.configFormInput, runnableObject.routineType, console),
+            configFormOutput: parseSchemaOutput(runnableObject.configFormOutput, runnableObject.routineType, console),
+            logger: console,
+            runInputs: (run as RunRoutine)?.inputs,
+            runOutputs: (run as RunRoutine)?.outputs,
+        });
 
         // Formik doesn't seem to like setting the values normally
-        //TODO may be able to simplify now that we removed initialValues from SubroutineView
         formikRef.current?.setValues(values);
         setTimeout(() => { formikRef.current?.resetForm({ values }); }, 100);
-    }, [run, currentLocation]);
+    }, [run, currentLocation, runnableObject]);
 
     const { getContextSwitches, getElapsedTime } = useStepMetrics(currentLocation, currentStepRunData);
 

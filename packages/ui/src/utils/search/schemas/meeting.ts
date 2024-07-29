@@ -1,5 +1,4 @@
-import { endpointGetMeeting, endpointGetMeetings, MeetingSortBy } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetMeeting, endpointGetMeetings, FormSchema, MeetingSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

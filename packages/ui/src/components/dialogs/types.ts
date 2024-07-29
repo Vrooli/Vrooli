@@ -2,13 +2,12 @@ import { ApiVersion, Bookmark, BookmarkFor, CodeVersion, CommonKey, FocusMode, L
 import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
 import { TitleProps } from "components/text/types";
-import { FormProps } from "forms/types";
 import { UseObjectActionsReturn } from "hooks/useObjectActions";
 import { ReactNode } from "react";
-import { SvgComponent, SxType } from "types";
+import { SvgComponent, SxType, ViewDisplayType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { CookiePreferences } from "utils/cookies";
-import { ViewDisplayType } from "views/types";
+import { FormProps } from "../../types";
 import { FindObjectTabOption } from "./FindObjectDialog/FindObjectDialog";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface

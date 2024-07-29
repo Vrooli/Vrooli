@@ -1,6 +1,5 @@
 import { Report, ReportShape } from "@local/shared";
-import { FormProps } from "forms/types";
-import { CrudPropsDialog, CrudPropsPage } from "../types";
+import { CrudPropsDialog, CrudPropsPage, FormProps } from "../../../types";
 import { NewReportShape } from "./ReportUpsert/ReportUpsert";
 
 type ReportUpsertPropsPage = CrudPropsPage;
