@@ -9,6 +9,7 @@ import { chatMessage_findOne } from "../../endpoints/generated/chatMessage_findO
 import { CustomError } from "../../events";
 import { logger } from "../../events/logger";
 import { Trigger } from "../../events/trigger";
+import { ChatMessageModelInfo } from "../../models/base/types";
 import { emitSocketEvent } from "../../sockets/events";
 import { PreMapChatData, PreMapMessageData, PreMapUserData, getChatParticipantData } from "../../utils/chat";
 import { getSingleTypePermissions } from "../../validators/permissions";
@@ -17,18 +18,18 @@ import { getBotInfo } from "./context";
 import { LlmRequestPayload, RequestAutoFillPayload, RequestBotMessagePayload, StartTaskPayload } from "./queue";
 import { ForceGetTaskParams, forceGetTask, generateResponseWithFallback } from "./service";
 
-const parseBotInformation = (
+function parseBotInformation(
     participants: Record<string, PreMapUserData>,
     respondingBotId: string,
     logger: { error: (message: string, data?: Record<string, any>) => unknown },
     language: string,
-): BotSettings => {
+): BotSettings {
     const bot = participants[respondingBotId];
     if (!bot) {
         throw new CustomError("0176", "InternalError", [language]);
     }
     return toBotSettings(bot, logger);
-};
+}
 
 type ForceGetAndProcessCommandParams = ForceGetTaskParams;
 type ForceGetAndProcessCommandResult = {
@@ -36,23 +37,23 @@ type ForceGetAndProcessCommandResult = {
     tasksToSuggest: ServerLlmTaskInfo[],
     cost: number
 };
-const forceGetAndProcessCommand = async (params: ForceGetAndProcessCommandParams): Promise<ForceGetAndProcessCommandResult> => {
+async function forceGetAndProcessCommand(params: ForceGetAndProcessCommandParams): Promise<ForceGetAndProcessCommandResult> {
     const { taskToRun, tasksToSuggest, messageWithoutTasks, cost } = await forceGetTask(params);
     if (!taskToRun || !messageWithoutTasks) {
         return { messageWithoutTasks: null, tasksToSuggest: [], cost };
     }
     processLlmTask({ taskInfo: taskToRun, ...params });
     return { messageWithoutTasks, tasksToSuggest, cost };
-};
+}
 
-export const llmProcessBotMessage = async ({
+export async function llmProcessBotMessage({
     chatId,
     parent,
     participantsData,
     respondingBotId,
     task,
     userData,
-}: RequestBotMessagePayload) => {
+}: RequestBotMessagePayload) {
     const language = userData.languages[0] ?? "en";
     let wasResponseSent = false;
     let totalCost = 0;
@@ -265,13 +266,13 @@ export const llmProcessBotMessage = async ({
     if (chatId && respondingBotId) {
         emitSocketEvent("typing", chatId, { stopping: [respondingBotId] });
     }
-};
+}
 
-export const llmProcessAutoFill = async ({
+export async function llmProcessAutoFill({
     data,
     task,
     userData,
-}: RequestAutoFillPayload): Promise<AutoFillResult> => {
+}: RequestAutoFillPayload): Promise<AutoFillResult> {
     let result: ServerLlmTaskInfo | null = null;
     try {
         const language = userData.languages[0] ?? "en";
@@ -314,25 +315,25 @@ export const llmProcessAutoFill = async ({
     } else {
         throw new CustomError("0230", "InternalError", userData.languages, { task });
     }
-};
+}
 
 /**
  * Process for starting an LLM task, not including the "Start" task itself (despite the confusing name)
  */
-export const llmProcessStartTask = async ({
+export async function llmProcessStartTask({
     botId,
     messageId,
     properties,
     task,
     taskId,
     userData,
-}: StartTaskPayload) => {
+}: StartTaskPayload) {
     let chatId: string | null = null;
     try {
         const language = userData.languages[0] ?? "en";
         // Use delete permissions to determine if we can perform a task
-        const { canDelete: canStartTask } = await getSingleTypePermissions("ChatMessage", [messageId], userData);
-        if (!canStartTask) {
+        const { canDelete: canStartTask } = await getSingleTypePermissions<ChatMessageModelInfo["GqlPermission"]>("ChatMessage", [messageId], userData);
+        if (!Array.isArray(canStartTask) || !canStartTask.every(Boolean)) {
             throw new CustomError("0487", "Unauthorized", userData.languages, { task });
         }
         // Initialize objects to store queried information
@@ -412,9 +413,9 @@ export const llmProcessStartTask = async ({
         logger.error("Caught error in llmProcessStartTask", { trace: "0331", error });
         return { __typename: "Success" as const, success: false };
     }
-};
+}
 
-export const llmProcess = async ({ data }: Job<LlmRequestPayload>) => {
+export async function llmProcess({ data }: Job<LlmRequestPayload>) {
     switch (data.__process) {
         case "BotMessage":
             return llmProcessBotMessage(data);
@@ -425,4 +426,4 @@ export const llmProcess = async ({ data }: Job<LlmRequestPayload>) => {
         default:
             throw new CustomError("0330", "InternalError", ["en"], { process: (data as { __process?: unknown }).__process });
     }
-};
+}

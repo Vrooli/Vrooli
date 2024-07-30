@@ -8,64 +8,6 @@ export const typeDef = gql`
         DateCreatedDesc
     }
 
-    enum LlmTask {
-        ApiAdd
-        ApiDelete
-        ApiFind
-        ApiUpdate
-        BotAdd
-        BotDelete
-        BotFind
-        BotUpdate
-        DataConverterAdd
-        DataConverterDelete
-        DataConverterFind
-        DataConverterUpdate
-        MembersAdd
-        MembersDelete
-        MembersFind
-        MembersUpdate
-        NoteAdd
-        NoteDelete
-        NoteFind
-        NoteUpdate
-        ProjectAdd
-        ProjectDelete
-        ProjectFind
-        ProjectUpdate
-        ReminderAdd
-        ReminderDelete
-        ReminderFind
-        ReminderUpdate
-        RoleAdd
-        RoleDelete
-        RoleFind
-        RoleUpdate
-        RoutineAdd
-        RoutineDelete
-        RoutineFind
-        RoutineUpdate
-        RunProjectStart
-        RunRoutineStart
-        ScheduleAdd
-        ScheduleDelete
-        ScheduleFind
-        ScheduleUpdate
-        SmartContractAdd
-        SmartContractDelete
-        SmartContractFind
-        SmartContractUpdate
-        StandardAdd
-        StandardDelete
-        StandardFind
-        StandardUpdate
-        Start
-        TeamAdd
-        TeamDelete
-        TeamFind
-        TeamUpdate
-    }
-
     input ChatMessageCreateInput {
         id: ID!
         chatConnect: ID!
@@ -177,50 +119,6 @@ export const typeDef = gql`
         messageId: ID!
     }
 
-    input AutoFillInput {
-        task: LlmTask!
-        data: JSON!
-    }
-
-    type AutoFillResult {
-        data: JSON!
-    }
-
-    input StartTaskInput {
-        botId: String!
-        label: String!
-        messageId: ID!
-        properties: JSON!
-        task: LlmTask!
-        taskId: ID!
-    }
-
-    input CancelTaskInput {
-        taskId: ID!
-    }
-
-    input CheckTaskStatusesInput {
-        taskIds: [ID!]!
-    }
-
-    enum LlmTaskStatus {
-        Canceling
-        Completed
-        Failed
-        Running
-        Scheduled
-        Suggested
-    }
-
-    type LlmTaskStatusInfo {
-        id: ID!
-        status: LlmTaskStatus
-    }
-
-    type CheckTaskStatusesResult {
-        statuses: [LlmTaskStatusInfo!]!
-    }
-
     extend type Query {
         chatMessage(input: FindByIdInput!): ChatMessage
         chatMessages(input: ChatMessageSearchInput!): ChatMessageSearchResult!
@@ -231,10 +129,6 @@ export const typeDef = gql`
         chatMessageCreate(input: ChatMessageCreateInput!): ChatMessage!
         chatMessageUpdate(input: ChatMessageUpdateInput!): ChatMessage!
         regenerateResponse(input: RegenerateResponseInput!): Success!
-        autoFill(input: AutoFillInput!): AutoFillResult!
-        startTask(input: StartTaskInput!): Success!
-        cancelTask(input: CancelTaskInput!): Success!
-        checkTaskStatuses(input: CheckTaskStatusesInput!): CheckTaskStatusesResult!
     }
 `;
 

@@ -43,7 +43,7 @@ export const MemberModel: MemberModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<MemberModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },

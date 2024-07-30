@@ -135,7 +135,7 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ApiVersionModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },

@@ -23,7 +23,7 @@ import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, isOwnerAdminCheck, permissionsCheck } from "../../validators";
 import { ChatMessageFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { ChatMessageModelLogic, ChatModelInfo, ChatModelLogic, ReactionModelLogic, UserModelLogic } from "./types";
+import { ChatMessageModelInfo, ChatMessageModelLogic, ChatModelInfo, ChatModelLogic, ReactionModelLogic, UserModelLogic } from "./types";
 
 type ChatMessagePre = {
     /** Map of chat IDs to information about the chat */
@@ -33,6 +33,8 @@ type ChatMessagePre = {
     /** Map of user IDs to information about the user */
     userData: Record<string, PreMapUserData>;
 };
+
+const DEFAULT_CHAT_TAKE = 50;
 
 const __typename = "ChatMessage" as const;
 export const ChatMessageModel: ChatMessageModelLogic = ({
@@ -426,7 +428,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 where: { chatId: input.chatId },
             });
             // If it's less than or equal to the take amount, we can just return all messages. 
-            const take = input.take ?? 50;
+            const take = input.take ?? DEFAULT_CHAT_TAKE;
             if (totalInThread <= take) {
                 let messages: any[] = await prismaInstance.chat_message.findMany({
                     where: { chatId: input.chatId },
@@ -470,7 +472,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ChatMessageModelInfo["GqlPermission"]>(__typename, ids, userData)),
                         reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
                 };

@@ -90,6 +90,7 @@ import * as StatsStandard from "./statsStandard";
 import * as StatsTeam from "./statsTeam";
 import * as StatsUser from "./statsUser";
 import * as Tag from "./tag";
+import * as Task from "./task";
 import * as Team from "./team";
 import * as Transfer from "./transfer";
 import * as Translate from "./translate";
@@ -195,6 +196,7 @@ const schemas: SchemaType[] = [
     StatsTeam,
     StatsUser,
     Tag,
+    Task,
     Team,
     Transfer,
     Translate,

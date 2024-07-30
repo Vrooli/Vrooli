@@ -7,7 +7,7 @@ import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
 import { PullRequestFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { PullRequestModelLogic } from "./types";
+import { PullRequestModelInfo, PullRequestModelLogic } from "./types";
 
 const fromMapper: { [key in PullRequestFromObjectType]: keyof Prisma.pull_requestUpsertArgs["create"] } = {
     ApiVersion: "fromApiVersion",
@@ -103,7 +103,7 @@ export const PullRequestModel: PullRequestModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<PullRequestModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },

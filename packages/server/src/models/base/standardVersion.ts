@@ -243,7 +243,7 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<StandardVersionModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },

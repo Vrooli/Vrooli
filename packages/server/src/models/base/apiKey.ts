@@ -6,6 +6,9 @@ import { defaultPermissions } from "../../utils";
 import { ApiKeyFormat } from "../formats";
 import { ApiKeyModelLogic, TeamModelLogic } from "./types";
 
+const KEY_DISPLAY_CUTOFF_LENGTH = 8; // Should be an even number
+const KEY_LENGTH = 64;
+
 const __typename = "ApiKey" as const;
 export const ApiKeyModel: ApiKeyModelLogic = ({
     __typename,
@@ -17,8 +20,8 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
             get: (select) => {
                 // Make sure key is at least 8 characters long
                 // (should always be, but you never know)
-                if (select.key.length < 8) return select.key;
-                return select.key.slice(0, 4) + "..." + select.key.slice(-4);
+                if (select.key.length < KEY_DISPLAY_CUTOFF_LENGTH) return select.key;
+                return select.key.slice(0, (KEY_DISPLAY_CUTOFF_LENGTH / 2)) + "..." + select.key.slice(-(KEY_DISPLAY_CUTOFF_LENGTH / 2));
             },
         },
     }),
@@ -27,7 +30,7 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
         shape: {
             create: async ({ userData, data }) => ({
                 id: uuid(),
-                key: randomString(64),
+                key: randomString(KEY_LENGTH),
                 creditsUsedBeforeLimit: data.creditsUsedBeforeLimit,
                 stopAtLimit: data.stopAtLimit,
                 absoluteMax: data.absoluteMax,

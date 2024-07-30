@@ -57,7 +57,7 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<MeetingInviteModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },

@@ -2,7 +2,7 @@ import { socket } from "api";
 import { useEffect } from "react";
 import { PubSub } from "utils/pubsub";
 
-export const useSocketConnect = () => {
+export function useSocketConnect() {
     useEffect(() => {
         const events = [
             ["connect", () => {
@@ -26,4 +26,4 @@ export const useSocketConnect = () => {
             socket.disconnect();
         };
     }, []);
-};
+}

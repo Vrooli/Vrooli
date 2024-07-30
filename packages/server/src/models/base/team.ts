@@ -11,7 +11,7 @@ import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, t
 import { getSingleTypePermissions, handlesCheck, lineBreaksCheck } from "../../validators";
 import { TeamFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, TeamModelLogic, ViewModelLogic } from "./types";
+import { BookmarkModelLogic, TeamModelInfo, TeamModelLogic, ViewModelLogic } from "./types";
 
 type TeamPre = PreShapeEmbeddableTranslatableResult;
 
@@ -166,7 +166,7 @@ export const TeamModel: TeamModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<TeamModelInfo["GqlPermission"]>(__typename, ids, userData)),
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
                     },

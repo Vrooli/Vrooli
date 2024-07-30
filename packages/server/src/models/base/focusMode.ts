@@ -6,7 +6,7 @@ import { labelShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
 import { FocusModeFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { FocusModeModelLogic } from "./types";
+import { FocusModeModelInfo, FocusModeModelLogic } from "./types";
 
 const __typename = "FocusMode" as const;
 export const FocusModeModel: FocusModeModelLogic = ({
@@ -62,7 +62,7 @@ export const FocusModeModel: FocusModeModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<FocusModeModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },

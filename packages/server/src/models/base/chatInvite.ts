@@ -6,7 +6,7 @@ import { defaultPermissions } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { ChatInviteFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { ChatInviteModelLogic, ChatModelInfo, ChatModelLogic, UserModelInfo, UserModelLogic } from "./types";
+import { ChatInviteModelInfo, ChatInviteModelLogic, ChatModelInfo, ChatModelLogic, UserModelInfo, UserModelLogic } from "./types";
 
 const __typename = "ChatInvite" as const;
 export const ChatInviteModel: ChatInviteModelLogic = ({
@@ -64,7 +64,7 @@ export const ChatInviteModel: ChatInviteModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ChatInviteModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },

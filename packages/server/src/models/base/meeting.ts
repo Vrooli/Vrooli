@@ -8,7 +8,7 @@ import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { MeetingFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { MeetingModelLogic, TeamModelLogic } from "./types";
+import { MeetingModelInfo, MeetingModelLogic, TeamModelLogic } from "./types";
 
 type MeetingPre = PreShapeEmbeddableTranslatableResult;
 
@@ -121,7 +121,7 @@ export const MeetingModel: MeetingModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<MeetingModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },

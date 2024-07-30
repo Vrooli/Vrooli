@@ -238,10 +238,10 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, objects, partial, userData }) => {
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ProjectVersionModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },

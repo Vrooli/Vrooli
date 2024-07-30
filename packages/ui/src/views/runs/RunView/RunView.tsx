@@ -1,15 +1,17 @@
-import { DecisionStep, DetectSubstepLoadResult, FindByIdInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, RootStep, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunProjectStep, RunProjectUpdateInput, RunRoutine, RunRoutineStep, RunRoutineUpdateInput, RunStatus, RunStep, RunStepType, SingleRoutineStep, addSubdirectoriesToStep, addSubroutinesToStep, base36ToUuid, detectSubstepLoad, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointGetRunProject, endpointGetRunRoutine, endpointPutRunProject, endpointPutRunRoutine, generateRoutineInitialValues, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, getTranslation, locationArraysMatch, noop, parseSearchParams, runnableObjectToStep, saveRunProgress, siblingsAtLocation, stepFromLocation, uuidValidate } from "@local/shared";
-import { Box, BoxProps, Button, Grid, IconButton, LinearProgress, Stack, Typography, styled, useTheme } from "@mui/material";
+import { AutoFillInput, AutoFillResult, DecisionStep, DetectSubstepLoadResult, FindByIdInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, RootStep, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunProjectStep, RunProjectUpdateInput, RunRoutine, RunRoutineStep, RunRoutineUpdateInput, RunStatus, RunStep, RunStepType, SingleRoutineStep, addSubdirectoriesToStep, addSubroutinesToStep, base36ToUuid, detectSubstepLoad, endpointGetAutoFill, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointGetRunProject, endpointGetRunRoutine, endpointPutRunProject, endpointPutRunRoutine, generateRoutineInitialValues, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, getTranslation, locationArraysMatch, noop, parseSearchParams, runnableObjectToStep, saveRunProgress, siblingsAtLocation, stepFromLocation, uuidValidate } from "@local/shared";
+import { Box, Button, Grid, IconButton, LinearProgress, Stack, Typography, styled } from "@mui/material";
 import { fetchLazyWrapper } from "api";
+import { AutoSaveIndicator } from "components/AutoSaveIndicator/AutoSaveIndicator";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { RunStepsDialog } from "components/dialogs/RunStepsDialog/RunStepsDialog";
 import { SessionContext } from "contexts/SessionContext";
 import { FormikProps } from "formik";
+import { useAutoSave } from "hooks/useAutoSave";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { useWindowSize } from "hooks/useWindowSize";
-import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, RefreshIcon, SaveIcon, SuccessIcon, WarningIcon } from "icons";
-import { RefObject, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useSocketRun } from "hooks/useSocketRun";
+import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, SuccessIcon } from "icons";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { addSearchParams, removeSearchParams, useLocation } from "route";
 import { pagePaddingBottom } from "styles";
@@ -20,162 +22,6 @@ import { parseSchemaInput, parseSchemaOutput } from "utils/runUtils";
 import { DecisionView } from "../DecisionView/DecisionView";
 import { SubroutineView } from "../SubroutineView/SubroutineView";
 import { RunViewProps } from "../types";
-
-type AutoSaveIndicatorProps = {
-    formikRef: RefObject<FormikProps<object>>;
-}
-
-type SaveStatus = "Saving" | "Saved" | "Unsaved";
-
-const SAVED_INDICATOR_TIMEOUT_MS = 3000;
-const CHECK_SAVE_STATUS_INTERVAL_MS = 1000;
-
-const statusToIconColor = {
-    Saving: "#0288d1",
-    Saved: "#2e7d32",
-    Unsaved: "#ed6c02",
-} as const;
-const statusToBackgroundColor = {
-    Saving: "#e5f6fdbb",
-    Saved: "#edf7edbb",
-    Unsaved: "#fff4e5bb",
-} as const;
-const statusToLabelColor = {
-    Saving: "#014361",
-    Saved: "#1e4620",
-    Unsaved: "#663c00",
-} as const;
-const statusToLabel = {
-    Saving: "Saving...",
-    Saved: "Saved",
-    Unsaved: "Not saved",
-} as const;
-const statusToIcon = {
-    Saving: RefreshIcon,
-    Saved: SaveIcon,
-    Unsaved: WarningIcon,
-} as const;
-
-interface AutoSaveAlertProps extends BoxProps {
-    isLabelVisible: boolean;
-    isVisible: boolean;
-    status: SaveStatus;
-}
-
-const AutoSaveAlert = styled(Box, {
-    shouldForwardProp: (prop) => prop !== "isLabelVisible" && prop !== "isVisible" && prop !== "status",
-})<AutoSaveAlertProps>(({ isLabelVisible, isVisible, status, theme }) => ({
-    display: isVisible ? "flex" : "none",
-    alignItems: "center",
-    justifyContent: "center",
-    background: statusToBackgroundColor[status],
-    borderRadius: "4px",
-    // eslint-disable-next-line no-magic-numbers
-    padding: isLabelVisible ? theme.spacing(0.75) : `${theme.spacing(0.5)} ${theme.spacing(1)}`,
-    "& .save-alert-icon": {
-        paddingTop: 0,
-        paddingBottom: 0,
-    },
-    "& .save-alert-label": {
-        display: isLabelVisible ? "block" : "none",
-        padding: 0,
-        marginLeft: theme.spacing(1),
-    },
-}));
-
-function AutoSaveIndicator({
-    formikRef,
-}: AutoSaveIndicatorProps) {
-    const { breakpoints } = useTheme();
-    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
-
-    const [saveStatus, setSaveStatus] = useState<SaveStatus>("Saved");
-    const [isVisible, setIsVisible] = useState(false);
-    const [showLabelOnMobile, setShowLabelOnMobile] = useState(false);
-    const toggleShowLabelOnMobile = useCallback(function toggleShowLabelOnMobileCallback() {
-        setShowLabelOnMobile((prev) => !prev);
-    }, []);
-
-    useEffect(function checkStatusTimeout() {
-        let timeoutId: NodeJS.Timeout;
-
-        function checkFormStatus() {
-            if (formikRef.current) {
-                const { dirty, isSubmitting } = formikRef.current;
-
-                if (isSubmitting) {
-                    setSaveStatus("Saving");
-                    setIsVisible(true);
-                } else if (dirty) {
-                    setSaveStatus("Unsaved");
-                    setIsVisible(true);
-                } else {
-                    setSaveStatus("Saved");
-                    // Hide the indicator after 3 seconds when saved
-                    timeoutId = setTimeout(() => setIsVisible(false), SAVED_INDICATOR_TIMEOUT_MS);
-                }
-            }
-        }
-
-        const intervalId = setInterval(checkFormStatus, CHECK_SAVE_STATUS_INTERVAL_MS);
-
-        return () => {
-            clearInterval(intervalId);
-            clearTimeout(timeoutId);
-        };
-    }, [formikRef]);
-
-    const Icon = statusToIcon[saveStatus];
-    return (
-        <AutoSaveAlert
-            isLabelVisible={!isMobile || showLabelOnMobile}
-            isVisible={isVisible}
-            onClick={toggleShowLabelOnMobile}
-            status={saveStatus}
-        >
-            <Icon
-                className="save-alert-icon"
-                width={20}
-                height={20}
-                fill={statusToIconColor[saveStatus]}
-            />
-            <Typography
-                className="save-alert-label"
-                variant="body2"
-                color={statusToLabelColor[saveStatus]}
-            >
-                {statusToLabel[saveStatus]}
-            </Typography>
-        </AutoSaveAlert>
-    );
-}
-
-type UseAutoSaveProps = {
-    disabled?: boolean;
-    formikRef: RefObject<FormikProps<object>>;
-    handleSave: () => unknown;
-}
-
-const AUTO_SAVE_INTERVAL_MS = 10000;
-
-export function useAutoSave({
-    disabled,
-    formikRef,
-    handleSave,
-}: UseAutoSaveProps) {
-    const maybeSave = useCallback(function maybeSaveCallback() {
-        if (disabled !== true && formikRef.current && formikRef.current.dirty && !formikRef.current.isSubmitting) {
-            handleSave();
-        }
-    }, [disabled, formikRef, handleSave]);
-
-    useEffect(function maybeAutoSaveEffect() {
-        const intervalId = setInterval(maybeSave, AUTO_SAVE_INTERVAL_MS);
-        return () => {
-            clearInterval(intervalId);
-        };
-    }, [formikRef, maybeSave]);
-}
 
 interface StepRunData {
     contextSwitches?: number;
@@ -304,7 +150,8 @@ const actionBarGridStyle = {
 } as const;
 const progressBarStyle = { height: "15px" } as const;
 
-//TODO: when the current step performs an action (e.g. Generate subroutine), the "Next" button should be a "Run" button instead, and trigger the action
+//TODO: implement `handleGenerateOutputs`, and soft disable (confirmation dialog) next button when there are missing required fields
+//TODO: Need socket to listen to generate output results
 export function RunView({
     display,
     isOpen,
@@ -343,6 +190,8 @@ export function RunView({
     useEffect(function updateRunDataEffect() {
         if (runData) setRun(runData);
     }, [runData]);
+
+    useSocketRun({ run });
 
     const [currentLocation, setCurrentLocation] = useState<number[]>([...startingStepLocation]);
     const handleLocationUpdate = useCallback(function handleLocationUpdateCallback(step: number[]) {
@@ -651,6 +500,19 @@ export function RunView({
         getSubroutines({ ids: [id] });
     }, [getSubroutines]);
 
+    //TODO autofill would only work for routineType Generate. Should use startTask instead
+    const [getAutoFill, { loading: isGeneratingOutputs }] = useLazyFetch<AutoFillInput, AutoFillResult>(endpointGetAutoFill);
+    const handleGenerateOutputs = useCallback(function handleGenerateOutputsCallback() {
+        if (runnableObject.__typename !== "RoutineVersion" || !run || run.__typename !== "RunRoutine") return;
+        // Inputs are stored in the formikRef with prefix "inputs-"
+        const inputs = Object.entries(formikRef.current?.values ?? {})
+            .filter(([key]) => key.startsWith("inputs-"))
+            .reduce((acc, [key, value]) => {
+                acc[key.replace("inputs-", "")] = value;
+                return acc;
+            }, {} as Record<string, unknown>);
+    }, []);//TODO
+
     /**
      * Displays either a subroutine view or decision view
      */
@@ -660,7 +522,9 @@ export function RunView({
             case RunStepType.SingleRoutine:
                 return <SubroutineView
                     formikRef={formikRef}
-                    loading={isDirectoriesLoading || isSubroutinesLoading}
+                    handleGenerateOutputs={handleGenerateOutputs}
+                    isGeneratingOutputs={isGeneratingOutputs}
+                    isLoading={isDirectoriesLoading || isSubroutinesLoading}
                     routineVersion={(currentStep as SingleRoutineStep).routineVersion}
                 />;
             case RunStepType.Directory:
@@ -749,7 +613,7 @@ export function RunView({
                                     disabled={unsavedChanges || isRunLoading}
                                     fullWidth
                                     startIcon={!nextLocation && currentStep?.__type !== RunStepType.Decision ? <SuccessIcon /> : <ArrowRightIcon />}
-                                    onClick={toNext} // NOTE: changes are saved on next click
+                                    onClick={toNext}
                                     variant="contained"
                                 >
                                     {!nextLocation && currentStep?.__type !== RunStepType.Decision ? t("Complete") : t("Next")}

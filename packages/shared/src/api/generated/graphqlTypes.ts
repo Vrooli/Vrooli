@@ -2508,7 +2508,6 @@ export type Mutation = {
   chatMessageUpdate: ChatMessage;
   chatParticipantUpdate: ChatParticipant;
   chatUpdate: Chat;
-  checkTaskStatuses: CheckTaskStatusesResult;
   codeCreate: Code;
   codeUpdate: Api;
   codeVersionCreate: CodeVersion;
@@ -2780,11 +2779,6 @@ export type MutationChatParticipantUpdateArgs = {
 
 export type MutationChatUpdateArgs = {
   input: ChatUpdateInput;
-};
-
-
-export type MutationCheckTaskStatusesArgs = {
-  input: CheckTaskStatusesInput;
 };
 
 
@@ -5275,6 +5269,7 @@ export type Query = {
   chatParticipant?: Maybe<ChatParticipant>;
   chatParticipants: ChatParticipantSearchResult;
   chats: ChatSearchResult;
+  checkTaskStatuses: CheckTaskStatusesResult;
   code?: Maybe<Code>;
   codeVersion?: Maybe<CodeVersion>;
   codeVersions: CodeVersionSearchResult;
@@ -5480,6 +5475,11 @@ export type QueryChatParticipantsArgs = {
 
 export type QueryChatsArgs = {
   input: ChatSearchInput;
+};
+
+
+export type QueryCheckTaskStatusesArgs = {
+  input: CheckTaskStatusesInput;
 };
 
 
@@ -7875,7 +7875,6 @@ export type RoutineVersionYou = {
   canReport: Scalars['Boolean'];
   canRun: Scalars['Boolean'];
   canUpdate: Scalars['Boolean'];
-  runs: Array<RunRoutine>;
 };
 
 export type RoutineYou = {
@@ -12543,7 +12542,6 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   chatMessageUpdate?: Resolver<ResolversTypes['ChatMessage'], ParentType, ContextType, RequireFields<MutationChatMessageUpdateArgs, 'input'>>;
   chatParticipantUpdate?: Resolver<ResolversTypes['ChatParticipant'], ParentType, ContextType, RequireFields<MutationChatParticipantUpdateArgs, 'input'>>;
   chatUpdate?: Resolver<ResolversTypes['Chat'], ParentType, ContextType, RequireFields<MutationChatUpdateArgs, 'input'>>;
-  checkTaskStatuses?: Resolver<ResolversTypes['CheckTaskStatusesResult'], ParentType, ContextType, RequireFields<MutationCheckTaskStatusesArgs, 'input'>>;
   codeCreate?: Resolver<ResolversTypes['Code'], ParentType, ContextType, RequireFields<MutationCodeCreateArgs, 'input'>>;
   codeUpdate?: Resolver<ResolversTypes['Api'], ParentType, ContextType, RequireFields<MutationCodeUpdateArgs, 'input'>>;
   codeVersionCreate?: Resolver<ResolversTypes['CodeVersion'], ParentType, ContextType, RequireFields<MutationCodeVersionCreateArgs, 'input'>>;
@@ -13401,6 +13399,7 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   chatParticipant?: Resolver<Maybe<ResolversTypes['ChatParticipant']>, ParentType, ContextType, RequireFields<QueryChatParticipantArgs, 'input'>>;
   chatParticipants?: Resolver<ResolversTypes['ChatParticipantSearchResult'], ParentType, ContextType, RequireFields<QueryChatParticipantsArgs, 'input'>>;
   chats?: Resolver<ResolversTypes['ChatSearchResult'], ParentType, ContextType, RequireFields<QueryChatsArgs, 'input'>>;
+  checkTaskStatuses?: Resolver<ResolversTypes['CheckTaskStatusesResult'], ParentType, ContextType, RequireFields<QueryCheckTaskStatusesArgs, 'input'>>;
   code?: Resolver<Maybe<ResolversTypes['Code']>, ParentType, ContextType, RequireFields<QueryCodeArgs, 'input'>>;
   codeVersion?: Resolver<Maybe<ResolversTypes['CodeVersion']>, ParentType, ContextType, RequireFields<QueryCodeVersionArgs, 'input'>>;
   codeVersions?: Resolver<ResolversTypes['CodeVersionSearchResult'], ParentType, ContextType, RequireFields<QueryCodeVersionsArgs, 'input'>>;
@@ -14207,7 +14206,6 @@ export type RoutineVersionYouResolvers<ContextType = any, ParentType extends Res
   canReport?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canRun?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   canUpdate?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
-  runs?: Resolver<Array<ResolversTypes['RunRoutine']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 

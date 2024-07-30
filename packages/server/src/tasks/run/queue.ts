@@ -15,11 +15,11 @@ export type RunRoutinePayload = {
     //...
 };
 
-export type RunPayload = RunProjectPayload | RunRoutinePayload;
+export type RunRequestPayload = RunProjectPayload | RunRoutinePayload;
 
 let logger: winston.Logger;
-let runProcess: (job: Bull.Job<RunPayload>) => Promise<unknown>;
-let runQueue: Bull.Queue<RunPayload>;
+let runProcess: (job: Bull.Job<RunRequestPayload>) => Promise<unknown>;
+let runQueue: Bull.Queue<RunRequestPayload>;
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const importExtension = process.env.NODE_ENV === "test" ? ".ts" : ".js";
 
@@ -39,7 +39,7 @@ export async function setupRunQueue() {
         runProcess = processModule.runProcess;
 
         // Initialize the Bull queue
-        runQueue = new Bull<RunPayload>("run", {
+        runQueue = new Bull<RunRequestPayload>("run", {
             redis: REDIS_URL,
             defaultJobOptions: {
                 removeOnComplete: {

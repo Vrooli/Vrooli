@@ -333,12 +333,14 @@ type MessageTasks = {
     tasks: LlmTaskInfo[];
 }
 const llmTasksCache = new LocalStorageLruCache<MessageTasks>("llmTasks", 100, CACHE_LIMT_1MB);
-export const getCookieTasksForMessage = (messageId: string): MessageTasks | undefined => ifAllowed("functional", () => {
-    const existing = llmTasksCache.get(messageId);
-    if (typeof existing === "object" && Array.isArray(existing.tasks)) {
-        return existing;
-    }
-});
+export function getCookieTasksForMessage(messageId: string): MessageTasks | undefined {
+    return ifAllowed("functional", () => {
+        const existing = llmTasksCache.get(messageId);
+        if (typeof existing === "object" && Array.isArray(existing.tasks)) {
+            return existing;
+        }
+    });
+}
 export const setCookieTaskForMessage = (messageId: string, task: LlmTaskInfo) => ifAllowed("functional", () => {
     const existing = getCookieTasksForMessage(messageId) || { tasks: [] };
     const taskIndex = existing.tasks.findIndex(t => t.id === task.id);

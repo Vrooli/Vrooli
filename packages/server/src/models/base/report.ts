@@ -7,7 +7,7 @@ import { CustomError } from "../../events/error";
 import { getSingleTypePermissions } from "../../validators";
 import { ReportFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { ReportModelLogic } from "./types";
+import { ReportModelInfo, ReportModelLogic } from "./types";
 
 const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs["create"] } = {
     ApiVersion: "apiVersion",
@@ -125,7 +125,7 @@ export const ReportModel: ReportModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ReportModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },

@@ -8,7 +8,7 @@ import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { QuestionFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, QuestionModelLogic, ReactionModelLogic } from "./types";
+import { BookmarkModelLogic, QuestionModelInfo, QuestionModelLogic, ReactionModelLogic } from "./types";
 
 type QuestionPre = PreShapeEmbeddableTranslatableResult;
 
@@ -123,7 +123,7 @@ export const QuestionModel: QuestionModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<QuestionModelInfo["GqlPermission"]>(__typename, ids, userData)),
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },

@@ -1,9 +1,9 @@
 import { ChatMessage, ChatParticipant } from "../api/generated/graphqlTypes";
 import { LlmTaskInfo } from "../llm/types";
-import { JOIN_CHAT_ROOM_ERRORS, JOIN_USER_ROOM_ERRORS, LEAVE_CHAT_ROOM_ERRORS, LEAVE_USER_ROOM_ERRORS } from "./api";
+import { JOIN_CHAT_ROOM_ERRORS, JOIN_RUN_ROOM_ERRORS, JOIN_USER_ROOM_ERRORS, LEAVE_CHAT_ROOM_ERRORS, LEAVE_RUN_ROOM_ERRORS, LEAVE_USER_ROOM_ERRORS } from "./api";
 
 export type ReservedSocketEvents = "connect" | "connect_error" | "disconnect";
-export type RoomSocketEvents = "joinChatRoom" | "leaveChatRoom" | "joinUserRoom" | "leaveUserRoom";
+export type RoomSocketEvents = "joinChatRoom" | "leaveChatRoom" | "joinRunRoom" | "leaveRunRoom" | "joinUserRoom" | "leaveUserRoom";
 
 export type UserSocketEventPayloads = {
     /**
@@ -20,6 +20,13 @@ export type UserSocketEventPayloads = {
         icon: string;
         link: string | undefined;
         title: string;
+    };
+}
+export type RunSocketEventPayloads = {
+    joinRunRoom: { runId: string, runType: "RunProject" | "RunRoutine" };
+    leaveRunRoom: { runId: string };
+    runResult: {
+        //TODO
     };
 }
 export type ChatSocketEventPayloads = {
@@ -63,17 +70,7 @@ export type ReservedSocketEventPayloads = {
     connect_error: never;
     disconnect: never;
 }
-export type SocketEventPayloads = UserSocketEventPayloads & ChatSocketEventPayloads & ReservedSocketEventPayloads;
-
-export type JoinUserRoomCallbackData = {
-    success: boolean;
-    error?: keyof typeof JOIN_USER_ROOM_ERRORS | string;
-}
-
-export type LeaveUserRoomCallbackData = {
-    success: boolean;
-    error?: keyof typeof LEAVE_USER_ROOM_ERRORS;
-}
+export type SocketEventPayloads = UserSocketEventPayloads & RunSocketEventPayloads & ChatSocketEventPayloads & ReservedSocketEventPayloads;
 
 export type JoinChatRoomCallbackData = {
     success: boolean;
@@ -85,9 +82,24 @@ export type LeaveChatRoomCallbackData = {
     error?: keyof typeof LEAVE_CHAT_ROOM_ERRORS;
 }
 
-export type UserSocketEventCallbackPayloads = {
-    joinUserRoom: JoinUserRoomCallbackData;
-    leaveUserRoom: LeaveUserRoomCallbackData;
+export type JoinRunRoomCallbackData = {
+    success: boolean;
+    error?: keyof typeof JOIN_RUN_ROOM_ERRORS | string;
+}
+
+export type LeaveRunRoomCallbackData = {
+    success: boolean;
+    error?: keyof typeof LEAVE_RUN_ROOM_ERRORS;
+}
+
+export type JoinUserRoomCallbackData = {
+    success: boolean;
+    error?: keyof typeof JOIN_USER_ROOM_ERRORS | string;
+}
+
+export type LeaveUserRoomCallbackData = {
+    success: boolean;
+    error?: keyof typeof LEAVE_USER_ROOM_ERRORS;
 }
 
 export type ChatSocketEventCallbackPayloads = {
@@ -95,7 +107,17 @@ export type ChatSocketEventCallbackPayloads = {
     leaveChatRoom: LeaveChatRoomCallbackData;
 }
 
-export type SocketEventCallbackPayloads = UserSocketEventCallbackPayloads & ChatSocketEventCallbackPayloads;
+export type RunSocketEventCallbackPayloads = {
+    joinRunRoom: JoinRunRoomCallbackData;
+    leaveRunRoom: LeaveRunRoomCallbackData;
+}
+
+export type UserSocketEventCallbackPayloads = {
+    joinUserRoom: JoinUserRoomCallbackData;
+    leaveUserRoom: LeaveUserRoomCallbackData;
+}
+
+export type SocketEventCallbackPayloads = ChatSocketEventCallbackPayloads & RunSocketEventCallbackPayloads & UserSocketEventCallbackPayloads;
 
 export type SocketEventHandler<T extends SocketEvent> = T extends keyof SocketEventCallbackPayloads
     ? (payload: SocketEventPayloads[T], callback: (data: SocketEventCallbackPayloads[T]) => void) => void

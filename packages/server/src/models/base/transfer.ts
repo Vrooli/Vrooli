@@ -12,7 +12,7 @@ import { SessionUserToken } from "../../types";
 import { getSingleTypePermissions, isOwnerAdminCheck } from "../../validators";
 import { TransferFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { TeamModelLogic, TransferModelLogic, UserModelLogic } from "./types";
+import { TeamModelLogic, TransferModelInfo, TransferModelLogic, UserModelLogic } from "./types";
 
 const __typename = "Transfer" as const;
 
@@ -332,7 +332,7 @@ export const TransferModel: TransferModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<TransferModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },

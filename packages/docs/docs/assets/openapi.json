@@ -682,62 +682,6 @@
         }
       }
     },
-    "/autoFill": {
-      "get": {
-        "operationId": "endpointGetAutoFill",
-        "tags": [
-          "chatMessage"
-        ],
-        "parameters": [],
-        "responses": {
-          "default": {
-            "description": "Default response. Replace this with real responses."
-          }
-        }
-      }
-    },
-    "/startTask": {
-      "post": {
-        "operationId": "endpointPostStartTask",
-        "tags": [
-          "chatMessage"
-        ],
-        "parameters": [],
-        "responses": {
-          "default": {
-            "description": "Default response. Replace this with real responses."
-          }
-        }
-      }
-    },
-    "/cancelTask": {
-      "post": {
-        "operationId": "endpointPostCancelTask",
-        "tags": [
-          "chatMessage"
-        ],
-        "parameters": [],
-        "responses": {
-          "default": {
-            "description": "Default response. Replace this with real responses."
-          }
-        }
-      }
-    },
-    "/checkTaskStatuses": {
-      "get": {
-        "operationId": "endpointGetCheckTaskStatuses",
-        "tags": [
-          "chatMessage"
-        ],
-        "parameters": [],
-        "responses": {
-          "default": {
-            "description": "Default response. Replace this with real responses."
-          }
-        }
-      }
-    },
     "/chatParticipant/{id}": {
       "get": {
         "operationId": "endpointGetChatParticipant",
@@ -3593,6 +3537,62 @@
         "operationId": "endpointPostTag",
         "tags": [
           "tag"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/autoFill": {
+      "get": {
+        "operationId": "endpointGetAutoFill",
+        "tags": [
+          "task"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/startTask": {
+      "post": {
+        "operationId": "endpointPostStartTask",
+        "tags": [
+          "task"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/cancelTask": {
+      "post": {
+        "operationId": "endpointPostCancelTask",
+        "tags": [
+          "task"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/checkTaskStatuses": {
+      "get": {
+        "operationId": "endpointGetCheckTaskStatuses",
+        "tags": [
+          "task"
         ],
         "parameters": [],
         "responses": {
@@ -37272,13 +37272,6 @@
           "canUpdate": {
             "title": "RoutineVersionYou.canUpdate",
             "type": "boolean"
-          },
-          "runs": {
-            "items": {
-              "$ref": "#/components/schemas/RunRoutine"
-            },
-            "title": "RoutineVersionYou.runs",
-            "type": "array"
           }
         },
         "required": [
@@ -37291,8 +37284,7 @@
           "canRead",
           "canReport",
           "canRun",
-          "canUpdate",
-          "runs"
+          "canUpdate"
         ],
         "additionalProperties": false,
         "title": "RoutineVersionYou",

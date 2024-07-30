@@ -143,7 +143,7 @@ export const RunProjectModel: RunProjectModelLogic = ({
                 return {
                     lastStep: lastSteps,
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<RunProjectModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },

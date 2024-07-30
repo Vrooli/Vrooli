@@ -19,6 +19,7 @@ import { SERVER_URL, server } from "./server";
 import { setupStripe } from "./services";
 import { io } from "./sockets/io";
 import { chatSocketRoomHandlers } from "./sockets/rooms/chat";
+import { runSocketRoomHandlers } from "./sockets/rooms/run";
 import { userSocketRoomHandlers } from "./sockets/rooms/user";
 import { setupEmailQueue } from "./tasks/email/queue";
 import { setupExportQueue } from "./tasks/export/queue";
@@ -167,6 +168,7 @@ async function main() {
     io.on("connection", (socket) => {
         // Add handlers
         chatSocketRoomHandlers(socket);
+        runSocketRoomHandlers(socket);
         userSocketRoomHandlers(socket);
     });
 

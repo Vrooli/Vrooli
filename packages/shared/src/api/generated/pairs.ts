@@ -292,30 +292,6 @@ export const endpointPostRegenerateResponse = {
     tag: "chatMessage",
 } as const;
 
-export const endpointGetAutoFill = {
-    endpoint: "/autoFill",
-    method: "GET",
-    tag: "chatMessage",
-} as const;
-
-export const endpointPostStartTask = {
-    endpoint: "/startTask",
-    method: "POST",
-    tag: "chatMessage",
-} as const;
-
-export const endpointPostCancelTask = {
-    endpoint: "/cancelTask",
-    method: "POST",
-    tag: "chatMessage",
-} as const;
-
-export const endpointGetCheckTaskStatuses = {
-    endpoint: "/checkTaskStatuses",
-    method: "GET",
-    tag: "chatMessage",
-} as const;
-
 export const endpointGetChatParticipant = {
     endpoint: "/chatParticipant/:id",
     method: "GET",
@@ -1580,6 +1556,30 @@ export const endpointPostTag = {
     endpoint: "/tag",
     method: "POST",
     tag: "tag",
+} as const;
+
+export const endpointGetAutoFill = {
+    endpoint: "/autoFill",
+    method: "GET",
+    tag: "task",
+} as const;
+
+export const endpointPostStartTask = {
+    endpoint: "/startTask",
+    method: "POST",
+    tag: "task",
+} as const;
+
+export const endpointPostCancelTask = {
+    endpoint: "/cancelTask",
+    method: "POST",
+    tag: "task",
+} as const;
+
+export const endpointGetCheckTaskStatuses = {
+    endpoint: "/checkTaskStatuses",
+    method: "GET",
+    tag: "task",
 } as const;
 
 export const endpointGetTeam = {

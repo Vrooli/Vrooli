@@ -142,6 +142,8 @@
     "ReportExistsDetails": "You have already submitted a report for this object.",
     "ResourceNotFound": "Resource not found.",
     "RoutineCannotRunInvalid": "Routine cannot be run because it is invalid.",
+    "RunNotFoundOrUnauthorized": "Run not found or unauthorized.",
+    "RunRoomJoinFailed": "Failed to join run room.",
     "ScheduleCreated": "Schedule created.",
     "ScheduleUpdated": "Schedule updated.",
     "ScheduleDeleted": "Schedule deleted.",

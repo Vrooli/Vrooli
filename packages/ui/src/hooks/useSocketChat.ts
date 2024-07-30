@@ -9,7 +9,7 @@ import { useThrottle } from "./useThrottle";
 
 type ParticipantWithoutChat = Omit<ChatParticipantShape, "chat">;
 
-type UseWebSocketEventsProps = {
+type UseSocketChatProps = {
     addMessages: (newMessages: ChatMessageShape[]) => unknown;
     chat: ChatShape;
     editMessage: (editedMessage: ChatMessageShape) => unknown;
@@ -26,9 +26,9 @@ type UseWebSocketEventsProps = {
 
 export function processMessages(
     { added, deleted, edited }: ChatSocketEventPayloads["messages"],
-    addMessages: UseWebSocketEventsProps["addMessages"],
-    removeMessages: UseWebSocketEventsProps["removeMessages"],
-    editMessage: UseWebSocketEventsProps["editMessage"],
+    addMessages: UseSocketChatProps["addMessages"],
+    removeMessages: UseSocketChatProps["removeMessages"],
+    editMessage: UseSocketChatProps["editMessage"],
 ) {
     if (Array.isArray(added) && added.length > 0) {
         addMessages(added.map(m => ({ ...m, status: "sent" })));
@@ -45,10 +45,10 @@ export function processMessages(
 
 export function processTypingUpdates(
     { starting, stopping }: ChatSocketEventPayloads["typing"],
-    usersTyping: UseWebSocketEventsProps["usersTyping"],
-    participants: UseWebSocketEventsProps["participants"],
+    usersTyping: UseSocketChatProps["usersTyping"],
+    participants: UseSocketChatProps["participants"],
     session: Session | undefined,
-    setUsersTyping: UseWebSocketEventsProps["setUsersTyping"],
+    setUsersTyping: UseSocketChatProps["setUsersTyping"],
 ) {
     // Add every user that's typing
     const newTyping = JSON.parse(JSON.stringify(usersTyping)) as ParticipantWithoutChat[];
@@ -77,10 +77,10 @@ export function processTypingUpdates(
 
 export function processParticipantsUpdates(
     { joining, leaving }: ChatSocketEventPayloads["participants"],
-    participants: UseWebSocketEventsProps["participants"],
-    chat: UseWebSocketEventsProps["chat"],
-    task: UseWebSocketEventsProps["task"],
-    setParticipants: UseWebSocketEventsProps["setParticipants"],
+    participants: UseSocketChatProps["participants"],
+    chat: UseSocketChatProps["chat"],
+    task: UseSocketChatProps["task"],
+    setParticipants: UseSocketChatProps["setParticipants"],
 ) {
     // Remove cache data for old participants group
     const existingUserIds = participants.map(p => p.user.id);
@@ -109,8 +109,8 @@ export function processParticipantsUpdates(
 
 export function processLlmTasks(
     { tasks, updates }: ChatSocketEventPayloads["llmTasks"],
-    messageTasks: UseWebSocketEventsProps["messageTasks"],
-    updateTasksForMessage: UseWebSocketEventsProps["updateTasksForMessage"],
+    messageTasks: UseSocketChatProps["messageTasks"],
+    updateTasksForMessage: UseSocketChatProps["updateTasksForMessage"],
 ) {
     console.log("yeeeet processing new llm tasks", messageTasks, updates);
     // Combine full tasks and updates into a single operation per messageId
@@ -234,7 +234,7 @@ export function useSocketChat({
     task,
     updateTasksForMessage,
     usersTyping,
-}: UseWebSocketEventsProps) {
+}: UseSocketChatProps) {
     const session = useContext(SessionContext);
 
     // Handle connection/disconnection

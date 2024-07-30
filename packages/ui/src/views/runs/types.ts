@@ -17,6 +17,8 @@ export type RunViewProps = ViewProps & {
 
 export type SubroutineViewProps = {
     formikRef: RefObject<FormikProps<object>>;
-    loading: boolean;
+    handleGenerateOutputs: () => unknown;
+    isGeneratingOutputs: boolean;
+    isLoading: boolean;
     routineVersion: RunnableRoutineVersion;
 }

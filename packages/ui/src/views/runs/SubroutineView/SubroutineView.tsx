@@ -29,7 +29,9 @@ const basicInfoStackStyle = {
 
 export function SubroutineView({
     formikRef,
-    loading,
+    handleGenerateOutputs,
+    isGeneratingOutputs,
+    isLoading,
     routineVersion,
 }: SubroutineViewProps) {
     const session = useContext(SessionContext);
@@ -70,14 +72,16 @@ export function SubroutineView({
         return {
             configCallData,
             disabled: false,
-            isEditing: false,
+            display: "run",
+            handleGenerateOutputs,
+            isGeneratingOutputs,
             onConfigCallDataChange: noop,
             onSchemaInputChange: noop,
             onSchemaOutputChange: noop,
             schemaInput,
             schemaOutput,
-        };
-    }, [configCallData, schemaInput, schemaOutput]);
+        } as const;
+    }, [configCallData, handleGenerateOutputs, isGeneratingOutputs, schemaInput, schemaOutput]);
 
     // Type-specific components
     const routineTypeComponents = useMemo(function routineTypeComponentsMemo() {
@@ -123,20 +127,20 @@ export function SubroutineView({
                         list={resourceList as unknown as ResourceListType}
                         canUpdate={false}
                         handleUpdate={noop}
-                        loading={loading}
+                        loading={isLoading}
                         parent={{ __typename: "RoutineVersion", id: routineVersion?.id ?? "" }}
                     />}
                     {(!!description || !!instructions) && <FormSection>
                         <TextCollapse
                             title="Description"
                             text={description}
-                            loading={loading}
+                            loading={isLoading}
                             loadingLines={2}
                         />
                         <TextCollapse
                             title="Instructions"
                             text={instructions}
-                            loading={loading}
+                            loading={isLoading}
                             loadingLines={4}
                         />
                     </FormSection>}
@@ -174,7 +178,7 @@ export function SubroutineView({
                             <Stack direction="row" spacing={1} mt={2} mb={1}>
                                 {/* Date created */}
                                 <DateDisplay
-                                    loading={loading}
+                                    loading={isLoading}
                                     timestamp={internalRoutineVersion?.created_at}
                                 />
                                 <VersionDisplay

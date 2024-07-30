@@ -93,7 +93,7 @@ export const endpoints = {
         };
     },
     chatMessage: async () => {
-        const { chatMessage, chatMessageSearchTreeResult, autoFillResult, checkTaskStatusesResult } = await import("./partial/chatMessage");
+        const { chatMessage, chatMessageSearchTreeResult } = await import("./partial/chatMessage");
         const { success } = await import("./partial/success");
         return {
             findOne: toQuery("chatMessage", "FindByIdInput", chatMessage, "full"),
@@ -102,10 +102,6 @@ export const endpoints = {
             create: toMutation("chatMessageCreate", "ChatMessageCreateInput", chatMessage, "full"),
             update: toMutation("chatMessageUpdate", "ChatMessageUpdateInput", chatMessage, "full"),
             regenerateResponse: toMutation("regenerateResponse", "RegenerateResponseInput", success, "full"),
-            autoFill: toMutation("autoFill", "AutoFillInput", autoFillResult, "full"),
-            startTask: toMutation("startTask", "StartTaskInput", success, "full"),
-            cancelTask: toMutation("cancelTask", "CancelTaskInput", success, "full"),
-            checkTaskStatuses: toMutation("checkTaskStatuses", "CheckTaskStatusesInput", checkTaskStatusesResult, "full"),
         };
     },
     chatParticipant: async () => {
@@ -702,6 +698,16 @@ export const endpoints = {
             findMany: toQuery("tags", "TagSearchInput", ...(await toSearch(tag))),
             create: toMutation("tagCreate", "TagCreateInput", tag, "full"),
             update: toMutation("tagUpdate", "TagUpdateInput", tag, "full"),
+        };
+    },
+    task: async () => {
+        const { autoFillResult, checkTaskStatusesResult } = await import("./partial/task");
+        const { success } = await import("./partial/success");
+        return {
+            autoFill: toMutation("autoFill", "AutoFillInput", autoFillResult, "full"),
+            startTask: toMutation("startTask", "StartTaskInput", success, "full"),
+            cancelTask: toMutation("cancelTask", "CancelTaskInput", success, "full"),
+            checkTaskStatuses: toMutation("checkTaskStatuses", "CheckTaskStatusesInput", checkTaskStatusesResult, "full"),
         };
     },
     team: async () => {

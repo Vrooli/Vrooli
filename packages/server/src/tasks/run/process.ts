@@ -1,16 +1,16 @@
 import { Job } from "bull";
 import { CustomError } from "../../events";
-import { RunPayload, RunProjectPayload, RunRoutinePayload } from "./queue";
+import { RunProjectPayload, RunRequestPayload, RunRoutinePayload } from "./queue";
 
-export const doRunProject = async (data: RunProjectPayload) => {
+export async function doRunProject(data: RunProjectPayload) {
     //TODO
-};
+}
 
-export const doRunRoutine = async (data: RunRoutinePayload) => {
+export async function doRunRoutine(data: RunRoutinePayload) {
     //TODO
-};
+}
 
-export const llmProcess = async ({ data }: Job<RunPayload>) => {
+export async function runProcess({ data }: Job<RunRequestPayload>) {
     switch (data.__process) {
         case "Project":
             return doRunProject(data);
@@ -19,4 +19,4 @@ export const llmProcess = async ({ data }: Job<RunPayload>) => {
         default:
             throw new CustomError("0568", "InternalError", ["en"], { process: (data as { __process?: unknown }).__process });
     }
-};
+}

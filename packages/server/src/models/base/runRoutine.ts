@@ -177,7 +177,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                 return {
                     lastStep: lastSteps,
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<RunRoutineModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },

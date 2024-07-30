@@ -1,4 +1,4 @@
-import { AutoFillInput, AutoFillResult, CancelTaskInput, ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageUpdateInput, CheckTaskStatusesInput, CheckTaskStatusesResult, FindByIdInput, RegenerateResponseInput, StartTaskInput, Success, uuidValidate } from "@local/shared";
+import { ChatMessage, ChatMessageCreateInput, ChatMessageSearchInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageUpdateInput, FindByIdInput, RegenerateResponseInput, Success, uuidValidate } from "@local/shared";
 import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
@@ -6,12 +6,10 @@ import { assertRequestFrom } from "../../auth/request";
 import { CustomError } from "../../events/error";
 import { rateLimit } from "../../middleware/rateLimit";
 import { ModelMap } from "../../models/base";
-import { ChatMessageModelLogic } from "../../models/base/types";
+import { ChatMessageModelLogic, ChatModelInfo } from "../../models/base/types";
 import { emitSocketEvent } from "../../sockets/events";
 import { determineRespondingBots } from "../../tasks/llm/context";
-import { llmProcessAutoFill } from "../../tasks/llm/process";
-import { requestBotResponse, requestStartTask } from "../../tasks/llm/queue";
-import { changeLlmTaskStatus, getLlmTaskStatuses } from "../../tasks/llmTask";
+import { requestBotResponse } from "../../tasks/llm/queue";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 import { PreMapChatData, PreMapMessageData, PreMapUserData, getChatParticipantData } from "../../utils/chat";
 import { getSingleTypePermissions } from "../../validators/permissions";
@@ -26,10 +24,6 @@ export type EndpointsChatMessage = {
         chatMessageCreate: GQLEndpoint<ChatMessageCreateInput, CreateOneResult<ChatMessage>>;
         chatMessageUpdate: GQLEndpoint<ChatMessageUpdateInput, UpdateOneResult<ChatMessage>>;
         regenerateResponse: GQLEndpoint<RegenerateResponseInput, Success>;
-        autoFill: GQLEndpoint<AutoFillInput, AutoFillResult>;
-        startTask: GQLEndpoint<StartTaskInput, Success>;
-        cancelTask: GQLEndpoint<CancelTaskInput, Success>;
-        checkTaskStatuses: GQLEndpoint<CheckTaskStatusesInput, CheckTaskStatusesResult>;
     }
 }
 
@@ -65,10 +59,10 @@ export const ChatMessageEndpoints: EndpointsChatMessage = {
             if (!uuidValidate(input.messageId)) {
                 throw new CustomError("0423", "InvalidArgs", userData.languages, { input });
             }
-            const { canDelete: canRegenerateResponse } = await getSingleTypePermissions("ChatMessage", [input.messageId], userData);
+            const { canDelete: canRegenerateResponse } = await getSingleTypePermissions<ChatModelInfo["GqlPermission"]>("ChatMessage", [input.messageId], userData);
             // Use delete permissions to determine if we can regenerate a response, 
             // even though we keep the old message
-            if (!canRegenerateResponse) {
+            if (!Array.isArray(canRegenerateResponse) || !canRegenerateResponse.every(Boolean)) {
                 throw new CustomError("0424", "Unauthorized", userData.languages, { input });
             }
             // Initialize objects to store queried information
@@ -134,30 +128,6 @@ export const ChatMessageEndpoints: EndpointsChatMessage = {
                 });
             }
             return { __typename: "Success", success: true };
-        },
-        autoFill: async (_, { input }, { req }) => {
-            const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ maxUser: 1000, req });
-
-            return llmProcessAutoFill({ ...input, userData, __process: "AutoFill" });
-        },
-        startTask: async (_, { input }, { req }) => {
-            const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ maxUser: 1000, req });
-
-            return requestStartTask({ ...input, userData });
-        },
-        cancelTask: async (_, { input }, { req }) => {
-            const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ maxUser: 1000, req });
-
-            return changeLlmTaskStatus(input.taskId, "Suggested", userData.id);
-        },
-        checkTaskStatuses: async (_, { input }, { req }) => {
-            await rateLimit({ maxUser: 1000, req });
-
-            const statuses = await getLlmTaskStatuses(input.taskIds);
-            return { __typename: "CheckTaskStatusesResult", statuses };
         },
     },
 };

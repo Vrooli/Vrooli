@@ -112,7 +112,7 @@ export const QuizModel: QuizModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<QuizModelInfo["GqlPermission"]>(__typename, ids, userData)),
                         hasCompleted: new Array(ids.length).fill(false), // TODO: Implement
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),

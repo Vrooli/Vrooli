@@ -1,4 +1,4 @@
-import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CheckoutSessionMetadata, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, CreatePortalSessionParams, DAYS_180_MS, HttpStatus, LINKS, PaymentStatus, PaymentType, StripeEndpoint, SubscriptionPricesResponse } from "@local/shared";
+import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CheckoutSessionMetadata, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, CreatePortalSessionParams, DAYS_180_MS, HttpStatus, LINKS, PaymentStatus, PaymentType, SECONDS_1_MS, StripeEndpoint, SubscriptionPricesResponse } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
 import express, { Express, Request, Response } from "express";
 import Stripe from "stripe";
@@ -466,7 +466,7 @@ export async function processPayment(
         }
         // Find enabledAt and expiresAt
         const enabledAt = new Date().toISOString();
-        const expiresAt = new Date(knownSubscription.current_period_end * 1000).toISOString();
+        const expiresAt = new Date(knownSubscription.current_period_end * SECONDS_1_MS).toISOString();
         // Upsert premium status
         const premiums = await prismaInstance.premium.findMany({
             where: { user: { id: payment.user.id } }, // User should exist based on findMany query above
@@ -501,17 +501,17 @@ export async function processPayment(
 }
 
 /** Checkout completed for donation or subscription */
-const handleCheckoutSessionCompleted = async ({ event, stripe, res }: EventHandlerArgs): Promise<HandlerResult> => {
+async function handleCheckoutSessionCompleted({ event, stripe, res }: EventHandlerArgs): Promise<HandlerResult> {
     try {
         await processPayment(stripe, event.data.object as Stripe.Checkout.Session);
         return handlerResult(HttpStatus.Ok, res);
     } catch (error) {
         return handlerResult(HttpStatus.InternalServerError, res, "Caught error in handleCheckoutSessionCompleted", "0440", error);
     }
-};
+}
 
 /** Checkout expired before payment */
-export const handleCheckoutSessionExpired = async ({ event, res }: EventHandlerArgs): Promise<HandlerResult> => {
+export async function handleCheckoutSessionExpired({ event, res }: EventHandlerArgs): Promise<HandlerResult> {
     const session = event.data.object as Stripe.Checkout.Session;
     const checkoutId = session.id;
     const customerId = getCustomerId(session.customer);
@@ -536,10 +536,10 @@ export const handleCheckoutSessionExpired = async ({ event, res }: EventHandlerA
         });
     }
     return handlerResult(HttpStatus.Ok, res);
-};
+}
 
 /** Customer was deleted */
-export const handleCustomerDeleted = async ({ event, res }: EventHandlerArgs): Promise<HandlerResult> => {
+export async function handleCustomerDeleted({ event, res }: EventHandlerArgs): Promise<HandlerResult> {
     const customer = event.data.object as Stripe.Customer;
     const customerId = getCustomerId(customer);
     // Attempt to find the user associated with the given customerId
@@ -555,10 +555,10 @@ export const handleCustomerDeleted = async ({ event, res }: EventHandlerArgs): P
     }
     // Return an OK status regardless of whether the user was found or not
     return handlerResult(HttpStatus.Ok, res);
-};
+}
 
 /** Customer's credit card is about to expire */
-export const handleCustomerSourceExpiring = async ({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> => {
+export async function handleCustomerSourceExpiring({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> {
     const customer = event.data.object as Stripe.Customer;
     const customerId = getCustomerId(customer);
     // Find user with the given Stripe customer ID
@@ -576,13 +576,13 @@ export const handleCustomerSourceExpiring = async ({ event, res }: Omit<EventHan
         sendCreditCardExpiringSoon(email.emailAddress);
     }
     return handlerResult(HttpStatus.Ok, res);
-};
+}
 
 /**
  * User canceled subscription. They still have paid for their current 
  * billing period, so don't set as inactive
  */
-export const handleCustomerSubscriptionDeleted = async ({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> => {
+export async function handleCustomerSubscriptionDeleted({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> {
     const subscription = event.data.object as Stripe.Subscription;
     const customerId = getCustomerId(subscription.customer);
     // Find user 
@@ -600,10 +600,10 @@ export const handleCustomerSubscriptionDeleted = async ({ event, res }: Omit<Eve
         sendSubscriptionCanceled(email.emailAddress);
     }
     return handlerResult(HttpStatus.Ok, res);
-};
+}
 
 /** Trial ending in a few days */
-export const handleCustomerSubscriptionTrialWillEnd = async ({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> => {
+export async function handleCustomerSubscriptionTrialWillEnd({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> {
     const subscription = event.data.object as Stripe.Subscription;
     const customerId = getCustomerId(subscription.customer);
     // Find user with the given Stripe customer ID
@@ -621,7 +621,7 @@ export const handleCustomerSubscriptionTrialWillEnd = async ({ event, res }: Omi
         sendTrialEndingSoon(email.emailAddress);
     }
     return handlerResult(HttpStatus.Ok, res);
-};
+}
 
 /**
  * Calculates the expiration date and active status of a subscription.
@@ -629,18 +629,18 @@ export const handleCustomerSubscriptionTrialWillEnd = async ({ event, res }: Omi
  * @param currentPeriodEnd - The end of the current billing cycle as a Unix timestamp in seconds.
  * @returns The new expiration date and active status.
  */
-export const calculateExpiryAndStatus = (currentPeriodEnd: number) => {
-    const newExpiresAt = new Date(currentPeriodEnd * 1000); // Convert seconds to milliseconds
+export function calculateExpiryAndStatus(currentPeriodEnd: number) {
+    const newExpiresAt = new Date(currentPeriodEnd * SECONDS_1_MS); // Convert seconds to milliseconds
     const now = new Date();
     const isActive = newExpiresAt > now;
     return { newExpiresAt, isActive };
-};
+}
 
 /** 
  * Occurs whenever a subscription changes (e.g., switching from monthly 
  * to yearly, or changing the status from trial to active). 
  */
-export const handleCustomerSubscriptionUpdated = async ({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> => {
+export async function handleCustomerSubscriptionUpdated({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> {
     const subscription = event.data.object as Stripe.Subscription;
     const customerId = getCustomerId(subscription.customer);
 
@@ -701,9 +701,9 @@ export const handleCustomerSubscriptionUpdated = async ({ event, res }: Omit<Eve
     }
 
     return handlerResult(HttpStatus.Ok, res);
-};
+}
 
-export const parseInvoiceData = (invoice: Stripe.Invoice) => {
+export function parseInvoiceData(invoice: Stripe.Invoice) {
     // For our purposes, we can assume that there is only one line in the invoice.
     const line = invoice.lines.data.length > 0 ? invoice.lines.data[0] : null;
     if (!line) {
@@ -726,10 +726,10 @@ export const parseInvoiceData = (invoice: Stripe.Invoice) => {
             description: "Payment for Invoice ID: " + invoice.id,
         },
     } as const;
-};
+}
 
 /** Payment created, but not finalized */
-export const handleInvoicePaymentCreated = async ({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> => {
+export async function handleInvoicePaymentCreated({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> {
     const invoice = event.data.object as Stripe.Invoice;
     const customerId = getCustomerId(invoice.customer);
     // Find user with the given Stripe customer ID
@@ -770,10 +770,10 @@ export const handleInvoicePaymentCreated = async ({ event, res }: Omit<EventHand
         });
     }
     return handlerResult(HttpStatus.Ok, res);
-};
+}
 
 /** Payment failed */
-export const handleInvoicePaymentFailed = async ({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> => {
+export async function handleInvoicePaymentFailed({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> {
     const invoice = event.data.object as Stripe.Invoice;
     const customerId = getCustomerId(invoice.customer);
     // Find corresponding payment in the database
@@ -822,11 +822,11 @@ export const handleInvoicePaymentFailed = async ({ event, res }: Omit<EventHandl
         sendPaymentFailed(email.emailAddress, payment.paymentType as PaymentType);
     }
     return handlerResult(HttpStatus.Ok, res);
-};
+}
 
 
 /** Invoice payment succeeded (e.g. subscription renewed) */
-export const handleInvoicePaymentSucceeded = async ({ event, stripe, res }: EventHandlerArgs): Promise<HandlerResult> => {
+export async function handleInvoicePaymentSucceeded({ event, stripe, res }: EventHandlerArgs): Promise<HandlerResult> {
     const invoice = event.data.object as Stripe.Invoice;
     const customerId = getCustomerId(invoice.customer);
     // Find corresponding payment in the database
@@ -910,7 +910,7 @@ export const handleInvoicePaymentSucceeded = async ({ event, stripe, res }: Even
         });
     }
     return handlerResult(HttpStatus.Ok, res);
-};
+}
 
 /**
  * Details of a price have been updated
@@ -918,7 +918,7 @@ export const handleInvoicePaymentSucceeded = async ({ event, stripe, res }: Even
  * This means this condition isn't needed unless Stripe changes how prices work. 
  * But I already wrote it, so I'm leaving it here.
  */
-export const handlePriceUpdated = async ({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> => {
+export async function handlePriceUpdated({ event, res }: Omit<EventHandlerArgs, "stripe">): Promise<HandlerResult> {
     const price = event.data.object as Stripe.Price;
     try {
         const paymentType = getPaymentType(price);
@@ -931,12 +931,12 @@ export const handlePriceUpdated = async ({ event, res }: Omit<EventHandlerArgs, 
         logger.error("Caught error in handlePriceUpdated", { trace: "0172", error });
     }
     return handlerResult(HttpStatus.InternalServerError, res, "Price amount not found", "0170", { price });
-};
+}
 
 /**
  * Endpoint for checking subscription prices in the current environment.
  */
-export const checkSubscriptionPrices = async (stripe: Stripe, res: Response): Promise<void> => {
+export async function checkSubscriptionPrices(stripe: Stripe, res: Response): Promise<void> {
     try {
         // Initialize result
         const data: SubscriptionPricesResponse = {
@@ -960,7 +960,7 @@ export const checkSubscriptionPrices = async (stripe: Stripe, res: Response): Pr
         logger.error("Caught error while checking subscription prices", { trace: "0392", error });
         res.status(HttpStatus.InternalServerError).json({ error });
     }
-};
+}
 
 /**
  * Creates a checkout session for buying a subscription, donation, credits, or other payment.
@@ -1085,7 +1085,7 @@ async function createPortalSession(stripe: Stripe, req: Request, res: Response):
  * Checks your subscription status, and fixes your subscription status if a payment
  * was not processed correctly.
  */
-const checkSubscription = async (stripe: Stripe, req: Request, res: Response): Promise<void> => {
+async function checkSubscription(stripe: Stripe, req: Request, res: Response): Promise<void> {
     let data: CheckSubscriptionResponse = { status: "not_subscribed" };
     const { userId } = req.body as CheckSubscriptionParams;
     try {
@@ -1113,24 +1113,24 @@ const checkSubscription = async (stripe: Stripe, req: Request, res: Response): P
         logger.error("Caught error checking subscription status", { trace: "0430", error, userId });
         res.status(HttpStatus.InternalServerError).json({ error });
     }
-};
+}
 
 /**
  * Checks if a Stripe object is older than a specified age difference. 
  * Useful for expiration purposes.
  */
-export const isStripeObjectOlderThan = (
+export function isStripeObjectOlderThan(
     stripeObject: { created: number }, // "created" is in seconds, according to Stripe API
     ageDifferenceMs: number,
-) => {
+) {
     const now = Date.now();
     return (stripeObject.created * 1000) + ageDifferenceMs < now;
-};
+}
 
 /**
  * Fixes any credits that were paid for but not awarded.
  */
-const checkCreditsPayment = async (stripe: Stripe, req: Request, res: Response): Promise<void> => {
+async function checkCreditsPayment(stripe: Stripe, req: Request, res: Response): Promise<void> {
     const data: CheckCreditsPaymentResponse = { status: "already_received_all_credits" };
     const { userId } = req.body as CheckCreditsPaymentParams;
     try {
@@ -1237,12 +1237,12 @@ const checkCreditsPayment = async (stripe: Stripe, req: Request, res: Response):
         logger.error("Caught error checking credits payment status", { trace: "0439", error, userId });
         res.status(HttpStatus.InternalServerError).json({ error });
     }
-};
+}
 
 /**
  * Webhook handler for Stripe events.
  */
-const handleStripeWebhook = async (stripe: Stripe, req: Request, res: Response): Promise<void> => {
+async function handleStripeWebhook(stripe: Stripe, req: Request, res: Response): Promise<void> {
     const sig: string | string[] = req.headers["stripe-signature"] || "";
     let result: HandlerResult = { status: HttpStatus.InternalServerError, message: "Webhook encountered an error." };
     try {
@@ -1279,14 +1279,14 @@ const handleStripeWebhook = async (stripe: Stripe, req: Request, res: Response):
     } else {
         res.send();
     }
-};
+}
 
 /**
  * Sets up Stripe-related routes on the provided Express application instance.
  *
  * @param app - The Express application instance to attach routes to.
  */
-export const setupStripe = (app: Express): void => {
+export function setupStripe(app: Express): void {
     if (process.env.STRIPE_SECRET_KEY === undefined || process.env.STRIPE_WEBHOOK_SECRET === undefined) {
         logger.error("Missing one or more Stripe secret keys", { trace: "0489" });
         return;
@@ -1319,4 +1319,4 @@ export const setupStripe = (app: Express): void => {
     app.post("/webhooks/stripe", express.raw({ type: "application/json" }), async (req: Request, res: Response) => {
         await handleStripeWebhook(stripe, req, res);
     });
-};
+}

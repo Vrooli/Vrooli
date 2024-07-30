@@ -62,7 +62,7 @@ export const QuizQuestionModel: QuizQuestionModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<QuizQuestionModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },

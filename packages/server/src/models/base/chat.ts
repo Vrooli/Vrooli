@@ -7,7 +7,7 @@ import { labelShapeHelper, preShapeEmbeddableTranslatable, PreShapeEmbeddableTra
 import { getSingleTypePermissions } from "../../validators";
 import { ChatFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { ChatModelLogic } from "./types";
+import { ChatModelInfo, ChatModelLogic } from "./types";
 
 type ChatPreBranchInfo = {
     /** True if the chat can be branched. False if messages must all be sequential */
@@ -404,7 +404,7 @@ export const ChatModel: ChatModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ChatModelInfo["GqlPermission"]>(__typename, ids, userData)),
                         // hasUnread: await ModelMap.get<ChatModelLogic>("Chat").query.getHasUnread(userData?.id, ids, __typename),
                     },
                 };

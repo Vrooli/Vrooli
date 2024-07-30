@@ -149,7 +149,7 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<NoteVersionModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
