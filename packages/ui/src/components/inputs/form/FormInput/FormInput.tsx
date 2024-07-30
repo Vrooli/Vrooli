@@ -1,4 +1,4 @@
-import { InputType } from "@local/shared";
+import { InputType, preventFormSubmit } from "@local/shared";
 import { Box, IconButton, Stack, TextField, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { useEditableLabel } from "hooks/useEditableLabel";
@@ -98,7 +98,7 @@ export function FormInput({
     const textFieldInputProps = useMemo(function textFieldInputPropsMemo() {
         return { style: (typography["h6"] as object || {}) };
     }, [typography]);
-    const labelStyle = useMemo(function typographyStyleMemo() {
+    const labelStyle = useMemo(function labelStyleMemo() {
         return {
             color: textPrimary,
             cursor: isEditing ? "pointer" : "default",
@@ -147,7 +147,7 @@ export function FormInput({
                         sx={labelStyle}
                         variant="h6"
                     >
-                        {editedLabel ?? (index && `Input ${index + 1}`) ?? t("Input")}
+                        {editedLabel ?? (index && `Input ${index + 1}`) ?? t("Input", { count: 1 })}
                     </Typography>
                 )}
             </legend>
@@ -186,6 +186,7 @@ export function FormInput({
             aria-label={fieldData.fieldName}
             component="fieldset"
             key={`${fieldData.id}-label-box`}
+            onSubmit={preventFormSubmit} // Input element should never submit a form
             sx={formInputOuterBoxStyle}
         >
             {titleStack}

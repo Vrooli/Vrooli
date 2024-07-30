@@ -441,6 +441,7 @@ export function Notify(languages: string[]) {
                 });
                 // If it is, update the auth and p256dh keys
                 if (device) {
+                    logger.info(`device already registered: ${JSON.stringify(device)}`);
                     result = await prismaInstance.push_device.update({
                         where: { id: device.id },
                         data: { auth, p256dh, expires },
@@ -459,6 +460,7 @@ export function Notify(languages: string[]) {
                         },
                         select,
                     });
+                    logger.info(`device created: ${userData.id} ${JSON.stringify(result)}`);
                 }
                 return result;
             } catch (error) {
@@ -662,25 +664,25 @@ export function Notify(languages: string[]) {
             link: `/questions/${questionId}`,
             titleKey: "QuestionActivityTitle",
         }),
-        pushRunStartedAutomatically: (runId: string): NotifyResultType => NotifyResult({
+        pushRunStartedAutomatically: (runType: "RunProject" | "RunRoutine", runId: string): NotifyResultType => NotifyResult({
             bodyKey: "RunStartedAutomaticallyBody",
-            bodyVariables: { runName: `<Label|RunRoutine:${runId}>` },
+            bodyVariables: { runName: `<Label|${runType}:${runId}>` },
             category: "Run",
             languages,
             link: `/runs/${runId}`,
             titleKey: "RunStartedAutomaticallyTitle",
         }),
-        pushRunCompletedAutomatically: (runId: string): NotifyResultType => NotifyResult({
+        pushRunCompletedAutomatically: (runType: "RunProject" | "RunRoutine", runId: string): NotifyResultType => NotifyResult({
             bodyKey: "RunCompletedAutomaticallyBody",
-            bodyVariables: { runName: `<Label|RunRoutine:${runId}>` },
+            bodyVariables: { runName: `<Label|${runType}:${runId}>` },
             category: "Run",
             languages,
             link: `/runs/${runId}`,
             titleKey: "RunCompletedAutomaticallyTitle",
         }),
-        pushRunFailedAutomatically: (runId: string): NotifyResultType => NotifyResult({
+        pushRunFailedAutomatically: (runType: "RunProject" | "RunRoutine", runId: string): NotifyResultType => NotifyResult({
             bodyKey: "RunFailedAutomaticallyBody",
-            bodyVariables: { runName: `<Label|RunRoutine:${runId}>` },
+            bodyVariables: { runName: `<Label|${runType}:${runId}>` },
             category: "Run",
             languages,
             link: `/runs/${runId}`,

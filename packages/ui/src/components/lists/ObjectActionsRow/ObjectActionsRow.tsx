@@ -1,5 +1,5 @@
 import { ListObject } from "@local/shared";
-import { IconButton, Palette, Stack, Tooltip, useTheme } from "@mui/material";
+import { Box, IconButton, Palette, Tooltip, styled, useTheme } from "@mui/material";
 import { ObjectActionDialogs } from "components/dialogs/ObjectActionDialogs/ObjectActionDialogs";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { SessionContext } from "contexts/SessionContext";
@@ -13,16 +13,28 @@ import { ObjectActionsRowProps } from "../types";
 
 const MAX_ACTIONS_BEFORE_OVERFLOW = 5;
 
-const commonButtonSx = (palette: Palette) => ({
+function commonIconProps(palette: Palette) {
+    return {
+        width: "30px",
+        height: "30px",
+    };
+}
+
+const OuterBox = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "row",
+    gap: theme.spacing(1),
+    marginTop: theme.spacing(1),
+    marginBottom: theme.spacing(1),
+    alignItems: "center",
+    justifyContent: "space-between",
+}));
+
+const ActionIconButton = styled(IconButton)(({ theme }) => ({
     color: "inherit",
     width: "48px",
     height: "100%",
-});
-
-const commonIconProps = (palette: Palette) => ({
-    width: "30px",
-    height: "30px",
-});
+}));
 
 /**
  * Horizontal list of action icons displayed on an object's view page. 
@@ -72,52 +84,46 @@ export function ObjectActionsRow<T extends ListObject>({
         const displayedActions = displayData.map((action, index) => {
             const { Icon, iconColor, labelKey, value } = action;
             if (!Icon) return null;
-            return <Tooltip title={labelKey && t(labelKey)} key={index}>
-                <IconButton sx={commonButtonSx(palette)} onClick={() => { actionData.onActionStart(value); }}>
+
+            function handleClick() {
+                actionData.onActionStart(value);
+            }
+
+            return <Tooltip title={labelKey && t(labelKey, { count: 1 })} key={index}>
+                <ActionIconButton onClick={handleClick}>
                     <Icon {...commonIconProps(palette)} fill={iconColor === "default" ? palette.secondary.main : iconColor} />
-                </IconButton>
+                </ActionIconButton>
             </Tooltip>;
         });
         // If there are extra actions, display an ellipsis button
         if (actionsExtra.length > 0) {
             displayedActions.push(
                 <Tooltip title="More" key={displayedActions.length}>
-                    <IconButton sx={commonButtonSx(palette)} onClick={openOverflowMenu}>
+                    <ActionIconButton onClick={openOverflowMenu}>
                         <EllipsisIcon {...commonIconProps(palette)} fill={palette.secondary.main} />
-                    </IconButton>
+                    </ActionIconButton>
                 </Tooltip>,
             );
         }
         return displayedActions;
     }, [actionData, actionsDisplayed, actionsExtra.length, openOverflowMenu, palette, t]);
 
+    const overflowMenuExclude = useMemo(function overflowMenuExcludeMemo() {
+        return [...(exclude ?? []), ...actionsDisplayed];
+    }, [exclude, actionsDisplayed]);
+
     return (
-        <Stack
-            direction="row"
-            spacing={1}
-            sx={{
-                marginTop: 1,
-                marginBottom: 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-            }}
-        >
-            {/* Action dialogs */}
-            <ObjectActionDialogs
-                {...actionData}
-                object={object}
-            />
-            {/* Displayed actions */}
+        <OuterBox>
+            <ObjectActionDialogs {...actionData} object={object} />
             {actions}
             {/* Overflow menu */}
             {actionsExtra.length > 0 && <ObjectActionMenu
                 actionData={actionData}
                 anchorEl={anchorEl}
-                exclude={[...(exclude ?? []), ...actionsDisplayed]}
+                exclude={overflowMenuExclude}
                 object={object}
                 onClose={closeOverflowMenu}
             />}
-        </Stack>
+        </OuterBox>
     );
 }
