@@ -45,7 +45,7 @@ export type EndpointGroup = { [key in EndpointType]?: EndpointTuple };
  * @param input Search parameters from request
  * @returns Object with key/value pairs, or empty object if no params
  */
-const parseInput = (input: any): Record<string, any> => {
+function parseInput(input: any): Record<string, any> {
     const parsed: any = {};
     Object.entries(input).forEach(([key, value]) => {
         try {
@@ -55,16 +55,16 @@ const parseInput = (input: any): Record<string, any> => {
         }
     });
     return parsed;
-};
+}
 
 const version = "v2";
-export const handleEndpoint = async <TInput extends object | undefined, TResult extends object>(
+export async function handleEndpoint<TInput extends object | undefined, TResult extends object>(
     endpoint: EndpointFunction<TInput, TResult>,
     selection: GraphQLResolveInfo | PartialGraphQLInfo,
     input: TInput | undefined,
     req: Request,
     res: Response,
-) => {
+) {
     try {
         const data = await Promise.resolve(endpoint(undefined, (input ? { input } : undefined) as any, context({ req, res }), selection));
         res.json({ data, version });
@@ -82,12 +82,12 @@ export const handleEndpoint = async <TInput extends object | undefined, TResult 
         // ...
         res.status(HttpStatus.InternalServerError).json({ errors: [{ code, message }], version });
     }
-};
+}
 
 /**
  * Middleware to conditionally setup multer for file uploads.
  */
-export const maybeMulter = <TInput extends object | undefined>(config?: UploadConfig<TInput>) => {
+export function maybeMulter<TInput extends object | undefined>(config?: UploadConfig<TInput>) {
     // Return multer middleware if the endpoint accepts files.
     return (req: Request, res: Response, next: NextFunction) => {
         if (!config || !config.acceptsFiles) {
@@ -117,7 +117,7 @@ export const maybeMulter = <TInput extends object | undefined>(config?: UploadCo
 
         return upload(req, res, next);
     };
-};
+}
 
 /**
  * Creates router with endpoints from given object.
@@ -125,7 +125,7 @@ export const maybeMulter = <TInput extends object | undefined>(config?: UploadCo
  * methods as keys and tuples as values. Each tuple has the endpoint function as
  * the first value and the selection as the second value.
  */
-export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
+export function setupRoutes(restEndpoints: Record<string, EndpointGroup>) {
     const router = Router();
     // Loop through each endpoint
     Object.entries(restEndpoints).forEach(([route, methods]) => {
@@ -203,4 +203,4 @@ export const setupRoutes = (restEndpoints: Record<string, EndpointGroup>) => {
         });
     });
     return router;
-};
+}

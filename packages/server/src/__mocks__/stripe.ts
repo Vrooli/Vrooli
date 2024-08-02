@@ -1,6 +1,6 @@
-import { RecursivePartial } from "@local/server";
 import { uuid } from "@local/shared";
 import Stripe from "stripe";
+import { RecursivePartial } from "../types";
 
 type StripeGlobalStore = {
     billingPortalSessions: Stripe.BillingPortal.Session[];

@@ -3560,9 +3560,23 @@
         }
       }
     },
-    "/startTask": {
+    "/startLlmTask": {
       "post": {
-        "operationId": "endpointPostStartTask",
+        "operationId": "endpointPostStartLlmTask",
+        "tags": [
+          "task"
+        ],
+        "parameters": [],
+        "responses": {
+          "default": {
+            "description": "Default response. Replace this with real responses."
+          }
+        }
+      }
+    },
+    "/startRunTask": {
+      "post": {
+        "operationId": "endpointPostStartRunTask",
         "tags": [
           "task"
         ],
@@ -7074,10 +7088,20 @@
           "taskId": {
             "title": "CancelTaskInput.taskId",
             "type": "string"
+          },
+          "taskType": {
+            "enum": [
+              "Llm",
+              "Run",
+              "Sandbox"
+            ],
+            "title": "CancelTaskInput.taskType",
+            "type": "string"
           }
         },
         "required": [
-          "taskId"
+          "taskId",
+          "taskType"
         ],
         "additionalProperties": false,
         "title": "CancelTaskInput",
@@ -9177,10 +9201,20 @@
             },
             "title": "CheckTaskStatusesInput.taskIds",
             "type": "array"
+          },
+          "taskType": {
+            "enum": [
+              "Llm",
+              "Run",
+              "Sandbox"
+            ],
+            "title": "CheckTaskStatusesInput.taskType",
+            "type": "string"
           }
         },
         "required": [
-          "taskIds"
+          "taskIds",
+          "taskType"
         ],
         "additionalProperties": false,
         "title": "CheckTaskStatusesInput",
@@ -9197,7 +9231,7 @@
           },
           "statuses": {
             "items": {
-              "$ref": "#/components/schemas/LlmTaskStatusInfo"
+              "$ref": "#/components/schemas/TaskStatusInfo"
             },
             "title": "CheckTaskStatusesResult.statuses",
             "type": "array"
@@ -14736,49 +14770,6 @@
         ],
         "additionalProperties": false,
         "title": "LabelYou",
-        "type": "object"
-      },
-      "LlmTaskStatusInfo": {
-        "properties": {
-          "__typename": {
-            "title": "LlmTaskStatusInfo.__typename",
-            "enum": [
-              "LlmTaskStatusInfo"
-            ],
-            "type": "string"
-          },
-          "id": {
-            "title": "LlmTaskStatusInfo.id",
-            "type": "string"
-          },
-          "status": {
-            "anyOf": [
-              {
-                "enum": [
-                  "Canceling",
-                  "Completed",
-                  "Failed",
-                  "Running",
-                  "Scheduled",
-                  "Suggested"
-                ],
-                "title": "LlmTaskStatusInfo.status",
-                "type": "string"
-              },
-              {
-                "title": "LlmTaskStatusInfo.status",
-                "nullable": true
-              }
-            ],
-            "title": "LlmTaskStatusInfo.status"
-          }
-        },
-        "required": [
-          "__typename",
-          "id"
-        ],
-        "additionalProperties": false,
-        "title": "LlmTaskStatusInfo",
         "type": "object"
       },
       "LogOutInput": {
@@ -43440,22 +43431,22 @@
         "title": "StandardYou",
         "type": "object"
       },
-      "StartTaskInput": {
+      "StartLlmTaskInput": {
         "properties": {
           "botId": {
-            "title": "StartTaskInput.botId",
+            "title": "StartLlmTaskInput.botId",
             "type": "string"
           },
           "label": {
-            "title": "StartTaskInput.label",
+            "title": "StartLlmTaskInput.label",
             "type": "string"
           },
           "messageId": {
-            "title": "StartTaskInput.messageId",
+            "title": "StartLlmTaskInput.messageId",
             "type": "string"
           },
           "properties": {
-            "title": "StartTaskInput.properties"
+            "title": "StartLlmTaskInput.properties"
           },
           "task": {
             "enum": [
@@ -43515,11 +43506,11 @@
               "TeamFind",
               "TeamUpdate"
             ],
-            "title": "StartTaskInput.task",
+            "title": "StartLlmTaskInput.task",
             "type": "string"
           },
           "taskId": {
-            "title": "StartTaskInput.taskId",
+            "title": "StartLlmTaskInput.taskId",
             "type": "string"
           }
         },
@@ -43532,7 +43523,31 @@
           "taskId"
         ],
         "additionalProperties": false,
-        "title": "StartTaskInput",
+        "title": "StartLlmTaskInput",
+        "type": "object"
+      },
+      "StartRunTaskInput": {
+        "properties": {
+          "projectVerisonId": {
+            "title": "StartRunTaskInput.projectVerisonId",
+            "nullable": true,
+            "type": "string"
+          },
+          "routineVersionId": {
+            "title": "StartRunTaskInput.routineVersionId",
+            "nullable": true,
+            "type": "string"
+          },
+          "runId": {
+            "title": "StartRunTaskInput.runId",
+            "type": "string"
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "additionalProperties": false,
+        "title": "StartRunTaskInput",
         "type": "object"
       },
       "StatsApi": {
@@ -46294,6 +46309,49 @@
         ],
         "additionalProperties": false,
         "title": "TagYou",
+        "type": "object"
+      },
+      "TaskStatusInfo": {
+        "properties": {
+          "__typename": {
+            "title": "TaskStatusInfo.__typename",
+            "enum": [
+              "TaskStatusInfo"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "title": "TaskStatusInfo.id",
+            "type": "string"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "Canceling",
+                  "Completed",
+                  "Failed",
+                  "Running",
+                  "Scheduled",
+                  "Suggested"
+                ],
+                "title": "TaskStatusInfo.status",
+                "type": "string"
+              },
+              {
+                "title": "TaskStatusInfo.status",
+                "nullable": true
+              }
+            ],
+            "title": "TaskStatusInfo.status"
+          }
+        },
+        "required": [
+          "__typename",
+          "id"
+        ],
+        "additionalProperties": false,
+        "title": "TaskStatusInfo",
         "type": "object"
       },
       "Team": {

@@ -1,4 +1,4 @@
-import { LlmTask, LlmTaskStatus } from "@local/shared";
+import { LlmTask, RunTask, SandboxTask, TaskStatus, TaskType } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { EndpointsTask, TaskEndpoints } from "../logic/task";
 
@@ -61,13 +61,30 @@ export const typeDef = gql`
         TeamUpdate
     }
 
-    enum LlmTaskStatus {
+    enum RunTask {
+        RunProject
+        RunRoutine
+    }
+
+    enum SandboxTask {
+        CallApi
+        RunDataTransform
+        RunSmartContract
+    }
+
+    enum TaskStatus {
         Canceling
         Completed
         Failed
         Running
         Scheduled
         Suggested
+    }
+
+    enum TaskType {
+        Llm
+        Run
+        Sandbox
     }
 
     input AutoFillInput {
@@ -79,30 +96,45 @@ export const typeDef = gql`
         data: JSON!
     }
 
-    input StartTaskInput {
+    input StartLlmTaskInput {
+        # The ID of the bot the task will be performed by
         botId: String!
+        # Label for the task, to provide in notifications
         label: String!
+        # The ID of the message the task was suggested in. Used to grab the relevant chat context
         messageId: ID!
+        # Any properties provided with the task
         properties: JSON!
+        # The task to start
         task: LlmTask!
+        # The ID of the task, so we can update its status in the UI
         taskId: ID!
+    }
+
+    input StartRunTaskInput {
+        inputs: JSON
+        projectVerisonId: ID
+        routineVersionId: ID
+        runId: ID!
     }
 
     input CancelTaskInput {
         taskId: ID!
+        taskType: TaskType!
     }
 
     input CheckTaskStatusesInput {
         taskIds: [ID!]!
+        taskType: TaskType!
     }
 
-    type LlmTaskStatusInfo {
+    type TaskStatusInfo {
         id: ID!
-        status: LlmTaskStatus
+        status: TaskStatus
     }
 
     type CheckTaskStatusesResult {
-        statuses: [LlmTaskStatusInfo!]!
+        statuses: [TaskStatusInfo!]!
     }
 
     extend type Query {
@@ -111,18 +143,25 @@ export const typeDef = gql`
 
     extend type Mutation {
         autoFill(input: AutoFillInput!): AutoFillResult!
-        startTask(input: StartTaskInput!): Success!
+        startLlmTask(input: StartLlmTaskInput!): Success!
+        startRunTask(input: StartRunTaskInput!): Success!
         cancelTask(input: CancelTaskInput!): Success!
     }
 `;
 
 export const resolvers: {
     LlmTask: typeof LlmTask;
-    LlmTaskStatus: typeof LlmTaskStatus;
+    RunTask: typeof RunTask;
+    SandboxTask: typeof SandboxTask;
+    TaskStatus: typeof TaskStatus;
+    TaskType: typeof TaskType;
     Query: EndpointsTask["Query"];
     Mutation: EndpointsTask["Mutation"];
 } = {
     LlmTask,
-    LlmTaskStatus,
+    RunTask,
+    SandboxTask,
+    TaskStatus,
+    TaskType,
     ...TaskEndpoints,
 };

@@ -1,11 +1,11 @@
-import { BUSINESS_NAME, HOURS_1_S, LINKS, PaymentType, Success } from "@local/shared";
+import { BUSINESS_NAME, LINKS, PaymentType, Success } from "@local/shared";
 import Bull from "bull";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import winston from "winston";
 import { CustomError } from "../../events/error";
-import { addJobToQueue } from "../queueHelper";
+import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, SERVER_PATH, addJobToQueue, getProcessPath } from "../queueHelper";
 
 export type EmailProcessPayload = {
     to: string[];
@@ -20,40 +20,20 @@ let emailProcess: (job: Bull.Job<EmailProcessPayload>) => Promise<unknown>;
 let emailQueue: Bull.Queue<EmailProcessPayload>;
 let welcomeTemplate: string;
 const dirname = path.dirname(fileURLToPath(import.meta.url));
-const importExtension = process.env.NODE_ENV === "test" ? ".ts" : ".js";
+const FOLDER = "email";
 
 // Call this on server startup
 export async function setupEmailQueue() {
     try {
-        const loggerPath = path.join(dirname, "../../events/logger" + importExtension);
-        const loggerModule = await import(loggerPath);
-        logger = loggerModule.logger;
-
-        const redisConnPath = path.join(dirname, "../../redisConn" + importExtension);
-        const redisConnModule = await import(redisConnPath);
-        const REDIS_URL = redisConnModule.REDIS_URL;
-
-        const serverPath = path.join(dirname, "../../server" + importExtension);
-        const serverModule = await import(serverPath);
-        UI_URL = serverModule.UI_URL;
-
-        const processPath = path.join(dirname, "./process" + importExtension);
-        const processModule = await import(processPath);
-        emailProcess = processModule.emailProcess;
+        logger = (await import(LOGGER_PATH)).logger;
+        const REDIS_URL = (await import(REDIS_CONN_PATH)).REDIS_URL;
+        UI_URL = (await import(SERVER_PATH)).UI_URL;
+        emailProcess = (await import(getProcessPath(FOLDER))).emailProcess;
 
         // Initialize the Bull queue
-        emailQueue = new Bull<EmailProcessPayload>("email", {
+        emailQueue = new Bull<EmailProcessPayload>(FOLDER, {
             redis: REDIS_URL,
-            defaultJobOptions: {
-                removeOnComplete: {
-                    age: HOURS_1_S,
-                    count: 10_000,
-                },
-                removeOnFail: {
-                    age: HOURS_1_S,
-                    count: 10_000,
-                },
-            },
+            defaultJobOptions: DEFAULT_JOB_OPTIONS,
         });
         emailQueue.process(emailProcess);
 

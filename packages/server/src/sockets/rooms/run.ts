@@ -19,8 +19,8 @@ export function runSocketRoomHandlers(socket: Socket) {
             // Check if user is authenticated
             const userData = assertRequestFrom(socket, { isUser: true });
             // Find run only if permitted
-            const { canDelete: canRegenerateResponse } = await getSingleTypePermissions<(RunRoutineModelInfo | RunProjectModelInfo)["GqlPermission"]>(runType, [runId], userData);
-            if (!Array.isArray(canRegenerateResponse) || !canRegenerateResponse.every(Boolean)) {
+            const { canDelete: canRun } = await getSingleTypePermissions<(RunRoutineModelInfo | RunProjectModelInfo)["GqlPermission"]>(runType, [runId], userData);
+            if (!Array.isArray(canRun) || !canRun.every(Boolean)) {
                 const message = JOIN_RUN_ROOM_ERRORS.RunNotFoundOrUnauthorized;
                 logger.error(message, { trace: "0623" });
                 callback({ success: false, error: message });
