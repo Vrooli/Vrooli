@@ -343,7 +343,7 @@ export function getCookieTasksForMessage(messageId: string): MessageTasks | unde
 }
 export const setCookieTaskForMessage = (messageId: string, task: LlmTaskInfo) => ifAllowed("functional", () => {
     const existing = getCookieTasksForMessage(messageId) || { tasks: [] };
-    const taskIndex = existing.tasks.findIndex(t => t.id === task.id);
+    const taskIndex = existing.tasks.findIndex(t => t.taskId === task.taskId);
     if (taskIndex > -1) {
         existing.tasks[taskIndex] = task; // Replace existing task with the same ID
     } else {
@@ -354,7 +354,7 @@ export const setCookieTaskForMessage = (messageId: string, task: LlmTaskInfo) =>
 export const removeTaskForMessage = (messageId: string, taskId: string) => ifAllowed("functional", () => {
     const existing = getCookieTasksForMessage(messageId);
     if (!existing || !existing.tasks.length) return;
-    const updated = { tasks: existing.tasks.filter(t => t.id !== taskId) };
+    const updated = { tasks: existing.tasks.filter(t => t.taskId !== taskId) };
     if (updated.tasks.length) {
         llmTasksCache.set(messageId, updated);
     } else {

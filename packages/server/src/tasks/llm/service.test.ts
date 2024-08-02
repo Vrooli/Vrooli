@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { SessionUserToken } from "@local/server";
 import { LlmTask } from "@local/shared";
 import pkg from "../../__mocks__/@prisma/client";
 import { ModelMap } from "../../models";
+import { SessionUserToken } from "../../types";
 import { PreMapUserData } from "../../utils/chat";
 import { ChatContextCollector } from "./context";
 import { GenerateResponseParams, LanguageModelService, fetchMessagesFromDatabase, tokenEstimationDefault } from "./service";
@@ -226,7 +226,7 @@ describe("LanguageModelService lmServices", () => {
             })).resolves.toBeDefined();
         });
 
-        const getResponseParams = async (
+        async function getResponseParams(
             latestMessage: string | null,
             taskMessage: string | null,
             chatId: string,
@@ -234,7 +234,7 @@ describe("LanguageModelService lmServices", () => {
             task: LlmTask | `${LlmTask}`,
             userData: SessionUserToken,
             lmService: LanguageModelService<string, string>,
-        ) => {
+        ) {
             const model = lmService.getModel();
             const contextInfo = await (new ChatContextCollector(lmService)).collectMessageContextInfo({
                 chatId,
@@ -254,8 +254,8 @@ describe("LanguageModelService lmServices", () => {
                 taskMessage,
                 userData,
             });
-            return { messages, model, systemMessage, userData } as GenerateResponseParams;
-        };
+            return { maxTokens: null, messages, model, systemMessage, userData } as GenerateResponseParams;
+        }
 
         // Generate response
         it(`${lmServiceName}: generateResponse returns a valid object - message provided`, async () => {
@@ -424,6 +424,100 @@ describe("LanguageModelService lmServices", () => {
         it(`${lmServiceName}: getModel returns a GenerateNameType`, () => {
             const model = lmService.getModel();
             expect(model).toBeDefined(); // Add more specific checks as needed
+        });
+
+        // Cost
+        it(`${lmServiceName}: getResponseCost returns a number`, () => {
+            const cost = lmService.getResponseCost({
+                model: "default",
+                usage: { input: 10, output: 10 },
+            });
+            expect(typeof cost).toBe("number");
+        });
+        it(`${lmServiceName}: getResponseCost handles large numbers`, () => {
+            const cost = lmService.getResponseCost({
+                model: "default",
+                usage: { input: Number.MAX_SAFE_INTEGER, output: Number.MAX_SAFE_INTEGER },
+            });
+            expect(cost).toBeGreaterThanOrEqual(0);
+            expect(cost).not.toBeNaN();
+        });
+        it(`${lmServiceName}: getResponseCost isn't tricked by negative numbers`, () => {
+            const cost = lmService.getResponseCost({
+                model: "default",
+                usage: { input: -1, output: -1 },
+            });
+            expect(cost).toBe(0);
+        });
+        it(`${lmServiceName}: getMaxOutputTokensRestrained returns a whole number`, () => {
+            const params = {
+                maxCredits: 100,
+                model: "default",
+                inputTokens: 10,
+            };
+            const limit = lmService.getMaxOutputTokensRestrained(params);
+            expect(typeof limit).toBe("number");
+            expect(limit).toBeGreaterThanOrEqual(0);
+            expect(limit).toBeLessThan(Number.MAX_SAFE_INTEGER);
+        });
+        it(`${lmServiceName}: getMaxOutputTokensRestrained returns 0 if input cost is greater than max credits`, () => {
+            const params = {
+                maxCredits: 1,
+                model: "default",
+                inputTokens: 999999,
+            };
+            const limit = lmService.getMaxOutputTokensRestrained(params);
+            expect(limit).toBe(0);
+        });
+        it(`${lmServiceName}: getMaxOutputTokensRestrained returns a number less than or equal to the context size`, () => {
+            const params = {
+                maxCredits: 100,
+                model: "default",
+                inputTokens: 10,
+            };
+            const limit = lmService.getMaxOutputTokensRestrained(params);
+            expect(limit).toBeLessThanOrEqual(lmService.getContextSize());
+        });
+        it(`${lmServiceName}: getMaxOutputTokensRestrained handles large numbers`, () => {
+            const params = {
+                maxCredits: Number.MAX_SAFE_INTEGER,
+                model: "default",
+                inputTokens: Number.MAX_SAFE_INTEGER,
+            };
+            const limit = lmService.getMaxOutputTokensRestrained(params);
+            expect(limit).toBeGreaterThanOrEqual(0);
+            expect(limit).not.toBeNaN();
+        });
+        it(`${lmServiceName}: getMaxOutputTokensRestrained isn't tricked by negative numbers`, () => {
+            let params = {
+                maxCredits: 100,
+                model: "default",
+                inputTokens: -1,
+            };
+            let limit = lmService.getMaxOutputTokensRestrained(params);
+            expect(limit).toBeGreaterThanOrEqual(0);
+            params = {
+                maxCredits: -1,
+                model: "default",
+                inputTokens: 100,
+            };
+            limit = lmService.getMaxOutputTokensRestrained(params);
+            expect(limit).toBe(0);
+        });
+        it(`${lmServiceName}: passing getResponseCost's result as 'maxCredits' in 'getMaxOutputTokensRestrained' results in an output token number equal to what was passed into getResponseCost`, () => {
+            const INPUT_TOKENS = 69;
+            const OUTPUT_TOKENS = 420;
+            const expectedMaxTokens = lmService.getResponseCost({
+                model: "default",
+                usage: { input: INPUT_TOKENS, output: OUTPUT_TOKENS },
+            });
+            const params = {
+                maxCredits: expectedMaxTokens,
+                model: "default",
+                inputTokens: INPUT_TOKENS,
+            };
+            const limit = lmService.getMaxOutputTokensRestrained(params);
+            expect(limit).toBe(OUTPUT_TOKENS);
         });
     });
 });

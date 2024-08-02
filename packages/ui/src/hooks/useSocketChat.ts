@@ -118,21 +118,21 @@ export function processLlmTasks(
 
     // Initialize tasks
     (tasks ?? []).forEach(task => {
-        if (!task.messageId || !task.id) return;
+        if (!task.messageId || !task.taskId) return;
         if (!combinedTasksByMessageId[task.messageId]) combinedTasksByMessageId[task.messageId] = [];
         // Make sure we don't have duplicate tasks
-        const tasksWithoutCurrent = combinedTasksByMessageId[task.messageId].filter(t => t.id !== task.id);
+        const tasksWithoutCurrent = combinedTasksByMessageId[task.messageId].filter(t => t.taskId !== task.taskId);
         combinedTasksByMessageId[task.messageId] = [...tasksWithoutCurrent, task];
     });
 
     // Apply updates
     (updates ?? []).forEach(update => {
-        if (!update.id) return;
+        if (!update.taskId) return;
         let messageId = update.messageId;
         // If messageId not provided, look for it in known tasks
         if (!messageId) {
             for (const currTasks of Object.values(messageTasks)) {
-                const matchingTask = currTasks.find(task => task.id === update.id);
+                const matchingTask = currTasks.find(task => task.taskId === update.taskId);
                 if (matchingTask) {
                     messageId = matchingTask.messageId;
                     break;
@@ -146,7 +146,7 @@ export function processLlmTasks(
             // If no tasks were initially found for this messageId, initialize the array
             combinedTasksByMessageId[messageId] = [];
         }
-        const existingTaskIndex = combinedTasksByMessageId[messageId].findIndex(task => task.id === update.id);
+        const existingTaskIndex = combinedTasksByMessageId[messageId].findIndex(task => task.taskId === update.taskId);
         if (existingTaskIndex > -1) {
             // Merge the update into the existing task
             combinedTasksByMessageId[messageId][existingTaskIndex] = {

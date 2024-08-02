@@ -1,4 +1,4 @@
-import { ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageShape, ChatParticipant, CheckTaskStatusesInput, CheckTaskStatusesResult, DUMMY_ID, LlmTaskInfo, Session, endpointGetChatMessageTree, endpointGetCheckTaskStatuses, getTranslation } from "@local/shared";
+import { ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageShape, ChatParticipant, CheckTaskStatusesInput, CheckTaskStatusesResult, DUMMY_ID, LlmTaskInfo, Session, TaskType, endpointGetChatMessageTree, endpointGetCheckTaskStatuses, getTranslation } from "@local/shared";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
@@ -57,13 +57,13 @@ export type MessageTree<T extends MinimumChatMessage> = {
  * 
  * @returns {string | null} - The ID of the target message if found, or null if no suitable message is found.
  */
-export const findReplyMessage = (
+export function findReplyMessage(
     tree: MessageTree<MinimumChatMessage>,
     branches: BranchMap,
     replyingMessage: Pick<ChatMessageShape, "id" | "translations" | "user">,
     participants: Pick<ChatParticipant, "id" | "user">[],
     session: Session | undefined,
-): string | null => {
+): string | null {
     const userData = getCurrentUser(session);
     const userLanguages = getUserLanguages(session);
     const { map } = tree;
@@ -119,7 +119,7 @@ export const findReplyMessage = (
 
     // No suitable message was found
     return null;
-};
+}
 
 /**
  * Attempts to find a suitable parent or sibling for an orphaned node.
@@ -130,10 +130,10 @@ export const findReplyMessage = (
  * 
  * NOTE: This may mess up versioned root messages. May need to add a db field later
  */
-const findSuitableParentOrSibling = (
+function findSuitableParentOrSibling(
     messageMap: Map<string, MessageNode<MinimumChatMessage>>,
     orphanId: string,
-): string | null => {
+): string | null {
     const orphan = messageMap.get(orphanId);
     if (!orphan) return null;
     // First, try to attach to grandparent if possible
@@ -148,7 +148,7 @@ const findSuitableParentOrSibling = (
     if (closestByTimestamp) return closestByTimestamp;
     // If all else fails, the node will remain a root
     return null;
-};
+}
 
 /**
  * Finds the closest node by sequence number that is less than the sequence number of the given node.
@@ -157,10 +157,10 @@ const findSuitableParentOrSibling = (
  * sequence number compared to the provided sequence number. This is used to place orphaned nodes in a logical
  * position within the message tree based on their sequence.
  */
-const findClosestBySequence = (
+function findClosestBySequence(
     messageMap: Map<string, MessageNode<MinimumChatMessage>>,
     sequence?: number,
-): string | null => {
+): string | null {
     let closestNode: MessageNode<MinimumChatMessage> | null = null;
     let closestSequence = -Infinity;
     if (!sequence) return null;
@@ -171,7 +171,7 @@ const findClosestBySequence = (
         }
     });
     return closestNode;
-};
+}
 
 /**
  * Finds the closest node by timestamp that is earlier than the timestamp of the given node.
@@ -184,10 +184,10 @@ const findClosestBySequence = (
  * @param {string | undefined} timestamp - The timestamp of the node to find a position for.
  * @returns {MessageNode<MinimumChatMessage> | null} The closest node by timestamp, or null if no suitable node is found.
  */
-const findClosestByTimestamp = (
+function findClosestByTimestamp(
     messageMap: Map<string, MessageNode<MinimumChatMessage>>,
     timestamp?: string,
-): string | null => {
+): string | null {
     let closestNode: MessageNode<MinimumChatMessage> | null = null;
     let closestTimestamp = -Infinity;
     if (!timestamp) return null;
@@ -201,7 +201,7 @@ const findClosestByTimestamp = (
         }
     });
     return closestNode;
-};
+}
 
 /**
  * Processes and attempts to reattach orphaned nodes within the message tree.
@@ -210,11 +210,11 @@ const findClosestByTimestamp = (
  * based on a set of criteria including grandparent attachment, sequence number, and timestamp. If no suitable
  * location is found within the existing tree, the orphaned node is added as a new root node.
  */
-const handleOrphanedNodes = (
+function handleOrphanedNodes(
     messageMap: Map<string, MessageNode<MinimumChatMessage>>,
     roots: string[],
     orphanIds: string[],
-) => {
+) {
     if (orphanIds.length === 0) return;
 
     console.warn(`Found ${orphanIds.length} orphaned nodes. Attempting to reattach.`);
@@ -240,7 +240,7 @@ const handleOrphanedNodes = (
         const rootIndex = roots.indexOf(id);
         if (rootIndex > -1) roots.splice(rootIndex, 1);
     });
-};
+}
 
 /**
  * Sorts sibling nodes in the message tree based on their version index or, if not available, their sequence number.
@@ -301,8 +301,7 @@ export function useMessageTree(chatId: string) {
         const runningTasks = Object.values(messageTasks).flat().filter(task => task.status === "Running" || task.status === "Canceling");
         if (runningTasks.length === 0) return;
         hasCheckedRunningTasks.current = true;
-        console.log("yeeet getting task data", runningTasks.map(task => task.id));
-        getTaskData({ taskIds: runningTasks.map(task => task.id) });
+        getTaskData({ taskIds: runningTasks.map(task => task.taskId), taskType: TaskType.Llm });
     }, [chatId, getTaskData, messageTasks, session]);
     useEffect(() => {
         if (!taskData) return;
@@ -317,7 +316,7 @@ export function useMessageTree(chatId: string) {
                 if (!status) return;
                 // Find which message this task belongs to by iterating over messageTasks
                 Object.entries(messageTasksCopy).forEach(([messageId, tasks]) => {
-                    const taskIndex = tasks.findIndex(task => task.id === id);
+                    const taskIndex = tasks.findIndex(task => task.taskId === id);
                     if (taskIndex > -1) {
                         const updatedTask = {
                             ...tasks[taskIndex],

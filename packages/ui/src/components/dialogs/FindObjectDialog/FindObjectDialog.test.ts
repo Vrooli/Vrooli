@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { SearchPageTabOption, findObjectTabParams } from "@local/shared";
+import { SearchPageTabOption } from "@local/shared";
+import { findObjectTabParams } from "../../../utils/search/objectToSearch";
 import { convertRootObjectToVersion, getFilteredTabs } from "./FindObjectDialog";
 
 describe("getFilteredTabs function", () => {
@@ -43,6 +44,7 @@ describe("getFilteredTabs function", () => {
 
     test("handles non-existent keys in limitTo", () => {
         const limitTo = ["NonExistent"];
+        // @ts-ignore: Testing runtime scenario
         const result = getFilteredTabs(limitTo, undefined);
         expect(result).toEqual([]);
     });

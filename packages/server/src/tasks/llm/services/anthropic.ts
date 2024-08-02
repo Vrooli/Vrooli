@@ -3,21 +3,35 @@ import { AnthropicModel } from "@local/shared";
 import { CustomError } from "../../../events/error";
 import { logger } from "../../../events/logger";
 import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry } from "../registry";
-import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, generateDefaultContext, getDefaultConfigObject, tokenEstimationDefault } from "../service";
+import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetOutputTokenLimitParams, GetOutputTokenLimitResult, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, generateDefaultContext, getDefaultConfigObject, getDefaultMaxOutputTokensRestrained, getDefaultResponseCost, tokenEstimationDefault } from "../service";
 
 type AnthropicTokenModel = "default";
 
-const DEFAULT_CONTEXT_SIZE = 200_000;
+const DEFAULT_MAX_TOKENS = 4096;
 
-/** Cost in cents per 1_000_000 input tokens */
+/** Cost in cents per API_CREDITS_MULTIPLIER input tokens */
 const inputCosts: Record<AnthropicModel, number> = {
-    [AnthropicModel.Opus3]: 1500,
-    [AnthropicModel.Sonnet3_5]: 300,
+    [AnthropicModel.Haiku]: 25, // $0.25
+    [AnthropicModel.Opus3]: 1500, // $15.00
+    [AnthropicModel.Sonnet3_5]: 300, // $3.00
 };
-/** Cost in cents per 1_000_000 output tokens */
+/** Cost in cents per API_CREDITS_MULTIPLIER output tokens */
 const outputCosts: Record<AnthropicModel, number> = {
-    [AnthropicModel.Opus3]: 7500,
-    [AnthropicModel.Sonnet3_5]: 1500,
+    [AnthropicModel.Haiku]: 125, // $1.25
+    [AnthropicModel.Opus3]: 7500, // $75.00
+    [AnthropicModel.Sonnet3_5]: 1500, // $15.00
+};
+/** Max context window */
+const contextWindows: Record<AnthropicModel, number> = {
+    [AnthropicModel.Haiku]: 200_000,
+    [AnthropicModel.Opus3]: 200_000,
+    [AnthropicModel.Sonnet3_5]: 200_000,
+};
+/** Max output tokens */
+const maxOutputTokens: Record<AnthropicModel, number> = {
+    [AnthropicModel.Haiku]: 4_096,
+    [AnthropicModel.Opus3]: 4_096,
+    [AnthropicModel.Sonnet3_5]: 8_192,
 };
 
 export class AnthropicService implements LanguageModelService<AnthropicModel, AnthropicTokenModel> {
@@ -76,6 +90,7 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
     }
 
     async generateResponse({
+        maxTokens,
         messages,
         model,
         systemMessage,
@@ -84,9 +99,9 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
         const params: Anthropic.MessageCreateParams = {
             messages: messages.map(({ role, content }) => ({ role, content })),
             model,
-            max_tokens: 1024, // Adjust as needed
+            max_tokens: maxTokens ?? DEFAULT_MAX_TOKENS,
             system: systemMessage,
-        };
+        } as const;
 
         // Generate response
         const completion: Anthropic.Message = await this.client.messages
@@ -110,17 +125,17 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
     }
 
     async *generateResponseStreaming({
+        maxTokens,
         messages,
         model,
         systemMessage,
-        userData,
     }: GenerateResponseParams) {
         const params: Anthropic.MessageCreateParams = {
             messages: messages.map(({ role, content }) => ({ role, content })),
             model,
-            max_tokens: 1024, // Adjust as needed
+            max_tokens: maxTokens ?? DEFAULT_MAX_TOKENS,
             system: systemMessage,
-        };
+        } as const;
 
         const accumulatedText: [string, number][] = [];
         let totalInputTokens = this.estimateTokens({ model, text: messages.map(m => m.content).join("\n") }).tokens;
@@ -182,14 +197,26 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
         }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    getContextSize(_requestedModel?: string | null) {
-        return DEFAULT_CONTEXT_SIZE;
+    getContextSize(requestedModel?: string | null) {
+        const model = this.getModel(requestedModel);
+        return contextWindows[model];
     }
 
-    getResponseCost({ model, usage }: GetResponseCostParams) {
-        const { input, output } = usage;
-        return (inputCosts[model] * input) + (outputCosts[model] * output);
+    getCosts() {
+        return { inputCosts, outputCosts };
+    }
+
+    getMaxOutputTokens(requestedModel?: string | null | undefined): number {
+        const model = this.getModel(requestedModel);
+        return maxOutputTokens[model];
+    }
+
+    getMaxOutputTokensRestrained(params: GetOutputTokenLimitParams): number {
+        return getDefaultMaxOutputTokensRestrained(params, this);
+    }
+
+    getResponseCost(params: GetResponseCostParams) {
+        return getDefaultResponseCost(params, this);
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -203,6 +230,7 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
 
     getModel(model?: string | null) {
         if (typeof model !== "string") return this.defaultModel;
+        if (model.includes("haiku")) return AnthropicModel.Haiku;
         if (model.includes("opus")) return AnthropicModel.Opus3;
         if (model.includes("sonnet")) return AnthropicModel.Sonnet3_5;
         return this.defaultModel;
@@ -227,6 +255,59 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
                 return LlmServiceErrorType.Overloaded;
             default:
                 return LlmServiceErrorType.ApiError;
+        }
+    }
+
+    async safeInputCheck(input: string): Promise<GetOutputTokenLimitResult> {
+        try {
+            const moderationPrompt = `
+                A human user is in dialogue with an AI. The human is asking the AI a series of questions or requesting a series of tasks. Here is the most recent request from the user:
+                <user query>${input}</user query>
+    
+                If the user's request refers to harmful, pornographic, or illegal activities, reply with (Y). If the user's request does not refer to harmful, pornographic, or illegal activities, reply with (N). Reply with nothing else other than (Y) or (N).
+                `;
+            const moderationModel = AnthropicModel.Haiku;
+
+            const params: Anthropic.MessageCreateParams = {
+                messages: [{ role: "user", content: moderationPrompt }],
+                model: moderationModel,
+                max_tokens: 10,
+                temperature: 0,
+            };
+
+            const completion: Anthropic.Message = await this.client.messages
+                .create(params)
+                .catch((error) => {
+                    const trace = "0422";
+                    const errorType = this.getErrorType(error);
+                    LlmServiceRegistry.get().updateServiceState(this.__id, errorType);
+                    logger.error("Failed to perform content moderation", { trace, error, errorType });
+                    throw new CustomError(trace, "InternalError", ["en"], { error, errorType });
+                });
+
+            const moderationResult = completion.content
+                .map(block => block.text)
+                .join("")
+                .trim();
+
+            // If the response is (Y), the content is not safe
+            const isSafe = moderationResult.toLocaleUpperCase() == "(Y)" || moderationResult.toLocaleUpperCase() !== "Y";
+            const cost = this.getResponseCost({
+                model: moderationModel,
+                usage: {
+                    input: completion.usage.input_tokens,
+                    output: completion.usage.output_tokens,
+                },
+            });
+            return { cost, isSafe };
+        } catch (error) {
+            const trace = "0422";
+            const errorType = this.getErrorType(error);
+            LlmServiceRegistry.get().updateServiceState(this.__id, errorType);
+            logger.error("Failed to perform content moderation", { trace, error, errorType });
+
+            // In case of an error, we assume the input is not safe
+            return { cost: 0, isSafe: false };
         }
     }
 }

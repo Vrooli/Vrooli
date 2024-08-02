@@ -1,4 +1,4 @@
-import { LlmTask, LlmTaskStatus } from "../api/generated/graphqlTypes";
+import { LlmTask, TaskStatus } from "../api/generated/graphqlTypes";
 
 /**
  * A task that an AI can, is, or has performed, along with 
@@ -16,8 +16,6 @@ export type LlmTaskInfo = {
      * The command string of the task, in the user's language.
      */
     command: string;
-    /** Unique ID to track command */
-    id: string;
     /** A user-friendly label to display to the user */
     label: string;
     /** The last time a status change occurred, as an ISO string */
@@ -48,10 +46,12 @@ export type LlmTaskInfo = {
      * The task being performed, as a language-independent type.
      */
     task: LlmTask | `${LlmTask}`;
+    /** Unique ID to track task */
+    taskId: string;
     /**
      * The latest status of the command.
      */
-    status: LlmTaskStatus | `${LlmTaskStatus}`;
+    status: TaskStatus | `${TaskStatus}`;
 };
 
 export type ExistingTaskData = Record<string, string | number | boolean | null>;

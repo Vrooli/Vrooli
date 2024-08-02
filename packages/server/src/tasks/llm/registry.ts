@@ -44,13 +44,16 @@ type LlmServiceModel = AnthropicModel | MistralModel | OpenAIModel;
  * Preferred fallback order for each service
  */
 export const fallbacks: Record<LlmServiceModel, LlmServiceModel[]> = {
-    [AnthropicModel.Opus3]: [OpenAIModel.Gpt4o, MistralModel.Mistral8x7b],
-    [AnthropicModel.Sonnet3_5]: [OpenAIModel.Gpt3_5Turbo, MistralModel.Mistral7b],
-    [MistralModel.Mistral8x7b]: [OpenAIModel.Gpt4o, AnthropicModel.Opus3],
-    [MistralModel.Mistral7b]: [OpenAIModel.Gpt3_5Turbo, AnthropicModel.Sonnet3_5],
-    [OpenAIModel.Gpt4o]: [MistralModel.Mistral8x7b, AnthropicModel.Opus3],
-    [OpenAIModel.Gpt4]: [MistralModel.Mistral8x7b, AnthropicModel.Opus3],
-    [OpenAIModel.Gpt3_5Turbo]: [MistralModel.Mistral7b, AnthropicModel.Sonnet3_5],
+    [AnthropicModel.Haiku]: [OpenAIModel.Gpt4o_Mini, MistralModel.Nemo],
+    [AnthropicModel.Opus3]: [OpenAIModel.Gpt4_Turbo, MistralModel.Large2],
+    [AnthropicModel.Sonnet3_5]: [OpenAIModel.Gpt4o, MistralModel.Nemo],
+    [MistralModel.Codestral]: [OpenAIModel.Gpt4o, AnthropicModel.Sonnet3_5],
+    [MistralModel.Large2]: [OpenAIModel.Gpt4_Turbo, AnthropicModel.Opus3],
+    [MistralModel.Nemo]: [OpenAIModel.Gpt4o_Mini, AnthropicModel.Haiku],
+    [OpenAIModel.Gpt4o_Mini]: [AnthropicModel.Haiku, MistralModel.Nemo],
+    [OpenAIModel.Gpt4o]: [AnthropicModel.Sonnet3_5, MistralModel.Nemo],
+    [OpenAIModel.Gpt4]: [AnthropicModel.Opus3, MistralModel.Large2],
+    [OpenAIModel.Gpt4_Turbo]: [AnthropicModel.Opus3, MistralModel.Large2],
 };
 
 /**
@@ -103,8 +106,9 @@ export class LlmServiceRegistry {
      */
     getServiceId = (model: string | undefined): LlmServiceId => {
         if (!model) return LlmServiceId.OpenAI;
+        if (model.includes("gpt")) return LlmServiceId.OpenAI;
         if (model.includes("claude")) return LlmServiceId.Anthropic;
-        if (model.includes("mistral") || model.includes("mixtral")) return LlmServiceId.Mistral;
+        if (model.includes("stral")) return LlmServiceId.Mistral;
         return LlmServiceId.OpenAI;
     };
 

@@ -17,7 +17,7 @@ const paymentTypeToSuccessMessage: Record<PaymentType, CommonKey> = {
     [PaymentType.PremiumYearly]: "ProPaymentSuccess",
 };
 
-export const useStripe = () => {
+export function useStripe() {
     const [, setLocation] = useLocation();
     const session = useContext(SessionContext);
     const currentUser = useMemo(() => getCurrentUser(session), [session]);
@@ -29,14 +29,14 @@ export const useStripe = () => {
         omitRestBase: true,
     });
 
-    const toggleLoading = (isLoading: boolean) => {
+    const toggleLoading = useCallback(function toggleLoadingCallback(isLoading: boolean) {
         setLoading(isLoading);
         PubSub.get().publish("loading", isLoading);
-    };
+    }, []);
 
-    const handleError = (error: unknown) => {
+    const handleError = useCallback(function handleErrorCallback(error: unknown) {
         PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error", data: error });
-    };
+    }, []);
 
     const handleUrlParams = useCallback(() => {
         const { paymentType, status } = parseSearchParams();
@@ -244,4 +244,4 @@ export const useStripe = () => {
         redirectToCustomerPortal,
         startCheckout,
     } as const;
-};
+}

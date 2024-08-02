@@ -705,7 +705,8 @@ export const endpoints = {
         const { success } = await import("./partial/success");
         return {
             autoFill: toMutation("autoFill", "AutoFillInput", autoFillResult, "full"),
-            startTask: toMutation("startTask", "StartTaskInput", success, "full"),
+            startLlmTask: toMutation("startLlmTask", "StartLlmTaskInput", success, "full"),
+            startRunTask: toMutation("startRunTask", "StartRunTaskInput", success, "full"),
             cancelTask: toMutation("cancelTask", "CancelTaskInput", success, "full"),
             checkTaskStatuses: toMutation("checkTaskStatuses", "CheckTaskStatusesInput", checkTaskStatusesResult, "full"),
         };

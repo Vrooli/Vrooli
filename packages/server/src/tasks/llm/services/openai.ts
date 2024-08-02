@@ -3,27 +3,45 @@ import OpenAI from "openai";
 import { CustomError } from "../../../events/error";
 import { logger } from "../../../events/logger";
 import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry } from "../registry";
-import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, generateDefaultContext, getDefaultConfigObject, tokenEstimationDefault } from "../service";
+import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetOutputTokenLimitParams, GetOutputTokenLimitResult, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, generateDefaultContext, getDefaultConfigObject, getDefaultMaxOutputTokensRestrained, getDefaultResponseCost, tokenEstimationDefault } from "../service";
+
+const DEFAULT_MAX_TOKENS = 4096;
 
 type OpenAITokenModel = "default";
 
-/** Cost in cents per 1_000_000 input tokens */
+/** Cost in cents per API_CREDITS_MULTIPLIER input tokens */
 const inputCosts: Record<OpenAIModel, number> = {
-    [OpenAIModel.Gpt4o]: 500,
-    [OpenAIModel.Gpt4]: 1000,
-    [OpenAIModel.Gpt3_5Turbo]: 50,
+    [OpenAIModel.Gpt4o_Mini]: 150, // $0.15
+    [OpenAIModel.Gpt4o]: 500, // $5.00
+    [OpenAIModel.Gpt4]: 3000, // $30.00
+    [OpenAIModel.Gpt4_Turbo]: 1000, // $10.00
 };
-/** Cost in cents per 1_000_000 output tokens */
+/** Cost in cents per API_CREDITS_MULTIPLIER output tokens */
 const outputCosts: Record<OpenAIModel, number> = {
-    [OpenAIModel.Gpt4o]: 1500,
-    [OpenAIModel.Gpt4]: 3000,
-    [OpenAIModel.Gpt3_5Turbo]: 150,
+    [OpenAIModel.Gpt4o_Mini]: 60, // $0.60
+    [OpenAIModel.Gpt4o]: 1500, // $15.00
+    [OpenAIModel.Gpt4]: 6000, // $60.00
+    [OpenAIModel.Gpt4_Turbo]: 3000, // $30.00
+};
+/** Max context window */
+const contextWindows: Record<OpenAIModel, number> = {
+    [OpenAIModel.Gpt4o_Mini]: 128_000,
+    [OpenAIModel.Gpt4o]: 128_000,
+    [OpenAIModel.Gpt4]: 8_192,
+    [OpenAIModel.Gpt4_Turbo]: 120_000,
+};
+/** Max output tokens */
+const maxOutputTokens: Record<OpenAIModel, number> = {
+    [OpenAIModel.Gpt4o_Mini]: 16_384,
+    [OpenAIModel.Gpt4o]: 4_096,
+    [OpenAIModel.Gpt4]: 8_192,
+    [OpenAIModel.Gpt4_Turbo]: 4_096,
 };
 
 export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITokenModel> {
     public __id = LlmServiceId.OpenAI;
     private client: OpenAI;
-    private defaultModel: OpenAIModel = OpenAIModel.Gpt3_5Turbo;
+    private defaultModel: OpenAIModel = OpenAIModel.Gpt4o_Mini;
 
     constructor() {
         this.client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -56,16 +74,18 @@ export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITo
     }
 
     async generateResponse({
+        maxTokens,
         messages,
         model,
         userData,
     }: GenerateResponseParams) {
         // Generate response
         const params: OpenAI.Chat.ChatCompletionCreateParams = {
+            max_tokens: maxTokens ?? DEFAULT_MAX_TOKENS,
             messages,
             model,
             user: userData.name ?? undefined,
-        };
+        } as const;
         const completion: OpenAI.Chat.ChatCompletion = await this.client.chat.completions
             .create(params)
             .catch((error) => {
@@ -87,15 +107,17 @@ export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITo
     }
 
     async *generateResponseStreaming({
+        maxTokens,
         messages,
         model,
         userData,
     }: GenerateResponseParams) {
         const params: OpenAI.Chat.ChatCompletionCreateParams = {
+            max_tokens: maxTokens ?? DEFAULT_MAX_TOKENS,
             messages,
             model,
             user: userData.name ?? undefined,
-        };
+        } as const;
 
         let accumulatedMessage = "";
         // NOTE: OpenAI currently does not provide token usage when streaming. We'll have to estimate it ourselves.
@@ -147,19 +169,24 @@ export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITo
 
     getContextSize(requestedModel?: string | null) {
         const model = this.getModel(requestedModel);
-        switch (model) {
-            case OpenAIModel.Gpt4o:
-                return 200_000;
-            case OpenAIModel.Gpt4:
-                return 120_000;
-            default:
-                return 16_000;
-        }
+        return contextWindows[model];
     }
 
-    getResponseCost({ model, usage }: GetResponseCostParams) {
-        const { input, output } = usage;
-        return (inputCosts[model] * input) + (outputCosts[model] * output);
+    getCosts() {
+        return { inputCosts, outputCosts };
+    }
+
+    getMaxOutputTokens(requestedModel?: string | null | undefined): number {
+        const model = this.getModel(requestedModel);
+        return maxOutputTokens[model];
+    }
+
+    getMaxOutputTokensRestrained(params: GetOutputTokenLimitParams): number {
+        return getDefaultMaxOutputTokensRestrained(params, this);
+    }
+
+    getResponseCost(params: GetResponseCostParams) {
+        return getDefaultResponseCost(params, this);
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -173,9 +200,10 @@ export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITo
 
     getModel(model?: string | null) {
         if (typeof model !== "string") return this.defaultModel;
+        if (model.startsWith("gpt-4o-mini")) return OpenAIModel.Gpt4o_Mini;
         if (model.startsWith("gpt-4o")) return OpenAIModel.Gpt4o;
+        if (model.startsWith("gpt-4-turbo")) return OpenAIModel.Gpt4_Turbo;
         if (model.startsWith("gpt-4")) return OpenAIModel.Gpt4;
-        if (model.startsWith("gpt-3.5")) return OpenAIModel.Gpt3_5Turbo;
         return this.defaultModel;
     }
 
@@ -203,6 +231,31 @@ export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITo
                 return LlmServiceErrorType.ApiError;
             default:
                 return LlmServiceErrorType.ApiError;
+        }
+    }
+
+    async safeInputCheck(input: string): Promise<GetOutputTokenLimitResult> {
+        try {
+            const response = await this.client.moderations.create({
+                input,
+            });
+
+            // The response contains an array of results, but we're only checking one input
+            const result = response.results[0];
+
+            // If the content is flagged, it's not safe
+            const isSafe = !result.flagged;
+            // The moderation check for OpenAI is free
+            const cost = 0;
+            return { cost, isSafe };
+        } catch (error) {
+            const trace = "0606";
+            const errorType = this.getErrorType(error);
+            LlmServiceRegistry.get().updateServiceState(this.__id, errorType);
+            logger.error("Failed to call OpenAI moderation", { trace, error, errorType });
+
+            // In case of an error, we assume the input is not safe
+            return { cost: 0, isSafe: false };
         }
     }
 }

@@ -26,6 +26,10 @@ import { displayDate, fontSizeToPixels } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 
+const PERCENTS = 100;
+const STILL_SENDING_MAX_PERCENT = 90;
+const SEND_STATUS_INTERVAL_MS = 50;
+
 /**
  * Displays a visual indicator for the status of a chat message (that you sent).
  * It shows a CircularProgress that progresses as the message is sending,
@@ -59,14 +63,14 @@ export function ChatBubbleStatus({
         if (status === "sending") {
             timer = setInterval(() => {
                 setProgress((oldProgress) => {
-                    if (oldProgress === 100) {
+                    if (oldProgress === PERCENTS) {
                         setIsCompleted(true);
-                        return 100;
+                        return PERCENTS;
                     }
                     const diff = 3;
-                    return Math.min(oldProgress + diff, status === "sending" ? 90 : 100);
+                    return Math.min(oldProgress + diff, status === "sending" ? STILL_SENDING_MAX_PERCENT : PERCENTS);
                 });
-            }, 50);
+            }, SEND_STATUS_INTERVAL_MS);
         }
 
         // Cleans up the interval when the component is unmounted or the message is not sending anymore
@@ -725,7 +729,7 @@ export function ChatBubble({
                 {tasks && tasks.length > 0 && (
                     <Box sx={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "8px" }}>
                         {tasks.map((taskInfo) => (
-                            <TaskChip key={taskInfo.id} taskInfo={taskInfo} onTaskClick={onTaskClick} />
+                            <TaskChip key={taskInfo.taskId} taskInfo={taskInfo} onTaskClick={onTaskClick} />
                         ))}
                     </Box>
                 )}

@@ -1,4 +1,4 @@
-import { CancelTaskInput, Chat, ChatMessageShape, ChatShape, DUMMY_ID, LlmTask, LlmTaskInfo, RegenerateResponseInput, StartTaskInput, Success, VALYXA_ID, endpointPostCancelTask, endpointPostRegenerateResponse, endpointPostStartTask, uuid } from "@local/shared";
+import { CancelTaskInput, Chat, ChatMessageShape, ChatShape, DUMMY_ID, LlmTask, LlmTaskInfo, RegenerateResponseInput, StartLlmTaskInput, Success, TaskType, VALYXA_ID, endpointPostCancelTask, endpointPostRegenerateResponse, endpointPostStartLlmTask, uuid } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { SessionContext } from "contexts/SessionContext";
 import { useCallback, useContext } from "react";
@@ -21,14 +21,14 @@ type UseMessageActionsProps = {
  * Performs various chat message actions by 
  * updating the server database and local tree structure
  */
-export const useMessageActions = ({
+export function useMessageActions({
     chat,
     handleChatUpdate,
     language,
     tasks,
     tree,
     updateTasksForMessage,
-}: UseMessageActionsProps) => {
+}: UseMessageActionsProps) {
     const session = useContext(SessionContext);
 
     /** Commit a new message */
@@ -98,7 +98,7 @@ export const useMessageActions = ({
         });
     }, [regenerate]);
 
-    const [startTask] = useLazyFetch<StartTaskInput, Success>(endpointPostStartTask);
+    const [startTask] = useLazyFetch<StartLlmTaskInput, Success>(endpointPostStartLlmTask);
     const [cancelTask] = useLazyFetch<CancelTaskInput, Success>(endpointPostCancelTask);
 
     /** 
@@ -136,10 +136,10 @@ export const useMessageActions = ({
                 lastUpdated: new Date().toISOString(),
                 status: "Running" as const,
             };
-            const updatedTaskList = (tasks[message.id] ?? []).map((t) => t.id === task.id ? updatedTask : t);
+            const updatedTaskList = (tasks[message.id] ?? []).map((t) => t.taskId === task.taskId ? updatedTask : t);
             setCookieTaskForMessage(message.id, updatedTask);
             updateTasksForMessage(message.id, updatedTaskList);
-            fetchLazyWrapper<StartTaskInput, Success>({
+            fetchLazyWrapper<StartLlmTaskInput, Success>({
                 fetch: startTask,
                 inputs: {
                     botId: message.user?.id ?? VALYXA_ID,
@@ -147,7 +147,7 @@ export const useMessageActions = ({
                     messageId: message.id ?? "",
                     properties: task.properties ?? {},
                     task: task.task as LlmTask,
-                    taskId: task.id,
+                    taskId: task.taskId,
                 },
                 spinnerDelay: null, // Disable spinner since this is a background task
                 successCondition: (data) => data && data.success === true,
@@ -166,12 +166,12 @@ export const useMessageActions = ({
                 lastUpdated: new Date().toISOString(),
                 status: "Canceling" as const,
             };
-            const updatedTaskList = (tasks[message.id] ?? []).map((t) => t.id === task.id ? updatedTask : t);
+            const updatedTaskList = (tasks[message.id] ?? []).map((t) => t.taskId === task.taskId ? updatedTask : t);
             setCookieTaskForMessage(message.id, updatedTask);
             updateTasksForMessage(message.id, updatedTaskList);
             fetchLazyWrapper<CancelTaskInput, Success>({
                 fetch: cancelTask,
-                inputs: { taskId: task.id },
+                inputs: { taskId: task.taskId, taskType: TaskType.Llm },
                 spinnerDelay: null, // Disable spinner since this is a background task
                 successCondition: (data) => data && data.success === true,
                 errorMessage: () => ({ messageKey: "ActionFailed" }),
@@ -185,7 +185,7 @@ export const useMessageActions = ({
                         lastUpdated: new Date().toISOString(),
                         status: "Suggested" as const,
                     };
-                    const canceledTaskList = (tasks[message.id] ?? []).map((t) => t.id === task.id ? canceledTask : t);
+                    const canceledTaskList = (tasks[message.id] ?? []).map((t) => t.taskId === task.taskId ? canceledTask : t);
                     setCookieTaskForMessage(message.id, canceledTask);
                     updateTasksForMessage(message.id, canceledTaskList);
                 },
@@ -201,4 +201,4 @@ export const useMessageActions = ({
         regenerateResponse,
         respondToTask,
     };
-};
+}

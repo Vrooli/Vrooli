@@ -1,4 +1,4 @@
-import { ChatMessage, ChatParticipant, LlmTaskInfo, Session, uuid } from "@local/shared";
+import { ChatMessage, ChatParticipant, ChatShape, LlmTaskInfo, Session, uuid } from "@local/shared";
 import { getCookieTasksForMessage, setCookie } from "../utils/cookies";
 import { processLlmTasks, processMessages, processParticipantsUpdates, processResponseStream, processTypingUpdates } from "./useSocketChat";
 
@@ -13,13 +13,13 @@ describe("processMessages", () => {
 
     it("should handle added messages", () => {
         const messages = [
-            { id: "msg1", content: "Hello" },
-            { id: "msg2", content: "World" },
+            { taskId: "msg1", content: "Hello" },
+            { taskId: "msg2", content: "World" },
         ] as unknown as ChatMessage[];
         processMessages({ added: messages, deleted: [], edited: [] }, addMessages, removeMessages, editMessage);
         expect(addMessages).toHaveBeenCalledWith([
-            { id: "msg1", content: "Hello", status: "sent" },
-            { id: "msg2", content: "World", status: "sent" },
+            { taskId: "msg1", content: "Hello", status: "sent" },
+            { taskId: "msg2", content: "World", status: "sent" },
         ]);
         expect(removeMessages).not.toHaveBeenCalled();
         expect(editMessage).not.toHaveBeenCalled();
@@ -35,8 +35,8 @@ describe("processMessages", () => {
 
     it("should handle edited messages", () => {
         const messages = [
-            { id: "msg1", content: "Updated Hello" },
-            { id: "msg2", content: "Updated World" },
+            { taskId: "msg1", content: "Updated Hello" },
+            { taskId: "msg2", content: "Updated World" },
         ] as unknown as ChatMessage[];
         processMessages({ added: [], deleted: [], edited: messages }, addMessages, removeMessages, editMessage);
         messages.forEach(message => {
@@ -47,12 +47,12 @@ describe("processMessages", () => {
     });
 
     it("should handle combinations of added, deleted, and edited messages", () => {
-        const added = [{ id: "msg3", content: "New" }] as unknown as ChatMessage[];
+        const added = [{ taskId: "msg3", content: "New" }] as unknown as ChatMessage[];
         const deleted = ["msg1"];
-        const edited = [{ id: "msg2", content: "Updated World" }] as unknown as ChatMessage[];
+        const edited = [{ taskId: "msg2", content: "Updated World" }] as unknown as ChatMessage[];
 
         processMessages({ added, deleted, edited }, addMessages, removeMessages, editMessage);
-        expect(addMessages).toHaveBeenCalledWith([{ id: "msg3", content: "New", status: "sent" }]);
+        expect(addMessages).toHaveBeenCalledWith([{ taskId: "msg3", content: "New", status: "sent" }]);
         expect(removeMessages).toHaveBeenCalledWith(deleted);
         edited.forEach(message => {
             expect(editMessage).toHaveBeenCalledWith({ ...message, status: "sent" });
@@ -161,7 +161,7 @@ describe("processTypingUpdates", () => {
 describe("processParticipantsUpdates", () => {
     const originalLocalStorage = global.localStorage;
     const setParticipants = jest.fn();
-    const chat = { id: "chat1" };
+    const chat = { id: "chat1" } as ChatShape;
     const task = "RunRoutine";
 
     beforeEach(() => {
@@ -305,8 +305,8 @@ describe("processLlmTasks", () => {
 
     it("should process full tasks", () => {
         const tasks = [
-            { id: "task1", messageId: "msg1", status: "Running" },
-            { id: "task2", messageId: "msg1", status: "Suggested" },
+            { taskId: "task1", messageId: "msg1", status: "Running" },
+            { taskId: "task2", messageId: "msg1", status: "Suggested" },
         ] as LlmTaskInfo[];
         messageTasks["msg1"] = [...tasks];
         processLlmTasks({ tasks, updates: [] }, messageTasks, updateTasksForMessage);
@@ -318,8 +318,8 @@ describe("processLlmTasks", () => {
 
     it("should handle partial tasks when tasks haven't been stored yet", () => {
         const updates = [
-            { id: "task3", messageId: "msg1", status: "Completed" },
-            { id: "task4", messageId: "msg1", status: "Failed" },
+            { taskId: "task3", messageId: "msg1", status: "Completed" },
+            { taskId: "task4", messageId: "msg1", status: "Failed" },
         ] as Partial<LlmTaskInfo>[];
         processLlmTasks({ tasks: [], updates }, messageTasks, updateTasksForMessage);
         expect(updateTasksForMessage).toHaveBeenCalledWith("msg1", expect.any(Array));
@@ -340,16 +340,16 @@ describe("processLlmTasks", () => {
 
     it("should apply partial tasks to existing tasks", () => {
         const tasks = [
-            { id: "task1", messageId: "msg1", status: "Running" },
-            { id: "task2", messageId: "msg1", status: "Suggested" },
+            { taskId: "task1", messageId: "msg1", status: "Running" },
+            { taskId: "task2", messageId: "msg1", status: "Suggested" },
         ] as LlmTaskInfo[];
         messageTasks["msg1"] = [...tasks];
         processLlmTasks({ tasks, updates: [] }, messageTasks, updateTasksForMessage);
         expect(updateTasksForMessage).toHaveBeenCalledWith("msg1", expect.any(Array));
 
         const updates = [
-            { id: "task1", messageId: "msg1", status: "Completed" },
-            { id: "task2", messageId: "msg1", status: "Failed" },
+            { taskId: "task1", messageId: "msg1", status: "Completed" },
+            { taskId: "task2", messageId: "msg1", status: "Failed" },
         ] as Partial<LlmTaskInfo>[];
         processLlmTasks({ tasks: [], updates }, messageTasks, updateTasksForMessage);
         expect(updateTasksForMessage).toHaveBeenCalledWith("msg1", expect.any(Array));
@@ -357,41 +357,41 @@ describe("processLlmTasks", () => {
         const storedTasks = getCookieTasksForMessage("msg1");
         expect(storedTasks).toEqual({
             tasks: [
-                { id: "task1", messageId: "msg1", status: "Completed", lastUpdated: expect.any(String) },
-                { id: "task2", messageId: "msg1", status: "Failed", lastUpdated: expect.any(String) },
+                { taskId: "task1", messageId: "msg1", status: "Completed", lastUpdated: expect.any(String) },
+                { taskId: "task2", messageId: "msg1", status: "Failed", lastUpdated: expect.any(String) },
             ],
         });
     });
 
     it("should process full tasks and partial tasks at the same time", () => {
         const tasks = [
-            { id: "task1", messageId: "msg1", status: "Running" },
-            { id: "task2", messageId: "msg2", status: "Suggested" },
+            { taskId: "task1", messageId: "msg1", status: "Running" },
+            { taskId: "task2", messageId: "msg2", status: "Suggested" },
         ] as LlmTaskInfo[];
         const updates = [
-            { id: "task1", messageId: "msg1", status: "Completed" }, // Same ID as in `tasks`, so should overwrite
-            { id: "task4", messageId: "msg2", status: "Failed" }, // New ID, so should skip (since it wasn't stored yet)
+            { taskId: "task1", messageId: "msg1", status: "Completed" }, // Same ID as in `tasks`, so should overwrite
+            { taskId: "task4", messageId: "msg2", status: "Failed" }, // New ID, so should skip (since it wasn't stored yet)
         ] as Partial<LlmTaskInfo>[];
         processLlmTasks({ tasks, updates }, messageTasks, updateTasksForMessage);
         expect(updateTasksForMessage).toHaveBeenCalledWith("msg1", expect.any(Array));
         expect(updateTasksForMessage).toHaveBeenCalledWith("msg2", expect.any(Array));
 
         const storedTasks1 = getCookieTasksForMessage("msg1");
-        expect(storedTasks1).toEqual({ tasks: [{ id: "task1", messageId: "msg1", status: "Completed", lastUpdated: expect.any(String) }] });
+        expect(storedTasks1).toEqual({ tasks: [{ taskId: "task1", messageId: "msg1", status: "Completed", lastUpdated: expect.any(String) }] });
 
         const storedTasks2 = getCookieTasksForMessage("msg2");
         expect(storedTasks2).toEqual({
             tasks: [
-                { id: "task2", messageId: "msg2", status: "Suggested" }, // Wasn't updated, so no `lastUpdated` change
-                { id: "task4", messageId: "msg2", status: "Failed", lastUpdated: expect.any(String) },
+                { taskId: "task2", messageId: "msg2", status: "Suggested" }, // Wasn't updated, so no `lastUpdated` change
+                { taskId: "task4", messageId: "msg2", status: "Failed", lastUpdated: expect.any(String) },
             ],
         });
     });
 
     it("should ignore tasks without a messageId if they can't be found in messageTasks", () => {
         const tasks = [
-            { id: "task1", status: "Running" },
-            { id: "task2", status: "Suggested" },
+            { taskId: "task1", status: "Running" },
+            { taskId: "task2", status: "Suggested" },
         ] as LlmTaskInfo[];
         processLlmTasks({ tasks, updates: [] }, messageTasks, updateTasksForMessage);
         expect(updateTasksForMessage).not.toHaveBeenCalled();
@@ -399,10 +399,10 @@ describe("processLlmTasks", () => {
 
     it("should still ignore tasks without a messageId if they can be found in messageTasks - we want full data for new tasks", () => {
         const tasks = [
-            { id: "task1", status: "Running" },
-            { id: "task2", status: "Suggested" },
+            { taskId: "task1", status: "Running" },
+            { taskId: "task2", status: "Suggested" },
         ] as LlmTaskInfo[];
-        messageTasks["msg1"] = [{ id: "task1", messageId: "msg1", status: "Running" }] as LlmTaskInfo[];
+        messageTasks["msg1"] = [{ taskId: "task1", messageId: "msg1", status: "Running" }] as LlmTaskInfo[];
         processLlmTasks({ tasks, updates: [] }, messageTasks, updateTasksForMessage);
         expect(updateTasksForMessage).not.toHaveBeenCalled();
     });
@@ -418,8 +418,8 @@ describe("processLlmTasks", () => {
 
     it("should ignore updated tasks without a messageId if they cannot be found in messageTasks", () => {
         const updates = [
-            { id: "task1", status: "Completed" },
-            { id: "task2", status: "Failed" },
+            { taskId: "task1", status: "Completed" },
+            { taskId: "task2", status: "Failed" },
         ] as Partial<LlmTaskInfo>[];
         processLlmTasks({ tasks: [], updates }, messageTasks, updateTasksForMessage);
         expect(updateTasksForMessage).not.toHaveBeenCalled();
@@ -427,10 +427,10 @@ describe("processLlmTasks", () => {
 
     it("should not ignore updated tasks without a messageId if they can be found in messageTasks", () => {
         const updates = [
-            { id: "task1", status: "Completed" },
-            { id: "task2", status: "Failed" },
+            { taskId: "task1", status: "Completed" },
+            { taskId: "task2", status: "Failed" },
         ] as Partial<LlmTaskInfo>[];
-        messageTasks["msg1"] = [{ id: "task1", messageId: "msg1", status: "Running" }] as LlmTaskInfo[];
+        messageTasks["msg1"] = [{ taskId: "task1", messageId: "msg1", status: "Running" }] as LlmTaskInfo[];
         processLlmTasks({ tasks: [], updates }, messageTasks, updateTasksForMessage);
         expect(updateTasksForMessage).toHaveBeenCalledWith("msg1", expect.any(Array));
     });

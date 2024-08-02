@@ -374,6 +374,10 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     });
                     const messageData = beforeDeletedData[__typename]?.[objectId] as ChatMessageBeforeDeletedData | undefined;
                     if (messageData) {
+                        // Remove message from UI if chat is open
+                        if (messageData.chatId) {
+                            emitSocketEvent("messages", messageData.chatId, { deleted: [objectId] });
+                        }
                         // Update the children of each message being deleted
                         // to point to the parent of the message being deleted. You can think of this as a 
                         // linked list, where each message has a pointer to the next message.
