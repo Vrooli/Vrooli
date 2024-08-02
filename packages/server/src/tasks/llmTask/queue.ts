@@ -1,18 +1,17 @@
-import { HOURS_1_S, LlmTaskStatus, LlmTaskStatusInfo, MINUTES_1_MS, ServerLlmTaskInfo, Success } from "@local/shared";
+import { MINUTES_1_MS, ServerLlmTaskInfo, Success, TaskStatus, TaskStatusInfo } from "@local/shared";
 import Bull from "bull";
-import path from "path";
-import { fileURLToPath } from "url";
 import winston from "winston";
-import { SessionUserToken } from "../../types";
-import { addJobToQueue } from "../queueHelper";
+import { SessionUserToken } from "../../types.js";
+import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, changeTaskStatus, getProcessPath, getTaskStatuses } from "../queueHelper";
 
 export type LlmTaskProcessPayload = {
+    __process: "LlmTask";
     /** The chat the command was triggered in */
     chatId?: string | null;
     /** The language the command was triggered in */
     language: string;
     /** The status of the job process */
-    status: LlmTaskStatus | `${LlmTaskStatus}`;
+    status: TaskStatus | `${TaskStatus}`;
     /** The task to be run */
     taskInfo: ServerLlmTaskInfo;
     /** The user who's running the command (not the bot) */
@@ -22,37 +21,19 @@ export type LlmTaskProcessPayload = {
 let logger: winston.Logger;
 let llmTaskProcess: (job: Bull.Job<LlmTaskProcessPayload>) => Promise<unknown>;
 let llmTaskQueue: Bull.Queue<LlmTaskProcessPayload>;
-const dirname = path.dirname(fileURLToPath(import.meta.url));
-const importExtension = process.env.NODE_ENV === "test" ? ".ts" : ".js";
+const FOLDER = "llmTask";
 
 // Call this on server startup
 export async function setupLlmTaskQueue() {
     try {
-        const loggerPath = path.join(dirname, "../../events/logger" + importExtension);
-        const loggerModule = await import(loggerPath);
-        logger = loggerModule.logger;
-
-        const redisConnPath = path.join(dirname, "../../redisConn" + importExtension);
-        const redisConnModule = await import(redisConnPath);
-        const REDIS_URL = redisConnModule.REDIS_URL;
-
-        const processPath = path.join(dirname, "./process" + importExtension);
-        const processModule = await import(processPath);
-        llmTaskProcess = processModule.llmTaskProcess;
+        logger = (await import(LOGGER_PATH)).logger;
+        const REDIS_URL = (await import(REDIS_CONN_PATH)).REDIS_URL;
+        llmTaskProcess = (await import(getProcessPath(FOLDER))).llmTaskProcess;
 
         // Initialize the Bull queue
-        llmTaskQueue = new Bull<LlmTaskProcessPayload>("command", {
+        llmTaskQueue = new Bull<LlmTaskProcessPayload>(FOLDER, {
             redis: REDIS_URL,
-            defaultJobOptions: {
-                removeOnComplete: {
-                    age: HOURS_1_S,
-                    count: 10_000,
-                },
-                removeOnFail: {
-                    age: HOURS_1_S,
-                    count: 10_000,
-                },
-            },
+            defaultJobOptions: DEFAULT_JOB_OPTIONS,
         });
         llmTaskQueue.process(llmTaskProcess);
     } catch (error) {
@@ -66,7 +47,11 @@ export async function setupLlmTaskQueue() {
 }
 
 export async function processLlmTask(data: Omit<LlmTaskProcessPayload, "status">): Promise<Success> {
-    return addJobToQueue(llmTaskQueue, { ...data, status: "Scheduled" }, { jobId: data.taskInfo.id, timeout: MINUTES_1_MS });
+    return addJobToQueue(
+        llmTaskQueue,
+        { ...data, status: "Scheduled" },
+        { jobId: data.taskInfo.taskId, timeout: MINUTES_1_MS },
+    );
 }
 
 /**
@@ -78,37 +63,10 @@ export async function processLlmTask(data: Omit<LlmTaskProcessPayload, "status">
  */
 export async function changeLlmTaskStatus(
     jobId: string,
-    status: `${LlmTaskStatus}`,
+    status: TaskStatus | `${TaskStatus}`,
     userId: string,
 ): Promise<Success> {
-    try {
-        const job = await llmTaskQueue.getJob(jobId);
-        if (!job) {
-            // If job isn't found but we're changing to a start or end state, consider it a success
-            if (["Completed", "Failed", "Suggested"].includes(status)) {
-                logger.info(`LLM task with jobId ${jobId} not found, but considered a success.`);
-                return { __typename: "Success" as const, success: true };
-            }
-            // Otherwise, consider it an error 
-            else {
-                logger.error(`LLM task with jobId ${jobId} not found.`);
-                return { __typename: "Success" as const, success: false };
-            }
-        }
-
-        // Check if the user has permission to change the status
-        if (job.data.userData.id !== userId) {
-            logger.error(`User ${userId} is not authorized to change the status of job ${jobId}.`);
-            return { __typename: "Success" as const, success: false };
-        }
-
-        // Update the job status
-        await job.update({ ...job.data, status });
-        return { __typename: "Success" as const, success: true };
-    } catch (error) {
-        logger.error(`Failed to change status for LLM task with jobId ${jobId}.`, { error });
-        return { __typename: "Success" as const, success: false };
-    }
+    return changeTaskStatus(llmTaskQueue, jobId, status, userId);
 }
 
 /**
@@ -116,20 +74,6 @@ export async function changeLlmTaskStatus(
  * @param taskIds Array of task IDs for which to fetch the statuses.
  * @returns Promise that resolves to an array of objects with task ID and status.
  */
-export async function getLlmTaskStatuses(taskIds: string[]): Promise<LlmTaskStatusInfo[]> {
-    const taskStatusInfos = await Promise.all(taskIds.map(async (taskId) => {
-        try {
-            const job = await llmTaskQueue.getJob(taskId);
-            if (job) {
-                return { __typename: "LlmTaskStatusInfo" as const, id: taskId, status: job.data.status as LlmTaskStatus };
-            } else {
-                return { __typename: "LlmTaskStatusInfo" as const, id: taskId, status: null };  // Task not found, return null status
-            }
-        } catch (error) {
-            console.error(`Failed to retrieve job ${taskId}:`, error);
-            return { __typename: "LlmTaskStatusInfo" as const, id: taskId, status: null };  // Return null if there is an error fetching the job
-        }
-    }));
-
-    return taskStatusInfos;
+export async function getLlmTaskStatuses(taskIds: string[]): Promise<TaskStatusInfo[]> {
+    return getTaskStatuses(llmTaskQueue, taskIds);
 }

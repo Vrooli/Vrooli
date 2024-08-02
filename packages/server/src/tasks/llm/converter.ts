@@ -133,7 +133,7 @@ export const LLM_CONVERTER_LOCATION = `${dirname}/converters`;
 /**
  * Dynamically imports the converter for the specified language.
  */
-export const importConverter = async (language: string): Promise<LlmTaskConverters> => {
+export async function importConverter(language: string): Promise<LlmTaskConverters> {
     try {
         const { convert } = await import(`${LLM_CONVERTER_LOCATION}/${language}`);
         return convert;
@@ -142,14 +142,14 @@ export const importConverter = async (language: string): Promise<LlmTaskConverte
         const { convert } = await import(`${LLM_CONVERTER_LOCATION}/${DEFAULT_LANGUAGE}`);
         return convert;
     }
-};
+}
 
 /**
  * Dynamically imports a "select" shape from a module based on the module name.
  * @param moduleName The name of the module to import
  * @returns The exported shape from the module
  */
-const loadInfo = async (moduleName: string): Promise<GraphQLResolveInfo> => {
+async function loadInfo(moduleName: string): Promise<GraphQLResolveInfo> {
     // Construct the path to the module based on the provided module name
     const path = `../../endpoints/generated/${moduleName}`;
 
@@ -160,7 +160,7 @@ const loadInfo = async (moduleName: string): Promise<GraphQLResolveInfo> => {
     const exportedValue = module[moduleName] as unknown as GraphQLResolveInfo;
 
     return exportedValue;
-};
+}
 
 const SuccessInfo = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
 const CountInfo = { __typename: "Count" as const, count: true } as unknown as GraphQLResolveInfo;
@@ -768,11 +768,11 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
 /**
  * Creates the task execution function for a given task type
  */
-export const generateTaskExec = async <Task extends Exclude<LlmTask, "Start">>(
+export async function generateTaskExec<Task extends Exclude<LlmTask, "Start">>(
     task: Task,
     language: string,
     userData: SessionUserToken,
-): Promise<LlmTaskExec> => {
+): Promise<LlmTaskExec> {
     // Import converter, which shapes data for the task
     const converter = await importConverter(language);
     const languages = userData.languages;
@@ -836,4 +836,4 @@ export const generateTaskExec = async <Task extends Exclude<LlmTask, "Start">>(
     } else {
         throw new CustomError("0043", "TaskNotSupported", userData.languages, { task });
     }
-};
+}

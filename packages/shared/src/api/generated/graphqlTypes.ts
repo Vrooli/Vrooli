@@ -598,6 +598,7 @@ export type BotUpdateInput = {
 
 export type CancelTaskInput = {
   taskId: Scalars['ID'];
+  taskType: TaskType;
 };
 
 export type Chat = {
@@ -962,11 +963,12 @@ export type ChatYou = {
 
 export type CheckTaskStatusesInput = {
   taskIds: Array<Scalars['ID']>;
+  taskType: TaskType;
 };
 
 export type CheckTaskStatusesResult = {
   __typename: 'CheckTaskStatusesResult';
-  statuses: Array<LlmTaskStatusInfo>;
+  statuses: Array<TaskStatusInfo>;
 };
 
 export type Code = {
@@ -2123,21 +2125,6 @@ export enum LlmTask {
   TeamUpdate = 'TeamUpdate'
 }
 
-export enum LlmTaskStatus {
-  Canceling = 'Canceling',
-  Completed = 'Completed',
-  Failed = 'Failed',
-  Running = 'Running',
-  Scheduled = 'Scheduled',
-  Suggested = 'Suggested'
-}
-
-export type LlmTaskStatusInfo = {
-  __typename: 'LlmTaskStatusInfo';
-  id: Scalars['ID'];
-  status?: Maybe<LlmTaskStatus>;
-};
-
 export type LogOutInput = {
   id?: InputMaybe<Scalars['ID']>;
 };
@@ -2626,7 +2613,8 @@ export type Mutation = {
   standardUpdate: Standard;
   standardVersionCreate: StandardVersion;
   standardVersionUpdate: StandardVersion;
-  startTask: Success;
+  startLlmTask: Success;
+  startRunTask: Success;
   switchCurrentAccount: Session;
   tagCreate: Tag;
   tagUpdate: Tag;
@@ -3342,8 +3330,13 @@ export type MutationStandardVersionUpdateArgs = {
 };
 
 
-export type MutationStartTaskArgs = {
-  input: StartTaskInput;
+export type MutationStartLlmTaskArgs = {
+  input: StartLlmTaskInput;
+};
+
+
+export type MutationStartRunTaskArgs = {
+  input: StartRunTaskInput;
 };
 
 
@@ -8371,6 +8364,17 @@ export enum RunStatus {
   Scheduled = 'Scheduled'
 }
 
+export enum RunTask {
+  RunProject = 'RunProject',
+  RunRoutine = 'RunRoutine'
+}
+
+export enum SandboxTask {
+  CallApi = 'CallApi',
+  RunDataTransform = 'RunDataTransform',
+  RunSmartContract = 'RunSmartContract'
+}
+
 export type Schedule = {
   __typename: 'Schedule';
   created_at: Scalars['Date'];
@@ -8955,13 +8959,20 @@ export type StandardYou = {
   reaction?: Maybe<Scalars['String']>;
 };
 
-export type StartTaskInput = {
+export type StartLlmTaskInput = {
   botId: Scalars['String'];
   label: Scalars['String'];
   messageId: Scalars['ID'];
   properties: Scalars['JSONObject'];
   task: LlmTask;
   taskId: Scalars['ID'];
+};
+
+export type StartRunTaskInput = {
+  inputs?: InputMaybe<Scalars['JSONObject']>;
+  projectVerisonId?: InputMaybe<Scalars['ID']>;
+  routineVersionId?: InputMaybe<Scalars['ID']>;
+  runId: Scalars['ID'];
 };
 
 export enum StatPeriodType {
@@ -9507,6 +9518,27 @@ export type TagYou = {
   isBookmarked: Scalars['Boolean'];
   isOwn: Scalars['Boolean'];
 };
+
+export enum TaskStatus {
+  Canceling = 'Canceling',
+  Completed = 'Completed',
+  Failed = 'Failed',
+  Running = 'Running',
+  Scheduled = 'Scheduled',
+  Suggested = 'Suggested'
+}
+
+export type TaskStatusInfo = {
+  __typename: 'TaskStatusInfo';
+  id: Scalars['ID'];
+  status?: Maybe<TaskStatus>;
+};
+
+export enum TaskType {
+  Llm = 'Llm',
+  Run = 'Run',
+  Sandbox = 'Sandbox'
+}
 
 export type Team = {
   __typename: 'Team';
@@ -10348,8 +10380,6 @@ export type ResolversTypes = {
   LabelUpdateInput: LabelUpdateInput;
   LabelYou: ResolverTypeWrapper<LabelYou>;
   LlmTask: LlmTask;
-  LlmTaskStatus: LlmTaskStatus;
-  LlmTaskStatusInfo: ResolverTypeWrapper<LlmTaskStatusInfo>;
   LogOutInput: LogOutInput;
   Meeting: ResolverTypeWrapper<Meeting>;
   MeetingCreateInput: MeetingCreateInput;
@@ -10781,6 +10811,8 @@ export type ResolversTypes = {
   RunRoutineUpdateInput: RunRoutineUpdateInput;
   RunRoutineYou: ResolverTypeWrapper<RunRoutineYou>;
   RunStatus: RunStatus;
+  RunTask: RunTask;
+  SandboxTask: SandboxTask;
   Schedule: ResolverTypeWrapper<Schedule>;
   ScheduleCreateInput: ScheduleCreateInput;
   ScheduleEdge: ResolverTypeWrapper<ScheduleEdge>;
@@ -10828,7 +10860,8 @@ export type ResolversTypes = {
   StandardVersionTranslationUpdateInput: StandardVersionTranslationUpdateInput;
   StandardVersionUpdateInput: StandardVersionUpdateInput;
   StandardYou: ResolverTypeWrapper<StandardYou>;
-  StartTaskInput: StartTaskInput;
+  StartLlmTaskInput: StartLlmTaskInput;
+  StartRunTaskInput: StartRunTaskInput;
   StatPeriodType: StatPeriodType;
   StatsApi: ResolverTypeWrapper<StatsApi>;
   StatsApiEdge: ResolverTypeWrapper<StatsApiEdge>;
@@ -10891,6 +10924,9 @@ export type ResolversTypes = {
   TagTranslationUpdateInput: TagTranslationUpdateInput;
   TagUpdateInput: TagUpdateInput;
   TagYou: ResolverTypeWrapper<TagYou>;
+  TaskStatus: TaskStatus;
+  TaskStatusInfo: ResolverTypeWrapper<TaskStatusInfo>;
+  TaskType: TaskType;
   Team: ResolverTypeWrapper<Team>;
   TeamCreateInput: TeamCreateInput;
   TeamEdge: ResolverTypeWrapper<TeamEdge>;
@@ -11112,7 +11148,6 @@ export type ResolversParentTypes = {
   LabelTranslationUpdateInput: LabelTranslationUpdateInput;
   LabelUpdateInput: LabelUpdateInput;
   LabelYou: LabelYou;
-  LlmTaskStatusInfo: LlmTaskStatusInfo;
   LogOutInput: LogOutInput;
   Meeting: Meeting;
   MeetingCreateInput: MeetingCreateInput;
@@ -11523,7 +11558,8 @@ export type ResolversParentTypes = {
   StandardVersionTranslationUpdateInput: StandardVersionTranslationUpdateInput;
   StandardVersionUpdateInput: StandardVersionUpdateInput;
   StandardYou: StandardYou;
-  StartTaskInput: StartTaskInput;
+  StartLlmTaskInput: StartLlmTaskInput;
+  StartRunTaskInput: StartRunTaskInput;
   StatsApi: StatsApi;
   StatsApiEdge: StatsApiEdge;
   StatsApiSearchInput: StatsApiSearchInput;
@@ -11574,6 +11610,7 @@ export type ResolversParentTypes = {
   TagTranslationUpdateInput: TagTranslationUpdateInput;
   TagUpdateInput: TagUpdateInput;
   TagYou: TagYou;
+  TaskStatusInfo: TaskStatusInfo;
   Team: Team;
   TeamCreateInput: TeamCreateInput;
   TeamEdge: TeamEdge;
@@ -11990,7 +12027,7 @@ export type ChatYouResolvers<ContextType = any, ParentType extends ResolversPare
 };
 
 export type CheckTaskStatusesResultResolvers<ContextType = any, ParentType extends ResolversParentTypes['CheckTaskStatusesResult'] = ResolversParentTypes['CheckTaskStatusesResult']> = {
-  statuses?: Resolver<Array<ResolversTypes['LlmTaskStatusInfo']>, ParentType, ContextType>;
+  statuses?: Resolver<Array<ResolversTypes['TaskStatusInfo']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12365,12 +12402,6 @@ export type LabelYouResolvers<ContextType = any, ParentType extends ResolversPar
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type LlmTaskStatusInfoResolvers<ContextType = any, ParentType extends ResolversParentTypes['LlmTaskStatusInfo'] = ResolversParentTypes['LlmTaskStatusInfo']> = {
-  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
-  status?: Resolver<Maybe<ResolversTypes['LlmTaskStatus']>, ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
-};
-
 export type MeetingResolvers<ContextType = any, ParentType extends ResolversParentTypes['Meeting'] = ResolversParentTypes['Meeting']> = {
   attendees?: Resolver<Array<ResolversTypes['User']>, ParentType, ContextType>;
   attendeesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -12660,7 +12691,8 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   standardUpdate?: Resolver<ResolversTypes['Standard'], ParentType, ContextType, RequireFields<MutationStandardUpdateArgs, 'input'>>;
   standardVersionCreate?: Resolver<ResolversTypes['StandardVersion'], ParentType, ContextType, RequireFields<MutationStandardVersionCreateArgs, 'input'>>;
   standardVersionUpdate?: Resolver<ResolversTypes['StandardVersion'], ParentType, ContextType, RequireFields<MutationStandardVersionUpdateArgs, 'input'>>;
-  startTask?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationStartTaskArgs, 'input'>>;
+  startLlmTask?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationStartLlmTaskArgs, 'input'>>;
+  startRunTask?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationStartRunTaskArgs, 'input'>>;
   switchCurrentAccount?: Resolver<ResolversTypes['Session'], ParentType, ContextType, RequireFields<MutationSwitchCurrentAccountArgs, 'input'>>;
   tagCreate?: Resolver<ResolversTypes['Tag'], ParentType, ContextType, RequireFields<MutationTagCreateArgs, 'input'>>;
   tagUpdate?: Resolver<ResolversTypes['Tag'], ParentType, ContextType, RequireFields<MutationTagUpdateArgs, 'input'>>;
@@ -14955,6 +14987,12 @@ export type TagYouResolvers<ContextType = any, ParentType extends ResolversParen
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
+export type TaskStatusInfoResolvers<ContextType = any, ParentType extends ResolversParentTypes['TaskStatusInfo'] = ResolversParentTypes['TaskStatusInfo']> = {
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  status?: Resolver<Maybe<ResolversTypes['TaskStatus']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
 export type TeamResolvers<ContextType = any, ParentType extends ResolversParentTypes['Team'] = ResolversParentTypes['Team']> = {
   apis?: Resolver<Array<ResolversTypes['Api']>, ParentType, ContextType>;
   apisCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
@@ -15361,7 +15399,6 @@ export type Resolvers<ContextType = any> = {
   LabelSearchResult?: LabelSearchResultResolvers<ContextType>;
   LabelTranslation?: LabelTranslationResolvers<ContextType>;
   LabelYou?: LabelYouResolvers<ContextType>;
-  LlmTaskStatusInfo?: LlmTaskStatusInfoResolvers<ContextType>;
   Meeting?: MeetingResolvers<ContextType>;
   MeetingEdge?: MeetingEdgeResolvers<ContextType>;
   MeetingInvite?: MeetingInviteResolvers<ContextType>;
@@ -15604,6 +15641,7 @@ export type Resolvers<ContextType = any> = {
   TagSearchResult?: TagSearchResultResolvers<ContextType>;
   TagTranslation?: TagTranslationResolvers<ContextType>;
   TagYou?: TagYouResolvers<ContextType>;
+  TaskStatusInfo?: TaskStatusInfoResolvers<ContextType>;
   Team?: TeamResolvers<ContextType>;
   TeamEdge?: TeamEdgeResolvers<ContextType>;
   TeamSearchResult?: TeamSearchResultResolvers<ContextType>;

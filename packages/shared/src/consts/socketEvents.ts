@@ -1,5 +1,6 @@
 import { ChatMessage, ChatParticipant } from "../api/generated/graphqlTypes";
 import { LlmTaskInfo } from "../llm/types";
+import { RunTaskInfo } from "../utils/runUtils";
 import { JOIN_CHAT_ROOM_ERRORS, JOIN_RUN_ROOM_ERRORS, JOIN_USER_ROOM_ERRORS, LEAVE_CHAT_ROOM_ERRORS, LEAVE_RUN_ROOM_ERRORS, LEAVE_USER_ROOM_ERRORS } from "./api";
 
 export type ReservedSocketEvents = "connect" | "connect_error" | "disconnect";
@@ -25,9 +26,8 @@ export type UserSocketEventPayloads = {
 export type RunSocketEventPayloads = {
     joinRunRoom: { runId: string, runType: "RunProject" | "RunRoutine" };
     leaveRunRoom: { runId: string };
-    runResult: {
-        //TODO
-    };
+    /** Runs that can or have been performed */
+    runTask: RunTaskInfo;
 }
 export type ChatSocketEventPayloads = {
     messages: {

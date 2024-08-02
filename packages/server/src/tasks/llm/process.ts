@@ -1,4 +1,4 @@
-import { AutoFillResult, BotSettings, ChatMessage, ExistingTaskData, ServerLlmTaskInfo, VALYXA_ID, getValidTasksFromMessage, importCommandToTask, toBotSettings } from "@local/shared";
+import { AutoFillResult, ChatMessage, ExistingTaskData, ServerLlmTaskInfo, VALYXA_ID, getValidTasksFromMessage, importCommandToTask, parseBotInformation } from "@local/shared";
 import { Job } from "bull";
 import i18next from "i18next";
 import { addSupplementalFields } from "../../builders/addSupplementalFields";
@@ -15,21 +15,8 @@ import { PreMapChatData, PreMapMessageData, PreMapUserData, getChatParticipantDa
 import { getSingleTypePermissions } from "../../validators/permissions";
 import { processLlmTask } from "../llmTask";
 import { getBotInfo } from "./context";
-import { LlmRequestPayload, RequestAutoFillPayload, RequestBotMessagePayload, StartTaskPayload } from "./queue";
+import { type LlmRequestPayload, type RequestAutoFillPayload, type RequestBotMessagePayload, type StartLlmTaskPayload } from "./queue";
 import { ForceGetTaskParams, forceGetTask, generateResponseWithFallback } from "./service";
-
-function parseBotInformation(
-    participants: Record<string, PreMapUserData>,
-    respondingBotId: string,
-    logger: { error: (message: string, data?: Record<string, any>) => unknown },
-    language: string,
-): BotSettings {
-    const bot = participants[respondingBotId];
-    if (!bot) {
-        throw new CustomError("0176", "InternalError", [language]);
-    }
-    return toBotSettings(bot, logger);
-}
 
 type ForceGetAndProcessCommandParams = ForceGetTaskParams;
 type ForceGetAndProcessCommandResult = {
@@ -42,7 +29,11 @@ async function forceGetAndProcessCommand(params: ForceGetAndProcessCommandParams
     if (!taskToRun || !messageWithoutTasks) {
         return { messageWithoutTasks: null, tasksToSuggest: [], cost };
     }
-    processLlmTask({ taskInfo: taskToRun, ...params });
+    processLlmTask({
+        __process: "LlmTask",
+        taskInfo: taskToRun,
+        ...params,
+    } as const);
     return { messageWithoutTasks, tasksToSuggest, cost };
 }
 
@@ -60,7 +51,10 @@ export async function llmProcessBotMessage({
 
     try {
         // Parse bot information
-        const botSettings = parseBotInformation(participantsData, respondingBotId, logger, language);
+        const botSettings = parseBotInformation(participantsData, respondingBotId, logger);
+        if (!botSettings) {
+            throw new CustomError("0176", "InternalError", [language]);
+        }
         const commandToTask = await importCommandToTask(language, logger);
         const latestMessage = parent?.id ?? null;
 
@@ -77,11 +71,12 @@ export async function llmProcessBotMessage({
             });
             for (const taskInfo of tasksToRun) {
                 processLlmTask({
+                    __process: "LlmTask",
                     taskInfo,
                     chatId,
                     language,
                     userData,
-                });
+                } as const);
             }
             // If there is no text left after removing commands, don't create a response
             if (messageWithoutTasks.trim() === "") return;
@@ -168,11 +163,12 @@ export async function llmProcessBotMessage({
                 // Otherwise, we can process the command as normal
                 else {
                     processLlmTask({
+                        __process: "LlmTask",
                         taskInfo: command,
                         chatId,
                         language,
                         userData,
-                    });
+                    } as const);
                 }
             }
         }
@@ -281,7 +277,10 @@ export async function llmProcessAutoFill({
             throw new CustomError("0238", "InternalError", userData.languages, { task });
         }
         const participantsData = { [VALYXA_ID]: botInfo };
-        const botSettings = parseBotInformation(participantsData, VALYXA_ID, logger, language);
+        const botSettings = parseBotInformation(participantsData, VALYXA_ID, logger);
+        if (!botSettings) {
+            throw new CustomError("0600", "InternalError", [language]);
+        }
         const commandToTask = await importCommandToTask(language, logger);
         const { taskToRun, cost } = await forceGetTask({
             commandToTask,
@@ -327,7 +326,7 @@ export async function llmProcessStartTask({
     task,
     taskId,
     userData,
-}: StartTaskPayload) {
+}: StartLlmTaskPayload) {
     let chatId: string | null = null;
     try {
         const language = userData.languages[0] ?? "en";
@@ -365,10 +364,13 @@ export async function llmProcessStartTask({
             throw new CustomError("0415", "InternalError", userData.languages, { messageId, messageData, userId });
         }
         const respondingBotId = bots.find(b => b.id === botId)?.id ?? bots[0].id;
-        const respondingBotConfig = parseBotInformation(preMapUserData, respondingBotId, logger, language);
+        const respondingBotConfig = parseBotInformation(preMapUserData, respondingBotId, logger);
+        if (!respondingBotConfig) {
+            throw new CustomError("0601", "InternalError", [language]);
+        }
         // Let the UI know that the task is Running
         if (chatId) {
-            emitSocketEvent("llmTasks", chatId, { updates: [{ id: taskId, status: "Running" }] });
+            emitSocketEvent("llmTasks", chatId, { updates: [{ taskId, status: "Running" }] });
         }
         // Generate information to run the task
         const commandToTask = await importCommandToTask(language, logger);
@@ -400,15 +402,16 @@ export async function llmProcessStartTask({
         }
         // Run the task
         const taskData = {
+            __process: "LlmTask",
             chatId,
             language,
             taskInfo: { ...taskToRun, messageId },
             userData,
-        };
+        } as const;
         processLlmTask(taskData);
     } catch (error) {
         if (chatId) {
-            emitSocketEvent("llmTasks", chatId, { updates: [{ id: taskId, status: "Failed" }] });
+            emitSocketEvent("llmTasks", chatId, { updates: [{ taskId, status: "Failed" }] });
         }
         logger.error("Caught error in llmProcessStartTask", { trace: "0331", error });
         return { __typename: "Success" as const, success: false };
@@ -423,6 +426,9 @@ export async function llmProcess({ data }: Job<LlmRequestPayload>) {
             return llmProcessAutoFill(data);
         case "StartTask":
             return llmProcessStartTask(data);
+        case "Test":
+            logger.info("llmProcess test triggered");
+            return { __typename: "Success" as const, success: true };
         default:
             throw new CustomError("0330", "InternalError", ["en"], { process: (data as { __process?: unknown }).__process });
     }

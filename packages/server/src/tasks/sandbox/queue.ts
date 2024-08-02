@@ -1,45 +1,25 @@
-import { HOURS_1_S, Success } from "@local/shared";
+import { Success, TaskStatus, TaskStatusInfo } from "@local/shared";
 import Bull from "bull";
-import path from "path";
-import { fileURLToPath } from "url";
 import winston from "winston";
-import { addJobToQueue } from "../queueHelper";
+import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, changeTaskStatus, getProcessPath, getTaskStatuses } from "../queueHelper";
 import { SandboxProcessPayload } from "./types";
 
 let logger: winston.Logger;
 let sandboxProcess: (job: Bull.Job<SandboxProcessPayload>) => Promise<unknown>;
 let sandboxQueue: Bull.Queue<SandboxProcessPayload>;
-const dirname = path.dirname(fileURLToPath(import.meta.url));
-const importExtension = process.env.NODE_ENV === "test" ? ".ts" : ".js";
+const FOLDER = "sandbox";
 
 // Call this on server startup
 export async function setupSandboxQueue() {
     try {
-        const loggerPath = path.join(dirname, "../../events/logger" + importExtension);
-        const loggerModule = await import(loggerPath);
-        logger = loggerModule.logger;
-
-        const redisConnPath = path.join(dirname, "../../redisConn" + importExtension);
-        const redisConnModule = await import(redisConnPath);
-        const REDIS_URL = redisConnModule.REDIS_URL;
-
-        const processPath = path.join(dirname, "./process" + importExtension);
-        const processModule = await import(processPath);
-        sandboxProcess = processModule.sandboxProcess;
+        logger = (await import(LOGGER_PATH)).logger;
+        const REDIS_URL = (await import(REDIS_CONN_PATH)).REDIS_URL;
+        sandboxProcess = (await import(getProcessPath(FOLDER))).sandboxProcess;
 
         // Initialize the Bull queue
-        sandboxQueue = new Bull<SandboxProcessPayload>("sandbox", {
+        sandboxQueue = new Bull<SandboxProcessPayload>(FOLDER, {
             redis: REDIS_URL,
-            defaultJobOptions: {
-                removeOnComplete: {
-                    age: HOURS_1_S,
-                    count: 10_000,
-                },
-                removeOnFail: {
-                    age: HOURS_1_S,
-                    count: 10_000,
-                },
-            },
+            defaultJobOptions: DEFAULT_JOB_OPTIONS,
         });
         sandboxQueue.process(sandboxProcess);
     } catch (error) {
@@ -54,4 +34,28 @@ export async function setupSandboxQueue() {
 
 export function runSandboxedCode(data: SandboxProcessPayload): Promise<Success> {
     return addJobToQueue(sandboxQueue, data, {});
+}
+
+/**
+ * Update a task's status
+ * @param jobId The job ID (also the task ID) of the task
+ * @param status The new status of the task
+ * @param userId The user ID of the user who triggered the task. 
+ * Only they are allowed to change the status of the task.
+ */
+export async function changeSandboxTaskStatus(
+    jobId: string,
+    status: TaskStatus | `${TaskStatus}`,
+    userId: string,
+): Promise<Success> {
+    return changeTaskStatus(sandboxQueue, jobId, status, userId);
+}
+
+/**
+ * Get the statuses of multiple sandbox tasks.
+ * @param taskIds Array of task IDs for which to fetch the statuses.
+ * @returns Promise that resolves to an array of objects with task ID and status.
+ */
+export async function getSandboxTaskStatuses(taskIds: string[]): Promise<TaskStatusInfo[]> {
+    return getTaskStatuses(sandboxQueue, taskIds);
 }

@@ -1,4 +1,8 @@
+import { TaskStatus } from "@local/shared";
+import { SessionUserToken } from "../../types";
+
 export type SandboxProcessPayload = {
+    __process: "Sandbox";
     /** The ID of the code version in the database */
     codeVersionId: string;
     /**
@@ -9,6 +13,10 @@ export type SandboxProcessPayload = {
      * - { numbers: [1, 2, 3, 4, 5], operation: "sum" }
      */
     input: object;
+    /** The status of the job process */
+    status: TaskStatus | `${TaskStatus}`;
+    /** The user who's running the command (not the bot) */
+    userData: SessionUserToken;
 }
 
 export interface RunUserCodeInput {

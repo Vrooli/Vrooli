@@ -133,11 +133,11 @@ const basicMessageSelect = {
  * @param includeMessageParentInfo If true, will include parent message information
  * @returns The message select query
  */
-export const buildChatParticipantMessageQuery = (
+export function buildChatParticipantMessageQuery(
     messageIds: string[],
     includeMessageInfo: boolean,
     includeMessageParentInfo: boolean,
-): Record<string, any> => {
+): Record<string, any> {
     // If we're not including message information, return a query to select the 
     // last message ID in the chat. This is used to populate PreMapChatData.lastMessageId
     if (!includeMessageInfo && !includeMessageParentInfo) {
@@ -167,7 +167,7 @@ export const buildChatParticipantMessageQuery = (
         where: { id: { in: messageIds } },
         select: messageSelect,
     };
-};
+}
 
 /**
  * Populates a map of message IDs to PreMapMessageData objects.
@@ -176,11 +176,11 @@ export const buildChatParticipantMessageQuery = (
  * @param userData User session data containing language preferences
  * @returns Map of message IDs to PreMapMessageData objects
  */
-export const populateMessageDataMap = (
+export function populateMessageDataMap(
     messageMap: Record<string, PreMapMessageData>,
     messages: QueriedMessage[],
     userData: SessionUserToken,
-): void => {
+): void {
     const populateMessage = (message: QueriedMessage) => {
         // If we've already populated this message, skip it
         if (messageMap[message.id]) return;
@@ -215,13 +215,13 @@ export const populateMessageDataMap = (
     messages.forEach(message => {
         populateMessage(message);
     });
-};
+}
 
 /**
  * Collects chat and participant information for existing chats, and adds 
  * it to the preMapUserData and preMapChatData objects.
  */
-export const getChatParticipantData = async ({
+export async function getChatParticipantData({
     includeMessageParentInfo,
     includeMessageInfo,
     preMapChatData,
@@ -229,7 +229,7 @@ export const getChatParticipantData = async ({
     preMapUserData,
     userData,
     ...rest
-}: CollectParticipantDataParams): Promise<void> => {
+}: CollectParticipantDataParams): Promise<void> {
     const chatIds = rest.chatIds ?? [];
     const messageIds = rest.messageIds ?? [];
     // If no chat or message IDs are provided, log warning and return
@@ -301,4 +301,4 @@ export const getChatParticipantData = async ({
             };
         });
     });
-};
+}

@@ -1564,8 +1564,14 @@ export const endpointGetAutoFill = {
     tag: "task",
 } as const;
 
-export const endpointPostStartTask = {
-    endpoint: "/startTask",
+export const endpointPostStartLlmTask = {
+    endpoint: "/startLlmTask",
+    method: "POST",
+    tag: "task",
+} as const;
+
+export const endpointPostStartRunTask = {
+    endpoint: "/startRunTask",
     method: "POST",
     tag: "task",
 } as const;

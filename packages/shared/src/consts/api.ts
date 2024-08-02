@@ -56,6 +56,9 @@ export enum HttpStatus {
 /**
  * The multiplier to convert USD cents to API credits. 
  * Allows us to track fractional cents without using floats.
+ * 
+ * WARNING: If you change this, you must revisit all language model input/output costs, 
+ * as well as a lot of other things probably. So don't do it.
  */
 export const API_CREDITS_MULTIPLIER = BigInt(1_000_000);
 /**

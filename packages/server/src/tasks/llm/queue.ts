@@ -1,11 +1,9 @@
-import { HOURS_1_S, LlmTask, MINUTES_1_MS, Success } from "@local/shared";
+import { LlmTask, MINUTES_1_MS, StartLlmTaskInput, Success } from "@local/shared";
 import Bull from "bull";
-import path from "path";
-import { fileURLToPath } from "url";
 import winston from "winston";
 import { SessionUserToken } from "../../types.js";
 import { PreMapMessageData, PreMapUserData } from "../../utils/chat.js";
-import { addJobToQueue } from "../queueHelper.js";
+import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, getProcessPath } from "../queueHelper";
 
 /**
  * Payload for generating a bot response in a chat
@@ -65,33 +63,8 @@ export type RequestAutoFillPayload = {
 /**
  * Payload for starting a suggested task
  */
-export type StartTaskPayload = {
+export type StartLlmTaskPayload = StartLlmTaskInput & {
     __process: "StartTask";
-    /**
-     * The ID of the bot the task will be performed by
-     */
-    botId: string;
-    /**
-     * Label for the task, to provide in notifications
-     */
-    label: string;
-    /**
-     * The ID of the message the task was suggested in. 
-     * Used to grab the relevant chat context
-     */
-    messageId: string;
-    /**
-     * Any properties provided with the task
-     */
-    properties: object;
-    /**
-     * The task to start
-     */
-    task: LlmTask | `${LlmTask}`;
-    /**
-     * The ID of the task, so we can update its status in the UI
-     */
-    taskId: string;
     /**
      * The user data of the user who triggered the task
      */
@@ -99,44 +72,32 @@ export type StartTaskPayload = {
 
 }
 
-export type LlmRequestPayload = RequestBotMessagePayload | RequestAutoFillPayload | StartTaskPayload;
+export type LlmTestPayload = {
+    __process: "Test";
+}
+
+export type LlmRequestPayload = RequestBotMessagePayload | RequestAutoFillPayload | StartLlmTaskPayload | LlmTestPayload;
 
 let logger: winston.Logger;
 let llmProcess: (job: Bull.Job<LlmRequestPayload>) => Promise<unknown>;
 let llmQueue: Bull.Queue<LlmRequestPayload>;
-const dirname = path.dirname(fileURLToPath(import.meta.url));
-const importExtension = process.env.NODE_ENV === "test" ? ".ts" : ".js";
+const FOLDER = "llm";
 
 // Call this on server startup
 export async function setupLlmQueue() {
     try {
-        const loggerPath = path.join(dirname, "../../events/logger" + importExtension);
-        const loggerModule = await import(loggerPath);
-        logger = loggerModule.logger;
-
-        const redisConnPath = path.join(dirname, "../../redisConn" + importExtension);
-        const redisConnModule = await import(redisConnPath);
-        const REDIS_URL = redisConnModule.REDIS_URL;
-
-        const processPath = path.join(dirname, "./process" + importExtension);
-        const processModule = await import(processPath);
-        llmProcess = processModule.llmProcess;
+        logger = (await import(LOGGER_PATH)).logger;
+        const REDIS_URL = (await import(REDIS_CONN_PATH)).REDIS_URL;
+        llmProcess = (await import(getProcessPath(FOLDER))).llmProcess;
 
         // Initialize the Bull queue
-        llmQueue = new Bull<LlmRequestPayload>("llm", {
+        llmQueue = new Bull<LlmRequestPayload>(FOLDER, {
             redis: REDIS_URL,
-            defaultJobOptions: {
-                removeOnComplete: {
-                    age: HOURS_1_S,
-                    count: 10_000,
-                },
-                removeOnFail: {
-                    age: HOURS_1_S,
-                    count: 10_000,
-                },
-            },
+            defaultJobOptions: DEFAULT_JOB_OPTIONS,
         });
         llmQueue.process(llmProcess);
+        // Verify that the queue is working
+        addJobToQueue(llmQueue, { __process: "Test" }, { timeout: MINUTES_1_MS });
     } catch (error) {
         const errorMessage = "Failed to setup sms queue";
         if (logger) {
@@ -175,8 +136,8 @@ export function requestAutoFill(
  * Requests a specific task to be started. Handles response generation and processing,
  * websocket events, and any other logic
  */
-export function requestStartTask(
-    props: Omit<StartTaskPayload, "__process">,
+export function requestStartLlmTask(
+    props: Omit<StartLlmTaskPayload, "__process">,
 ): Promise<Success> {
     return addJobToQueue(llmQueue,
         { ...props, __process: "StartTask" as const },

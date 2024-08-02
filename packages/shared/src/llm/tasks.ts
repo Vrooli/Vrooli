@@ -85,7 +85,7 @@ function countEndSlashes(charArray: string[]): number {
  * 
  * @returns The updated state after processing.
  */
-export const handleTaskTransitionOutside = (params: TaskTransitionHelperParams): CommandTransitionTrack => {
+export function handleTaskTransitionOutside(params: TaskTransitionHelperParams): CommandTransitionTrack {
     const { buffer, curr, onStart, prev } = params;
 
     let hasOpenBracket = params.hasOpenBracket;
@@ -131,7 +131,7 @@ export const handleTaskTransitionOutside = (params: TaskTransitionHelperParams):
     // Continue buffering
     buffer.push(curr);
     return { section: "outside", buffer, hasOpenBracket };
-};
+}
 
 /**
  * Manages the transitions within code blocks, handling different types of code
@@ -143,7 +143,7 @@ export const handleTaskTransitionOutside = (params: TaskTransitionHelperParams):
  * @param params - The current state and utility functions.
  * @returns The updated state after processing.
  */
-export const handleTaskTransitionCode = (params: TaskTransitionHelperParams): CommandTransitionTrack => {
+export function handleTaskTransitionCode(params: TaskTransitionHelperParams): CommandTransitionTrack {
     const { buffer, curr, hasOpenBracket, onCancel } = params;
 
     // Shouldn't be here if the buffer is empty or malformed
@@ -208,7 +208,7 @@ export const handleTaskTransitionCode = (params: TaskTransitionHelperParams): Co
     // Continue buffering
     buffer.push(curr);
     return { section: "code", buffer, hasOpenBracket };
-};
+}
 
 /**
  * Manages transitions within a command section, dealing with the end of a command,
@@ -217,7 +217,7 @@ export const handleTaskTransitionCode = (params: TaskTransitionHelperParams): Co
  * @param params - The current state and utility functions.
  * @returns The updated state after processing.
  */
-export const handleTaskTransitionCommand = (params: TaskTransitionHelperParams): CommandTransitionTrack => {
+export function handleTaskTransitionCommand(params: TaskTransitionHelperParams): CommandTransitionTrack {
     const { curr, buffer, hasOpenBracket, onCommit, onComplete, onCancel } = params;
 
     // If we run into another slash, the command is invalid
@@ -263,7 +263,7 @@ export const handleTaskTransitionCommand = (params: TaskTransitionHelperParams):
     // Continue buffering
     buffer.push(curr);
     return { section: "command", buffer, hasOpenBracket };
-};
+}
 
 /**
  * Handles transitions within the action part of a command, potentially moving
@@ -272,7 +272,7 @@ export const handleTaskTransitionCommand = (params: TaskTransitionHelperParams):
  * @param params - The current state and utility functions.
  * @returns The updated state after processing.
  */
-export const handleTaskTransitionAction = (params: TaskTransitionHelperParams): CommandTransitionTrack => {
+export function handleTaskTransitionAction(params: TaskTransitionHelperParams): CommandTransitionTrack {
     const { curr, buffer, hasOpenBracket, onCommit, onComplete, onStart, prev } = params;
 
     // If a newline is encountered
@@ -353,7 +353,7 @@ export const handleTaskTransitionAction = (params: TaskTransitionHelperParams): 
     // Continue buffering
     buffer.push(curr);
     return { section: "action", buffer, hasOpenBracket };
-};
+}
 
 /**
  * Manages transitions when handling a property name, deciding whether to commit
@@ -362,7 +362,7 @@ export const handleTaskTransitionAction = (params: TaskTransitionHelperParams): 
  * @param params - The current state and utility functions.
  * @returns The updated state after processing.
  */
-export const handleTaskTransitionPropName = (params: TaskTransitionHelperParams): CommandTransitionTrack => {
+export function handleTaskTransitionPropName(params: TaskTransitionHelperParams): CommandTransitionTrack {
     const { curr, buffer, hasOpenBracket, onCommit, onComplete, onStart, prev } = params;
 
     // Commit on equals sign
@@ -416,7 +416,7 @@ export const handleTaskTransitionPropName = (params: TaskTransitionHelperParams)
     // Continue buffering
     buffer.push(curr);
     return { section: "propName", buffer, hasOpenBracket };
-};
+}
 
 /**
  * Manages transitions when handling a property value, particularly when dealing with
@@ -425,7 +425,7 @@ export const handleTaskTransitionPropName = (params: TaskTransitionHelperParams)
  * @param params - The current state and utility functions.
  * @returns The updated state after processing.
  */
-export const handleTaskTransitionPropValue = (params: TaskTransitionHelperParams): CommandTransitionTrack => {
+export function handleTaskTransitionPropValue(params: TaskTransitionHelperParams): CommandTransitionTrack {
     const { curr, buffer, hasOpenBracket, onCommit, onComplete } = params;
 
     const backslashes = countEndSlashes(buffer);
@@ -488,7 +488,7 @@ export const handleTaskTransitionPropValue = (params: TaskTransitionHelperParams
     // Otherwise it's invalid, so complete the command
     onComplete();
     return { section: "outside", buffer: [], hasOpenBracket };
-};
+}
 
 const handlerMap = {
     outside: handleTaskTransitionOutside,
@@ -507,9 +507,9 @@ const handlerMap = {
  * handling the transition between sections, invalid characters, and other edge cases.
  * @returns An object containing the new parsing section and buffer
  */
-export const handleTaskTransition = ({ section, ...rest }: HandleTaskTransitionParams): CommandTransitionTrack => {
+export function handleTaskTransition({ section, ...rest }: HandleTaskTransitionParams): CommandTransitionTrack {
     return handlerMap[section](rest);
-};
+}
 
 /**
  * Helper function which loops forward or backward from an index to find the matching character.
@@ -523,13 +523,13 @@ export const handleTaskTransition = ({ section, ...rest }: HandleTaskTransitionP
  * @param maxLength The maximum number of whitespace characters to allow.
  * @returns The index of the matching character, or null if it's not found.
  */
-export const findCharWithLimit = (
+export function findCharWithLimit(
     index: number,
     forward: boolean,
     char: string,
     input: string,
     maxLength: number,
-): number | null => {
+): number | null {
     if (input[index] === char) return index; // If the current character is the target, return it
 
     // Determine the step direction: forward (1) or backward (-1)
@@ -557,7 +557,7 @@ export const findCharWithLimit = (
         }
     }
     return null; // Exceeded the maximum loop count
-};
+}
 
 /**
  * Extracts tasks from a given string based on predefined formats.
@@ -572,15 +572,15 @@ export const findCharWithLimit = (
  * @param commandToTask A function for converting a command and action to a valid task name.
  * @returns An array of task data
  */
-export const extractTasks = (
+export function extractTasks(
     inputString: string,
     commandToTask: CommandToTask,
-): MaybeLlmTaskInfo[] => {
+): MaybeLlmTaskInfo[] {
     const commands: MaybeLlmTaskInfo[] = [];
     let currentCommand: CurrentLlmTaskInfo | null = null;
 
     /** When the full command is completed */
-    const onComplete = () => {
+    function onComplete() {
         if (!currentCommand) return;
         const action = (currentCommand.action && currentCommand.action.length) ? currentCommand.action : null;
         const task = commandToTask(currentCommand.command, action);
@@ -599,10 +599,10 @@ export const extractTasks = (
             }, {}),
         });
         currentCommand = null;
-    };
+    }
 
     /** When one part of the command is committed */
-    const onCommit = (section: CommandSection, text: string | number | boolean | null, index: number) => {
+    function onCommit(section: CommandSection, text: string | number | boolean | null, index: number) {
         if (!currentCommand) return;
         if (section === "command") {
             currentCommand.command = text + "";
@@ -616,20 +616,20 @@ export const extractTasks = (
             currentCommand?.properties.push(text);
             currentCommand.end = typeof text === "string" ? index + 1 : index; // Add 1 for quote
         }
-    };
-    const onStart = (start: number) => {
+    }
+    function onStart(start: number) {
         currentCommand = {
-            id: uuid(),
+            taskId: `task-${uuid()}`,
             command: "",
             action: null,
             properties: [],
             start,
             end: start,
         };
-    };
-    const onCancel = () => {
+    }
+    function onCancel() {
         currentCommand = null;
-    };
+    }
 
     let section: CommandSection = "outside";
     let buffer: string[] = [];
@@ -664,7 +664,7 @@ export const extractTasks = (
     });
 
     return commands;
-};
+}
 
 /**
  * Removes tasks from a string
@@ -672,7 +672,7 @@ export const extractTasks = (
  * @param tasks The tasks to be removed
  * @returns The string with the tasks removed
  */
-export const removeTasks = (inputString: string, tasks: PartialTaskInfo[]): string => {
+export function removeTasks(inputString: string, tasks: PartialTaskInfo[]): string {
     // Start with the full input string
     let resultString = inputString;
 
@@ -686,7 +686,7 @@ export const removeTasks = (inputString: string, tasks: PartialTaskInfo[]): stri
     }
 
     return resultString;
-};
+}
 
 /**
  * Filters out invalid tasks based on the current task mode and language.
@@ -700,13 +700,13 @@ export const removeTasks = (inputString: string, tasks: PartialTaskInfo[]): stri
  * @returns An array of valid tasks after filtering out the invalid ones, and removing any invlaid 
  * actions and properties.
  */
-export const filterInvalidTasks = async (
+export async function filterInvalidTasks(
     potentialTasks: MaybeLlmTaskInfo[],
     taskMode: LlmTask | `${LlmTask}`,
     existingData: ExistingTaskData | null,
     language: string,
     logger: PassableLogger,
-): Promise<PartialTaskInfo[]> => {
+): Promise<PartialTaskInfo[]> {
     const result: PartialTaskInfo[] = [];
 
     // Get task configuration
@@ -810,7 +810,7 @@ export const filterInvalidTasks = async (
     }
 
     return result;
-};
+}
 
 /**
  * Detects tasks wrapped in square brackets, with the specified start substring and delimiter.
@@ -818,7 +818,7 @@ export const filterInvalidTasks = async (
  *
  * @returns An array of indices representing the tasks that are marked as suggested.
  */
-export const detectWrappedTasks = ({
+export function detectWrappedTasks({
     start,
     delimiter,
     commands,
@@ -828,7 +828,7 @@ export const detectWrappedTasks = ({
     delimiter?: string | null,
     commands: MaybeLlmTaskInfo[],
     messageString: string,
-}): WrappedTasks[] => {
+}): WrappedTasks[] {
     const result: WrappedTasks[] = [];
     const MAX_WHITESPACE_LENGTH = 5;
     const allowMultiple = typeof delimiter === "string" && delimiter.length;
@@ -900,14 +900,14 @@ export const detectWrappedTasks = ({
     }
 
     return result;
-};
+}
 
 /**
  * Extracts valid tasks from a message and returns the message without the tasks.
  * @returns An object containing tasks that should be run right away, suggested tasks, 
  * and the message without the tasks
  */
-export const getValidTasksFromMessage = async ({
+export async function getValidTasksFromMessage({
     commandToTask,
     existingData,
     language,
@@ -918,7 +918,7 @@ export const getValidTasksFromMessage = async ({
     messageWithoutTasks: string,
     tasksToRun: ServerLlmTaskInfo[],
     tasksToSuggest: ServerLlmTaskInfo[],
-}> => {
+}> {
     // Extract all possible commands from the message
     const maybeTasks = extractTasks(message, commandToTask);
     // Filter out commands that are not valid for the current task
@@ -963,4 +963,4 @@ export const getValidTasksFromMessage = async ({
 
     // Return the valid commands and the message without the commands
     return { tasksToRun, tasksToSuggest, messageWithoutTasks };
-};
+}

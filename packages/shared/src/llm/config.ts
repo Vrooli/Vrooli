@@ -4,7 +4,7 @@ import { PassableLogger } from "../consts/commonTypes";
 import { DEFAULT_LANGUAGE } from "../consts/ui";
 import { CommandToTask, LlmTaskConfig, LlmTaskStructuredConfig, LlmTaskUnstructuredConfig } from "./types";
 
-export const getLlmConfigLocation = async (): Promise<string> => {
+export async function getLlmConfigLocation(): Promise<string> {
     // Test environment - Use absolute path
     if (process.env.NODE_ENV === "test") {
         const path = await import("path");
@@ -20,7 +20,7 @@ export const getLlmConfigLocation = async (): Promise<string> => {
     else {
         return "http://localhost:5329/llm/configs";
     }
-};
+}
 
 async function loadFile(modulePath: string) {
     const module = await import(/* @vite-ignore */modulePath);
@@ -30,10 +30,10 @@ async function loadFile(modulePath: string) {
 /**
  * Dynamically imports the configuration for the specified language.
  */
-export const importConfig = async (
+export async function importConfig(
     language: string,
     logger: PassableLogger,
-): Promise<LlmTaskConfig> => {
+): Promise<LlmTaskConfig> {
     const config_location = await getLlmConfigLocation();
     try {
         return (await loadFile(`${config_location}/${language}.js`)).config;
@@ -41,16 +41,16 @@ export const importConfig = async (
         logger.error(`Configuration for language ${language} not found. Falling back to ${DEFAULT_LANGUAGE}.`, { trace: "0309", config_location });
         return (await loadFile(`${config_location}/${DEFAULT_LANGUAGE}`)).config;
     }
-};
+}
 
 /**
  * Dynamically imports the `commandToTask` function, which converts a command and 
  * action to a task name.
  */
-export const importCommandToTask = async (
+export async function importCommandToTask(
     language: string,
     logger: PassableLogger,
-): Promise<CommandToTask> => {
+): Promise<CommandToTask> {
     const config_location = await getLlmConfigLocation();
     try {
         return (await loadFile(`${config_location}/${language}.js`)).commandToTask;
@@ -58,17 +58,17 @@ export const importCommandToTask = async (
         logger.error(`Command to task function for language ${language} not found. Falling back to ${DEFAULT_LANGUAGE}.`, { trace: "0041" });
         return (await loadFile(`${config_location}/${DEFAULT_LANGUAGE}`)).commandToTask;
     }
-};
+}
 
 /**
  * @returns The unstructured configuration object for the given task, 
  * in the best language available for the user
  */
-export const getUnstructuredTaskConfig = async (
+export async function getUnstructuredTaskConfig(
     task: LlmTask | `${LlmTask}`,
     language: string = DEFAULT_LANGUAGE,
     logger: PassableLogger,
-): Promise<LlmTaskUnstructuredConfig> => {
+): Promise<LlmTaskUnstructuredConfig> {
     const unstructuredConfig = await importConfig(language, logger);
     const taskConfig = unstructuredConfig[task];
 
@@ -79,7 +79,7 @@ export const getUnstructuredTaskConfig = async (
     }
 
     return taskConfig();
-};
+}
 
 /**
  * @param task The task to get the structured configuration for
@@ -88,12 +88,12 @@ export const getUnstructuredTaskConfig = async (
  * @returns The structured configuration object for the given task,
  * in the best language available for the user
  */
-export const getStructuredTaskConfig = async (
+export async function getStructuredTaskConfig(
     task: LlmTask | `${LlmTask}`,
     force = false,
     language: string = DEFAULT_LANGUAGE,
     logger: PassableLogger,
-): Promise<LlmTaskStructuredConfig> => {
+): Promise<LlmTaskStructuredConfig> {
     const unstructuredConfig = await importConfig(language, logger);
     const taskConfig = unstructuredConfig[task];
 
@@ -106,4 +106,4 @@ export const getStructuredTaskConfig = async (
     return force ?
         unstructuredConfig.__construct_context_force(taskConfig()) :
         unstructuredConfig.__construct_context(taskConfig());
-};
+}
