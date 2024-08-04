@@ -848,12 +848,8 @@ export const config: LlmTaskConfig = {
         },
         //...
     },
-    RunProjectStart: () => ({
-        //...
-    } as any),
-    RunRoutineStart: () => ({
-        //...
-    } as any),
+    RunProjectStart: () => ({} as never),
+    RunRoutineStart: () => ({} as never),
     ScheduleAdd: () => ({
         label: "Add Schedule",
         commands: {

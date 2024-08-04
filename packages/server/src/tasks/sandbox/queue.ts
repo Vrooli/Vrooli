@@ -4,6 +4,12 @@ import winston from "winston";
 import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, changeTaskStatus, getProcessPath, getTaskStatuses } from "../queueHelper";
 import { SandboxProcessPayload } from "./types";
 
+export type SandboxTestPayload = {
+    __process: "Test";
+};
+
+export type SandboxRequestPayload = SandboxProcessPayload | SandboxTestPayload;
+
 let logger: winston.Logger;
 let sandboxProcess: (job: Bull.Job<SandboxProcessPayload>) => Promise<unknown>;
 let sandboxQueue: Bull.Queue<SandboxProcessPayload>;

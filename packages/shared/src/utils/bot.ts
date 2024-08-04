@@ -19,17 +19,17 @@ export const AVAILABLE_MODELS: LlmModel[] = [{
     description: "Anthropic's most advanced model",
     value: AnthropicModel.Opus3,
 }, {
-    name: "GPT-3.5 Turbo",
-    description: "OpenAI's fastest model",
-    value: OpenAIModel.Gpt3_5Turbo,
+    name: "GPT-4o Mini",
+    description: "OpenAI's most lightweight model",
+    value: OpenAIModel.Gpt4o_Mini,
 }, {
     name: "GPT-4o",
     description: "OpenAI's most advanced model",
     value: OpenAIModel.Gpt4o,
 }, {
-    name: "GPT-4",
+    name: "GPT-4 Turbo",
     description: "One of OpenAI's advanced models",
-    value: OpenAIModel.Gpt4,
+    value: OpenAIModel.Gpt4_Turbo,
     // }, {
     //     name: "Mistral 7b",
     //     description: "Mistral's fastest model",
@@ -80,10 +80,10 @@ export type ToBotSettingsPropBot = {
  * @param bot The bot object to convert
  * @param logger The logger to use for logging errors
  */
-export const toBotSettings = (
+export function toBotSettings(
     bot: ToBotSettingsPropBot | null | undefined,
     logger: PassableLogger,
-): BotSettings => {
+): BotSettings {
     if (!bot || typeof bot !== "object" || Array.isArray(bot)) {
         logger.error("Invalid data passed into 'toBotSettings'", { trace: "0408", bot });
         return { name: "" }; // Default return for invalid input
@@ -125,7 +125,7 @@ export const toBotSettings = (
     if (typeof (result as { verbosity?: unknown }).verbosity === "string") (result as { verbosity?: unknown }).verbosity = toPosDouble((result as { verbosity?: unknown }).verbosity as string);
 
     return result;
-};
+}
 
 export function findBotData(
     language: string,
@@ -197,7 +197,16 @@ export function findBotData(
     return {
         creativity: creativity >= 0 && creativity <= 1 ? creativity : DEFAULT_CREATIVITY,
         verbosity: verbosity >= 0 && verbosity <= 1 ? verbosity : DEFAULT_VERBOSITY,
-        model: typeof settings.model === "string" && AVAILABLE_MODELS.some((model) => model.value === settings.model) ? settings.model : OpenAIModel.Gpt3_5Turbo,
+        model: typeof settings.model === "string" && AVAILABLE_MODELS.some((model) => model.value === settings.model) ? settings.model : OpenAIModel.Gpt4o_Mini,
         translations,
     };
+}
+
+export function parseBotInformation(
+    participants: Record<string, { name: string, botSettings: string }>,
+    respondingBotId: string,
+    logger: { error: (message: string, data?: Record<string, any>) => unknown },
+): BotSettings | null {
+    const bot = participants[respondingBotId];
+    return bot ? toBotSettings(bot, logger) : null;
 }

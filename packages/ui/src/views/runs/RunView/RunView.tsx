@@ -1,4 +1,4 @@
-import { AutoFillInput, AutoFillResult, DecisionStep, DetectSubstepLoadResult, FindByIdInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, RootStep, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunProjectStep, RunProjectUpdateInput, RunRoutine, RunRoutineStep, RunRoutineUpdateInput, RunStatus, RunStep, RunStepType, SingleRoutineStep, addSubdirectoriesToStep, addSubroutinesToStep, base36ToUuid, detectSubstepLoad, endpointGetAutoFill, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointGetRunProject, endpointGetRunRoutine, endpointPutRunProject, endpointPutRunRoutine, generateRoutineInitialValues, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, getTranslation, locationArraysMatch, noop, parseSearchParams, runnableObjectToStep, saveRunProgress, siblingsAtLocation, stepFromLocation, uuidValidate } from "@local/shared";
+import { DecisionStep, DetectSubstepLoadResult, FindByIdInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, RootStep, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunProjectStep, RunProjectUpdateInput, RunRoutine, RunRoutineStep, RunRoutineUpdateInput, RunStatus, RunStep, RunStepType, SingleRoutineStep, addSubdirectoriesToStep, addSubroutinesToStep, base36ToUuid, detectSubstepLoad, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointGetRunProject, endpointGetRunRoutine, endpointPutRunProject, endpointPutRunRoutine, generateRoutineInitialValues, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, getTranslation, locationArraysMatch, noop, parseSchemaInput, parseSchemaOutput, parseSearchParams, runnableObjectToStep, saveRunProgress, siblingsAtLocation, stepFromLocation, uuidValidate } from "@local/shared";
 import { Box, Button, Grid, IconButton, LinearProgress, Stack, Typography, styled } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { AutoSaveIndicator } from "components/AutoSaveIndicator/AutoSaveIndicator";
@@ -18,7 +18,6 @@ import { pagePaddingBottom } from "styles";
 import { getUserLanguages } from "utils/display/translationTools";
 import { tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
-import { parseSchemaInput, parseSchemaOutput } from "utils/runUtils";
 import { DecisionView } from "../DecisionView/DecisionView";
 import { SubroutineView } from "../SubroutineView/SubroutineView";
 import { RunViewProps } from "../types";
@@ -190,8 +189,6 @@ export function RunView({
     useEffect(function updateRunDataEffect() {
         if (runData) setRun(runData);
     }, [runData]);
-
-    useSocketRun({ run });
 
     const [currentLocation, setCurrentLocation] = useState<number[]>([...startingStepLocation]);
     const handleLocationUpdate = useCallback(function handleLocationUpdateCallback(step: number[]) {
@@ -500,18 +497,16 @@ export function RunView({
         getSubroutines({ ids: [id] });
     }, [getSubroutines]);
 
-    //TODO autofill would only work for routineType Generate. Should use startTask instead
-    const [getAutoFill, { loading: isGeneratingOutputs }] = useLazyFetch<AutoFillInput, AutoFillResult>(endpointGetAutoFill);
-    const handleGenerateOutputs = useCallback(function handleGenerateOutputsCallback() {
-        if (runnableObject.__typename !== "RoutineVersion" || !run || run.__typename !== "RunRoutine") return;
-        // Inputs are stored in the formikRef with prefix "inputs-"
-        const inputs = Object.entries(formikRef.current?.values ?? {})
-            .filter(([key]) => key.startsWith("inputs-"))
-            .reduce((acc, [key, value]) => {
-                acc[key.replace("inputs-", "")] = value;
-                return acc;
-            }, {} as Record<string, unknown>);
-    }, []);//TODO
+    const {
+        handleRunSubroutine,
+        isGeneratingOutputs,
+        subroutineTaskInfo,
+    } = useSocketRun({
+        formikRef,
+        handleRunRoutineUpdate: setRun,
+        run,
+        runnableObject,
+    });
 
     /**
      * Displays either a subroutine view or decision view
@@ -522,8 +517,8 @@ export function RunView({
             case RunStepType.SingleRoutine:
                 return <SubroutineView
                     formikRef={formikRef}
-                    handleGenerateOutputs={handleGenerateOutputs}
-                    isGeneratingOutputs={isGeneratingOutputs}
+                    handleGenerateOutputs={handleRunSubroutine}
+                    isGeneratingOutputs={isGeneratingOutputs || subroutineTaskInfo?.status === "Running"}
                     isLoading={isDirectoriesLoading || isSubroutinesLoading}
                     routineVersion={(currentStep as SingleRoutineStep).routineVersion}
                 />;
@@ -541,7 +536,7 @@ export function RunView({
             default:
                 return null;
         }
-    }, [currentStep, isDirectoriesLoading, isSubroutinesLoading, toStep]);
+    }, [currentStep, handleRunSubroutine, isDirectoriesLoading, isGeneratingOutputs, isSubroutinesLoading, subroutineTaskInfo?.status, toStep]);
 
     return (
         <MaybeLargeDialog

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { User } from "../api/generated/graphqlTypes";
 import { OpenAIModel } from "../consts/llm";
 import { findBotData, toBotSettings } from "./bot";
@@ -75,7 +76,7 @@ describe("toBotSettings", () => {
         };
         expect(toBotSettings(bot, console)).toEqual({
             name: "TestBot",
-            customProp: "customValue"
+            customProp: "customValue",
         });
     });
 
@@ -147,7 +148,7 @@ describe("toBotSettings", () => {
             botSettings: JSON.stringify({
                 translations: {
                     en: {
-                        responsiveness: "high", accuracy: "medium", creativity: 0.8
+                        responsiveness: "high", accuracy: "medium", creativity: 0.8,
                     },
                 },
             }),
@@ -156,7 +157,7 @@ describe("toBotSettings", () => {
             name: "Test Bot",
             translations: {
                 en: {
-                    responsiveness: "high", accuracy: "medium", creativity: 0.8
+                    responsiveness: "high", accuracy: "medium", creativity: 0.8,
                 },
             },
         });
@@ -187,7 +188,7 @@ describe("toBotSettings", () => {
                 creativity: 0.7,
             }],
             botSettings: JSON.stringify({
-                responsiveness: "high", accuracy: "medium", creativity: 0.8
+                responsiveness: "high", accuracy: "medium", creativity: 0.8,
             }),
         };
         expect(toBotSettings(botShape, console)).toEqual({
@@ -205,7 +206,7 @@ describe("toBotSettings", () => {
                 },
             },
             // Doesn't move the botSettings field to a translation
-            responsiveness: "high", accuracy: "medium", creativity: 0.8
+            responsiveness: "high", accuracy: "medium", creativity: 0.8,
         });
     });
 });
@@ -231,7 +232,7 @@ describe("findBotData", () => {
         botSettings: JSON.stringify({
             creativity: "0.8", // Invalid, but should still be able to parse
             verbosity: 0.4,
-            model: OpenAIModel.Gpt4,
+            model: OpenAIModel.Gpt4_Turbo,
             translations: {
                 fr: {
                     bias: "bot settings bias",
@@ -250,7 +251,7 @@ describe("findBotData", () => {
         expect(result).toEqual({
             creativity: 0.5,
             verbosity: 0.5,
-            model: OpenAIModel.Gpt3_5Turbo,
+            model: OpenAIModel.Gpt4o_Mini,
             translations: [expect.objectContaining({ language: "ge" })], // checks if it contains the language
         });
     });
@@ -260,7 +261,7 @@ describe("findBotData", () => {
         expect(result).toEqual({
             creativity: 0.8,
             verbosity: 0.4,
-            model: OpenAIModel.Gpt4,
+            model: OpenAIModel.Gpt4_Turbo,
             translations: [expect.objectContaining({
                 language: "fr",
                 bias: "Neutral", // Original translations should override bot settings translations

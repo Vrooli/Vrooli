@@ -1,10 +1,11 @@
-import { ApiVersion, ApiVersionCreateInput, apiVersionTranslationValidation, ApiVersionUpdateInput, apiVersionValidation, DUMMY_ID, endpointGetApiVersion, endpointPostApiVersion, endpointPutApiVersion, LINKS, noopSubmit, orDefault, Session } from "@local/shared";
-import { Button, Divider, Grid, InputAdornment, Stack, useTheme } from "@mui/material";
+import { ApiShape, ApiVersion, ApiVersionCreateInput, ApiVersionShape, apiVersionTranslationValidation, ApiVersionUpdateInput, apiVersionValidation, CodeLanguage, DUMMY_ID, endpointGetApiVersion, endpointPostApiVersion, endpointPutApiVersion, LINKS, noopSubmit, orDefault, SearchPageTabOption, Session, shapeApiVersion } from "@local/shared";
+import { Button, Divider, Grid, InputAdornment, Stack } from "@mui/material";
 import { useSubmitHelper } from "api";
+import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { CodeInput, CodeLanguage } from "components/inputs/CodeInput/CodeInput";
+import { CodeInput } from "components/inputs/CodeInput/CodeInput";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
@@ -28,54 +29,63 @@ import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { SearchPageTabOption } from "utils/search/objectToSearch";
-import { ApiShape } from "utils/shape/models/api";
-import { ApiVersionShape, shapeApiVersion } from "utils/shape/models/apiVersion";
 import { validateFormValues } from "utils/validateFormValues";
 import { SearchExistingButton } from "../../../../components/buttons/SearchExistingButton/SearchExistingButton";
 import { ApiFormProps, ApiUpsertProps } from "../types";
 
-const apiInitialValues = (
+function apiInitialValues(
     session: Session | undefined,
     existing?: Partial<ApiVersion> | null | undefined,
-): ApiVersionShape => ({
-    __typename: "ApiVersion" as const,
-    id: DUMMY_ID,
-    callLink: "",
-    directoryListings: [],
-    isComplete: false,
-    isPrivate: false,
-    resourceList: {
-        __typename: "ResourceList" as const,
+): ApiVersionShape {
+    return {
+        __typename: "ApiVersion" as const,
         id: DUMMY_ID,
-        listFor: {
-            __typename: "ApiVersion" as const,
-            id: DUMMY_ID,
-        },
-    },
-    schemaText: "",
-    versionLabel: "1.0.0",
-    ...existing,
-    root: {
-        __typename: "Api" as const,
-        id: DUMMY_ID,
+        callLink: "",
+        directoryListings: [],
+        isComplete: false,
         isPrivate: false,
-        owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
-        tags: [],
-        ...existing?.root,
-    },
-    translations: orDefault(existing?.translations, [{
-        __typename: "ApiVersionTranslation" as const,
-        id: DUMMY_ID,
-        language: getUserLanguages(session)[0],
-        details: "",
-        name: "",
-        summary: "",
-    }]),
-});
+        resourceList: {
+            __typename: "ResourceList" as const,
+            id: DUMMY_ID,
+            listFor: {
+                __typename: "ApiVersion" as const,
+                id: DUMMY_ID,
+            },
+        },
+        schemaText: "",
+        versionLabel: "1.0.0",
+        ...existing,
+        root: {
+            __typename: "Api" as const,
+            id: DUMMY_ID,
+            isPrivate: false,
+            owner: { __typename: "User", id: getCurrentUser(session)?.id ?? "" },
+            tags: [],
+            ...existing?.root,
+        },
+        translations: orDefault(existing?.translations, [{
+            __typename: "ApiVersionTranslation" as const,
+            id: DUMMY_ID,
+            language: getUserLanguages(session)[0],
+            details: "",
+            name: "",
+            summary: "",
+        }]),
+    };
+}
 
-const transformApiVersionValues = (values: ApiVersionShape, existing: ApiVersionShape, isCreate: boolean) =>
-    isCreate ? shapeApiVersion.create(values) : shapeApiVersion.update(existing, values);
+function transformApiVersionValues(values: ApiVersionShape, existing: ApiVersionShape, isCreate: boolean) {
+    return isCreate ? shapeApiVersion.create(values) : shapeApiVersion.update(existing, values);
+}
+
+const callLinkInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <LinkIcon />
+        </InputAdornment>
+    ),
+} as const;
+const codeLimitTo = [CodeLanguage.Json, CodeLanguage.Graphql] as const;
 
 function ApiForm({
     disabled,
@@ -93,7 +103,6 @@ function ApiForm({
 }: ApiFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
-    const { palette } = useTheme();
 
     // useEffect(() => {
     //     const params = parseSearchParams();
@@ -206,11 +215,11 @@ function ApiForm({
                             />
                             <LanguageInput
                                 currentLanguage={language}
+                                flexDirection="row-reverse"
                                 handleAdd={handleAddLanguage}
                                 handleDelete={handleDeleteLanguage}
                                 handleCurrent={setLanguage}
                                 languages={languages}
-                                sx={{ flexDirection: "row-reverse" }}
                             />
                         </FormSection>
                         <TagSelector name="root.tags" sx={{ marginBottom: 2 }} />
@@ -235,13 +244,7 @@ function ApiForm({
                                 label={"Endpoint URL"}
                                 placeholder={"https://example.com"}
                                 as={TextInput}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <LinkIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={callLinkInputProps}
                             />
                             {/* Selector for documentation URL or text */}
                             <Grid item xs={12} pb={2}>
@@ -284,7 +287,7 @@ function ApiForm({
                                 hasDocUrl === false && (
                                     <CodeInput
                                         disabled={false}
-                                        limitTo={[CodeLanguage.Json, CodeLanguage.Graphql]}
+                                        limitTo={codeLimitTo}
                                         name="schemaText"
                                     />
                                 )
@@ -301,6 +304,10 @@ function ApiForm({
                 onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
+                sideActionButtons={<AutoFillButton
+                    handleAutoFill={() => { }} //TODO
+                    isLoadingAutoFill={false} //TODO
+                />}
             />
         </MaybeLargeDialog>
     );

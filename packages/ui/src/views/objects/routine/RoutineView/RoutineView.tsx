@@ -1,4 +1,4 @@
-import { CommentFor, ResourceList as ResourceListType, RoutineType, RoutineVersion, RunRoutine, RunRoutineCompleteInput, Tag, endpointGetRoutineVersion, endpointPutRunRoutineComplete, exists, noop, noopSubmit, parseSearchParams, setDotNotationValue } from "@local/shared";
+import { CommentFor, ParseSearchParamsResult, ResourceListShape, ResourceList as ResourceListType, RoutineShape, RoutineType, RoutineVersion, RunRoutine, RunRoutineCreateInput, RunStatus, RunnableRoutineVersion, Tag, TagShape, endpointGetRoutineVersion, endpointPostRunRoutine, exists, generateInitialValues, generateYupSchema, getTranslation, noop, noopSubmit, parseConfigCallData, parseSchemaInput, parseSchemaOutput, parseSearchParams, runInputsUpdate, uuid } from "@local/shared";
 import { Box, Button, Divider, Stack, Typography, styled, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { RunButton } from "components/buttons/RunButton/RunButton";
@@ -17,7 +17,6 @@ import { StatsCompact } from "components/text/StatsCompact/StatsCompact";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { generateInitialValues, generateYupSchema } from "forms/generators";
 import { useErrorPopover } from "hooks/useErrorPopover";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
@@ -30,19 +29,24 @@ import { FormSection, SideActionsButton } from "styles";
 import { FormErrors } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
+import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
 import { openObject } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
-import { defaultSchemaInput, defaultSchemaOutput, parseConfigCallData, parseSchemaInputOutput } from "utils/routineUtils";
-import { formikToRunInputs, runInputsCreate } from "utils/runUtils";
 import { routineTypes } from "utils/search/schemas/routine";
-import { ResourceListShape } from "utils/shape/models/resourceList";
-import { RoutineShape } from "utils/shape/models/routine";
-import { TagShape } from "utils/shape/models/tag";
 import { RoutineApiForm, RoutineCodeForm, RoutineDataForm, RoutineGenerateForm, RoutineInformationalForm, RoutineMultiStepForm, RoutineSmartContractForm } from "../RoutineTypeForms/RoutineTypeForms";
 import { routineInitialValues } from "../RoutineUpsert/RoutineUpsert";
 import { RoutineViewProps } from "../types";
+
+/**
+ * If no existing routine found, consider it an error if we are not creating a new routine
+ */
+function handleInvalidUrlParams(params: ParseSearchParamsResult) {
+    if (!params.build || params.build !== true) {
+        PubSub.get().publish("snack", { messageKey: "InvalidUrlId", severity: "Error" });
+    }
+}
 
 type RoutineTypeViewProps = {
     errors: FormErrors;
@@ -99,7 +103,7 @@ function RoutineTypeView({
                     helpText={routineTypeOption?.description ?? ""}
                 >
                     {/* warning label when routine is marked as incomplete */}
-                    {isComplete !== true && <IncompleteWarningLabel variant="caption" >
+                    {isComplete !== true && <IncompleteWarningLabel variant="caption">
                         This routine is marked as incomplete. It may change in the future.
                     </IncompleteWarningLabel>}
                     <br />
@@ -145,13 +149,9 @@ export function RoutineView({
 
     const { isLoading, object: existing, permissions, setObject: setRoutineVersion } = useObjectFromUrl<RoutineVersion>({
         ...endpointGetRoutineVersion,
-        onInvalidUrlParams: ({ build }) => {
-            // Throw error if we are not creating a new routine
-            if (!build || build !== true) PubSub.get().publish("snack", { messageKey: "InvalidUrlId", severity: "Error" });
-        },
+        onInvalidUrlParams: handleInvalidUrlParams,
         objectType: "RoutineVersion",
     });
-    console.log("this is the existing", existing);
 
     const availableLanguages = useMemo<string[]>(() => (existing?.translations?.map(t => getLanguageSubtag(t.language)) ?? []), [existing?.translations]);
     useEffect(() => {
@@ -174,16 +174,6 @@ export function RoutineView({
         setIsGraphOpen(true);
     }, [setLocation]);
     const closeGraph = useCallback(() => { setIsGraphOpen(false); }, []);
-
-    const handleRunDelete = useCallback((run: RunRoutine) => {
-        if (!existing) return;
-        setRoutineVersion(setDotNotationValue(existing, "you.runs", existing.you?.runs?.filter(r => r.id !== run.id)) ?? existing);
-    }, [existing, setRoutineVersion]);
-
-    const handleRunAdd = useCallback((run: RunRoutine) => {
-        if (!existing) return;
-        setRoutineVersion(setDotNotationValue(existing, "you.runs", [run, ...(existing.you?.runs ?? [])]) ?? existing);
-    }, [existing, setRoutineVersion]);
 
     const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
     const openAddCommentDialog = useCallback(() => { setIsAddCommentOpen(true); }, []);
@@ -213,22 +203,28 @@ export function RoutineView({
     }), [availableLanguages, language, setLanguage]);
 
     const configCallData = useMemo(function configCallDataMemo() {
-        return parseConfigCallData(existing.configCallData, existing.routineType);
+        return parseConfigCallData(existing.configCallData, existing.routineType, console);
     }, [existing.configCallData, existing.routineType]);
-    const schemaInput = useMemo(() => parseSchemaInputOutput(existing.configFormInput, defaultSchemaInput), [existing.configFormInput]);
-    const schemaOutput = useMemo(() => parseSchemaInputOutput(existing.configFormOutput, defaultSchemaOutput), [existing.configFormOutput]);
+    const schemaInput = useMemo(function schemaInputMemo() {
+        return parseSchemaInput(existing.configFormInput, existing.routineType, console);
+    }, [existing.configFormInput, existing.routineType]);
+    const schemaOutput = useMemo(function schemaOutputMemo() {
+        return parseSchemaOutput(existing.configFormOutput, existing.routineType, console);
+    }, [existing.configFormOutput, existing.routineType]);
 
     const routineTypeBaseProps = useMemo(function routineTypeBasePropsMemo() {
         return {
             configCallData,
-            disabled: false,
-            isEditing: false,
+            disabled: true,
+            display: "view",
+            handleGenerateOutputs: noop,
+            isGeneratingOutputs: false,
             onConfigCallDataChange: noop,
             onSchemaInputChange: noop,
             onSchemaOutputChange: noop,
             schemaInput,
             schemaOutput,
-        };
+        } as const;
     }, [configCallData, schemaInput, schemaOutput]);
 
     // Type-specific components
@@ -264,36 +260,45 @@ export function RoutineView({
         }
     }, [closeGraph, existing.id, existing.nodeLinks, existing.nodes, existing.routineType, existing.translations, isGraphOpen, openGraph, routineTypeBaseProps, translationData]);
 
-    //TODO when run is in url, we may be viewing run that is in progress/completed. If so, 
-    // should load run data and override default form values with run data
     const inputInitialValues = useMemo(function inputInitialValuesMemo() {
-        return generateInitialValues(schemaInput.elements);
+        return generateInitialValues(schemaInput.elements, "input");
     }, [schemaInput]);
     const inputValidationSchema = useMemo(function inputValidationSchemaMemo() {
         return schemaInput ? generateYupSchema(schemaInput) : undefined;
     }, [schemaInput]);
 
-    const [runComplete] = useLazyFetch<RunRoutineCompleteInput, RunRoutine>(endpointPutRunRoutineComplete);
+    const [runCreate] = useLazyFetch<RunRoutineCreateInput, RunRoutine>(endpointPostRunRoutine);
     const markAsComplete = useCallback((values: unknown) => {
         if (!existing.id) return;
-        fetchLazyWrapper<RunRoutineCompleteInput, RunRoutine>({
-            fetch: runComplete,
+        const runRoutineId = uuid();
+        const { inputsCreate } = runInputsUpdate({
+            existingIO: [],
+            formData: values as object,
+            logger: console,
+            routineIO: existing.inputs ?? [],
+            runRoutineId,
+        });
+        fetchLazyWrapper<RunRoutineCreateInput, RunRoutine>({
+            fetch: runCreate,
             inputs: {
-                id: existing.id,
-                exists: false,
-                name: name ?? "Unnamed Routine",
-                ...runInputsCreate(formikToRunInputs(values as Record<string, string>), existing.id),
+                id: runRoutineId,
+                isPrivate: true,
+                completedComplexity: existing.complexity ?? 1,
+                name: getDisplay(existing, [language]).title ?? "Untitled",
+                status: RunStatus.Completed,
+                inputsCreate,
+                routineVersionConnect: existing.id,
             },
             successMessage: (data) => ({
                 messageKey: "RoutineCompleted",
                 buttonKey: "View",
                 buttonClicked: () => { openObject(data, setLocation); },
             }),
-            onSuccess: (data) => {
+            onSuccess: () => {
                 PubSub.get().publish("celebration");
             },
         });
-    }, [existing, runComplete, setLocation, name]);
+    }, [existing, language, runCreate, setLocation]);
 
     const resourceListParent = useMemo(function resourceListParent() {
         return { __typename: "RoutineVersion", id: existing?.id ?? "" } as const;
@@ -317,12 +322,10 @@ export function RoutineView({
                 onSubmit={noopSubmit}
             >
                 {() => <Stack direction="column" spacing={4} sx={basicInfoStackStyle}>
-                    {/* Relationships */}
                     <RelationshipList
                         isEditing={false}
                         objectType={"Routine"}
                     />
-                    {/* Resources */}
                     {exists(resourceList) && Array.isArray(resourceList.resources) && resourceList.resources.length > 0 && <ResourceList
                         horizontal
                         list={resourceList as unknown as ResourceListType}
@@ -331,16 +334,13 @@ export function RoutineView({
                         loading={isLoading}
                         parent={resourceListParent}
                     />}
-                    {/* Box with description and instructions */}
                     {(!!description || !!instructions) && <FormSection>
-                        {/* Description */}
                         <TextCollapse
                             title="Description"
                             text={description}
                             loading={isLoading}
                             loadingLines={2}
                         />
-                        {/* Instructions */}
                         <TextCollapse
                             title="Instructions"
                             text={instructions}
@@ -424,13 +424,10 @@ export function RoutineView({
                     </SideActionsButton>
                 ) : null}
                 {/* Play button fixed to bottom of screen, to start routine (if multi-step) */}
-                {existing?.nodes?.length ? <RunButton
-                    canUpdate={permissions.canUpdate}
-                    handleRunAdd={handleRunAdd as any}
-                    handleRunDelete={handleRunDelete as any}
-                    isBuildGraphOpen={isGraphOpen}
+                {Boolean(existing) && existing?.routineType !== RoutineType.Informational ? <RunButton
                     isEditing={false}
-                    runnableObject={existing}
+                    objectType="RoutineVersion"
+                    runnableObject={existing as RunnableRoutineVersion}
                 /> : null}
             </SideActionsButtons>
         </>

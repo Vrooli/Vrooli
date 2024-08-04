@@ -14,8 +14,8 @@ export type RunProjectPayload = RunRequestPayloadBase & {
 
 export type RunRoutinePayload = RunRequestPayloadBase & {
     __process: "Routine";
-    /** Inputs to use on current step, if not already in run object */
-    inputs?: Record<string, unknown>;
+    /** Inputs and outputs to use on current step, if not already in run object */
+    formValues?: Record<string, unknown>;
     routineVersionId: string;
     /** The user who's running the command (not the bot) */
     userData: SessionUserToken;

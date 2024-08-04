@@ -4,7 +4,7 @@ import { Node, NodeLink, NodeType, Project, ProjectVersion, ProjectVersionDirect
 import { InputType } from "../consts";
 import { FormSchema, FormStructureType } from "../forms";
 import { uuid, uuidValidate } from "../id/uuid";
-import { DecisionStep, DirectoryStep, EndStep, ExistingInput, ExistingOutput, MultiRoutineStep, RootStep, RoutineListStep, RunIOUpdateParams, RunStep, RunStepType, RunnableProjectVersion, RunnableRoutineVersion, SingleRoutineStep, StartStep, addSubroutinesToStep, directoryToStep, findStep, generateRoutineInitialValues, getIOKey, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, insertStep, locationArraysMatch, multiRoutineToStep, parseChildOrder, parseRunIO, parseRunInputs, parseRunOutputs, projectToStep, routineVersionHasSubroutines, runInputsUpdate, runOutputsUpdate, runnableObjectToStep, siblingsAtLocation, singleRoutineToStep, sortStepsAndAddDecisions, stepFromLocation, stepNeedsQuerying } from "./runUtils";
+import { DecisionStep, DirectoryStep, EndStep, ExistingInput, ExistingOutput, MultiRoutineStep, RootStep, RoutineListStep, RunIOUpdateParams, RunStep, RunStepType, RunnableProjectVersion, RunnableRoutineVersion, SingleRoutineStep, StartStep, addSubroutinesToStep, defaultConfigFormInputMap, defaultConfigFormOutputMap, directoryToStep, findStep, generateRoutineInitialValues, getIOKey, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, insertStep, locationArraysMatch, multiRoutineToStep, parseChildOrder, parseRunIO, parseRunInputs, parseRunOutputs, parseSchemaInput, parseSchemaOutput, projectToStep, routineVersionHasSubroutines, runInputsUpdate, runOutputsUpdate, runnableObjectToStep, siblingsAtLocation, singleRoutineToStep, sortStepsAndAddDecisions, stepFromLocation, stepNeedsQuerying } from "./runUtils";
 
 describe("getRunPercentComplete", () => {
     it("should return 0 when completedComplexity is null", () => {
@@ -140,12 +140,12 @@ describe("getIOKey", () => {
 
     it("should use id if name is not provided for input", () => {
         const result = getIOKey({ id: "test-id" }, "input");
-        expect(result).toBe("input-test_id");
+        expect(result).toBe("input-test-id");
     });
 
     it("should use id if name is not provided for output", () => {
         const result = getIOKey({ id: "test-id" }, "output");
-        expect(result).toBe("output-test_id");
+        expect(result).toBe("output-test-id");
     });
 
     it("should sanitize special characters in name", () => {
@@ -180,7 +180,7 @@ describe("getIOKey", () => {
 
     it("should prefer name over id when both are provided", () => {
         const result = getIOKey({ name: "test-name", id: "test-id" }, "input");
-        expect(result).toBe("input-test_name");
+        expect(result).toBe("input-test-name");
     });
 
     it("should handle numeric name", () => {
@@ -3732,6 +3732,90 @@ describe("addSubroutinesToStep", () => {
             }, {
                 ...rootStep.nodes[2],
             }],
+        });
+    });
+});
+
+describe("Schema Parsing Functions", () => {
+    describe("parseSchemaInput", () => {
+        test("parses valid JSON string correctly", () => {
+            const input = JSON.stringify({ containers: [{ id: 1 }], elements: [{ id: 1 }] });
+            const expected = { containers: [{ id: 1 }], elements: [{ id: 1 }] };
+            expect(parseSchemaInput(input, RoutineType.Informational, console)).toEqual(expected);
+        });
+
+        test("falls back to default input schema on invalid JSON string", () => {
+            const input = "{ containers: [}";
+            expect(parseSchemaInput(input, RoutineType.Api, console)).toEqual(defaultConfigFormInputMap[RoutineType.Api]());
+        });
+
+        test("handles non-string, non-object inputs by returning default input schema", () => {
+            const input = 12345;
+            expect(parseSchemaInput(input, RoutineType.Generate, console)).toEqual(defaultConfigFormInputMap[RoutineType.Generate]());
+        });
+
+        test("handles valid object input without parsing", () => {
+            const input = { containers: [{ id: 2 }], elements: [{ id: 2 }] };
+            expect(parseSchemaInput(input, RoutineType.SmartContract, console)).toEqual(input);
+        });
+
+        test("adds missing containers and elements as empty arrays", () => {
+            const input = "{}";
+            const expected = { containers: [], elements: [] };
+            expect(parseSchemaInput(input, RoutineType.Code, console)).toEqual(expected);
+        });
+
+        test("replaces non-array containers and elements with empty arrays", () => {
+            const input = JSON.stringify({ containers: "not-an-array", elements: "not-an-array" });
+            const expected = { containers: [], elements: [] };
+            expect(parseSchemaInput(input, RoutineType.Data, console)).toEqual(expected);
+        });
+
+        test("handles malformed object inputs", () => {
+            const input = { someRandomKey: 123 };
+            const expected = { containers: [], elements: [], someRandomKey: 123 };
+            expect(parseSchemaInput(input, RoutineType.Informational, console)).toEqual(expected);
+        });
+    });
+
+    describe("parseSchemaOutput", () => {
+        test("parses valid JSON string correctly", () => {
+            const input = JSON.stringify({ containers: [{ id: 1 }], elements: [{ id: 1 }] });
+            const expected = { containers: [{ id: 1 }], elements: [{ id: 1 }] };
+            expect(parseSchemaOutput(input, RoutineType.Generate, console)).toEqual(expected);
+        });
+
+        test("falls back to default output schema on invalid JSON string", () => {
+            const input = "{ containers: [}";
+            expect(parseSchemaOutput(input, RoutineType.Generate, console)).toEqual(defaultConfigFormOutputMap[RoutineType.Generate]());
+        });
+
+        test("handles non-string, non-object inputs by returning default output schema", () => {
+            const input = 12345;
+            expect(parseSchemaOutput(input, RoutineType.Action, console)).toEqual(defaultConfigFormOutputMap[RoutineType.Action]());
+        });
+
+        test("handles valid object input without parsing", () => {
+            const input = { containers: [{ id: 2 }], elements: [{ id: 2 }] };
+            expect(parseSchemaOutput(input, RoutineType.Data, console)).toEqual(input);
+        });
+
+        test("adds missing containers and elements as empty arrays", () => {
+            const input = "{}";
+            const expected = { containers: [], elements: [] };
+            expect(parseSchemaOutput(input, RoutineType.Informational, console)).toEqual(expected);
+        });
+
+        test("replaces non-array containers and elements with empty arrays", () => {
+            const input = JSON.stringify({ containers: "not-an-array", elements: "not-an-array" });
+            const expected = { containers: [], elements: [] };
+            expect(parseSchemaOutput(input, RoutineType.Code, console)).toEqual(expected);
+        });
+
+        test("handles malformed object inputs", () => {
+            const input = { someRandomKey: 123 };
+            const expected = { containers: [], elements: [], someRandomKey: 123 };
+            expect(parseSchemaOutput(input, RoutineType.SmartContract, console)).toEqual(expected);
         });
     });
 });

@@ -2514,16 +2514,16 @@ describe("detectWrappedTasks", () => {
 /**
  * Helper function to simplify testing of `extractTasks`
  */
-const extractTasksTester = ({
+function extractTasksTester({
     input,
     expected,
 }: {
     input: string,
     expected: (Omit<MaybeLlmTaskInfo, "task" | "start" | "end"> & { match: string })[],
-}) => {
+}) {
     const commands = extractTasks(input, commandToTask);
     const expectedCommands = expected.map(({ command, action, properties, match }) => ({
-        id: expect.any(String),
+        taskId: expect.any(String),
         task: commandToTask(command, action),
         command,
         action,
@@ -2538,7 +2538,7 @@ const extractTasksTester = ({
         // @ts-ignore: expect-message
         expect(receivedPropertyLength, `Should have same number of properties. input: ${input}. index: ${i}`).toBe(expectedPropertyLength);
     }
-};
+}
 
 describe("extractTasks", () => {
     describe("ignores non-command slashes", () => {
@@ -3911,7 +3911,7 @@ describe("getValidTasksForMessage", () => {
                 properties: {}, //Search string is a property in taskMode "BotFind", not "Start"
                 start: 0,
                 end: message.length,
-                id: expect.any(String),
+                taskId: expect.any(String),
             }],
             tasksToSuggest: [],
         });

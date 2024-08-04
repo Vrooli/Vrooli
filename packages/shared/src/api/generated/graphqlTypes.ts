@@ -8969,7 +8969,7 @@ export type StartLlmTaskInput = {
 };
 
 export type StartRunTaskInput = {
-  inputs?: InputMaybe<Scalars['JSONObject']>;
+  formValues?: InputMaybe<Scalars['JSONObject']>;
   projectVerisonId?: InputMaybe<Scalars['ID']>;
   routineVersionId?: InputMaybe<Scalars['ID']>;
   runId: Scalars['ID'];

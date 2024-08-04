@@ -1,5 +1,5 @@
-import { DUMMY_ID, exists, isEqual, Node, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, RoutineVersion, uuid, uuidValidate } from "@local/shared";
-import { Box, IconButton, styled, TextField, Typography, useTheme } from "@mui/material";
+import { DUMMY_ID, Node, NodeLink, NodeLinkShape, NodeRoutineList, NodeRoutineListItem, NodeRoutineListItemShape, NodeRoutineListShape, NodeShape, NodeType, RoutineVersion, Status, deleteArrayIndex, exists, getTranslation, isEqual, routineVersionStatusMultiStep, updateArray, uuid, uuidValidate } from "@local/shared";
+import { Box, IconButton, TextField, Typography, styled, useTheme } from "@mui/material";
 import { BuildEditButtons } from "components/buttons/BuildEditButtons/BuildEditButtons";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { StatusButton } from "components/buttons/StatusButton/StatusButton";
@@ -23,17 +23,11 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { keepSearchParams, useLocation } from "route";
 import { multiLineEllipsis } from "styles";
-import { BuildAction, Status } from "utils/consts";
+import { BuildAction } from "utils/consts";
 import { setCookieAllowFormCache } from "utils/cookies";
-import { getTranslation, getUserLanguages, updateTranslationFields } from "utils/display/translationTools";
+import { getUserLanguages, updateTranslationFields } from "utils/display/translationTools";
 import { tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
-import { getRoutineVersionStatus } from "utils/runUtils";
-import { deleteArrayIndex, updateArray } from "utils/shape/general";
-import { NodeShape } from "utils/shape/models/node";
-import { NodeLinkShape } from "utils/shape/models/nodeLink";
-import { NodeRoutineListShape } from "utils/shape/models/nodeRoutineList";
-import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
 import { NodeWithRoutineListShape } from "views/objects/node/types";
 import { BuildRoutineVersion, BuildViewProps } from "../types";
 
@@ -201,7 +195,7 @@ export function BuildView({
      */
     const { columns, nodesOffGraph, nodesById } = useMemo(() => {
         if (!changedRoutineVersion) return { columns: [], nodesOffGraph: [], nodesById: {} };
-        const { messages, nodesById, nodesOnGraph, nodesOffGraph, status } = getRoutineVersionStatus(changedRoutineVersion);
+        const { messages, nodesById, nodesOnGraph, nodesOffGraph, status } = routineVersionStatusMultiStep(changedRoutineVersion);
         // Check for critical errors
         if (messages.includes("No node or link data found")) {
             return { columns: [], nodesOffGraph: [], nodesById: {} };

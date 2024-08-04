@@ -1,6 +1,7 @@
-import { AutoFillInput, AutoFillResult, BotCreateInput, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetAutoFill, endpointGetUser, endpointPostBot, endpointPutBot, LINKS, LlmTask, noopSubmit, Session, User } from "@local/shared";
-import { Divider, IconButton, InputAdornment, Slider, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { AutoFillInput, AutoFillResult, AVAILABLE_MODELS, BotCreateInput, BotShape, BotTranslationShape, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetAutoFill, endpointGetUser, endpointPostBot, endpointPutBot, findBotData, LINKS, LlmModel, LlmTask, noopSubmit, SearchPageTabOption, Session, shapeBot, User, validateAndGetYupErrors } from "@local/shared";
+import { Divider, InputAdornment, Slider, Stack, Typography } from "@mui/material";
 import { fetchLazyWrapper, useSubmitHelper } from "api";
+import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
@@ -22,17 +23,12 @@ import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { BotIcon, CommentIcon, HandleIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, MagicIcon, PersonaIcon, RoutineValidIcon, TeamIcon } from "icons";
+import { BotIcon, CommentIcon, HandleIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, PersonaIcon, RoutineValidIcon, TeamIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
-import { getCurrentUser } from "utils/authentication/session";
-import { AVAILABLE_MODELS, findBotData, LlmModel } from "utils/botUtils";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
-import { SearchPageTabOption } from "utils/search/objectToSearch";
-import { validateAndGetYupErrors } from "utils/shape/general";
-import { BotShape, BotTranslationShape, shapeBot } from "utils/shape/models/bot";
 import { BotFormProps, BotUpsertProps } from "../types";
 
 function botInitialValues(
@@ -153,6 +149,70 @@ type InputMode = "default" | "custom";
 //     )
 // };
 
+const nameInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <BotIcon />
+        </InputAdornment>
+    ),
+} as const;
+const handleInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <HandleIcon />
+        </InputAdornment>
+    ),
+} as const;
+const startingMessageInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <CommentIcon />
+        </InputAdornment>
+    ),
+} as const;
+const occupationInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <TeamIcon />
+        </InputAdornment>
+    ),
+} as const;
+const personaInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <PersonaIcon />
+        </InputAdornment>
+    ),
+} as const;
+const toneInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <RoutineValidIcon />
+        </InputAdornment>
+    ),
+} as const;
+const keyPhrasesInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <KeyPhrasesIcon />
+        </InputAdornment>
+    ),
+} as const;
+const domainKnowledgeInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <LearnIcon />
+        </InputAdornment>
+    ),
+} as const;
+const biasInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <HeartFilledIcon />
+        </InputAdornment>
+    ),
+} as const;
+
 function BotForm({
     disabled,
     dirty,
@@ -170,8 +230,6 @@ function BotForm({
     ...props
 }: BotFormProps) {
     const session = useContext(SessionContext);
-    const { credits } = useMemo(() => getCurrentUser(session), [session]);
-    const { palette } = useTheme();
     const { t } = useTranslation();
 
     // const [inputMode, setInputMode] = useState<InputMode>("default");
@@ -315,13 +373,7 @@ function BotForm({
                                 label={t("Name")}
                                 placeholder={t("NamePlaceholder")}
                                 as={TextInput}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <BotIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={nameInputProps}
                                 error={props.touched.name && Boolean(props.errors.name)}
                                 helperText={props.touched.name && props.errors.name}
                             />
@@ -337,13 +389,7 @@ function BotForm({
                                 label={t("Handle")}
                                 placeholder={t("HandlePlaceholder")}
                                 as={TextInput}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <HandleIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={handleInputProps}
                                 error={props.touched.handle && Boolean(props.errors.handle)}
                                 helperText={props.touched.handle && props.errors.handle}
                             />
@@ -362,21 +408,15 @@ function BotForm({
                                 placeholder={t("StartMessagePlaceholder")}
                                 language={language}
                                 name="startingMessage"
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <CommentIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={startingMessageInputProps}
                             />
                             <LanguageInput
                                 currentLanguage={language}
+                                flexDirection="row-reverse"
                                 handleAdd={handleAddLanguage}
                                 handleDelete={handleDeleteLanguage}
                                 handleCurrent={setLanguage}
                                 languages={languages}
-                                sx={{ flexDirection: "row-reverse" }}
                             />
                         </FormSection>
                     </ContentCollapse>
@@ -397,13 +437,7 @@ function BotForm({
                                 placeholder={t("OccupationPlaceholderBot")}
                                 language={language}
                                 name="occupation"
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <TeamIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={occupationInputProps}
                             />
                             <TranslatedTextInput
                                 fullWidth
@@ -412,13 +446,7 @@ function BotForm({
                                 placeholder={t("PersonaPlaceholderBot")}
                                 language={language}
                                 name="persona"
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <PersonaIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={personaInputProps}
                             />
                             <TranslatedTextInput
                                 fullWidth
@@ -427,13 +455,7 @@ function BotForm({
                                 placeholder={t("TonePlaceholderBot")}
                                 language={language}
                                 name="tone"
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <RoutineValidIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={toneInputProps}
                             />
                             <TranslatedTextInput
                                 fullWidth
@@ -442,13 +464,7 @@ function BotForm({
                                 placeholder={t("KeyPhrasesPlaceholderBot")}
                                 language={language}
                                 name="keyPhrases"
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <KeyPhrasesIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={keyPhrasesInputProps}
                             />
                             <TranslatedTextInput
                                 fullWidth
@@ -457,13 +473,7 @@ function BotForm({
                                 placeholder={t("DomainKnowledgePlaceholderBot")}
                                 language={language}
                                 name="domainKnowledge"
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <LearnIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={domainKnowledgeInputProps}
                             />
                             <TranslatedTextInput
                                 fullWidth
@@ -472,13 +482,7 @@ function BotForm({
                                 placeholder={t("BiasPlaceholderBot")}
                                 language={language}
                                 name="bias"
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <HeartFilledIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={biasInputProps}
                             />
                             <FeatureSlider
                                 id="creativity-slider"
@@ -525,18 +529,10 @@ function BotForm({
                 onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
-                sideActionButtons={credits && BigInt(credits) > 0 ? (
-                    <Tooltip title={t("AutoFill")} placement="top">
-                        <IconButton
-                            aria-label={t("AutoFill")}
-                            disabled={isLoadingAutoFill}
-                            onClick={autoFill}
-                            sx={{ background: palette.secondary.main }}
-                        >
-                            <MagicIcon fill={palette.secondary.contrastText} width="36px" height="36px" />
-                        </IconButton>
-                    </Tooltip>
-                ) : null}
+                sideActionButtons={<AutoFillButton
+                    handleAutoFill={autoFill}
+                    isLoadingAutoFill={isLoadingAutoFill}
+                />}
             />
         </MaybeLargeDialog >
     );

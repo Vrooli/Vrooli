@@ -150,19 +150,21 @@ export const SlideImage = styled("img")(({ theme }) => ({
     ...slideImage(theme),
 }));
 
-export const slideContent = (theme: Theme) => ({
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    marginLeft: "auto",
-    marginRight: "auto",
-    maxWidth: "700px",
-    minHeight: "100vh",
-    padding: theme.spacing(2),
-    textAlign: "center",
-    zIndex: 5,
-    gap: theme.spacing(4),
-} as const);
+export function slideContent(theme: Theme) {
+    return {
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        marginLeft: "auto",
+        marginRight: "auto",
+        maxWidth: "700px",
+        minHeight: "100vh",
+        padding: theme.spacing(2),
+        textAlign: "center",
+        zIndex: 5,
+        gap: theme.spacing(4),
+    } as const;
+}
 export const SlideContent = styled(Stack)(({ theme }) => ({
     ...slideContent(theme),
 }));
@@ -181,14 +183,16 @@ export const SlidePage = styled(Box)(() => ({
     ...slidePage,
 }));
 
-export const slideBox = (theme: Theme) => ({
-    ...slideContent(theme),
-    background: "#2c2d2fd1",
-    borderRadius: theme.spacing(4),
-    minHeight: "unset",
-    zIndex: 2,
-    gap: theme.spacing(6),
-} as const);
+export function slideBox(theme: Theme) {
+    return {
+        ...slideContent(theme),
+        background: "#2c2d2fd1",
+        borderRadius: theme.spacing(4),
+        minHeight: "unset",
+        zIndex: 2,
+        gap: theme.spacing(6),
+    } as const;
+}
 export const SlideBox = styled(Stack)(({ theme }) => ({
     ...slideBox(theme),
 }));
@@ -328,16 +332,18 @@ export const ObjectListProfileAvatar = styled(ProfileAvatar, {
     pointerEvents: "none",
 }));
 
-export const highlightStyle = (background: string, disabled: boolean | undefined) => ({
-    background,
-    pointerEvents: disabled ? "none" : "auto",
-    filter: disabled ? "grayscale(1) opacity(0.5)" : "none",
-    transition: "filter 0.2s ease-in-out",
-    "&:hover": {
+export function highlightStyle(background: string, disabled: boolean | undefined) {
+    return {
         background,
-        filter: disabled ? "grayscale(1) opacity(0.5)" : "brightness(1.2)",
-    },
-} as const);
+        pointerEvents: disabled ? "none" : "auto",
+        filter: disabled ? "grayscale(1) opacity(0.5)" : "none",
+        transition: "filter 0.2s ease-in-out",
+        "&:hover": {
+            background,
+            filter: disabled ? "grayscale(1) opacity(0.5)" : "brightness(1.2)",
+        },
+    } as const;
+}
 
 export const CardBox = styled(Box)(({ theme }) => ({
     ...noSelect,
@@ -363,4 +369,8 @@ export const SideActionsButton = styled(IconButton)(({ theme }) => ({
     width: "54px",
     height: "54px",
     padding: 0,
+    "& > *": {
+        width: "36px",
+        height: "36px",
+    },
 }));

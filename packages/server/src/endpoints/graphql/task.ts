@@ -112,7 +112,7 @@ export const typeDef = gql`
     }
 
     input StartRunTaskInput {
-        inputs: JSON
+        formValues: JSON
         projectVerisonId: ID
         routineVersionId: ID
         runId: ID!
