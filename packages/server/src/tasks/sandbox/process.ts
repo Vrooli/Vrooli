@@ -3,9 +3,9 @@ import { Job } from "bull";
 import { readOneHelper } from "../../actions/reads";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
-import { ChildProcessManager } from "./childProcessManager";
 import { SandboxRequestPayload } from "./queue";
 import { SandboxProcessPayload } from "./types";
+import { WorkerThreadManager } from "./workerThreadManager";
 
 const codeVersionSelect = {
     id: true,
@@ -19,7 +19,7 @@ export async function doSandbox({
 }: SandboxProcessPayload) {
     try {
         // Create a new child process manager to run the user code
-        const manager = new ChildProcessManager();
+        const manager = new WorkerThreadManager();
         // Read the user code from the database, in a way that throws an error if the code is not found or the user desn't have permission
         const req = { session: { languages: userData.languages, users: [userData] } };
         const codeObject = await readOneHelper<CodeVersion>({
