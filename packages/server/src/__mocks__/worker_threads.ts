@@ -1,38 +1,40 @@
-// import { Worker as RealWorker } from "worker_threads";
-import { Worker as RealWorker } from "../../../../node_modules/jest-worker/build/index";
+const actualWorker = jest.requireActual("worker_threads");
+
+type Worker = {
+    on: jest.Mock;
+    postMessage: jest.Mock;
+    terminate: jest.Mock;
+}
 
 function createWorkerMockInstance(filename, options) {
-    const realWorker = new RealWorker(filename, options);
+    const realWorker = new actualWorker.Worker(filename, options);
 
     // Wrap real methods with Jest functions for spying and custom logic
-    const mockOn = jest.fn(realWorker.on.bind(realWorker));
-    const mockPostMessage = jest.fn(realWorker.postMessage.bind(realWorker));
+    const mockOn = jest.fn((...args) => realWorker.on(...args));
+    const mockPostMessage = jest.fn((...args) => realWorker.postMessage(...args));
     const mockTerminate = jest.fn(() => realWorker.terminate());
+    const mockRemoveListener = jest.fn((...args) => realWorker.removeListener(...args));
 
-    // Create a mock instance object
     const mockInstance = {
-        realWorker,
-        filename,
-        workerData: options?.workerData,
+        ...realWorker,
         on: mockOn,
         postMessage: mockPostMessage,
         terminate: mockTerminate,
+        removeListener: mockRemoveListener,
     };
-
-    console.log("Mock worker created:", filename, options?.workerData);
 
     return mockInstance;
 }
 
 class WorkerMock {
-    static instances = [];
+    static instances: Worker[] = [];
     static instantiationCount = 0;
 
     constructor(filename, options) {
         const instance = createWorkerMockInstance(filename, options);
         WorkerMock.instances.push(instance);
         WorkerMock.instantiationCount++;
-        return instance.realWorker; // Return the actual Worker object wrapped with mocks
+        return instance;
     }
 
     static resetMock = () => {

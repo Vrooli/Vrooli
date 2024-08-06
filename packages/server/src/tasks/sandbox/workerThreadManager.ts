@@ -35,13 +35,11 @@ export class WorkerThreadManager {
         if (process.env.NODE_ENV === "test") {
             fileName = fileName.replace("/src/", "/dist/");
         }
-        console.log("creating worker", Worker);
         this.worker = new Worker(fileName, {
             workerData: {
                 memoryLimit: this.memoryLimit,
             },
         });
-        console.log("created worker", this.worker);
         this.worker.on("message", (message) => {
             console.log("Worker message:", message);
         });
@@ -53,7 +51,6 @@ export class WorkerThreadManager {
             this.worker = null;
         });
         this._resetIdleTimer();
-        console.log("Worker started");
     }
 
     /**
@@ -88,6 +85,7 @@ export class WorkerThreadManager {
     public async runUserCode({
         code,
         input,
+        shouldSpreadInput = false,
     }: RunUserCodeInput): Promise<RunUserCodeOutput> {
         console.log("in runUserCode a", this.worker);
         // Start process if it is not running
@@ -138,7 +136,7 @@ export class WorkerThreadManager {
 
             try {
                 console.log("Sending message to worker thread");
-                this.worker.postMessage({ code, input });
+                this.worker.postMessage({ code, input, shouldSpreadInput });
                 console.log("Message sent to worker thread successfully");
             } catch (error) {
                 console.log(`Caught error while sending message: ${error}`);

@@ -11,21 +11,27 @@ export type SandboxProcessPayload = {
      * Examples:
      * - { plainText: "Hello, world!" }
      * - { numbers: [1, 2, 3, 4, 5], operation: "sum" }
+     * - [1, 2, 3, 4, 5]
+     * - "Hello, world!"
      */
-    input: object;
+    input?: unknown;
+    /**
+     * True if the input is an array and should be passed as separate arguments to the user code (i.e. spread). 
+     * Defaults to false.
+     */
+    shouldSpreadInput?: boolean;
     /** The status of the job process */
     status: TaskStatus | `${TaskStatus}`;
     /** The user who's running the command (not the bot) */
     userData: SessionUserToken;
 }
 
-export interface RunUserCodeInput {
+export type RunUserCodeInput = Pick<SandboxProcessPayload, "input" | "shouldSpreadInput"> & {
     /**
      * The user code to be executed. Will be run in a secure sandboxed environment, 
      * with no access to the file system or network.
      */
     code: string;
-    input: SandboxProcessPayload["input"];
 }
 
 export interface RunUserCodeOutput {
