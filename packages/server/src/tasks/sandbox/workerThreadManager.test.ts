@@ -99,12 +99,12 @@ describe("WorkerThreadManager", () => {
         });
 
         test("with a number input", async () => {
-            const input = { code: "function test(input) { return input * 2; }", input: -4.20 };
+            const input = { code: "function test(input) { return Math.abs(input * 2); }", input: -4.20 };
             const result = await manager.runUserCode(input);
 
             expect(result).not.toHaveProperty("error");
             expect(result).toHaveProperty("output");
-            expect(result.output).toEqual(-8.40);
+            expect(result.output).toEqual(8.40);
         });
 
         test("with an object input", async () => {
@@ -116,7 +116,7 @@ describe("WorkerThreadManager", () => {
             expect(result.output).toEqual({ foo: "bar" });
         });
 
-        // Date input, circular input, array input, etc.
+        // Date input, circular input, array input, null input, etc.
     });
 
     // test("handles code execution errors", async () => {

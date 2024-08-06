@@ -4,7 +4,7 @@ import ivm from "isolated-vm";
 import { parentPort } from "worker_threads";
 import { DEFAULT_MEMORY_LIMIT_MB, SCRIPT_TIMEOUT_MS } from "./consts.js"; // NOTE: The extension must be specified or else it will throw an error
 import { type RunUserCodeInput, type RunUserCodeOutput } from "./types.js"; // NOTE: The extension must be specified or else it will throw an error
-import { getFunctionName } from "./utils.js"; // NOTE: The extension must be specified or else it will throw an error
+import { getFunctionName, safeParse, safeStringify } from "./utils.js"; // NOTE: The extension must be specified or else it will throw an error
 
 /** Maximum length of code that can be executed */
 const MAX_CODE_LENGTH = 8_192;
@@ -66,29 +66,46 @@ parentPort.on("message", async ({ code, input }: RunUserCodeInput) => {
         const inputId = generateUniqueId();
         const executeId = generateUniqueId();
 
-        // Create a new instance of the input in the isolated context
-        const isolatedInput = new ivm.ExternalCopy(input).copyInto();
-        // Inject the input into the context
-        context.global.setSync(inputId, isolatedInput);
+        // Safely stringify the input and store it in the context
+        const safeInput = safeStringify(input);
+        await jail.set(inputId, safeInput);
 
         // Wrap code in a way that we can pass in inputs and execute it
         const wrappedCode = `
             ${code}
             function ${executeId}() {
-                return ${functionName}(global['${inputId}']);
+                const inputStr = global['${inputId}'];
+                let input;
+                if (inputStr === '__UNDEFINED__') {
+                    input = undefined;
+                } else {
+                    input = JSON.parse(inputStr, (key, value) => {
+                        if (typeof value === 'string' && value.startsWith('__DATE__')) {
+                            return new Date(value.slice(8));
+                        }
+                        return value;
+                    });
+                }
+                const result = ${functionName}(input);
+                if (result === undefined) return '__UNDEFINED__';
+                return JSON.stringify(result, (key, value) => {
+                    if (value instanceof Date) {
+                        return \`__DATE__\${value.toISOString()}\`;
+                    }
+                    return value;
+                });
             }
         `;
-        console.log("in childprocess a", wrappedCode, input);
 
         // Compile and run the code
         const script = isolate.compileScriptSync(wrappedCode);
         script.runSync(context);
-        const output = await context.eval(`${executeId}()`, {
+        const result = await context.eval(`${executeId}()`, {
             timeout: SCRIPT_TIMEOUT_MS,
             arguments: { copy: true },
             result: { copy: true },
         });
-        console.log("in childprocess b", output);
+        const output = safeParse(result);
 
         // Clean up resources
         isolate.dispose();
