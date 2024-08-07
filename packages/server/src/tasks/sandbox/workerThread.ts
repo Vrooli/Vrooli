@@ -1,10 +1,11 @@
 // This file should only be imported by the worker thread manager
 import { randomBytes } from "crypto";
 import ivm from "isolated-vm";
+import SuperJSON from "superjson";
 import { parentPort } from "worker_threads";
 import { DEFAULT_MEMORY_LIMIT_MB, SCRIPT_TIMEOUT_MS } from "./consts.js"; // NOTE: The extension must be specified or else it will throw an error
-import { type RunUserCodeInput, type RunUserCodeOutput } from "./types.js"; // NOTE: The extension must be specified or else it will throw an error
-import { getFunctionName, safeParse, safeStringify } from "./utils.js"; // NOTE: The extension must be specified or else it will throw an error
+import { WorkerThreadInput, WorkerThreadOutput } from "./types.js"; // NOTE: The extension must be specified or else it will throw an error
+import { getFunctionName } from "./utils.js"; // NOTE: The extension must be specified or else it will throw an error
 
 /** Maximum length of code that can be executed */
 const MAX_CODE_LENGTH = 8_192;
@@ -22,7 +23,7 @@ function generateUniqueId() {
     return `__ivm_${randomBytes(UNIQUE_ID_LENGTH).toString("hex")}`;
 }
 
-function postMessage(message: RunUserCodeOutput) {
+function postMessage(message: WorkerThreadOutput) {
     if (!parentPort) {
         throw new Error("Worker thread not available");
     }
@@ -30,21 +31,21 @@ function postMessage(message: RunUserCodeOutput) {
 }
 
 // Listen for messages from the parent thread
-parentPort.on("message", async ({ code, input }: RunUserCodeInput) => {
+parentPort.on("message", ({ code, input }: WorkerThreadInput) => {
     if (!parentPort) {
         throw new Error("Worker thread not available");
     }
 
     // Throw error is code is too long
     if (code.length > MAX_CODE_LENGTH) {
-        postMessage({ error: "Code is too long" });
+        postMessage({ __type: "error", error: "Code is too long" });
         return;
     }
 
     // Extract the function name from the code
     const functionName = getFunctionName(code);
     if (!functionName) {
-        postMessage({ error: "Function name not found" });
+        postMessage({ __type: "error", error: "Function name not found" });
         return;
     }
 
@@ -63,60 +64,74 @@ parentPort.on("message", async ({ code, input }: RunUserCodeInput) => {
         jail.setSync("global", jail.derefInto());
 
         // Generate unique identifiers for our placeholders
-        const inputId = generateUniqueId();
-        const executeId = generateUniqueId();
+        const uniqueId = generateUniqueId();
+        const inputId = `${uniqueId}Input`;
+        const executeId = `${uniqueId}Execute`;
+        const stringifyId = `${uniqueId}Stringify`;
+        const parseId = `${uniqueId}Parse`;
+        const superjsonId = `${uniqueId}SuperJSON`;
 
-        // Safely stringify the input and store it in the context
-        const safeInput = safeStringify(input);
-        await jail.set(inputId, safeInput);
+        // Make a safe subset of the superjson module available in the VM
+        const stringifyRef = new ivm.Reference(SuperJSON.stringify);
+        const parseRef = new ivm.Reference(SuperJSON.parse);
+
+        context.global.setSync(stringifyId, stringifyRef);
+        context.global.setSync(parseId, parseRef);
+
+        parentPort.postMessage({ __type: "log", log: `Serialized input: ${input}` });
+        parentPort.postMessage({ __type: "log", log: `Parsed input: ${SuperJSON.parse(input)}` });
+        parentPort.postMessage({ __type: "log", log: `Reserialized input: ${SuperJSON.stringify(SuperJSON.parse(input))}` });
+        const parseRefTest = parseRef.applySync(undefined, [input]);
+        parentPort.postMessage({ __type: "log", log: `Parse ref: ${JSON.stringify(parseRef)}` });
+        parentPort.postMessage({ __type: "log", log: `Ref parsed input: ${SuperJSON.stringify(parseRefTest)}` });
+        const stringifyRefTest = stringifyRef.applySync(undefined, [parseRefTest]);
+        parentPort.postMessage({ __type: "log", log: `Ref stringified input: ${stringifyRefTest}` });
+        // Store the input (which should have been safely serialized before being sent to the worker thread)
+        jail.setSync(inputId, input);
+
+        // const result2 = context.evalClosureSync(code, SuperJSON.parse(input), {
+        //     timeout: SCRIPT_TIMEOUT_MS,
+        //     arguments: { copy: true },
+        //     result: { copy: true },
+        // });
+        // parentPort.postMessage({ __type: "log", log: `Result2: ${result2}` });
 
         // Wrap code in a way that we can pass in inputs and execute it
         const wrappedCode = `
-            ${code}
-            function ${executeId}() {
-                const inputStr = global['${inputId}'];
-                let input;
-                if (inputStr === '__UNDEFINED__') {
-                    input = undefined;
-                } else {
-                    input = JSON.parse(inputStr, (key, value) => {
-                        if (typeof value === 'string' && value.startsWith('__DATE__')) {
-                            return new Date(value.slice(8));
-                        }
-                        return value;
-                    });
-                }
-                const result = ${functionName}(input);
-                if (result === undefined) return '__UNDEFINED__';
-                return JSON.stringify(result, (key, value) => {
-                    if (value instanceof Date) {
-                        return \`__DATE__\${value.toISOString()}\`;
-                    }
-                    return value;
-                });
-            }
-        `;
+        ${code}
+        function ${executeId}() {
+            const ${superjsonId} = {
+                stringify: (...args) => ${stringifyId}.applySync(undefined, args),
+                parse: (...args) => ${parseId}.applySync(undefined, args)
+            };
+            //const input = ${superjsonId}(${inputId});
+            //const result = ${functionName}(input);
+            //return ${superjsonId}.stringify(result);
+            return ${superjsonId}.stringify({ chicken: "sheep" }).toString(); //.toString();
+        }
+    `;
 
         // Compile and run the code
         const script = isolate.compileScriptSync(wrappedCode);
         script.runSync(context);
-        const result = await context.eval(`${executeId}()`, {
+        const result = context.evalSync(`${executeId}()`, {
             timeout: SCRIPT_TIMEOUT_MS,
             arguments: { copy: true },
             result: { copy: true },
         });
-        const output = safeParse(result);
+        parentPort.postMessage({ __type: "log", log: `Result: ${result}` });
+        const output = SuperJSON.parse(result);
 
         // Clean up resources
         isolate.dispose();
 
         // Send the output back to the parent thread
-        postMessage({ output });
+        postMessage({ __type: "output", output });
     } catch (error: unknown) {
         if (error instanceof Error) {
-            postMessage({ error: error.message });
+            postMessage({ __type: "error", error: error.message });
         } else {
-            postMessage({ error: "An unknown error occurred" });
+            postMessage({ __type: "error", error: "An unknown error occurred" });
         }
     }
 });
@@ -124,12 +139,12 @@ parentPort.on("message", async ({ code, input }: RunUserCodeInput) => {
 // Handle errors in the worker thread
 process.on("uncaughtException", (error) => {
     console.error("Uncaught Exception:", error);
-    postMessage({ error: `Uncaught exception: ${error.message}` });
+    postMessage({ __type: "error", error: `Uncaught exception: ${error.message}` });
     process.exit(1);
 });
 
 process.on("unhandledRejection", (reason, promise) => {
     console.error("Unhandled Rejection at:", promise, "reason:", reason);
-    postMessage({ error: `Unhandled rejection: ${reason}` });
+    postMessage({ __type: "error", error: `Unhandled rejection: ${reason}` });
     process.exit(1);
 });

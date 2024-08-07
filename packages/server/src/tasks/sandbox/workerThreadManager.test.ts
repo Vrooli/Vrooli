@@ -89,34 +89,279 @@ describe("WorkerThreadManager", () => {
             expect(result.output).toEqual("Hello");
         });
 
-        test("with a string input", async () => {
-            const input = { code: "function test(boop) { return boop; }", input: "Hi" };
+        test("without an output", async () => {
+            const input = { code: "function test() { return; }", input: {} };
             const result = await manager.runUserCode(input);
 
             expect(result).not.toHaveProperty("error");
             expect(result).toHaveProperty("output");
-            expect(result.output).toEqual("Hi");
+            expect(result.output).toBeUndefined();
         });
 
-        test("with a number input", async () => {
-            const input = { code: "function test(input) { return Math.abs(input * 2); }", input: -4.20 };
-            const result = await manager.runUserCode(input);
+        describe("primitive input types", () => {
+            test("string", async () => {
+                const input = { code: "function test(boop) { return boop; }", input: "hello, world! 🌍\"Chicken coop\" \nBeep boop" };
+                const result = await manager.runUserCode(input);
 
-            expect(result).not.toHaveProperty("error");
-            expect(result).toHaveProperty("output");
-            expect(result.output).toEqual(8.40);
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toEqual(input.input);
+            });
+            test("negative number", async () => {
+                const input = { code: "function test(input) { return Math.abs(input * 2); }", input: -4.20 };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toEqual(Math.abs(input.input * 2));
+            });
+            test("positive number", async () => {
+                const input = { code: "function test(input) { return input * 100; }", input: 4.20 };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toEqual(input.input * 100);
+            });
+            test("NaN", async () => {
+                const input = { code: "function test(input) { return input; }", input: NaN };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toBeNaN();
+            });
+            test("Infinity", async () => {
+                const input = { code: "function test(input) { return input; }", input: Infinity };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toBe(Infinity);
+            });
+            test("boolean true", async () => {
+                const input = { code: "function test(input) { return input; }", input: true };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toBe(true);
+            });
+            test("boolean false", async () => {
+                const input = { code: "function test(input) { return input; }", input: false };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toBe(false);
+            });
+            test("null", async () => {
+                const input = { code: "function test(input) { return input; }", input: null };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toBeNull();
+            });
+            test("undefined", async () => {
+                const input = { code: "function test(input) { return input; }", input: undefined };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toBeUndefined();
+            });
+            test("BigInt", async () => {
+                const input = { code: "function test(input) { return input; }", input: BigInt(9007199254740991) };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toBe(input.input);
+            });
+            test("Date", async () => {
+                const input = { code: "function test(input) { return input; }", input: new Date("2021-01-01T00:00:00Z") };
+                console.log("yeet before");
+                const result = await manager.runUserCode(input);
+                console.log("yeet after", result);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toEqual(input.input);
+            });
+            test("regexp", async () => {
+                const input = { code: "function test(input) { return input; }", input: /foo/gi };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toEqual(input.input);
+            });
+            test("Error", async () => {
+                const input = { code: "function test(input) { return input; }", input: new Error("test error") };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output.message).toBe(input.input.message);
+            });
+            test("URL", async () => {
+                const input = { code: "function test(input) { return input; }", input: new URL("https://example.com") };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output.href).toBe(input.input.href);
+            });
+            test("Buffer", async () => {
+                const input = { code: "function test(input) { return input; }", input: Buffer.from("hello, world!") };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output.toString()).toBe(input.input.toString());
+            });
+            test("Uint8Array", async () => {
+                const input = { code: "function test(input) { return input; }", input: new Uint8Array([0, 1, 2, 3, 4, 5]) };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toEqual(input.input);
+            });
+            test("Symbol", async () => {
+                const input = { code: "function test(input) { return input; }", input: Symbol("test") };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toBe(undefined); // Symbols are not serializable
+            });
+            test("function", async () => {
+                const input = { code: "function test(input) { return input; }", input: () => { } };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toBe(undefined); // Functions are not serializable
+            });
         });
 
-        test("with an object input", async () => {
-            const input = { code: "function test(obj) { return obj; }", input: { foo: "bar" } };
-            const result = await manager.runUserCode(input);
+        describe("Map and Set input types", () => {
+            test("Map with primitive values", async () => {
+                const input = { code: "function test(input) { return input; }", input: new Map<any, any>([["foo", "bar"], [42, "baz"]]) };
+                const result = await manager.runUserCode(input);
 
-            expect(result).not.toHaveProperty("error");
-            expect(result).toHaveProperty("output");
-            expect(result.output).toEqual({ foo: "bar" });
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toEqual(input.input);
+            });
+            test("Map with object values", async () => {
+                const input = { code: "function test(input) { return input; }", input: new Map<any, any>([["foo", { bar: "baz" }]]) };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toEqual(input.input);
+            });
+            test("Set with primitive values", async () => {
+                const input = { code: "function test(input) { return input; }", input: new Set<any>(["foo", 42]) };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toEqual(input.input);
+            });
+            test("Set with object values", async () => {
+                const input = { code: "function test(input) { return input; }", input: new Set<any>([{ foo: "bar" }]) };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toEqual(input.input);
+            });
         });
 
-        // Date input, circular input, array input, null input, etc.
+        describe("object and array input types", () => {
+            test("empty object", async () => {
+                const input = { code: "function test(input) { return input; }", input: {} };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toEqual(input.input);
+            });
+            test("empty array", async () => {
+                const input = { code: "function test(input) { return input; }", input: [] };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toEqual(input.input);
+            });
+            test("nested object", async () => {
+                const input = { code: "function test(input) { return input; }", input: { foo: { bar: "baz" } } };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toEqual(input.input);
+            });
+            test("nested array", async () => {
+                const input = { code: "function test(input) { return input; }", input: [1, [2, 3], 4] };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toEqual(input.input);
+            });
+            test("object with circular reference", async () => {
+                const circularObj: any = { foo: "bar" };
+                circularObj.self = circularObj;
+
+                const input = {
+                    code: "function test(input) { return input; }",
+                    input: circularObj,
+                };
+
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+
+                // Check if the circular reference is preserved
+                expect(result.output).toHaveProperty("foo", "bar");
+                expect(result.output.self).toBe(result.output);
+            });
+            test("array with circular reference", async () => {
+                const circularArray: any[] = ["foo", "bar"];
+                circularArray.push(circularArray);
+
+                const input = {
+                    code: "function test(input) { return input; }",
+                    input: circularArray,
+                };
+
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+
+                // Check if the circular reference is preserved
+                expect(result.output).toHaveLength(3);
+                expect(result.output[0]).toBe("foo");
+                expect(result.output[1]).toBe("bar");
+                expect(result.output[2]).toBe(result.output);
+            });
+            test("object with Date", async () => {
+                const input = { code: "function test(input) { return input; }", input: { date: new Date("2021-01-01T00:00:00Z") } };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output.date).toEqual(input.input.date);
+            });
+        });
     });
 
     // test("handles code execution errors", async () => {

@@ -34,17 +34,31 @@ export type RunUserCodeInput = Pick<SandboxProcessPayload, "input" | "shouldSpre
     code: string;
 }
 
+export type WorkerThreadInput = Omit<RunUserCodeInput, "input"> & {
+    input: string;
+}
+
+export type WorkerThreadMessageError = {
+    __type: "error";
+    error: string;
+}
+export type WorkerThreadMessageLog = {
+    __type: "log";
+    log: string;
+}
+export type WorkerThreadMessageOutput = {
+    __type: "output";
+    output: unknown;
+}
+export type WorkerThreadOutput = WorkerThreadMessageError | WorkerThreadMessageLog | WorkerThreadMessageOutput;
+
 export interface RunUserCodeOutput {
     /**
      * The error message if an error occurred during execution, or undefined if successful.
      */
     error?: string;
     /**
-     * The output of the user code execution, or undefined if an error occurred.
-     * 
-     * Examples:
-     * - { plainText: "Hello, world!" }
-     * - { result: 15 }
+     * The output of the user code execution, or undefined if an error occurred or no output was provided.
      */
-    output?: object;
+    output?: unknown;
 }

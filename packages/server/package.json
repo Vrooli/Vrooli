@@ -68,6 +68,7 @@
         "socket.io": "^4.6.2",
         "stopword": "^2.0.8",
         "stripe": "^11.17.0",
+        "superjson": "^2.2.1",
         "twilio": "^4.23.0",
         "typescript": "5.3.3",
         "web-push": "^3.5.0",

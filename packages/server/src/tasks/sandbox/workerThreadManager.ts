@@ -1,8 +1,9 @@
 import path from "path";
+import SuperJSON from "superjson";
 import { fileURLToPath } from "url";
 import { Worker } from "worker_threads";
 import { DEFAULT_IDLE_TIMEOUT_MS, DEFAULT_MEMORY_LIMIT_MB, MB } from "./consts";
-import { RunUserCodeInput, RunUserCodeOutput } from "./types";
+import { RunUserCodeInput, RunUserCodeOutput, WorkerThreadOutput } from "./types";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -39,9 +40,6 @@ export class WorkerThreadManager {
             workerData: {
                 memoryLimit: this.memoryLimit,
             },
-        });
-        this.worker.on("message", (message) => {
-            console.log("Worker message:", message);
         });
         this.worker.on("error", (error) => {
             console.error("Worker error:", error);
@@ -87,7 +85,6 @@ export class WorkerThreadManager {
         input,
         shouldSpreadInput = false,
     }: RunUserCodeInput): Promise<RunUserCodeOutput> {
-        console.log("in runUserCode a", this.worker);
         // Start process if it is not running
         if (!this.worker) {
             this._startWorker();
@@ -104,12 +101,6 @@ export class WorkerThreadManager {
                 return;
             }
 
-            function messageHandler(message: any) {
-                console.log("qwerty messageHandler", message);
-                cleanup();
-                resolve(message);
-            }
-
             function errorHandler(error: Error) {
                 console.log("qwerty errorHandler", error);
                 cleanup();
@@ -122,11 +113,20 @@ export class WorkerThreadManager {
                 reject(new Error(`Child process exited with code ${code}`));
             }
 
+            function messageHandler(message: WorkerThreadOutput) {
+                if (message.__type === "log") {
+                    console.log("Worker log:", message.log);
+                } else {
+                    cleanup();
+                    resolve(message);
+                }
+            }
+
             const cleanup = () => {
                 if (this.worker) {
-                    this.worker.removeListener("message", messageHandler);
                     this.worker.removeListener("error", errorHandler);
                     this.worker.removeListener("exit", exitHandler);
+                    this.worker.removeListener("message", messageHandler);
                 }
             };
 
@@ -135,9 +135,9 @@ export class WorkerThreadManager {
             this.worker.on("exit", exitHandler);
 
             try {
-                console.log("Sending message to worker thread");
-                this.worker.postMessage({ code, input, shouldSpreadInput });
-                console.log("Message sent to worker thread successfully");
+                // Safely stringify input before sending it to the worker thread
+                const safeInput = SuperJSON.stringify(input);
+                this.worker.postMessage({ code, input: safeInput, shouldSpreadInput });
             } catch (error) {
                 console.log(`Caught error while sending message: ${error}`);
                 cleanup();
