@@ -474,7 +474,7 @@ export function simpleHash(str: string): number {
         hash |= 0; // Convert to 32bit integer
     }
     return hash;
-};
+}
 
 /**
  * Finds a random color for a placeholder icon
@@ -483,10 +483,10 @@ export function simpleHash(str: string): number {
  */
 export function placeholderColor(seed?: unknown): [string, string] {
     let random = Math.random();
-    if (typeof seed === 'string' || typeof seed === 'number') {
+    if (typeof seed === "string" || typeof seed === "number") {
         const seedStr = seed.toString();
         const hash = simpleHash(seedStr);
         random = (Math.sin(hash) + 1) / 2; // Generate a pseudo-random number from [-1, 1] to [0, 1]
     }
     return placeholderColors[Math.floor(random * placeholderColors.length)];
-};
+}

@@ -16,30 +16,17 @@ export function getFunctionDetails(funcStr: string): { functionName: string | nu
 
     // Regular expression to capture function names from different declarations
     const regex = /(?:function\s+([^\s(]+))|(?:const|let|var)\s+([^\s=]+)\s*=\s*(?:async\s*)?function|(?:const|let|var)\s+([^\s=]+)\s*=\s*(?:async\s*)?\(.*?\)\s*=>/;
-    // const regex = /(?:async\s+function\s+([^\s(]+))|(?:const|let|var)\s+([^\s=]+)\s*=\s*(async\s+)?function|(?:const|let|var)\s+([^\s=]+)\s*=\s*(async\s+)?\([^)]*\)\s*=>/;
 
     // Attempt to match the regex pattern with the function string
     const match = regex.exec(funcStr);
-    console.log("got match", match);
-
-    // Return the first matching group that contains a name
-    // if (match) {
-    //     return match[1] || match[2] || match[3];
-    // }
     if (match) {
-        console.log("matches", match[0], match[1], match[2], match[3], match[4], match[5]);
-        console.log("match input", match.input);
         return {
+            // Return the first matching group that contains a name
             functionName: match[1] || match[2] || match[3],
+            // Check the matched group to see if 'async' is present
             isAsync: match.input.startsWith("async ") || match.input.includes(" async "),
         };
     }
-    // if (match) {
-    //     return {
-    //         functionName: match[1] || match[2] || match[4], // Capture group for the function name
-    //         isAsync: !!match[3] || !!match[5], // Boolean flags to check if 'async' is captured before function declaration
-    //     };
-    // }
 
     return { functionName: null, isAsync: false };
 }
@@ -63,6 +50,7 @@ export function urlWrapper(url: string, base?: string | URL) {
         search: urlObject.search,
         searchParams: urlObject.searchParams,
         username: urlObject.username,
+        // Add more properties as needed
     };
 }
 
@@ -70,42 +58,10 @@ export function urlWrapper(url: string, base?: string | URL) {
  * Custom register to handle URL objects in the isolate.
  */
 export const urlRegister = {
-    isApplicable: (value: unknown): value is URL => value instanceof URL,
+    isApplicable(value: unknown): value is URL {
+        return value instanceof URL;
+    },
     serialize: (value: URL) => value.href,
     deserialize: (value: string) => urlWrapper(value) as URL,
 };
 
-/**
- * @returns A wrapper for creating a Buffer object, which is used in
- * conjunction with a custom Buffer class to inject the Buffer class into the isolate.
- */
-export function bufferWrapper(data: string | Buffer | Uint8Array) {
-    const buffer = Buffer.from(data);
-    return {
-        type: "Buffer",
-        data: Array.from(buffer),
-    };
-}
-
-/**
- * Custom register to handle Buffer objects in the isolate.
- */
-export const bufferRegister = {
-    isApplicable: (value: unknown): value is Buffer => {
-        console.log("checking if buffer", value, Buffer.isBuffer(value));
-        return Buffer.isBuffer(value) || (
-            Object.prototype.hasOwnProperty.call(value, "type") &&
-            (value as { type: unknown }).type === "Buffer" &&
-            Object.prototype.hasOwnProperty.call(value, "data") &&
-            Array.isArray((value as { data: unknown }).data)
-        );
-    },
-    // We return an object instead of the array because the array can be confused with a Uint8Array
-    serialize: (value: Buffer) => ({
-        type: "Buffer",
-        data: Array.from(value),
-    }),
-    deserialize: (value: { type: string; data: number[] }) => {
-        return Buffer.from(value.data);
-    },
-};

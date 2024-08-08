@@ -4,7 +4,7 @@ import { fileURLToPath } from "url";
 import { Worker } from "worker_threads";
 import { DEFAULT_IDLE_TIMEOUT_MS, DEFAULT_MEMORY_LIMIT_MB, MB } from "./consts";
 import { RunUserCodeInput, RunUserCodeOutput, WorkerThreadOutput } from "./types";
-import { bufferRegister, urlRegister } from "./utils";
+import { urlRegister } from "./utils";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -18,12 +18,20 @@ export class WorkerThreadManager {
     private idleTimeout: number;
     private worker: Worker | null;
     private timeoutHandle: NodeJS.Timeout | null;
+    private jobQueue: Array<{
+        resolve: (value: RunUserCodeOutput) => void;
+        reject: (reason: any) => void;
+        input: RunUserCodeInput;
+    }>;
+    private isProcessing: boolean;
 
     constructor(memoryLimit = DEFAULT_MEMORY_LIMIT_MB * MB, idleTimeout = DEFAULT_IDLE_TIMEOUT_MS) {
         this.memoryLimit = memoryLimit;
         this.idleTimeout = idleTimeout;
         this.worker = null;
         this.timeoutHandle = null;
+        this.jobQueue = [];
+        this.isProcessing = false;
     }
 
     /**
@@ -45,10 +53,7 @@ export class WorkerThreadManager {
         this.worker.on("error", (error) => {
             console.error("Worker error:", error);
         });
-        this.worker.on("exit", (code) => {
-            console.log(`Worker exited with code ${code}`);
-            this.worker = null;
-        });
+        this.worker.on("message", this._handleWorkerMessage.bind(this));
         this._resetIdleTimer();
     }
 
@@ -75,76 +80,61 @@ export class WorkerThreadManager {
         }
     }
 
+    private _handleWorkerMessage(message: WorkerThreadOutput): void {
+        if (message.__type === "log") {
+            console.log("Worker log:", message.log);
+        } else {
+            const job = this.jobQueue.shift();
+            if (job) {
+                job.resolve(message);
+                this._processNextJob();
+            }
+        }
+    }
+
+    private _processNextJob(): void {
+        if (this.jobQueue.length === 0) {
+            this.isProcessing = false;
+            return;
+        }
+
+        this.isProcessing = true;
+        const job = this.jobQueue[0];
+
+        try {
+            SuperJSON.registerCustom(urlRegister, "URL");
+            const safeInput = SuperJSON.stringify(job.input.input);
+            this.worker!.postMessage({
+                code: job.input.code,
+                input: safeInput,
+                shouldSpreadInput: job.input.shouldSpreadInput,
+            });
+        } catch (error) {
+            console.log(`Caught error while sending message: ${error}`);
+            this.jobQueue.shift();
+            job.reject(error);
+            this._processNextJob();
+        }
+    }
+
     /**
     * Runs user-provided code in the managed worker thread.
     * @param input The string input to be passed to the user code.
     * @returns A promise that resolves with the output of the user code, or
     * rejects if an error occurs during execution.
     */
-    public async runUserCode({
-        code,
-        input,
-        shouldSpreadInput = false,
-    }: RunUserCodeInput): Promise<RunUserCodeOutput> {
-        // Start process if it is not running
-        if (!this.worker) {
-            this._startWorker();
-        }
-
-        // Reset timer that shuts down the process if it is idle
-        this._resetIdleTimer();
-
-        // Send input to the child process and return a promise that resolves with the output
+    public async runUserCode(input: RunUserCodeInput): Promise<RunUserCodeOutput> {
         return new Promise((resolve, reject) => {
+            this.jobQueue.push({ resolve, reject, input });
+
             if (!this.worker) {
-                console.log("Error: Worker thread not running");
-                reject(new Error("Worker thread not running"));
-                return;
+                this._startWorker();
             }
 
-            function errorHandler(error: Error) {
-                console.log("qwerty errorHandler", error);
-                cleanup();
-                reject(error);
-            }
+            this._resetIdleTimer();
 
-            function exitHandler(code: number | null) {
-                console.log("qwerty exitHandler", code);
-                cleanup();
-                reject(new Error(`Child process exited with code ${code}`));
-            }
-
-            function messageHandler(message: WorkerThreadOutput) {
-                if (message.__type === "log") {
-                    console.log("Worker log:", message.log);
-                } else {
-                    cleanup();
-                    resolve(message);
-                }
-            }
-
-            const cleanup = () => {
-                if (this.worker) {
-                    this.worker.removeListener("error", errorHandler);
-                    this.worker.removeListener("exit", exitHandler);
-                    this.worker.removeListener("message", messageHandler);
-                }
-            };
-
-            this.worker.on("message", messageHandler);
-            this.worker.on("error", errorHandler);
-            this.worker.on("exit", exitHandler);
-
-            try {
-                // Safely stringify input before sending it to the worker thread
-                SuperJSON.registerCustom(urlRegister, "URL");
-                SuperJSON.registerCustom(bufferRegister, "Buffer");
-                const safeInput = SuperJSON.stringify(input);
-                this.worker.postMessage({ code, input: safeInput, shouldSpreadInput });
-            } catch (error) {
-                console.log(`Caught error while sending message: ${error}`);
-                cleanup();
-                reject(error);
+            if (!this.isProcessing) {
+                this._processNextJob();
             }
         });
     }

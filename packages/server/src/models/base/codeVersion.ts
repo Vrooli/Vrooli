@@ -2,6 +2,7 @@ import { CodeVersionSortBy, MaxObjects, codeVersionValidation, getTranslation } 
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { withRedis } from "../../redisConn";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { PreShapeVersionResult, afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
@@ -88,8 +89,20 @@ export const CodeVersionModel: CodeVersionModelLogic = ({
             },
         },
         trigger: {
-            afterMutations: async (params) => {
-                await afterMutationsVersion({ ...params, objectType: __typename });
+            afterMutations: async ({ deletedIds, updatedIds, ...rest }) => {
+                // We store the code contents in Redis for sandbox caching. Remove them
+                const codeVersionIds = [...deletedIds, ...updatedIds];
+                if (codeVersionIds.length > 0) {
+                    await withRedis({
+                        process: async (redisClient) => {
+                            if (!redisClient) return;
+                            await redisClient.del(codeVersionIds.map(id => `codeVersion:${id}`));
+                        },
+                        trace: "0646",
+                    });
+                }
+
+                await afterMutationsVersion({ ...rest, deletedIds, updatedIds, objectType: __typename });
             },
         },
         yup: codeVersionValidation,

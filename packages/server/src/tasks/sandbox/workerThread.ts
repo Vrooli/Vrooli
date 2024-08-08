@@ -1,11 +1,10 @@
 // This file should only be imported by the worker thread manager
-import { randomBytes } from "crypto";
 import ivm from "isolated-vm";
 import SuperJSON from "superjson";
 import { parentPort } from "worker_threads";
 import { DEFAULT_MEMORY_LIMIT_MB, SCRIPT_TIMEOUT_MS } from "./consts.js"; // NOTE: The extension must be specified or else it will throw an error
 import { WorkerThreadInput, WorkerThreadOutput } from "./types.js"; // NOTE: The extension must be specified or else it will throw an error
-import { bufferRegister, getFunctionDetails, urlRegister, urlWrapper } from "./utils.js"; // NOTE: The extension must be specified or else it will throw an error
+import { getFunctionDetails, urlRegister, urlWrapper } from "./utils.js"; // NOTE: The extension must be specified or else it will throw an error
 
 /** Maximum length of code that can be executed */
 const MAX_CODE_LENGTH = 8_192;
@@ -20,22 +19,18 @@ if (!parentPort) {
  * @returns A unique identifier to avoid namespace collisions when injecting code/inputs into the isolate
  */
 function generateUniqueId() {
-    return `__ivm_${randomBytes(UNIQUE_ID_LENGTH).toString("hex")}`;
+    return `__ivm_${Math.random().toString(UNIQUE_ID_LENGTH).slice(2, -1)}`; // Not cryptographically secure, but doesn't need to be
 }
 
 function postMessage(message: WorkerThreadOutput) {
-    if (!parentPort) {
-        throw new Error("Worker thread not available");
-    }
-    parentPort.postMessage(message);
+    parentPort?.postMessage(message);
 }
 
-// Listen for messages from the parent thread
-parentPort.on("message", ({ code, input }: WorkerThreadInput) => {
-    if (!parentPort) {
-        throw new Error("Worker thread not available");
-    }
+// Create sandboxed environment for code execution. 
+const isolate = new ivm.Isolate({ memoryLimit: DEFAULT_MEMORY_LIMIT_MB });
 
+// Listen for messages from the parent thread
+parentPort.on("message", ({ code, input, shouldSpreadInput }: WorkerThreadInput) => {
     // Throw error is code is too long
     if (code.length > MAX_CODE_LENGTH) {
         postMessage({ __type: "error", error: "Code is too long" });
@@ -49,9 +44,11 @@ parentPort.on("message", ({ code, input }: WorkerThreadInput) => {
         return;
     }
 
-    // Create sandboxed environment for code execution. 
-    const isolate = new ivm.Isolate({ memoryLimit: DEFAULT_MEMORY_LIMIT_MB });
-
+    // Throw error if the function is async, as we don't support async functions
+    if (isAsync) {
+        postMessage({ __type: "error", error: "Async functions are not supported" });
+        return;
+    }
 
     try {
         // Create a new context within this isolate
@@ -66,7 +63,6 @@ parentPort.on("message", ({ code, input }: WorkerThreadInput) => {
         // Register custom SuperJSON functions for things that aren't really custom,
         // but break because of lack of support in v8.
         SuperJSON.registerCustom(urlRegister, "URL");
-        SuperJSON.registerCustom(bufferRegister, "Buffer");
 
         // Generate unique identifiers for our placeholders
         const uniqueId = generateUniqueId();
@@ -74,17 +70,14 @@ parentPort.on("message", ({ code, input }: WorkerThreadInput) => {
         const executeId = `${uniqueId}Execute`;
         const superjsonId = `${uniqueId}SuperJSON`;
         const urlId = `${uniqueId}URL`;
-        const bufferId = `${uniqueId}Buffer`;
 
-        parentPort.postMessage({ __type: "log", log: `Serialized input: ${input}` });
-        parentPort.postMessage({ __type: "log", log: `Parsed input: ${SuperJSON.parse(input)}` });
         // Store the input (which should have been safely serialized before being sent to the worker thread)
         jail.setSync(inputId, input);
 
         // Need to log something in the vm? Uncomment the code below and add `log()` calls in `wrappedCode`
-        jail.setSync("log", function handleVmLog(...args) {
-            parentPort?.postMessage({ __type: "log", log: args.join(" ") });
-        });
+        // jail.setSync("log", function handleVmLog(...args) {
+        //     parentPort?.postMessage({ __type: "log", log: args.join(" ") });
+        // });
 
         // Add SuperJSON to the context so that we can parse and stringify inputs/outputs
         context.evalClosureSync(`
@@ -103,12 +96,13 @@ parentPort.on("message", ({ code, input }: WorkerThreadInput) => {
             ]);
 
         // Add additional functions to context if the code requires them
+        let additionalFunctions = "";
         const needsURL = code.includes("URL");
         if (needsURL) {
             context.global.setSync(urlId, new ivm.Callback(urlWrapper));
 
             // Create a URL class in the isolate
-            context.evalSync(`
+            additionalFunctions += `
                 class URL {
                     constructor(url, base) {
                         const urlData = ${urlId}(url, base);
@@ -123,67 +117,36 @@ parentPort.on("message", ({ code, input }: WorkerThreadInput) => {
 
                 // Make URL available globally
                 globalThis.URL = URL;
-            `);
-        }
-        const needsBuffer = code.includes("Buffer");
-        if (needsBuffer) {
-            // Add Buffer class to the isolate
-            context.evalSync(`
-                class Buffer {
-                    constructor(input) {
-                        const bufferData = ${bufferId}(input);
-                        Object.assign(this, bufferData);
-                    }
 
-                    toString(encoding = 'utf8') {
-                        if (encoding === 'hex') {
-                            return this.data.map(byte => byte.toString(16).padStart(2, '0')).join('');
-                        }
-                        // For simplicity, we'll only implement utf8 and hex encoding here.
-                        // You can add more encodings as needed.
-                        return String.fromCharCode.apply(null, this.data);
-                    }
-
-                    static from(data) {
-                        return new Buffer(data);
-                    }
-
-                    static isBuffer(obj) {
-                        return obj instanceof Buffer;
-                    }
-                }
-
-                // Make Buffer available globally
-                globalThis.Buffer = Buffer;
-            `);
+            `;
         }
 
-        // Wrap code in a way that we can pass in inputs and execute it
-        const wrappedCode = `
-        ${code}
-        function ${executeId}() {
-            log('in executeId...', ${inputId});
-            const input = ${superjsonId}.parse(${inputId});
-            log('input ', input);
-            const result = ${functionName}(input);
-            // log('result ', JSON.stringify(result));
-            return ${superjsonId}.stringify(result);
-        }
-    `;
+        // Bootstrap code that will be executed in the isolate
+        const bootstrap = `(function () {
+            ${additionalFunctions}
+            ${code}
+            function ${executeId}() {
+                // Parse input
+                const input = ${superjsonId}.parse(${inputId});
+                // Execute the function
+                const output = ${functionName}(${shouldSpreadInput ? "...input" : "input"});
+                // Serialize the result
+                const result = ${superjsonId}.stringify(output);
+                // Return the result
+                return result;
+            }
+            return ${executeId}();
+        })()`;
 
         // Compile and run the code
-        const script = isolate.compileScriptSync(wrappedCode);
-        script.runSync(context);
-        const result = context.evalSync(`${executeId}()`, {
-            timeout: SCRIPT_TIMEOUT_MS,
-            arguments: { copy: true },
-            result: { copy: true },
-        });
-        parentPort.postMessage({ __type: "log", log: `Result: ${result}` });
+        const result = isolate
+            .compileScriptSync(bootstrap)
+            .runSync(context, {
+                timeout: SCRIPT_TIMEOUT_MS,
+                arguments: { copy: true },
+                result: { copy: true },
+            });
         const output = SuperJSON.parse(result);
-
-        // Clean up resources
-        isolate.dispose();
 
         // Send the output back to the parent thread
         postMessage({ __type: "output", output });

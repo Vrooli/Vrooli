@@ -1,11 +1,17 @@
-import { CodeVersion } from "@local/shared";
+import { CodeVersion, HOURS_1_S } from "@local/shared";
 import { Job } from "bull";
 import { readOneHelper } from "../../actions/reads";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
+import { withRedis } from "../../redisConn";
+import { getAuthenticatedData } from "../../utils/getAuthenticatedData";
+import { permissionsCheck } from "../../validators/permissions";
 import { SandboxRequestPayload } from "./queue";
-import { SandboxProcessPayload } from "./types";
+import { RunUserCodeOutput, SandboxProcessPayload } from "./types";
 import { WorkerThreadManager } from "./workerThreadManager";
+
+/** How long to cache the code in Redis */
+const CACHE_TTL_SECONDS = HOURS_1_S;
 
 const codeVersionSelect = {
     id: true,
@@ -20,19 +26,51 @@ export async function doSandbox({
     try {
         // Create a new child process manager to run the user code
         const manager = new WorkerThreadManager();
-        // Read the user code from the database, in a way that throws an error if the code is not found or the user desn't have permission
-        // TODO if version is marked as complete, store in cache. Then we can check the cache first 
-        // to avoid hitting the database for every request for common code versions
-        const req = { session: { languages: userData.languages, users: [userData] } };
-        const codeObject = await readOneHelper<CodeVersion>({
-            info: codeVersionSelect,
-            input: { id: codeVersionId },
-            objectType: "CodeVersion",
-            req,
+
+        let result: RunUserCodeOutput | undefined = undefined;
+        await withRedis({
+            process: async (redisClient) => {
+                if (!redisClient) return;
+
+                // Check Redis cache for the code version
+                const redisKey = `codeVersion:${codeVersionId}`;
+                const cachedCode = await redisClient.get(redisKey);
+
+                let codeObject;
+                if (cachedCode) {
+                    // Query for all authentication data
+                    const authDataById = await getAuthenticatedData({ "CodeVersion": [codeVersionId] }, userData);
+                    if (Object.keys(authDataById).length === 0) {
+                        throw new CustomError("0620", "NotFound", userData.languages, { codeVersionId });
+                    }
+                    // Check permissions
+                    await permissionsCheck(authDataById, { ["Read"]: [codeVersionId] }, {}, userData);
+                    // Use the cached code
+                    codeObject = JSON.parse(cachedCode);
+                } else {
+                    // Read the user code from the database using `readOneHelper`. This function checks permissions, so we don't need to do it again.
+                    const req = { session: { languages: userData.languages, users: [userData] } };
+                    codeObject = await readOneHelper<CodeVersion>({
+                        info: codeVersionSelect,
+                        input: { id: codeVersionId },
+                        objectType: "CodeVersion",
+                        req,
+                    });
+
+                    await redisClient.set(redisKey, JSON.stringify(codeObject), { EX: CACHE_TTL_SECONDS });
+                }
+
+                const code = codeObject.content || "";
+
+                // Run the user code with the provided input
+                result = await manager.runUserCode({ code, input });
+            },
+            trace: "0645",
         });
-        const code = codeObject.content || "";
-        // Run the user code with the provided input
-        const result = await manager.runUserCode({ code, input });
+
+        if (!result) {
+            throw new CustomError("0622", "InternalError", ["en"], { process: "doSandbox" });
+        }
         return result;
     } catch (err) {
         logger.error("Error importing data", { trace: "0554" });
