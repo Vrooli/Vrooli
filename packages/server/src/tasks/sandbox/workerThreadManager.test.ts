@@ -98,6 +98,15 @@ describe("WorkerThreadManager", () => {
             expect(result.output).toBeUndefined();
         });
 
+        test("async function", async () => {
+            const input = { code: "async function test() { return \"Hello\"; }", input: {} };
+            const result = await manager.runUserCode(input);
+
+            expect(result).not.toHaveProperty("error");
+            expect(result).toHaveProperty("output");
+            expect(result.output).toEqual("Hello");
+        });
+
         describe("primitive input types", () => {
             test("string", async () => {
                 const input = { code: "function test(boop) { return boop; }", input: "hello, world! 🌍\"Chicken coop\" \nBeep boop" };
@@ -181,9 +190,7 @@ describe("WorkerThreadManager", () => {
             });
             test("Date", async () => {
                 const input = { code: "function test(input) { return input; }", input: new Date("2021-01-01T00:00:00Z") };
-                console.log("yeet before");
                 const result = await manager.runUserCode(input);
-                console.log("yeet after", result);
 
                 expect(result).not.toHaveProperty("error");
                 expect(result).toHaveProperty("output");
@@ -211,14 +218,18 @@ describe("WorkerThreadManager", () => {
 
                 expect(result).not.toHaveProperty("error");
                 expect(result).toHaveProperty("output");
+                // @ts-ignore: Testing runtime scenario
                 expect(result.output.href).toBe(input.input.href);
             });
             test("Buffer", async () => {
                 const input = { code: "function test(input) { return input; }", input: Buffer.from("hello, world!") };
+                console.log("yeet before", input.input.toString());
                 const result = await manager.runUserCode(input);
+                console.log("yeet after", result.output?.toString());
 
                 expect(result).not.toHaveProperty("error");
                 expect(result).toHaveProperty("output");
+                // @ts-ignore: Testing runtime scenario
                 expect(result.output.toString()).toBe(input.input.toString());
             });
             test("Uint8Array", async () => {
@@ -362,79 +373,203 @@ describe("WorkerThreadManager", () => {
                 expect(result.output.date).toEqual(input.input.date);
             });
         });
+
+        describe("spread inputs", () => {
+            test("spread primitives", async () => {
+                const input = { code: "function test(a, b, c) { return a + b + c; }", input: [1, 2, 3], shouldSpreadInput: true };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toBe(6);
+            });
+            test("spread objects", async () => {
+                const input = { code: "function test(a, b, c) { return a.foo + b.bar + c.baz; }", input: [{ foo: 1 }, { bar: 2 }, { baz: 3 }], shouldSpreadInput: true };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toBe(6);
+            });
+        });
+
+        describe("supported non-v8 types", () => {
+            test("URL", async () => {
+                const input = { code: "function createsURL() { return new URL('https://example.com?one=true'); }" };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                // @ts-ignore: Testing runtime scenario
+                expect(result.output.href).toEqual("https://example.com?one=true");
+                // @ts-ignore: Testing runtime scenario
+                expect(result.output.protocol).toEqual("https:");
+            });
+            test("BigInt", async () => {
+                const input = { code: "function createsBigInt() { return BigInt(9007199254740991); }" };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toEqual(BigInt(9007199254740991));
+            });
+            test("Buffer", async () => {
+                const input = { code: "function createsBuffer() { return Buffer.from('hello, world!'); }" };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                // @ts-ignore: Testing runtime scenario
+                expect(result.output.toString()).toEqual("hello, world!");
+            });
+            test("Uint8Array", async () => {
+                const input = { code: "function createsUint8Array() { return new Uint8Array([0, 1, 2, 3, 4, 5]); }" };
+                const result = await manager.runUserCode(input);
+
+                expect(result).not.toHaveProperty("error");
+                expect(result).toHaveProperty("output");
+                expect(result.output).toEqual(new Uint8Array([0, 1, 2, 3, 4, 5]));
+            });
+        });
     });
 
-    // test("handles code execution errors", async () => {
-    //     Worker.on.mockImplementation((event, callback) => {
-    //         if (event === "error") {
-    //             setTimeout(() => callback(new Error("Execution error")), 10);
-    //         }
-    //     });
+    test("handles code execution errors", async () => {
+        const input = { code: "function test() { throw new Error('Test error'); }", input: {} };
+        const result = await manager.runUserCode(input);
 
-    //     const input = { code: "function test() { throw new Error(\"Execution error\"); }", input: {} };
-    //     await expect(manager.runUserCode(input)).rejects.toThrow("Execution error");
-    // });
+        expect(result).toHaveProperty("error");
+        expect(result.error).toEqual("Test error");
+        expect(result).not.toHaveProperty("output");
+    });
 
-    // test("handles worker exit", async () => {
-    //     Worker.on.mockImplementation((event, callback) => {
-    //         if (event === "exit") {
-    //             setTimeout(() => callback(1), 10);
-    //         }
-    //     });
+    test("handles worker exit", async () => {
+        const input = { code: "function test() { process.exit(1); }", input: {} };
+        const result = await manager.runUserCode(input);
 
-    //     const input = { code: "function test() { process.exit(1); }", input: {} };
-    //     await expect(manager.runUserCode(input)).rejects.toThrow("Child process exited with code 1");
-    // });
+        expect(result).toHaveProperty("error");
+        expect(result.error).toEqual("Worker exited with code 1");
+        expect(result).not.toHaveProperty("output");
+    });
 
-    // test("handles maximum code length", async () => {
-    //     Worker.on.mockImplementation((event, callback) => {
-    //         if (event === "message") {
-    //             setTimeout(() => callback({ error: "Code is too long" }), 10);
-    //         }
-    //     });
+    describe("handles different function syntax", () => {
+        test("function declaration", async () => {
+            const input = { code: "function test() { return 'Hello'; }", input: {} };
+            const result = await manager.runUserCode(input);
 
-    //     const longCode = "a".repeat(8193);
-    //     const input = { code: `function test() { ${longCode} }`, input: {} };
+            expect(result).not.toHaveProperty("error");
+            expect(result).toHaveProperty("output");
+            expect(result.output).toEqual("Hello");
+        });
 
-    //     const result = await manager.runUserCode(input);
+        test("function expression", async () => {
+            const input = { code: "const test = function() { return 'Hello'; };", input: {} };
+            const result = await manager.runUserCode(input);
 
-    //     expect(result).toEqual({ error: "Code is too long" });
-    // });
+            expect(result).not.toHaveProperty("error");
+            expect(result).toHaveProperty("output");
+            expect(result.output).toEqual("Hello");
+        });
 
-    // test("handles missing function name", async () => {
-    //     Worker.on.mockImplementation((event, callback) => {
-    //         if (event === "message") {
-    //             setTimeout(() => callback({ error: "Function name not found" }), 10);
-    //         }
-    //     });
+        test("arrow function", async () => {
+            const input = { code: "const test = () => 'Hello';", input: {} };
+            const result = await manager.runUserCode(input);
 
-    //     const input = { code: "const x = 5;", input: {} };
+            expect(result).not.toHaveProperty("error");
+            expect(result).toHaveProperty("output");
+            expect(result.output).toEqual("Hello");
+        });
 
-    //     const result = await manager.runUserCode(input);
+        test("async function declaration", async () => {
+            const input = { code: "async function test() { return 'Hello'; }", input: {} };
+            const result = await manager.runUserCode(input);
 
-    //     expect(result).toEqual({ error: "Function name not found" });
-    // });
+            expect(result).not.toHaveProperty("error");
+            expect(result).toHaveProperty("output");
+            expect(result.output).toEqual("Hello");
+        });
 
-    // test("handles various function declaration styles", async () => {
-    //     const testCases = [
-    //         { code: "function test() { return \"Hello\"; }", expected: "Hello" },
-    //         { code: "const test = function() { return \"Hello\"; }", expected: "Hello" },
-    //         { code: "const test = () => \"Hello\"", expected: "Hello" },
-    //         { code: "async function test() { return \"Hello\"; }", expected: "Hello" },
-    //         { code: "const test = async () => \"Hello\"", expected: "Hello" },
-    //     ];
+        test("async arrow function", async () => {
+            const input = { code: "const test = async () => 'Hello';", input: {} };
+            const result = await manager.runUserCode(input);
 
-    //     for (const { code, expected } of testCases) {
-    //         Worker.on.mockImplementation((event, callback) => {
-    //             if (event === "message") {
-    //                 setTimeout(() => callback({ result: expected }), 10);
-    //             }
-    //         });
+            expect(result).not.toHaveProperty("error");
+            expect(result).toHaveProperty("output");
+            expect(result.output).toEqual("Hello");
+        });
+    });
 
-    //         const input = { code, input: {} };
-    //         const result = await manager.runUserCode(input);
+    test("handles maximum code length", async () => {
+        const longCode = "a".repeat(8193);
+        const input = { code: `function test() { ${longCode} }`, input: {} };
 
-    //         expect(result).toEqual({ result: expected });
-    //     }
-    // });
+        const result = await manager.runUserCode(input);
+
+        expect(result).toEqual({ __type: "error", error: expect.any(String) });
+    });
+
+    test("handles missing function name", async () => {
+        const input = { code: "const x = 5;", input: {} };
+
+        const result = await manager.runUserCode(input);
+
+        expect(result).toEqual({ __type: "error", error: expect.any(String) });
+    });
+
+    describe("handles malicious code", () => {
+        test("infinite loop", async () => {
+            const input = { code: "function test() { while (true) {} }", input: {} };
+            const result = await manager.runUserCode(input);
+
+            expect(result).toEqual({ __type: "error", error: expect.any(String) });
+        });
+
+        test("memory overload", async () => {
+            const input = { code: "function test() { const arr = []; while (true) { arr.push(new Array(1_000_000)); } }", input: {} };
+            const result = await manager.runUserCode(input);
+
+            expect(result).toEqual({ __type: "error", error: expect.any(String) });
+        });
+
+        test("infinite recursion", async () => {
+            const input = { code: "function test() { return test(); }", input: {} };
+            const result = await manager.runUserCode(input);
+
+            expect(result).toEqual({ __type: "error", error: expect.any(String) });
+        });
+
+        test("timeout from loop", async () => {
+            const input = { code: "function test() { while (true) {} }", input: {} };
+            const result = await manager.runUserCode(input);
+
+            expect(result).toEqual({ __type: "error", error: expect.any(String) });
+        });
+
+        test("timeout from setTimout", async () => {
+            const input = { code: "function test() { setTimeout(() => {}, 100000); }", input: {} };
+            const result = await manager.runUserCode(input);
+
+            expect(result).toEqual({ __type: "error", error: expect.any(String) });
+        });
+
+        test("cannot access fs", async () => {
+            const input = { code: "function test() { require('fs'); }", input: {} };
+            const result = await manager.runUserCode(input);
+
+            expect(result).toEqual({ __type: "error", error: expect.any(String) });
+        });
+
+        test("cannot require modules", async () => {
+            const input = { code: "function test() { require('http'); }", input: {} };
+            const result = await manager.runUserCode(input);
+
+            expect(result).toEqual({ __type: "error", error: expect.any(String) });
+        });
+
+        test("cannot shutdown main process", async () => {
+            const input = { code: "function test() { process.exit(); }", input: {} };
+            const result = await manager.runUserCode(input);
+
+            expect(result).toEqual({ __type: "error", error: expect.any(String) });
+        });
+    });
 });

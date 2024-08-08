@@ -5,7 +5,7 @@ import SuperJSON from "superjson";
 import { parentPort } from "worker_threads";
 import { DEFAULT_MEMORY_LIMIT_MB, SCRIPT_TIMEOUT_MS } from "./consts.js"; // NOTE: The extension must be specified or else it will throw an error
 import { WorkerThreadInput, WorkerThreadOutput } from "./types.js"; // NOTE: The extension must be specified or else it will throw an error
-import { getFunctionName } from "./utils.js"; // NOTE: The extension must be specified or else it will throw an error
+import { bufferRegister, getFunctionDetails, urlRegister, urlWrapper } from "./utils.js"; // NOTE: The extension must be specified or else it will throw an error
 
 /** Maximum length of code that can be executed */
 const MAX_CODE_LENGTH = 8_192;
@@ -43,7 +43,7 @@ parentPort.on("message", ({ code, input }: WorkerThreadInput) => {
     }
 
     // Extract the function name from the code
-    const functionName = getFunctionName(code);
+    const { functionName, isAsync } = getFunctionDetails(code);
     if (!functionName) {
         postMessage({ __type: "error", error: "Function name not found" });
         return;
@@ -63,51 +63,111 @@ parentPort.on("message", ({ code, input }: WorkerThreadInput) => {
         // because otherwise `global` would actually be a Reference{} object in the new isolate.
         jail.setSync("global", jail.derefInto());
 
+        // Register custom SuperJSON functions for things that aren't really custom,
+        // but break because of lack of support in v8.
+        SuperJSON.registerCustom(urlRegister, "URL");
+        SuperJSON.registerCustom(bufferRegister, "Buffer");
+
         // Generate unique identifiers for our placeholders
         const uniqueId = generateUniqueId();
         const inputId = `${uniqueId}Input`;
         const executeId = `${uniqueId}Execute`;
-        const stringifyId = `${uniqueId}Stringify`;
-        const parseId = `${uniqueId}Parse`;
         const superjsonId = `${uniqueId}SuperJSON`;
-
-        // Make a safe subset of the superjson module available in the VM
-        const stringifyRef = new ivm.Reference(SuperJSON.stringify);
-        const parseRef = new ivm.Reference(SuperJSON.parse);
-
-        context.global.setSync(stringifyId, stringifyRef);
-        context.global.setSync(parseId, parseRef);
+        const urlId = `${uniqueId}URL`;
+        const bufferId = `${uniqueId}Buffer`;
 
         parentPort.postMessage({ __type: "log", log: `Serialized input: ${input}` });
         parentPort.postMessage({ __type: "log", log: `Parsed input: ${SuperJSON.parse(input)}` });
-        parentPort.postMessage({ __type: "log", log: `Reserialized input: ${SuperJSON.stringify(SuperJSON.parse(input))}` });
-        const parseRefTest = parseRef.applySync(undefined, [input]);
-        parentPort.postMessage({ __type: "log", log: `Parse ref: ${JSON.stringify(parseRef)}` });
-        parentPort.postMessage({ __type: "log", log: `Ref parsed input: ${SuperJSON.stringify(parseRefTest)}` });
-        const stringifyRefTest = stringifyRef.applySync(undefined, [parseRefTest]);
-        parentPort.postMessage({ __type: "log", log: `Ref stringified input: ${stringifyRefTest}` });
         // Store the input (which should have been safely serialized before being sent to the worker thread)
         jail.setSync(inputId, input);
 
-        // const result2 = context.evalClosureSync(code, SuperJSON.parse(input), {
-        //     timeout: SCRIPT_TIMEOUT_MS,
-        //     arguments: { copy: true },
-        //     result: { copy: true },
-        // });
-        // parentPort.postMessage({ __type: "log", log: `Result2: ${result2}` });
+        // Need to log something in the vm? Uncomment the code below and add `log()` calls in `wrappedCode`
+        jail.setSync("log", function handleVmLog(...args) {
+            parentPort?.postMessage({ __type: "log", log: args.join(" ") });
+        });
+
+        // Add SuperJSON to the context so that we can parse and stringify inputs/outputs
+        context.evalClosureSync(`
+            global.${superjsonId} = {
+                parse: $0,
+                stringify: $1
+            }
+          `,
+            [
+                (...args) => {
+                    return SuperJSON.parse(args[0]);
+                },
+                (...args) => {
+                    return SuperJSON.stringify(args[0]);
+                },
+            ]);
+
+        // Add additional functions to context if the code requires them
+        const needsURL = code.includes("URL");
+        if (needsURL) {
+            context.global.setSync(urlId, new ivm.Callback(urlWrapper));
+
+            // Create a URL class in the isolate
+            context.evalSync(`
+                class URL {
+                    constructor(url, base) {
+                        const urlData = ${urlId}(url, base);
+                        Object.assign(this, urlData);
+                    }
+
+                    // Add any methods you need, e.g.:
+                    toString() {
+                        return this.href;
+                    }
+                }
+
+                // Make URL available globally
+                globalThis.URL = URL;
+            `);
+        }
+        const needsBuffer = code.includes("Buffer");
+        if (needsBuffer) {
+            // Add Buffer class to the isolate
+            context.evalSync(`
+                class Buffer {
+                    constructor(input) {
+                        const bufferData = ${bufferId}(input);
+                        Object.assign(this, bufferData);
+                    }
+
+                    toString(encoding = 'utf8') {
+                        if (encoding === 'hex') {
+                            return this.data.map(byte => byte.toString(16).padStart(2, '0')).join('');
+                        }
+                        // For simplicity, we'll only implement utf8 and hex encoding here.
+                        // You can add more encodings as needed.
+                        return String.fromCharCode.apply(null, this.data);
+                    }
+
+                    static from(data) {
+                        return new Buffer(data);
+                    }
+
+                    static isBuffer(obj) {
+                        return obj instanceof Buffer;
+                    }
+                }
+
+                // Make Buffer available globally
+                globalThis.Buffer = Buffer;
+            `);
+        }
 
         // Wrap code in a way that we can pass in inputs and execute it
         const wrappedCode = `
         ${code}
         function ${executeId}() {
-            const ${superjsonId} = {
-                stringify: (...args) => ${stringifyId}.applySync(undefined, args),
-                parse: (...args) => ${parseId}.applySync(undefined, args)
-            };
-            //const input = ${superjsonId}(${inputId});
-            //const result = ${functionName}(input);
-            //return ${superjsonId}.stringify(result);
-            return ${superjsonId}.stringify({ chicken: "sheep" }).toString(); //.toString();
+            log('in executeId...', ${inputId});
+            const input = ${superjsonId}.parse(${inputId});
+            log('input ', input);
+            const result = ${functionName}(input);
+            // log('result ', JSON.stringify(result));
+            return ${superjsonId}.stringify(result);
         }
     `;
 

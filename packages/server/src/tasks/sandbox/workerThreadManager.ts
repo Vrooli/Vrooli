@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import { Worker } from "worker_threads";
 import { DEFAULT_IDLE_TIMEOUT_MS, DEFAULT_MEMORY_LIMIT_MB, MB } from "./consts";
 import { RunUserCodeInput, RunUserCodeOutput, WorkerThreadOutput } from "./types";
+import { bufferRegister, urlRegister } from "./utils";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -136,6 +137,8 @@ export class WorkerThreadManager {
 
             try {
                 // Safely stringify input before sending it to the worker thread
+                SuperJSON.registerCustom(urlRegister, "URL");
+                SuperJSON.registerCustom(bufferRegister, "Buffer");
                 const safeInput = SuperJSON.stringify(input);
                 this.worker.postMessage({ code, input: safeInput, shouldSpreadInput });
             } catch (error) {
