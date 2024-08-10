@@ -18,15 +18,32 @@ const codeVersionSelect = {
     content: true,
 } as const;
 
+// Create a new child process manager to run the user code
+const manager = new WorkerThreadManager();
+
+/**
+ * Runs sandboxed user code in a secure environment, 
+ * when you already know the code content and validated the user's permissions.
+ */
+export async function runUserCode({
+    content,
+    input,
+}: Pick<CodeVersion, "content"> & Pick<SandboxProcessPayload, "input">): Promise<RunUserCodeOutput> {
+    // Run the user code with the provided input
+    return await manager.runUserCode({ code: content, input });
+}
+
+/**
+ * Runs sandboxed user code in a secure environment. 
+ * Fetches code from a cache if available, otherwise reads from the database.
+ * Ensures that the user has the necessary permissions to access the code.
+ */
 export async function doSandbox({
     codeVersionId,
     input,
     userData,
-}: SandboxProcessPayload) {
+}: SandboxProcessPayload): Promise<RunUserCodeOutput> {
     try {
-        // Create a new child process manager to run the user code
-        const manager = new WorkerThreadManager();
-
         let result: RunUserCodeOutput | undefined = undefined;
         await withRedis({
             process: async (redisClient) => {
@@ -63,7 +80,7 @@ export async function doSandbox({
                 const code = codeObject.content || "";
 
                 // Run the user code with the provided input
-                result = await manager.runUserCode({ code, input });
+                result = await runUserCode({ content: code, input });
             },
             trace: "0645",
         });
@@ -72,8 +89,9 @@ export async function doSandbox({
             throw new CustomError("0622", "InternalError", ["en"], { process: "doSandbox" });
         }
         return result;
-    } catch (err) {
-        logger.error("Error importing data", { trace: "0554" });
+    } catch (error) {
+        logger.error("Error importing data", { trace: "0554", error });
+        return { error: "Internal error" };
     }
 }
 

@@ -131,7 +131,7 @@ function checkObjectLimit({
  * @param authDataById Map of all queried data required to validate permissions, keyed by ID.
  * @param idsByAction Map of object IDs to validate permissions for, keyed by action. We store actions this way (instead of keyed by ID) 
  * in case one ID is used for multiple actions.
- * @parma userId ID of user requesting permissions
+ * @param userId ID of user requesting permissions
  */
 export async function maxObjectsCheck(
     inputsById: InputsById,

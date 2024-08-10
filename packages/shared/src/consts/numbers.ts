@@ -20,3 +20,5 @@ export const WEEKS_1_MS = 7 * DAYS_1_MS;
 export const MONTHS_1_MS = 30 * DAYS_1_MS;
 
 export const YEARS_1_MS = 365 * DAYS_1_MS;
+
+export const DOLLARS_1_CENTS = 100;

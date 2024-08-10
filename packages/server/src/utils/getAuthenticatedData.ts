@@ -13,10 +13,10 @@ export type AuthDataById = { [id: string]: { __typename: `${GqlModelType}`, [x: 
  * Given the primary keys of every object which needs to be authenticated, 
  * queries for all data required to perform authentication.
  */
-export const getAuthenticatedData = async (
+export async function getAuthenticatedData(
     idsByType: { [key in GqlModelType]?: string[] },
     userData: SessionUserToken | null,
-): Promise<AuthDataById> => {
+): Promise<AuthDataById> {
     // Initialize the return object
     const authDataById: AuthDataById = {};
     // For every type of object which needs to be authenticated, query for all data required to perform authentication
@@ -57,4 +57,4 @@ export const getAuthenticatedData = async (
     }
     // Return the data
     return authDataById;
-};
+}

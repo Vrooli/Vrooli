@@ -2,7 +2,7 @@
  * Adds initial data to the database. (i.e. data that should be included in production). 
  * This is written so that it can be called multiple times without duplicating data.
  */
-import { InputType, uuid, VALYXA_ID } from "@local/shared";
+import { CodeType, InputType, PARSE_RUN_IO_FROM_PLAINTEXT_ID, uuid, VALYXA_ID } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { hashPassword } from "../../auth/email";
 import { prismaInstance } from "../../db/instance";
@@ -591,61 +591,6 @@ export async function init() {
         });
     }
 
-    // TODO temporary
-    // Add 100 dummy projects
-    if (process.env.NODE_ENV === "development") {
-        const dummy1 = await prismaInstance.project.findFirst({
-            where: {
-                AND: [
-                    { ownedByTeamId: vrooli.id },
-                    { versions: { some: { translations: { some: { language: EN, name: "DUMMY 1" } } } } },
-                ],
-            },
-        });
-        if (!dummy1) {
-            for (let i = 0; i < 100; i++) {
-                logger.info("📚 Creating DUMMY project" + i);
-                await prismaInstance.project.create({
-                    data: {
-                        permissions: JSON.stringify({}),
-                        createdBy: { connect: { id: admin.id } },
-                        ownedByTeam: { connect: { id: vrooli.id } },
-                        versions: {
-                            create: [{
-                                isComplete: true,
-                                isLatest: true,
-                                versionIndex: 0,
-                                versionLabel: "1.0.0",
-                                translations: {
-                                    create: [
-                                        {
-                                            language: EN,
-                                            description: `This is the first description for DUMMY ${i}`,
-                                            name: `DUMMY ${i}`,
-                                        },
-                                    ],
-                                },
-                            }, {
-                                isComplete: false,
-                                versionIndex: 1,
-                                versionLabel: "1.0.1",
-                                translations: {
-                                    create: [
-                                        {
-                                            language: EN,
-                                            description: `This is the second description for DUMMY ${i}`,
-                                            name: `DUMMY ${i}`,
-                                        },
-                                    ],
-                                },
-                            }],
-                        },
-                    },
-                });
-            }
-        }
-    }
-
     //==============================================================
     /* #endregion Create Projects */
     //==============================================================
@@ -696,6 +641,72 @@ export async function init() {
     //==============================================================
     /* #endregion Create Standards */
     //==============================================================
+
+    let parseRunIOFromPlaintext = await prismaInstance.code_version.findFirst({
+        where: {
+            id: PARSE_RUN_IO_FROM_PLAINTEXT_ID,
+        },
+    });
+    if (!parseRunIOFromPlaintext) {
+        logger.info("📚 Creating parseRunIOFromPlaintext transform function");
+        parseRunIOFromPlaintext = await prismaInstance.code_version.create({
+            data: {
+                id: PARSE_RUN_IO_FROM_PLAINTEXT_ID,
+                isComplete: true,
+                isLatest: true,
+                isPrivate: false,
+                codeLanguage: "javascript",
+                codeType: CodeType.DataConvert,
+                content: `function parseRunIOFromPlaintext({ formData, text }) {
+    const inputs = {};
+    const outputs = {};
+    const lines = text.trim().split('\\n');
+    
+    for (const line of lines) {
+        const [key, ...valueParts] = line.split(':');
+        if (key && valueParts.length > 0) {
+            const trimmedKey = key.trim();
+            const value = valueParts.join(':').trim();
+            
+            if (formData.hasOwnProperty(\`input-\${trimmedKey}\`)) {
+                inputs[trimmedKey] = value;
+            } else if (formData.hasOwnProperty(\`output-\${trimmedKey}\`)) {
+                outputs[trimmedKey] = value;
+            }
+            // If the key doesn't match any input or output, it's ignored
+        }
+    }
+
+    return { inputs, outputs };
+}`,
+                root: {
+                    create: {
+                        id: uuid(),
+                        isPrivate: false,
+                        permissions: JSON.stringify({}),
+                        createdBy: { connect: { id: admin.id } },
+                        ownedByTeam: { connect: { id: vrooli.id } },
+                        tags: {
+                            create: [
+                                { tag: { connect: { id: tagVrooli.id } } },
+                            ],
+                        },
+                    },
+                },
+                translations: {
+                    create: [
+                        {
+                            language: EN,
+                            name: "parseRunIOFromPlaintext",
+                            description: "When a routine is being run autonomously, we may need to generate inputs and/or outputs before we can perform the action associated with the routine. This function parses the expected output and returns an object with an inputs list and outputs list.",
+                        },
+                    ],
+                },
+                versionIndex: 0,
+                versionLabel: "1.0.0",
+            },
+        });
+    }
 
     //==============================================================
     /* #region Create Routines */

@@ -50,7 +50,10 @@ export type WorkerThreadMessageOutput = {
     __type: "output";
     output: unknown;
 }
-export type WorkerThreadOutput = WorkerThreadMessageError | WorkerThreadMessageLog | WorkerThreadMessageOutput;
+export type WorkerThreadMessageReady = {
+    __type: "ready";
+}
+export type WorkerThreadOutput = WorkerThreadMessageError | WorkerThreadMessageLog | WorkerThreadMessageOutput | WorkerThreadMessageReady;
 
 export interface RunUserCodeOutput {
     /**

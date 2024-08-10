@@ -224,7 +224,7 @@ export type TeamPolicy = PolicyPart & {
  * Using queried permissions data, calculates permissions for multiple objects. These are used to let a user know ahead of time if they're allowed to 
  * perform an action, and indicate that in the UX
  * @param authDataById Map of all queried data required to validate permissions, keyed by ID.
- * @parma userData Data about the user performing the action
+ * @param userData Data about the user performing the action
  * @returns Map of permissions objects, keyed by ID
  */
 export async function getMultiTypePermissions(
@@ -311,14 +311,16 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
  * @param authDataById Map of all queried data required to validate permissions, keyed by ID.
  * @param idsByAction Map of object IDs to validate permissions for, keyed by action. We store actions this way (instead of keyed by ID) 
  * in case one ID is used for multiple actions.
- * @parma userId ID of user requesting permissions
+ * @param userId ID of user requesting permissions
+ * @param throwsOnError Whether to throw an error if the user does not have permission, or return a boolean
  */
 export async function permissionsCheck(
     authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } },
     idsByAction: { [key in QueryAction]?: string[] },
     inputsById: InputsById,
     userData: SessionUserToken | null,
-) {
+    throwsOnError = true,
+): Promise<boolean> {
     // Get permissions
     const permissionsById = await getMultiTypePermissions(authDataById, inputsById, userData);
     // Loop through each action and validate permissions
@@ -340,12 +342,21 @@ export async function permissionsCheck(
             const permissions = permissionsById[id];
             // If permissions doesn't exist, something went wrong.
             if (!permissions) {
-                throw new CustomError("0390", "CouldNotFindPermissions", userData?.languages ?? ["en"], { action, id, __typename: authDataById?.[id]?.__typename });
+                if (throwsOnError) {
+                    throw new CustomError("0390", "CouldNotFindPermissions", userData?.languages ?? ["en"], { action, id, __typename: authDataById?.[id]?.__typename });
+                } else {
+                    return false;
+                }
             }
             // Check if permissions contains the current action. If so, make sure it's not false.
             if (`can${action}` in permissions && !permissions[`can${action}`]) {
-                throw new CustomError("0297", "Unauthorized", userData?.languages ?? ["en"], { action, id, __typename: authDataById[id].__typename });
+                if (throwsOnError) {
+                    throw new CustomError("0297", "Unauthorized", userData?.languages ?? ["en"], { action, id, __typename: authDataById[id].__typename });
+                } else {
+                    return false;
+                }
             }
         }
     }
+    return true;
 }

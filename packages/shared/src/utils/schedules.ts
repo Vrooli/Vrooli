@@ -1,6 +1,6 @@
 import { Moment } from "moment-timezone";
 import { type Schedule, type ScheduleRecurrence } from "../api/generated/graphqlTypes";
-import { HOURS_1_MS, MINUTES_1_MS, YEARS_1_MS } from "../consts/time";
+import { HOURS_1_MS, MINUTES_1_MS, YEARS_1_MS } from "../consts/numbers";
 
 // Native Date objects don't handle time zones well, so we use moment-timezone instead.
 // This must be loaded asynchronously so the UI can code-split it.

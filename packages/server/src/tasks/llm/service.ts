@@ -1,4 +1,4 @@
-import { BotSettings, BotSettingsTranslation, ChatSocketEventPayloads, CommandToTask, ExistingTaskData, LlmTask, LlmTaskStructuredConfig, ServerLlmTaskInfo, getStructuredTaskConfig, getTranslation, getValidTasksFromMessage, toBotSettings } from "@local/shared";
+import { API_CREDITS_MULTIPLIER, BotSettings, BotSettingsTranslation, ChatSocketEventPayloads, CommandToTask, ExistingTaskData, LlmTask, LlmTaskStructuredConfig, ServerLlmTaskInfo, getStructuredTaskConfig, getTranslation, getValidTasksFromMessage, toBotSettings } from "@local/shared";
 import { cudHelper } from "../../actions/cuds";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
@@ -93,7 +93,7 @@ export type GetResponseCostParams = {
 }
 
 export type GetOutputTokenLimitParams = {
-    maxCredits: number;
+    maxCredits: bigint;
     model: string;
     inputTokens: number;
 }
@@ -354,15 +354,15 @@ export function getDefaultMaxOutputTokensRestrained<GenerateNameType extends str
         throw new Error(`Model "${model}" (converted to ${modelToUse}) not found in cost records`);
     }
 
-    const inputCost = inputCosts[modelToUse] * inputTokens;
+    const inputCost = BigInt(inputCosts[modelToUse] * inputTokens);
     const remainingCredits = maxCredits - inputCost;
 
     if (remainingCredits <= 0) {
         return 0;
     }
 
-    const maxOutputTokensRestrained = Math.floor(remainingCredits / outputCosts[modelToUse]);
-    return Math.min(Math.max(0, maxOutputTokensRestrained), service.getMaxOutputTokens(model) - inputTokens);
+    const maxOutputTokensRestrained = remainingCredits / BigInt(Math.floor(outputCosts[modelToUse]));
+    return Math.min(Math.max(0, Number(maxOutputTokensRestrained)), service.getMaxOutputTokens(model) - inputTokens);
 }
 
 /**
@@ -412,13 +412,52 @@ export async function fetchMessagesFromDatabase(messageIds: string[]): Promise<S
     return messages;
 }
 
+export type CreditValue = number | string | bigint;
+
+/**
+ * Calculates the maximum credits allowed for a task. 
+ * Ensures that we don't exceed the user's remaining credits or the task's maximum credits 
+ * (factoring in credits already spent on this task).
+ * 
+ * @param userRemainingCredits The user's remaining credits.
+ * @param taskMaxCredits The maximum credits defined for the task.
+ * @param creditsSpent Credits already spent on this task.
+ * @returns The maximum credits allowed for the task, as a BigInt.
+ * 
+ * @example
+ * calculateMaxCredits(500000, 800000, 100000) // Returns 700000n
+ * calculateMaxCredits("750000", 800000, "50000") // Returns 750000n
+ * calculateMaxCredits(1500000n, "1000000", 200000) // Returns 800000n
+ * calculateMaxCredits("2000000", undefined, 500000n) // Returns 1000000n (using DEFAULT_MAX_CREDITS)
+ */
+export function calculateMaxCredits(
+    userRemainingCredits: CreditValue,
+    taskMaxCredits: CreditValue,
+    creditsSpent: CreditValue | undefined,
+): bigint {
+    // Convert all inputs to BigInt
+    const userRemainingCreditsBigInt = BigInt(userRemainingCredits);
+    const creditsSpentBigInt = BigInt(creditsSpent ?? 0);
+    const taskMaxCreditsBigInt = BigInt(taskMaxCredits);
+
+    // Calculate the effective task max credits (task max minus credits already spent on this task
+    const effectiveTaskMax = taskMaxCreditsBigInt > creditsSpentBigInt
+        ? taskMaxCreditsBigInt - creditsSpentBigInt
+        : BigInt(0);
+
+    // Return the smaller of the userRemaining credits and the effective task max
+    return userRemainingCreditsBigInt < effectiveTaskMax
+        ? userRemainingCreditsBigInt
+        : effectiveTaskMax;
+}
+
 type GenerateResponseWithFallbackParams = Pick<CollectMessageContextInfoParams, "chatId" | "latestMessage" | "taskMessage"> & {
     /** 
     * Determines if context should be written to force the response to be a command 
     */
     force: boolean;
     /** Maximum number of credits that can be spent */
-    maxCredits?: string;
+    maxCredits?: bigint;
     participantsData?: Record<string, PreMapUserData> | null;
     respondingBotConfig: BotSettings;
     respondingBotId: string;
@@ -429,6 +468,10 @@ type GenerateResponseWithFallbackParams = Pick<CollectMessageContextInfoParams, 
 }
 
 const UNSAFE_CONTENT_CODE = "0605";
+
+/** Limit chat responses to $0.50 for now */
+// eslint-disable-next-line no-magic-numbers
+export const DEFAULT_MAX_RESPONSE_CREDITS = BigInt(50) * API_CREDITS_MULTIPLIER;
 
 /**
  * Attempts to generate a response using a preferred LLM service, falling back to 
@@ -514,8 +557,13 @@ export async function generateResponseWithFallback({
 
             // Calculate input tokens and determine max output tokens based on maxCredits
             const inputTokens = serviceInstance.estimateTokens({ text: stringifiedInput, model }).tokens;
+            const maxOutputCredits = calculateMaxCredits(
+                userData.credits,
+                maxCredits || DEFAULT_MAX_RESPONSE_CREDITS,
+                accumulatedCost,
+            );
             const maxOutputTokens = serviceInstance.getMaxOutputTokensRestrained({
-                maxCredits: Math.min(Number(maxCredits || userData.credits), Number(userData.credits)) - accumulatedCost,
+                maxCredits: maxOutputCredits,
                 model,
                 inputTokens,
             });

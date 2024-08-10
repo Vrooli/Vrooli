@@ -1,8 +1,9 @@
+import fs from "fs";
 import path from "path";
 import SuperJSON from "superjson";
 import { fileURLToPath } from "url";
 import { Worker } from "worker_threads";
-import { DEFAULT_IDLE_TIMEOUT_MS, DEFAULT_MEMORY_LIMIT_MB, MB } from "./consts";
+import { DEFAULT_IDLE_TIMEOUT_MS, DEFAULT_MEMORY_LIMIT_MB, MB, WORKER_READY_TIMEOUT_MS } from "./consts";
 import { RunUserCodeInput, RunUserCodeOutput, WorkerThreadOutput } from "./types";
 import { urlRegister } from "./utils";
 
@@ -24,6 +25,9 @@ export class WorkerThreadManager {
         input: RunUserCodeInput;
     }>;
     private isProcessing: boolean;
+    private workerReady: Promise<void>;
+    private resolveWorkerReady: (() => void) | null;
+    private rejectWorkerReady: ((reason: any) => void) | null;
 
     constructor(memoryLimit = DEFAULT_MEMORY_LIMIT_MB * MB, idleTimeout = DEFAULT_IDLE_TIMEOUT_MS) {
         this.memoryLimit = memoryLimit;
@@ -32,6 +36,12 @@ export class WorkerThreadManager {
         this.timeoutHandle = null;
         this.jobQueue = [];
         this.isProcessing = false;
+        this.resolveWorkerReady = null;
+        this.rejectWorkerReady = null;
+        this.workerReady = new Promise((resolve, reject) => {
+            this.resolveWorkerReady = resolve;
+            this.rejectWorkerReady = reject;
+        });
     }
 
     /**
@@ -45,16 +55,52 @@ export class WorkerThreadManager {
         if (process.env.NODE_ENV === "test") {
             fileName = fileName.replace("/src/", "/dist/");
         }
-        this.worker = new Worker(fileName, {
-            workerData: {
-                memoryLimit: this.memoryLimit,
-            },
-        });
-        this.worker.on("error", (error) => {
-            console.error("Worker error:", error);
-        });
-        this.worker.on("message", this._handleWorkerMessage.bind(this));
-        this._resetIdleTimer();
+
+        // Check if the file exists and is not empty
+        try {
+            const stats = fs.statSync(fileName);
+            if (stats.size === 0) {
+                throw new Error("Worker thread file is empty. You may need to recomplie the project.");
+            }
+        } catch (error) {
+            console.error(`Error reading worker thread file: ${error}`);
+            if (this.rejectWorkerReady) {
+                this.rejectWorkerReady(error);
+            }
+            return;
+        }
+
+        try {
+            this.worker = new Worker(fileName, {
+                workerData: {
+                    memoryLimit: this.memoryLimit,
+                },
+            });
+            this.worker.on("error", this._handleWorkerError.bind(this));
+            this.worker.on("message", this._handleWorkerMessage.bind(this));
+
+            // Set a timeout for the worker to become ready
+            const workerReadyTimeout = setTimeout(() => {
+                if (this.rejectWorkerReady) {
+                    this.rejectWorkerReady(new Error("Worker failed to initialize within the timeout period"));
+                }
+                this._terminateWorker();
+            }, WORKER_READY_TIMEOUT_MS);
+
+            // Clear the timeout when the worker is ready
+            this.workerReady.then(() => {
+                clearTimeout(workerReadyTimeout);
+            }).catch(() => {
+                clearTimeout(workerReadyTimeout);
+            });
+
+            this._resetIdleTimer();
+        } catch (error) {
+            console.error(`Error starting worker thread: ${error}`);
+            if (this.rejectWorkerReady) {
+                this.rejectWorkerReady(error);
+            }
+        }
     }
 
     /**
@@ -74,15 +120,32 @@ export class WorkerThreadManager {
      */
     private _terminateWorker(): void {
         if (this.worker) {
-            console.log("Terminating worker thread");
             this.worker.terminate();
             this.worker = null;
+            // Reset the workerReady promise
+            this.workerReady = new Promise((resolve, reject) => {
+                this.resolveWorkerReady = resolve;
+                this.rejectWorkerReady = reject;
+            });
         }
+    }
+
+    private _handleWorkerError(error: Error): void {
+        const job = this.jobQueue.shift();
+        if (job) {
+            job.reject(error);
+        }
+        this._terminateWorker();
+        this._processNextJob();
     }
 
     private _handleWorkerMessage(message: WorkerThreadOutput): void {
         if (message.__type === "log") {
             console.log("Worker log:", message.log);
+        } else if (message.__type === "ready") {
+            if (this.resolveWorkerReady) {
+                this.resolveWorkerReady();
+            }
         } else {
             const job = this.jobQueue.shift();
             if (job) {
@@ -92,7 +155,7 @@ export class WorkerThreadManager {
         }
     }
 
-    private _processNextJob(): void {
+    private async _processNextJob(): Promise<void> {
         if (this.jobQueue.length === 0) {
             this.isProcessing = false;
             return;
@@ -104,13 +167,19 @@ export class WorkerThreadManager {
         try {
             SuperJSON.registerCustom(urlRegister, "URL");
             const safeInput = SuperJSON.stringify(job.input.input);
-            this.worker!.postMessage({
+            if (!this.worker) {
+                console.error("Worker thread not started. Call _startWorker() before processing jobs.");
+                return;
+            }
+            // Wait for the worker to be ready before sending the message
+            await this.workerReady;
+            this.worker.postMessage({
                 code: job.input.code,
                 input: safeInput,
                 shouldSpreadInput: job.input.shouldSpreadInput,
             });
         } catch (error) {
-            console.log(`Caught error while sending message: ${error}`);
+            console.error(`Caught error while sending message: ${error}`);
             this.jobQueue.shift();
             job.reject(error);
             this._processNextJob();

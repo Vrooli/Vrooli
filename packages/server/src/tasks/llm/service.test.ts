@@ -5,7 +5,7 @@ import { ModelMap } from "../../models";
 import { SessionUserToken } from "../../types";
 import { PreMapUserData } from "../../utils/chat";
 import { ChatContextCollector } from "./context";
-import { GenerateResponseParams, LanguageModelService, fetchMessagesFromDatabase, tokenEstimationDefault } from "./service";
+import { CreditValue, GenerateResponseParams, LanguageModelService, calculateMaxCredits, fetchMessagesFromDatabase, tokenEstimationDefault } from "./service";
 import { AnthropicService } from "./services/anthropic";
 import { MistralService } from "./services/mistral";
 import { OpenAIService } from "./services/openai";
@@ -141,6 +141,72 @@ describe("fetchMessagesFromDatabase", () => {
         const messages = await fetchMessagesFromDatabase(["1", "3"]);
 
         expect(messages).toEqual([mockMessages[0]]);
+    });
+});
+
+describe("calculateMaxCredits", () => {
+    // Normal cases
+    test("should return the correct value when considering credits spent", () => {
+        expect(calculateMaxCredits(500000, 1000000, 200000)).toBe(BigInt(800000));
+        expect(calculateMaxCredits(1500000, 1000000, 300000)).toBe(BigInt(700000));
+    });
+
+    test("should work with different input types for creditsSpent", () => {
+        expect(calculateMaxCredits(500000, 1000000, "200000")).toBe(BigInt(800000));
+        expect(calculateMaxCredits("1500000", "1000000", BigInt(300000))).toBe(BigInt(700000));
+    });
+
+    test("should return remaining credits when they are less than effective task max", () => {
+        expect(calculateMaxCredits(300000, 1000000, 200000)).toBe(BigInt(300000));
+    });
+
+    // Edge cases
+    test("should return 0 when credits spent equals or exceeds task max credits", () => {
+        expect(calculateMaxCredits(500000, 1000000, 1000000)).toBe(BigInt(0));
+        expect(calculateMaxCredits(500000, 1000000, 1200000)).toBe(BigInt(0));
+    });
+
+    test("should handle zero values correctly", () => {
+        expect(calculateMaxCredits(0, 1000000, 200000)).toBe(BigInt(0));
+        expect(calculateMaxCredits(500000, 0, 0)).toBe(BigInt(0));
+        expect(calculateMaxCredits(500000, 1000000, 0)).toBe(BigInt(500000));
+    });
+
+    test("should handle very large numbers correctly", () => {
+        const largeNumber = "1234567890123456789012345678901234567890";
+        expect(calculateMaxCredits(largeNumber, 1000000000n, "500000")).toBe(BigInt("999500000"));
+        expect(calculateMaxCredits(BigInt("1000000000"), largeNumber, "500000")).toBe(BigInt("999500000"));
+    });
+
+    // Bad input handling
+    test("should throw an error for negative numbers", () => {
+        expect(() => calculateMaxCredits(-500000, 1000000, 200000)).toThrow();
+        expect(() => calculateMaxCredits(500000, -1000000, 200000)).toThrow();
+        expect(() => calculateMaxCredits(500000, 1000000, -200000)).toThrow();
+    });
+
+    test("should throw an error for invalid string inputs", () => {
+        expect(() => calculateMaxCredits("not a number", 1000000, 200000)).toThrow();
+        expect(() => calculateMaxCredits(500000, "invalid", 200000)).toThrow();
+        expect(() => calculateMaxCredits(500000, 1000000, "invalid")).toThrow();
+    });
+
+    test("should throw an error for non-integer inputs", () => {
+        expect(() => calculateMaxCredits(3.14, 1000000, 200000)).toThrow();
+        expect(() => calculateMaxCredits(500000, 2.718, 200000)).toThrow();
+        expect(() => calculateMaxCredits(500000, 1000000, 3.14)).toThrow();
+    });
+
+    test("should throw an error for empty string inputs", () => {
+        expect(() => calculateMaxCredits("", 1000000, 200000)).toThrow();
+        expect(() => calculateMaxCredits(500000, "", 200000)).toThrow();
+        expect(() => calculateMaxCredits(500000, 1000000, "")).toThrow();
+    });
+
+    test("should throw an error for null or undefined inputs", () => {
+        expect(() => calculateMaxCredits(null as unknown as CreditValue, 1000000, 200000)).toThrow();
+        expect(() => calculateMaxCredits(500000, null as unknown as CreditValue, 200000)).toThrow();
+        expect(() => calculateMaxCredits(500000, 1000000, null as unknown as CreditValue)).toThrow();
     });
 });
 

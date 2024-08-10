@@ -171,3 +171,6 @@ process.on("unhandledRejection", (reason, promise) => {
     postMessage({ __type: "error", error: `Unhandled rejection: ${reason}` });
     process.exit(1);
 });
+
+// Send a ready message to the parent thread, indicating that the worker thread is ready to receive messages
+postMessage({ __type: "ready" });
