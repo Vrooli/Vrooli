@@ -404,9 +404,7 @@ describe("WorkerThreadManager", () => {
         describe("supported non-v8 types", () => {
             test("URL", async () => {
                 const input = { code: "function createsURL() { return new URL('https://example.com/home?one=true'); }" };
-                console.log("yeet before");
                 const result = await manager.runUserCode(input);
-                console.log("yeet after", result);
 
                 expect(result).not.toHaveProperty("error");
                 expect(result).toHaveProperty("output");

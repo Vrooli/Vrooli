@@ -73,7 +73,7 @@ export function QuestionView({
                 onAddCommentClose={closeAddCommentDialog}
             />
         </FormSection>
-    ), [closeAddCommentDialog, existing?.id, isAddCommentOpen, language, palette]);
+    ), [closeAddCommentDialog, existing?.id, isAddCommentOpen, language]);
 
     return (
         <>

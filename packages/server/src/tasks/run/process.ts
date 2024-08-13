@@ -1,9 +1,13 @@
-import { API_CREDITS_MULTIPLIER, BotStyle, ConfigCallData, ConfigCallDataGenerate, DOLLARS_1_CENTS, FormElementBase, FormInputBase, ProjectVersion, RoutineType, RoutineVersion, RunContext, RunProject, RunRequestLimits, RunRoutine, VALYXA_ID, generateRoutineInitialValues, getTranslation, parseBotInformation, parseConfigCallData, parseSchemaInput, parseSchemaOutput } from "@local/shared";
+import { API_CREDITS_MULTIPLIER, BotStyle, ConfigCallData, ConfigCallDataGenerate, DOLLARS_1_CENTS, FormElementBase, FormInputBase, MINUTES_5_MS, ProjectVersion, RoutineType, RoutineVersion, RunContext, RunProject, RunRequestLimits, RunRoutine, RunStatus, RunStatusChangeReason, TaskStatus, VALYXA_ID, generateRoutineInitialValues, getTranslation, parseBotInformation, parseConfigCallData, parseSchemaInput, parseSchemaOutput, saveRunProgress, shouldStopRun } from "@local/shared";
 import { Job } from "bull";
+import { performance } from "perf_hooks";
 import { readOneHelper } from "../../actions/reads";
+import { modelToGql } from "../../builders/modelToGql";
+import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
+import { ModelMap } from "../../models/base";
 import { emitSocketEvent } from "../../sockets/events";
 import { getBotInfo } from "../../tasks/llm/context";
 import { calculateMaxCredits, generateResponseWithFallback } from "../../tasks/llm/service";
@@ -13,7 +17,9 @@ import { permissionsCheck } from "../../validators/permissions";
 import { type RunProjectPayload, type RunRequestPayload, type RunRoutinePayload } from "./queue";
 
 /** Limit routines to $1 for now */
-export const DEFAULT_MAX_RUN_CREDITS = BigInt(DOLLARS_1_CENTS) * API_CREDITS_MULTIPLIER;
+const DEFAULT_MAX_RUN_CREDITS = BigInt(DOLLARS_1_CENTS) * API_CREDITS_MULTIPLIER;
+/** Limit routines to 5 minutes for now */
+const DEFAULT_MAX_RUN_TIME = MINUTES_5_MS;
 
 const runProjectSelect = {
     id: true,
@@ -73,6 +79,7 @@ const runRoutineSelect = {
             input: {
                 select: {
                     id: true,
+                    name: true,
                 },
             },
         },
@@ -84,6 +91,7 @@ const runRoutineSelect = {
             output: {
                 select: {
                     id: true,
+                    name: true,
                 },
             },
         },
@@ -455,6 +463,7 @@ type DoRoutineTypeProps = {
     inputData: FormFieldInfo[];
     limits: RunRequestLimits;
     outputData: FormFieldInfo[];
+    remainingCredits: bigint;
     routineVersion: RecursivePartial<RoutineVersion>;
     run: RunRoutine;
     userData: SessionUserToken;
@@ -878,7 +887,15 @@ function parseRunIOFromPlaintext({ formData, text }: { formData: object; text: s
     return { inputs, outputs };
 }
 
-//TODO need way to track total credits/time spent, with ability to pause/cancel if limits are reached
+const runStatusToTaskStatus: Record<RunStatus, TaskStatus> = {
+    [RunStatus.Cancelled]: TaskStatus.Suggested,
+    [RunStatus.Completed]: TaskStatus.Completed,
+    [RunStatus.Failed]: TaskStatus.Failed,
+    [RunStatus.InProgress]: TaskStatus.Running,
+    [RunStatus.Scheduled]: TaskStatus.Scheduled,
+};
+
+//TODO need to persist time spent and steps to next step
 export async function doRunRoutine({
     context,
     formValues,
@@ -892,7 +909,7 @@ export async function doRunRoutine({
     taskId,
     userData,
 }: RunRoutinePayload) {
-    const baseTaskInfo = { runFrom, runId, runType, startedById, taskId } as const;
+    // Collect info for tracking limits and costs
     // Total cost allowed for this routine. User credits should already have deducted the cost of previous steps.
     const maxCredits = calculateMaxCredits(
         userData.credits,
@@ -901,34 +918,154 @@ export async function doRunRoutine({
     );
     // Total cost this step has incurred, not including previous steps
     let totalStepCost = BigInt(0);
+    // Timing variables
+    const startTime = performance.now();
+    const maxTime = limits?.maxTime || DEFAULT_MAX_RUN_TIME;
+    const previousTimeElapsed = metrics?.timeElapsed || 0;
+    // Steps completed so far
+    const stepsRun = metrics?.stepsRun || 0;
+    const maxSteps = limits?.maxSteps || Number.MAX_SAFE_INTEGER; // By default, runs should only be limited by credits and time
+
+    // Other info needed up save run progress
+    let run: RunProject | RunRoutine | undefined = undefined;
+    let runnableObject: RoutineVersion | undefined = undefined;
+    let formData: object = {};
+    let statusChangeReason: RunStatusChangeReason | undefined = undefined;
+    let runStatus: RunStatus = RunStatus.InProgress;
+
+    /**
+     * Updates the run state and handles all actions performed when a run is updated
+     * NOTE: Only call this function after run, runnableObject, and formData information has been set.
+     * @returns True if update was successful, false if it failed
+     */
+    async function applyRunUpdate(): Promise<boolean> {
+        if (!run || !runnableObject) {
+            return false;
+        }
+
+        try {
+            //TODO also need way to create run if it doesn't exist
+            // TODO this currently requires step data, which makes it only work for multi-step routines. Change this
+            await saveRunProgress({
+                contextSwitches: run.contextSwitches || 0, // N/A for automated runs
+                currentStep: null, // TODO will change for multi-step support
+                currentStepOrder: 1,// TODO will change for multi-step support
+                currentStepRunData: null,// TODO will change for multi-step support
+                formData,
+                handleRunProjectUpdate: async function updateRun(gqlInput) {
+                    // Update the run with the new data
+                    const { format, mutate } = ModelMap.getLogic(["format", "mutate"], "RunProject", true, "run process update project cast");
+                    const input = mutate.yup.update && mutate.yup.update({ env: process.env.NODE_ENV }).cast(gqlInput, { stripUnknown: true });
+                    const data = mutate.shape.update ? await mutate.shape.update({ data: input, idsCreateToConnect: {}, preMap: {}, userData }) : input;
+                    const updateResult = await prismaInstance.run_project.update({
+                        where: { id: run?.id || gqlInput.id },
+                        data,
+                        select: runProjectSelect,
+                    });
+                    const partialInfo = toPartialGqlInfo(runProjectSelect, format.gqlRelMap, userData.languages, true);
+                    const converted = modelToGql(updateResult, partialInfo) as RunProject;
+                    run = converted;
+                },
+                handleRunRoutineUpdate: async function updateRun(gqlInput) {
+                    // Update the run with the new data
+                    const { format, mutate } = ModelMap.getLogic(["format", "mutate"], "RunRoutine", true, "run process update routine cast");
+                    const input = mutate.yup.update && mutate.yup.update({ env: process.env.NODE_ENV }).cast(gqlInput, { stripUnknown: true });
+                    const data = mutate.shape.update ? await mutate.shape.update({ data: input, idsCreateToConnect: {}, preMap: {}, userData }) : input;
+                    const updateResult = await prismaInstance.run_routine.update({
+                        where: { id: run?.id || gqlInput.id },
+                        data,
+                        select: runRoutineSelect,
+                    });
+                    const partialInfo = toPartialGqlInfo(runRoutineSelect, format.gqlRelMap, userData.languages, true);
+                    const converted = modelToGql(updateResult, partialInfo) as RunRoutine;
+                    run = converted;
+                },
+                isStepCompleted: false,// TODO will change for multi-step support
+                isRunCompleted: statusChangeReason === RunStatusChangeReason.Completed,
+                logger,
+                run,
+                runnableObject,
+                timeElapsed: previousTimeElapsed + (performance.now() - startTime),
+            });
+
+            // Emit socket event to update the UI
+            const status = runStatusToTaskStatus[runStatus];
+            const taskSocketInfo = { run, runFrom, runId, runType, startedById, statusChangeReason, status, taskId } as const;
+            emitSocketEvent("runTask", runId, taskSocketInfo);
+
+            // Reduce user's credits
+            if (totalStepCost > 0) {
+                const updatedUser = await prismaInstance.user.update({
+                    where: { id: userData.id },
+                    data: { premium: { update: { credits: { decrement: totalStepCost } } } },
+                    select: { premium: { select: { credits: true } } },
+                });
+
+                if (updatedUser.premium) {
+                    emitSocketEvent("apiCredits", userData.id, { credits: updatedUser.premium.credits + "" });
+                }
+            }
+
+            return true;
+        } catch (error) {
+            console.error(`Error managing run state for ${runId}:`, error);
+            return false;
+        }
+    }
+    /**
+     * Checks if the run should stop, and if so, manages the run state.
+     * 
+     * NOTE: Only call this function after run, runnableObject, and formData information has been set.
+     * @returns True if `doRunRoutine` should return, false if it should continue
+     */
+    async function checkStop(): Promise<boolean> {
+        const runState = shouldStopRun({
+            currentTimeElapsed: performance.now() - startTime,
+            limits,
+            maxCredits,
+            maxSteps,
+            maxTime,
+            previousTimeElapsed,
+            stepsRun,
+            totalStepCost,
+        });
+        statusChangeReason = runState.statusChangeReason;
+        runStatus = runState.runStatus;
+
+        if (statusChangeReason) {
+            const success = await applyRunUpdate();
+            return !success;
+        }
+        return false;
+    }
 
     try {
         // Let the UI know that the task is Running
-        emitSocketEvent("runTask", runId, { status: "Running", ...baseTaskInfo });
+        emitSocketEvent("runTask", runId, { status: "Running", runFrom, runId, runType, startedById, taskId });
         // Get the routine and run, in a way that throws an error if they don't exist or the user doesn't have permission
         const req = { session: { languages: userData.languages, users: [userData] } };
-        const run = await readOneHelper<RunProject | RunRoutine>({
+        run = await readOneHelper<RunProject | RunRoutine>({
             info: runType === "RunProject" ? runProjectSelect : runRoutineSelect,
             input: { id: runId },
             objectType: runType,
             req,
-        });
-        const routineVersion = await readOneHelper<RoutineVersion>({
+        }) as RunProject | RunRoutine;
+        runnableObject = await readOneHelper<RoutineVersion>({
             info: routineVersionSelect,
             input: { id: routineVersionId },
             objectType: "RoutineVersion",
             req,
-        });
+        }) as RoutineVersion;
         // Parse configs and form data
-        const configCallData = parseConfigCallData(routineVersion.configCallData, routineVersion.routineType, logger);
-        const configFormInput = parseSchemaInput(routineVersion.configFormInput, routineVersion.routineType, logger);
-        const configFormOutput = parseSchemaOutput(routineVersion.configFormOutput, routineVersion.routineType, logger);
+        const configCallData = parseConfigCallData(runnableObject.configCallData, runnableObject.routineType, logger);
+        const configFormInput = parseSchemaInput(runnableObject.configFormInput, runnableObject.routineType, logger);
+        const configFormOutput = parseSchemaOutput(runnableObject.configFormOutput, runnableObject.routineType, logger);
         // Collect fieldName, description, and helpText for each input and output element
         const inputFieldInfo = configFormInput.elements.map(toFormFieldInfo).filter((element) => element.fieldName);
         const outputFieldInfo = configFormOutput.elements.map(toFormFieldInfo).filter((element) => element.fieldName);
         // Generate input/output value object like we do in the UI. Returns object where 
         // input keys are prefixed with "input-" and output keys are prefixed with "output-"
-        let formData = generateRoutineInitialValues({
+        formData = generateRoutineInitialValues({
             configFormInput,
             configFormOutput,
             logger,
@@ -943,19 +1080,19 @@ export async function doRunRoutine({
                 }
             }
         }
+        if (await checkStop()) {
+            return { __typename: "Success" as const, success: false };
+        }
         // Combine values and field info so that we can easily generate a task message for an LLM.
         const fullInputs = formDataToIOInfo(formData, inputFieldInfo, "input-");
         const fullOutputs = formDataToIOInfo(formData, outputFieldInfo, "output-");
-        console.log("got fullInputs", JSON.stringify(fullInputs));
-        console.log("got fullOutputs", JSON.stringify(fullOutputs));
         // If there is at least one missing input, create a task message for the LLM to generate the missing inputs
-        const taskMessage = generateTaskMessage(routineVersion as RoutineVersion, fullInputs, fullOutputs, userData.languages);
-        console.log("got taskMessage", taskMessage);
+        const taskMessage = generateTaskMessage(runnableObject, fullInputs, fullOutputs, userData.languages);
         // If we have a taskMessage, this means we have missing inputs. 
         if (taskMessage) {
             // Use LLM to generate response
             let botToUse: string;
-            if (routineVersion.routineType === RoutineType.Generate) {
+            if (runnableObject.routineType === RoutineType.Generate) {
                 const configCallDataGenerate = configCallData as ConfigCallDataGenerate;
                 botToUse = (configCallDataGenerate.botStyle === BotStyle.Specific ? configCallDataGenerate.respondingBot : startedById) || VALYXA_ID;
             } else {
@@ -982,20 +1119,28 @@ export async function doRunRoutine({
                 userData,
             });
             totalStepCost += BigInt(cost);
-            console.log("llm response", message, cost);
-            // TODO transform response to input values
-            console.time("doSandbox from run process");
+            // Transform response to input and output values
             const { inputs: transformedInputs, outputs: transformedOutputs } = parseRunIOFromPlaintext({ formData, text: message });
-            console.timeEnd("doSandbox from run process"); // Takes about 161ms. Will have to replace with hard-coded function, but it's good that we tested sandbox for the type-specific function
-            console.log("transformed response", transformedInputs, transformedOutputs);
-            //TODO Send update to UI and update formData
+            // Update formData
+            formData = {
+                ...formData,
+                // Prepend "input-" to keys for inputs and "output-" to keys for outputs
+                ...Object.entries(transformedInputs).reduce((acc, [key, value]) => {
+                    acc[`input-${key}`] = value;
+                    return acc;
+                }, {} as Record<string, any>),
+                ...Object.entries(transformedOutputs).reduce((acc, [key, value]) => {
+                    acc[`output-${key}`] = value;
+                    return acc;
+                }, {} as Record<string, any>),
+            };
         }
         // // Determine if the routine being run is the overall routine or a sub-routine
         // const isSubroutine = runType !== "RunRoutine" || (run as RunRoutine).routineVersion?.id !== routineVersion.id;
         // What we do depends on the routine type
-        const routineFunction = routineVersion.routineType ? routineTypeToFunction[routineVersion.routineType] : undefined;
+        const routineFunction = runnableObject.routineType ? routineTypeToFunction[runnableObject.routineType] : undefined;
         if (!routineFunction) {
-            throw new CustomError("0593", "InternalError", userData.languages, { routineType: routineVersion.routineType });
+            throw new CustomError("0593", "InternalError", userData.languages, { routineType: runnableObject.routineType });
         }
         const { cost } = await routineFunction({
             configCallData,
@@ -1006,26 +1151,21 @@ export async function doRunRoutine({
             inputData: inputFieldInfo,
             limits: limits ?? {},
             outputData: outputFieldInfo,
-            routineVersion,
+            remainingCredits: maxCredits - totalStepCost,
+            routineVersion: runnableObject,
             run: run as RunRoutine,
             userData,
         });
         totalStepCost += BigInt(cost);
-        // TODO update run based on changed form (i.e. find new/updated inputs and outputs, add step)
-        // Reduce user's credits
-        const updatedUser = await prismaInstance.user.update({
-            where: { id: userData.id },
-            data: { premium: { update: { credits: { decrement: totalStepCost } } } },
-            select: { premium: { select: { credits: true } } },
-        });
-        if (updatedUser.premium) {
-            emitSocketEvent("apiCredits", userData.id, { credits: updatedUser.premium.credits + "" });
-        }
-        // Let the UI know that the task is done
-        emitSocketEvent("runTask", runId, { status: "Completed", ...baseTaskInfo });
+
+        runStatus = RunStatus.Completed;
+        statusChangeReason = RunStatusChangeReason.Completed;
+        await applyRunUpdate();
     } catch (error) {
-        emitSocketEvent("runTask", runId, { status: "Failed", ...baseTaskInfo });
         logger.error("Caught error in doRun", { trace: "0587", error });
+        runStatus = RunStatus.Failed;
+        statusChangeReason = RunStatusChangeReason.Error;
+        await applyRunUpdate();
         return { __typename: "Success" as const, success: false };
     }
 }

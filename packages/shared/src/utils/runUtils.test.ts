@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Node, NodeLink, NodeType, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionYou, Routine, RoutineType, RoutineVersion, RoutineVersionInput, RoutineVersionOutput, RoutineVersionYou, RunRoutineInput } from "../api/generated/graphqlTypes";
+import { Node, NodeLink, NodeType, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionYou, Routine, RoutineType, RoutineVersion, RoutineVersionInput, RoutineVersionOutput, RoutineVersionYou, RunProject, RunProjectStep, RunRoutine, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, RunStatus } from "../api/generated/graphqlTypes";
 import { InputType } from "../consts";
 import { FormSchema, FormStructureType } from "../forms";
 import { uuid, uuidValidate } from "../id/uuid";
-import { DecisionStep, DirectoryStep, EndStep, ExistingInput, ExistingOutput, MultiRoutineStep, RootStep, RoutineListStep, RunIOUpdateParams, RunStep, RunStepType, RunnableProjectVersion, RunnableRoutineVersion, SingleRoutineStep, StartStep, addSubroutinesToStep, defaultConfigFormInputMap, defaultConfigFormOutputMap, directoryToStep, findStep, generateRoutineInitialValues, getIOKey, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, insertStep, locationArraysMatch, multiRoutineToStep, parseChildOrder, parseRunIO, parseRunInputs, parseRunOutputs, parseSchemaInput, parseSchemaOutput, projectToStep, routineVersionHasSubroutines, runInputsUpdate, runOutputsUpdate, runnableObjectToStep, siblingsAtLocation, singleRoutineToStep, sortStepsAndAddDecisions, stepFromLocation, stepNeedsQuerying } from "./runUtils";
+import { DecisionStep, DirectoryStep, EndStep, ExistingInput, ExistingOutput, MultiRoutineStep, RootStep, RoutineListStep, RunIOUpdateParams, RunRequestLimits, RunStatusChangeReason, RunStep, RunStepType, RunnableProjectVersion, RunnableRoutineVersion, ShouldStopParams, SingleRoutineStep, StartStep, addSubroutinesToStep, defaultConfigFormInputMap, defaultConfigFormOutputMap, directoryToStep, findStep, generateRoutineInitialValues, getIOKey, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, insertStep, locationArraysMatch, multiRoutineToStep, parseChildOrder, parseRunIO, parseRunInputs, parseRunOutputs, parseSchemaInput, parseSchemaOutput, projectToStep, routineVersionHasSubroutines, runInputsUpdate, runOutputsUpdate, runnableObjectToStep, saveRunProgress, shouldStopRun, siblingsAtLocation, singleRoutineToStep, sortStepsAndAddDecisions, stepFromLocation, stepNeedsQuerying } from "./runUtils";
 
 describe("getRunPercentComplete", () => {
     it("should return 0 when completedComplexity is null", () => {
@@ -436,6 +436,41 @@ describe("generateRoutineInitialValues", () => {
             "output-outputField3": 23,
         });
     });
+
+    // describe("real world example", () => {
+    //     it("example 1", () => {
+    //         const configFormInput = "{\"containers\":[{\"totalItems\":1},{\"totalItems\":1}],\"elements\":[{\"type\":\"Text\",\"props\":{\"autoComplete\":\"off\",\"defaultValue\":\"\",\"isMarkdown\":true,\"maxChars\":1000,\"maxRows\":2,\"minRows\":4},\"fieldName\":\"input-xme5mnsjdz\",\"id\":\"4c85518b-ec56-48ee-b231-caadabe08234\",\"label\":\"What do you want to know?\",\"yup\":{\"checks\":[]},\"isRequired\":true},{\"type\":\"LinkUrl\",\"props\":{\"acceptedHosts\":[],\"defaultValue\":\"http://google.com\"},\"fieldName\":\"field-gi7s9c0b3m\",\"id\":\"26af2256-c093-4cae-ad62-3c6171ee2798\",\"label\":\"Input #2\",\"yup\":{\"checks\":[]}}]}";
+    //         const configFormOutput = "{\"containers\":[],\"elements\":[{\"fieldName\":\"response\",\"id\":\"response\",\"label\":\"Response\",\"props\":{\"placeholder\":\"Model response will be displayed here\"},\"type\":\"Text\"}]}";
+    //         const runInputs = [{
+    //             __typename: "RunRoutineInput",
+    //             data: "\"requiredValue\"",
+    //             id: "5963a94c-e4c9-4f41-8cd0-6f5131bd88de",
+    //             input: {
+    //                 __typename: "RoutineVersionInput",
+    //                 id: "4c85518b-ec56-48ee-b231-caadabe08234",
+    //                 index: 0,
+    //                 isRequired: true,
+    //                 name: "input-xme5mnsjdz",
+    //                 standardVersion: null,
+    //                 translations: [],
+    //             },
+    //         }, {
+    //             __typename: "RunRoutineInput",
+    //             data: "\"http://google.com\"",
+    //             id: "f48dcc31-d070-4f83-acfb-2a2d0286a16c",
+    //             input: {
+    //                 __typename: "RoutineVersionInput",
+    //                 id: "4c85518b-ec56-48ee-b231-caadabe08234",
+    //                 index: 0,
+    //                 isRequired: false,
+    //                 name: "field-gi7s9c0b3m",
+    //                 standardVersion: null,
+    //                 translations: [],
+    //             },
+    //         }];
+    //         const runOutputs = [];
+    //     });
+    // });
 });
 
 describe("parseRunOutputs", () => {
@@ -3736,6 +3771,312 @@ describe("addSubroutinesToStep", () => {
     });
 });
 
+describe("saveRunProgress", () => {
+    // Common setup
+    const mockLogger = {
+        error: jest.fn(),
+        warn: jest.fn(),
+        info: jest.fn(),
+        debug: jest.fn(),
+    };
+
+    const mockHandleRunProjectUpdate = jest.fn();
+    const mockHandleRunRoutineUpdate = jest.fn();
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it("should update existing step data for a RunProject", async () => {
+        const mockRun = {
+            id: "run-1",
+            __typename: "RunProject",
+            contextSwitches: 2, // Should be overwritten by sum of all steps
+            steps: [{
+                id: "step-1", timeElapsed: 100, contextSwitches: 5,
+            }, {
+                id: "step-2", timeElapsed: 23, contextSwitches: 1,
+            }],
+            timeElapsed: 123, // Should be overwritten by sum of all steps
+        } as RunProject;
+
+        const mockCurrentStep = { name: "Test Step", location: [0] } as RunStep;
+        const mockCurrentStepRunData = { id: "step-1" } as RunProjectStep;
+        const mockRunnableObject = { __typename: "ProjectVersion" } as ProjectVersion;
+
+        await saveRunProgress({
+            contextSwitches: 7, // Not cumulative, and for step only. Overall context switches are sum of all steps
+            currentStep: mockCurrentStep,
+            currentStepOrder: 1,
+            currentStepRunData: mockCurrentStepRunData,
+            formData: {},
+            handleRunProjectUpdate: mockHandleRunProjectUpdate,
+            handleRunRoutineUpdate: mockHandleRunRoutineUpdate,
+            isStepCompleted: false,
+            isRunCompleted: false,
+            logger: mockLogger,
+            run: mockRun,
+            runnableObject: mockRunnableObject,
+            timeElapsed: 200, // Not cumulative, and for step only. Overall time elapsed is sum of all steps
+        });
+
+        expect(mockHandleRunProjectUpdate).toHaveBeenCalledWith({
+            id: "run-1",
+            stepsUpdate: [{
+                id: "step-1",
+                timeElapsed: 200,
+                contextSwitches: 7,
+                status: RunRoutineStepStatus.InProgress, // Reflects `isStepCompleted` false
+            }], // No update for step-2, but its timeElapsed and contextSwitches should be added to the RunProject
+            timeElapsed: 223, // Sum of all steps' timeElapsed
+            contextSwitches: 8, // Sum of all steps' contextSwitches
+            status: RunStatus.InProgress, // Reflects `isRunCompleted` false
+        });
+    });
+
+    it("should create new step data for a RunProject with completed step", async () => {
+        const mockRun = {
+            id: "run-2",
+            __typename: "RunProject",
+            contextSwitches: 0,
+            steps: [{
+                id: "step-1", timeElapsed: 420, contextSwitches: 5,
+            }, {
+                id: "step-2", timeElapsed: 69, contextSwitches: 1,
+            }],
+            timeElapsed: 0,
+        } as unknown as RunProject;
+
+        const mockCurrentStep = { name: "New Step", location: [1], nodeId: "nodeBoop" } as RunStep;
+        const mockRunnableObject = { __typename: "ProjectVersion" } as ProjectVersion;
+
+        await saveRunProgress({
+            contextSwitches: 3,
+            currentStep: mockCurrentStep,
+            currentStepOrder: 1,
+            currentStepRunData: null,
+            formData: {},
+            handleRunProjectUpdate: mockHandleRunProjectUpdate,
+            handleRunRoutineUpdate: mockHandleRunRoutineUpdate,
+            isStepCompleted: true,
+            isRunCompleted: false,
+            logger: mockLogger,
+            run: mockRun,
+            runnableObject: mockRunnableObject,
+            timeElapsed: 150,
+        });
+
+        expect(mockHandleRunProjectUpdate).toHaveBeenCalledWith({
+            id: "run-2",
+            stepsCreate: [{
+                id: expect.any(String),
+                name: "New Step",
+                nodeConnect: "nodeBoop",
+                order: 1,
+                step: [1],
+                runProjectConnect: "run-2",
+                timeElapsed: 150,
+                contextSwitches: 3,
+                status: RunRoutineStepStatus.Completed, // Reflects `isStepCompleted` true
+                subroutineConnect: undefined,
+            }],
+            timeElapsed: 639, // 420 + 69 + 150
+            contextSwitches: 9, // 5 + 1 + 3
+            status: RunStatus.InProgress, // Reflects `isRunCompleted` false
+        });
+    });
+
+    it("should update existing step data for a RunRoutine with completed run", async () => {
+        const mockRun = {
+            id: "run-3",
+            __typename: "RunRoutine",
+            contextSwitches: 5, // Should be overwritten by sum of all steps
+            steps: [{
+                id: "step-1", timeElapsed: 200, contextSwitches: 5,
+            }, {
+                id: "step-2", timeElapsed: 100, contextSwitches: 2,
+            }],
+            timeElapsed: 300, // Should be overwritten by sum of all steps
+            inputs: [],
+            outputs: [],
+        } as unknown as RunRoutine;
+
+        const mockCurrentStep = { name: "Final Step", location: [2] } as RunStep;
+        const mockCurrentStepRunData = { id: "step-2" } as RunRoutineStep;
+        const mockRunnableObject = {
+            __typename: "RoutineVersion",
+            inputs: [],
+            outputs: [],
+        } as unknown as RoutineVersion;
+
+        await saveRunProgress({
+            contextSwitches: 3, // Not cumulative, and for step only. Overall context switches are sum of all steps
+            currentStep: mockCurrentStep,
+            currentStepOrder: 2,
+            currentStepRunData: mockCurrentStepRunData,
+            formData: {},
+            handleRunProjectUpdate: mockHandleRunProjectUpdate,
+            handleRunRoutineUpdate: mockHandleRunRoutineUpdate,
+            isStepCompleted: true,
+            isRunCompleted: true,
+            logger: mockLogger,
+            run: mockRun,
+            runnableObject: mockRunnableObject,
+            timeElapsed: 150, // Not cumulative, and for step only. Overall time elapsed is sum of all steps
+        });
+
+        expect(mockHandleRunRoutineUpdate).toHaveBeenCalledWith({
+            id: "run-3",
+            stepsUpdate: [{
+                id: "step-2",
+                timeElapsed: 150,
+                contextSwitches: 3,
+                status: RunRoutineStepStatus.Completed, // Reflects `isStepCompleted` true
+            }], // No update for step-1, but its timeElapsed and contextSwitches should be added to the RunRoutine
+            timeElapsed: 350, // Sum of all steps' timeElapsed (200 + 150)
+            contextSwitches: 8, // Sum of all steps' contextSwitches (5 + 3)
+            status: RunStatus.Completed, // Reflects `isRunCompleted` true
+        });
+    });
+
+    it("should create new step data for a RunRoutine and handle inputs/outputs", async () => {
+        const mockRun = {
+            id: "run-4",
+            __typename: "RunRoutine",
+            steps: [{
+                id: "step-1", timeElapsed: 50, contextSwitches: 2,
+            }],
+            inputs: [{
+                id: "existing-input-1",
+                data: "\"oldInputValue\"",
+                input: { id: "input-1", name: "existingInput" },
+            }],
+            outputs: [{
+                id: "existing-output-1",
+                data: "\"oldOutputValue\"",
+                output: { id: "output-1", name: "existingOutput" },
+            }],
+            contextSwitches: 2, // Should be overwritten by sum of all steps
+            timeElapsed: 50, // Should be overwritten by sum of all steps
+        } as unknown as RunRoutine;
+
+        const mockCurrentStep = { name: "New Step", location: [1], routineVersion: { id: "subroutineId" } } as RunStep;
+        const mockRunnableObject = {
+            __typename: "RoutineVersion",
+            inputs: [
+                { id: "input-1", name: "existingInput" },
+                { id: "input-2", name: "newInput" },
+            ],
+            outputs: [
+                { id: "output-1", name: "existingOutput" },
+                { id: "output-2", name: "newOutput" },
+            ],
+        } as RoutineVersion;
+
+        const formData = {
+            "input-existingInput": "updatedInputValue",
+            "input-newInput": "newInputValue",
+            "output-existingOutput": "updatedOutputValue",
+            "output-newOutput": "newOutputValue",
+        };
+
+
+        await saveRunProgress({
+            contextSwitches: 1, // Not cumulative, and for step only. Overall context switches are sum of all steps
+            currentStep: mockCurrentStep,
+            currentStepOrder: 2,
+            currentStepRunData: null,
+            formData,
+            handleRunProjectUpdate: mockHandleRunProjectUpdate,
+            handleRunRoutineUpdate: mockHandleRunRoutineUpdate,
+            isStepCompleted: false,
+            isRunCompleted: false,
+            logger: mockLogger,
+            run: mockRun,
+            runnableObject: mockRunnableObject,
+            timeElapsed: 30, // Not cumulative, and for step only. Overall time elapsed is sum of all steps
+        });
+
+        expect(mockHandleRunRoutineUpdate).toHaveBeenCalledWith({
+            id: "run-4",
+            stepsCreate: [{
+                id: expect.any(String),
+                name: "New Step",
+                nodeConnect: undefined,
+                order: 2,
+                step: [1],
+                runRoutineConnect: "run-4",
+                timeElapsed: 30,
+                contextSwitches: 1,
+                status: RunRoutineStepStatus.InProgress, // Reflects `isStepCompleted` false
+                subroutineConnect: "subroutineId",
+            }],
+            timeElapsed: 80, // Sum of all steps' timeElapsed (50 + 30)
+            contextSwitches: 3, // Sum of all steps' contextSwitches (2 + 1)
+            status: RunStatus.InProgress, // Reflects `isRunCompleted` false
+            inputsCreate: [{
+                id: expect.any(String),
+                data: "\"newInputValue\"",
+                inputConnect: "input-2",
+                runRoutineConnect: "run-4",
+            }],
+            inputsUpdate: [{
+                id: "existing-input-1",
+                data: "\"updatedInputValue\"",
+            }],
+            outputsCreate: [{
+                id: expect.any(String),
+                data: "\"newOutputValue\"",
+                outputConnect: "output-2",
+                runRoutineConnect: "run-4",
+            }],
+            outputsUpdate: [{
+                id: "existing-output-1",
+                data: "\"updatedOutputValue\"",
+            }],
+        });
+    });
+
+    it("should not include stepCreate or stepUpdate if currentStep and currentStepRunData are not provided", () => {
+        const mockRun = {
+            id: "run-5",
+            __typename: "RunProject",
+            contextSwitches: 0,
+            steps: [{
+                id: "step-1", timeElapsed: 420, contextSwitches: 5,
+            }, {
+                id: "step-2", timeElapsed: 69, contextSwitches: 1,
+            }],
+            timeElapsed: 0,
+        } as unknown as RunProject;
+
+        const mockRunnableObject = { __typename: "ProjectVersion" } as ProjectVersion;
+
+        saveRunProgress({
+            contextSwitches: 6, // 5 + 1
+            currentStep: null,
+            currentStepOrder: 99999, // No step data provided, so this should be ignored
+            currentStepRunData: null,
+            formData: {},
+            handleRunProjectUpdate: mockHandleRunProjectUpdate,
+            handleRunRoutineUpdate: mockHandleRunRoutineUpdate,
+            isStepCompleted: true,
+            isRunCompleted: false,
+            logger: mockLogger,
+            run: mockRun,
+            runnableObject: mockRunnableObject,
+            timeElapsed: 489, // 420 + 69
+        });
+
+        expect(mockHandleRunProjectUpdate).toHaveBeenCalledWith({
+            id: "run-5",
+            timeElapsed: 489,
+            contextSwitches: 6,
+            status: RunStatus.InProgress,
+        });
+    });
+});
+
 describe("Schema Parsing Functions", () => {
     describe("parseSchemaInput", () => {
         test("parses valid JSON string correctly", () => {
@@ -3817,5 +4158,119 @@ describe("Schema Parsing Functions", () => {
             const expected = { containers: [], elements: [], someRandomKey: 123 };
             expect(parseSchemaOutput(input, RoutineType.SmartContract, console)).toEqual(expected);
         });
+    });
+});
+
+describe("shouldStopRun", () => {
+    const defaultLimits: RunRequestLimits = {
+        onMaxCredits: "Stop",
+        onMaxTime: "Stop",
+        onMaxSteps: "Stop",
+    };
+
+    const defaultParams: ShouldStopParams = {
+        totalStepCost: BigInt(50),
+        maxCredits: BigInt(100),
+        previousTimeElapsed: 500,
+        currentTimeElapsed: 100,
+        maxTime: 1000,
+        stepsRun: 5,
+        maxSteps: 10,
+        limits: defaultLimits,
+    };
+
+    it("should return InProgress when no limits are exceeded", () => {
+        const result = shouldStopRun(defaultParams);
+        expect(result).toEqual({ statusChangeReason: undefined, runStatus: RunStatus.InProgress });
+    });
+
+    it("should return Failed when maxCredits is exceeded and onMaxCredits is Stop", () => {
+        const params = { ...defaultParams, totalStepCost: BigInt(150) };
+        const result = shouldStopRun(params);
+        expect(result).toEqual({ statusChangeReason: RunStatusChangeReason.MaxCredits, runStatus: RunStatus.Failed });
+    });
+
+    it("should return Cancelled when maxCredits is exceeded and onMaxCredits is Cancel", () => {
+        const params = {
+            ...defaultParams,
+            totalStepCost: BigInt(150),
+            limits: { ...defaultLimits, onMaxCredits: "Pause" as const },
+        };
+        const result = shouldStopRun(params);
+        expect(result).toEqual({ statusChangeReason: RunStatusChangeReason.MaxCredits, runStatus: RunStatus.Cancelled });
+    });
+
+    it("should return Failed when maxTime is exceeded and onMaxTime is Stop", () => {
+        const params = { ...defaultParams, currentTimeElapsed: 600 };
+        const result = shouldStopRun(params);
+        expect(result).toEqual({ statusChangeReason: RunStatusChangeReason.MaxTime, runStatus: RunStatus.Failed });
+    });
+
+    it("should return Cancelled when maxTime is exceeded and onMaxTime is Cancel", () => {
+        const params = {
+            ...defaultParams,
+            currentTimeElapsed: 600,
+            limits: { ...defaultLimits, onMaxTime: "Pause" as const },
+        };
+        const result = shouldStopRun(params);
+        expect(result).toEqual({ statusChangeReason: RunStatusChangeReason.MaxTime, runStatus: RunStatus.Cancelled });
+    });
+
+    it("should return Failed when maxSteps is exceeded and onMaxSteps is Stop", () => {
+        const params = { ...defaultParams, stepsRun: 11 };
+        const result = shouldStopRun(params);
+        expect(result).toEqual({ statusChangeReason: RunStatusChangeReason.MaxSteps, runStatus: RunStatus.Failed });
+    });
+
+    it("should return Cancelled when maxSteps is exceeded and onMaxSteps is Cancel", () => {
+        const params = {
+            ...defaultParams,
+            stepsRun: 11,
+            limits: { ...defaultLimits, onMaxSteps: "Pause" as const },
+        };
+        const result = shouldStopRun(params);
+        expect(result).toEqual({ statusChangeReason: RunStatusChangeReason.MaxSteps, runStatus: RunStatus.Cancelled });
+    });
+
+    it("should prioritize maxCredits over maxTime and maxSteps", () => {
+        const params = {
+            ...defaultParams,
+            totalStepCost: BigInt(150),
+            currentTimeElapsed: 600,
+            stepsRun: 11,
+        };
+        const result = shouldStopRun(params);
+        expect(result).toEqual({ statusChangeReason: RunStatusChangeReason.MaxCredits, runStatus: RunStatus.Failed });
+    });
+
+    it("should prioritize maxTime over maxSteps", () => {
+        const params = {
+            ...defaultParams,
+            currentTimeElapsed: 600,
+            stepsRun: 11,
+        };
+        const result = shouldStopRun(params);
+        expect(result).toEqual({ statusChangeReason: RunStatusChangeReason.MaxTime, runStatus: RunStatus.Failed });
+    });
+
+    it("should handle edge cases with BigInt values", () => {
+        const params = {
+            ...defaultParams,
+            totalStepCost: BigInt(Number.MAX_SAFE_INTEGER) + BigInt(1),
+            maxCredits: BigInt(Number.MAX_SAFE_INTEGER),
+        };
+        const result = shouldStopRun(params);
+        expect(result).toEqual({ statusChangeReason: RunStatusChangeReason.MaxCredits, runStatus: RunStatus.Failed });
+    });
+
+    it("should handle edge cases with time values", () => {
+        const params = {
+            ...defaultParams,
+            previousTimeElapsed: Number.MAX_SAFE_INTEGER,
+            currentTimeElapsed: 1,
+            maxTime: Number.MAX_SAFE_INTEGER,
+        };
+        const result = shouldStopRun(params);
+        expect(result).toEqual({ statusChangeReason: RunStatusChangeReason.MaxTime, runStatus: RunStatus.Failed });
     });
 });

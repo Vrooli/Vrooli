@@ -250,6 +250,7 @@ export function RunView({
     /** Stores user inputs and generated outputs */
     const formikRef = useRef<FormikProps<object>>(null);
     useEffect(function setInputsOnRunLoad() {
+        console.log("updating RunView formikRef", run, runnableObject);
         if (!runnableObject || runnableObject.__typename !== "RoutineVersion") return;
         const values = generateRoutineInitialValues({
             configFormInput: parseSchemaInput(runnableObject.configFormInput, runnableObject.routineType, console),
@@ -404,14 +405,14 @@ export function RunView({
                 currentStepOrder: (newProgress.findIndex((p) => locationArraysMatch(p, currentLocation)) ?? newProgress.length) + 1,
                 currentStepRunData,
                 formData: formikRef.current?.values ?? {},
-                handleRunProjectUpdate: function updateRun(inputs) {
+                handleRunProjectUpdate: async function updateRun(inputs) {
                     fetchLazyWrapper<RunProjectUpdateInput, RunProject>({
                         fetch: updateRunProject,
                         inputs,
                         onSuccess,
                     });
                 },
-                handleRunRoutineUpdate: function updateRun(inputs) {
+                handleRunRoutineUpdate: async function updateRun(inputs) {
                     fetchLazyWrapper<RunRoutineUpdateInput, RunRoutine>({
                         fetch: updateRunRoutine,
                         inputs,
@@ -453,20 +454,21 @@ export function RunView({
             setRun(data);
         }
 
+        console.log('qqqq calling saveRunProgress', run);
         saveRunProgress({
             contextSwitches: Math.max(getContextSwitches(), currentStepRunData?.contextSwitches ?? 0),
             currentStep,
             currentStepOrder: (progress.findIndex((p) => locationArraysMatch(p, currentLocation)) ?? progress.length) + 1,
             currentStepRunData,
             formData: formikRef.current?.values ?? {},
-            handleRunProjectUpdate: function updateRun(inputs) {
+            handleRunProjectUpdate: async function updateRun(inputs) {
                 fetchLazyWrapper<RunProjectUpdateInput, RunProject>({
                     fetch: updateRunProject,
                     inputs,
                     onSuccess,
                 });
             },
-            handleRunRoutineUpdate: function updateRun(inputs) {
+            handleRunRoutineUpdate: async function updateRun(inputs) {
                 fetchLazyWrapper<RunRoutineUpdateInput, RunRoutine>({
                     fetch: updateRunRoutine,
                     inputs,
@@ -503,7 +505,7 @@ export function RunView({
         subroutineTaskInfo,
     } = useSocketRun({
         formikRef,
-        handleRunRoutineUpdate: setRun,
+        handleRunUpdate: setRun,
         run,
         runnableObject,
     });

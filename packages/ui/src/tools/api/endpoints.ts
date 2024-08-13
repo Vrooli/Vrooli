@@ -98,7 +98,7 @@ export const endpoints = {
         return {
             findOne: toQuery("chatMessage", "FindByIdInput", chatMessage, "full"),
             findMany: toQuery("chatMessages", "ChatMessageSearchInput", ...(await toSearch(chatMessage))),
-            findTree: toQuery("chatMessageTree", "ChatMessageSearchTreeInput", chatMessageSearchTreeResult, "full"),
+            findTree: toQuery("chatMessageTree", "ChatMessageSearchTreeInput", chatMessageSearchTreeResult, "common"),
             create: toMutation("chatMessageCreate", "ChatMessageCreateInput", chatMessage, "full"),
             update: toMutation("chatMessageUpdate", "ChatMessageUpdateInput", chatMessage, "full"),
             regenerateResponse: toMutation("regenerateResponse", "RegenerateResponseInput", success, "full"),

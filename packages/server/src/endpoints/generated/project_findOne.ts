@@ -158,6 +158,15 @@ export const project_findOne = {
     "simplicity": true,
     "versionIndex": true,
     "versionLabel": true,
+    "you": {
+      "canComment": true,
+      "canCopy": true,
+      "canDelete": true,
+      "canReport": true,
+      "canUpdate": true,
+      "canUse": true,
+      "canRead": true
+    },
     "directories": {
       "id": true,
       "created_at": true,
@@ -709,6 +718,15 @@ export const project_findOne = {
         "simplicity": true,
         "versionIndex": true,
         "versionLabel": true,
+        "you": {
+          "canComment": true,
+          "canCopy": true,
+          "canDelete": true,
+          "canReport": true,
+          "canUpdate": true,
+          "canUse": true,
+          "canRead": true
+        },
         "root": {
           "id": true,
           "created_at": true,
@@ -870,6 +888,17 @@ export const project_findOne = {
         "nodeLinksCount": true,
         "outputsCount": true,
         "reportsCount": true,
+        "you": {
+          "canComment": true,
+          "canCopy": true,
+          "canDelete": true,
+          "canBookmark": true,
+          "canReport": true,
+          "canRun": true,
+          "canUpdate": true,
+          "canRead": true,
+          "canReact": true
+        },
         "root": {
           "id": true,
           "created_at": true,

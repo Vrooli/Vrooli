@@ -7,7 +7,7 @@ export const homeResult: GqlPartial<HomeResult> = {
     list: {
         __define: {
             1: async () => rel((await import("./resource")).resource, "list"),
-            2: async () => rel((await import("./reminder")).reminder, "list"),
+            2: async () => rel((await import("./reminder")).reminder, "full"),
             3: async () => rel((await import("./schedule")).schedule, "list"),
         },
         recommended: { __use: 1 },

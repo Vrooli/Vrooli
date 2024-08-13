@@ -494,9 +494,7 @@ function RoutineForm({
                             sxs={resourceListStyle}
                         />
                         <FormSection sx={formSectionStyle}>
-                            {/* TODO: work on fix for autoFocus accessibility issue. Probably need to use ref and useEffect, which also requires making RichInput a forwardRef. If doing this, then we can autoFocus in the helpbutton edit mode as well */}
                             <TranslatedTextInput
-                                autoFocus
                                 fullWidth
                                 isRequired
                                 label={t("Name")}

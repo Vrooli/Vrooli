@@ -31,6 +31,7 @@ import { setupPushQueue } from "./tasks/push/queue";
 import { setupRunQueue } from "./tasks/run/queue";
 import { setupSandboxQueue } from "./tasks/sandbox";
 import { setupSmsQueue } from "./tasks/sms/queue";
+import { initializeProfanity } from "./utils/censor";
 import { setupDatabase } from "./utils/setupDatabase";
 
 const debug = process.env.NODE_ENV === "development";
@@ -46,6 +47,9 @@ export async function initSingletons() {
     // Initialize singletons
     await ModelMap.init();
     await LlmServiceRegistry.init();
+
+    // Initialize censor dictionary
+    initializeProfanity();
 }
 
 async function main() {

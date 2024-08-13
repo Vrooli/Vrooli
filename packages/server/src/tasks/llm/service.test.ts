@@ -147,42 +147,57 @@ describe("fetchMessagesFromDatabase", () => {
 describe("calculateMaxCredits", () => {
     // Normal cases
     test("should return the correct value when considering credits spent", () => {
-        expect(calculateMaxCredits(500000, 1000000, 200000)).toBe(BigInt(800000));
-        expect(calculateMaxCredits(1500000, 1000000, 300000)).toBe(BigInt(700000));
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500_000, 1_000_000, 200_000)).toBeBigInt(500_000); // Limited by remaining credits
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(1_500_000, 1_000_000, 300_000)).toBeBigInt(700_000); // Not limited by remaining credits
     });
 
     test("should work with different input types for creditsSpent", () => {
-        expect(calculateMaxCredits(500000, 1000000, "200000")).toBe(BigInt(800000));
-        expect(calculateMaxCredits("1500000", "1000000", BigInt(300000))).toBe(BigInt(700000));
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500_000, 1_000_000, "200000")).toBeBigInt(500_000); // Limited by remaining credits
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits("1500000", "1000000", BigInt(300_000))).toBeBigInt(700_000); // Not limited by remaining credits
     });
 
     test("should return remaining credits when they are less than effective task max", () => {
-        expect(calculateMaxCredits(300000, 1000000, 200000)).toBe(BigInt(300000));
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(300_000, 1_000_000, 200_000)).toBeBigInt(300_000);
     });
 
     // Edge cases
     test("should return 0 when credits spent equals or exceeds task max credits", () => {
-        expect(calculateMaxCredits(500000, 1000000, 1000000)).toBe(BigInt(0));
-        expect(calculateMaxCredits(500000, 1000000, 1200000)).toBe(BigInt(0));
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500_000, 1_000_000, 1_000_000)).toBeBigInt(0);
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500_000, 1_000_000, 1_200_000)).toBeBigInt(0);
     });
 
     test("should handle zero values correctly", () => {
-        expect(calculateMaxCredits(0, 1000000, 200000)).toBe(BigInt(0));
-        expect(calculateMaxCredits(500000, 0, 0)).toBe(BigInt(0));
-        expect(calculateMaxCredits(500000, 1000000, 0)).toBe(BigInt(500000));
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(0, 1_000_000, 200_000)).toBeBigInt(0);
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500_000, 0, 0)).toBeBigInt(0);
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500_000, 1_000_000, 0)).toBeBigInt(500_000);
     });
 
     test("should handle very large numbers correctly", () => {
         const largeNumber = "1234567890123456789012345678901234567890";
-        expect(calculateMaxCredits(largeNumber, 1000000000n, "500000")).toBe(BigInt("999500000"));
-        expect(calculateMaxCredits(BigInt("1000000000"), largeNumber, "500000")).toBe(BigInt("999500000"));
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(largeNumber, 1000000000n, "500000")).toBeBigInt(999500000); // Not limited by remaining credits
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(BigInt("1000000000"), largeNumber, "500000")).toBeBigInt(1000000000); // Limited by remaining credits
     });
 
     // Bad input handling
-    test("should throw an error for negative numbers", () => {
-        expect(() => calculateMaxCredits(-500000, 1000000, 200000)).toThrow();
-        expect(() => calculateMaxCredits(500000, -1000000, 200000)).toThrow();
-        expect(() => calculateMaxCredits(500000, 1000000, -200000)).toThrow();
+    test("should return 0 for negative numbers", () => {
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(-500000, 1000000, 200000)).toBeBigInt(0);
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500000, -1000000, 200000)).toBeBigInt(0);
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500000, 1000000, -200000)).toBeBigInt(0);
     });
 
     test("should throw an error for invalid string inputs", () => {
@@ -197,16 +212,22 @@ describe("calculateMaxCredits", () => {
         expect(() => calculateMaxCredits(500000, 1000000, 3.14)).toThrow();
     });
 
-    test("should throw an error for empty string inputs", () => {
-        expect(() => calculateMaxCredits("", 1000000, 200000)).toThrow();
-        expect(() => calculateMaxCredits(500000, "", 200000)).toThrow();
-        expect(() => calculateMaxCredits(500000, 1000000, "")).toThrow();
+    test("should treat empty string inputs as 0", () => {
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits("", 1000000, 200000)).toBeBigInt(0);
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500000, "", 200000)).toBeBigInt(0);
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500000, 1000000, "")).toBeBigInt(500000); // Limited by remaining credits
     });
 
-    test("should throw an error for null or undefined inputs", () => {
-        expect(() => calculateMaxCredits(null as unknown as CreditValue, 1000000, 200000)).toThrow();
-        expect(() => calculateMaxCredits(500000, null as unknown as CreditValue, 200000)).toThrow();
-        expect(() => calculateMaxCredits(500000, 1000000, null as unknown as CreditValue)).toThrow();
+    test("should treat null or undefined inputs as 0", () => {
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(null as unknown as CreditValue, 1000000, 200000)).toBeBigInt(0);
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500000, undefined as unknown as CreditValue, 200000)).toBeBigInt(0);
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500000, 1000000, null as unknown as CreditValue)).toBeBigInt(500000); // Limited by remaining credits
     });
 });
 
@@ -517,7 +538,7 @@ describe("LanguageModelService lmServices", () => {
         });
         it(`${lmServiceName}: getMaxOutputTokensRestrained returns a whole number`, () => {
             const params = {
-                maxCredits: 100,
+                maxCredits: BigInt(100),
                 model: "default",
                 inputTokens: 10,
             };
@@ -528,7 +549,7 @@ describe("LanguageModelService lmServices", () => {
         });
         it(`${lmServiceName}: getMaxOutputTokensRestrained returns 0 if input cost is greater than max credits`, () => {
             const params = {
-                maxCredits: 1,
+                maxCredits: BigInt(1),
                 model: "default",
                 inputTokens: 999999,
             };
@@ -537,7 +558,7 @@ describe("LanguageModelService lmServices", () => {
         });
         it(`${lmServiceName}: getMaxOutputTokensRestrained returns a number less than or equal to the context size`, () => {
             const params = {
-                maxCredits: 100,
+                maxCredits: BigInt(100),
                 model: "default",
                 inputTokens: 10,
             };
@@ -546,7 +567,7 @@ describe("LanguageModelService lmServices", () => {
         });
         it(`${lmServiceName}: getMaxOutputTokensRestrained handles large numbers`, () => {
             const params = {
-                maxCredits: Number.MAX_SAFE_INTEGER,
+                maxCredits: BigInt(Number.MAX_SAFE_INTEGER),
                 model: "default",
                 inputTokens: Number.MAX_SAFE_INTEGER,
             };
@@ -556,14 +577,14 @@ describe("LanguageModelService lmServices", () => {
         });
         it(`${lmServiceName}: getMaxOutputTokensRestrained isn't tricked by negative numbers`, () => {
             let params = {
-                maxCredits: 100,
+                maxCredits: BigInt(100),
                 model: "default",
                 inputTokens: -1,
             };
             let limit = lmService.getMaxOutputTokensRestrained(params);
             expect(limit).toBeGreaterThanOrEqual(0);
             params = {
-                maxCredits: -1,
+                maxCredits: BigInt(-1),
                 model: "default",
                 inputTokens: 100,
             };

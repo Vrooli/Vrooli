@@ -181,7 +181,7 @@ export function RoutineView({
 
     const actionData = useObjectActions({
         object: existing,
-        objectType: "Routine",
+        objectType: "RoutineVersion",
         openAddCommentDialog,
         setLocation,
         setObject: setRoutineVersion,

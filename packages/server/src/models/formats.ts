@@ -2275,6 +2275,7 @@ export const FormatMap: { [key in GqlModelType]?: Formatter<any> } = {
     RunProjectStep: RunProjectStepFormat,
     RunRoutine: RunRoutineFormat,
     RunRoutineInput: RunRoutineInputFormat,
+    RunRoutineOutput: RunRoutineOutputFormat,
     RunRoutineStep: RunRoutineStepFormat,
     Schedule: ScheduleFormat,
     ScheduleException: ScheduleExceptionFormat,

@@ -27,7 +27,7 @@ export const questionAnswer: GqlPartial<QuestionAnswer> = {
     },
     full: {
         comments: async () => rel((await import("./comment")).comment, "full", { omit: "commentedOn" }),
-        question: async () => rel((await import("./question")).question, "nav", { omit: "answers" }),
+        question: async () => rel((await import("./question")).question, "common", { omit: "answers" }),
         translations: () => rel(questionAnswerTranslation, "full"),
     },
     list: {

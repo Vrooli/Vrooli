@@ -13,6 +13,15 @@ export const projectVersion_findMany = {
       "simplicity": true,
       "versionIndex": true,
       "versionLabel": true,
+      "you": {
+        "canComment": true,
+        "canCopy": true,
+        "canDelete": true,
+        "canReport": true,
+        "canUpdate": true,
+        "canUse": true,
+        "canRead": true
+      },
       "root": {
         "id": true,
         "created_at": true,

@@ -1,6 +1,7 @@
 import { RunStatus } from "../../api/generated/graphqlTypes";
 import { bool, enumToYup, id, intPositiveOrZero, name, opt, req, YupModel, yupObj } from "../utils";
 import { runRoutineInputValidation } from "./runRoutineInput";
+import { runRoutineOutputValidation } from "./runRoutineOutput";
 import { runRoutineStepValidation } from "./runRoutineStep";
 import { scheduleValidation } from "./schedule";
 
@@ -17,6 +18,7 @@ export const runRoutineValidation: YupModel<["create", "update"]> = {
         timeElapsed: opt(intPositiveOrZero),
     }, [
         ["inputs", ["Create"], "many", "opt", runRoutineInputValidation],
+        ["outputs", ["Create"], "many", "opt", runRoutineOutputValidation],
         ["routineVersion", ["Connect"], "one", "req"],
         ["runProject", ["Connect"], "one", "opt"],
         ["schedule", ["Create"], "one", "opt", scheduleValidation],
@@ -32,6 +34,7 @@ export const runRoutineValidation: YupModel<["create", "update"]> = {
         timeElapsed: opt(intPositiveOrZero),
     }, [
         ["inputs", ["Create", "Update", "Delete"], "many", "opt", runRoutineInputValidation],
+        ["outputs", ["Create", "Update", "Delete"], "many", "opt", runRoutineOutputValidation],
         ["schedule", ["Create", "Update"], "one", "opt", scheduleValidation],
         ["steps", ["Create", "Update", "Delete"], "many", "opt", runRoutineStepValidation],
     ], [], d),

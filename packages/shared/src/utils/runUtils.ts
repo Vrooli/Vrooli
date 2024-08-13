@@ -1,5 +1,5 @@
 import i18next from "i18next";
-import { Node, NodeLink, NodeType, ProjectVersion, ProjectVersionDirectory, ProjectVersionDirectorySearchInput, RoutineType, RoutineVersion, RoutineVersionInput, RoutineVersionOutput, RoutineVersionSearchInput, RunProject, RunProjectStep, RunProjectStepCreateInput, RunProjectUpdateInput, RunRoutine, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput, RunRoutineOutput, RunRoutineOutputUpdateInput, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepStatus, RunRoutineUpdateInput, RunStatus, TaskStatus } from "../api/generated/graphqlTypes";
+import { Node, NodeLink, NodeType, ProjectVersion, ProjectVersionDirectory, ProjectVersionDirectorySearchInput, RoutineType, RoutineVersion, RoutineVersionInput, RoutineVersionOutput, RoutineVersionSearchInput, RunProject, RunProjectStepCreateInput, RunProjectUpdateInput, RunRoutine, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput, RunRoutineOutput, RunRoutineOutputUpdateInput, RunRoutineStepCreateInput, RunRoutineStepStatus, RunRoutineUpdateInput, RunStatus, TaskStatus } from "../api/generated/graphqlTypes";
 import { PassableLogger, Status } from "../consts/commonTypes";
 import { InputType } from "../consts/model";
 import { generateInitialValues } from "../forms/defaultGenerator";
@@ -59,8 +59,14 @@ export type RunRequestLimits = {
     maxCredits?: string;
     /** Maximum number of steps that can be run */
     maxSteps?: number;
-    /** Maximum time that an be spent on the run */
+    /** Maximum time that an be spent on the run, in milliseconds */
     maxTime?: number;
+    /** What to do on max credits reached */
+    onMaxCredits?: "Pause" | "Stop";
+    /** What to do in max time reached */
+    onMaxTime?: "Pause" | "Stop";
+    /** What to do on max steps reached */
+    onMaxSteps?: "Pause" | "Stop";
 }
 
 type RunTask = {
@@ -93,6 +99,16 @@ export type RunContext = {
     previousTasks?: RunTask[];
 }
 
+export enum RunStatusChangeReason {
+    Completed = "Completed",
+    Error = "Error",
+    MaxCredits = "MaxCredits",
+    MaxSteps = "MaxSteps",
+    MaxTime = "MaxTime",
+    UserCanceled = "UserCanceled",
+    UserPaused = "UserPaused",
+}
+
 export type RunRequestPayloadBase = {
     /**
      * Accumulated data from previous steps. This is used to keep track of
@@ -113,7 +129,7 @@ export type RunRequestPayloadBase = {
         /** Number of steps run so far */
         stepsRun?: number;
         /** Time spent on the run so far */
-        timeSpent?: number;
+        timeElapsed?: number;
     };
     /**
      * What triggered the run. This is a factor in determining
@@ -127,10 +143,10 @@ export type RunRequestPayloadBase = {
      * session user, or a bot if it doesn't.
      */
     startedById: string;
-    /**
-     * The latest status of the command.
-     */
+    /** The latest status of the command. */
     status: TaskStatus | `${TaskStatus}`;
+    /** Why the status changed */
+    statusChangeReason?: RunStatusChangeReason;
     /** Unique ID to track task */
     taskId: string;
 }
@@ -145,12 +161,8 @@ export type RunTaskInfo = RunRequestPayloadBase & {
     projectVerisonId?: string;
     /** Current subroutine being run */
     routineVersionId?: string;
-    /** New outputs */
-    outputsCreate?: RunRoutineOutput[];
-    /** Updated outputs */
-    outputsUpdate?: RunRoutineOutput[];
-    /** Deleted outputs */
-    outputsDelete?: string[];
+    /** Updated run data */
+    run?: RunProject | RunRoutine;
 };
 
 export enum BotStyle {
@@ -1878,17 +1890,17 @@ type SaveProgressProps = {
     /** Total context switches in the step, including previously saved context switches */
     contextSwitches: number;
     /** The current step data */
-    currentStep: RunStep;
+    currentStep: RunStep | null | undefined;
     /** The current order in the step array */
     currentStepOrder: number;
     /** The data stored in the run about the current step */
-    currentStepRunData: RunProjectStep | RunRoutineStep | null | undefined;
+    currentStepRunData: { id: string } | null | undefined;
     /** Current input data in form */
     formData: object,
     /** Callback to update RunProject data */
-    handleRunProjectUpdate: (inputs: RunProjectUpdateInput) => unknown;
+    handleRunProjectUpdate: (inputs: RunProjectUpdateInput) => Promise<unknown>;
     /** Callback to update RunRoutine data */
-    handleRunRoutineUpdate: (inputs: RunRoutineUpdateInput) => unknown;
+    handleRunRoutineUpdate: (inputs: RunRoutineUpdateInput) => Promise<unknown>;
     /** Whether the current step should be considered completed */
     isStepCompleted: boolean;
     /** Whether the entire run should be considered completed */
@@ -1906,7 +1918,7 @@ type SaveProgressProps = {
 /**
  * Stores current progress, both for overall routine and the current subroutine
  */
-export function saveRunProgress({
+export async function saveRunProgress({
     contextSwitches,
     currentStep,
     currentStepOrder,
@@ -1920,9 +1932,18 @@ export function saveRunProgress({
     run,
     runnableObject,
     timeElapsed,
-}: SaveProgressProps) {
+}: SaveProgressProps): Promise<void> {
     const runData: RunProjectUpdateInput | RunRoutineUpdateInput = {
         id: run.id,
+        contextSwitches: (run.steps ?? []).reduce((acc, curr) => {
+            const isCurrentStep = currentStepRunData?.id === curr.id;
+            return acc + (isCurrentStep ? contextSwitches : curr.contextSwitches ?? 0);
+        }, 0),
+        status: isRunCompleted ? RunStatus.Completed : RunStatus.InProgress,
+        timeElapsed: (run.steps ?? []).reduce((acc, curr) => {
+            const isCurrentStep = currentStepRunData?.id === curr.id;
+            return acc + (isCurrentStep ? timeElapsed : curr.timeElapsed ?? 0);
+        }, 0),
     };
 
     // Handle step data
@@ -1939,7 +1960,7 @@ export function saveRunProgress({
         }];
     }
     // Create step data if not found
-    else {
+    else if (currentStep) {
         const stepCreate = {
             ...commonStepData,
             id: uuid(),
@@ -1960,23 +1981,10 @@ export function saveRunProgress({
                 runRoutineConnect: run.id,
             }] as RunRoutineStepCreateInput[];
         }
+        // Update overall run metrics
+        runData.contextSwitches = (runData.contextSwitches ?? 0) + contextSwitches;
+        runData.timeElapsed = (runData.timeElapsed ?? 0) + timeElapsed;
     }
-
-    // Handle overall run data
-    const runMetrics = (run.steps ?? []).reduce((acc, curr) => {
-        const isCurrStep = currentStepRunData && curr.id === currentStepRunData.id;
-        if (isCurrStep) {
-            acc.timeElapsed += timeElapsed;
-            acc.contextSwitches += contextSwitches;
-        } else {
-            acc.timeElapsed += (curr.timeElapsed ?? 0);
-            acc.contextSwitches += (curr.contextSwitches ?? 0);
-        }
-        return acc;
-    }, { timeElapsed: 0, contextSwitches: 0 });
-    runData.timeElapsed = runMetrics.timeElapsed;
-    runData.contextSwitches = runMetrics.contextSwitches;
-    runData.status = isRunCompleted ? RunStatus.Completed : RunStatus.InProgress;
 
     // Handle routine data
     if (run.__typename === "RunRoutine") {
@@ -2001,12 +2009,12 @@ export function saveRunProgress({
         runRoutineData.outputsCreate = outputsCreate;
         runRoutineData.outputsDelete = outputsDelete;
         runRoutineData.outputsUpdate = outputsUpdate;
-        handleRunRoutineUpdate(runRoutineData);
+        await handleRunRoutineUpdate(runRoutineData);
     }
     // Handle project data
     else {
         const runProjectData = runData as RunProjectUpdateInput;
-        handleRunProjectUpdate(runProjectData);
+        await handleRunProjectUpdate(runProjectData);
     }
 }
 
@@ -2166,4 +2174,52 @@ export function parseConfigCallData(
     }
 
     return parsedValue;
+}
+
+export type ShouldStopParams = {
+    currentTimeElapsed: number;
+    limits: RunRequestLimits | null | undefined;
+    maxCredits: bigint;
+    maxSteps: number;
+    maxTime: number;
+    previousTimeElapsed: number;
+    stepsRun: number;
+    totalStepCost: bigint;
+}
+
+/**
+ * Checks if the run should stop due to reaching the credits or time limit.
+ * @returns What state the run should be in, and the reason for the state change if applicable
+ */
+export function shouldStopRun(params: ShouldStopParams): { statusChangeReason: RunStatusChangeReason | undefined; runStatus: RunStatus } {
+    const {
+        currentTimeElapsed,
+        limits,
+        maxCredits,
+        maxSteps,
+        maxTime,
+        previousTimeElapsed,
+        stepsRun,
+        totalStepCost,
+    } = params;
+
+    if (totalStepCost > maxCredits) {
+        return {
+            statusChangeReason: RunStatusChangeReason.MaxCredits,
+            runStatus: limits?.onMaxCredits === "Stop" ? RunStatus.Failed : RunStatus.Cancelled,
+        };
+    }
+    if (previousTimeElapsed + currentTimeElapsed > maxTime) {
+        return {
+            statusChangeReason: RunStatusChangeReason.MaxTime,
+            runStatus: limits?.onMaxTime === "Stop" ? RunStatus.Failed : RunStatus.Cancelled,
+        };
+    }
+    if (stepsRun >= maxSteps) {
+        return {
+            statusChangeReason: RunStatusChangeReason.MaxSteps,
+            runStatus: limits?.onMaxSteps === "Stop" ? RunStatus.Failed : RunStatus.Cancelled,
+        };
+    }
+    return { statusChangeReason: undefined, runStatus: RunStatus.InProgress };
 }

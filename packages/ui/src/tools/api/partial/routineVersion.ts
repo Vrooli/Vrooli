@@ -56,7 +56,7 @@ export const routineVersion: GqlPartial<RoutineVersion> = {
         nodeLinksCount: true,
         outputsCount: true,
         reportsCount: true,
-        you: () => rel(routineVersionYou, "full"),
+        you: () => rel(routineVersionYou, "common"),
     },
     full: {
         __define: {
@@ -67,7 +67,7 @@ export const routineVersion: GqlPartial<RoutineVersion> = {
             3: async () => rel((await import("./nodeLink")).nodeLink, "full"),
             4: async () => rel((await import("./routineVersionOutput")).routineVersionOutput, "full"),
             5: async () => rel((await import("./pullRequest")).pullRequest, "full", { omit: ["from", "to"] }),
-            6: async () => rel((await import("./resourceList")).resourceList, "full"),
+            6: async () => rel((await import("./resourceList")).resourceList, "common"),
             7: async () => rel((await import("./routine")).routine, "full", { omit: "versions" }),
             9: async () => rel((await import("./routineVersion")).routineVersion, "nav"),
         },

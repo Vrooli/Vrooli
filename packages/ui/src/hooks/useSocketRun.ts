@@ -7,16 +7,15 @@ import { useLazyFetch } from "./useLazyFetch";
 
 type UseSocketRunProps = {
     formikRef: RefObject<FormikProps<object>>;
-    handleRunRoutineUpdate: (run: RunRoutine) => unknown;
+    handleRunUpdate: (run: RunProject | RunRoutine) => unknown;
     run: RunProject | RunRoutine | undefined;
     runnableObject: RunnableProjectVersion | RunnableRoutineVersion;
 }
 
 export function processRunTaskUpdate(
     handleTaskInfoUpdate: (taskInfo: RunTaskInfo) => unknown,
-    handleRunRoutineUpdate: (run: RunRoutine) => unknown,
+    handleRunUpdate: (run: RunProject | RunRoutine) => unknown,
     payload: RunTaskInfo,
-    run: RunRoutine | RunProject | undefined,
 ) {
     console.log("qqqq in processRunTaskUpdate", payload);
     if (payload.status === TaskStatus.Failed) {
@@ -25,46 +24,24 @@ export function processRunTaskUpdate(
     // Update the task info
     handleTaskInfoUpdate(payload);
     // Update the run if needed
-    if (!run || run.__typename !== "RunRoutine") return;
-    let haveOutputsChanged = false;
-    const newOutputs = [...(run.outputs || [])];
-    if (Array.isArray(payload.outputsCreate) && payload.outputsCreate.length > 0) {
-        newOutputs.push(...payload.outputsCreate);
-        haveOutputsChanged = true;
-    }
-    if (Array.isArray(payload.outputsUpdate) && payload.outputsUpdate.length > 0) {
-        payload.outputsUpdate.forEach(output => {
-            const index = newOutputs.findIndex(o => o.id === output.id);
-            if (index >= 0) {
-                newOutputs[index] = output;
-                haveOutputsChanged = true;
-            }
-        });
-    }
-    if (Array.isArray(payload.outputsDelete) && payload.outputsDelete.length > 0) {
-        payload.outputsDelete.forEach(id => {
-            const index = newOutputs.findIndex(o => o.id === id);
-            if (index >= 0) {
-                newOutputs.splice(index, 1);
-                haveOutputsChanged = true;
-            }
-        });
-    }
-    if (haveOutputsChanged) {
-        handleRunRoutineUpdate({ ...run, outputs: newOutputs });
+    if (payload.run) {
+        handleRunUpdate(payload.run);
     }
 }
 
 export function useSocketRun({
     formikRef,
-    handleRunRoutineUpdate,
+    handleRunUpdate,
     run,
     runnableObject,
 }: UseSocketRunProps) {
 
     // Handle connection/disconnection
+    const prevRunId = useRef<string | undefined>(undefined);
     useEffect(function connectToRunEffect() {
         if (!run?.id || run.id === DUMMY_ID) return;
+        if (prevRunId.current === run.id) return;
+        prevRunId.current = run.id;
 
         emitSocketEvent("joinRunRoom", { runId: run.id, runType: run.__typename }, (response) => {
             if (response.error) {
@@ -109,7 +86,7 @@ export function useSocketRun({
     }, [formikRef, startTask]);
 
     // Handle incoming data
-    useEffect(() => onSocketEvent("runTask", (payload) => processRunTaskUpdate(setSubroutineTaskInfo, handleRunRoutineUpdate, payload, runRef.current)), []);
+    useEffect(() => onSocketEvent("runTask", (payload) => processRunTaskUpdate(setSubroutineTaskInfo, handleRunUpdate, payload)), [handleRunUpdate]);
 
     return {
         handleRunSubroutine,

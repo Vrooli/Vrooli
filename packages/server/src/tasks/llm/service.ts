@@ -355,7 +355,7 @@ export function getDefaultMaxOutputTokensRestrained<GenerateNameType extends str
     }
 
     const inputCost = BigInt(inputCosts[modelToUse] * inputTokens);
-    const remainingCredits = maxCredits - inputCost;
+    const remainingCredits = BigInt(maxCredits) - BigInt(inputCost);
 
     if (remainingCredits <= 0) {
         return 0;
@@ -436,14 +436,21 @@ export function calculateMaxCredits(
     creditsSpent: CreditValue | undefined,
 ): bigint {
     // Convert all inputs to BigInt
-    const userRemainingCreditsBigInt = BigInt(userRemainingCredits);
-    const creditsSpentBigInt = BigInt(creditsSpent ?? 0);
-    const taskMaxCreditsBigInt = BigInt(taskMaxCredits);
+    const userRemainingCreditsBigInt = BigInt(userRemainingCredits || 0);
+    const creditsSpentBigInt = BigInt(creditsSpent || 0);
+    const taskMaxCreditsBigInt = BigInt(taskMaxCredits || 0);
+
+    // eslint-disable-next-line no-magic-numbers
+    if (userRemainingCreditsBigInt <= 0n || taskMaxCreditsBigInt <= 0n || creditsSpentBigInt < 0n) {
+        // eslint-disable-next-line no-magic-numbers
+        return 0n;
+    }
 
     // Calculate the effective task max credits (task max minus credits already spent on this task
     const effectiveTaskMax = taskMaxCreditsBigInt > creditsSpentBigInt
-        ? taskMaxCreditsBigInt - creditsSpentBigInt
+        ? BigInt(taskMaxCreditsBigInt) - BigInt(creditsSpentBigInt)
         : BigInt(0);
+    console.log("effectiveTaskMax", effectiveTaskMax, "userRemainingCreditsBigInt", userRemainingCreditsBigInt);
 
     // Return the smaller of the userRemaining credits and the effective task max
     return userRemainingCreditsBigInt < effectiveTaskMax

@@ -147,6 +147,17 @@ export const routine_findMany = {
         "nodeLinksCount": true,
         "outputsCount": true,
         "reportsCount": true,
+        "you": {
+          "canComment": true,
+          "canCopy": true,
+          "canDelete": true,
+          "canBookmark": true,
+          "canReport": true,
+          "canRun": true,
+          "canUpdate": true,
+          "canRead": true,
+          "canReact": true
+        },
         "translations": {
           "id": true,
           "language": true,

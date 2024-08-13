@@ -161,7 +161,6 @@ export function RunPickerMenu({
             });
         }
         else {
-            console.log("creating run routine");
             fetchLazyWrapper<RunRoutineCreateInput, RunRoutine>({
                 fetch: createRunRoutine,
                 inputs: {

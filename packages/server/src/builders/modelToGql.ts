@@ -13,10 +13,10 @@ import { constructUnions } from "./unions";
  * @param partialInfo PartialGraphQLInfo object
  * @returns Valid GraphQL object
  */
-export const modelToGql = <GqlModel extends Record<string, any>>(
+export function modelToGql<GqlModel extends Record<string, any>>(
     data: { [x: string]: any },
     partialInfo: PartialGraphQLInfo,
-): GqlModel => {
+): GqlModel {
     // Convert data to usable shape
     const type = partialInfo?.__typename;
     const format = ModelMap.get(type, false)?.format;
@@ -45,4 +45,4 @@ export const modelToGql = <GqlModel extends Record<string, any>>(
         }
     }
     return data as GqlModel;
-};
+}

@@ -6,15 +6,24 @@ import { logger } from "../events/logger";
 
 const { flatten } = pkg;
 
-let profanity: string[] = [];
 const profanityFile = `${process.env.PROJECT_DIR}/packages/server/dist/utils/censorDictionary.txt`;
-if (fs.existsSync(profanityFile)) {
-    profanity = fs.readFileSync(profanityFile, "utf8").toString().split("\n");
-} else {
-    logger.error(`Could not find private key at ${profanityFile}`);
-}
-// Add spacing around words (e.g. "document" contains "cum", but shouldn't be censored)
-const profanityRegex = new RegExp(profanity.map(word => `(?=\\b)${word}(?=\\b)`).join("|"), "gi");
+
+let profanity: string[] = [];
+let profanityRegex: RegExp;
+
+/**
+ * Initializes the profanity array and regex
+ */
+export function initializeProfanity() {
+    try {
+        const fileContent = fs.readFileSync(profanityFile, "utf8");
+        profanity = fileContent.toString().split("\n");
+        // Add spacing around words (e.g. "document" contains "cum", but shouldn't be censored)
+        profanityRegex = new RegExp(profanity.map(word => `(?=\\b)${word}(?=\\b)`).join("|"), "gi");
+    } catch (error) {
+        logger.error(`Could not find or read profanity file at ${profanityFile}`, { trace: "0634" });
+    }
+};
 
 /**
  * Determines if a string contains any banned words

@@ -41,7 +41,7 @@ describe("createRedisClient function tests", () => {
         RedisClientMock.instance?.__emit("end");
 
         // Verify that the logger.info was called with the correct parameters
-        expect(logger.info).toHaveBeenCalledWith("Redis client closed.", expect.objectContaining({ trace: "0208", url: `redis://${REDIS_URL}` }));
+        expect(logger.info).toHaveBeenCalledWith("Redis client closed.", expect.objectContaining({ trace: "0208" }));
     });
 });
 

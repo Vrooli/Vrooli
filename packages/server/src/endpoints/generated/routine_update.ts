@@ -177,6 +177,17 @@ export const routine_update = {
     "nodeLinksCount": true,
     "outputsCount": true,
     "reportsCount": true,
+    "you": {
+      "canComment": true,
+      "canCopy": true,
+      "canDelete": true,
+      "canBookmark": true,
+      "canReport": true,
+      "canRun": true,
+      "canUpdate": true,
+      "canRead": true,
+      "canReact": true
+    },
     "configCallData": true,
     "configFormInput": true,
     "configFormOutput": true,
