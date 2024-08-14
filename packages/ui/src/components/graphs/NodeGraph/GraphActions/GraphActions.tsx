@@ -1,7 +1,7 @@
 /**
  * Used to create/update a link between two routine nodes
  */
-import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
+import { Box, IconButton, Tooltip, styled, useTheme } from "@mui/material";
 import { UnlinkedNodesDialog } from "components/dialogs/UnlinkedNodesDialog/UnlinkedNodesDialog";
 import { useWindowSize } from "hooks/useWindowSize";
 import { AddLinkIcon, CompressIcon, RedoIcon, UndoIcon } from "icons";
@@ -9,7 +9,29 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GraphActionsProps } from "../types";
 
-export const GraphActions = ({
+const ActionsContainer = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "row",
+    gap: theme.spacing(1),
+    zIndex: 2,
+    height: "48px",
+    // Make background semi-transparent
+    background: theme.palette.primary.main + "80",
+    color: theme.palette.primary.contrastText,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: theme.spacing(1),
+    paddingBottom: theme.spacing(1),
+    "@media print": {
+        display: "none",
+    },
+}));
+
+const ActionsButton = styled(IconButton)(({ theme }) => ({
+    background: theme.palette.secondary.main,
+}));
+
+export function GraphActions({
     canRedo,
     canUndo,
     handleCleanUpGraph,
@@ -20,7 +42,7 @@ export const GraphActions = ({
     isEditing,
     language,
     nodesOffGraph,
-}: GraphActionsProps) => {
+}: GraphActionsProps) {
     const { t } = useTranslation();
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
@@ -32,60 +54,45 @@ export const GraphActions = ({
     const showAll = useMemo(() => (isEditing || nodesOffGraph.length > 0) && !(isMobile && unlinkedNodesOpen), [isEditing, isMobile, nodesOffGraph.length, unlinkedNodesOpen]);
 
     return (
-        <Stack direction="row" spacing={1} sx={{
-            zIndex: 2,
-            height: "48px",
-            background: "transparent",
-            color: palette.primary.contrastText,
-            justifyContent: "center",
-            alignItems: "center",
-            paddingTop: "8px",
-            "@media print": {
-                display: "none",
-            },
-        }}>
+        <ActionsContainer>
             {showAll && <>
                 <Tooltip title={canUndo ? t("Undo") : ""}>
-                    <IconButton
+                    <ActionsButton
                         id="undo-button"
                         disabled={!canUndo}
                         onClick={handleUndo}
                         aria-label={t("Undo")}
-                        sx={{ background: palette.secondary.main }}
                     >
                         <UndoIcon id="redo-button-icon" fill={palette.secondary.contrastText} />
-                    </IconButton>
+                    </ActionsButton>
                 </Tooltip>
                 <Tooltip title={canRedo ? t("Redo") : ""}>
-                    <IconButton
+                    <ActionsButton
                         id="redo-button"
                         disabled={!canRedo}
                         onClick={handleRedo}
                         aria-label={t("Redo")}
-                        sx={{ background: palette.secondary.main }}
                     >
                         <RedoIcon id="redo-button-icon" fill={palette.secondary.contrastText} />
-                    </IconButton>
+                    </ActionsButton>
                 </Tooltip>
                 <Tooltip title={t("CleanGraph")}>
-                    <IconButton
+                    <ActionsButton
                         id="clean-graph-button"
                         onClick={handleCleanUpGraph}
                         aria-label={t("CleanGraph")}
-                        sx={{ background: palette.secondary.main }}
                     >
                         <CompressIcon id="clean-up-button-icon" fill={palette.secondary.contrastText} />
-                    </IconButton>
+                    </ActionsButton>
                 </Tooltip>
                 <Tooltip title={t("AddNewLink")}>
-                    <IconButton
+                    <ActionsButton
                         id="add-link-button"
                         onClick={handleOpenLinkDialog}
                         aria-label={t("AddNewLink")}
-                        sx={{ background: palette.secondary.main }}
                     >
                         <AddLinkIcon id="add-link-button-icon" fill={palette.secondary.contrastText} />
-                    </IconButton>
+                    </ActionsButton>
                 </Tooltip>
             </>}
             {(isEditing || nodesOffGraph.length > 0) && <UnlinkedNodesDialog
@@ -95,6 +102,6 @@ export const GraphActions = ({
                 nodes={nodesOffGraph}
                 open={unlinkedNodesOpen}
             />}
-        </Stack>
+        </ActionsContainer>
     );
-};
+}

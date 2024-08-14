@@ -181,16 +181,16 @@ export function MoveNodeMenu({
             />
             <DialogContent>
                 {formContent}
-                {/* Action buttons */}
-                <Grid container spacing={1} sx={{ padding: 0, paddingTop: "24px" }}>
-                    <BottomActionsButtons
-                        display="dialog"
-                        isCreate={false}
-                        onCancel={closeDialog}
-                        onSubmit={moveNode}
-                    />
-                </Grid>
             </DialogContent>
+            {/* Action buttons */}
+            <Grid container spacing={1} sx={{ padding: 0, paddingTop: "24px" }}>
+                <BottomActionsButtons
+                    display="dialog"
+                    isCreate={false}
+                    onCancel={closeDialog}
+                    onSubmit={moveNode}
+                />
+            </Grid>
         </LargeDialog>
     );
 }
