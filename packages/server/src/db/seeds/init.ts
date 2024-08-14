@@ -2,11 +2,141 @@
  * Adds initial data to the database. (i.e. data that should be included in production). 
  * This is written so that it can be called multiple times without duplicating data.
  */
-import { CodeType, InputType, PARSE_RUN_IO_FROM_PLAINTEXT_ID, uuid, VALYXA_ID } from "@local/shared";
+import { CodeType, InputType, LIST_TO_NUMBERED_PLAINTEXT, LIST_TO_PLAINTEXT_ID, PARSE_RUN_IO_FROM_PLAINTEXT_ID, TRANSFORM_SEARCH_TERMS_ID, uuid, VALYXA_ID } from "@local/shared";
 import { Prisma } from "@prisma/client";
+import fs from "fs";
 import { hashPassword } from "../../auth/email";
 import { prismaInstance } from "../../db/instance";
 import { logger } from "../../events/logger";
+
+// Built-in code version functions need to be loaded from a file. We have it this way 
+// so that we can run and test them outside of the sandbox
+const distCodeFile = `${process.env.PROJECT_DIR}/packages/server/dist/db/seeds/codes.js`;
+const srcCodeFile = `${process.env.PROJECT_DIR}/packages/server/src/db/seeds/codes.ts`;
+
+/** Built-in function names to IDs map */
+const codeNameToId: { [name: string]: string } = {
+    parseRunIOFromPlaintext: PARSE_RUN_IO_FROM_PLAINTEXT_ID,
+    transformSearchTerms: TRANSFORM_SEARCH_TERMS_ID,
+    listToPlaintext: LIST_TO_PLAINTEXT_ID,
+    listToNumberedPlaintext: LIST_TO_NUMBERED_PLAINTEXT,
+};
+
+type CodeVersionInfo = {
+    name: string;
+    description: string;
+    code: string;
+};
+
+const codes: { [id: string]: CodeVersionInfo } = {};
+
+/**
+ * Splits a single JavaScript file content into an array of stringified functions.
+ * Each function is expected to start with "export function".
+ * 
+ * @param jsFileContent The entire JavaScript file content as a single string.
+ * @returns An array of string representations of each function.
+ */
+export function splitFunctions(jsFileContent: string): string[] {
+    const lines = jsFileContent.split("\n");
+    const functions: string[] = [];
+    let currentFunction: string[] = [];
+    let isCollectingFunction = false;
+
+    lines.forEach(line => {
+        if (line.trim().startsWith("export function")) {
+            if (currentFunction.length > 0 && isCollectingFunction) {
+                functions.push(currentFunction.join("\n"));
+                currentFunction = [];
+            }
+            isCollectingFunction = true; // Start collecting lines as a function
+        }
+        if (isCollectingFunction) {
+            currentFunction.push(line);
+        }
+    });
+
+    // Push the last function if exists and it's actually a function
+    if (currentFunction.length > 0 && isCollectingFunction) {
+        functions.push(currentFunction.join("\n"));
+    }
+
+    return functions;
+}
+
+/**
+ * Parses docstrings from a TypeScript file content and extracts metadata.
+ * Each extracted docstring results in an object with the function's name, description, and the function's name.
+ * 
+ * @param tsFileContent The TypeScript file content as a string.
+ * @returns An array of objects containing the name and description from the docstring and the function name.
+ */
+export function parseDocstrings(tsFileContent: string): { name: string, description: string, functionName: string }[] {
+    const docstringRegex = /\/\*\*([\s\S]*?)\*\//g;
+    const metadata: { name: string, description: string, functionName: string }[] = [];
+
+    let match;
+    while ((match = docstringRegex.exec(tsFileContent)) !== null) {
+        const docstringContent = match[1];
+
+        // Extract name and description
+        const nameMatch = docstringContent.match(/@name\s+(.*)/);
+        const descriptionMatch = docstringContent.match(/@description\s+(.*)/);
+
+        if (nameMatch && descriptionMatch) {
+            // Find the function name in the code following this docstring
+            const functionRegex = /export function (\w+)/;
+            const functionMatch = tsFileContent.substring(match.index + match[0].length)
+                .match(functionRegex);
+
+            if (functionMatch) {
+                metadata.push({
+                    name: nameMatch[1].trim(),
+                    description: descriptionMatch[1].trim(),
+                    functionName: functionMatch[1],
+                });
+            }
+        }
+    }
+
+    return metadata;
+}
+
+/**
+ * Loads code functions from a file and creates a map of codeVersionID to code version info. 
+ * Info includes name, description, and the code itself.
+ */
+export function loadCodes() {
+    try {
+        const distFileContent = fs.readFileSync(distCodeFile, "utf-8");
+        const functions = splitFunctions(distFileContent);
+
+        const srcFileContent = fs.readFileSync(srcCodeFile, "utf-8");
+        const functionMetadata = parseDocstrings(srcFileContent);
+
+        console.log("code info", functions, functionMetadata);
+
+        if (functions.length !== functionMetadata.length) {
+            logger.error("Error loading built-in functions. Function count mismatch", { trace: "0629" });
+            return;
+        }
+
+        // Populate the codes object with the function metadata
+        functionMetadata.forEach(({ name, description, functionName }, index) => {
+            const code = functions[index];
+            const id = codeNameToId[functionName];
+            if (!id) {
+                logger.error("Error loading built-in functions. Function ID not found", { trace: "0630" });
+                return;
+            }
+            codes[id] = { name, description, code };
+        });
+
+        console.log("Loaded codes:", JSON.stringify(codes, null, 2));
+    } catch (error) {
+        logger.error("Error loading built-in functions. They won't be upserted into the database", { trace: "0625" });
+    }
+}
 
 export async function init() {
     //==============================================================
@@ -333,12 +463,14 @@ export async function init() {
                         enabledAt: new Date(),
                         expiresAt: new Date("2069-04-20"),
                         isActive: true,
+                        // eslint-disable-next-line no-magic-numbers
                         credits: BigInt(10_000_000_000),
                     },
                     update: {
                         enabledAt: new Date(),
                         expiresAt: new Date("2069-04-20"),
                         isActive: true,
+                        // eslint-disable-next-line no-magic-numbers
                         credits: BigInt(10_000_000_000),
                     },
                 },
@@ -389,6 +521,7 @@ export async function init() {
                     enabledAt: new Date(),
                     expiresAt: new Date("2069-04-20"),
                     isActive: true,
+                    // eslint-disable-next-line no-magic-numbers
                     credits: BigInt(10_000_000_000),
                 },
             },
@@ -642,70 +775,56 @@ export async function init() {
     /* #endregion Create Standards */
     //==============================================================
 
-    let parseRunIOFromPlaintext = await prismaInstance.code_version.findFirst({
-        where: {
-            id: PARSE_RUN_IO_FROM_PLAINTEXT_ID,
-        },
-    });
-    if (!parseRunIOFromPlaintext) {
-        logger.info("📚 Creating parseRunIOFromPlaintext transform function");
-        parseRunIOFromPlaintext = await prismaInstance.code_version.create({
-            data: {
-                id: PARSE_RUN_IO_FROM_PLAINTEXT_ID,
-                isComplete: true,
-                isLatest: true,
-                isPrivate: false,
-                codeLanguage: "javascript",
-                codeType: CodeType.DataConvert,
-                content: `function parseRunIOFromPlaintext({ formData, text }) {
-    const inputs = {};
-    const outputs = {};
-    const lines = text.trim().split('\\n');
-    
-    for (const line of lines) {
-        const [key, ...valueParts] = line.split(':');
-        if (key && valueParts.length > 0) {
-            const trimmedKey = key.trim();
-            const value = valueParts.join(':').trim();
-            
-            if (formData.hasOwnProperty(\`input-\${trimmedKey}\`)) {
-                inputs[trimmedKey] = value;
-            } else if (formData.hasOwnProperty(\`output-\${trimmedKey}\`)) {
-                outputs[trimmedKey] = value;
-            }
-            // If the key doesn't match any input or output, it's ignored
-        }
-    }
+    loadCodes();
 
-    return { inputs, outputs };
-}`,
-                root: {
-                    create: {
-                        id: uuid(),
+    for (const [id, codeInfo] of Object.entries(codes)) {
+        let codeVersion = await prismaInstance.code_version.findFirst({ where: { id } });
+        if (!codeVersion) {
+            logger.info(`📚 Creating ${codeInfo.name} transform function`);
+            try {
+                codeVersion = await prismaInstance.code_version.create({
+                    data: {
+                        id,
+                        isComplete: true,
+                        isLatest: true,
                         isPrivate: false,
-                        permissions: JSON.stringify({}),
-                        createdBy: { connect: { id: admin.id } },
-                        ownedByTeam: { connect: { id: vrooli.id } },
-                        tags: {
+                        codeLanguage: "javascript",
+                        codeType: CodeType.DataConvert,
+                        content: codeInfo.code,
+                        root: {
+                            create: {
+                                id: uuid(),
+                                isPrivate: false,
+                                permissions: JSON.stringify({}),
+                                createdBy: { connect: { id: admin.id } },
+                                ownedByTeam: { connect: { id: vrooli.id } },
+                                tags: {
+                                    create: [
+                                        { tag: { connect: { id: tagVrooli.id } } },
+                                    ],
+                                },
+                            },
+                        },
+                        translations: {
                             create: [
-                                { tag: { connect: { id: tagVrooli.id } } },
+                                {
+                                    language: EN,
+                                    name: codeInfo.name,
+                                    description: codeInfo.description,
+                                },
                             ],
                         },
+                        versionIndex: 0,
+                        versionLabel: "1.0.0",
                     },
-                },
-                translations: {
-                    create: [
-                        {
-                            language: EN,
-                            name: "parseRunIOFromPlaintext",
-                            description: "When a routine is being run autonomously, we may need to generate inputs and/or outputs before we can perform the action associated with the routine. This function parses the expected output and returns an object with an inputs list and outputs list.",
-                        },
-                    ],
-                },
-                versionIndex: 0,
-                versionLabel: "1.0.0",
-            },
-        });
+                });
+                logger.info(`${codeInfo.name} function created successfully`);
+            } catch (error) {
+                logger.error(`Failed to create ${codeInfo.name} function`, { trace: error });
+            }
+        } else {
+            logger.info(`${codeInfo.name} function already exists, skipping creation`);
+        }
     }
 
     //==============================================================

@@ -5,6 +5,7 @@ import { readOneHelper } from "../../actions/reads";
 import { modelToGql } from "../../builders/modelToGql";
 import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { prismaInstance } from "../../db/instance";
+import { parseRunIOFromPlaintext } from "../../db/seeds/codes";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
 import { ModelMap } from "../../models/base";
@@ -862,29 +863,6 @@ export function generateInputAndOutputMessage(
     message += `Outputs: ${JSON.stringify(fullOutputs, null, 2)}`;
 
     return message;
-}
-
-function parseRunIOFromPlaintext({ formData, text }: { formData: object; text: string }): { inputs: Record<string, string>; outputs: Record<string, string> } {
-    const inputs: Record<string, string> = {};
-    const outputs: Record<string, string> = {};
-    const lines = text.trim().split("\n");
-
-    for (const line of lines) {
-        const [key, ...valueParts] = line.split(":");
-        if (key && valueParts.length > 0) {
-            const trimmedKey = key.trim();
-            const value = valueParts.join(":").trim();
-
-            if (Object.prototype.hasOwnProperty.call(formData, `input-${trimmedKey}`)) {
-                inputs[trimmedKey] = value;
-            } else if (Object.prototype.hasOwnProperty.call(formData, `output-${trimmedKey}`)) {
-                outputs[trimmedKey] = value;
-            }
-            // If the key doesn't match any input or output, it's ignored
-        }
-    }
-
-    return { inputs, outputs };
 }
 
 const runStatusToTaskStatus: Record<RunStatus, TaskStatus> = {

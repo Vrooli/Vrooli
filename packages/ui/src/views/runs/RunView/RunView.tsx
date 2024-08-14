@@ -250,7 +250,6 @@ export function RunView({
     /** Stores user inputs and generated outputs */
     const formikRef = useRef<FormikProps<object>>(null);
     useEffect(function setInputsOnRunLoad() {
-        console.log("updating RunView formikRef", run, runnableObject);
         if (!runnableObject || runnableObject.__typename !== "RoutineVersion") return;
         const values = generateRoutineInitialValues({
             configFormInput: parseSchemaInput(runnableObject.configFormInput, runnableObject.routineType, console),
