@@ -1,9 +1,9 @@
 import { SxProps } from "@mui/material";
-import { multiLineEllipsis, textShadow } from "styles";
+import { multiLineEllipsis } from "styles";
 
 export const nodeLabel: SxProps = {
+    // eslint-disable-next-line no-magic-numbers
     ...multiLineEllipsis(3),
-    ...textShadow,
     position: "absolute",
     textAlign: "center",
     margin: "0",

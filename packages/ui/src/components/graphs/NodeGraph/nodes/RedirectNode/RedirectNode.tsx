@@ -3,19 +3,19 @@ import usePress from "hooks/usePress";
 import { RedirectIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";
-import { calculateNodeSize, DraggableNode } from "../";
+import { DraggableNode, calculateNodeSize } from "../";
 import { NodeWidth } from "../..";
 import { nodeLabel } from "../styles";
 import { RedirectNodeProps } from "../types";
 
-export const RedirectNode = ({
+export function RedirectNode({
     canDrag,
     isLinked = true,
     node,
     scale = 1,
     label = "Redirect",
     labelVisible = true,
-}: RedirectNodeProps) => {
+}: RedirectNodeProps) {
     const labelObject = useMemo(() => labelVisible && scale >= 0.5 ? (
         <Typography
             variant="h6"
@@ -88,4 +88,4 @@ export const RedirectNode = ({
             </Tooltip>
         </DraggableNode>
     );
-};
+}

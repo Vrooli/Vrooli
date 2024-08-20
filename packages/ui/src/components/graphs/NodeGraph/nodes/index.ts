@@ -12,6 +12,12 @@ export * from "./SubroutineNode/SubroutineNode";
  * @param doubleEvery - the increase/decrease in scale required to double/halve the size
  * @returns the width/height of the node
  */
-export const calculateNodeSize = (initialSize: number, scale: number, doubleEvery = 1): number => {
+export function calculateNodeSize(initialSize: number, scale: number, doubleEvery = 1): number {
     return initialSize * Math.pow(2, scale / doubleEvery);
-};
+}
+
+export const SHOW_TITLE_ABOVE_SCALE = -2;
+/**
+ * Distance before a click is considered a drag
+ */
+export const DRAG_THRESHOLD = 10;

@@ -1,14 +1,14 @@
 import { Routine } from "@local/shared";
-import { Box, Container, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, BoxProps, IconButton, Tooltip, Typography, TypographyProps, styled, useTheme } from "@mui/material";
 import usePress from "hooks/usePress";
 import { ActionIcon, CloseIcon, NoActionIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
-import { multiLineEllipsis, noSelect, textShadow } from "styles";
+import { multiLineEllipsis, noSelect } from "styles";
 import { BuildAction } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { routineTypes } from "utils/search/schemas/routine";
-import { calculateNodeSize } from "..";
+import { SHOW_TITLE_ABOVE_SCALE, calculateNodeSize } from "..";
 import { NodeWidth } from "../..";
 import { NodeContextMenu } from "../../NodeContextMenu/NodeContextMenu";
 import { routineNodeActionStyle, routineNodeCheckboxOption } from "../styles";
@@ -23,20 +23,86 @@ function shouldOpen(id: string | null | undefined): boolean {
     return Boolean(id && (id.startsWith("subroutine-name-")));
 }
 
+interface OuterBoxProps extends BoxProps {
+    nodeSize: string;
+}
+
+const OuterBox = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "nodeSize",
+})<OuterBoxProps>(({ nodeSize, theme }) => ({
+    boxShadow: theme.shadows[2],
+    minWidth: nodeSize,
+    position: "relative",
+    display: "block",
+    marginBottom: "8px",
+    borderRadius: "12px",
+    overflow: "hidden",
+    background: theme.palette.mode === "light" ? "#b0bbe7" : "#384164",
+    color: theme.palette.background.textPrimary,
+    "@media print": {
+        border: `1px solid ${theme.palette.mode === "light" ? "#b0bbe7" : "#384164"}`,
+        boxShadow: "none",
+    },
+}));
+
+interface InnerBoxProps extends BoxProps {
+    canUpdate: boolean;
+}
+
+const InnerBox = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "canUpdate",
+})<InnerBoxProps>(({ canUpdate, theme }) => ({
+    display: "flex",
+    alignItems: "center",
+    background: canUpdate ?
+        (theme.palette.mode === "light" ? theme.palette.primary.dark : theme.palette.secondary.dark) :
+        "#667899",
+    color: theme.palette.mode === "light" ? theme.palette.primary.contrastText : theme.palette.secondary.contrastText,
+    padding: "0.1em",
+    paddingLeft: "8px!important",
+    paddingRight: "8px!important",
+    textAlign: "center",
+    cursor: "pointer",
+    "&:hover": {
+        filter: "brightness(120%)",
+        transition: "filter 0.2s",
+    },
+}));
+
+interface NodeTitleProps extends TypographyProps {
+    fontSize: string;
+    scale: number;
+}
+
+const NodeTitle = styled(Typography, {
+    shouldForwardProp: (prop) => prop !== "fontSize" && prop !== "scale",
+})<NodeTitleProps>(({ fontSize, scale }) => ({
+    ...noSelect,
+    ...multiLineEllipsis(2),
+    fontSize,
+    textAlign: "center",
+    width: "100%",
+    lineBreak: scale < SHOW_TITLE_ABOVE_SCALE ? "anywhere" : "normal",
+    display: scale < SHOW_TITLE_ABOVE_SCALE ? "none" : "block",
+    "@media print": {
+        color: "black",
+    },
+}));
+
+const isOptionalButtonStyle = { ...routineNodeCheckboxOption };
+
 export function SubroutineNode({
     data,
     scale = 1,
     labelVisible,
-    isOpen,
     isEditing,
     handleAction,
     handleUpdate,
-    language,
 }: SubroutineNodeProps) {
     const { palette } = useTheme();
 
     const nodeSize = useMemo(() => `${calculateNodeSize(220, scale)}px`, [scale]);
-    const fontSize = useMemo(() => `min(${calculateNodeSize(NodeWidth.RoutineList, scale) / 8}px, 1.5em)`, [scale]);
+    const fontSize = useMemo(() => `min(${calculateNodeSize(NodeWidth.RoutineList, scale) / 9}px, 1.5em)`, [scale]);
     // Determines if the subroutine is one you can edit
     const canUpdate = useMemo<boolean>(() => ((data?.routineVersion?.root as Routine)?.isInternal ?? (data?.routineVersion?.root as Routine)?.you?.canUpdate === true), [data.routineVersion]);
 
@@ -54,11 +120,11 @@ export function SubroutineNode({
     }, [onAction]);
     const deleteSubroutine = useCallback((event: any) => { onAction(event, BuildAction.DeleteSubroutine); }, [onAction]);
 
-    const onOptionalChange = useCallback(function onOptionalChangeCallback(checked: boolean) {
+    const toggleIsOptional = useCallback(function toggleIsOptionalCallback() {
         if (!isEditing) return;
         handleUpdate(data.id, {
             ...data,
-            isOptional: checked,
+            isOptional: !data.isOptional,
         });
     }, [isEditing, handleUpdate, data]);
 
@@ -100,54 +166,22 @@ export function SubroutineNode({
                 handleClose={closeContext}
                 handleSelect={handleContextSelect}
             />
-            <Box
-                sx={{
-                    boxShadow: 6,
-                    minWidth: nodeSize,
-                    position: "relative",
-                    display: "block",
-                    marginBottom: "8px",
-                    borderRadius: "12px",
-                    overflow: "hidden",
-                    background: palette.mode === "light" ? "#b0bbe7" : "#384164",
-                    color: palette.background.textPrimary,
-                    "@media print": {
-                        border: `1px solid ${palette.mode === "light" ? "#b0bbe7" : "#384164"}`,
-                        boxShadow: "none",
-                    },
-                }}
-            >
-                <Container
+            <OuterBox nodeSize={nodeSize}>
+                <InnerBox
+                    canUpdate={canUpdate}
                     id={`subroutine-name-bar-${data.id}`}
                     {...pressEvents}
                     aria-owns={contextOpen ? contextId : undefined}
-                    sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        background: canUpdate ?
-                            (palette.mode === "light" ? palette.primary.dark : palette.secondary.dark) :
-                            "#667899",
-                        color: palette.mode === "light" ? palette.primary.contrastText : palette.secondary.contrastText,
-                        padding: "0.1em",
-                        paddingLeft: "8px!important",
-                        paddingRight: "8px!important",
-                        textAlign: "center",
-                        cursor: "pointer",
-                        "&:hover": {
-                            filter: "brightness(120%)",
-                            transition: "filter 0.2s",
-                        },
-                    }}
                 >
                     <Tooltip placement={"top"} title='Routine can be skipped'>
                         <Box
-                            onClick={() => { onOptionalChange(!data?.isOptional); }}
-                            onTouchStart={() => { onOptionalChange(!data?.isOptional); }}
+                            onClick={toggleIsOptional}
+                            onTouchStart={toggleIsOptional}
                             sx={routineNodeActionStyle(isEditing)}
                         >
                             <IconButton
                                 size="small"
-                                sx={{ ...routineNodeCheckboxOption }}
+                                sx={isOptionalButtonStyle}
                                 disabled={!isEditing}
                             >
                                 {data?.isOptional ? <NoActionIcon /> : <ActionIcon />}
@@ -155,24 +189,12 @@ export function SubroutineNode({
                         </Box>
                     </Tooltip>
                     {RoutineTypeIcon && <RoutineTypeIcon width={16} height={16} fill={palette.background.textPrimary} />}
-                    {labelVisible && <Typography
+                    {labelVisible && <NodeTitle
+                        fontSize={fontSize}
                         id={`subroutine-name-${data.id}`}
+                        scale={scale}
                         variant="h6"
-                        sx={{
-                            ...noSelect,
-                            ...textShadow,
-                            ...multiLineEllipsis(2),
-                            fontSize,
-                            textAlign: "center",
-                            width: "100%",
-                            lineBreak: scale < -2 ? "anywhere" : "normal",
-                            // whiteSpace: "pre" as any,
-                            "@media print": {
-                                textShadow: "none",
-                                color: "black",
-                            },
-                        }}
-                    >{firstString(title, "Untitled")}</Typography>}
+                    >{firstString(title, "Untitled")}</NodeTitle>}
                     {isEditing && (
                         <IconButton
                             id={`subroutine-delete-icon-button-${data.id}`}
@@ -183,8 +205,8 @@ export function SubroutineNode({
                             <CloseIcon id={`subroutine-delete-icon-${data.id}`} />
                         </IconButton>
                     )}
-                </Container>
-            </Box>
+                </InnerBox>
+            </OuterBox>
         </>
     );
 }

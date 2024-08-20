@@ -1,19 +1,84 @@
-import { Box, Tooltip, Typography } from "@mui/material";
+import { Box, BoxProps, Tooltip, Typography, TypographyProps, styled } from "@mui/material";
 import usePress from "hooks/usePress";
 import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";
 import { BuildAction } from "utils/consts";
 import { firstString } from "utils/display/stringTools";
 import { NodeWithEndCrud } from "views/objects/node";
-import { NodeWithEnd } from "views/objects/node/types";
-import { DraggableNode, NodeContextMenu, NodeWidth, calculateNodeSize } from "../..";
+import { NodeWithEnd, NodeWithEndShape } from "views/objects/node/types";
+import { DRAG_THRESHOLD, DraggableNode, NodeContextMenu, NodeWidth, SHOW_TITLE_ABOVE_SCALE, calculateNodeSize } from "../..";
 import { nodeLabel } from "../styles";
 import { EndNodeProps } from "../types";
 
-/**
- * Distance before a click is considered a drag
- */
-const DRAG_THRESHOLD = 10;
+interface NodeTitleProps extends TypographyProps {
+    fontSize: string;
+    scale: number;
+}
+
+const NodeTitle = styled(Typography, {
+    shouldForwardProp: (prop) => prop !== "fontSize" && prop !== "scale",
+})<NodeTitleProps>(({ fontSize, scale }) => ({
+    ...noSelect,
+    ...nodeLabel,
+    pointerEvents: "none",
+    fontSize,
+    display: scale < SHOW_TITLE_ABOVE_SCALE ? "none" : "block",
+} as any));
+
+interface OuterCircleProps extends BoxProps {
+    node: NodeWithEndShape;
+    scale: number;
+    statusColor: string | null;
+}
+
+const OuterCircle = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "node" && prop !== "scale" && prop !== "statusColor",
+})<OuterCircleProps>(({ node, scale, statusColor, theme }) => {
+    const outerCircleSize = `min(max(${calculateNodeSize(NodeWidth.End, scale) * 2}px, 5vw), 150px)`;
+
+    return {
+        width: outerCircleSize,
+        height: outerCircleSize,
+        position: "relative",
+        display: "block",
+        backgroundColor: node.end?.wasSuccessful === false ? "#7c262a" : "#387e30",
+        color: "white",
+        borderRadius: "100%",
+        boxShadow: statusColor ? `0px 0px 12px ${statusColor}` : theme.shadows[12],
+        "&:hover": {
+            filter: "brightness(120%)",
+            transition: "all 0.2s",
+        },
+        "@media print": {
+            border: `1px solid ${node.end?.wasSuccessful === false ? "#e97691" : "#9ce793"}`,
+            boxShadow: "none",
+        },
+    };
+});
+
+interface InnerCircleProps extends BoxProps {
+    node: NodeWithEndShape;
+    scale: number;
+}
+
+const InnerCircle = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "node" && prop !== "scale",
+})<InnerCircleProps>(({ node, scale }) => {
+    const innerCircleSize = `min(max(${calculateNodeSize(NodeWidth.End, scale)}px, 2.5vw), 75px)`;
+
+    return {
+        width: innerCircleSize,
+        height: innerCircleSize,
+        position: "absolute",
+        display: "block",
+        margin: "0",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        borderRadius: "100%",
+        border: `2px solid ${node.end?.wasSuccessful === false ? "#e97691" : "#9ce793"}`,
+    };
+});
 
 export function EndNode({
     canDrag = true,
@@ -30,33 +95,13 @@ export function EndNode({
     scale = 1,
 }: EndNodeProps) {
 
-    /**
-     * Border color indicates status of node.
-     * Red for not fully connected (missing in links)
-     */
-    const borderColor = useMemo<string | null>(() => {
+    const statusColor = useMemo<string | null>(() => {
         if (!isLinked) return null;
         if (linksIn.length === 0) return "red";
         return null;
     }, [isLinked, linksIn.length]);
 
-    const outerCircleSize = useMemo(() => `min(max(${calculateNodeSize(NodeWidth.End, scale) * 2}px, 5vw), 150px)`, [scale]);
-    const innerCircleSize = useMemo(() => `min(max(${calculateNodeSize(NodeWidth.End, scale)}px, 2.5vw), 75px)`, [scale]);
     const fontSize = useMemo(() => `min(${calculateNodeSize(NodeWidth.End, scale) / 2}px, 1.5em)`, [scale]);
-
-    const labelObject = useMemo(() => labelVisible && scale > -2 ? (
-        <Typography
-            variant="h6"
-            sx={{
-                ...noSelect,
-                ...nodeLabel,
-                pointerEvents: "none",
-                fontSize,
-            }}
-        >
-            {label}
-        </Typography>
-    ) : null, [labelVisible, scale, fontSize, label]);
 
     // Normal click edit menu (title, wasSuccessful, etc.)
     const [editDialogOpen, setEditDialogOpen] = useState<boolean>(false);
@@ -88,6 +133,7 @@ export function EndNode({
             [BuildAction.AddListBeforeNode, BuildAction.MoveNode, BuildAction.UnlinkNode, BuildAction.AddIncomingLink, BuildAction.DeleteNode] :
             [];
     }, [isEditing]);
+    const handleContextSelect = useCallback((action: BuildAction) => { handleAction(action, node.id); }, [handleAction, node.id]);
 
     return (
         <>
@@ -97,7 +143,7 @@ export function EndNode({
                 anchorEl={contextAnchor}
                 availableActions={availableActions}
                 handleClose={closeContext}
-                handleSelect={(option) => { handleAction(option, node.id); }}
+                handleSelect={handleContextSelect}
             />
             {/* Normal-click menu */}
             <NodeWithEndCrud
@@ -119,48 +165,26 @@ export function EndNode({
                 dragThreshold={DRAG_THRESHOLD}
             >
                 <Tooltip placement={"top"} title={isEditing ? `Edit "${firstString(label, "End")}"` : firstString(label, "End")}>
-                    <Box
+                    <OuterCircle
                         id={`${isLinked ? "" : "unlinked-"}node-${node.id}`}
                         aria-owns={contextOpen ? contextId : undefined}
+                        node={node}
+                        scale={scale}
+                        statusColor={statusColor}
                         {...pressEvents}
-                        sx={{
-                            width: outerCircleSize,
-                            height: outerCircleSize,
-                            position: "relative",
-                            display: "block",
-                            backgroundColor: node.end?.wasSuccessful === false ? "#7c262a" : "#387e30",
-                            color: "white",
-                            borderRadius: "100%",
-                            boxShadow: borderColor ? `0px 0px 12px ${borderColor}` : 12,
-                            "&:hover": {
-                                filter: "brightness(120%)",
-                                transform: "scale(1.1)",
-                                transition: "all 0.2s",
-                            },
-                            "@media print": {
-                                border: `1px solid ${node.end?.wasSuccessful === false ? "#e97691" : "#9ce793"}`,
-                                boxShadow: "none",
-                            },
-                        }}
                     >
-                        <Box
+                        <InnerCircle
                             id={`${isLinked ? "" : "unlinked-"}node-end-inner-circle-${node.id}`}
-                            sx={{
-                                width: innerCircleSize,
-                                height: innerCircleSize,
-                                position: "absolute",
-                                display: "block",
-                                margin: "0",
-                                top: "50%",
-                                left: "50%",
-                                transform: "translate(-50%, -50%)",
-                                borderRadius: "100%",
-                                border: `2px solid ${node.end?.wasSuccessful === false ? "#e97691" : "#9ce793"}`,
-                            } as const}
+                            node={node}
+                            scale={scale}
                         >
-                        </Box>
-                        {labelObject}
-                    </Box>
+                        </InnerCircle>
+                        {labelVisible && <NodeTitle
+                            fontSize={fontSize}
+                            scale={scale}
+                            variant="h6"
+                        >{label}</NodeTitle>}
+                    </OuterCircle>
                 </Tooltip>
             </DraggableNode>
         </>

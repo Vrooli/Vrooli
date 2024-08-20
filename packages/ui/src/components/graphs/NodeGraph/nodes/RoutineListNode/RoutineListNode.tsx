@@ -1,25 +1,24 @@
 import { getTranslation, NodeRoutineListItem } from "@local/shared";
-import { Box, Button, Collapse, Container, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, Button, Collapse, Container, ContainerProps, IconButton, styled, Tooltip, Typography, TypographyProps, useTheme } from "@mui/material";
 import { useDebounce } from "hooks/useDebounce";
 import usePress from "hooks/usePress";
 import { ActionIcon, AddIcon, CloseIcon, EditIcon, ExpandLessIcon, ExpandMoreIcon, ListBulletIcon, ListNumberIcon, NoActionIcon } from "icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { multiLineEllipsis, noSelect, textShadow } from "styles";
+import { multiLineEllipsis, noSelect } from "styles";
+import { randomString } from "utils/codes";
 import { BuildAction } from "utils/consts";
 import { firstString } from "utils/display/stringTools";
 import { PubSub } from "utils/pubsub";
 import { NodeWithRoutineListCrud } from "views/objects/node/NodeWithRoutineListCrud/NodeWithRoutineListCrud";
 import { NodeWithRoutineList } from "views/objects/node/types";
-import { calculateNodeSize, DraggableNode, SubroutineNode } from "..";
+import { calculateNodeSize, DRAG_THRESHOLD, DraggableNode, SHOW_TITLE_ABOVE_SCALE, SubroutineNode } from "..";
 import { NodeContextMenu, NodeWidth } from "../..";
 import { routineNodeActionStyle, routineNodeCheckboxOption } from "../styles";
-import { RoutineListNodeProps } from "../types";
+import { DraggableNodeProps, RoutineListNodeProps } from "../types";
 
-/**
- * Distance before a click is considered a drag
- */
-const DRAG_THRESHOLD = 10;
+const COLLAPSE_DEBOUNCE_MS = 100;
+const SHOW_BUTTON_LABEL_ABOVE_SCALE = -0.2;
 
 /**
  * Decides if a clicked element should trigger a collapse/expand. 
@@ -32,6 +31,98 @@ function shouldCollapse(id: string | null | undefined): boolean {
         id.startsWith("node-")
     ));
 }
+
+interface StyledDraggableNodeProps extends Omit<DraggableNodeProps, "borderColor"> {
+    borderColor: string | null;
+    nodeSize: string;
+}
+
+const StyledDraggableNode = styled(DraggableNode, {
+    shouldForwardProp: (prop) => prop !== "borderColor" && prop !== "nodeSize",
+})<StyledDraggableNodeProps>(({ borderColor, nodeSize, theme }) => ({
+    zIndex: 5,
+    width: nodeSize,
+    position: "relative",
+    display: "block",
+    borderRadius: "12px",
+    overflow: "hidden",
+    backgroundColor: theme.palette.background.paper,
+    color: theme.palette.background.textPrimary,
+    boxShadow: borderColor ? `0px 0px 12px ${borderColor}` : theme.shadows[12],
+    "@media print": {
+        border: `1px solid ${theme.palette.mode === "light" ? theme.palette.primary.dark : theme.palette.secondary.dark}`,
+        boxShadow: "none",
+    },
+}));
+
+interface DraggableTitleContainerProps extends ContainerProps {
+    isEditing: boolean;
+}
+
+const DraggableTitleContainer = styled(Container, {
+    shouldForwardProp: (prop) => prop !== "isEditing",
+})<DraggableTitleContainerProps>(({ isEditing, theme }) => ({
+    display: "flex",
+    height: "48px", // Lighthouse SEO requirement
+    alignItems: "center",
+    backgroundColor: theme.palette.mode === "light" ? theme.palette.primary.dark : theme.palette.secondary.dark,
+    color: theme.palette.mode === "light" ? theme.palette.primary.contrastText : theme.palette.secondary.contrastText,
+    paddingLeft: "0.1em!important",
+    paddingRight: "0.1em!important",
+    textAlign: "center",
+    cursor: isEditing ? "grab" : "pointer",
+    "&:active": {
+        cursor: isEditing ? "grabbing" : "pointer",
+    },
+    "&:hover": {
+        filter: "brightness(120%)",
+        transition: "filter 0.2s",
+    },
+}));
+
+interface NodeTitleProps extends TypographyProps {
+    collapseOpen: boolean;
+    fontSize: string;
+    scale: number;
+}
+
+const NodeTitle = styled(Typography, {
+    shouldForwardProp: (prop) => prop !== "collapseOpen" && prop !== "fontSize" && prop !== "scale",
+})<NodeTitleProps>(({ collapseOpen, fontSize, scale }) => ({
+    ...noSelect,
+    // eslint-disable-next-line no-magic-numbers
+    ...(!collapseOpen ? multiLineEllipsis(1) : multiLineEllipsis(4)),
+    textAlign: "center",
+    width: "100%",
+    lineBreak: "anywhere" as const,
+    whiteSpace: "pre" as const,
+    fontSize,
+    display: scale < SHOW_TITLE_ABOVE_SCALE ? "none" : "block",
+    "@media print": {
+        color: "black",
+    },
+}));
+
+const OptionsBox = styled(Box)(({ theme }) => ({
+    background: theme.palette.mode === "light" ? "#b0bbe7" : "#384164",
+}));
+
+const isOptionalButtonStyle = { ...routineNodeCheckboxOption };
+const isOrderedButtonStyle = { ...routineNodeCheckboxOption };
+const editButtonStyle = {
+    ...routineNodeCheckboxOption,
+    "@media print": {
+        display: "none",
+    },
+} as const;
+const addButtonDisplayStyle = {
+    "@media print": {
+        display: "none",
+    },
+} as const;
+const buttonLabelStyle = { marginLeft: "4px" } as const;
+const tooltipStyle = { zIndex: 20000 } as const;
+const listContainerStyle = { padding: "0.5em" } as const;
 
 export function RoutineListNode({
     canDrag,
@@ -53,7 +144,7 @@ export function RoutineListNode({
 
     // Default to open if editing and empty
     const [collapseOpen, setCollapseOpen] = useState<boolean>(isEditing && node.routineList.items?.length === 0);
-    const [collapseDebounce] = useDebounce(setCollapseOpen, 100);
+    const [collapseDebounce] = useDebounce(setCollapseOpen, COLLAPSE_DEBOUNCE_MS);
     const toggleCollapse = useCallback((target: EventTarget) => {
         if (isLinked && shouldCollapse(target.id)) {
             PubSub.get().publish("fastUpdate", { duration: 1000 });
@@ -82,19 +173,19 @@ export function RoutineListNode({
     const handleNodeUnlink = useCallback(() => { handleAction(BuildAction.UnlinkNode, node.id); }, [handleAction, node.id]);
     const handleNodeDelete = useCallback(() => { handleAction(BuildAction.DeleteNode, node.id); }, [handleAction, node.id]);
 
-    const onOrderedChange = useCallback((checked: boolean) => {
+    const toggleOrdered = useCallback(() => {
         if (!isEditing) return;
         handleUpdate({
             ...node,
-            routineList: { ...node.routineList, isOrdered: checked } as any,
+            routineList: { ...node.routineList, isOrdered: !node.routineList.isOrdered } as any,
         });
     }, [handleUpdate, isEditing, node]);
 
-    const onOptionalChange = useCallback((checked: boolean) => {
+    const toggleOptional = useCallback(() => {
         if (!isEditing) return;
         handleUpdate({
             ...node,
-            routineList: { ...node.routineList, isOptional: checked } as any,
+            routineList: { ...node.routineList, isOptional: !node.routineList.isOptional } as any,
         });
     }, [handleUpdate, isEditing, node]);
 
@@ -117,6 +208,7 @@ export function RoutineListNode({
     const handleSubroutineAdd = useCallback(() => {
         handleAction(BuildAction.AddSubroutine, node.id);
     }, [handleAction, node.id]);
+
     const handleSubroutineUpdate = useCallback((subroutineId: string, updatedItem: NodeRoutineListItem) => {
         handleUpdate({
             ...node,
@@ -132,15 +224,16 @@ export function RoutineListNode({
         } as any);
     }, [handleUpdate, node]);
 
-    const { label } = useMemo(() => {
+    const { editButtonId, label } = useMemo(() => {
+        const name = getTranslation(node, [language], true).name;
         return {
-            label: getTranslation(node, [language], true).name ?? "",
+            editButtonId: name ?? randomString(),
+            label: firstString(name, t("RoutineList")),
         };
-    }, [language, node]);
+    }, [language, node, t]);
 
     const nodeSize = useMemo(() => `min(max(${calculateNodeSize(NodeWidth.RoutineList, scale) * 2}px, 20vw), 500px)`, [scale]);
     const fontSize = useMemo(() => `min(${calculateNodeSize(NodeWidth.RoutineList, scale) / 8}px, 1.5em)`, [scale]);
-    const addSize = useMemo(() => `max(min(${calculateNodeSize(NodeWidth.RoutineList, scale) / 4}px, 48px), 24px)`, [scale]);
 
     const confirmDelete = useCallback(() => {
         PubSub.get().publish("alertDialog", {
@@ -152,68 +245,6 @@ export function RoutineListNode({
         });
     }, [handleNodeDelete, handleNodeUnlink]);
 
-    const optionsCollapse = useMemo(() => (
-        <Collapse in={collapseOpen} sx={{
-            ...noSelect,
-            background: palette.mode === "light" ? "#b0bbe7" : "#384164",
-        }}>
-            <Tooltip placement={"top"} title={t("MustCompleteRoutinesInOrder")}>
-                <Box
-                    onClick={() => { onOrderedChange(!node.routineList.isOrdered); }}
-                    onTouchStart={() => { onOrderedChange(!node.routineList.isOrdered); }}
-                    sx={routineNodeActionStyle(isEditing)}
-                >
-                    <IconButton
-                        size="small"
-                        sx={{ ...routineNodeCheckboxOption }}
-                        disabled={!isEditing}
-                    >
-                        {node.routineList.isOrdered ? <ListNumberIcon fill={palette.background.textPrimary} /> : <ListBulletIcon fill={palette.background.textPrimary} />}
-                    </IconButton>
-                    {scale > -0.2 && <Typography sx={{ marginLeft: "4px" }}>{node.routineList.isOrdered ? "Ordered" : "Unordered"}</Typography>}
-                </Box>
-            </Tooltip>
-            <Tooltip placement={"top"} title={t("RoutineCanSkip")}>
-                <Box
-                    onClick={() => { onOptionalChange(!node.routineList.isOptional); }}
-                    onTouchStart={() => { onOptionalChange(!node.routineList.isOptional); }}
-                    sx={routineNodeActionStyle(isEditing)}
-                >
-                    <IconButton
-                        size="small"
-                        sx={{ ...routineNodeCheckboxOption }}
-                        disabled={!isEditing}
-                    >
-                        {node.routineList.isOptional ? <NoActionIcon fill={palette.background.textPrimary} /> : <ActionIcon fill={palette.background.textPrimary} />}
-                    </IconButton>
-                    {scale > -0.2 && <Typography sx={{ marginLeft: "4px" }}>{node.routineList.isOptional ? "Optional" : "Required"}</Typography>}
-                </Box>
-            </Tooltip>
-            {isEditing && <Tooltip placement={"top"} title={t("NodeRoutineListInfo")}>
-                <Box
-                    onClick={() => { openEditDialog(); }}
-                    onTouchStart={() => { openEditDialog(); }}
-                    sx={routineNodeActionStyle(isEditing)}
-                >
-                    <IconButton
-                        id={`${label ?? ""}-edit-option`}
-                        size="small"
-                        sx={{
-                            ...routineNodeCheckboxOption,
-                            "@media print": {
-                                display: "none",
-                            },
-                        }}
-                        disabled={!isEditing}
-                    >
-                        <EditIcon fill={palette.background.textPrimary} />
-                    </IconButton>
-                    {scale > -0.2 && <Typography sx={{ marginLeft: "4px" }}>{t("Edit")}</Typography>}
-                </Box>
-            </Tooltip>}
-        </Collapse>
-    ), [collapseOpen, palette.mode, palette.background.textPrimary, t, isEditing, node.routineList.isOrdered, node.routineList.isOptional, scale, label, onOrderedChange, onOptionalChange, openEditDialog]);
-
     /** 
      * Subroutines, sorted from lowest to highest index
      * */
@@ -224,12 +255,11 @@ export function RoutineListNode({
             handleAction={handleSubroutineAction}
             handleUpdate={handleSubroutineUpdate}
             isEditing={isEditing}
-            isOpen={collapseOpen}
             labelVisible={labelVisible}
             language={language}
             scale={scale}
         />
-    )), [node.routineList.items, handleSubroutineAction, handleSubroutineUpdate, isEditing, collapseOpen, labelVisible, language, scale]);
+    )), [node.routineList.items, handleSubroutineAction, handleSubroutineUpdate, isEditing, labelVisible, language, scale]);
 
     /**
      * Border color indicates status of node.
@@ -259,6 +289,10 @@ export function RoutineListNode({
         onRightClick: openContext,
     });
 
+    const handleContextSelect = useCallback(function handleContextSelectCallback(option: BuildAction) {
+        handleAction(option, node.id);
+    }, [handleAction, node.id]);
+
     const availableActions = useMemo(() => {
         return isEditing ?
             [BuildAction.AddListBeforeNode, BuildAction.AddListAfterNode, BuildAction.AddEndAfterNode, BuildAction.MoveNode, BuildAction.UnlinkNode, BuildAction.AddIncomingLink, BuildAction.AddOutgoingLink, BuildAction.DeleteNode, BuildAction.AddSubroutine] :
@@ -273,7 +307,7 @@ export function RoutineListNode({
                 anchorEl={contextAnchor}
                 availableActions={availableActions}
                 handleClose={closeContext}
-                handleSelect={(option) => { handleAction(option, node.id); }}
+                handleSelect={handleContextSelect}
             />
             {/* Normal-click menu */}
             <NodeWithRoutineListCrud
@@ -288,118 +322,118 @@ export function RoutineListNode({
                 language={language}
                 overrideObject={node as NodeWithRoutineList}
             />
-            <DraggableNode
+            <StyledDraggableNode
+                // @ts-ignore We're overriding borderColor
+                borderColor={borderColor}
                 className="handle"
                 canDrag={canDrag}
                 nodeId={node.id}
+                nodeSize={nodeSize}
                 dragThreshold={DRAG_THRESHOLD}
-                sx={{
-                    zIndex: 5,
-                    width: nodeSize,
-                    position: "relative",
-                    display: "block",
-                    borderRadius: "12px",
-                    overflow: "hidden",
-                    backgroundColor: palette.background.paper,
-                    color: palette.background.textPrimary,
-                    boxShadow: borderColor ? `0px 0px 12px ${borderColor}` : 12,
-                    "@media print": {
-                        border: `1px solid ${palette.mode === "light" ? palette.primary.dark : palette.secondary.dark}`,
-                        boxShadow: "none",
-                    },
-                }}
             >
                 <>
-                    <Tooltip placement={"top"} title={firstString(label, t("RoutineList"))}>
-                        <Container
-                            id={`${isLinked ? "" : "unlinked-"}node-${node.id}`}
-                            aria-owns={contextOpen ? contextId : undefined}
-                            {...pressEvents}
-                            sx={{
-                                display: "flex",
-                                height: "48px", // Lighthouse SEO requirement
-                                alignItems: "center",
-                                backgroundColor: palette.mode === "light" ? palette.primary.dark : palette.secondary.dark,
-                                color: palette.mode === "light" ? palette.primary.contrastText : palette.secondary.contrastText,
-                                paddingLeft: "0.1em!important",
-                                paddingRight: "0.1em!important",
-                                textAlign: "center",
-                                cursor: isEditing ? "grab" : "pointer",
-                                "&:active": {
-                                    cursor: isEditing ? "grabbing" : "pointer",
-                                },
-                                "&:hover": {
-                                    filter: "brightness(120%)",
-                                    transition: "filter 0.2s",
-                                },
-                            }}
-                        >
-                            {
-                                canExpand && scale > -2 && (
-                                    <IconButton
-                                        id={`toggle-expand-icon-button-${node.id}`}
-                                        aria-label={collapseOpen ? "Collapse" : "Expand"}
-                                        color="inherit"
-                                    >
-                                        {collapseOpen ? <ExpandLessIcon id={`toggle-expand-icon-${node.id}`} /> : <ExpandMoreIcon id={`toggle-expand-icon-${node.id}`} />}
-                                    </IconButton>
-                                )
-                            }
-                            {labelVisible && <Typography
-                                id={`node-routinelist-title-${node.id}`}
-                                variant="h6"
-                                sx={{
-                                    ...noSelect,
-                                    ...textShadow,
-                                    ...(!collapseOpen ? multiLineEllipsis(1) : multiLineEllipsis(4)),
-                                    textAlign: "center",
-                                    width: "100%",
-                                    lineBreak: "anywhere" as const,
-                                    whiteSpace: "pre" as const,
-                                    fontSize,
-                                    display: scale < -2 ? "none" : "block",
-                                    "@media print": {
-                                        textShadow: "none",
-                                        color: "black",
-                                    },
-                                }}
-                            >{firstString(label, t("Unlinked"))}</Typography>}
-                            {
-                                isEditing && (
-                                    <IconButton
-                                        id={`${isLinked ? "" : "unlinked-"}delete-node-icon-${node.id}`}
-                                        onClick={confirmDelete}
-                                        onTouchStart={confirmDelete}
-                                        color="inherit"
-                                    >
-                                        <CloseIcon id={`delete-node-icon-button-${node.id}`} />
-                                    </IconButton>
-                                )
-                            }
-                        </Container>
-                    </Tooltip>
-                    {optionsCollapse}
-                    <Collapse
-                        in={collapseOpen}
-                        sx={{
-                            padding: collapseOpen ? "0.5em" : "0",
-                        }}
+                    <DraggableTitleContainer
+                        id={`${isLinked ? "" : "unlinked-"}node-${node.id}`}
+                        isEditing={isEditing}
+                        aria-owns={contextOpen ? contextId : undefined}
+                        {...pressEvents}
                     >
-                        {listItems}
-                        {isEditing && <Button
-                            fullWidth
-                            onClick={handleSubroutineAdd}
-                            startIcon={<AddIcon />}
-                            variant="outlined"
-                            sx={{
-                                "@media print": {
-                                    display: "none",
-                                },
-                            }}
-                        >{t("Add")}</Button>}
+                        {
+                            canExpand && scale > SHOW_TITLE_ABOVE_SCALE && (
+                                <IconButton
+                                    id={`toggle-expand-icon-button-${node.id}`}
+                                    aria-label={collapseOpen ? "Collapse" : "Expand"}
+                                    color="inherit"
+                                >
+                                    {collapseOpen ? <ExpandLessIcon id={`toggle-expand-icon-${node.id}`} /> : <ExpandMoreIcon id={`toggle-expand-icon-${node.id}`} />}
+                                </IconButton>
+                            )
+                        }
+                        {labelVisible && <NodeTitle
+                            id={`node-routinelist-title-${node.id}`}
+                            collapseOpen={collapseOpen}
+                            fontSize={fontSize}
+                            scale={scale}
+                            variant="h6"
+                        >{label}</NodeTitle>}
+                        {
+                            isEditing && (
+                                <IconButton
+                                    id={`${isLinked ? "" : "unlinked-"}delete-node-icon-${node.id}`}
+                                    onClick={confirmDelete}
+                                    onTouchStart={confirmDelete}
+                                    color="inherit"
+                                >
+                                    <CloseIcon id={`delete-node-icon-button-${node.id}`} />
+                                </IconButton>
+                            )
+                        }
+                    </DraggableTitleContainer>
+                    <Collapse in={collapseOpen}>
+                        <OptionsBox>
+                            <Tooltip placement={"top"} title={t("MustCompleteRoutinesInOrder")} sx={tooltipStyle}>
+                                <Box
+                                    onClick={toggleOrdered}
+                                    onTouchStart={toggleOrdered}
+                                    sx={routineNodeActionStyle(isEditing)}
+                                >
+                                    <IconButton
+                                        size="small"
+                                        sx={isOrderedButtonStyle}
+                                        disabled={!isEditing}
+                                    >
+                                        {node.routineList.isOrdered ? <ListNumberIcon fill={palette.background.textPrimary} /> : <ListBulletIcon fill={palette.background.textPrimary} />}
+                                    </IconButton>
+                                    {scale > SHOW_BUTTON_LABEL_ABOVE_SCALE && <Typography sx={buttonLabelStyle}>{node.routineList.isOrdered ? "Ordered" : "Unordered"}</Typography>}
+                                </Box>
+                            </Tooltip>
+                            <Tooltip placement={"top"} title={t("RoutineCanSkip")} sx={tooltipStyle}>
+                                <Box
+                                    onClick={toggleOptional}
+                                    onTouchStart={toggleOptional}
+                                    sx={routineNodeActionStyle(isEditing)}
+                                >
+                                    <IconButton
+                                        size="small"
+                                        sx={isOptionalButtonStyle}
+                                        disabled={!isEditing}
+                                    >
+                                        {node.routineList.isOptional ? <NoActionIcon fill={palette.background.textPrimary} /> : <ActionIcon fill={palette.background.textPrimary} />}
+                                    </IconButton>
+                                    {scale > SHOW_BUTTON_LABEL_ABOVE_SCALE && <Typography sx={buttonLabelStyle}>{node.routineList.isOptional ? "Optional" : "Required"}</Typography>}
+                                </Box>
+                            </Tooltip>
+                            {isEditing && <Tooltip placement={"top"} title={t("NodeRoutineListInfo")} sx={tooltipStyle}>
+                                <Box
+                                    onClick={openEditDialog}
+                                    onTouchStart={openEditDialog}
+                                    sx={routineNodeActionStyle(isEditing)}
+                                >
+                                    <IconButton
+                                        id={`${editButtonId}-edit-option`}
+                                        size="small"
+                                        sx={editButtonStyle}
+                                        disabled={!isEditing}
+                                    >
+                                        <EditIcon fill={palette.background.textPrimary} />
+                                    </IconButton>
+                                    {scale > SHOW_BUTTON_LABEL_ABOVE_SCALE && <Typography sx={buttonLabelStyle}>{t("Edit")}</Typography>}
+                                </Box>
+                            </Tooltip>}
+                        </OptionsBox>
+                        <Box sx={listContainerStyle}>
+                            {listItems}
+                            {isEditing && <Button
+                                fullWidth
+                                onClick={handleSubroutineAdd}
+                                startIcon={<AddIcon />}
+                                variant="outlined"
+                                sx={addButtonDisplayStyle}
+                            >{t("Add")}</Button>}
+                        </Box>
                     </Collapse>
                 </>
-            </DraggableNode>
+            </StyledDraggableNode>
         </>
     );
 }
