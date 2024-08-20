@@ -918,7 +918,13 @@ export function initializeRoutineGraph(
             node: { __typename: "Node", id: endNodeId },
         },
         routineVersion: { __typename: "RoutineVersion" as const, id: routineVersionId },
-        translations: [],
+        translations: [{
+            __typename: "NodeTranslation" as const,
+            id: uuid(),
+            language,
+            name: "End",
+            description: "",
+        }],
     };
     const link1: NodeLinkShape = {
         __typename: "NodeLink",

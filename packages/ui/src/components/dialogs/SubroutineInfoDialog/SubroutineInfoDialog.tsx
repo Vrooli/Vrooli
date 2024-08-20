@@ -1,14 +1,11 @@
-import { DUMMY_ID, NodeRoutineListItemShape, ResourceList as ResourceListType, RoutineVersionInputShape, RoutineVersionOutputShape, Session, TagShape, exists, getTranslation, nodeRoutineListItemValidation, noopSubmit, orDefault, routineVersionTranslationValidation, shapeNodeRoutineListItem, uuid } from "@local/shared";
-import { Box, Grid, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
+import { DUMMY_ID, NodeRoutineListItemShape, ResourceList as ResourceListType, RoutineType, Session, TagShape, exists, getTranslation, nodeRoutineListItemValidation, noop, noopSubmit, orDefault, parseConfigCallData, parseSchemaInput, parseSchemaOutput, routineVersionTranslationValidation, shapeNodeRoutineListItem, uuid } from "@local/shared";
+import { Box, Grid, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { VersionInput } from "components/inputs/VersionInput/VersionInput";
-import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { TagList } from "components/lists/TagList/TagList";
 import { ResourceList } from "components/lists/resource";
 import { Title } from "components/text/Title/Title";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
@@ -17,16 +14,21 @@ import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { CloseIcon, OpenInNewIcon } from "icons";
-import { useCallback, useContext, useEffect, useMemo, useRef } from "react";
+import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { FormContainer } from "styles";
+import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
+import { firstString } from "utils/display/stringTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
+import { routineTypes } from "utils/search/schemas/routine";
 import { validateFormValues } from "utils/validateFormValues";
 import { routineInitialValues } from "views/objects/routine";
+import { RoutineApiForm, RoutineCodeForm, RoutineDataForm, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "views/objects/routine/RoutineTypeForms/RoutineTypeForms";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { SubroutineFormProps, SubroutineInfoDialogProps } from "../types";
+
+const emptyArray = [] as const;
 
 export function subroutineInitialValues(
     session: Session | undefined,
@@ -53,7 +55,27 @@ export function transformSubroutineValues(values: NodeRoutineListItemShape, exis
     return isCreate ? shapeNodeRoutineListItem.create(values) : shapeNodeRoutineListItem.update(existing as NodeRoutineListItemShape, values);
 }
 
-//TODO update to latest from RoutineUpsert and RoutineView
+const TitleBar = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    background: theme.palette.primary.dark,
+    color: theme.palette.primary.contrastText,
+    padding: theme.spacing(1),
+}));
+const CloseButton = styled(IconButton)(({ theme }) => ({
+    color: theme.palette.primary.contrastText,
+}));
+const WarningLabel = styled(Typography)(({ theme }) => ({
+    display: "block",
+    fontStyle: "italic",
+    color: theme.palette.background.textSecondary,
+    paddingLeft: 0,
+    marginLeft: 0,
+}));
+
+const formSectionStyle = { overflowX: "hidden", marginBottom: 2 } as const;
+
 function SubroutineForm({
     canUpdateRoutineVersion,
     dirty,
@@ -66,7 +88,6 @@ function SubroutineForm({
     numSubroutines,
     onClose,
     values,
-    versions,
     ...props
 }: SubroutineFormProps) {
     const session = useContext(SessionContext);
@@ -90,33 +111,10 @@ function SubroutineForm({
 
     const [indexField] = useField<number>("index");
     const [isInternalField] = useField<boolean>("routineVersion.root.isInternal");
-    const [inputsField, , inputsHelpers] = useField<RoutineVersionInputShape[]>("routineVersion.inputs");
-    const [outputsField, , outputsHelpers] = useField<RoutineVersionOutputShape[]>("routineVersion.outputs");
-    const [resourceListField, , resourceListHelpers] = useField<ResourceListType>("routineVersion.resourceList");
+    const [resourceListField] = useField<ResourceListType>("routineVersion.resourceList");
     const [tagsField] = useField<TagShape[]>("routineVersion.root.tags");
     const [versionlabelField] = useField<string>("routineVersion.versionLabel");
     const [versionsField] = useField<{ versionLabel: string }[]>("routineVersion.root.versions");
-
-    // If name or description doesn't exist, add them using the routine version
-    const [nameField, , nameHelpers] = useField<string>("translations.0.name");
-    const [, , descriptionHelpers] = useField<string>("translations.0.description");
-    const nameDescriptionAttempted = useRef(false);
-    useEffect(() => {
-        if (nameDescriptionAttempted.current) return;
-        const nodeTranslations = getTranslation(values, [language], true);
-        const routineVersionTranslations = getTranslation(values.routineVersion, [language], true);
-        const hasName = nodeTranslations.name !== undefined && nodeTranslations.name !== "";
-        const hasDescription = nodeTranslations.description !== undefined && nodeTranslations.description !== "";
-        const hasRoutineVersionName = routineVersionTranslations.name !== undefined && routineVersionTranslations.name !== "";
-        const hasRoutineVersionDescription = routineVersionTranslations.description !== undefined && routineVersionTranslations.description !== "";
-        if (!hasName && hasRoutineVersionName) {
-            nameHelpers.setValue(routineVersionTranslations.name ?? "");
-        }
-        if (!hasDescription && hasRoutineVersionDescription) {
-            descriptionHelpers.setValue(routineVersionTranslations.description ?? "");
-        }
-        nameDescriptionAttempted.current = true;
-    }, [descriptionHelpers, language, nameHelpers, values, values.routineVersion]);
 
     /**
      * Navigate to the subroutine's build page
@@ -139,6 +137,96 @@ function SubroutineForm({
         originalIndex !== values.index && handleReorder(values.id, originalIndex, values.index);
     }, [handleReorder, handleUpdate, isEditing, values]);
 
+    const nameProps = useMemo(function namePropsMemo() {
+        return {
+            fullWidth: true,
+            language,
+        } as const;
+    }, [language]);
+
+    const descriptionProps = useMemo(function descriptionPropsMemo() {
+        return {
+            language,
+            maxChars: 2048,
+            maxRows: 4,
+            minRows: 4,
+            placeholder: "Description",
+        } as const;
+    }, [language]);
+
+    const instructionsProps = useMemo(function instructionsPropsMemo() {
+        return {
+            language,
+            placeholder: "Instructions",
+            maxChars: 8192,
+            maxRows: 10,
+            minRows: 4,
+        } as const;
+    }, [language]);
+
+    const configCallData = useMemo(function configCallDataMemo() {
+        return parseConfigCallData(values.routineVersion?.configCallData, values.routineVersion?.routineType, console);
+    }, [values.routineVersion]);
+    const schemaInput = useMemo(function schemaInputMemo() {
+        return parseSchemaInput(values.routineVersion?.configFormInput, values.routineVersion?.routineType, console);
+    }, [values.routineVersion]);
+    const schemaOutput = useMemo(function schemaOutputMemo() {
+        return parseSchemaOutput(values.routineVersion?.configFormOutput, values.routineVersion?.routineType, console);
+    }, [values.routineVersion]);
+
+    const routineTypeBaseProps = useMemo(function routineTypeBasePropsMemo() {
+        return {
+            configCallData,
+            disabled: true,
+            display: "view",
+            handleGenerateOutputs: noop,
+            isGeneratingOutputs: false,
+            onConfigCallDataChange: noop,
+            onSchemaInputChange: noop,
+            onSchemaOutputChange: noop,
+            schemaInput,
+            schemaOutput,
+        } as const;
+    }, [configCallData, schemaInput, schemaOutput]);
+
+    const routineTypeComponents = useMemo(function routineTypeComponentsMemo() {
+        if (!values.routineVersion) return null;
+        switch (values.routineVersion.routineType) {
+            case RoutineType.Api:
+                return <RoutineApiForm {...routineTypeBaseProps} />;
+            case RoutineType.Code:
+                return <RoutineCodeForm {...routineTypeBaseProps} />;
+            case RoutineType.Data:
+                return <RoutineDataForm {...routineTypeBaseProps} />;
+            case RoutineType.Generate:
+                return <RoutineGenerateForm {...routineTypeBaseProps} />;
+            case RoutineType.Informational:
+                return <RoutineInformationalForm {...routineTypeBaseProps} />;
+            //TODO
+            // case RoutineType.MultiStep:
+            //     return <RoutineMultiStepForm
+            //         {...routineTypeBaseProps}
+            //         isGraphOpen={isGraphOpen}
+            //         handleGraphClose={closeGraph}
+            //         handleGraphOpen={openGraph}
+            //         handleGraphSubmit={noop}
+            //         nodeLinks={existing.nodeLinks}
+            //         nodes={existing.nodes}
+            //         routineId={existing.id}
+            //         translations={existing.translations}
+            //         translationData={translationData}
+            //     />;
+            case RoutineType.SmartContract:
+                return <RoutineSmartContractForm {...routineTypeBaseProps} />;
+            default:
+                return null;
+        }
+    }, [routineTypeBaseProps, values.routineVersion]);
+
+    const routineTypeOption = useMemo(function routineTypeMemo() {
+        return routineTypes.find((option) => option.type === (values.routineVersion?.routineType ?? RoutineType.Informational));
+    }, [values.routineVersion]);
+
     return (
         <LargeDialog
             id="subroutine-dialog"
@@ -146,46 +234,19 @@ function SubroutineForm({
             isOpen={isOpen}
             titleId={""}
         >
-            {/* Title bar with close icon */}
-            <Box sx={{
-                display: "flex",
-                flexDirection: "row",
-                alignItems: "center",
-                background: theme.palette.primary.dark,
-                color: theme.palette.primary.contrastText,
-                padding: 1,
-            }}>
+            <TitleBar>
                 {/* Subroutine name */}
                 <Title
-                    variant="header"
-                    title={nameField.value}
+                    variant="subheader"
+                    title={firstString(getTranslation(values, [language]).name, t("Routine", { count: 1 }))}
                 />
                 {/* Version */}
                 <VersionDisplay
                     currentVersion={{ versionLabel: versionlabelField.value }}
                     prefix={" - v"}
-                    versions={versionsField.value ?? []}
+                    versions={versionsField.value ?? emptyArray}
                 />
-                {/* Position */}
-                {isEditing ? <Box sx={{ margin: "auto" }}>
-                    <IntegerInput
-                        label={t("Order")}
-                        min={0}
-                        max={numSubroutines - 1}
-                        name="index"
-                        // Offset by 1 because the index is 0-based, 
-                        // and normies don't know the real way to count
-                        offset={1}
-                        tooltip="The order of this subroutine in its parent routine"
-                    />
-                </Box> :
-                    <Typography variant="h6" ml={1} mr={1}>{`(${(indexField.value ?? 0) + 1} of ${(numSubroutines)})`}</Typography>
-                }
-                <Box sx={{
-                    justifyContent: "end",
-                    marginLeft: "auto",
-                }}>
-                    {/* Button to open in full page */}
+                <Box justifyContent="end" marginLeft="auto">
                     {!isInternalField.value && (
                         <Tooltip title="Open in full page">
                             <IconButton onClick={toGraph}>
@@ -193,118 +254,99 @@ function SubroutineForm({
                             </IconButton>
                         </Tooltip>
                     )}
-                    {/* Close button */}
-                    <IconButton onClick={onClose} sx={{
-                        color: theme.palette.primary.contrastText,
-                        borderBottom: `1px solid ${theme.palette.primary.dark}`,
-                    }}>
+                    <CloseButton>
                         <CloseIcon />
-                    </IconButton>
+                    </CloseButton>
                 </Box>
-            </Box>
+            </TitleBar>
             <BaseForm
                 display="dialog"
                 isLoading={false}
                 maxWidth={1000}
             >
                 <FormContainer>
-                    <RelationshipList
-                        isEditing={isEditing}
-                        isFormDirty={dirty}
-                        objectType={"Routine"}
-                    />
                     {
                         (canUpdateRoutineVersion || (exists(resourceListField.value) && Array.isArray(resourceListField.value.resources) && resourceListField.value.resources.length > 0)) && <Grid item xs={12} mb={2}>
                             <ResourceList
                                 horizontal
                                 list={resourceListField.value}
-                                canUpdate={canUpdateRoutineVersion}
-                                handleUpdate={(newList) => { resourceListHelpers.setValue(newList); }}
+                                canUpdate={false}
+                                handleUpdate={noop}
                                 mutate={false}
                                 parent={{ __typename: "RoutineVersion", id: values.id }}
                             />
                         </Grid>
                     }
-                    <FormContainer>
-                        <Grid container spacing={2} p={2}>
-                            <Grid item xs={12}>
-                                {canUpdateRoutineVersion ? <LanguageInput
-                                    currentLanguage={language}
-                                    handleAdd={handleAddLanguage}
-                                    handleDelete={handleDeleteLanguage}
-                                    handleCurrent={setLanguage}
-                                    languages={languages}
-                                /> : <SelectLanguageMenu
-                                    currentLanguage={language}
-                                    handleCurrent={setLanguage}
-                                    languages={languages}
-                                />}
-                            </Grid>
-                            {/* Name */}
-                            <Grid item xs={12}>
-                                <EditableTextCollapse
-                                    component='TranslatedTextInput'
-                                    isEditing={isEditing}
-                                    name="name"
-                                    props={{
-                                        fullWidth: true,
-                                        language,
-                                    }}
-                                    title={t("Name")}
-                                />
-                            </Grid>
-                            {/* Description */}
-                            <Grid item xs={12} md={6}>
-                                <EditableTextCollapse
-                                    component='TranslatedMarkdown'
-                                    isEditing={isEditing}
-                                    name="description"
-                                    props={{
-                                        language,
-                                        maxChars: 2048,
-                                        maxRows: 4,
-                                        minRows: 4,
-                                        placeholder: "Description",
-                                    }}
-                                    title={t("Description")}
-                                />
-                            </Grid>
-                            {/* Instructions */}
-                            <Grid item xs={12} md={6}>
-                                <EditableTextCollapse
-                                    component='TranslatedMarkdown'
-                                    isEditing={canUpdateRoutineVersion}
-                                    name="instructions"
-                                    props={{
-                                        language,
-                                        placeholder: "Instructions",
-                                        maxChars: 8192,
-                                        maxRows: 10,
-                                        minRows: 4,
-                                    }}
-                                    title={t("Instructions")}
-                                />
-                            </Grid>
-                            <Grid item xs={12} md={6}>
-                                {
-                                    canUpdateRoutineVersion ? <TagSelector name='routineVersion.root.tags' /> :
-                                        <TagList parentId={""} tags={(tagsField.value ?? []) as any[]} />
-                                }
-                            </Grid>
-                            {
-                                canUpdateRoutineVersion && <Grid item xs={12} md={6} mb={4}>
-                                    <VersionInput
-                                        fullWidth
-                                        name="routineVersion.versionLabel"
-                                        versions={(versionsField.value ?? []).map(v => v.versionLabel)}
-                                    />
-                                </Grid>
-                            }
-                        </Grid>
-                    </FormContainer>
-                    {/* TODO inputs/outputs */}
-                    {/* <FormView isEditing={isEditing} />; */}
-                    {/* <FormView isEditing={isEditing} />; */}
+                    {/* Position */}
+                    {isEditing && numSubroutines > 1 ? <Box>
+                        <IntegerInput
+                            fullWidth
+                            label={"Order in routine list"}
+                            min={0}
+                            max={numSubroutines - 1}
+                            name="index"
+                            // Offset by 1 because the index is 0-based, and normies don't know the real way to count
+                            offset={1}
+                            tooltip="The order of this subroutine in its parent routine"
+                        />
+                    </Box> :
+                        <Typography variant="h6" ml={1} mr={1}>
+                            Order in routine list: {(indexField.value ?? 0) + 1} of {numSubroutines}
+                        </Typography>
+                    }
+                    <FormSection sx={formSectionStyle}>
+                        {isEditing && <WarningLabel variant="caption">
+                            Changing the name or description only changes how it displays in the routine list, not the underlying subroutine
+                        </WarningLabel>}
+                        <EditableTextCollapse
+                            component='TranslatedTextInput'
+                            isEditing={isEditing}
+                            name="name"
+                            props={nameProps}
+                            title={t("Name")}
+                        />
+                        <EditableTextCollapse
+                            component='TranslatedMarkdown'
+                            isEditing={isEditing}
+                            name="description"
+                            props={descriptionProps}
+                            title={t("Description")}
+                        />
+                        <EditableTextCollapse
+                            component='TranslatedMarkdown'
+                            isEditing={false}
+                            name="instructions"
+                            props={instructionsProps}
+                            title={t("Instructions")}
+                        />
+                        {isEditing ? <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleDeleteLanguage}
+                            handleCurrent={setLanguage}
+                            languages={languages}
+                        /> : <SelectLanguageMenu
+                            currentLanguage={language}
+                            handleCurrent={setLanguage}
+                            languages={languages}
+                        />}
+                    </FormSection>
+                    {Boolean(routineTypeComponents) && (
+                        <FormSection>
+                            <ContentCollapse
+                                title={`Type: ${routineTypeOption?.label ?? "Unknown"}`}
+                                helpText={routineTypeOption?.description ?? ""}
+                            >
+                                {/* warning label when routine is marked as incomplete */}
+                                {values.routineVersion?.isComplete !== true && <WarningLabel variant="caption">
+                                    This routine is marked as incomplete. It may change in the future.
+                                </WarningLabel>}
+                                <br />
+                                <br />
+                                {routineTypeComponents}
+                            </ContentCollapse>
+                        </FormSection>
+                    )}
                 </FormContainer>
             </BaseForm>
             {canUpdateRoutineVersion && <BottomActionsButtons
@@ -351,6 +393,10 @@ export function SubroutineInfoDialog({
         return await validateFormValues(values, subroutine, false, transformSubroutineValues, nodeRoutineListItemValidation);
     }
 
+    const doReorder = useCallback(function doReorderCallback(_: unknown, oldIndex: number, newIndex: number) {
+        handleReorder(nodeId, oldIndex, newIndex);
+    }, [handleReorder, nodeId]);
+
     return (
         <Formik
             enableReinitialize={true}
@@ -360,14 +406,13 @@ export function SubroutineInfoDialog({
         >
             {(formik) => <SubroutineForm
                 canUpdateRoutineVersion={canUpdate}
-                handleReorder={(_, oldIndex, newIndex) => { handleReorder(nodeId, oldIndex, newIndex); }}
+                handleReorder={doReorder}
                 handleUpdate={handleUpdate as any}
                 handleViewFull={handleViewFull}
                 isCreate={false}
                 isEditing={isEditing}
                 isOpen={!!data}
                 numSubroutines={numSubroutines}
-                versions={[]}
                 {...formik}
                 {...props}
             />}

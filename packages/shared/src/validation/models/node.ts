@@ -1,12 +1,15 @@
 import * as yup from "yup";
 import { NodeType } from "../../api/generated";
-import { description, enumToYup, id, minNumErr, name, opt, req, transRel, YupModel, yupObj } from "../utils";
+import { description, enumToYup, id, maxStrErr, minNumErr, minStrErr, opt, req, transRel, YupModel, yupObj } from "../utils";
 import { nodeEndValidation } from "./nodeEnd";
 import { nodeLoopValidation } from "./nodeLoop";
 import { nodeRoutineListValidation } from "./nodeRoutineList";
 
 const columnIndex = yup.number().integer().min(0, minNumErr).nullable();
 const rowIndex = yup.number().integer().min(0, minNumErr).nullable();
+// Node name is less strict than other object names
+// eslint-disable-next-line no-magic-numbers
+const name = yup.string().trim().removeEmptyString().min(1, minStrErr).max(50, maxStrErr);
 const nodeType = enumToYup(NodeType);
 
 export const nodeTranslationValidation: YupModel<["create", "update"]> = transRel({

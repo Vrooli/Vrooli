@@ -194,7 +194,6 @@ export type SubroutineFormProps = Omit<FormProps<Node, NodeRoutineListItemShape>
     isOpen: boolean;
     /** Number of subroutines in parent routine list */
     numSubroutines: number;
-    versions: string[];
 };
 
 export interface SubroutineInfoDialogProps {
