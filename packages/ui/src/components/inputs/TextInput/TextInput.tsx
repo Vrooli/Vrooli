@@ -1,4 +1,4 @@
-import { TextField, Typography, useTheme } from "@mui/material";
+import { TextField, Typography } from "@mui/material";
 import { useField } from "formik";
 import { RefObject, useMemo } from "react";
 import { getTranslationData, handleTranslationChange } from "utils/display/translationTools";
@@ -14,13 +14,11 @@ export function TextInput({
     ref,
     ...props
 }: TextInputProps) {
-    const { palette } = useTheme();
-
     function StyledLabel() {
         return (
             <>
                 {label}
-                {isRequired && <Typography component="span" variant="h6" sx={{ color: palette.error.main, paddingLeft: "4px" }}>*</Typography>}
+                {isRequired && <Typography component="span" variant="h6" color="error" paddingLeft="4px">*</Typography>}
             </>
         );
     }

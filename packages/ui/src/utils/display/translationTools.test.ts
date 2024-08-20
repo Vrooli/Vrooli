@@ -574,31 +574,48 @@ describe("handleTranslationChange", () => {
         expect(secondTranslation).toEqual(mockField.value[1]);
     });
 
-    it("should handle cases where the specified language is not found", () => {
+    it("should add translation when specified language is not found", () => {
         const event = { target: { name: "content", value: "Bonjour" } };
         const language = "fr";
         // @ts-ignore: Testing runtime scenario
         handleTranslationChange(mockField, mockMeta, mockHelpers, event, language);
-        expect(mockHelpers.setValue).toHaveBeenCalledWith(mockField.value);
+        expect(mockHelpers.setValue).toHaveBeenCalledWith([
+            ...mockField.value,
+            { id: expect.any(String), language: "fr", content: "Bonjour" },
+        ]);
     });
 
-    it("should handle null or undefined field values", () => {
+    it("should add field when it's missing from the translation object", () => {
+        const event = { target: { name: "note", value: "Note" } };
+        const language = "en";
+        // @ts-ignore: Testing runtime scenario
+        handleTranslationChange(mockField, mockMeta, mockHelpers, event, language);
+        const expectedTranslation = { language: "en", content: "Hello", note: "Note" };
+        expect(mockHelpers.setValue).toHaveBeenCalledWith([expectedTranslation, mockField.value[1]]);
+    });
+
+    it("should recover from null values", () => {
         const event = { target: { name: "content", value: "Hi" } };
         const language = "en";
         // @ts-ignore: Testing runtime scenario
         handleTranslationChange({ ...mockField, value: null }, mockMeta, mockHelpers, event, language);
-        // @ts-ignore: Testing runtime scenario
-        handleTranslationChange({ ...mockField, value: undefined }, mockMeta, mockHelpers, event, language);
-        expect(mockHelpers.setValue).toHaveBeenCalledTimes(2);
-        expect(mockHelpers.setValue).toHaveBeenCalledWith([]);
+        expect(mockHelpers.setValue).toHaveBeenCalledWith([{ id: expect.any(String), language: "en", content: "Hi" }]);
     });
 
-    it("should handle non-array field values", () => {
+    it("should recover from undefined values", () => {
+        const event = { target: { name: "content", value: "Hi" } };
+        const language = "en";
+        // @ts-ignore: Testing runtime scenario
+        handleTranslationChange({ ...mockField, value: undefined }, mockMeta, mockHelpers, event, language);
+        expect(mockHelpers.setValue).toHaveBeenCalledWith([{ id: expect.any(String), language: "en", content: "Hi" }]);
+    });
+
+    it("should recover from non-array field values", () => {
         const event = { target: { name: "content", value: "Hi" } };
         const language = "en";
         // @ts-ignore: Testing runtime scenario
         handleTranslationChange({ ...mockField, value: "not an array" }, mockMeta, mockHelpers, event, language);
-        expect(mockHelpers.setValue).toHaveBeenCalledWith([]);
+        expect(mockHelpers.setValue).toHaveBeenCalledWith([{ id: expect.any(String), language: "en", content: "Hi" }]);
     });
 });
 

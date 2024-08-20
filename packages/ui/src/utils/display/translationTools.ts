@@ -547,11 +547,11 @@ export function updateTranslation<
  * @param language IETF language code
  * @returns Subtag of language code
  */
-export const getLanguageSubtag = (language: string): string => {
+export function getLanguageSubtag(language: string): string {
     if (typeof language !== "string" || language.length === 0) return "";
     const parts = language.split("-");
     return parts[0].trim().toLowerCase(); // Lowercased for comparisons
-};
+}
 
 /**
  * Returns a list of user-preferred languages.
@@ -565,7 +565,7 @@ export const getLanguageSubtag = (language: string): string => {
  * @param useDefault If true, will return English if no languages are found
  * @returns Array of user-preferred language subtags
  */
-export const getUserLanguages = (session: Session | null | undefined, useDefault = true): string[] => {
+export function getUserLanguages(session: Session | null | undefined, useDefault = true): string[] {
     // First check session data for preferred languages
     const { languages } = getCurrentUser(session);
     if (languages && languages.length > 0) {
@@ -577,17 +577,17 @@ export const getUserLanguages = (session: Session | null | undefined, useDefault
     }
     // Default to English if specified
     return useDefault ? ["en"] : [];
-};
+}
 
 /**
  * Returns the best locale for the user based on their preferred languages.
  * Locale must be present in the DateFnsLocales list.
  */
-export const getUserLocale = (session: Session | null | undefined): string => {
+export function getUserLocale(session: Session | null | undefined): string {
     const userLanguages = getUserLanguages(session);
     const navigatorLanguages = [...navigator.languages, navigator.language].filter(Boolean);
 
-    const findMatchingLocale = (languages: string[]): string | undefined => {
+    function findMatchingLocale(languages: string[]): string | undefined {
         for (const language of languages) {
             const matchingLocales = Object.keys(localeLoaders).filter(
                 (locale) => locale.split("-")[0] === language.split("-")[0],
@@ -598,7 +598,7 @@ export const getUserLocale = (session: Session | null | undefined): string => {
             }
         }
         return undefined;
-    };
+    }
 
     const navLanguagesInUserLanguages = navigatorLanguages.filter((language) =>
         userLanguages.includes(language.split("-")[0]),
@@ -614,7 +614,7 @@ export const getUserLocale = (session: Session | null | undefined): string => {
         // Default to American English
         "en-US"
     );
-};
+}
 
 /**
  * Finds the most preferred language in a list of languages.
@@ -622,7 +622,7 @@ export const getUserLocale = (session: Session | null | undefined): string => {
  * @param userLanguages The languages the user can speak, ordered by preference
  * @returns The most preferred language
  */
-export const getPreferredLanguage = (availableLanguages: string[], userLanguages: string[]): string => {
+export function getPreferredLanguage(availableLanguages: string[], userLanguages: string[]): string {
     if (!Array.isArray(availableLanguages) || availableLanguages.length === 0) {
         // If no available languages, return first user language or "en"
         return Array.isArray(userLanguages) && userLanguages.length > 0 ? userLanguages[0] : "en";
@@ -638,13 +638,13 @@ export const getPreferredLanguage = (availableLanguages: string[], userLanguages
     }
     // If we didn't find a language, return the first available language
     return availableLanguages[0];
-};
+}
 
 /**
  * Shortens a word to a maximum of 3 characters for Latin scripts and 1 character for Han (Chinese) scripts.
  * @param label The label to shorten
  */
-export const getShortenedLabel = (label: string) => {
+export function getShortenedLabel(label: string) {
     // Verify that the input is a string.
     if (typeof label !== "string" || label.length === 0) {
         return "";
@@ -656,7 +656,7 @@ export const getShortenedLabel = (label: string) => {
     }
     // Assume Latin or other script if no Han characters are found.
     return label.slice(0, 3);
-};
+}
 
 /**
  * Finds the error, touched, and value for a translation field in a formik object
@@ -665,7 +665,7 @@ export const getShortenedLabel = (label: string) => {
  * @param language The language to retrieve
  * @returns The error, touched, and value for the translation object with the given language
  */
-export const getTranslationData = <
+export function getTranslationData<
     KeyField extends string,
     Values extends { [key in KeyField]: TranslationObject[] },
 >(field: FieldInputProps<TranslationObject[]>, meta: FieldMetaProps<unknown>, language: string): {
@@ -673,53 +673,51 @@ export const getTranslationData = <
     index: number,
     touched: { [key in keyof Values[KeyField][0]]: boolean } | undefined,
     value: Values[KeyField][0] | undefined
-} => {
+} {
     if (!field?.value || !Array.isArray(field.value)) return { error: undefined, index: -1, touched: undefined, value: undefined };
     const index = field.value.findIndex(t => t.language === language);
     const value = field.value[index];
     const touched = meta.touched?.[index];
     const error = meta.error?.[index] as any;
     return { error, index, touched, value };
-};
+}
 
 /**
  * Handles onChange for translation fields in a formik object
  */
-export const handleTranslationChange = (
+export function handleTranslationChange(
     field: FieldInputProps<Array<TranslationObject>>,
     meta: FieldMetaProps<unknown>,
     helpers: FieldHelperProps<unknown>,
     event: { target: { name: string, value: string } },
     language: string,
-) => {
+) {
     // Get field name and value from event
-    const { name: changedField } = event.target;
+    const { name: changedField, value: changedValue } = event.target;
     // Get index of translation object
     const { index, value: currentValue } = getTranslationData(field, meta, language);
-    // Update the value of the translation object
-    const newValue = {
-        ...currentValue,
-        [changedField]: event.target.value,
-    };
-    // Ensure field.value is an array before attempting to map
-    if (!Array.isArray(field.value)) {
-        helpers.setValue([]);
-        return;
+    const translationArray = Array.isArray(field.value) ? [...field.value] : [];
+    // If the language does not exist, create a new entry
+    if (index === -1) {
+        const newTranslation = { id: uuid(), language, [changedField]: changedValue };
+        helpers.setValue([...translationArray, newTranslation]);
     }
-    // Update the array with the new translation object
-    const newTranslations = field.value.map((translation, idx) => idx === index ? newValue : translation);
-    // Set the updated translations array
-    helpers.setValue(newTranslations);
-};
+    // If the language exists, update the existing entry
+    else {
+        const newValue = { ...currentValue, [changedField]: changedValue };
+        const newTranslations = translationArray.map((translation, idx) => idx === index ? newValue : translation);
+        helpers.setValue(newTranslations);
+    }
+}
 
 /**
  * Converts a formik error object into an error object which can be passed to GridSubmitButtons
  * @returns An error object
  */
-export const getFormikErrorsWithTranslations = (
+export function getFormikErrorsWithTranslations(
     field: FieldInputProps<TranslationObject[]>,
     validationSchema: ObjectSchema<any>,
-): { [key: string]: string | string[] } => {
+): { [key: string]: string | string[] } {
     // Initialize errors object
     const errors: { [key: string]: string | string[] } = {};
     if (!validationSchema || !Array.isArray(field.value)) return errors;
@@ -748,7 +746,7 @@ export const getFormikErrorsWithTranslations = (
     }
     // Return errors object
     return errors;
-};
+}
 
 /**
  * Combines normal errors object with translation errors object. 
@@ -757,10 +755,10 @@ export const getFormikErrorsWithTranslations = (
  * @param translationErrors The translation errors object
  * @returns The combined errors object
  */
-export const combineErrorsWithTranslations = (
+export function combineErrorsWithTranslations(
     errors: FormErrors | null | undefined,
     translationErrors: FormErrors | null | undefined,
-): FormErrors => {
+): FormErrors {
     // If both are null or undefined, return null
     if (!errors && !translationErrors) {
         return {};
@@ -772,17 +770,17 @@ export const combineErrorsWithTranslations = (
     );
     // Combine errors into a single object
     return { ...filteredErrors, ...translationErrors };
-};
+}
 
 /**
  * Adds a new, empty translation object (all fields "") to a formik translation field
  */
-export const addEmptyTranslation = (
+export function addEmptyTranslation(
     field: FieldInputProps<TranslationObject[]>,
     meta: FieldMetaProps<unknown>,
     helpers: FieldHelperProps<object>,
     language: string,
-) => {
+) {
     // Ensure field.value is an array before proceeding, default to empty array if not
     const translations = Array.isArray(field.value) ? [...field.value] : [];
     // Determine fields in translation object (even if no translations exist yet). 
@@ -803,17 +801,17 @@ export const addEmptyTranslation = (
     translations.push(newTranslation);
     // Set new translations
     helpers.setValue(translations);
-};
+}
 
 /**
  * Removes a translation object from a formik translation field
  */
-export const removeTranslation = (
+export function removeTranslation(
     field: FieldInputProps<TranslationObject[]>,
     meta: FieldMetaProps<unknown>,
     helpers: FieldHelperProps<object>,
     language: string,
-) => {
+) {
     // Ensure field.value is an array before proceeding
     if (!Array.isArray(field.value)) {
         helpers.setValue([]);
@@ -832,7 +830,7 @@ export const removeTranslation = (
         // If no valid index is found, don't modify the translations
         helpers.setValue(field.value);
     }
-};
+}
 
 /**
  * Converts a snack message code into a snack message and details. 
@@ -840,11 +838,11 @@ export const removeTranslation = (
  * @param variables The variables to use for translation
  * @returns Object with message and details
  */
-export const translateSnackMessage = (
+export function translateSnackMessage(
     key: ErrorKey | CommonKey,
     variables: { [x: string]: number | string } | undefined,
     namespace?: string,
-): { message: string, details: string | undefined } => {
+): { message: string, details: string | undefined } {
     // Prefix the key with the namespace if provided
     const namespacedKey = namespace ? `${namespace}:${key}` : key;
     const namespacedKeyDetails = namespace ? `${namespace}:${key}Details` : `${key}Details`;
@@ -852,4 +850,4 @@ export const translateSnackMessage = (
     const message = i18next.t(namespacedKey, { ...variables, defaultValue: key }) ?? key;
     const details = i18next.t(namespacedKeyDetails, { ...variables, defaultValue: `${key}Details` }) ?? `${key}Details`;
     return { message, details: details !== `${key}Details` ? details : undefined };
-};
+}
