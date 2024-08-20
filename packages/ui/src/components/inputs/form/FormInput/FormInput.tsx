@@ -1,11 +1,13 @@
 import { InputType, preventFormSubmit } from "@local/shared";
-import { Box, IconButton, Stack, TextField, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { Box, IconButton, Stack, TextField, Tooltip, Typography, TypographyProps, styled, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
+import { useFormikContext } from "formik";
 import { useEditableLabel } from "hooks/useEditableLabel";
-import { DeleteIcon } from "icons";
+import { CopyIcon, DeleteIcon } from "icons";
 import { ComponentType, Suspense, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { lazily } from "react-lazily";
+import { PubSub } from "utils/pubsub";
 import { FormInputCheckbox } from "../FormInputCheckbox/FormInputCheckbox";
 import { FormInputInteger } from "../FormInputInteger/FormInputInteger";
 import { FormInputLanguage } from "../FormInputLanguage/FormInputLanguage";
@@ -47,6 +49,16 @@ const AsteriskLabel = styled(Typography)(({ theme }) => ({
     paddingLeft: "4px",
 }));
 
+interface FormInputLabelProps extends TypographyProps {
+    disabled: boolean;
+}
+
+const FormInputLabel = styled(Typography, {
+    shouldForwardProp: (prop) => prop !== "disabled",
+})<FormInputLabelProps>(({ disabled, theme }) => ({
+    color: disabled ? theme.palette.background.textSecondary : theme.palette.background.textPrimary,
+}));
+
 const formInputOuterBoxStyle = {
     paddingTop: 1,
     paddingBottom: 1,
@@ -62,8 +74,12 @@ const textFieldStyle = {
         padding: 0,
     },
 } as const;
+const copyButtonStyle = {
+    paddingLeft: 0,
+} as const;
 
 export function FormInput({
+    disabled,
     fieldData,
     index,
     isEditing,
@@ -74,6 +90,17 @@ export function FormInput({
 }: FormInputProps) {
     const { t } = useTranslation();
     const { palette, typography } = useTheme();
+
+    const formikContext = useFormikContext();
+    const copyToClipboard = useCallback(function copyToClipboardCallback() {
+        const fomikField = formikContext.getFieldProps(fieldData.fieldName);
+        if (!fomikField) {
+            console.error(`Field ${fieldData.fieldName} not found in formik context`);
+            return;
+        }
+        navigator.clipboard.writeText(fomikField.value);
+        PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
+    }, [fieldData.fieldName, formikContext]);
 
     const updateLabel = useCallback((updatedLabel: string) => { onConfigUpdate?.({ ...fieldData, label: updatedLabel }); }, []);
     const {
@@ -124,12 +151,12 @@ export function FormInput({
                     </IconButton>
                 </Tooltip>
             )}
-            {/* TODO copy input when not editing and it's a FormInputText or FormInputInteger component */}
+            {/* Red asterisk if required */}
+            {fieldData.isRequired && <AsteriskLabel variant="h6">*</AsteriskLabel>}
             <legend aria-label="Input label">
                 {isEditingLabel ? (
                     <TextField
                         ref={labelEditRef}
-                        autoFocus
                         inputMode="text"
                         InputProps={textFieldInputProps}
                         onBlur={submitLabelChange}
@@ -141,25 +168,30 @@ export function FormInput({
                         sx={textFieldStyle}
                     />
                 ) : (
-                    <Typography
+                    <FormInputLabel
+                        disabled={disabled ?? false}
                         id={`label-${fieldData.fieldName}`}
                         onClick={startEditingLabel}
                         sx={labelStyle}
                         variant="h6"
                     >
                         {editedLabel ?? (index && `Input ${index + 1}`) ?? t("Input", { count: 1 })}
-                    </Typography>
+                    </FormInputLabel>
                 )}
             </legend>
-            {/* Red asterisk if required */}
-            {fieldData.isRequired && <AsteriskLabel variant="h6">*</AsteriskLabel>}
+            {/* Copy button for certain input types. Others include their own copy buttons or don't need one */}
+            {[InputType.IntegerInput, InputType.LinkUrl, InputType.Text].includes(fieldData.type) && <Tooltip title={t("CopyToClipboard")}>
+                <IconButton onClick={copyToClipboard} sx={copyButtonStyle}>
+                    <CopyIcon fill={palette.background.textSecondary} width="24px" height="24px" />
+                </IconButton>
+            </Tooltip>}
             {(fieldData.helpText || isEditing) ?
                 <HelpButton
                     onMarkdownChange={onMarkdownChange}
                     markdown={fieldData.helpText ?? ""}
                 /> : null}
         </Stack>
-    ), [isEditing, t, handleDelete, palette.error.main, isEditingLabel, labelEditRef, textFieldInputProps, submitLabelChange, handleLabelChange, handleLabelKeyDown, editedLabel, fieldData.fieldName, fieldData.isRequired, fieldData.helpText, startEditingLabel, labelStyle, index, onMarkdownChange]);
+    ), [isEditing, t, handleDelete, palette.error.main, palette.background.textSecondary, isEditingLabel, labelEditRef, textFieldInputProps, submitLabelChange, handleLabelChange, handleLabelKeyDown, editedLabel, disabled, fieldData.fieldName, fieldData.isRequired, fieldData.type, fieldData.helpText, startEditingLabel, labelStyle, index, copyToClipboard, onMarkdownChange]);
 
     const inputElement = useMemo(() => {
         if (!fieldData.type || !typeMap[fieldData.type]) {
@@ -170,6 +202,7 @@ export function FormInput({
         return (
             <Suspense fallback={<div>Loading...</div>}>
                 <InputComponent
+                    disabled={disabled}
                     fieldData={fieldData}
                     index={index}
                     isEditing={isEditing}
@@ -179,7 +212,7 @@ export function FormInput({
                 />
             </Suspense>
         );
-    }, [fieldData, index, isEditing, onConfigUpdate, onDelete, rest]);
+    }, [disabled, fieldData, index, isEditing, onConfigUpdate, onDelete, rest]);
 
     return (
         <Box

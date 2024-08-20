@@ -1,5 +1,5 @@
 import { ChatInviteStatus, CodeLanguage, DUMMY_ID, LangsKey, Status, isEqual, uuid } from "@local/shared";
-import { Box, Grid, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, Grid, IconButton, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { StatusButton } from "components/buttons/StatusButton/StatusButton";
 import { SelectorBase } from "components/inputs/Selector/Selector";
@@ -10,7 +10,7 @@ import { useTranslation } from "react-i18next";
 import { ChatShape } from "@local/shared";
 import { SessionContext } from "contexts/SessionContext";
 import { useDebounce } from "hooks/useDebounce";
-import { MagicIcon, OpenThreadIcon, RedoIcon, RefreshIcon, UndoIcon } from "icons";
+import { CopyIcon, MagicIcon, OpenThreadIcon, RedoIcon, RefreshIcon, UndoIcon } from "icons";
 import React from "react";
 import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
@@ -432,6 +432,50 @@ const languageDisplayMap: { [x in CodeLanguage]: [LangsKey, LangsKey] } = {
     [CodeLanguage.Yaml]: ["Yaml", "YamlHelp"],
 };
 
+const InfoBar = styled(Box)(({ theme }) => ({
+    display: "flex",
+    width: "100%",
+    padding: "0.5rem",
+    borderBottom: "1px solid #e0e0e0",
+    background: theme.palette.primary.light,
+    color: theme.palette.primary.contrastText,
+    alignItems: "center",
+    flexDirection: "row",
+    [theme.breakpoints.down("sm")]: {
+        flexDirection: "column",
+    },
+}));
+
+const outerStackStyle = {
+    borderRadius: 1.5,
+    overflow: "hidden",
+} as const;
+const lazyCodeMirrorStyle = {
+    position: "relative",
+    zIndex: 2,
+} as const;
+const refreshIconStyle = {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    zIndex: 1,
+} as const;
+const statusButtonStyle = {
+    marginRight: "auto",
+    height: "fit-content",
+} as const;
+const languageSelectorStyle = {
+    root: {
+        width: "fit-content",
+        minWidth: "200px",
+    },
+} as const;
+const copyButtonStyle = { marginLeft: "auto" } as const;
+
+const CHANGE_DEBOUNCE_MS = 250;
+const REFRESH_ICON_SHOW_AFTER_MS = 3000;
+
 // TODO May be able to combine CodeInputBase and JsonInput into one component. To do this, make "JSON Standard" a 
 // new language option. Also need to add support for format (which is JSON Standard) which, if provided, limits the language to JSON 
 // and only makes input valid if it matches the format. Doing this will make this component stand out from the other 
@@ -469,7 +513,7 @@ export function CodeInputBase({
     // // Last valid schema format
     // const [internalValue, setInternalValue] = useState<string>(jsonToString(format) ?? "");
     const debounceContentHandler = useCallback((content: string) => { handleContentChange(content); }, [handleContentChange]);
-    const [debounceContent] = useDebounce(debounceContentHandler, 250);
+    const [debounceContent] = useDebounce(debounceContentHandler, CHANGE_DEBOUNCE_MS);
     const updateContent = useCallback((newContent: string) => {
         if (disabled) return;
         // setInternalValue(newContent);
@@ -713,29 +757,22 @@ export function CodeInputBase({
     }
     // Show the refresh icon after a short delay
     useEffect(function clearCodeTimeoutEffect() {
-        const timer = setTimeout(() => { setShowRefresh(true); }, 3000);
+        const timer = setTimeout(() => { setShowRefresh(true); }, REFRESH_ICON_SHOW_AFTER_MS);
         return () => clearTimeout(timer);
     }, [editorKey]);
+
+    const handleCopy = useCallback(function handleCopyCallback() {
+        if (!content) return;
+        navigator.clipboard.writeText(content);
+        PubSub.get().publish("snack", { message: "Copied to clipboard", severity: "Success" });
+    }, [content]);
 
     return (
         <>
             {/* Assistant dialog for generating text */}
             <ChatCrud {...assistantDialogProps} />
-            <Stack direction="column" spacing={0} sx={{
-                borderRadius: 1.5,
-                overflow: "hidden",
-            }}>
-                {/* Bar above main input */}
-                <Box sx={{
-                    display: "flex",
-                    width: "100%",
-                    padding: "0.5rem",
-                    borderBottom: "1px solid #e0e0e0",
-                    background: palette.primary.light,
-                    color: palette.primary.contrastText,
-                    alignItems: "center",
-                    flexDirection: { xs: "column", sm: "row" }, // switch to column on xs screens, row on sm and larger
-                }}>
+            <Stack direction="column" spacing={0} sx={outerStackStyle}>
+                <InfoBar>
                     {/* Select or display language */}
                     {availableLanguages.length > 1 ?
                         <Grid item xs={12} sm={6}>
@@ -752,12 +789,7 @@ export function CodeInputBase({
                                 fullWidth
                                 inputAriaLabel="select language"
                                 label={"Language"}
-                                sxs={{
-                                    root: {
-                                        width: "fit-content",
-                                        minWidth: "200px",
-                                    },
-                                }}
+                                sxs={languageSelectorStyle}
                             />
                         </Grid> :
                         disabled ?
@@ -768,15 +800,15 @@ export function CodeInputBase({
                             </Tooltip> :
                             null
                     }
-                    {/* Actions, Help button, Status */}
-                    {!disabled && <Grid item xs={12} sm={availableLanguages.length > 1 ? 6 : 12} sx={{
+                    <Grid item xs={12} sm={availableLanguages.length > 1 ? 6 : 12} sx={{
                         marginLeft: { xs: 0, sm: "auto" },
                         ...(availableLanguages.length <= 1 && {
                             display: "flex",
                             justifyContent: "flex-end",
                         }),
                     }}>
-                        <Box sx={{
+                        {/* Actions, Help button, Status */}
+                        {!disabled && <Box sx={{
                             display: "flex",
                             flexDirection: "row",
                             justifyContent: "flex-start",
@@ -798,14 +830,18 @@ export function CodeInputBase({
                             {supportsValidation && <StatusButton
                                 status={errors.length === 0 ? Status.Valid : Status.Invalid}
                                 messages={errors.map(e => e.message)}
-                                sx={{
-                                    marginRight: "auto",
-                                    height: "fit-content",
-                                }}
+                                sx={statusButtonStyle}
                             />}
-                        </Box>
-                    </Grid>}
-                </Box>
+                        </Box>}
+                        {/* Copy button */}
+                        {disabled && Boolean(content) && <IconButton
+                            onClick={handleCopy}
+                            sx={copyButtonStyle}
+                        >
+                            <CopyIcon fill={palette.primary.contrastText} />
+                        </IconButton>}
+                    </Grid>
+                </InfoBar>
                 <Box sx={{
                     position: "relative",
                     height: "400px",
@@ -829,18 +865,12 @@ export function CodeInputBase({
                             extensions={extensions}
                             onChange={updateContent}
                             height={"400px"}
-                            style={{ position: "relative", zIndex: 2 }}
+                            style={lazyCodeMirrorStyle}
                         />
                     </Suspense>
                     {showRefresh && <IconButton
                         onClick={refreshEditor}
-                        sx={{
-                            position: "absolute",
-                            top: "50%",
-                            left: "50%",
-                            transform: "translate(-50%, -50%)",
-                            zIndex: 1,
-                        }}
+                        sx={refreshIconStyle}
                     >
                         <RefreshIcon fill={palette.background.textPrimary} width={48} height={48} />
                     </IconButton>}
