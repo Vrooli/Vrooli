@@ -29,7 +29,7 @@ export const config: LlmTaskConfig = {
         suggested_commands: "suggested: [/${command} ${action} ${property1}='${value1}', /${command} ${action} ${property2}='${value2}']",
     },
     __finish_context_response_format: "/${command} ${action} ${property1}='some_string' ${property2}=123",
-    __rules: [
+    __rules_text: [
         "Use commands when possible. They are the only way you can perform real actions.",
         "Do not play pretend. If you cannot do something directly, do not pretend to do it.",
         "In general, a command can be used when the user wants to perform an action. For example, if a user asks 'What's the weather?', you can respond with `/routine find`.",
@@ -37,12 +37,20 @@ export const config: LlmTaskConfig = {
         "When suggesting commands, do not start the suggestion with anything like 'Here are some commands you can use'. Just use the 'suggested_commands' format directly after the message and some whitespace.",
         "Escape single quotes in properties.",
     ],
-    __finish_context_rules: [
+    __rules_text_force: [
         "Use a provided command to complete the user's request. This is the only way you can perform real actions.",
         "You must respond with a command.",
         "Do not play pretend. If you cannot do something directly, do not pretend to do it.",
         "Do not provide any other text in the message besides the command.",
         "Escape single quotes in properties.",
+    ],
+    __rules_json: [
+        "Respond only with JSON formatted messages.",
+        "JSON objects should contain a required \"command\", optional \"action\", and optional \"properties\".",
+        "If you need to provide multiple commands, use an array of objects.",
+        "Do not include any extra text outside of the JSON structure.",
+        "Ensure JSON keys and string values are properly quoted.",
+        "Use only the commands, actions, and properties defined in the configuration for generating responses.",
     ],
     __pick_properties(selectedFields: [string, boolean | undefined][], __availableFields: Record<string, Omit<LlmTaskProperty, "name">>) {
         return selectedFields.map(([fieldName, isRequired]) => ({
@@ -51,7 +59,7 @@ export const config: LlmTaskConfig = {
             is_required: isRequired !== undefined ? isRequired : __availableFields[fieldName]?.is_required,
         }));
     },
-    __construct_context: ({
+    __construct_context_base: ({
         actions,
         properties,
         commands,
@@ -85,15 +93,34 @@ export const config: LlmTaskConfig = {
                         is_required: typeof p === "string" ? undefined : p.is_required,
                     })),
         } : undefined,
-        _response_formats: actions ? config.__response_formats_with_actions : config.__response_formats_without_actions,
+        response_formats: actions ? config.__response_formats_with_actions : config.__response_formats_without_actions,
         ...rest,
-        label: undefined, // Label is for displaying the task to the user, and is not needed in the context
+        // Label is for displaying the task to the user, and is not needed in the context
+        label: undefined,
     }),
-    __construct_context_force: (props: LlmTaskUnstructuredConfig) => ({
-        ...config.__construct_context(props),
-        _response_format: config.__finish_context_response_format,
-        rules: config.__rules,
+    __construct_context_text: (props: LlmTaskUnstructuredConfig) => ({
+        ...config.__construct_context_base(props),
+        rules: Array.isArray(props.rules) ? [...config.__rules_text, ...props.rules] : config.__rules_text,
+
     }),
+    __construct_context_text_force: (props: LlmTaskUnstructuredConfig) => ({
+        ...config.__construct_context_base(props),
+        response_formats: undefined,
+        response_format: config.__finish_context_response_format,
+        rules: Array.isArray(props.rules) ? [...config.__rules_text_force, ...props.rules] : config.__rules_text,
+    }),
+    __construct_context_json: (props: LlmTaskUnstructuredConfig) => {
+        const base = config.__construct_context_base(props);
+        // Remove text-specific instructions
+        delete base.commands.prefix;
+        delete base.actions?.description;
+        delete base.response_formats;
+
+        return {
+            ...base,
+            rules: Array.isArray(props.rules) ? [...config.__rules_json, ...props.rules] : config.__rules_json,
+        };
+    },
     __apiProperties: {
         id: {
             description: "Unique identifier for the API.",
@@ -142,7 +169,6 @@ export const config: LlmTaskConfig = {
             ["documentationLink", false],
             ["isPrivate", true],
         ], config.__apiProperties),
-        rules: config.__rules,
     }),
     ApiDelete: () => ({
         label: "Delete API",
@@ -155,7 +181,6 @@ export const config: LlmTaskConfig = {
                 type: "uuid",
             },
         ],
-        rules: config.__rules,
     }),
     ApiFind: () => ({
         label: "Find API",
@@ -170,10 +195,7 @@ export const config: LlmTaskConfig = {
                 examples: ["WeatherAPI", "weather information"],
             },
         ],
-        rules: [
-            ...config.__rules,
-            "Must include at least one search parameter (property).",
-        ],
+        rules: ["Must include at least one search parameter (property)."],
     }),
     ApiUpdate: () => ({
         label: "Update API",
@@ -190,7 +212,6 @@ export const config: LlmTaskConfig = {
             ["documentationLink", false],
             ["isPrivate", false],
         ], config.__apiProperties),
-        rules: config.__rules,
     }),
     __bot_properties: {
         id: {
@@ -251,7 +272,6 @@ export const config: LlmTaskConfig = {
             ["creativity", false],
             ["verbosity", false],
         ], config.__bot_properties),
-        rules: config.__rules,
     }),
     BotDelete: () => ({
         label: "Delete Bot",
@@ -264,7 +284,6 @@ export const config: LlmTaskConfig = {
                 type: "uuid",
             },
         ],
-        rules: config.__rules,
     }),
     BotFind: () => ({
         label: "Find Bot",
@@ -286,10 +305,7 @@ export const config: LlmTaskConfig = {
                 description: "The ID of the team the bot is a member of.",
             },
         ],
-        rules: [
-            ...config.__rules,
-            "Must include at least one search parameter (property).",
-        ],
+        rules: ["Must include at least one search parameter (property)."],
     }),
     BotUpdate: () => ({
         label: "Update Bot",
@@ -310,7 +326,6 @@ export const config: LlmTaskConfig = {
             ["creativity", false],
             ["verbosity", false],
         ], config.__bot_properties),
-        rules: config.__rules,
     }),
     __dataConverterProperties: {
         //...
@@ -323,7 +338,6 @@ export const config: LlmTaskConfig = {
         properties: config.__pick_properties([
             //...
         ], config.__dataConverterProperties),
-        rules: config.__rules,
     }),
     DataConverterDelete: () => ({
         label: "Delete Code Converter Function",
@@ -336,7 +350,6 @@ export const config: LlmTaskConfig = {
                 type: "uuid",
             },
         ],
-        rules: config.__rules,
     }),
     DataConverterFind: () => ({
         label: "Find Code Converter Function",
@@ -351,10 +364,7 @@ export const config: LlmTaskConfig = {
 
             },
         ],
-        rules: [
-            ...config.__rules,
-            "Must include at least one search parameter (property).",
-        ],
+        rules: ["Must include at least one search parameter (property)."],
     }),
     DataConverterUpdate: () => ({
         label: "Update Code Converter Function",
@@ -364,7 +374,6 @@ export const config: LlmTaskConfig = {
         properties: config.__pick_properties([
             //...
         ], config.__dataConverterProperties),
-        rules: config.__rules,
     }),
     __memberProperties: {
         id: {
@@ -414,7 +423,6 @@ export const config: LlmTaskConfig = {
             ["userId", true],
             ["message", false],
         ], config.__memberInviteProperties),
-        rules: config.__rules,
     }),
     MembersDelete: () => ({
         label: "Delete Members",
@@ -427,7 +435,6 @@ export const config: LlmTaskConfig = {
                 type: "uuid array",
             },
         ],
-        rules: config.__rules,
     }),
     MembersFind: () => ({
         label: "Find Members",
@@ -449,10 +456,7 @@ export const config: LlmTaskConfig = {
                 description: "The ID of the team the member is a member of.",
             },
         ],
-        rules: [
-            ...config.__rules,
-            "Must include at least one search parameter (property).",
-        ],
+        rules: ["Must include at least one search parameter (property)."],
     }),
     MembersUpdate: () => ({
         label: "Update Members",
@@ -464,7 +468,6 @@ export const config: LlmTaskConfig = {
             ["isAdmin", false],
             ["permissions", false],
         ], config.__memberProperties),
-        rules: config.__rules,
     }),
     __noteProperties: {
         id: {
@@ -495,7 +498,6 @@ export const config: LlmTaskConfig = {
             ["text", true],
             ["isPrivate", false],
         ], config.__noteProperties),
-        rules: config.__rules,
     }),
     NoteDelete: () => ({
         label: "Delete Note",
@@ -508,7 +510,6 @@ export const config: LlmTaskConfig = {
                 type: "uuid",
             },
         ],
-        rules: config.__rules,
     }),
     NoteFind: () => ({
         label: "Find Note",
@@ -523,10 +524,7 @@ export const config: LlmTaskConfig = {
 
             },
         ],
-        rules: [
-            ...config.__rules,
-            "Must include at least one search parameter (property).",
-        ],
+        rules: ["Must include at least one search parameter (property)."],
     }),
     NoteUpdate: () => ({
         label: "Update Note",
@@ -540,7 +538,6 @@ export const config: LlmTaskConfig = {
             ["text", false],
             ["isPrivate", false],
         ], config.__noteProperties),
-        rules: config.__rules,
     }),
     __projectProperties: {
         id: {
@@ -570,7 +567,6 @@ export const config: LlmTaskConfig = {
             ["description", true],
             ["isPrivate", true],
         ], config.__projectProperties),
-        rules: config.__rules,
     }),
     ProjectDelete: () => ({
         label: "Delete Project",
@@ -583,7 +579,6 @@ export const config: LlmTaskConfig = {
                 type: "uuid",
             },
         ],
-        rules: config.__rules,
     }),
     ProjectFind: () => ({
         label: "Find Project",
@@ -598,10 +593,7 @@ export const config: LlmTaskConfig = {
 
             },
         ],
-        rules: [
-            ...config.__rules,
-            "Must include at least one search parameter (property).",
-        ],
+        rules: ["Must include at least one search parameter (property)."],
     }),
     ProjectUpdate: () => ({
         label: "Update Project",
@@ -614,7 +606,6 @@ export const config: LlmTaskConfig = {
             ["description", false],
             ["isPrivate", false],
         ], config.__projectProperties),
-        rules: config.__rules,
     }),
     __reminderProperties: {
         id: {
@@ -649,7 +640,6 @@ export const config: LlmTaskConfig = {
             ["dueDate", true],
             ["isComplete", true],
         ], config.__reminderProperties),
-        rules: config.__rules,
     }),
     ReminderDelete: () => ({
         label: "Delete Reminder",
@@ -662,7 +652,6 @@ export const config: LlmTaskConfig = {
                 type: "uuid",
             },
         ],
-        rules: config.__rules,
     }),
     ReminderFind: () => ({
         label: "Find Reminder",
@@ -677,10 +666,7 @@ export const config: LlmTaskConfig = {
 
             },
         ],
-        rules: [
-            ...config.__rules,
-            "Must include at least one search parameter (property).",
-        ],
+        rules: ["Must include at least one search parameter (property)."],
     }),
     ReminderUpdate: () => ({
         label: "Update Reminder",
@@ -694,7 +680,6 @@ export const config: LlmTaskConfig = {
             ["dueDate", false],
             ["isComplete", false],
         ], config.__reminderProperties),
-        rules: config.__rules,
     }),
     __roleProperties: {
         id: {
@@ -715,7 +700,6 @@ export const config: LlmTaskConfig = {
             ["name", true],
             ["permissions", true],
         ], config.__roleProperties),
-        rules: config.__rules,
     }),
     RoleDelete: () => ({
         label: "Delete Role",
@@ -728,7 +712,6 @@ export const config: LlmTaskConfig = {
                 type: "uuid",
             },
         ],
-        rules: config.__rules,
     }),
     RoleFind: () => ({
         label: "Find Role",
@@ -748,10 +731,7 @@ export const config: LlmTaskConfig = {
                 is_required: true,
             },
         ],
-        rules: [
-            ...config.__rules,
-            "Must include at least one search parameter (property).",
-        ],
+        rules: ["Must include at least one search parameter (property)."],
     }),
     RoleUpdate: () => ({
         label: "Update Role",
@@ -762,7 +742,6 @@ export const config: LlmTaskConfig = {
             ["id", true],
             ["name", false],
         ], config.__roleProperties),
-        rules: config.__rules,
     }),
     __routineProperties: {
         id: {
@@ -793,7 +772,6 @@ export const config: LlmTaskConfig = {
             ["isInternal", false],
             ["isPrivate", false],
         ], config.__routineProperties),
-        rules: config.__rules,
     }),
     RoutineDelete: () => ({
         label: "Delete Routine",
@@ -806,7 +784,6 @@ export const config: LlmTaskConfig = {
                 type: "uuid",
             },
         ],
-        rules: config.__rules,
     }),
     RoutineFind: () => ({
         label: "Find Routine",
@@ -818,13 +795,9 @@ export const config: LlmTaskConfig = {
                 name: "searchString",
                 is_required: false,
                 description: "A string to search for, such as a name or description.",
-
             },
         ],
-        rules: [
-            ...config.__rules,
-            "Must include at least one search parameter (property).",
-        ],
+        rules: ["Must include at least one search parameter (property)."],
     }),
     RoutineUpdate: () => ({
         label: "Update Routine",
@@ -837,7 +810,6 @@ export const config: LlmTaskConfig = {
             ["isInternal", false],
             ["isPrivate", false],
         ], config.__routineProperties),
-        rules: config.__rules,
     }),
     __scheduleProperties: {
         name: {
@@ -858,7 +830,6 @@ export const config: LlmTaskConfig = {
         properties: config.__pick_properties([
             //...
         ], config.__scheduleProperties),
-        rules: config.__rules,
     }),
     ScheduleDelete: () => ({
         label: "Delete Schedule",
@@ -871,7 +842,6 @@ export const config: LlmTaskConfig = {
                 type: "uuid",
             },
         ],
-        rules: config.__rules,
     }),
     ScheduleFind: () => ({
         label: "Find Schedule",
@@ -886,10 +856,7 @@ export const config: LlmTaskConfig = {
 
             },
         ],
-        rules: [
-            ...config.__rules,
-            "Must include at least one search parameter (property).",
-        ],
+        rules: ["Must include at least one search parameter (property)."],
     }),
     ScheduleUpdate: () => ({
         label: "Update Schedule",
@@ -899,7 +866,6 @@ export const config: LlmTaskConfig = {
         properties: config.__pick_properties([
             //...
         ], config.__scheduleProperties),
-        rules: config.__rules,
     }),
     __smartContractProperties: {
         name: {
@@ -918,7 +884,6 @@ export const config: LlmTaskConfig = {
         properties: config.__pick_properties([
             //...
         ], config.__smartContractProperties),
-        rules: config.__rules,
     }),
     SmartContractDelete: () => ({
         label: "Delete Smart Contract",
@@ -931,7 +896,6 @@ export const config: LlmTaskConfig = {
                 type: "uuid",
             },
         ],
-        rules: config.__rules,
     }),
     SmartContractFind: () => ({
         label: "Find Smart Contract",
@@ -946,10 +910,7 @@ export const config: LlmTaskConfig = {
 
             },
         ],
-        rules: [
-            ...config.__rules,
-            "Must include at least one search parameter (property).",
-        ],
+        rules: ["Must include at least one search parameter (property)."],
     }),
     SmartContractUpdate: () => ({
         label: "Update Smart Contract",
@@ -959,7 +920,6 @@ export const config: LlmTaskConfig = {
         properties: config.__pick_properties([
             //...
         ], config.__smartContractProperties),
-        rules: config.__rules,
     }),
     __standardProperties: {
         name: {
@@ -978,7 +938,6 @@ export const config: LlmTaskConfig = {
         properties: config.__pick_properties([
             //...
         ], config.__standardProperties),
-        rules: config.__rules,
     }),
     StandardDelete: () => ({
         label: "Delete Standard",
@@ -991,7 +950,6 @@ export const config: LlmTaskConfig = {
                 type: "uuid",
             },
         ],
-        rules: config.__rules,
     }),
     StandardFind: () => ({
         label: "Find Standard",
@@ -1006,10 +964,7 @@ export const config: LlmTaskConfig = {
 
             },
         ],
-        rules: [
-            ...config.__rules,
-            "Must include at least one search parameter (property).",
-        ],
+        rules: ["Must include at least one search parameter (property)."],
     }),
     StandardUpdate: () => ({
         label: "Update Standard",
@@ -1019,7 +974,6 @@ export const config: LlmTaskConfig = {
         properties: config.__pick_properties([
             //...
         ], config.__standardProperties),
-        rules: config.__rules,
     }),
     Start: () => ({
         label: "Start",
@@ -1038,10 +992,7 @@ export const config: LlmTaskConfig = {
             api: "Connect to other applications",
             smart_contract: "Define a trustless agreement",
         },
-        rules: [
-            "You are allowed to answer general questions which are not related to the Vrooli platform.",
-            ...config.__rules,
-        ],
+        rules: ["You are allowed to answer general questions which are not related to the Vrooli platform."],
     }),
     __teamProperties: {
         name: {
@@ -1060,7 +1011,6 @@ export const config: LlmTaskConfig = {
         properties: config.__pick_properties([
             //...
         ], config.__teamProperties),
-        rules: config.__rules,
     }),
     TeamDelete: () => ({
         label: "Delete Team",
@@ -1073,7 +1023,6 @@ export const config: LlmTaskConfig = {
                 type: "uuid",
             },
         ],
-        rules: config.__rules,
     }),
     TeamFind: () => ({
         label: "Find Team",
@@ -1088,10 +1037,7 @@ export const config: LlmTaskConfig = {
 
             },
         ],
-        rules: [
-            ...config.__rules,
-            "Must include at least one search parameter (property).",
-        ],
+        rules: ["Must include at least one search parameter (property)."],
     }),
     TeamUpdate: () => ({
         label: "Update Team",
@@ -1101,7 +1047,6 @@ export const config: LlmTaskConfig = {
         properties: config.__pick_properties([
             //...
         ], config.__teamProperties),
-        rules: config.__rules,
     }),
 };
 

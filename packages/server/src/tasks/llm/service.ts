@@ -1,4 +1,4 @@
-import { API_CREDITS_MULTIPLIER, BotSettings, BotSettingsTranslation, ChatSocketEventPayloads, CommandToTask, ExistingTaskData, LlmTask, LlmTaskStructuredConfig, ServerLlmTaskInfo, getStructuredTaskConfig, getTranslation, getValidTasksFromMessage, toBotSettings } from "@local/shared";
+import { API_CREDITS_MULTIPLIER, BotSettings, BotSettingsTranslation, ChatSocketEventPayloads, CommandToTask, ExistingTaskData, LanguageModelResponseMode, LlmTask, LlmTaskStructuredConfig, ServerLlmTaskInfo, getStructuredTaskConfig, getTranslation, getValidTasksFromMessage, toBotSettings } from "@local/shared";
 import { cudHelper } from "../../actions/cuds";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
@@ -39,6 +39,7 @@ export type EstimateTokensResult = {
 export type GetConfigObjectParams = {
     botSettings: BotSettings,
     includeInitMessage: boolean,
+    mode: LanguageModelResponseMode,
     userData: Pick<SessionUserToken, "languages">,
     task: LlmTask | `${LlmTask}` | undefined,
     force: boolean,
@@ -49,6 +50,13 @@ export type GenerateContextParams = {
      */
     force: boolean;
     contextInfo: ContextInfo[];
+    /**
+     * The mode to use when generating the response
+     */
+    mode: LanguageModelResponseMode;
+    /**
+     * The model to use for generating the response.
+     */
     model: string;
     participantsData?: Record<string, PreMapUserData> | null;
     respondingBotConfig: BotSettings;
@@ -58,10 +66,34 @@ export type GenerateContextParams = {
     userData: SessionUserToken;
 }
 export type GenerateResponseParams = {
+    /**
+     * Messages to include as context for the response. 
+     * Typically the whole chat history tree, or as many as you can fit 
+     * within the current token limit.
+     */
     messages: LanguageModelMessage[];
+    /**
+     * The maximum number of tokens to output (meaning the input cost is not included). 
+     * The model may (and most likely will) stop before reaching this limit.
+     * If null, the service will decide what the maximum output should be.
+     */
     maxTokens: number | null;
+    /**
+     * The mode to use when generating the response
+     */
+    mode: LanguageModelResponseMode;
+    /**
+     * The model to use for generating the response.
+     */
     model: string;
+    /**
+     * The system message to include in the context. This is typically
+     * the configuration for the bot and task instructions.
+     */
     systemMessage: string;
+    /**
+     * Information about the user requesting the response.
+     */
     userData: Pick<SessionUserToken, "languages" | "name">;
 }
 export type GenerateResponseResult = {
@@ -167,6 +199,7 @@ export function tokenEstimationDefault({ text }: EstimateTokensParams) {
     let tokens = 0;
     for (const word of words) {
         // Add token for each 5 characters
+        // eslint-disable-next-line no-magic-numbers
         tokens += Math.floor(word.length / 5);
         // Also increment for whitespace
         tokens++;
@@ -182,6 +215,7 @@ export function tokenEstimationDefault({ text }: EstimateTokensParams) {
 export async function getDefaultConfigObject({
     botSettings,
     includeInitMessage,
+    mode,
     userData,
     task,
     force,
@@ -202,7 +236,13 @@ export async function getDefaultConfigObject({
 
     let taskConfig: LlmTaskStructuredConfig | undefined;
     if (task) {
-        taskConfig = await getStructuredTaskConfig(task, force, userData.languages[0] ?? "en", logger);
+        taskConfig = await getStructuredTaskConfig({
+            force,
+            language: userData.languages[0] ?? "en",
+            logger,
+            mode,
+            task,
+        });
     }
     const configObject = {
         ai_assistant: {
@@ -227,6 +267,7 @@ export async function getDefaultConfigObject({
  */
 export async function generateDefaultContext<GenerateNameType extends string, TokenNameType extends string>({
     contextInfo,
+    mode,
     model,
     respondingBotId,
     respondingBotConfig,
@@ -247,6 +288,7 @@ export async function generateDefaultContext<GenerateNameType extends string, To
     const config = await service.getConfigObject({
         botSettings: respondingBotConfig,
         includeInitMessage: contextInfo.length === 0,
+        mode,
         userData,
         task,
         force,
@@ -465,6 +507,10 @@ type GenerateResponseWithFallbackParams = Pick<CollectMessageContextInfoParams, 
     force: boolean;
     /** Maximum number of credits that can be spent */
     maxCredits?: bigint;
+    /**
+     * The mode to use when generating the response
+     */
+    mode: LanguageModelResponseMode;
     participantsData?: Record<string, PreMapUserData> | null;
     respondingBotConfig: BotSettings;
     respondingBotId: string;
@@ -489,6 +535,7 @@ export async function generateResponseWithFallback({
     force,
     latestMessage,
     maxCredits,
+    mode,
     participantsData,
     respondingBotConfig,
     respondingBotId,
@@ -525,6 +572,7 @@ export async function generateResponseWithFallback({
             const { messages, systemMessage } = await serviceInstance.generateContext({
                 contextInfo,
                 force,
+                mode,
                 model,
                 participantsData,
                 respondingBotId,
@@ -585,6 +633,7 @@ export async function generateResponseWithFallback({
                 const response = serviceInstance.generateResponseStreaming({
                     maxTokens: maxOutputTokens,
                     messages,
+                    mode,
                     model,
                     systemMessage,
                     userData,
@@ -610,6 +659,7 @@ export async function generateResponseWithFallback({
                 const response = await serviceInstance.generateResponse({
                     maxTokens: maxOutputTokens,
                     messages,
+                    mode,
                     model,
                     systemMessage,
                     userData,
@@ -641,6 +691,10 @@ export type ForceGetTaskParams = Pick<CollectMessageContextInfoParams, "chatId" 
     commandToTask: CommandToTask,
     existingData?: ExistingTaskData | null,
     language: string,
+    /**
+     * The mode to use when generating the response
+     */
+    mode: LanguageModelResponseMode;
     participantsData?: Record<string, PreMapUserData> | null;
     respondingBotConfig: BotSettings,
     respondingBotId: string,
@@ -658,6 +712,7 @@ export async function forceGetTask({
     existingData,
     language,
     latestMessage,
+    mode,
     participantsData,
     respondingBotConfig,
     respondingBotId,
@@ -679,6 +734,7 @@ export async function forceGetTask({
             chatId,
             force: true, // Force the bot to respond with a task
             latestMessage,
+            mode,
             participantsData,
             respondingBotConfig,
             respondingBotId,
@@ -697,6 +753,7 @@ export async function forceGetTask({
             language,
             logger,
             message,
+            mode,
             taskMode: task,
         });
 

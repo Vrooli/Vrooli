@@ -39,6 +39,7 @@ async function forceGetAndProcessCommand(params: ForceGetAndProcessCommandParams
 
 export async function llmProcessBotMessage({
     chatId,
+    mode,
     parent,
     participantsData,
     respondingBotId,
@@ -66,6 +67,7 @@ export async function llmProcessBotMessage({
                 existingData: null,
                 language,
                 logger,
+                mode,
                 message: parent.content,
                 taskMode: task,
             });
@@ -97,6 +99,7 @@ export async function llmProcessBotMessage({
                 commandToTask,
                 language,
                 latestMessage,
+                mode: "text",
                 participantsData,
                 respondingBotConfig: botSettings,
                 respondingBotId,
@@ -114,6 +117,7 @@ export async function llmProcessBotMessage({
                 chatId,
                 force: false,
                 latestMessage,
+                mode: "text",
                 participantsData,
                 respondingBotConfig: botSettings,
                 respondingBotId,
@@ -130,6 +134,7 @@ export async function llmProcessBotMessage({
                 language,
                 logger,
                 message: botResponse,
+                mode,
                 taskMode: task,
             });
             botCommandsToRun = tasksToRun;
@@ -148,6 +153,7 @@ export async function llmProcessBotMessage({
                         commandToTask,
                         language,
                         latestMessage,
+                        mode: "text",
                         participantsData,
                         respondingBotConfig: botSettings,
                         respondingBotId,
@@ -282,16 +288,20 @@ export async function llmProcessAutoFill({
             throw new CustomError("0600", "InternalError", [language]);
         }
         const commandToTask = await importCommandToTask(language, logger);
+        let taskMessage = "Your goal is to auto-fill a form with valid and relevant properties";
+        if (Object.keys(data).length) {
+            taskMessage += "\nHere are the existing properties:\n" + JSON.stringify(data, null, 2);
+            taskMessage += "\nRespond with any missing properties (including at minimum the missing required properties) to complete the form.";
+        }
         const { taskToRun, cost } = await forceGetTask({
             commandToTask,
             existingData: data as ExistingTaskData,
             language,
+            mode: "json",
             participantsData,
             respondingBotConfig: botSettings,
             respondingBotId: VALYXA_ID,
-            taskMessage: Object.keys(data).length ?
-                "Your goal is to auto-fill a form. Here is the existing data:\n" + JSON.stringify(data, null, 2) + "\nRespond with the missing information"
-                : "Your goal is to auto-fill a form. The form is currently blank. Respond with the information you'd like to fill it with.",
+            taskMessage,
             task,
             userData,
         });
@@ -379,6 +389,7 @@ export async function llmProcessStartTask({
             commandToTask,
             language,
             latestMessage: messageId,
+            mode: "json",
             participantsData: preMapUserData,
             respondingBotConfig,
             respondingBotId,

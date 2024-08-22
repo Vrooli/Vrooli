@@ -300,6 +300,7 @@ describe("LanguageModelService lmServices", () => {
         // Generate context
         it(`${lmServiceName}: generateContext returns a LanguageModelContext`, async () => {
             const model = lmService.getModel();
+            console.log("yeet before");
             await expect(lmService.generateContext({
                 contextInfo: contextInfo1,
                 force: true,
@@ -333,6 +334,7 @@ describe("LanguageModelService lmServices", () => {
             const { messages, systemMessage } = await lmService.generateContext({
                 contextInfo,
                 force: true,
+                mode: "text",
                 model,
                 participantsData,
                 respondingBotId: respondingBotId1,
@@ -341,7 +343,7 @@ describe("LanguageModelService lmServices", () => {
                 taskMessage,
                 userData,
             });
-            return { maxTokens: null, messages, model, systemMessage, userData } as GenerateResponseParams;
+            return { maxTokens: null, messages, mode: "text", model, systemMessage, userData } as GenerateResponseParams;
         }
 
         // Generate response
@@ -407,6 +409,7 @@ describe("LanguageModelService lmServices", () => {
                 userData,
                 task: "Start",
                 force: false,
+                mode: "text",
             });
 
             // Verify that the 'personality' field contains the English translation from botSettings1, 
@@ -424,6 +427,7 @@ describe("LanguageModelService lmServices", () => {
                 userData,
                 task: "RoutineAdd",
                 force: false,
+                mode: "text",
             });
 
             // Verify that the 'personality' field is the first available translation from botSettings1,
@@ -441,6 +445,7 @@ describe("LanguageModelService lmServices", () => {
                 userData,
                 task: "ReminderAdd",
                 force: false,
+                mode: "text",
             }); // botSettings3 lacks a 'name'
 
             // Verify that the 'metadata.name' field is a non-empty string
@@ -454,6 +459,7 @@ describe("LanguageModelService lmServices", () => {
                 userData,
                 task: "ScheduleFind",
                 force: false,
+                mode: "text",
             });
 
             // Verify that the 'personality' field contains the Spanish translation from botSettings5,
@@ -471,6 +477,7 @@ describe("LanguageModelService lmServices", () => {
                 userData,
                 task: "Start",
                 force: false,
+                mode: "text",
             });
 
             expect(yamlConfig.ai_assistant).not.toHaveProperty("init_message");
@@ -483,6 +490,7 @@ describe("LanguageModelService lmServices", () => {
                 userData,
                 task: "Start",
                 force: false,
+                mode: "text",
             });
 
             expect(yamlConfig.ai_assistant).toHaveProperty("init_message");

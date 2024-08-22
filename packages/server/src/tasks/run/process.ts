@@ -1088,6 +1088,7 @@ export async function doRunRoutine({
             const { message, cost } = await generateResponseWithFallback({
                 force: true,
                 maxCredits,
+                mode: "json",
                 participantsData,
                 respondingBotConfig,
                 respondingBotId: botInfo.id,

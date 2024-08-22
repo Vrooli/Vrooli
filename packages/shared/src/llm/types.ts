@@ -5,17 +5,6 @@ import { LlmTask, TaskStatus } from "../api/generated/graphqlTypes";
  * other information about the task for display and execution.
  */
 export type LlmTaskInfo = {
-    /** 
-     * The action being performed. Can be thought of as a modifier to the command. 
-     * For example, if the command is "note", the action could be "add" or "delete".
-     * 
-     * NOTE: This is in the user's language, not the server's language.
-     */
-    action: string | null;
-    /**
-     * The command string of the task, in the user's language.
-     */
-    command: string;
     /** A user-friendly label to display to the user */
     label: string;
     /** The last time a status change occurred, as an ISO string */
@@ -77,6 +66,14 @@ export type LlmTaskProperty = {
     is_required?: boolean
 };
 
+/**
+ * The mode to generate the response in. Depending on the language model service, 
+ * this may not be guaranteed to be adhered to.
+ * 
+ * Currently only supports JSON or text.
+ */
+export type LanguageModelResponseMode = "json" | "text";
+
 /** 
  * Command information, which can be used to validate commands or 
  * converted into a structured command to provide to the LLM as context
@@ -103,14 +100,19 @@ export type LlmTaskConfig = Record<LlmTask, (() => LlmTaskUnstructuredConfig)> &
     __suggested_prefix: string;
     /**
      * Builds context object to add to the LLM's context, so that it 
-     * can start or execute commands
+     * can start or execute commands in text mode
      */
-    __construct_context: (data: LlmTaskUnstructuredConfig) => LlmTaskStructuredConfig;
+    __construct_context_text: (data: LlmTaskUnstructuredConfig) => LlmTaskStructuredConfig;
     /**
      * Similar to __construct_context, but should force LLM to 
-     * respond with a command - rather than making it optional
+     * respond with a text command - rather than making it optional
      */
-    __construct_context_force: (data: LlmTaskUnstructuredConfig) => LlmTaskStructuredConfig;
+    __construct_context_text_force: (data: LlmTaskUnstructuredConfig) => LlmTaskStructuredConfig;
+    /**
+     * Builds context object to add to the LLM's context, so that it is 
+     * forced to respond with valid JSON
+     */
+    __construct_context_json: (data: LlmTaskUnstructuredConfig) => LlmTaskStructuredConfig;
     // Allow for additional properties, as long as they're prefixed with "__"
     [Key: `__${string}`]: any;
     [Key: `__${string}Properties`]: Record<string, Omit<LlmTaskProperty, "name">>;
@@ -120,11 +122,11 @@ export type LlmTaskConfig = Record<LlmTask, (() => LlmTaskUnstructuredConfig)> &
 /** Converts a command and optional action to a valid task name, or null if invalid */
 export type CommandToTask = (command: string, action?: string | null) => (LlmTask | null);
 
-export type PartialTaskInfo = Omit<LlmTaskInfo, "label" | "lastUpdated" | "status"> & {
+export type PartialTaskInfo = Omit<LlmTaskInfo, "label" | "lastUpdated" | "status" | "taskId"> & {
     start: number;
     end: number;
 };
-export type MaybeLlmTaskInfo = Omit<PartialTaskInfo, "id" | "task"> & {
+export type MaybeLlmTaskInfo = Omit<PartialTaskInfo, "taskId" | "task"> & {
     task: LlmTask | `${LlmTask}` | null;
 };
 /** Task info that the server needs to run a task. Excludes any info only useful for the UI */

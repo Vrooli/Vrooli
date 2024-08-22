@@ -31,7 +31,7 @@ describe("llm config", () => {
                 const actionConfig = config[action];
                 expect(actionConfig).toBeDefined();
 
-                const validateStructure = (obj) => {
+                function validateStructure(obj) {
                     // Check for commands, which is not optional
                     expect(obj).toHaveProperty("commands");
                     expect(typeof obj.commands).toBe("object");
@@ -43,7 +43,7 @@ describe("llm config", () => {
                         expect(obj.properties).toEqual(expect.any(Array));
                     }
                     // Add more checks for other fields as needed
-                };
+                }
 
                 if (typeof actionConfig === "function") {
                     // Call the function and check the result
@@ -125,27 +125,69 @@ describe("llm config", () => {
 
     describe("getStructuredTaskConfig", () => {
         test("works for an existing language", async () => {
-            const taskConfig = await getStructuredTaskConfig("Start", false, DEFAULT_LANGUAGE, console);
+            const taskConfig = await getStructuredTaskConfig({
+                force: false,
+                language: DEFAULT_LANGUAGE,
+                logger: console,
+                mode: "text",
+                task: "Start",
+            });
             expect(taskConfig).toBeDefined();
             // Perform additional checks on the structure of taskConfig if necessary
         });
 
         test("works for a language that's not in the config", async () => {
-            const taskConfig = await getStructuredTaskConfig("RoutineAdd", false, "nonexistent-language", console);
+            const taskConfig = await getStructuredTaskConfig({
+                force: false,
+                language: "nonexistent-language",
+                logger: console,
+                mode: "text",
+                task: "RoutineAdd",
+            });
             expect(taskConfig).toBeDefined();
             // Since it falls back to English, compare it with the English config for the same action
-            const englishConfig = await getStructuredTaskConfig("RoutineAdd", false, DEFAULT_LANGUAGE, console);
+            const englishConfig = await getStructuredTaskConfig({
+                force: false,
+                language: DEFAULT_LANGUAGE,
+                logger: console,
+                mode: "text",
+                task: "RoutineAdd",
+            });
             expect(taskConfig).toEqual(englishConfig);
         });
 
         test("returns an empty object for an invalid action or action that doesn't appear in the config", async () => {
-            // @ts-ignore: Testing runtime scenario
-            const taskConfig = await getStructuredTaskConfig("InvalidAction", false, "en", console);
+            const taskConfig = await getStructuredTaskConfig({
+                force: false,
+                language: "en",
+                logger: console,
+                mode: "text",
+                // @ts-ignore: Testing runtime scenario
+                task: "InvalidAction",
+            });
             expect(taskConfig).toEqual({});
         });
 
         test("works when 'force' is true", async () => {
-            const taskConfig = await getStructuredTaskConfig("RoutineAdd", true, DEFAULT_LANGUAGE, console);
+            const taskConfig = await getStructuredTaskConfig({
+                force: true,
+                language: DEFAULT_LANGUAGE,
+                logger: console,
+                mode: "text",
+                task: "RoutineAdd",
+            });
+            expect(taskConfig).toBeDefined();
+            // Perform additional checks on the structure of taskConfig if necessary
+        });
+
+        test("works then the mode is 'json'", async () => {
+            const taskConfig = await getStructuredTaskConfig({
+                force: false,
+                language: DEFAULT_LANGUAGE,
+                logger: console,
+                mode: "json",
+                task: "RoutineAdd",
+            });
             expect(taskConfig).toBeDefined();
             // Perform additional checks on the structure of taskConfig if necessary
         });

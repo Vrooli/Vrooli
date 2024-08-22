@@ -1,11 +1,13 @@
+import { uuid } from "@local/shared";
 import { LlmTask } from "../api/generated/graphqlTypes";
 import { PassableLogger } from "../consts/commonTypes";
-import { uuid } from "../id/uuid";
 import { getUnstructuredTaskConfig, importConfig } from "./config";
-import { CommandSection, CommandToTask, CommandTransitionTrack, ExistingTaskData, LlmTaskProperty, MaybeLlmTaskInfo, PartialTaskInfo, ServerLlmTaskInfo } from "./types";
+import { CommandSection, CommandToTask, CommandTransitionTrack, ExistingTaskData, LanguageModelResponseMode, LlmTaskProperty, MaybeLlmTaskInfo, PartialTaskInfo, ServerLlmTaskInfo } from "./types";
 
 /** Properties stored as an array of [key, value, key, value, ...] */
 type CurrentLlmTaskInfo = Omit<PartialTaskInfo, "lastUpdated" | "properties" | "task"> & {
+    action: string | null;
+    command: string;
     properties: (string | number | boolean | null)[];
 };
 
@@ -23,8 +25,17 @@ type GetValidTasksFromMessageParams = {
     logger: PassableLogger,
     /** The message containing the tasks */
     message: string,
+    /**
+    * The mode to use when generating the response
+    */
+    mode: LanguageModelResponseMode;
     /** The current task mode, which determines the tasks we're allowed to start next */
     taskMode: LlmTask | `${LlmTask}`,
+};
+type GetValidTasksFromMessageResult = {
+    messageWithoutTasks: string,
+    tasksToRun: ServerLlmTaskInfo[],
+    tasksToSuggest: ServerLlmTaskInfo[],
 };
 
 export type CommandWrapper = {
@@ -56,14 +67,23 @@ type TaskTransitionHelperParams = Omit<HandleTaskTransitionParams, "section">;
 const MAX_COMMAND_ACTION_PROP_LENGTH = 32;
 const QUOTES = ["\"", "'"];
 
-export const isNewline = (char: string) => char === "\n" || char === "\r";
-export const isWhitespace = (char: string): boolean => char === " " || char === "\t";
-export const isAlphaNum = (char: string): boolean => {
+export function isNewline(char: string) {
+    return char === "\n" || char === "\r";
+}
+
+export function isWhitespace(char: string): boolean {
+    return char === " " || char === "\t";
+}
+
+export function isAlphaNum(char: string): boolean {
     const code = char.charCodeAt(0);
+    // eslint-disable-next-line no-magic-numbers
     return (code > 47 && code < 58) || // numeric (0-9)
+        // eslint-disable-next-line no-magic-numbers
         (code > 64 && code < 91) || // upper alpha (A-Z)
+        // eslint-disable-next-line no-magic-numbers
         (code > 96 && code < 123);  // lower alpha (a-z)
-};
+}
 
 
 function countEndSlashes(charArray: string[]): number {
@@ -117,6 +137,7 @@ export function handleTaskTransitionOutside(params: TaskTransitionHelperParams):
         return { section: "outside", buffer: [], hasOpenBracket };
     }
     // Start a code block if the end of buffer + curr "<code>"
+    // eslint-disable-next-line no-magic-numbers
     if ((buffer.length >= 5 && curr === ">" && buffer[buffer.length - 1] === "e" && buffer[buffer.length - 2] === "d" && buffer[buffer.length - 3] === "o" && buffer[buffer.length - 4] === "c" && buffer[buffer.length - 5] === "<")) {
         return { section: "code", buffer: ["<", "c", "o", "d", "e", ">"], hasOpenBracket };
     }
@@ -125,6 +146,7 @@ export function handleTaskTransitionOutside(params: TaskTransitionHelperParams):
     if (curr !== "`" && buffer.length >= 1 && buffer[buffer.length - 1] === "`" && buffer[buffer.length - 2] !== "`") {
         return { section: "code", buffer: ["`", curr], hasOpenBracket };
     }
+    // eslint-disable-next-line no-magic-numbers
     if (curr !== "`" && buffer.length >= 3 && buffer[buffer.length - 1] === "`" && buffer[buffer.length - 2] === "`" && buffer[buffer.length - 3] === "`" && buffer[buffer.length - 4] !== "`") {
         return { section: "code", buffer: ["`", "`", "`", curr], hasOpenBracket };
     }
@@ -176,11 +198,13 @@ export function handleTaskTransitionCode(params: TaskTransitionHelperParams): Co
     // If we're in a multi code block, cancel when encountering the closing backticks
     if (codeType === "multi") {
         // Cancel at fourth backtick in a row
+        // eslint-disable-next-line no-magic-numbers
         if (buffer.length === 3 && buffer.every(b => b === "`") && curr === "`") {
             onCancel();
             return { section: "outside", buffer: [], hasOpenBracket };
         }
         // Cancel when closing triple backticks found
+        // eslint-disable-next-line no-magic-numbers
         if (buffer.length > 3 && curr === "`" && buffer[buffer.length - 1] === "`" && buffer[buffer.length - 2] === "`") {
             onCancel();
             return { section: "outside", buffer: [], hasOpenBracket };
@@ -189,6 +213,7 @@ export function handleTaskTransitionCode(params: TaskTransitionHelperParams): Co
     // If we're in a tag code block
     if (codeType === "tag") {
         // When the buffer is short, stop if the tag never forms
+        // eslint-disable-next-line no-magic-numbers
         if (buffer.length < 6) {
             // Cancel if we run into any characters not in "<code>"
             if (!"<code>".startsWith([...buffer, curr].join(""))) {
@@ -197,8 +222,10 @@ export function handleTaskTransitionCode(params: TaskTransitionHelperParams): Co
             }
         }
         // When the buffer is longer, stop if the tag is complete
+        // eslint-disable-next-line no-magic-numbers
         if (buffer.length >= 13) {
             // Cancel if it end with "</code>"
+            // eslint-disable-next-line no-magic-numbers
             if (buffer.slice(-6).join("") === "</code" && curr === ">") {
                 onCancel();
                 return { section: "outside", buffer: [], hasOpenBracket };
@@ -560,7 +587,7 @@ export function findCharWithLimit(
 }
 
 /**
- * Extracts tasks from a given string based on predefined formats.
+ * Extracts tasks from a given string (in "text" mode) based on predefined formats.
  * 
  * The function searches for patterns that match tasks in the format "/command action property1=value1 property2=value2".
  * It supports multiple tasks within the same string, separated by spaces or other tasks.
@@ -572,7 +599,7 @@ export function findCharWithLimit(
  * @param commandToTask A function for converting a command and action to a valid task name.
  * @returns An array of task data
  */
-export function extractTasks(
+export function extractTasksFromText(
     inputString: string,
     commandToTask: CommandToTask,
 ): MaybeLlmTaskInfo[] {
@@ -585,9 +612,9 @@ export function extractTasks(
         const action = (currentCommand.action && currentCommand.action.length) ? currentCommand.action : null;
         const task = commandToTask(currentCommand.command, action);
         commands.push({
-            ...currentCommand,
+            end: currentCommand.end,
+            start: currentCommand.start,
             task,
-            action,
             // Convert properties array to object
             properties: currentCommand.properties.reduce((obj, item, index) => {
                 if (index % 2 === 0) { // Even index, property name
@@ -619,7 +646,6 @@ export function extractTasks(
     }
     function onStart(start: number) {
         currentCommand = {
-            taskId: `task-${uuid()}`,
             command: "",
             action: null,
             properties: [],
@@ -667,6 +693,81 @@ export function extractTasks(
 }
 
 /**
+ * Extracts tasks from a given string (in "json" mode) based on predefined formats.
+ * 
+ * The function attempts to JSON parse the input string and extract tasks from the resulting object. It supports the following 
+ * formats:
+ * - An object with a `task` key containing the task name, an optional `action` key containing the action name, and an optional
+ *  `properties` key containing an object with property names and values.
+ * - An array of objects with the same structure as above.
+ * - The same structures as above, but wrapped in a `task` or `tasks` key.
+ * - An object with the properties as keys and values, in which case we'll use the provided task mode to set the task name and action.
+ * @param inputString The string containing one or more taaks to be parsed.
+ * @param taskMode The current task mode, which determines the tasks we're allowed to start next. 
+ * This typically means only one task is allowed (e.g. "RoutineAdd" only lets you start the "RoutineAdd" task, which is 
+ * why our fallback behavior of using the taskMode is usually fine).
+ * @param commandToTask A function for converting a command and action to a valid task name.
+ */
+export function extractTasksFromJson(
+    inputString: string,
+    taskMode: LlmTask | `${LlmTask}`,
+    commandToTask: CommandToTask,
+): MaybeLlmTaskInfo[] {
+    let start = 0;
+    let end = inputString.length;
+    let tasks: Pick<CurrentLlmTaskInfo, "command" | "action" | "properties">[] = [];
+
+    try {
+        // Remove any text before and after the JSON
+        start = inputString.indexOf("{");
+        end = inputString.lastIndexOf("}") + 1;
+        // If the curly brackets are preceeded by square brackets, adjust the indexes (this means it's an array)
+        if (inputString[start - 1] === "[" && inputString[end] === "]") {
+            start--;
+            end++;
+        }
+        const jsonString = inputString.slice(start, end);
+        const inputData = JSON.parse(jsonString);
+
+        if (Array.isArray(inputData)) {
+            tasks = inputData;
+        } else if (Object.prototype.hasOwnProperty.call(inputData, "task")) {
+            tasks = Array.isArray(inputData.task) ? inputData.task : [inputData.task];
+        } else if (Object.prototype.hasOwnProperty.call(inputData, "tasks")) {
+            tasks = Array.isArray(inputData.tasks) ? inputData.tasks : [inputData.tasks];
+        } else {
+            tasks = [inputData];
+        }
+    } catch (e) {
+        return [];
+    }
+
+    // Task data is not always in the correct format, so we'll try our best to extract the tasks
+    return tasks.map((task) => {
+        // Assume that "command", "action", and "properties" may be available at the top level. 
+        const { command, action, properties, ...otherProperties } = task;
+        // Any other top-level properties are assumed to be properties
+        const taskProperties = properties || otherProperties;
+        // Remove "command" and "action" from the properties
+        delete (taskProperties as unknown as { command: unknown }).command;
+        delete (taskProperties as unknown as { action: unknown }).action;
+
+        // If it doesn't have any properties or command or action, we'll assume it's invalid
+        if (!Object.keys(taskProperties).length && !command && !action) {
+            return undefined;
+        }
+
+        // Otherwise, we'll return the task data
+        return {
+            properties: Object.keys(taskProperties).length > 0 ? taskProperties : undefined,
+            task: (command && action) ? commandToTask(command, action) : taskMode,
+            start,
+            end,
+        };
+    }).filter(Boolean) as unknown as MaybeLlmTaskInfo[];
+}
+
+/**
  * Removes tasks from a string
  * @param inputString The string containing the tasks to be removed
  * @param tasks The tasks to be removed
@@ -695,6 +796,7 @@ export function removeTasks(inputString: string, tasks: PartialTaskInfo[]): stri
  * @param taskMode The current task mode, which determines the tasks that can be triggered next.
  * @param existingData Data we already have for the task (e.g. if doing autofill, fields already filled in), 
  * which should be omitted when checking for required properties.
+ * @param commandToTask A function for converting a command and action to a valid task name.
  * @param language The language the potential tasks were generated in.
  * @param logger The logger to use for logging errors.
  * @returns An array of valid tasks after filtering out the invalid ones, and removing any invlaid 
@@ -704,6 +806,7 @@ export async function filterInvalidTasks(
     potentialTasks: MaybeLlmTaskInfo[],
     taskMode: LlmTask | `${LlmTask}`,
     existingData: ExistingTaskData | null,
+    commandToTask: CommandToTask,
     language: string,
     logger: PassableLogger,
 ): Promise<PartialTaskInfo[]> {
@@ -712,55 +815,38 @@ export async function filterInvalidTasks(
     // Get task configuration
     const taskConfig = await getUnstructuredTaskConfig(taskMode, language, logger);
 
+    // Determine available tasks based on the task configuration.
+    // Rules:
+    // 1. If there are 0-1 actions and one command, then the command is the same as the task mode. 
+    // E.g. "RoutineAdd" only allows the "RoutineAdd" task. Its config looks like { commands: { add: "lorem ipsum" } }
+    // 2. If there is more than one action or more than one command, then the task can trigger multiple tasks. 
+    // In this case, we'll need to use `commandToTask` over each command/action pair to determine the available tasks.
+    const availableActions = Array.isArray(taskConfig.actions) ? taskConfig.actions : [];
+    const availableCommands = (typeof taskConfig.commands === "object" && taskConfig.commands !== null && !Array.isArray(taskConfig.commands))
+        ? Object.keys(taskConfig.commands)
+        : [];
+    const availableTasks: (LlmTask | `${LlmTask}`)[] = [];
+    for (const command of availableCommands) {
+        for (const action of availableActions) {
+            const currentTask = commandToTask(command, action);
+            if (currentTask) {
+                availableTasks.push(currentTask);
+            }
+        }
+    }
+    if (availableTasks.length === 0) {
+        availableTasks.push(taskMode);
+    }
+
     // Loop through each potential task
     for (const task of potentialTasks) {
         // Store copy so we can modify it
         const modifiedTask = { ...task };
-        const requiresAction = Boolean(taskConfig.actions?.length);
         const existingKeys = existingData ? Object.keys(existingData) : [];
 
         // If the task is not a valid task, skip it
         if (!task.task) modifiedTask.task = taskMode;
-        else if (!Object.keys(LlmTask).includes(task.task)) continue;
-
-        let commandIsValid = Object.prototype.hasOwnProperty.call(taskConfig.commands, task.command);
-
-        // Attempt corrective measures when command or action are invalid.
-        if (!commandIsValid) {
-            const commandKeys = Object.keys(taskConfig.commands);
-            // If the command provided is a valid action, and there's only one command available, 
-            // then we can change the provided command to an action, and set the command to the only available command
-            // E.g. "/action prop1='hello'" -> "/command action prop1='hello'"
-            if (taskConfig.actions && taskConfig.actions.includes(task.command) && commandKeys.length === 1) {
-                // Set action to the command
-                modifiedTask.action = task.command;
-                // Set command to the only command available in the task config
-                modifiedTask.command = commandKeys[0] as string;
-                commandIsValid = true; // Mark the command as valid now
-            }
-            // If the command is invalid but matches an action, and this task doesn't have any actions, then 
-            // we can change the action to a command, and set the action to null
-            // E.g. "/invalid command prop1='hello'" -> "/command prop1='hello'"
-            else if (task.action && commandKeys.includes(task.action) && !requiresAction) {
-                // Set action to null
-                modifiedTask.action = null;
-                // Set command to the action
-                modifiedTask.command = task.action;
-                commandIsValid = true; // Mark the command as valid now
-            }
-        }
-
-        // Skip if the command is still not valid
-        if (!commandIsValid) continue;
-
-        // If the command has an invalid action, then it is invalid
-        if (requiresAction && (!modifiedTask.action || !taskConfig.actions?.includes(modifiedTask.action))) {
-            continue;
-        }
-        // If the task config has no actions, make sure the action is null
-        else if (!requiresAction && modifiedTask.action) {
-            modifiedTask.action = null;
-        }
+        else if (!availableTasks.includes(task.task)) continue;
 
         // If the command has properties, filter out the invalid ones and check for required properties
         if (task.properties) {
@@ -789,16 +875,16 @@ export async function filterInvalidTasks(
                 }
             });
 
-            // After checking all properties, if any required properties are still missing, mark the command as having missing required properties
+            // After checking all properties, if any required properties are still missing, mark the task as having missing required properties
             if (requiredProperties.length > 0) {
-                logger.error(`Command "${modifiedTask.command}" is missing required properties: ${requiredProperties.join(", ")}`, { trace: "0045" });
+                logger.error(`Task "${modifiedTask.task}" is missing required properties: ${requiredProperties.join(", ")}`, { trace: "0045" });
             }
-            // Otherwise, the command is valid
+            // Otherwise, the task is valid
             else {
                 result.push(modifiedTask as PartialTaskInfo);
             }
         } else {
-            // If the command has no properties, it's still valid as long as 
+            // If the task has no properties, it's still valid as long as 
             // it doesn't require any properties not already filled in
             const requiresProperties = taskConfig.properties ?
                 taskConfig.properties.some(prop => typeof prop === "object" && prop.is_required && !existingKeys.includes(prop.name))
@@ -903,33 +989,28 @@ export function detectWrappedTasks({
 }
 
 /**
- * Extracts valid tasks from a message and returns the message without the tasks.
- * @returns An object containing tasks that should be run right away, suggested tasks, 
- * and the message without the tasks
+ * `getValidTasksFromMessage` implementation for responses in "text" mode
  */
-export async function getValidTasksFromMessage({
+export async function getValidTasksFromText({
     commandToTask,
     existingData,
     language,
     logger,
     message,
     taskMode,
-}: GetValidTasksFromMessageParams): Promise<{
-    messageWithoutTasks: string,
-    tasksToRun: ServerLlmTaskInfo[],
-    tasksToSuggest: ServerLlmTaskInfo[],
-}> {
+}: Omit<GetValidTasksFromMessageParams, "mode">): Promise<GetValidTasksFromMessageResult> {
     // Extract all possible commands from the message
-    const maybeTasks = extractTasks(message, commandToTask);
+    const maybeTasks = extractTasksFromText(message, commandToTask);
     // Filter out commands that are not valid for the current task
-    const validTasks = await filterInvalidTasks(maybeTasks, taskMode, existingData, language, logger);
+    const validTasks = await filterInvalidTasks(maybeTasks, taskMode, existingData, commandToTask, language, logger);
 
-    // Add labels to the valid commands
+    // Add additional information to the valid tasks
     const config = await importConfig(language, logger);
     const labelledTasks = validTasks.map(command => ({
         ...command,
         label: config[command.task]().label,
-    })) as (PartialTaskInfo & { label: string })[];
+        taskId: `task-${uuid()}`,
+    })) as (PartialTaskInfo & { label: string, taskId: string })[];
 
 
     // Find commands that are being suggested rather than run right away
@@ -946,7 +1027,7 @@ export async function getValidTasksFromMessage({
     const tasksToSuggest = suggestedIndices
         .map(i => labelledTasks[i])
         // Cannot suggest the current task or the "Start" task
-        .filter((task) => task && !(task.task === taskMode || task.task === "Start")) as (PartialTaskInfo & { label: string })[];
+        .filter((task) => task && !(task.task === taskMode || task.task === "Start")) as (PartialTaskInfo & { label: string, taskId: string })[];
 
     // find commands that should be run right away
     const tasksToRun = labelledTasks.filter((_, index) => !suggestedIndices.includes(index));
@@ -963,4 +1044,50 @@ export async function getValidTasksFromMessage({
 
     // Return the valid commands and the message without the commands
     return { tasksToRun, tasksToSuggest, messageWithoutTasks };
+}
+
+/**
+ * `getValidTasksFromMessage` implementation for responses in "json" mode. 
+ * 
+ * NOTE: This version is intended to be used when we only want structured data, and nothing else. 
+ * This means we can treat the whole message as a single task to run, and set tasksToSuggest and 
+ * messageWithoutTasks as empty values.
+ */
+export async function getValidTasksFromJson({
+    commandToTask,
+    existingData,
+    language,
+    logger,
+    message,
+    taskMode,
+}: Omit<GetValidTasksFromMessageParams, "mode">): Promise<GetValidTasksFromMessageResult> {
+    // Extract all possible commands from the message
+    const maybeTasks = extractTasksFromJson(message, taskMode, commandToTask);
+    // Filter out commands that are not valid for the current task
+    const validTasks = await filterInvalidTasks(maybeTasks, taskMode, existingData, commandToTask, language, logger);
+
+    // Add additional information to the valid tasks
+    const config = await importConfig(language, logger);
+    const labelledTasks = validTasks.map(command => ({
+        ...command,
+        label: config[command.task]().label,
+        taskId: `task-${uuid()}`,
+    })) as (PartialTaskInfo & { label: string, taskId: string })[];
+
+    // We only case about `tasksToRun` in "json" mode
+    return { tasksToRun: labelledTasks, tasksToSuggest: [], messageWithoutTasks: "" };
+}
+
+/**
+ * Extracts valid tasks from a message and returns the message without the tasks.
+ * @returns An object containing tasks that should be run right away, suggested tasks, 
+ * and the message without the tasks
+ */
+export async function getValidTasksFromMessage({
+    mode,
+    ...rest
+}: GetValidTasksFromMessageParams): Promise<GetValidTasksFromMessageResult> {
+    if (mode === "text") return await getValidTasksFromText(rest);
+    if (mode === "json") return await getValidTasksFromJson(rest);
+    throw new Error("Invalid mode provided");
 }

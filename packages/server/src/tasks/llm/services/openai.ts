@@ -76,6 +76,7 @@ export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITo
     async generateResponse({
         maxTokens,
         messages,
+        mode,
         model,
         userData,
     }: GenerateResponseParams) {
@@ -84,6 +85,7 @@ export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITo
             max_tokens: maxTokens ?? DEFAULT_MAX_TOKENS,
             messages,
             model,
+            response_format: { type: mode === "json" ? "json_object" : "text" },
             user: userData.name ?? undefined,
         } as const;
         const completion: OpenAI.Chat.ChatCompletion = await this.client.chat.completions
@@ -109,6 +111,7 @@ export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITo
     async *generateResponseStreaming({
         maxTokens,
         messages,
+        mode,
         model,
         userData,
     }: GenerateResponseParams) {
@@ -116,6 +119,7 @@ export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITo
             max_tokens: maxTokens ?? DEFAULT_MAX_TOKENS,
             messages,
             model,
+            response_format: { type: mode === "json" ? "json_object" : "text" },
             user: userData.name ?? undefined,
         } as const;
 

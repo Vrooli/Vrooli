@@ -1,4 +1,4 @@
-import { LlmTask, MINUTES_1_MS, StartLlmTaskInput, Success } from "@local/shared";
+import { LanguageModelResponseMode, LlmTask, MINUTES_1_MS, StartLlmTaskInput, Success } from "@local/shared";
 import Bull from "bull";
 import winston from "winston";
 import { SessionUserToken } from "../../types.js";
@@ -14,6 +14,10 @@ export type RequestBotMessagePayload = {
      * The chat we're responding in
      */
     chatId: string;
+    /**
+     * The mode to use when generating the response
+     */
+    mode: LanguageModelResponseMode;
     /** 
      * The message to respond to. If null, we 
      * assume that there are no messages in the chat

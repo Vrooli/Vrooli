@@ -120,6 +120,7 @@ export const ChatMessageEndpoints: EndpointsChatMessage = {
                 // Call LLM for bot response
                 requestBotResponse({
                     chatId,
+                    mode: "text",
                     parent: messageData,
                     respondingBotId,
                     task: "Start", //TODO

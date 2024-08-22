@@ -2,7 +2,7 @@
 import { LlmTask } from "../api/generated/graphqlTypes";
 import { PassableLogger } from "../consts/commonTypes";
 import { DEFAULT_LANGUAGE } from "../consts/ui";
-import { CommandToTask, LlmTaskConfig, LlmTaskStructuredConfig, LlmTaskUnstructuredConfig } from "./types";
+import { CommandToTask, LanguageModelResponseMode, LlmTaskConfig, LlmTaskStructuredConfig, LlmTaskUnstructuredConfig } from "./types";
 
 export async function getLlmConfigLocation(): Promise<string> {
     // Test environment - Use absolute path
@@ -81,19 +81,31 @@ export async function getUnstructuredTaskConfig(
     return taskConfig();
 }
 
+type GetStructuredTaskConfigProps = {
+    /** Whether to force the LLM to respond with a command */
+    force: boolean;
+    /** The language to use for the configuration */
+    language: string;
+    /** Logger to use for logging */
+    logger: PassableLogger;
+    /** The mode to generate the response in */
+    mode: LanguageModelResponseMode;
+    /** The task to get the structured configuration for */
+    task: LlmTask | `${LlmTask}`;
+}
+
 /**
- * @param task The task to get the structured configuration for
- * @param force Whether to force the LLM to respond with a command
- * @param language The language to use for the configuration
- * @returns The structured configuration object for the given task,
- * in the best language available for the user
+ * Creates a structured configuration object to provide as the system message 
+ * or first message to the LLM, based on the given task, requested response mode, 
+ * and other parameters.
  */
-export async function getStructuredTaskConfig(
-    task: LlmTask | `${LlmTask}`,
-    force = false,
-    language: string = DEFAULT_LANGUAGE,
-    logger: PassableLogger,
-): Promise<LlmTaskStructuredConfig> {
+export async function getStructuredTaskConfig({
+    force,
+    language,
+    logger,
+    mode,
+    task,
+}: GetStructuredTaskConfigProps): Promise<LlmTaskStructuredConfig> {
     const unstructuredConfig = await importConfig(language, logger);
     const taskConfig = unstructuredConfig[task];
 
@@ -103,7 +115,8 @@ export async function getStructuredTaskConfig(
         return {} as LlmTaskStructuredConfig;
     }
 
-    return force ?
-        unstructuredConfig.__construct_context_force(taskConfig()) :
-        unstructuredConfig.__construct_context(taskConfig());
+    // Build context based on the mode and force parameters
+    if (mode === "json") return unstructuredConfig.__construct_context_json(taskConfig());
+    if (force === true) return unstructuredConfig.__construct_context_text_force(taskConfig());
+    return unstructuredConfig.__construct_context_text(taskConfig());
 }

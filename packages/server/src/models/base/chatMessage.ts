@@ -339,6 +339,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                             // Call LLM for bot response
                             requestBotResponse({
                                 chatId,
+                                mode: "text",
                                 parent: messageData,
                                 respondingBotId: botId,
                                 task: "Start", //TODO need task queue for chats, so we can enter an exit tasks

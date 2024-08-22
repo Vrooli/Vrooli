@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { LlmTask } from "../api/generated/graphqlTypes";
-import { uuid } from "../id/uuid";
+import { pascalCase } from "../utils/casing";
 import { importCommandToTask } from "./config";
-import { detectWrappedTasks, extractTasks, filterInvalidTasks, findCharWithLimit, getValidTasksFromMessage, handleTaskTransitionAction, handleTaskTransitionCode, handleTaskTransitionCommand, handleTaskTransitionOutside, handleTaskTransitionPropName, handleTaskTransitionPropValue, isAlphaNum, isNewline, isWhitespace, removeTasks } from "./tasks";
-import { CommandToTask, MaybeLlmTaskInfo, PartialTaskInfo } from "./types";
+import { detectWrappedTasks, extractTasksFromJson, extractTasksFromText, filterInvalidTasks, findCharWithLimit, getValidTasksFromMessage, handleTaskTransitionAction, handleTaskTransitionCode, handleTaskTransitionCommand, handleTaskTransitionOutside, handleTaskTransitionPropName, handleTaskTransitionPropValue, isAlphaNum, isNewline, isWhitespace, removeTasks } from "./tasks";
+import { MaybeLlmTaskInfo, PartialTaskInfo } from "./types";
 
 describe("isNewline", () => {
     test("recognizes newline character", () => {
@@ -92,12 +92,16 @@ describe("isAlphaNum", () => {
     });
 });
 
-const bufferPrev = (buffer: string[]) => buffer[buffer.length - 1];
-const withBuffer = <T extends object>(buffer: string[], rest: T) => ({
-    buffer: [...buffer], // clone buffer
-    prev: bufferPrev(buffer),
-    ...rest,
-});
+function bufferPrev(buffer: string[]) {
+    return buffer[buffer.length - 1];
+}
+function withBuffer<T extends object>(buffer: string[], rest: T) {
+    return {
+        buffer: [...buffer], // clone buffer
+        prev: bufferPrev(buffer),
+        ...rest,
+    };
+}
 
 describe("handleTaskTransitionOutside", () => {
     const section = "outside";
@@ -2170,10 +2174,12 @@ describe("handleTaskTransitionPropValue", () => {
     });
 });
 
-const getStartEnd = (str: string, sub: string): { start: number, end: number } => ({
-    start: str.indexOf(sub),
-    end: str.indexOf(sub) + sub.length, // Index after the last character
-});
+function getStartEnd(str: string, sub: string): { start: number, end: number } {
+    return {
+        start: str.indexOf(sub),
+        end: str.indexOf(sub) + sub.length, // Index after the last character
+    };
+}
 
 describe("findCharWithLimit", () => {
     const testString1 = "[/command1]";
@@ -2209,15 +2215,15 @@ describe("findCharWithLimit", () => {
 });
 
 // Mock commandToTask
-const commandToTask: CommandToTask = (command, action) => {
+function commandToTask(command: string, action?: string | null): LlmTask {
     if (action) return `${command} ${action}` as LlmTask;
     return command as LlmTask;
-};
+}
 
 /**
  * Helper function to simplify testing of `detectWrappedTasks`
  */
-const detectWrappedTasksTester = ({
+function detectWrappedTasksTester({
     start,
     delimiter,
     input,
@@ -2231,8 +2237,8 @@ const detectWrappedTasksTester = ({
         wrapperStart: number,
         wrapperEnd: number,
     }[],
-}) => {
-    const allCommands = extractTasks(input, commandToTask);
+}) {
+    const allCommands = extractTasksFromText(input, commandToTask);
     const detectedCommands = detectWrappedTasks({
         start,
         delimiter,
@@ -2241,7 +2247,7 @@ const detectWrappedTasksTester = ({
     });
     // @ts-ignore: expect-message
     expect(detectedCommands, `input: ${input}`).toEqual(expected);
-};
+}
 
 describe("detectWrappedTasks", () => {
     const wrapper1 = {
@@ -2511,22 +2517,27 @@ describe("detectWrappedTasks", () => {
     }
 });
 
+function enCommandToTask(command: string, action?: string | null) {
+    let result: string;
+    if (action) result = `${pascalCase(command)}${pascalCase(action)}`;
+    else result = pascalCase(command);
+    if (Object.keys(LlmTask).includes(result)) return result as LlmTask;
+    return null;
+}
+
 /**
  * Helper function to simplify testing of `extractTasks`
  */
-function extractTasksTester({
+function extractTasksFromTextTester({
     input,
     expected,
 }: {
     input: string,
-    expected: (Omit<MaybeLlmTaskInfo, "task" | "start" | "end"> & { match: string })[],
+    expected: (Omit<MaybeLlmTaskInfo, "start" | "end"> & { match: string })[],
 }) {
-    const commands = extractTasks(input, commandToTask);
-    const expectedCommands = expected.map(({ command, action, properties, match }) => ({
-        taskId: expect.any(String),
-        task: commandToTask(command, action),
-        command,
-        action,
+    const commands = extractTasksFromText(input, commandToTask);
+    const expectedCommands = expected.map(({ properties, task, match }) => ({
+        task,
         properties: properties ? expect.objectContaining(properties) : undefined,
         ...getStartEnd(input, match),
     }));
@@ -2540,86 +2551,85 @@ function extractTasksTester({
     }
 }
 
-describe("extractTasks", () => {
+describe("extractTasksFromText", () => {
     describe("ignores non-command slashes", () => {
         test("test 1", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "a/command",
                 expected: [],
             });
         });
         test("test 2", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "1/3",
                 expected: [],
             });
         });
         test("test 3", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/boop.",
                 expected: [],
             });
         });
         test("test 4", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/boop!",
                 expected: [],
             });
         });
         test("test 5", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/boop你",
                 expected: [],
             });
         });
         test("test 6", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/boop👋",
                 expected: [],
             });
         });
         test("test 7", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/boop/",
                 expected: [],
             });
         });
         test("test 8", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/boop\\",
                 expected: [],
             });
         });
         test("test 9", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/boop=",
                 expected: [],
             });
         });
         test("test 10", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/boop-",
                 expected: [],
             });
         });
         test("test 11", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/boop.",
                 expected: [],
             });
         });
         test("test 12", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "//boop",
                 expected: [],
             });
         });
         test("test 13", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "//bippity /boppity! /boop💃 /realCommand",
                 expected: [{
-                    command: "realCommand",
-                    action: null,
+                    task: commandToTask("realCommand"),
                     properties: {},
                     match: "/realCommand",
                 }],
@@ -2630,48 +2640,47 @@ describe("extractTasks", () => {
     describe("code blocks", () => {
         describe("ignores commands in code blocks", () => {
             test("test 1", () => {
-                extractTasksTester({
+                extractTasksFromTextTester({
                     input: "```/command```",
                     expected: [],
                 });
             });
             test("test 2", () => {
-                extractTasksTester({
+                extractTasksFromTextTester({
                     input: "here is some code:\n```/command action```\n",
                     expected: [],
                 });
             });
             test("test 3", () => {
-                extractTasksTester({
+                extractTasksFromTextTester({
                     input: "here is some code:\n```bloop /command action\nother words```",
                     expected: [],
                 });
             });
             test("test 4", () => {
-                extractTasksTester({
+                extractTasksFromTextTester({
                     input: "```command inside code block: /codeCommand action```command outside code block: /otherCommand action\n",
                     expected: [{
-                        command: "otherCommand",
-                        action: "action",
+                        task: commandToTask("otherCommand", "action"),
                         properties: {},
                         match: "/otherCommand action",
                     }],
                 });
             });
             test("test 5", () => {
-                extractTasksTester({
+                extractTasksFromTextTester({
                     input: "Single-tick code block: `/command action`",
                     expected: [],
                 });
             });
             test("test 6", () => {
-                extractTasksTester({
+                extractTasksFromTextTester({
                     input: "<code>/command action</code>",
                     expected: [],
                 });
             });
             test("test 7", () => {
-                extractTasksTester({
+                extractTasksFromTextTester({
                     input: "hello <code>\n/command action\n</code> there",
                     expected: [],
                 });
@@ -2680,54 +2689,48 @@ describe("extractTasks", () => {
 
         describe("doesn't ignore code-looking commands when there's property value trickery", () => {
             test("test 1", () => {
-                extractTasksTester({
+                extractTasksFromTextTester({
                     input: "/command1 action1 text='```/note find```'",
                     expected: [{
-                        command: "command1",
-                        action: "action1",
+                        task: commandToTask("command1", "action1"),
                         properties: { text: "```/note find```" },
                         match: "/command1 action1 text='```/note find```'",
                     }],
                 });
             });
             test("test 2", () => {
-                extractTasksTester({
+                extractTasksFromTextTester({
                     input: "/command1 action1 text='```' /note find text='```'",
                     expected: [{
-                        command: "command1",
-                        action: "action1",
+                        task: commandToTask("command1", "action1"),
                         properties: { text: "```" },
                         match: "/command1 action1 text='```'",
                     }, {
-                        command: "note",
-                        action: "find",
+                        task: commandToTask("note", "find"),
                         properties: { text: "```" },
                         match: "/note find text='```'",
                     }],
                 });
             });
             test("test 3", () => {
-                extractTasksTester({
+                extractTasksFromTextTester({
                     input: "/command1 action1 text='<code>/note find</code>'",
                     expected: [{
-                        command: "command1",
-                        action: "action1",
+                        task: commandToTask("command1", "action1"),
                         properties: { text: "<code>/note find</code>" },
                         match: "/command1 action1 text='<code>/note find</code>'",
                     }],
                 });
             });
             test("test 4", () => {
-                extractTasksTester({
+                extractTasksFromTextTester({
                     input: "/command1 action1 text='<code>' /note find text='<code>'",
                     expected: [{
-                        command: "command1",
-                        action: "action1",
+                        task: commandToTask("command1", "action1"),
                         properties: { text: "<code>" },
                         match: "/command1 action1 text='<code>'",
                     }, {
-                        command: "note",
-                        action: "find",
+                        task: commandToTask("note", "find"),
                         properties: { text: "<code>" },
                         match: "/note find text='<code>'",
                     }],
@@ -2736,11 +2739,10 @@ describe("extractTasks", () => {
         });
 
         test("doesn't ignore double-tick code blocks", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "Double-tick code block: `` /command action ``",
                 expected: [{
-                    command: "command",
-                    action: "action",
+                    task: commandToTask("command", "action"),
                     properties: {},
                     match: "/command action",
                 }],
@@ -2748,11 +2750,10 @@ describe("extractTasks", () => {
         });
 
         test("doesn't ignore quadruple-tick code blocks", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "Quadruple-tick code block: ```` /command action ````",
                 expected: [{
-                    command: "command",
-                    action: "action",
+                    task: commandToTask("command", "action"),
                     properties: {},
                     match: "/command action",
                 }],
@@ -2760,11 +2761,10 @@ describe("extractTasks", () => {
         });
 
         test("doesn't ignore quintuple-tick code blocks", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "Quintuple-tick code block: ````` /command action `````",
                 expected: [{
-                    command: "command",
-                    action: "action",
+                    task: commandToTask("command", "action"),
                     properties: {},
                     match: "/command action",
                 }],
@@ -2772,11 +2772,10 @@ describe("extractTasks", () => {
         });
 
         test("doesn't ignore single-tick code block when newline is encountered", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "Invalid single-tick code block: `\n/command action `",
                 expected: [{
-                    command: "command",
-                    action: "action",
+                    task: commandToTask("command", "action"),
                     properties: {},
                     match: "/command action",
                 }],
@@ -2786,88 +2785,80 @@ describe("extractTasks", () => {
 
     describe("extracts simple command without action or properties", () => {
         test("test 1", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command",
                 expected: [{
-                    command: "command",
-                    action: null,
+                    task: commandToTask("command"),
                     properties: {},
                     match: "/command",
                 }],
             });
         });
         test("test 2", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "  /command",
                 expected: [{
-                    command: "command",
-                    action: null,
+                    task: commandToTask("command"),
                     properties: {},
                     match: "/command",
                 }],
             });
         });
         test("test 3", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command  ",
                 expected: [{
-                    command: "command",
-                    action: null,
+                    task: commandToTask("command"),
                     properties: {},
                     match: "/command",
                 }],
             });
         });
         test("test 4", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "aasdf\n/command",
                 expected: [{
-                    command: "command",
-                    action: null,
+                    task: commandToTask("command"),
                     properties: {},
                     match: "/command",
                 }],
             });
         });
         test("test 5", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command\n",
                 expected: [{
-                    command: "command",
-                    action: null,
+                    task: commandToTask("command"),
                     properties: {},
                     match: "/command",
                 }],
             });
         });
         test("test 6", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command\t",
                 expected: [{
-                    command: "command",
-                    action: null,
+                    task: commandToTask("command"),
                     properties: {},
                     match: "/command",
                 }],
             });
         });
         test("test 7", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command invalidActionBecauseSymbol!",
                 expected: [{
-                    command: "command",
-                    action: null,
+                    task: commandToTask("command"),
                     properties: {},
                     match: "/command",
                 }],
             });
         });
         test("test 8", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command invalidActionBecauseLanguage你",
                 expected: [{
-                    command: "command",
-                    action: null,
+                    task: commandToTask("command"),
                     properties: {},
                     match: "/command",
                 }],
@@ -2877,66 +2868,60 @@ describe("extractTasks", () => {
 
     describe("extracts command with action", () => {
         test("test 1", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command action",
                 expected: [{
-                    command: "command",
-                    action: "action",
+                    task: commandToTask("command", "action"),
                     properties: {},
                     match: "/command action",
                 }],
             });
         });
         test("test 2", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command action other words",
                 expected: [{
-                    command: "command",
-                    action: "action",
+                    task: commandToTask("command", "action"),
                     properties: {},
                     match: "/command action",
                 }],
             });
         });
         test("test 3", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command action invalidProp= 'space after equals'",
                 expected: [{
-                    command: "command",
-                    action: "action",
+                    task: commandToTask("command", "action"),
                     properties: {},
                     match: "/command action",
                 }],
             });
         });
         test("test 4", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command action\t",
                 expected: [{
-                    command: "command",
-                    action: "action",
+                    task: commandToTask("command", "action"),
                     properties: {},
                     match: "/command action",
                 }],
             });
         });
         test("test 5", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command action\n",
                 expected: [{
-                    command: "command",
-                    action: "action",
+                    task: commandToTask("command", "action"),
                     properties: {},
                     match: "/command action",
                 }],
             });
         });
         test("test 6", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command\taction",
                 expected: [{
-                    command: "command",
-                    action: "action",
+                    task: commandToTask("command", "action"),
                     properties: {},
                     match: "/command\taction",
                 }],
@@ -2946,110 +2931,100 @@ describe("extractTasks", () => {
 
     describe("handles command with properties", () => {
         test("test 1", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command prop1=123 prop2='value' prop3=null",
                 expected: [{
-                    command: "command",
-                    action: null,
+                    task: commandToTask("command"),
                     properties: { prop1: 123, prop2: "value", prop3: null },
                     match: "/command prop1=123 prop2='value' prop3=null",
                 }],
             });
         });
         test("test 2", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command prop1=\"123\" prop2='value' prop3=\"null\"",
                 expected: [{
-                    command: "command",
-                    action: null,
+                    task: commandToTask("command"),
                     properties: { prop1: "123", prop2: "value", prop3: "null" },
                     match: "/command prop1=\"123\" prop2='value' prop3=\"null\"",
                 }],
             });
         });
         test("test 3", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command prop1=0.3 prop2='val\"ue' prop3=\"asdf\nfdsa\"",
                 expected: [{
-                    command: "command",
-                    action: null,
+                    task: commandToTask("command"),
                     properties: { prop1: 0.3, prop2: "val\"ue", prop3: "asdf\nfdsa" },
                     match: "/command prop1=0.3 prop2='val\"ue' prop3=\"asdf\nfdsa\"",
                 }],
             });
         });
         test("test 4", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command prop1=0.3\" prop2='value' prop3=null",
                 expected: [{
-                    command: "command",
-                    action: null,
+                    task: commandToTask("command"),
                     properties: {},
                     match: "/command",
                 }],
             });
         });
         test("test 5", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command prop1=-2.3 prop2=.2 prop3=\"one\\\"\"",
                 expected: [{
-                    command: "command",
-                    action: null,
+                    task: commandToTask("command"),
                     properties: { prop1: -2.3, prop2: .2, prop3: "one\\\"" },
                     match: "/command prop1=-2.3 prop2=.2 prop3=\"one\\\"\"",
                 }],
             });
         });
         test("test 6", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command prop1=123 prop2='value' prop3=null\"",
                 expected: [{
-                    command: "command",
-                    action: null,
+                    task: commandToTask("command"),
                     properties: { prop1: 123, prop2: "value" },
                     match: "/command prop1=123 prop2='value'",
                 }],
             });
         });
         test("test 7", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command\tprop1=123 prop2='value' prop3=null\n",
                 expected: [{
-                    command: "command",
-                    action: null,
+                    task: commandToTask("command"),
                     properties: { prop1: 123, prop2: "value", prop3: null },
                     match: "/command\tprop1=123 prop2='value' prop3=null",
                 }],
             });
         });
         test("test 8", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command prop1=123 prop2='value' prop3=null ",
                 expected: [{
-                    command: "command",
-                    action: null,
+                    task: commandToTask("command"),
                     properties: { prop1: 123, prop2: "value", prop3: null },
                     match: "/command prop1=123 prop2='value' prop3=null",
                 }],
             });
         });
         test("test 9", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command prop1=123 prop2='val\\'u\"e' prop3=null\t",
                 expected: [{
-                    command: "command",
-                    action: null,
+                    task: commandToTask("command"),
                     properties: { prop1: 123, prop2: "val\\'u\"e", prop3: null },
                     match: "/command prop1=123 prop2='val\\'u\"e' prop3=null",
                 }],
             });
         });
         test("test 10", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command prop1=123 prop2='value' prop3=null notaprop",
                 expected: [{
-                    command: "command",
-                    action: null,
+                    task: commandToTask("command"),
                     properties: { prop1: 123, prop2: "value", prop3: null },
                     match: "/command prop1=123 prop2='value' prop3=null",
                 }],
@@ -3060,97 +3035,86 @@ describe("extractTasks", () => {
     describe("handles wrapped commands", () => {
         describe("ideal format", () => {
             test("test 1", () => {
-                extractTasksTester({
+                extractTasksFromTextTester({
                     input: "suggested: [/command1]",
                     expected: [{
-                        command: "command1",
-                        action: null,
+                        task: commandToTask("command1"),
                         properties: {},
                         match: "/command1",
                     }],
                 });
             });
             test("test 2", () => {
-                extractTasksTester({
+                extractTasksFromTextTester({
                     input: "/command1 suggested: [/command2]",
                     expected: [{
-                        command: "command1",
-                        action: null,
+                        task: commandToTask("command1"),
                         properties: {},
                         match: "/command1",
                     }, {
-                        command: "command2",
-                        action: null,
+                        task: commandToTask("command2"),
                         properties: {},
                         match: "/command2",
                     }],
                 });
             });
             test("test 3", () => {
-                extractTasksTester({
+                extractTasksFromTextTester({
                     input: "suggested: [/command1] recommended: [/command2]",
                     expected: [{
-                        command: "command1",
-                        action: null,
+                        task: commandToTask("command1"),
                         properties: {},
                         match: "/command1",
                     }, {
-                        command: "command2",
-                        action: null,
+                        task: commandToTask("command2"),
                         properties: {},
                         match: "/command2",
                     }],
                 });
             });
             test("test 4", () => {
-                extractTasksTester({
+                extractTasksFromTextTester({
                     input: "suggested: [/command1 action]",
                     expected: [{
-                        command: "command1",
-                        action: "action",
+                        task: commandToTask("command1", "action"),
                         properties: {},
                         match: "/command1 action",
                     }],
                 });
             });
             test("test 5", () => {
-                extractTasksTester({
+                extractTasksFromTextTester({
                     input: "suggested: [/command1 action, /command2 action2]",
                     expected: [{
-                        command: "command1",
-                        action: "action",
+                        task: commandToTask("command1", "action"),
                         properties: {},
                         match: "/command1 action",
                     }, {
-                        command: "command2",
-                        action: "action2",
+                        task: commandToTask("command2", "action2"),
                         properties: {},
                         match: "/command2 action2",
                     }],
                 });
             });
             test("test 6", () => {
-                extractTasksTester({
+                extractTasksFromTextTester({
                     input: "suggested: [/command1 action name='value' prop2=123 thing=\"asdf\"]",
                     expected: [{
-                        command: "command1",
-                        action: "action",
+                        task: commandToTask("command1", "action"),
                         properties: { name: "value", prop2: 123, thing: "asdf" },
                         match: "/command1 action name='value' prop2=123 thing=\"asdf\"",
                     }],
                 });
             });
             test("test 7", () => {
-                extractTasksTester({
+                extractTasksFromTextTester({
                     input: "suggested: [/command1 action name='valu\"e' prop2=123 thing=\"asdf\", /command2 action2]",
                     expected: [{
-                        command: "command1",
-                        action: "action",
+                        task: commandToTask("command1", "action"),
                         properties: { name: "valu\"e", prop2: 123, thing: "asdf" },
                         match: "/command1 action name='valu\"e' prop2=123 thing=\"asdf\"",
                     }, {
-                        command: "command2",
-                        action: "action2",
+                        task: commandToTask("command2", "action2"),
                         properties: {},
                         match: "/command2 action2",
                     }],
@@ -3160,60 +3124,54 @@ describe("extractTasks", () => {
         describe("non-ideal format (llms aren't perfect)", () => {
             describe("leading whitespace", () => {
                 test("test 1", () => {
-                    extractTasksTester({
+                    extractTasksFromTextTester({
                         input: "suggested: [ /command1]",
                         expected: [{
-                            command: "command1",
-                            action: null,
+                            task: commandToTask("command1"),
                             properties: {},
                             match: "/command1",
                         }],
                     });
                 });
                 test("test 2", () => {
-                    extractTasksTester({
+                    extractTasksFromTextTester({
                         input: "suggested: [  /command1]",
                         expected: [{
-                            command: "command1",
-                            action: null,
+                            task: commandToTask("command1"),
                             properties: {},
                             match: "/command1",
                         }],
                     });
                 });
                 test("test 3", () => {
-                    extractTasksTester({
+                    extractTasksFromTextTester({
                         input: "suggested: [ /command1 action]",
                         expected: [{
-                            command: "command1",
-                            action: "action",
+                            task: commandToTask("command1", "action"),
                             properties: {},
                             match: "/command1 action",
                         }],
                     });
                 });
                 test("test 4", () => {
-                    extractTasksTester({
+                    extractTasksFromTextTester({
                         input: "suggested: [ /command1 action name='value' prop2=123 thing=\"asdf\"]",
                         expected: [{
-                            command: "command1",
-                            action: "action",
+                            task: commandToTask("command1", "action"),
                             properties: { name: "value", prop2: 123, thing: "asdf" },
                             match: "/command1 action name='value' prop2=123 thing=\"asdf\"",
                         }],
                     });
                 });
                 test("test 5", () => {
-                    extractTasksTester({
+                    extractTasksFromTextTester({
                         input: "suggested: [ /command1 action name='valu\"e' prop2=123 thing=\"asdf\", /command2 action2]",
                         expected: [{
-                            command: "command1",
-                            action: "action",
+                            task: commandToTask("command1", "action"),
                             properties: { name: "valu\"e", prop2: 123, thing: "asdf" },
                             match: "/command1 action name='valu\"e' prop2=123 thing=\"asdf\"",
                         }, {
-                            command: "command2",
-                            action: "action2",
+                            task: commandToTask("command2", "action2"),
                             properties: {},
                             match: "/command2 action2",
                         }],
@@ -3222,60 +3180,54 @@ describe("extractTasks", () => {
             });
             describe("trailing whitespace", () => {
                 test("test 1", () => {
-                    extractTasksTester({
+                    extractTasksFromTextTester({
                         input: "suggested: [/command1 ]",
                         expected: [{
-                            command: "command1",
-                            action: null,
+                            task: commandToTask("command1"),
                             properties: {},
                             match: "/command1",
                         }],
                     });
                 });
                 test("test 2", () => {
-                    extractTasksTester({
+                    extractTasksFromTextTester({
                         input: "suggested: [/command1  ]",
                         expected: [{
-                            command: "command1",
-                            action: null,
+                            task: commandToTask("command1"),
                             properties: {},
                             match: "/command1",
                         }],
                     });
                 });
                 test("test 3", () => {
-                    extractTasksTester({
+                    extractTasksFromTextTester({
                         input: "suggested: [/command1 action ]",
                         expected: [{
-                            command: "command1",
-                            action: "action",
+                            task: commandToTask("command1", "action"),
                             properties: {},
                             match: "/command1 action",
                         }],
                     });
                 });
                 test("test 4", () => {
-                    extractTasksTester({
+                    extractTasksFromTextTester({
                         input: "suggested: [/command1 action name='value' prop2=123 thing=\"asdf\"] ",
                         expected: [{
-                            command: "command1",
-                            action: "action",
+                            task: commandToTask("command1", "action"),
                             properties: { name: "value", prop2: 123, thing: "asdf" },
                             match: "/command1 action name='value' prop2=123 thing=\"asdf\"",
                         }],
                     });
                 });
                 test("test 5", () => {
-                    extractTasksTester({
+                    extractTasksFromTextTester({
                         input: "suggested: [/command1 action name='valu\"e' prop2=123 thing=\"asdf\", /command2 action2] ",
                         expected: [{
-                            command: "command1",
-                            action: "action",
+                            task: commandToTask("command1", "action"),
                             properties: { name: "valu\"e", prop2: 123, thing: "asdf" },
                             match: "/command1 action name='valu\"e' prop2=123 thing=\"asdf\"",
                         }, {
-                            command: "command2",
-                            action: "action2",
+                            task: commandToTask("command2", "action2"),
                             properties: {},
                             match: "/command2 action2",
                         }],
@@ -3284,60 +3236,54 @@ describe("extractTasks", () => {
             });
             describe("leading and trailing whitespace", () => {
                 test("test 1", () => {
-                    extractTasksTester({
+                    extractTasksFromTextTester({
                         input: "suggested: [ /command1 ]",
                         expected: [{
-                            command: "command1",
-                            action: null,
+                            task: commandToTask("command1"),
                             properties: {},
                             match: "/command1",
                         }],
                     });
                 });
                 test("test 2", () => {
-                    extractTasksTester({
+                    extractTasksFromTextTester({
                         input: "suggested: [  /command1  ]",
                         expected: [{
-                            command: "command1",
-                            action: null,
+                            task: commandToTask("command1"),
                             properties: {},
                             match: "/command1",
                         }],
                     });
                 });
                 test("test 3", () => {
-                    extractTasksTester({
+                    extractTasksFromTextTester({
                         input: "suggested: [ /command1 action ]",
                         expected: [{
-                            command: "command1",
-                            action: "action",
+                            task: commandToTask("command1", "action"),
                             properties: {},
                             match: "/command1 action",
                         }],
                     });
                 });
                 test("test 4", () => {
-                    extractTasksTester({
+                    extractTasksFromTextTester({
                         input: "suggested: [ /command1 action name='value' prop2=123 thing=\"asdf\"] ",
                         expected: [{
-                            command: "command1",
-                            action: "action",
+                            task: commandToTask("command1", "action"),
                             properties: { name: "value", prop2: 123, thing: "asdf" },
                             match: "/command1 action name='value' prop2=123 thing=\"asdf\"",
                         }],
                     });
                 });
                 test("test 5", () => {
-                    extractTasksTester({
+                    extractTasksFromTextTester({
                         input: "suggested: [ /command1 action name='valu\"e' prop2=123 thing=\"asdf\", /command2 action2] ",
                         expected: [{
-                            command: "command1",
-                            action: "action",
+                            task: commandToTask("command1", "action"),
                             properties: { name: "valu\"e", prop2: 123, thing: "asdf" },
                             match: "/command1 action name='valu\"e' prop2=123 thing=\"asdf\"",
                         }, {
-                            command: "command2",
-                            action: "action2",
+                            task: commandToTask("command2", "action2"),
                             properties: {},
                             match: "/command2 action2",
                         }],
@@ -3346,11 +3292,10 @@ describe("extractTasks", () => {
             });
             describe("messiness before wrapper", () => {
                 test("test 1", () => {
-                    extractTasksTester({
+                    extractTasksFromTextTester({
                         input: "fdksaf; [] fdsafsdfds[ fdks;lfadksaf suggested: [/command1]",
                         expected: [{
-                            command: "command1",
-                            action: null,
+                            task: commandToTask("command1"),
                             properties: {},
                             match: "/command1",
                         }],
@@ -3360,13 +3305,13 @@ describe("extractTasks", () => {
         });
         describe("invalid formats that might trick our system", () => {
             test("non-whitespace after opening bracket", () => {
-                extractTasksTester({
+                extractTasksFromTextTester({
                     input: "suggested: [. /command1]",
                     expected: [],
                 });
             });
             test("newline after opening bracket", () => {
-                extractTasksTester({
+                extractTasksFromTextTester({
                     input: "suggested: [\n/command1]",
                     expected: [],
                 });
@@ -3376,16 +3321,14 @@ describe("extractTasks", () => {
 
     describe("whitespace", () => {
         test("handles newline properly", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command1\n/command2",
                 expected: [{
-                    command: "command1",
-                    action: null,
+                    task: commandToTask("command1"),
                     properties: {},
                     match: "/command1",
                 }, {
-                    command: "command2",
-                    action: null,
+                    task: commandToTask("command2"),
                     properties: {},
                     match: "/command2",
                 }],
@@ -3393,16 +3336,14 @@ describe("extractTasks", () => {
         });
 
         test("handles space properly", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command1 /command2",
                 expected: [{
-                    command: "command1",
-                    action: null,
+                    task: commandToTask("command1"),
                     properties: {},
                     match: "/command1",
                 }, {
-                    command: "command2",
-                    action: null,
+                    task: commandToTask("command2"),
                     properties: {},
                     match: "/command2",
                 }],
@@ -3410,16 +3351,14 @@ describe("extractTasks", () => {
         });
 
         test("handles tab properly", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/command1\t/command2",
                 expected: [{
-                    command: "command1",
-                    action: null,
+                    task: commandToTask("command1"),
                     properties: {},
                     match: "/command1",
                 }, {
-                    command: "command2",
-                    action: null,
+                    task: commandToTask("command2"),
                     properties: {},
                     match: "/command2",
                 }],
@@ -3428,21 +3367,18 @@ describe("extractTasks", () => {
     });
 
     test("handles complex scenario with multiple commands and properties - test 1", () => {
-        extractTasksTester({
+        extractTasksFromTextTester({
             input: "/cmd1  prop1=123 /cmd2 action2 \tprop2='text' prop3=4.56\n/cmd3 prop4=null \nprop5='invalid because newline",
             expected: [{
-                command: "cmd1",
-                action: null,
+                task: commandToTask("cmd1"),
                 properties: { prop1: 123 },
                 match: "/cmd1  prop1=123",
             }, {
-                command: "cmd2",
-                action: "action2",
+                task: commandToTask("cmd2", "action2"),
                 properties: { prop2: "text", prop3: 4.56 },
                 match: "/cmd2 action2 \tprop2='text' prop3=4.56",
             }, {
-                command: "cmd3",
-                action: null,
+                task: commandToTask("cmd3"),
                 properties: { prop4: null },
                 match: "/cmd3 prop4=null",
             }],
@@ -3451,109 +3387,109 @@ describe("extractTasks", () => {
 
     describe("does nothing for non-command test", () => {
         test("test 1", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "this is a test",
                 expected: [],
             });
         });
         test("test 2", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/a".repeat(1000),
                 expected: [],
             });
         });
         test("test 3", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "",
                 expected: [],
             });
         });
         test("test 4", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: " ",
                 expected: [],
             });
         });
         test("test 5", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "\n",
                 expected: [],
             });
         });
         test("test 6", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "\t",
                 expected: [],
             });
         });
         test("test 7", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "💃",
                 expected: [],
             });
         });
         test("test 8", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "你",
                 expected: [],
             });
         });
         test("test 9", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "!",
                 expected: [],
             });
         });
         test("test 10", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: ".",
                 expected: [],
             });
         });
         test("test 11", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "123",
                 expected: [],
             });
         });
         test("test 12", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "-123",
                 expected: [],
             });
         });
         test("test 13", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "0.123",
                 expected: [],
             });
         });
         test("test 14", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "null",
                 expected: [],
             });
         });
         test("test 15", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "true",
                 expected: [],
             });
         });
         test("test 16", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "false",
                 expected: [],
             });
         });
         test("test 17", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "123你",
                 expected: [],
             });
         });
         test("test 18", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "To whom it may concern,\n\nI am writing to inform you that I am a giant purple dinosaur. I cannot be stopped. I am inevitable. I am Barney.\n\nSincerely,\nYour Worst Nightmare",
                 expected: [],
             });
@@ -3562,22 +3498,20 @@ describe("extractTasks", () => {
 
     describe("real world examples", () => {
         test("test 1", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/add name='Get Oat Milk' description='Reminder to buy oat milk' dueDate='2023-10-06T09:00:00Z' isComplete=false",
                 expected: [{
-                    command: "add",
-                    action: null,
+                    task: commandToTask("add"),
                     properties: { name: "Get Oat Milk", description: "Reminder to buy oat milk", dueDate: "2023-10-06T09:00:00Z", isComplete: false },
                     match: "/add name='Get Oat Milk' description='Reminder to buy oat milk' dueDate='2023-10-06T09:00:00Z' isComplete=false",
                 }],
             });
         });
         test("test 2", () => {
-            extractTasksTester({
+            extractTasksFromTextTester({
                 input: "/bot find searchString=\"big bird\"",
                 expected: [{
-                    command: "bot",
-                    action: "find",
+                    task: commandToTask("bot", "find"),
                     properties: { searchString: "big bird" },
                     match: "/bot find searchString=\"big bird\"",
                 }],
@@ -3614,67 +3548,723 @@ describe("extractTasks", () => {
     // });
 });
 
+function extractTasksFromJsonTester({
+    input,
+    expected,
+    taskMode,
+}: {
+    input: object;
+    expected: (Omit<MaybeLlmTaskInfo, "start" | "end">)[];
+    taskMode: LlmTask | `${LlmTask}`;
+}) {
+    const stringifiedInput = JSON.stringify(input);
+    const start = 0;
+    const end = stringifiedInput.length;
+    const result = extractTasksFromJson(stringifiedInput, taskMode, enCommandToTask);
+    expect(result).toEqual(expected.map((task) => ({ ...task, start, end })));
+}
+
+describe("extractTasksFromJson", () => {
+    describe("returns no tasks when text isn't JSON", () => {
+        it("empty string", () => {
+            const result = extractTasksFromJson("", "BotUpdate", commandToTask);
+            expect(result).toEqual([]);
+        });
+        it("whitespace", () => {
+            const result = extractTasksFromJson("   \n ", "ApiDelete", commandToTask);
+            expect(result).toEqual([]);
+        });
+        it("non-JSON text", () => {
+            const result = extractTasksFromJson("this is a test!", "RoutineFind", commandToTask);
+            expect(result).toEqual([]);
+        });
+        it("task structure in text mode", () => {
+            const result = extractTasksFromJson("/bot update name=123", "BotUpdate", commandToTask);
+            expect(result).toEqual([]);
+        });
+        it("numbers, special characters, and Chinese characters", () => {
+            const result = extractTasksFromJson("1@#<>{}23你", "RoutineFind", commandToTask);
+            expect(result).toEqual([]);
+        });
+        it("starts like JSON, but not closed", () => {
+            const result = extractTasksFromJson("{ \"name\": \"value\"", "RoutineFind", commandToTask);
+            expect(result).toEqual([]);
+        });
+    });
+
+    describe("handles invalid JSON", () => {
+        it("empty object", () => {
+            const result = extractTasksFromJson("{}", "RoutineFind", commandToTask);
+            expect(result).toEqual([]);
+        });
+        it("empty array", () => {
+            const result = extractTasksFromJson("[]", "RoutineFind", commandToTask);
+            expect(result).toEqual([]);
+        });
+    });
+
+    // NOTE: This doesn't need to be too foolproof, as there shouldn't be text before/after the JSON to begin with
+    describe("handles additional text outside JSON", () => {
+        it("text before JSON", () => {
+            const input = {
+                command: "api",
+                action: "find",
+                properties: { searchString: "good stuff" },
+            };
+            const taskMode = "Start";
+            const stuffBeforeJson = "This is some text before the JSON: ";
+            const stringifiedInput = JSON.stringify(input);
+            const fullInputString = stuffBeforeJson + stringifiedInput;
+            const start = stuffBeforeJson.length;
+            const end = start + stringifiedInput.length;
+            const result = extractTasksFromJson(fullInputString, taskMode, enCommandToTask);
+            expect(result).toEqual([{
+                task: enCommandToTask(input.command, input.action) as LlmTask,
+                properties: { searchString: "good stuff" },
+                start,
+                end,
+            }]);
+        });
+        it("text after JSON", () => {
+            const input = {
+                command: "api",
+                action: "find",
+                properties: { searchString: "good stuff" },
+            };
+            const taskMode = enCommandToTask(input.command, input.action) as LlmTask;
+            const stuffAfterJson = "This is some text after the JSON.";
+            const stringifiedInput = JSON.stringify(input);
+            const fullInputString = stringifiedInput + stuffAfterJson;
+            const start = 0;
+            const end = stringifiedInput.length;
+            const result = extractTasksFromJson(fullInputString, taskMode, enCommandToTask);
+            expect(result).toEqual([{
+                task: taskMode,
+                properties: { searchString: "good stuff" },
+                start,
+                end,
+            }]);
+        });
+    });
+
+    describe("handles command/action/properties format", () => {
+        describe("single object", () => {
+            it("action provided", () => {
+                const input = {
+                    command: "routine",
+                    action: "find",
+                    properties: { text: "hello" },
+                };
+                const taskMode = enCommandToTask(input.command, input.action) as LlmTask;
+                extractTasksFromJsonTester({
+                    input,
+                    expected: [{
+                        task: taskMode,
+                        properties: { text: "hello" },
+                    }],
+                    taskMode,
+                });
+            });
+            it("action omitted", () => {
+                const input = {
+                    command: "routine",
+                    properties: { text: "hello" },
+                };
+                const taskMode = "RoutineFind";
+                extractTasksFromJsonTester({
+                    input,
+                    expected: [{
+                        task: taskMode,
+                        properties: { text: "hello" },
+                    }],
+                    taskMode,
+                });
+            });
+            it("action and command omitted", () => {
+                const input = {
+                    properties: { text: "hello" },
+                };
+                const taskMode = "RoutineUpdate";
+                extractTasksFromJsonTester({
+                    input,
+                    expected: [{
+                        task: taskMode,
+                        properties: { text: "hello" },
+                    }],
+                    taskMode,
+                });
+            });
+        });
+        describe("array", () => {
+            it("action provided", () => {
+                const input = [{
+                    command: "routine",
+                    action: "find",
+                    properties: { text: "hello", num: -69.420 },
+                }, {
+                    command: "bot",
+                    action: "update",
+                    properties: { name: "value", yes: true, asdf: null },
+                }];
+                const taskMode = "RoutineFind";
+                extractTasksFromJsonTester({
+                    input,
+                    expected: [{
+                        task: "RoutineFind",
+                        properties: { text: "hello", num: -69.420 },
+                    }, {
+                        task: "BotUpdate",
+                        properties: { name: "value", yes: true, asdf: null },
+                    }],
+                    taskMode,
+                });
+            });
+            it("action omitted", () => {
+                const input = [{
+                    command: "routine",
+                    properties: { text: "hello", num: -69.420 },
+                }, {
+                    command: "bot",
+                    properties: { name: "value", yes: true, asdf: null },
+                }];
+                const taskMode = "RoutineFind";
+                extractTasksFromJsonTester({
+                    input,
+                    expected: [{
+                        task: taskMode, // Falls back to taskMode
+                        properties: { text: "hello", num: -69.420 },
+                    }, {
+                        task: taskMode, // Falls back to taskMode
+                        properties: { name: "value", yes: true, asdf: null },
+                    }],
+                    taskMode,
+                });
+            });
+            it("action and command omitted", () => {
+                const input = [{
+                    properties: { text: "hello", num: -69.420 },
+                }, {
+                    properties: { name: "value", yes: true, asdf: null },
+                }];
+                const taskMode = "RoutineFind";
+                extractTasksFromJsonTester({
+                    input,
+                    expected: [{
+                        task: taskMode, // Falls back to taskMode
+                        properties: { text: "hello", num: -69.420 },
+                    }, {
+                        task: taskMode, // Falls back to taskMode
+                        properties: { name: "value", yes: true, asdf: null },
+                    }],
+                    taskMode,
+                });
+            });
+        });
+    });
+
+    describe("handles command/action/properties format but wrapped in additional property", () => {
+        describe("wrapped in \"tasks\" property", () => {
+            describe("outer object single", () => {
+                it("action provided", () => {
+                    const input = {
+                        tasks: {
+                            command: "api",
+                            action: "update",
+                            properties: { id: 123 },
+                        },
+                    };
+                    const taskMode = "Start";
+                    console.log("yeet before");
+                    extractTasksFromJsonTester({
+                        input,
+                        expected: [{
+                            task: enCommandToTask(input.tasks.command, input.tasks.action),
+                            properties: { id: 123 },
+                        }],
+                        taskMode,
+                    });
+                });
+                it("action omitted", () => {
+                    const input = {
+                        tasks: {
+                            command: "api",
+                            properties: { id: 123 },
+                        },
+                    };
+                    const taskMode = "ApiFind";
+                    extractTasksFromJsonTester({
+                        input,
+                        expected: [{
+                            task: taskMode,
+                            properties: { id: 123 },
+                        }],
+                        taskMode,
+                    });
+                });
+            });
+            describe("outer object array", () => {
+                it("action provided", () => {
+                    const input = {
+                        tasks: [{
+                            command: "api",
+                            action: "update",
+                            properties: { id: 123 },
+                        }, {
+                            command: "bot",
+                            action: "delete",
+                            properties: { name: "test" },
+                        }],
+                    };
+                    const taskMode = "Start";
+                    extractTasksFromJsonTester({
+                        input,
+                        expected: [{
+                            task: "ApiUpdate",
+                            properties: { id: 123 },
+                        }, {
+                            task: "BotDelete",
+                            properties: { name: "test" },
+                        }],
+                        taskMode,
+                    });
+                });
+                it("action omitted", () => {
+                    const input = {
+                        tasks: [{
+                            command: "api",
+                            properties: { id: 123 },
+                        }, {
+                            command: "bot",
+                            properties: { name: "test" },
+                        }],
+                    };
+                    const taskMode = "Start";
+                    extractTasksFromJsonTester({
+                        input,
+                        expected: [{
+                            task: taskMode, // Falls back to taskMode
+                            properties: { id: 123 },
+                        }, {
+                            task: taskMode, // Falls back to taskMode
+                            properties: { name: "test" },
+                        }],
+                        taskMode,
+                    });
+                });
+            });
+            describe("inner object single", () => {
+                it("action provided", () => {
+                    const input = {
+                        tasks: {
+                            command: "api",
+                            action: "update",
+                            properties: { id: 123 },
+                        },
+                    };
+                    const taskMode = "Start";
+                    extractTasksFromJsonTester({
+                        input,
+                        expected: [{
+                            task: "ApiUpdate",
+                            properties: { id: 123 },
+                        }],
+                        taskMode,
+                    });
+                });
+                it("action omitted", () => {
+                    const input = {
+                        tasks: {
+                            command: "api",
+                            properties: { id: 123 },
+                        },
+                    };
+                    const taskMode = "Start";
+                    extractTasksFromJsonTester({
+                        input,
+                        expected: [{
+                            task: taskMode, // Falls back to taskMode
+                            properties: { id: 123 },
+                        }],
+                        taskMode,
+                    });
+                });
+            });
+            describe("inner object array", () => {
+                it("action provided", () => {
+                    const input = {
+                        tasks: [{
+                            command: "api",
+                            action: "update",
+                            properties: { id: 123 },
+                        }, {
+                            command: "bot",
+                            action: "delete",
+                            properties: { name: "test" },
+                        }],
+                    };
+                    const taskMode = "Start";
+                    extractTasksFromJsonTester({
+                        input,
+                        expected: [{
+                            task: "ApiUpdate",
+                            properties: { id: 123 },
+                        }, {
+                            task: "BotDelete",
+                            properties: { name: "test" },
+                        }],
+                        taskMode,
+                    });
+                });
+                it("action omitted", () => {
+                    const input = {
+                        tasks: [{
+                            command: "api",
+                            properties: { id: 123 },
+                        }, {
+                            command: "bot",
+                            properties: { name: "test" },
+                        }],
+                    };
+                    const taskMode = "Start";
+                    extractTasksFromJsonTester({
+                        input,
+                        expected: [{
+                            task: taskMode, // Falls back to taskMode
+                            properties: { id: 123 },
+                        }, {
+                            task: taskMode, // Falls back to taskMode
+                            properties: { name: "test" },
+                        }],
+                        taskMode,
+                    });
+                });
+            });
+        });
+        describe("wrapped in \"task\" property", () => {
+            describe("outer object single", () => {
+                it("action provided", () => {
+                    const input = {
+                        task: {
+                            command: "api",
+                            action: "update",
+                            properties: { id: 123 },
+                        },
+                    };
+                    const taskMode = "Start";
+                    console.log("yeet before");
+                    extractTasksFromJsonTester({
+                        input,
+                        expected: [{
+                            task: enCommandToTask(input.task.command, input.task.action),
+                            properties: { id: 123 },
+                        }],
+                        taskMode,
+                    });
+                });
+                it("action omitted", () => {
+                    const input = {
+                        task: {
+                            command: "api",
+                            properties: { id: 123 },
+                        },
+                    };
+                    const taskMode = "ApiFind";
+                    extractTasksFromJsonTester({
+                        input,
+                        expected: [{
+                            task: taskMode,
+                            properties: { id: 123 },
+                        }],
+                        taskMode,
+                    });
+                });
+            });
+            describe("outer object array", () => {
+                it("action provided", () => {
+                    const input = {
+                        task: [{
+                            command: "api",
+                            action: "update",
+                            properties: { id: 123 },
+                        }, {
+                            command: "bot",
+                            action: "delete",
+                            properties: { name: "test" },
+                        }],
+                    };
+                    const taskMode = "Start";
+                    extractTasksFromJsonTester({
+                        input,
+                        expected: [{
+                            task: "ApiUpdate",
+                            properties: { id: 123 },
+                        }, {
+                            task: "BotDelete",
+                            properties: { name: "test" },
+                        }],
+                        taskMode,
+                    });
+                });
+                it("action omitted", () => {
+                    const input = {
+                        task: [{
+                            command: "api",
+                            properties: { id: 123 },
+                        }, {
+                            command: "bot",
+                            properties: { name: "test" },
+                        }],
+                    };
+                    const taskMode = "Start";
+                    extractTasksFromJsonTester({
+                        input,
+                        expected: [{
+                            task: taskMode, // Falls back to taskMode
+                            properties: { id: 123 },
+                        }, {
+                            task: taskMode, // Falls back to taskMode
+                            properties: { name: "test" },
+                        }],
+                        taskMode,
+                    });
+                });
+            });
+            describe("inner object single", () => {
+                it("action provided", () => {
+                    const input = {
+                        task: {
+                            command: "api",
+                            action: "update",
+                            properties: { id: 123 },
+                        },
+                    };
+                    const taskMode = "Start";
+                    extractTasksFromJsonTester({
+                        input,
+                        expected: [{
+                            task: "ApiUpdate",
+                            properties: { id: 123 },
+                        }],
+                        taskMode,
+                    });
+                });
+                it("action omitted", () => {
+                    const input = {
+                        task: {
+                            command: "api",
+                            properties: { id: 123 },
+                        },
+                    };
+                    const taskMode = "Start";
+                    extractTasksFromJsonTester({
+                        input,
+                        expected: [{
+                            task: taskMode, // Falls back to taskMode
+                            properties: { id: 123 },
+                        }],
+                        taskMode,
+                    });
+                });
+            });
+            describe("inner object array", () => {
+                it("action provided", () => {
+                    const input = {
+                        task: [{
+                            command: "api",
+                            action: "update",
+                            properties: { id: 123 },
+                        }, {
+                            command: "bot",
+                            action: "delete",
+                            properties: { name: "test" },
+                        }],
+                    };
+                    const taskMode = "Start";
+                    extractTasksFromJsonTester({
+                        input,
+                        expected: [{
+                            task: "ApiUpdate",
+                            properties: { id: 123 },
+                        }, {
+                            task: "BotDelete",
+                            properties: { name: "test" },
+                        }],
+                        taskMode,
+                    });
+                });
+                it("action omitted", () => {
+                    const input = {
+                        task: [{
+                            command: "api",
+                            properties: { id: 123 },
+                        }, {
+                            command: "bot",
+                            properties: { name: "test" },
+                        }],
+                    };
+                    const taskMode = "Start";
+                    extractTasksFromJsonTester({
+                        input,
+                        expected: [{
+                            task: taskMode, // Falls back to taskMode
+                            properties: { id: 123 },
+                        }, {
+                            task: taskMode, // Falls back to taskMode
+                            properties: { name: "test" },
+                        }],
+                        taskMode,
+                    });
+                });
+            });
+        });
+    });
+
+    describe("handles object with properties as keys and values", () => {
+        describe("single object", () => {
+            it("with command and action", () => {
+                const input = {
+                    command: "routine",
+                    action: "find",
+                    text: "hello",
+                    num: 123,
+                    isComplete: false,
+                };
+                const taskMode = "Start";
+                extractTasksFromJsonTester({
+                    input,
+                    expected: [{
+                        task: "RoutineFind",
+                        properties: { text: "hello", num: 123, isComplete: false },
+                    }],
+                    taskMode,
+                });
+            });
+            it("with command and no action", () => {
+                const input = {
+                    command: "routine",
+                    text: "hello",
+                    num: 123,
+                    isComplete: false,
+                };
+                const taskMode = "Start";
+                extractTasksFromJsonTester({
+                    input,
+                    expected: [{
+                        task: taskMode, // Falls back to taskMode
+                        properties: { text: "hello", num: 123, isComplete: false },
+                    }],
+                    taskMode,
+                });
+            });
+            it("with properties only", () => {
+                const input = {
+                    text: "hello",
+                    num: 123,
+                    isComplete: false,
+                };
+                const taskMode = "Start";
+                extractTasksFromJsonTester({
+                    input,
+                    expected: [{
+                        task: taskMode, // Falls back to taskMode
+                        properties: { text: "hello", num: 123, isComplete: false },
+                    }],
+                    taskMode,
+                });
+            });
+        });
+        describe("array", () => {
+            it("with command and action", () => {
+                const input = [{
+                    command: "routine",
+                    action: "find",
+                    text: "hello",
+                    num: 123,
+                    isComplete: false,
+                }, {
+                    command: "bot",
+                    action: "update",
+                    name: "value",
+                    yes: true,
+                    no: null,
+                }];
+                const taskMode = "Start";
+                extractTasksFromJsonTester({
+                    input,
+                    expected: [{
+                        task: "RoutineFind",
+                        properties: { text: "hello", num: 123, isComplete: false },
+                    }, {
+                        task: "BotUpdate",
+                        properties: { name: "value", yes: true, no: null },
+                    }],
+                    taskMode,
+                });
+            });
+            it("with command and no action", () => {
+                const input = [{
+                    command: "routine",
+                    text: "hello",
+                    num: 123,
+                    isComplete: false,
+                }, {
+                    command: "bot",
+                    name: "value",
+                    yes: true,
+                    no: null,
+                }];
+                const taskMode = "Start";
+                extractTasksFromJsonTester({
+                    input,
+                    expected: [{
+                        task: taskMode, // Falls back to taskMode
+                        properties: { text: "hello", num: 123, isComplete: false },
+                    }, {
+                        task: taskMode, // Falls back to taskMode
+                        properties: { name: "value", yes: true, no: null },
+                    }],
+                    taskMode,
+                });
+            });
+            it("with properties only", () => {
+                const input = [{
+                    text: "hello",
+                    num: 123,
+                    isComplete: false,
+                }, {
+                    name: "value",
+                    yes: true,
+                    no: null,
+                }];
+                const taskMode = "Start";
+                extractTasksFromJsonTester({
+                    input,
+                    expected: [{
+                        task: taskMode, // Falls back to taskMode
+                        properties: { text: "hello", num: 123, isComplete: false },
+                    }, {
+                        task: taskMode, // Falls back to taskMode
+                        properties: { name: "value", yes: true, no: null },
+                    }],
+                    taskMode,
+                });
+            });
+        });
+    });
+});
+
 describe("filterInvalidTasks", () => {
+
     test("Filters: all valid except for task", async () => {
         const potentialCommands: MaybeLlmTaskInfo[] = [{
             task: "asjflkdjslafkjslaf" as LlmTask,
-            command: "routine",
-            action: "add",
             properties: null,
             start: 0,
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "Start", {}, "en", console);
+        const result = await filterInvalidTasks(potentialCommands, "Start", {}, enCommandToTask, "en", console);
         expect(result).toEqual([]);
-    });
-
-    test("Filters: command not in task mode - test 1", async () => {
-        const potentialCommands: MaybeLlmTaskInfo[] = [{
-            task: "RoutineAdd",
-            command: "poutine", // Not a valid command, though everything else is correct
-            action: "add",
-            properties: null,
-            start: 0,
-            end: 10,
-        }];
-
-        const result = await filterInvalidTasks(potentialCommands, "Start", {}, "en", console);
-        expect(result).toEqual([]); // Command was invalid
-    });
-
-    test("Heals: invalid action - test 1", async () => {
-        const potentialCommands: MaybeLlmTaskInfo[] = [{
-            task: "RoutineAdd",
-            command: "add",
-            action: "add", // RoutineAdd mode has no actions
-            properties: { name: "hello" },
-            start: 0,
-            end: 10,
-        }];
-
-        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd", {}, "en", console);
-        expect(result).toEqual([{
-            ...potentialCommands[0],
-            action: null,
-        }]);
-    });
-
-    test("Heals: invalid action - test 2", async () => {
-        const potentialCommands: MaybeLlmTaskInfo[] = [{
-            task: "BotAdd",
-            command: "add",
-            action: "fkdjsalfsda", // BotAdd has no actions
-            properties: { name: "hello" },
-            start: 0,
-            end: 10,
-        }];
-
-        const result = await filterInvalidTasks(potentialCommands, "BotAdd", {}, "en", console);
-        expect(result).toEqual([{
-            ...potentialCommands[0],
-            action: null,
-        }]);
     });
 
     test("Accepts: properties missing, but we're in the Start mode", async () => {
@@ -3682,102 +4272,102 @@ describe("filterInvalidTasks", () => {
         // not given any properties. This should be allowed, even though they'd be 
         // filtered out in other modes.
         const potentialCommands: MaybeLlmTaskInfo[] = [{
-            task: "BotAdd",
-            command: "bot",
-            action: "add",
+            task: enCommandToTask("bot", "add"),
             properties: null,
             start: 0,
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "Start", {}, "en", console);
+        const result = await filterInvalidTasks(potentialCommands, "Start", {}, enCommandToTask, "en", console);
         expect(result).toEqual(potentialCommands);
     });
 
     test("Filters: properties missing, and we're not the Start mode", async () => {
         const potentialCommands: MaybeLlmTaskInfo[] = [{
-            task: "BotAdd",
-            command: "add",
-            action: null,
+            task: enCommandToTask("bot", "add"),
             properties: null,
             start: 0,
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "BotAdd", {}, "en", console);
+        const result = await filterInvalidTasks(potentialCommands, "BotAdd", {}, enCommandToTask, "en", console);
         expect(result).toEqual([]); // The "BotAdd" task requires a "name" property, but we're not given any properties.
     });
 
     test("Accepts: properties missing, but they are provided in existingData", async () => {
         const potentialCommands: MaybeLlmTaskInfo[] = [{
-            task: "BotAdd",
-            command: "add",
-            action: null,
+            task: enCommandToTask("bot", "add"),
             properties: null,
             start: 0,
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "BotAdd", { name: "hello" }, "en", console);
+        const result = await filterInvalidTasks(potentialCommands, "BotAdd", { name: "hello" }, enCommandToTask, "en", console);
         expect(result).toEqual(potentialCommands);
     });
 
-    test("Accepts: valid potential command, no trickery", async () => {
-        const potentialCommands: MaybeLlmTaskInfo[] = [{
-            task: "BotAdd",
-            command: "add",
-            action: null,
-            properties: { name: "hello" },
-            start: 0,
-            end: 10,
-        }];
+    describe("Valid potential command, no trickery", () => {
+        test("Accepts: task is the same as taskMode", async () => {
+            const potentialCommands: MaybeLlmTaskInfo[] = [{
+                task: "BotAdd",
+                properties: { name: "hello" },
+                start: 0,
+                end: 10,
+            }];
 
-        const result = await filterInvalidTasks(potentialCommands, "BotAdd", {}, "en", console);
-        expect(result).toEqual(potentialCommands);
+            const result = await filterInvalidTasks(potentialCommands, "BotAdd", {}, enCommandToTask, "en", console);
+            expect(result).toEqual(potentialCommands);
+        });
+
+        test("Accepts: task is different than taskMode, but still valid", async () => {
+            const potentialCommands: MaybeLlmTaskInfo[] = [{
+                task: enCommandToTask("routine", "find"),
+                properties: { searchString: "hello" }, // Valid property if we're in RoutineFind mode. But we're in Start mode, so it will be removed
+                start: 0,
+                end: 10,
+            }];
+
+            const result = await filterInvalidTasks(potentialCommands, "Start", {}, enCommandToTask, "en", console);
+            expect(result).toEqual([{ ...potentialCommands[0], properties: {} }]);
+        });
+
+        test("Omits: task is different than taskMode, and invalid", async () => {
+            const potentialCommands: MaybeLlmTaskInfo[] = [{
+                task: "RunProjectStart", // Not available in Start mode
+                properties: { name: "hello" },
+                start: 0,
+                end: 10,
+            }];
+
+            const result = await filterInvalidTasks(potentialCommands, "Start", {}, enCommandToTask, "en", console);
+            expect(result).toEqual([]);
+        });
     });
 
     test("omits invalid properties", async () => {
         const potentialCommands: MaybeLlmTaskInfo[] = [{
-            task: "RoutineAdd",
-            command: "add",
-            action: null,
+            task: enCommandToTask("routine", "add"),
             properties: { "name": "value", "jeff": "bunny" },
             start: 0,
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd", {}, "en", console);
-        expect(result[0].command).toBe("add");
-        expect(result[0].action).toBe(null);
+        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd", {}, enCommandToTask, "en", console);
+        expect(result.length).toBe(1);
+        expect(result[0].task).toBe(enCommandToTask("routine", "add"));
         expect(result[0].properties).toEqual({ "name": "value" });
     });
 
     test("Filters: missing required properties", async () => {
         const potentialCommands: MaybeLlmTaskInfo[] = [{
-            task: "RoutineAdd",
-            command: "add",
-            action: null,
+            task: enCommandToTask("routine", "add"),
             properties: {},
             start: 0,
             end: 10,
         }];
 
-        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd", {}, "en", console);
+        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd", {}, enCommandToTask, "en", console);
         expect(result).toEqual([]); // Missing required property
-    });
-
-    test("Filters: command invalid, everything else valid", async () => {
-        const potentialCommands: MaybeLlmTaskInfo[] = [{
-            task: "RoutineAdd",
-            command: "boop", // Not a valid command
-            action: null,
-            properties: { "name": "value" },
-            start: 0,
-            end: 10,
-        }];
-
-        const result = await filterInvalidTasks(potentialCommands, "RoutineAdd", {}, "en", console);
-        expect(result).toEqual([]);
     });
 });
 
@@ -3786,10 +4376,7 @@ describe("removeTasks", () => {
         const input = "/command1 action1 prop1=value1";
         const commands: PartialTaskInfo[] = [{
             ...getStartEnd(input, "/command1 action1 prop1=value1"),
-            id: uuid(),
             task: "Start",
-            command: "command1",
-            action: "action1",
             properties: { prop1: "value1" },
         }];
         expect(removeTasks(input, commands)).toBe("");
@@ -3800,18 +4387,12 @@ describe("removeTasks", () => {
         const commands: PartialTaskInfo[] = [
             {
                 ...getStartEnd(input, "/command1 action1 prop1=value1"),
-                id: uuid(),
                 task: "Start",
-                command: "command1",
-                action: "action1",
                 properties: { prop1: "value1" },
             },
             {
                 ...getStartEnd(input, "/command2"),
-                id: uuid(),
                 task: "Start",
-                command: "command2",
-                action: null,
                 properties: null,
             },
         ];
@@ -3823,18 +4404,12 @@ describe("removeTasks", () => {
         const commands: PartialTaskInfo[] = [
             {
                 ...getStartEnd(input, "/command1 at start"),
-                id: uuid(),
                 task: "Start",
-                command: "command1",
-                action: null,
                 properties: null,
             },
             {
                 ...getStartEnd(input, "/command2 at end"),
-                id: uuid(),
                 task: "Start",
-                command: "command2",
-                action: null,
                 properties: null,
             },
         ];
@@ -3846,26 +4421,17 @@ describe("removeTasks", () => {
         const commands: PartialTaskInfo[] = [
             {
                 ...getStartEnd(input, "/command1 /nestedCommand2"),
-                id: uuid(),
                 task: "Start",
-                command: "command1",
-                action: null,
                 properties: null,
             },
             {
                 ...getStartEnd(input, "/nestedCommand2 /nestedCommand3"),
-                id: uuid(),
                 task: "Start",
-                command: "nestedCommand2",
-                action: null,
                 properties: null,
             },
             {
                 ...getStartEnd(input, "/nestedCommand3"),
-                id: uuid(),
                 task: "Start",
-                command: "nestedCommand3",
-                action: null,
                 properties: null,
             },
         ];
@@ -3881,7 +4447,8 @@ describe("removeTasks", () => {
     // Add more tests for other edge cases as needed
 });
 
-describe("getValidTasksForMessage", () => {
+//TODO add more tests, including for JSON mode
+describe("getValidTasksFromMessage", () => {
     let commandToTask;
     const language = "en";
     const logger = console;
@@ -3898,6 +4465,7 @@ describe("getValidTasksForMessage", () => {
             language,
             logger,
             message,
+            mode: "text",
             taskMode: "Start",
         });
 
@@ -3905,8 +4473,6 @@ describe("getValidTasksForMessage", () => {
             messageWithoutTasks: "",
             tasksToRun: [{
                 task: "BotFind",
-                action: "find",
-                command: "bot",
                 label: "Find Bot",
                 properties: {}, //Search string is a property in taskMode "BotFind", not "Start"
                 start: 0,
