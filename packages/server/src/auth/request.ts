@@ -196,7 +196,10 @@ function basicToken(): BasicToken {
     };
 }
 
+/** Maximum size of a JWT token. Limited by the JWT standard. */
 const TOKEN_LENGTH_LIMIT = 4096;
+/** Buffer for additional data in the token that we didn't account for, and just to be safe */
+const TOKEN_BUFFER = 200;
 // Options for the jwt cookie
 const tokenOptions: CookieOptions = {
     httpOnly: true,
@@ -219,7 +222,7 @@ function calculateTokenSizes() {
         tokenHeaderSize = Buffer.byteLength(header, "utf8");
         tokenSignatureSize = Buffer.byteLength(signature, "utf8");
         // Total allowed size (both name and jwt value) - name - jwt header size - jwt payload size - jwt signature size - options size - buffer for additional data (e.g. "=" between name and value, ";" after value, path, expires)
-        maxPayloadSize = TOKEN_LENGTH_LIMIT - COOKIE.Jwt.length - tokenHeaderSize - tokenSignatureSize - JSON.stringify(tokenOptions).length - 200;
+        maxPayloadSize = TOKEN_LENGTH_LIMIT - COOKIE.Jwt.length - tokenHeaderSize - tokenSignatureSize - JSON.stringify(tokenOptions).length - TOKEN_BUFFER;
     }
 }
 

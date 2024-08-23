@@ -1,4 +1,4 @@
-import { ApiCreateInput, ApiSearchInput, ApiUpdateInput, BotCreateInput, BotUpdateInput, CodeCreateInput, CodeSearchInput, CodeUpdateInput, DEFAULT_LANGUAGE, DeleteManyInput, DeleteOneInput, GqlModelType, LlmTask, MemberSearchInput, MemberUpdateInput, NavigableObject, NoteCreateInput, NoteSearchInput, NoteUpdateInput, ProjectCreateInput, ProjectSearchInput, ProjectUpdateInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, RoleCreateInput, RoleSearchInput, RoleUpdateInput, RoutineCreateInput, RoutineSearchInput, RoutineUpdateInput, RunProjectCreateInput, RunRoutineCreateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, StandardCreateInput, StandardSearchInput, StandardUpdateInput, TeamCreateInput, TeamSearchInput, TeamUpdateInput, ToBotSettingsPropBot, UserSearchInput, getObjectSlug, getObjectUrlBase, uuidValidate } from "@local/shared";
+import { ApiCreateInput, ApiSearchInput, ApiUpdateInput, BotCreateInput, BotUpdateInput, CodeCreateInput, CodeSearchInput, CodeUpdateInput, DEFAULT_LANGUAGE, DeleteManyInput, DeleteOneInput, GqlModelType, LlmTask, MemberSearchInput, MemberUpdateInput, NavigableObject, NoteCreateInput, NoteSearchInput, NoteUpdateInput, ProjectCreateInput, ProjectSearchInput, ProjectUpdateInput, QuestionCreateInput, QuestionSearchInput, QuestionUpdateInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, RoleCreateInput, RoleSearchInput, RoleUpdateInput, RoutineCreateInput, RoutineSearchInput, RoutineUpdateInput, RunProjectCreateInput, RunRoutineCreateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, StandardCreateInput, StandardSearchInput, StandardUpdateInput, TeamCreateInput, TeamSearchInput, TeamUpdateInput, ToBotSettingsPropBot, UserSearchInput, getObjectSlug, getObjectUrlBase, uuidValidate } from "@local/shared";
 import { Request, Response } from "express";
 import { GraphQLResolveInfo } from "graphql";
 import path from "path";
@@ -49,6 +49,10 @@ export type LlmTaskConverters = {
     ProjectDelete: ConverterFunc<DeleteOneInput>,
     ProjectFind: ConverterFunc<ProjectSearchInput>,
     ProjectUpdate: ConverterFunc<ProjectUpdateInput>,
+    QuestionAdd: ConverterFunc<QuestionCreateInput>,
+    QuestionDelete: ConverterFunc<DeleteOneInput>,
+    QuestionFind: ConverterFunc<QuestionSearchInput>,
+    QuestionUpdate: ConverterFunc<QuestionUpdateInput>,
     ReminderAdd: ConverterFunc<ReminderCreateInput>,
     ReminderDelete: ConverterFunc<DeleteOneInput>,
     ReminderFind: ConverterFunc<ReminderSearchInput>,
@@ -428,6 +432,48 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
             return { label, link, payload };
         };
     },
+    "QuestionAdd": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
+        const { QuestionEndpoints } = await import("../../endpoints/logic/question");
+        const info = await loadInfo("question_findOne");
+        return async (data) => {
+            const input = converter[task](data, language);
+            const payload = await QuestionEndpoints.Mutation.questionCreate(undefined, { input }, context, info);
+            const label = getObjectLabel(payload);
+            const link = getObjectLink(payload);
+            return { label, link, payload };
+        };
+    },
+    "QuestionDelete": async ({ context, converter, language, task }) => {
+        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const info = SuccessInfo;
+        return async (data) => {
+            const input = converter[task](data, language);
+            const payload = await DeleteOneOrManyEndpoints.Mutation.deleteOne(undefined, { input }, context, info);
+            return { label: null, link: null, payload };
+        };
+    },
+    "QuestionFind": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
+        const info = await loadInfo("question_findMany");
+        return async (data) => {
+            const input = converter[task](data, language);
+            const payload = await readManyWithEmbeddingsHelper({ info, input, objectType: "Question", req: context.req });
+            const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
+            const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
+            return { label, link, payload };
+        };
+    },
+    "QuestionUpdate": async ({ context, converter, getObjectLabel, getObjectLink, language, task, validateFields }) => {
+        const { QuestionEndpoints } = await import("../../endpoints/logic/question");
+        const info = await loadInfo("question_findOne");
+        return async (data) => {
+            validateFields(["id", (data) => uuidValidate(data.id)])(data);
+            const input = converter[task](data, language);
+            const payload = await QuestionEndpoints.Mutation.questionUpdate(undefined, { input }, context, info);
+            const label = getObjectLabel(payload);
+            const link = getObjectLink(payload);
+            return { label, link, payload };
+        };
+    },
     "ReminderAdd": async ({ context, converter, getObjectLabel, getObjectLink, language, task, userData }) => {
         const { ReminderEndpoints } = await import("../../endpoints/logic/reminder");
         const info = await loadInfo("reminder_findOne");
@@ -793,7 +839,7 @@ export async function generateTaskExec<Task extends Exclude<LlmTask, "Start">>(
     };
 
     /** Ensures that required fields are present */
-    const validateFields: ValidateFieldsFunc = (...validators) => {
+    function validateFields(...validators: Parameters<ValidateFieldsFunc>): ReturnType<ValidateFieldsFunc> {
         return (data: LlmTaskData) => {
             for (const [field, validator] of validators) {
                 if (!validator(data)) {
@@ -801,24 +847,24 @@ export async function generateTaskExec<Task extends Exclude<LlmTask, "Start">>(
                 }
             }
         };
-    };
+    }
 
     /** Creates label for a created/updated/found object */
-    const getObjectLabel: GetObjectLabelFunc<{ __typename: string }> = (object) => {
+    function getObjectLabel(object: Parameters<GetObjectLabelFunc<{ __typename: string }>>[0]): ReturnType<GetObjectLabelFunc<{ __typename: string }>> {
         if (object === null || object === undefined) {
             return null;
         }
         const { display } = ModelMap.getLogic(["display"], object.__typename as GqlModelType, true);
         return display().label.get(object, languages);
-    };
+    }
 
     /** Creates link for a created/updated/found object */
-    const getObjectLink: GetObjectLinkFunc<object> = (object) => {
+    function getObjectLink(object: Parameters<GetObjectLinkFunc<object>>[0]): ReturnType<GetObjectLinkFunc<object>> {
         if (object === null || object === undefined) {
             return null;
         }
         return `${getObjectUrlBase(object as NavigableObject)}/${getObjectSlug(object as NavigableObject)}`;
-    };
+    }
 
     const helperFuncs = {
         context,

@@ -28,6 +28,10 @@ export const typeDef = gql`
         ProjectDelete
         ProjectFind
         ProjectUpdate
+        QuestionAdd
+        QuestionDelete
+        QuestionFind
+        QuestionUpdate
         ReminderAdd
         ReminderDelete
         ReminderFind

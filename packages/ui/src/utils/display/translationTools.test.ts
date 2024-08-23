@@ -7,18 +7,18 @@ import { i18nextTMock } from "../../__mocks__/i18next";
 import { TranslationObject, addEmptyTranslation, combineErrorsWithTranslations, getFormikErrorsWithTranslations, getLanguageSubtag, getPreferredLanguage, getShortenedLabel, getTranslationData, getUserLanguages, getUserLocale, handleTranslationChange, loadLocale, removeTranslation, translateSnackMessage, updateTranslation, updateTranslationFields } from "./translationTools";
 
 // Mocks for navigator.language and navigator.languages
-const mockNavigatorLanguage = (language) => {
+function mockNavigatorLanguage(language) {
     Object.defineProperty(global.navigator, "language", {
         value: language,
         writable: true,
     });
-};
-const mockNavigatorLanguages = (languages) => {
+}
+function mockNavigatorLanguages(languages) {
     Object.defineProperty(global.navigator, "languages", {
         value: languages,
         writable: true,
     });
-};
+}
 
 jest.mock("i18next");
 jest.mock("react-i18next");
@@ -26,15 +26,17 @@ jest.mock("react-i18next");
 // const mockedTranslate = i18next.t as unknown as jest.Mock;
 
 // Utility function for creating a session object
-const createSession = (languages: string[] | null | undefined) => ({
-    __typename: "Session",
-    isLoggedIn: true,
-    users: [{
-        __typename: "SessionUser",
-        id: uuid(),
-        languages,
-    }],
-} as unknown as Session);
+function createSession(languages: string[] | null | undefined) {
+    return {
+        __typename: "Session",
+        isLoggedIn: true,
+        users: [{
+            __typename: "SessionUser",
+            id: uuid(),
+            languages,
+        }],
+    } as unknown as Session;
+}
 
 describe("loadLocale", () => {
     it("should load the specified valid locale", async () => {

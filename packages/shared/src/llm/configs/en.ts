@@ -221,6 +221,10 @@ export const config: LlmTaskConfig = {
         name: {
             example: "Elon Musk",
         },
+        isBotDepictingPerson: {
+            description: "Indicates whether the bot is depicting a real person.",
+            type: "boolean",
+        },
         bio: {
             example: "Hi, I'm Elon Musk. I'm the CEO of SpaceX and Tesla, and the founder of The Boring Company and Neuralink. I'm also the former CEO of X (f.k.a. Twitter).",
         },
@@ -315,6 +319,7 @@ export const config: LlmTaskConfig = {
         properties: config.__pick_properties([
             ["id", true],
             ["name", false],
+            ["isBotDepictingPerson", false],
             ["bio", false],
             ["occupation", false],
             ["persona", false],
@@ -606,6 +611,58 @@ export const config: LlmTaskConfig = {
             ["description", false],
             ["isPrivate", false],
         ], config.__projectProperties),
+    }),
+    __questionProperties: {
+        id: {
+            description: "The ID of the question.",
+            type: "uuid",
+        },
+        //...
+    },
+    QuestionAdd: () => ({
+        label: "Add Question",
+        commands: {
+            add: "Create a question with the provided properties.",
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__questionProperties),
+    }),
+    QuestionDelete: () => ({
+        label: "Delete Question",
+        commands: {
+            delete: "Permanentely delete a question. Make sure you want to do this before proceeding.",
+        },
+        properties: [
+            {
+                name: "id",
+                type: "uuid",
+            },
+        ],
+    }),
+    QuestionFind: () => ({
+        label: "Find Question",
+        commands: {
+            find: "Look for existing questions.",
+        },
+        properties: [
+            {
+                name: "searchString",
+                is_required: false,
+                description: "A string to search for, such as a name or description.",
+
+            },
+        ],
+        rules: ["Must include at least one search parameter (property)."],
+    }),
+    QuestionUpdate: () => ({
+        label: "Update Question",
+        commands: {
+            update: "Update a question with the provided properties.",
+        },
+        properties: config.__pick_properties([
+            //...
+        ], config.__questionProperties),
     }),
     __reminderProperties: {
         id: {
@@ -1050,10 +1107,10 @@ export const config: LlmTaskConfig = {
     }),
 };
 
-export const commandToTask: CommandToTask = (command, action) => {
+export function commandToTask(command: Parameters<CommandToTask>[0], action: Parameters<CommandToTask>[1]): ReturnType<CommandToTask> {
     let result: string;
     if (action) result = `${pascalCase(command)}${pascalCase(action)}`;
     else result = pascalCase(command);
     if (Object.keys(LlmTask).includes(result)) return result as LlmTask;
     return null;
-};
+}

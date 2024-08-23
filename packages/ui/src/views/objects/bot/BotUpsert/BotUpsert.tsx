@@ -1,6 +1,6 @@
-import { AutoFillInput, AutoFillResult, AVAILABLE_MODELS, BotCreateInput, BotShape, BotTranslationShape, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetAutoFill, endpointGetUser, endpointPostBot, endpointPutBot, findBotData, LINKS, LlmModel, LlmTask, noopSubmit, SearchPageTabOption, Session, shapeBot, User, validateAndGetYupErrors } from "@local/shared";
+import { AutoFillResult, AVAILABLE_MODELS, BotCreateInput, BotShape, BotTranslationShape, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetUser, endpointPostBot, endpointPutBot, findBotData, LINKS, LlmModel, LlmTask, noopSubmit, SearchPageTabOption, Session, shapeBot, User, validateAndGetYupErrors } from "@local/shared";
 import { Divider, InputAdornment, Slider, Stack, Typography } from "@mui/material";
-import { fetchLazyWrapper, useSubmitHelper } from "api";
+import { useSubmitHelper } from "api";
 import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
@@ -17,7 +17,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useLazyFetch } from "hooks/useLazyFetch";
+import { useAutoFill } from "hooks/useAutoFill";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
@@ -28,7 +28,6 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
 import { BotFormProps, BotUpsertProps } from "../types";
 
 function botInitialValues(
@@ -63,6 +62,17 @@ async function validateBotValues(session: Session | undefined, values: BotShape,
     return result;
 }
 
+const sliderStyle = {
+    "& .MuiSlider-markLabel": {
+        "&[data-index=\"0\"]": {
+            marginLeft: 2,
+        },
+        "&[data-index=\"1\"]": {
+            marginLeft: -2,
+        },
+    },
+} as const;
+
 export function FeatureSlider({
     disabled,
     id,
@@ -84,6 +94,23 @@ export function FeatureSlider({
     const max = 1;
     const step = 0.1;
 
+    const handleChange = useCallback(function handleChangeMemo(_: unknown, value: number | number[]) {
+        if (Array.isArray(value) && value.length > 0) {
+            setValue(value[0]);
+        } else if (typeof value === "number") {
+            setValue(value);
+        } else {
+            setValue(min);
+        }
+    }, [setValue]);
+
+    const marks = useMemo(function marksMemo() {
+        return [
+            { value: min, label: labelLeft },
+            { value: max, label: labelRight },
+        ];
+    }, [labelLeft, labelRight]);
+
     return (
         <Stack>
             <Typography id={id} gutterBottom>
@@ -93,33 +120,13 @@ export function FeatureSlider({
                 aria-labelledby={id}
                 disabled={disabled}
                 value={value}
-                onChange={(_, value) => {
-                    if (Array.isArray(value) && value.length > 0) {
-                        setValue(value[0]);
-                    } else if (typeof value === "number") {
-                        setValue(value);
-                    } else {
-                        setValue(min);
-                    }
-                }}
+                onChange={handleChange}
                 valueLabelDisplay="auto"
                 min={min}
                 max={max}
                 step={step}
-                marks={[
-                    { value: min, label: labelLeft },
-                    { value: max, label: labelRight },
-                ]}
-                sx={{
-                    "& .MuiSlider-markLabel": {
-                        "&[data-index=\"0\"]": {
-                            marginLeft: 2,
-                        },
-                        "&[data-index=\"1\"]": {
-                            marginLeft: -2,
-                        },
-                    },
-                }}
+                marks={marks}
+                sx={sliderStyle}
             />
         </Stack>
     );
@@ -215,17 +222,13 @@ const biasInputProps = {
 
 function BotForm({
     disabled,
-    dirty,
     display,
     existing,
     handleUpdate,
     isCreate,
     isOpen,
     isReadLoading,
-    onCancel,
     onClose,
-    onCompleted,
-    onDeleted,
     values,
     ...props
 }: BotFormProps) {
@@ -289,9 +292,11 @@ function BotForm({
         onCompleted: () => { props.setSubmitting(false); },
     });
 
-    const [getAutoFill, { loading: isLoadingAutoFill }] = useLazyFetch<AutoFillInput, AutoFillResult>(endpointGetAutoFill);
-    const autoFill = useCallback(() => {
-        const defaultTranslation = { ...(values.translations?.length ? values.translations[0] : {}) } as Partial<BotTranslationShape> & { __typename?: string };
+    const getAutoFillInput = useCallback(function getAutoFillInput() {
+        const defaultTranslation = (values.translations?.find(t => t.language === language) ?? {
+            ...(values.translations?.length ? values.translations[0] : {}),
+        }) as Partial<BotTranslationShape> & { __typename?: string };
+
         delete defaultTranslation.id;
         delete defaultTranslation.language;
         delete defaultTranslation.__typename;
@@ -299,36 +304,49 @@ function BotForm({
             ...defaultTranslation,
             name: values.name,
         };
-        Object.entries(existingData).forEach(([key, value]) => {
-            if (typeof value === "string" && value.trim() === "") {
-                delete existingData[key];
-            }
-        });
-        fetchLazyWrapper<AutoFillInput, AutoFillResult>({
-            fetch: getAutoFill,
-            inputs: {
-                task: isCreate ? LlmTask.BotAdd : LlmTask.BotUpdate,
-                data: existingData,
-            },
-            onSuccess: ({ data }) => {
-                console.log("got autofill response", data);
-                const originalValues = { ...values };
-                const { name, ...rest } = data;
-                const updatedValues = {
-                    ...values,
-                    name: name ?? values.name,
-                    translations: values.translations?.length ? [{
-                        ...values.translations[0],
-                        ...rest,
-                    }, ...values.translations.slice(1)] : [],
-                };
-                handleUpdate(updatedValues);
-                PubSub.get().publish("snack", { message: "Form auto-filled", buttonKey: "Undo", buttonClicked: () => { handleUpdate(originalValues); }, severity: "Success", autoHideDuration: 15000 });
-            },
-        });
-    }, [getAutoFill, handleUpdate, isCreate, values]);
+        return existingData;
+    }, [language, values]);
 
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || isLoadingAutoFill || props.isSubmitting, [isCreateLoading, isLoadingAutoFill, isReadLoading, isUpdateLoading, props.isSubmitting]);
+    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback({ data }: AutoFillResult) {
+        const originalValues = { ...values };
+        const { isBotDepictingPerson, name, ...rest } = data;
+        delete rest.id;
+        const updatedTranslations: BotShape["translations"] = [];
+        if (Array.isArray(values.translations) && values.translations.length > 0) {
+            let languageIndex = values.translations.findIndex(t => t.language === language);
+            if (languageIndex < 0) {
+                languageIndex = 0;
+            }
+            for (let i = 0; i < values.translations.length; i++) {
+                if (i === languageIndex) {
+                    updatedTranslations.push({
+                        ...values.translations[i],
+                        ...rest,
+                        language,
+                        id: values.translations[i].id || DUMMY_ID,
+                    });
+                } else {
+                    updatedTranslations.push(values.translations[i]);
+                }
+            }
+        }
+        const updatedValues = {
+            ...values,
+            isBotDepictingPerson: typeof isBotDepictingPerson === "boolean" ? isBotDepictingPerson : values.isBotDepictingPerson,
+            name: name ?? values.name,
+            translations: updatedTranslations,
+        };
+        return { originalValues, updatedValues };
+    }, [language, values]);
+
+    const { autoFill, isAutoFillLoading } = useAutoFill({
+        getAutoFillInput,
+        shapeAutoFillResult,
+        handleUpdate,
+        task: isCreate ? LlmTask.BotAdd : LlmTask.BotUpdate,
+    });
+
+    const isLoading = useMemo(() => isAutoFillLoading || isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isAutoFillLoading, isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
     return (
         <MaybeLargeDialog
@@ -368,7 +386,6 @@ function BotForm({
                             <Field
                                 fullWidth
                                 autoComplete="name"
-                                autoFocus
                                 name="name"
                                 label={t("Name")}
                                 placeholder={t("NamePlaceholder")}
@@ -422,9 +439,7 @@ function BotForm({
                     </ContentCollapse>
                     <Divider />
                     <ContentCollapse title="Personality" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
-                        <FormSection sx={{
-                            overflowX: "hidden",
-                        }}>
+                        <FormSection overflow="hidden">
                             {/* <InputToggle
                             canChangeInputMode={true}
                             inputMode={inputMode}

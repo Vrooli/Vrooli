@@ -1,4 +1,4 @@
-import { ConfigCallData, DUMMY_ID, FormInputBase, FormSchema, LINKS, LlmModel, NodeLinkShape, NodeShape, RoutineShape, RoutineType, RoutineVersion, RoutineVersionCreateInput, RoutineVersionInputShape, RoutineVersionOutputShape, RoutineVersionShape, RoutineVersionUpdateInput, SearchPageTabOption, Session, defaultConfigCallDataMap, defaultConfigFormInputMap, defaultConfigFormOutputMap, endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, initializeRoutineGraph, noop, noopSubmit, orDefault, parseConfigCallData, parseSchemaInput, parseSchemaOutput, routineVersionTranslationValidation, routineVersionValidation, shapeRoutineVersion, uuid, uuidValidate } from "@local/shared";
+import { AutoFillResult, ConfigCallData, DUMMY_ID, FormInputBase, FormSchema, LINKS, LlmModel, LlmTask, NodeLinkShape, NodeShape, RoutineShape, RoutineType, RoutineVersion, RoutineVersionCreateInput, RoutineVersionInputShape, RoutineVersionOutputShape, RoutineVersionShape, RoutineVersionUpdateInput, SearchPageTabOption, Session, defaultConfigCallDataMap, defaultConfigFormInputMap, defaultConfigFormOutputMap, endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, initializeRoutineGraph, noop, noopSubmit, orDefault, parseConfigCallData, parseSchemaInput, parseSchemaOutput, routineVersionTranslationValidation, routineVersionValidation, shapeRoutineVersion, uuid, uuidValidate } from "@local/shared";
 import { Checkbox, Divider, FormControlLabel, Grid, Tooltip } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
@@ -18,6 +18,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { FieldHelperProps, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
+import { useAutoFill } from "hooks/useAutoFill";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
@@ -203,6 +204,7 @@ function RoutineForm({
     display,
     existing,
     isCreate,
+    handleUpdate,
     isOpen,
     isReadLoading,
     isSubroutine,
@@ -397,7 +399,27 @@ function RoutineForm({
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "RoutineVersion" });
 
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+    const getAutoFillInput = useCallback(function getAutoFillInput() {
+        console.log("in getAutoFillInput", language, values);
+        //TODO
+        return {} as any;
+    }, [language, values]);
+
+    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback({ data }: AutoFillResult) {
+        const originalValues = { ...values };
+        const updatedValues = {} as any; //TODO
+        console.log("in shapeAutoFillResult", language, data, originalValues, updatedValues);
+        return { originalValues, updatedValues };
+    }, [language, values]);
+
+    const { autoFill, isAutoFillLoading } = useAutoFill({
+        getAutoFillInput,
+        shapeAutoFillResult,
+        handleUpdate,
+        task: isCreate ? LlmTask.RoutineAdd : LlmTask.RoutineUpdate,
+    });
+
+    const isLoading = useMemo(() => isAutoFillLoading || isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isAutoFillLoading, isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
     const onSubmit = useSubmitHelper<RoutineVersionCreateInput | RoutineVersionUpdateInput, RoutineVersion>({
         disabled,
@@ -580,8 +602,8 @@ function RoutineForm({
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
                 sideActionButtons={<AutoFillButton
-                    handleAutoFill={() => { }} //TODO
-                    isLoadingAutoFill={false} //TODO
+                    handleAutoFill={autoFill}
+                    isLoadingAutoFill={isLoadingAutoFill}
                 />}
             />
         </MaybeLargeDialog >
