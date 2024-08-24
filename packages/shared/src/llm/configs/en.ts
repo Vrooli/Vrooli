@@ -54,9 +54,9 @@ export const config: LlmTaskConfig = {
     ],
     __pick_properties(selectedFields: [string, boolean | undefined][], __availableFields: Record<string, Omit<LlmTaskProperty, "name">>) {
         return selectedFields.map(([fieldName, isRequired]) => ({
-            ...__availableFields[fieldName],
             name: fieldName,
-            is_required: isRequired !== undefined ? isRequired : __availableFields[fieldName]?.is_required,
+            is_required: typeof isRequired === "boolean" ? isRequired : __availableFields[fieldName]?.is_required,
+            ...__availableFields[fieldName],
         }));
     },
     __construct_context_base: ({
@@ -80,18 +80,7 @@ export const config: LlmTaskConfig = {
             description: actions ?
                 "Placed after the action, to specify the properties of the command. E.g: `/note add name='My Note' content='This is my note'`" :
                 "Placed after the command, to specify the properties of the command. E.g: `/note name='My Note' content='This is my note'`",
-            // Use list if all properties are just a string
-            list:
-                properties.filter(p => typeof p === "string").length === properties.length ?
-                    properties :
-                    properties.map(p => ({
-                        name: typeof p === "string" ? p : p.name,
-                        type: typeof p === "string" ? undefined : p.type,
-                        description: typeof p === "string" ? undefined : p.description,
-                        example: typeof p === "string" ? undefined : p.example,
-                        examples: typeof p === "string" ? undefined : p.examples,
-                        is_required: typeof p === "string" ? undefined : p.is_required,
-                    })),
+            list: properties,
         } : undefined,
         response_formats: actions ? config.__response_formats_with_actions : config.__response_formats_without_actions,
         ...rest,
@@ -725,20 +714,62 @@ export const config: LlmTaskConfig = {
             type: "uuid",
         },
         name: {
-            example: "Doctor's Appointment",
+            example: "Project Deadline",
         },
         description: {
-            example: "Reminder to visit the doctor for a regular check-up.",
+            example: "Reminder for the upcoming project submission deadline.",
         },
         dueDate: {
-            description: "The date and time when the reminder is due.",
+            description: "The date and time when the reminder is due. If steps are provided, should be at or after the last step's due date.",
             type: "DateTime",
-            example: "2024-06-15T09:00:00Z",
+            example: "2024-09-30T17:00:00Z",
         },
         isComplete: {
             description: "Status indicating whether the reminder is completed.",
             type: "boolean",
             default: false,
+        },
+        steps: {
+            description: "The steps to complete the reminder, in a sensible order. These are not strictly required, but strongly recommended for tasks that have multiple steps.",
+            type: "array",
+            properties: {
+                name: {
+                    description: "The name of the step.",
+                },
+                description: {
+                    description: "A brief description of the step.",
+                },
+                dueDate: {
+                    description: "The date and time when the step is due.",
+                    type: "DateTime",
+                    example: "2024-09-28T17:00:00Z",
+                },
+                isComplete: {
+                    description: "Status indicating whether the step is completed.",
+                    type: "boolean",
+                    default: false,
+                },
+            },
+            example: [
+                {
+                    name: "Finalize project report",
+                    description: "Complete and proofread the final project report.",
+                    dueDate: "2024-09-28T17:00:00Z",
+                    isComplete: false,
+                },
+                {
+                    name: "Prepare presentation slides",
+                    description: "Create and review presentation slides for the project submission.",
+                    dueDate: "2024-09-29T17:00:00Z",
+                    isComplete: false,
+                },
+                {
+                    name: "Submit project deliverables",
+                    description: "Upload all project deliverables to the submission portal.",
+                    dueDate: "2024-09-30T16:00:00Z",
+                    isComplete: false,
+                },
+            ],
         },
     },
     ReminderAdd: () => ({
@@ -751,6 +782,7 @@ export const config: LlmTaskConfig = {
             ["description", false],
             ["dueDate", true],
             ["isComplete", true],
+            ["steps", false],
         ], config.__reminderProperties),
     }),
     ReminderDelete: () => ({
@@ -791,6 +823,7 @@ export const config: LlmTaskConfig = {
             ["description", false],
             ["dueDate", false],
             ["isComplete", false],
+            ["steps", false],
         ], config.__reminderProperties),
     }),
     __roleProperties: {

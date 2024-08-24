@@ -1,4 +1,4 @@
-import { AutoFillResult, DeleteOneInput, DeleteType, DUMMY_ID, endpointGetReminder, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, LlmTask, noopSubmit, Reminder, ReminderCreateInput, ReminderItemShape, ReminderShape, ReminderUpdateInput, reminderValidation, Session, shapeReminder, Success, uuid } from "@local/shared";
+import { AutoFillInput, AutoFillResult, DeleteOneInput, DeleteType, DUMMY_ID, endpointGetReminder, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, LlmTask, noopSubmit, Reminder, ReminderCreateInput, ReminderItemShape, ReminderShape, ReminderUpdateInput, reminderValidation, Session, shapeReminder, Success, uuid } from "@local/shared";
 import { Box, Button, Checkbox, Divider, FormControlLabel, IconButton, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper, useSubmitHelper } from "api";
 import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
@@ -170,16 +170,40 @@ function ReminderForm({
     }, [deleteMutation, fetchCreate, handleCreated, handleDeleted, values]);
 
     const getAutoFillInput = useCallback(function getAutoFillInput() {
-        console.log("in getAutoFillInput", values);
-        return {
-            //TODO
-        };
+        const input = {
+            description: values.description,
+            dueDate: values.dueDate,
+            isComplete: values.isComplete,
+            name: values.name,
+            steps: values.reminderItems?.map(step => ({
+                description: step.description,
+                dueDate: step.dueDate,
+                isComplete: step.isComplete,
+                name: step.name,
+            })) ?? [],
+        } as AutoFillInput["data"];
+        if (input.steps.length === 0) delete input.steps;
+        return input;
     }, [values]);
 
     const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback({ data }: AutoFillResult) {
         const originalValues = { ...values };
-        const updatedValues = {} as any; //TODO
-        console.log("in shapeAutoFillResult", data, originalValues, updatedValues);
+        const updatedValues = {
+            ...values,
+            description: typeof data.description === "string" ? data.description : values.description,
+            dueDate: typeof data.dueDate === "string" ? data.dueDate : values.dueDate,
+            isComplete: typeof data.isComplete === "boolean" ? data.isComplete : values.isComplete,
+            name: typeof data.name === "string" ? data.name : values.name,
+            reminderItems: Array.isArray(data.steps) ? data.steps.map((step, i) => ({
+                //...values.reminderItems?.[i],
+                id: DUMMY_ID,
+                index: i,
+                isComplete: step.isComplete ?? false,
+                name: step.name ?? "",
+                description: step.description ?? "",
+                dueDate: step.dueDate ?? null,
+            })) : values.reminderItems
+        }
         return { originalValues, updatedValues };
     }, [values]);
 

@@ -61,10 +61,12 @@ export type LlmTaskProperty = {
     name: string,
     type?: string,
     description?: string,
-    example?: string,
+    example?: any,
     examples?: string[],
     is_required?: boolean
     default?: string | number | boolean | null;
+    /** Used to describe nested data if type is an array or object */
+    properties?: Record<string, Omit<LlmTaskProperty, "name">>;
 };
 
 /**

@@ -493,7 +493,6 @@ export function calculateMaxCredits(
     const effectiveTaskMax = taskMaxCreditsBigInt > creditsSpentBigInt
         ? BigInt(taskMaxCreditsBigInt) - BigInt(creditsSpentBigInt)
         : BigInt(0);
-    console.log("effectiveTaskMax", effectiveTaskMax, "userRemainingCreditsBigInt", userRemainingCreditsBigInt);
 
     // Return the smaller of the userRemaining credits and the effective task max
     return userRemainingCreditsBigInt < effectiveTaskMax
