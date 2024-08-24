@@ -59,11 +59,8 @@ export class MistralService implements LanguageModelService<MistralModel, Mistra
 
         // Ensure roles alternate between "user" and "assistant". This is a requirement of the Mistral API.
         const alternatingMessages: LanguageModelMessage[] = [];
-        const messagesWithResponding = params.taskMessage
-            ? [...messages, { role: "user" as const, content: params.taskMessage }]
-            : messages;
         let lastRole: LanguageModelMessage["role"] = "assistant";
-        for (const { role, content } of messagesWithResponding) {
+        for (const { role, content } of messages) {
             // Skip empty messages. This is another requirement of the Mistral API.
             if (content.trim() === "") {
                 continue;

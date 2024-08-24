@@ -64,6 +64,7 @@ export type LlmTaskProperty = {
     example?: string,
     examples?: string[],
     is_required?: boolean
+    default?: string | number | boolean | null;
 };
 
 /**

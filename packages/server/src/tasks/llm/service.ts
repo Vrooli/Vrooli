@@ -259,9 +259,10 @@ export async function getDefaultConfigObject({
 }
 
 /**
- * General configuration builder for providing context for language model services, 
- * including all messages in the context, as well as information needed for the bot's 
- * persona and for completing the task.
+ * General configuration builder for providing context for language model services.
+ * 
+ * NOTE: Currently, this does not add the system message to the context. Services 
+ * must handle this themselves.
  * 
  * Can be used as a fallback for services that don't have a specific implementation.
  */

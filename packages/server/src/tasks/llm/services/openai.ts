@@ -66,8 +66,6 @@ export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITo
             { role: "system" as const, content: systemMessage },
             // Add previous messages
             ...messages.map(({ role, content }) => ({ role, content })),
-            // Add task message
-            ...(params.taskMessage ? [{ role: "user" as const, content: params.taskMessage }] : []),
         ] as LanguageModelMessage[];
 
         return { messages: messagesWithContext, systemMessage };

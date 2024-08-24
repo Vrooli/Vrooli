@@ -18,7 +18,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { getAutoFillTranslationData, useAutoFill } from "hooks/useAutoFill";
+import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill } from "hooks/useAutoFill";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
@@ -84,6 +84,22 @@ function transformCodeVersionValues(values: CodeVersionShape, existing: CodeVers
 
 /** Code to display when an example is requested */
 const exampleCode = `
+/**
+ * Converts a comma-separated string of numbers into an array of integers.
+ * 
+ * This function attempts to parse each element of the input string, 
+ * which should be numbers separated by commas, into integers. If any 
+ * part of the string cannot be converted to an integer, an error object 
+ * is returned instead.
+ *
+ * @param {string} input - A string of numbers separated by commas.
+ * @returns {number[]|Object} - Returns an array of integers if successful, 
+ *                              or an object with an error message if the input is invalid.
+ * 
+ * @example
+ * parseList("1, 2, 3, 4"); // returns [1, 2, 3, 4]
+ * parseList("1, two, 3");  // returns { error: "Invalid input format" }
+ */
 function parseList(input) {
     try {
         // Parse the input string into an array of strings split by commas
@@ -161,14 +177,26 @@ function CodeForm({
     const getAutoFillInput = useCallback(function getAutoFillInput() {
         return {
             ...getAutoFillTranslationData(values, language),
-            //TODO
+            content: values.content,
+            isPrivate: values.isPrivate,
+            version: values.versionLabel,
         };
     }, [language, values]);
 
     const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback({ data }: AutoFillResult) {
         const originalValues = { ...values };
-        const updatedValues = {} as any; //TODO
-        console.log("in shapeAutoFillResult", language, data, originalValues, updatedValues);
+        const { updatedTranslations, rest } = createUpdatedTranslations(values, data, language, ["name", "description"]);
+        delete rest.id;
+        const content = typeof rest.content === "string" ? rest.content : values.content;
+        const isPrivate = typeof rest.isPrivate === "boolean" ? rest.isPrivate : values.isPrivate;
+        const versionLabel = typeof rest.version === "string" ? rest.version : values.versionLabel;
+        const updatedValues = {
+            ...values,
+            content,
+            isPrivate,
+            translations: updatedTranslations,
+            versionLabel,
+        };
         return { originalValues, updatedValues };
     }, [language, values]);
 

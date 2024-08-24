@@ -264,6 +264,14 @@ export class ChatContextCollector {
         this.languageModelService = languageModelService;
     }
 
+    /**
+     * Collects messages to include in the context info for generating a response. 
+     * Messages are collected starting from the latest message and going back, 
+     * until the context size is reached or no more messages are found.
+     * 
+     * NOTE: This also adds the taskMessage to the context info if provided, which 
+     * basically simulates a message in the chat history to tell the bot how to respond.
+     */
     async collectMessageContextInfo({
         chatId,
         languages,

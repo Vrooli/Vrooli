@@ -114,6 +114,9 @@ export const config: LlmTaskConfig = {
         // Remove text-specific instructions
         delete base.commands.prefix;
         delete base.actions?.description;
+        base.actions = base.actions?.list;
+        delete base.properties?.description;
+        base.properties = base.properties?.list;
         delete base.response_formats;
 
         return {
@@ -152,7 +155,8 @@ export const config: LlmTaskConfig = {
         },
         isPrivate: {
             description: "Whether the API is private or publicly accessible.",
-            example: "true, false",
+            type: "boolean",
+            default: true,
         },
         schemaLanguage: {
             description: "The language used to define the API schema. Must be one of the \"examples\" types. \"yaml\" is preferred.",
@@ -346,7 +350,32 @@ export const config: LlmTaskConfig = {
         ], config.__bot_properties),
     }),
     __dataConverterProperties: {
-        //...
+        id: {
+            description: "Unique identifier for the converter.",
+            type: "uuid",
+        },
+        name: {
+            description: "The name of the data converter.",
+            example: "String to Number Array",
+        },
+        description: {
+            description: "A brief description of what the data converter does.",
+            example: "Converts a string of numbers separated by commas into an array of numbers.",
+        },
+        version: {
+            description: "Current version of the data converter.",
+            example: "1.0.3",
+        },
+        isPrivate: {
+            description: "Whether the data converter is private or publicly accessible.",
+            type: "boolean",
+            default: true,
+        },
+        content: {
+            description: "The JavaScript function, written as a string, that transforms the data from one format to another. Begin with a docstring immediately before the function declaration that includes a detailed description of the function's purpose, its parameters, and its return value. Do not include any imports or require statements. Comments should be clear and concise, placed appropriately to explain non-obvious parts of the code.",
+            type: "string",
+            example: "/**\n * Converts a comma-separated string of numbers into an array of numbers.\n * @param {string} numbersString - A string containing numbers separated by commas.\n * @return {Array<number>} - An array of numbers extracted from the given string.\n */\nfunction stringToNumberArray(numbersString) {\n  return numbersString.split(',').map(Number);\n}"
+        }
     },
     DataConverterAdd: () => ({
         label: "Add Code Converter Function",
@@ -354,7 +383,11 @@ export const config: LlmTaskConfig = {
             add: "Create a JavaScript function to transform data from one format to another.",
         },
         properties: config.__pick_properties([
-            //...
+            ["name", true],
+            ["description", true],
+            ["version", true],
+            ["isPrivate", true],
+            ["content", true],
         ], config.__dataConverterProperties),
     }),
     DataConverterDelete: () => ({
@@ -390,7 +423,12 @@ export const config: LlmTaskConfig = {
             update: "Update a code converter function with the provided properties.",
         },
         properties: config.__pick_properties([
-            //...
+            ["id", true],
+            ["name", false],
+            ["description", false],
+            ["version", false],
+            ["isPrivate", false],
+            ["content", false],
         ], config.__dataConverterProperties),
     }),
     __memberProperties: {
@@ -400,7 +438,8 @@ export const config: LlmTaskConfig = {
         },
         isAdmin: {
             description: "Whether the member has administrative privileges.",
-            example: "false",
+            type: "boolean",
+            default: false,
         },
         teamId: {
             description: "The ID of the team the member belongs to.",
@@ -414,7 +453,8 @@ export const config: LlmTaskConfig = {
     __memberInviteProperties: {
         willBeAdmin: {
             description: "Whether the invited member will have administrative privileges.",
-            example: "false",
+            type: "boolean",
+            default: false,
         },
         teamId: {
             description: "The ID of the team to which the member is being invited.",
@@ -502,7 +542,8 @@ export const config: LlmTaskConfig = {
             example: "This week, we made significant progress on the WeatherAPI project. We also had a successful meeting with the client...",
         },
         isPrivate: {
-            example: "true",
+            type: "boolean",
+            default: true,
         },
     },
     NoteAdd: () => ({
@@ -573,6 +614,7 @@ export const config: LlmTaskConfig = {
         isPrivate: {
             description: "Indicates if the project is private.",
             type: "boolean",
+            default: true,
         },
     },
     ProjectAdd: () => ({
@@ -696,7 +738,7 @@ export const config: LlmTaskConfig = {
         isComplete: {
             description: "Status indicating whether the reminder is completed.",
             type: "boolean",
-            example: "false",
+            default: false,
         },
     },
     ReminderAdd: () => ({
@@ -824,11 +866,13 @@ export const config: LlmTaskConfig = {
         },
         isInternal: {
             description: "Whether the routine should be available standalone, or is only part of a specific larger routine. Typically this is false.",
-            example: "true, false",
+            type: "boolean",
+            default: false,
         },
         isPrivate: {
             description: "Whether the routine is private or publicly accessible.",
-            example: "true, false",
+            type: "boolean",
+            default: true,
         },
         //...
     },
