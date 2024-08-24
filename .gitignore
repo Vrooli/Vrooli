@@ -1,5 +1,6 @@
 # Created by https://www.toptal.com/developers/gitignore/api/react,node
 # Edit at https://www.toptal.com/developers/gitignore?templates=react,node
+# NOTE: Currently identical to the `.cursorignore` file. If you change one, consider changing the other
 
 ### Zipped ###
 *.tar
