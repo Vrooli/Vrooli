@@ -285,6 +285,10 @@ export async function generateDefaultContext<GenerateNameType extends string, To
     // Construct the initial YAML configuration message for relevant participants
     let systemMessage = "You are a helpful assistant for an app named Vrooli. Please follow the configuration below to best suit each user's needs:\n\n";
 
+    // Add the current timestamp
+    const currentTimestamp = new Date().toISOString();
+    systemMessage += `current_timestamp: ${currentTimestamp}\n\n`;
+
     // Add information to set up the bot's persona and task instructions
     const config = await service.getConfigObject({
         botSettings: respondingBotConfig,
