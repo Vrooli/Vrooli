@@ -169,6 +169,7 @@ export const convert: LlmTaskConverters = {
     }),
     QuestionAdd: (data) => ({
         id: uuid(),
+        isPrivate: true,
         //...
     }),
     QuestionDelete: (data) => ({

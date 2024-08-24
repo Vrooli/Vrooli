@@ -9,7 +9,7 @@ import { AutoFillButtonProps } from "../types";
 
 export function AutoFillButton({
     handleAutoFill,
-    isLoadingAutoFill,
+    isAutoFillLoading,
 }: AutoFillButtonProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -21,7 +21,7 @@ export function AutoFillButton({
         <Tooltip title={t("AutoFill")} placement="top">
             <SideActionsButton
                 aria-label={t("AutoFill")}
-                disabled={isLoadingAutoFill}
+                disabled={isAutoFillLoading}
                 onClick={handleAutoFill}
             >
                 <MagicIcon fill={palette.secondary.contrastText} />

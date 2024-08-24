@@ -74,6 +74,7 @@ export const projectVersionDirectory_findOne = {
       "canUse": true,
       "canRead": true
     },
+    "schemaLanguage": true,
     "root": {
       "id": true,
       "created_at": true,

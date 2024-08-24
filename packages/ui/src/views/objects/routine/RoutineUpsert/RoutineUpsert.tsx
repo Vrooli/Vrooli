@@ -18,7 +18,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { FieldHelperProps, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useAutoFill } from "hooks/useAutoFill";
+import { getAutoFillTranslationData, useAutoFill } from "hooks/useAutoFill";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
@@ -400,9 +400,10 @@ function RoutineForm({
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "RoutineVersion" });
 
     const getAutoFillInput = useCallback(function getAutoFillInput() {
-        console.log("in getAutoFillInput", language, values);
-        //TODO
-        return {} as any;
+        return {
+            ...getAutoFillTranslationData(values, language),
+            //TODO
+        };
     }, [language, values]);
 
     const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback({ data }: AutoFillResult) {
@@ -603,7 +604,7 @@ function RoutineForm({
                 onSubmit={onSubmit}
                 sideActionButtons={<AutoFillButton
                     handleAutoFill={autoFill}
-                    isLoadingAutoFill={isLoadingAutoFill}
+                    isAutoFillLoading={isAutoFillLoading}
                 />}
             />
         </MaybeLargeDialog >

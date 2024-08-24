@@ -178,6 +178,7 @@ const routineVersionSelect = {
     apiVersion: {
         select: {
             callLink: true,
+            schemaLanguage: true,
             schemaText: true,
             id: true,
             isDeleted: true,

@@ -15,7 +15,7 @@ import { useLazyFetch } from "hooks/useLazyFetch";
 import { useProfileQuery } from "hooks/useProfileQuery";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { HandleIcon, UserIcon } from "icons";
-import { useContext } from "react";
+import { useCallback, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { FormSection, pagePaddingBottom } from "styles";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
@@ -43,6 +43,7 @@ function SettingsProfileForm({
     isLoading,
     numVerifiedWallets,
     onCancel,
+    setFieldValue,
     values,
     ...props
 }: SettingsProfileFormProps) {
@@ -62,6 +63,13 @@ function SettingsProfileForm({
         validationSchema: userTranslationValidation.update({ env: process.env.NODE_ENV }),
     });
 
+    const handleBannerImageChange = useCallback(function handleBannerImageChangeCallback(newPicture: File | null) {
+        setFieldValue("bannerImage", newPicture);
+    }, [setFieldValue]);
+    const handleProfileImageChange = useCallback(function handleProfileImageChangeCallback(newPicture: File | null) {
+        setFieldValue("profileImage", newPicture);
+    }, [setFieldValue]);
+
     return (
         <>
             <BaseForm
@@ -70,8 +78,8 @@ function SettingsProfileForm({
                 maxWidth={600}
             >
                 <ProfilePictureInput
-                    onBannerImageChange={(newPicture) => props.setFieldValue("bannerImage", newPicture)}
-                    onProfileImageChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
+                    onBannerImageChange={handleBannerImageChange}
+                    onProfileImageChange={handleProfileImageChange}
                     name="profileImage"
                     profile={{ __typename: "User", ...values }}
                 />

@@ -1,6 +1,7 @@
-import { DeleteOneInput, DeleteType, DUMMY_ID, endpointGetReminder, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, noopSubmit, Reminder, ReminderCreateInput, ReminderUpdateInput, reminderValidation, Session, Success, uuid } from "@local/shared";
+import { AutoFillResult, DeleteOneInput, DeleteType, DUMMY_ID, endpointGetReminder, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, LlmTask, noopSubmit, Reminder, ReminderCreateInput, ReminderItemShape, ReminderShape, ReminderUpdateInput, reminderValidation, Session, shapeReminder, Success, uuid } from "@local/shared";
 import { Box, Button, Checkbox, Divider, FormControlLabel, IconButton, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper, useSubmitHelper } from "api";
+import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -12,6 +13,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
+import { useAutoFill } from "hooks/useAutoFill";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
@@ -25,8 +27,6 @@ import { FormContainer, FormSection } from "styles";
 import { getFocusModeInfo } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
-import { ReminderShape, shapeReminder } from "utils/shape/models/reminder";
-import { ReminderItemShape } from "utils/shape/models/reminderItem";
 import { validateFormValues } from "utils/validateFormValues";
 import { ReminderCrudProps, ReminderFormProps } from "../types";
 
@@ -83,6 +83,9 @@ function reminderInitialValues(
 function transformReminderValues(values: ReminderShape, existing: ReminderShape, isCreate: boolean) {
     return isCreate ? shapeReminder.create(values) : shapeReminder.update(existing, values);
 }
+
+const relationshipListStyle = { marginBottom: 4 } as const;
+const formSectionStyle = { overflowX: "hidden" } as const;
 
 function ReminderForm({
     disabled,
@@ -166,7 +169,28 @@ function ReminderForm({
         });
     }, [deleteMutation, fetchCreate, handleCreated, handleDeleted, values]);
 
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || isDeleteLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isDeleteLoading, isUpdateLoading, props.isSubmitting]);
+    const getAutoFillInput = useCallback(function getAutoFillInput() {
+        console.log("in getAutoFillInput", values);
+        return {
+            //TODO
+        };
+    }, [values]);
+
+    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback({ data }: AutoFillResult) {
+        const originalValues = { ...values };
+        const updatedValues = {} as any; //TODO
+        console.log("in shapeAutoFillResult", data, originalValues, updatedValues);
+        return { originalValues, updatedValues };
+    }, [values]);
+
+    const { autoFill, isAutoFillLoading } = useAutoFill({
+        getAutoFillInput,
+        shapeAutoFillResult,
+        handleUpdate,
+        task: isCreate ? LlmTask.ReminderAdd : LlmTask.ReminderUpdate,
+    });
+
+    const isLoading = useMemo(() => isAutoFillLoading || isCreateLoading || isReadLoading || isUpdateLoading || isDeleteLoading || props.isSubmitting, [isAutoFillLoading, isCreateLoading, isReadLoading, isUpdateLoading, isDeleteLoading, props.isSubmitting]);
 
     const [reminderItemsField, , reminderItemsHelpers] = useField("reminderItems");
 
@@ -233,11 +257,10 @@ function ReminderForm({
                             <RelationshipList
                                 isEditing={true}
                                 objectType={"Reminder"}
-                                sx={{ marginBottom: 4 }}
+                                sx={relationshipListStyle}
                             />
-                            <FormSection sx={{ overflowX: "hidden" }}>
+                            <FormSection sx={formSectionStyle}>
                                 <Field
-                                    autoFocus
                                     fullWidth
                                     isRequired={true}
                                     name="name"
@@ -366,6 +389,10 @@ function ReminderForm({
                 onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
+                sideActionButtons={<AutoFillButton
+                    handleAutoFill={autoFill}
+                    isAutoFillLoading={isAutoFillLoading}
+                />}
             />
         </MaybeLargeDialog>
     );

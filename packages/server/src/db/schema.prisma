@@ -85,6 +85,7 @@ model api_version {
     completedAt             DateTime?                   @db.Timestamptz(6)
     callLink                String                      @unique @db.VarChar(1024)
     documentationLink       String?                     @db.VarChar(1024)
+    schemaLanguage          String?                     @db.VarChar(128)
     schemaText              String?                     @db.VarChar(16384)
     isComplete              Boolean                     @default(false)
     isDeleted               Boolean                     @default(false)

@@ -891,25 +891,27 @@ export function CodeInputBase({
 }
 
 const DEFAULT_CODE_LANGUAGE = CodeLanguage.Javascript;
+const DEFAULT_CODE_LANGUAGE_FIELD = "codeLanguage";
 const DEFAULT_CONTENT = "";
 const DEFAULT_NAME = "content";
 
 export function CodeInput({
+    codeLanguageField,
     name,
     ...props
 }: CodeInputProps) {
-    const [codeLanguageField, , codeLanguageHelpers] = useField<CodeInputBaseProps["codeLanguage"]>("codeLanguage");
+    const [languageField, , codeLanguageHelpers] = useField<CodeInputBaseProps["codeLanguage"]>(codeLanguageField ?? DEFAULT_CODE_LANGUAGE_FIELD);
     const [contentField, , contentHelpers] = useField<CodeInputBaseProps["content"]>(name ?? DEFAULT_NAME);
     const [defaultValueField] = useField<CodeInputBaseProps["defaultValue"]>("defaultValue");
     const [formatField] = useField<CodeInputBaseProps["format"]>("format");
     const [variablesField] = useField<CodeInputBaseProps["variables"]>("variables");
 
-    console.log("in CodeInput", codeLanguageField.value, contentField.value);
+    console.log("in CodeInput", languageField.value, contentField.value);
 
     return (
         <CodeInputBase
             {...props}
-            codeLanguage={codeLanguageField.value ?? DEFAULT_CODE_LANGUAGE}
+            codeLanguage={languageField.value ?? DEFAULT_CODE_LANGUAGE}
             content={contentField.value ?? DEFAULT_CONTENT}
             defaultValue={defaultValueField.value}
             format={formatField.value}

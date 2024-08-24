@@ -315,7 +315,6 @@ function NoteForm({
                     >
                         <TranslatedRichInput
                             language={language}
-                            autoFocus
                             name="pages[0].text"
                             placeholder={t("PleaseBeNice")}
                             disabled={disabled}

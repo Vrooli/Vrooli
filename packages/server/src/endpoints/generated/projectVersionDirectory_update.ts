@@ -74,6 +74,7 @@ export const projectVersionDirectory_update = {
       "canUse": true,
       "canRead": true
     },
+    "schemaLanguage": true,
     "root": {
       "id": true,
       "created_at": true,

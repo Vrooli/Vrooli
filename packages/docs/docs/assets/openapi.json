@@ -5077,6 +5077,11 @@
             "$ref": "#/components/schemas/Api",
             "title": "ApiVersion.root"
           },
+          "schemaLanguage": {
+            "title": "ApiVersion.schemaLanguage",
+            "nullable": true,
+            "type": "string"
+          },
           "schemaText": {
             "title": "ApiVersion.schemaText",
             "nullable": true,
@@ -5208,6 +5213,11 @@
               }
             ],
             "title": "ApiVersionCreateInput.rootCreate"
+          },
+          "schemaLanguage": {
+            "title": "ApiVersionCreateInput.schemaLanguage",
+            "nullable": true,
+            "type": "string"
           },
           "schemaText": {
             "title": "ApiVersionCreateInput.schemaText",
@@ -5713,6 +5723,11 @@
             ],
             "title": "ApiVersionUpdateInput.rootUpdate"
           },
+          "schemaLanguage": {
+            "title": "ApiVersionUpdateInput.schemaLanguage",
+            "nullable": true,
+            "type": "string"
+          },
           "schemaText": {
             "title": "ApiVersionUpdateInput.schemaText",
             "nullable": true,
@@ -5877,6 +5892,10 @@
               "ProjectDelete",
               "ProjectFind",
               "ProjectUpdate",
+              "QuestionAdd",
+              "QuestionDelete",
+              "QuestionFind",
+              "QuestionUpdate",
               "ReminderAdd",
               "ReminderDelete",
               "ReminderFind",
@@ -43474,6 +43493,10 @@
               "ProjectDelete",
               "ProjectFind",
               "ProjectUpdate",
+              "QuestionAdd",
+              "QuestionDelete",
+              "QuestionFind",
+              "QuestionUpdate",
               "ReminderAdd",
               "ReminderDelete",
               "ReminderFind",

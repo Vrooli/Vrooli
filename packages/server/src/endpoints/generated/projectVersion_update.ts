@@ -95,6 +95,7 @@ export const projectVersion_update = {
         "canUse": true,
         "canRead": true
       },
+      "schemaLanguage": true,
       "root": {
         "id": true,
         "created_at": true,

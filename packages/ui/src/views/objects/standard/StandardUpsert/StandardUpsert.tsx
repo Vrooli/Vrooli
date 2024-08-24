@@ -1,11 +1,12 @@
-import { DUMMY_ID, endpointGetStandardVersion, endpointPostStandardVersion, endpointPutStandardVersion, InputType, LINKS, noopSubmit, orDefault, Session, StandardVersion, StandardVersionCreateInput, standardVersionTranslationValidation, StandardVersionUpdateInput, standardVersionValidation } from "@local/shared";
+import { AutoFillResult, CodeLanguage, DUMMY_ID, endpointGetStandardVersion, endpointPostStandardVersion, endpointPutStandardVersion, InputType, LINKS, LlmTask, noopSubmit, orDefault, SearchPageTabOption, Session, shapeStandardVersion, StandardVersion, StandardVersionCreateInput, StandardVersionShape, standardVersionTranslationValidation, StandardVersionUpdateInput, standardVersionValidation } from "@local/shared";
 import { Button, Divider, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
+import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { CodeInput, CodeLanguage } from "components/inputs/CodeInput/CodeInput";
+import { CodeInput } from "components/inputs/CodeInput/CodeInput";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
@@ -18,6 +19,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
+import { getAutoFillTranslationData, useAutoFill } from "hooks/useAutoFill";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
@@ -29,8 +31,6 @@ import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { SearchPageTabOption } from "utils/search/objectToSearch";
-import { shapeStandardVersion, StandardVersionShape } from "utils/shape/models/standardVersion";
 import { validateFormValues } from "utils/validateFormValues";
 import { StandardFormProps, StandardUpsertProps } from "../types";
 
@@ -84,6 +84,9 @@ export function standardInitialValues(
 function transformStandardVersionValues(values: StandardVersionShape, existing: StandardVersionShape, isCreate: boolean) {
     return isCreate ? shapeStandardVersion.create(values) : shapeStandardVersion.update(existing, values);
 }
+
+const relationshipListStyle = { marginBottom: 2 } as const;
+const formSectionStyle = { overflowX: "hidden", marginBottom: 2 } as const;
 
 function StandardForm({
     disabled,
@@ -139,7 +142,28 @@ function StandardForm({
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "StandardVersion" });
 
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+    const getAutoFillInput = useCallback(function getAutoFillInput() {
+        return {
+            ...getAutoFillTranslationData(values, language),
+            //TODO
+        };
+    }, [language, values]);
+
+    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback({ data }: AutoFillResult) {
+        const originalValues = { ...values };
+        const updatedValues = {} as any; //TODO
+        console.log("in shapeAutoFillResult", language, data, originalValues, updatedValues);
+        return { originalValues, updatedValues };
+    }, [language, values]);
+
+    const { autoFill, isAutoFillLoading } = useAutoFill({
+        getAutoFillInput,
+        shapeAutoFillResult,
+        handleUpdate,
+        task: isCreate ? LlmTask.StandardAdd : LlmTask.StandardUpdate,
+    });
+
+    const isLoading = useMemo(() => isAutoFillLoading || isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isAutoFillLoading, isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
     const onSubmit = useSubmitHelper<StandardVersionCreateInput | StandardVersionUpdateInput, StandardVersion>({
         disabled,
@@ -185,7 +209,7 @@ function StandardForm({
                         <RelationshipList
                             isEditing={true}
                             objectType={"Standard"}
-                            sx={{ marginBottom: 2 }}
+                            sx={relationshipListStyle}
                         />
                         <ResourceListInput
                             horizontal
@@ -193,9 +217,8 @@ function StandardForm({
                             parent={{ __typename: "StandardVersion", id: values.id }}
                             sxs={{ list: { marginBottom: 2 } }}
                         />
-                        <FormSection sx={{ overflowX: "hidden", marginBottom: 2 }}>
+                        <FormSection sx={formSectionStyle}>
                             <TranslatedTextInput
-                                autoFocus
                                 fullWidth
                                 label={t("Name")}
                                 language={language}
@@ -212,11 +235,11 @@ function StandardForm({
                             />
                             <LanguageInput
                                 currentLanguage={language}
+                                flexDirection="row-reverse"
                                 handleAdd={handleAddLanguage}
                                 handleDelete={handleDeleteLanguage}
                                 handleCurrent={setLanguage}
                                 languages={languages}
-                                sx={{ flexDirection: "row-reverse" }}
                             />
                         </FormSection>
                         <TagSelector name="root.tags" sx={{ marginBottom: 2 }} />
@@ -279,6 +302,10 @@ function StandardForm({
                 onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
+                sideActionButtons={<AutoFillButton
+                    handleAutoFill={autoFill}
+                    isAutoFillLoading={isAutoFillLoading}
+                />}
             />
         </MaybeLargeDialog >
     );

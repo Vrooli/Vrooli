@@ -1,4 +1,4 @@
-import { AutoFillResult, AVAILABLE_MODELS, BotCreateInput, BotShape, BotTranslationShape, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetUser, endpointPostBot, endpointPutBot, findBotData, LINKS, LlmModel, LlmTask, noopSubmit, SearchPageTabOption, Session, shapeBot, User, validateAndGetYupErrors } from "@local/shared";
+import { AutoFillResult, AVAILABLE_MODELS, BotCreateInput, BotShape, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetUser, endpointPostBot, endpointPutBot, findBotData, LINKS, LlmModel, LlmTask, noopSubmit, SearchPageTabOption, Session, shapeBot, User, validateAndGetYupErrors } from "@local/shared";
 import { Divider, InputAdornment, Slider, Stack, Typography } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
@@ -17,7 +17,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useAutoFill } from "hooks/useAutoFill";
+import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill } from "hooks/useAutoFill";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
@@ -219,6 +219,8 @@ const biasInputProps = {
         </InputAdornment>
     ),
 } as const;
+const relationshipListStyle = { marginBottom: 4 } as const;
+const formSectionStyle = { overflowX: "hidden" } as const;
 
 function BotForm({
     disabled,
@@ -229,6 +231,7 @@ function BotForm({
     isOpen,
     isReadLoading,
     onClose,
+    setFieldValue,
     values,
     ...props
 }: BotFormProps) {
@@ -293,48 +296,27 @@ function BotForm({
     });
 
     const getAutoFillInput = useCallback(function getAutoFillInput() {
-        const defaultTranslation = (values.translations?.find(t => t.language === language) ?? {
-            ...(values.translations?.length ? values.translations[0] : {}),
-        }) as Partial<BotTranslationShape> & { __typename?: string };
-
-        delete defaultTranslation.id;
-        delete defaultTranslation.language;
-        delete defaultTranslation.__typename;
-        const existingData = {
-            ...defaultTranslation,
+        return {
+            ...getAutoFillTranslationData(values, language),
             name: values.name,
         };
-        return existingData;
     }, [language, values]);
 
     const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback({ data }: AutoFillResult) {
         const originalValues = { ...values };
-        const { isBotDepictingPerson, name, ...rest } = data;
+        const { updatedTranslations, rest } = createUpdatedTranslations(values, data, language, ["bio", "occupation", "persona", "startingMessage", "tone", "keyPhrases", "domainKnowledge", "bias"]);
         delete rest.id;
-        const updatedTranslations: BotShape["translations"] = [];
-        if (Array.isArray(values.translations) && values.translations.length > 0) {
-            let languageIndex = values.translations.findIndex(t => t.language === language);
-            if (languageIndex < 0) {
-                languageIndex = 0;
-            }
-            for (let i = 0; i < values.translations.length; i++) {
-                if (i === languageIndex) {
-                    updatedTranslations.push({
-                        ...values.translations[i],
-                        ...rest,
-                        language,
-                        id: values.translations[i].id || DUMMY_ID,
-                    });
-                } else {
-                    updatedTranslations.push(values.translations[i]);
-                }
-            }
-        }
+        const creativity = typeof rest.creativity === "number" ? rest.creativity : values.creativity;
+        const isBotDepictingPerson = typeof rest.isBotDepictingPerson === "boolean" ? rest.isBotDepictingPerson : values.isBotDepictingPerson;
+        const name = typeof rest.name === "string" ? rest.name : values.name;
+        const verbosity = typeof rest.verbosity === "number" ? rest.verbosity : values.verbosity;
         const updatedValues = {
             ...values,
-            isBotDepictingPerson: typeof isBotDepictingPerson === "boolean" ? isBotDepictingPerson : values.isBotDepictingPerson,
-            name: name ?? values.name,
+            creativity,
+            isBotDepictingPerson,
+            name,
             translations: updatedTranslations,
+            verbosity,
         };
         return { originalValues, updatedValues };
     }, [language, values]);
@@ -347,6 +329,13 @@ function BotForm({
     });
 
     const isLoading = useMemo(() => isAutoFillLoading || isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isAutoFillLoading, isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+
+    const handleBannerImageChange = useCallback(function handleBannerImageChangeCallback(newPicture: File | null) {
+        setFieldValue("bannerImage", newPicture);
+    }, [setFieldValue]);
+    const handleProfileImageChange = useCallback(function handleProfileImageChangeCallback(newPicture: File | null) {
+        setFieldValue("profileImage", newPicture);
+    }, [setFieldValue]);
 
     return (
         <MaybeLargeDialog
@@ -374,15 +363,15 @@ function BotForm({
                         <RelationshipList
                             isEditing={true}
                             objectType={"User"}
-                            sx={{ marginBottom: 4 }}
+                            sx={relationshipListStyle}
                         />
                         <ProfilePictureInput
-                            onBannerImageChange={(newPicture) => props.setFieldValue("bannerImage", newPicture)}
-                            onProfileImageChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
+                            onBannerImageChange={handleBannerImageChange}
+                            onProfileImageChange={handleProfileImageChange}
                             name="profileImage"
-                            profile={{ ...values }}
+                            profile={values}
                         />
-                        <FormSection sx={{ overflowX: "hidden" }}>
+                        <FormSection sx={formSectionStyle}>
                             <Field
                                 fullWidth
                                 autoComplete="name"
@@ -546,7 +535,7 @@ function BotForm({
                 onSubmit={onSubmit}
                 sideActionButtons={<AutoFillButton
                     handleAutoFill={autoFill}
-                    isLoadingAutoFill={isLoadingAutoFill}
+                    isAutoFillLoading={isAutoFillLoading}
                 />}
             />
         </MaybeLargeDialog >

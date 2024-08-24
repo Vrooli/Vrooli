@@ -154,6 +154,7 @@ export const bookmark_findMany = {
               "canUse": true,
               "canRead": true
             },
+            "schemaLanguage": true,
             "translations": {
               "id": true,
               "language": true,

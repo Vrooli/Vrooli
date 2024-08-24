@@ -92,7 +92,9 @@ export interface CodeInputBaseProps {
     variables?: { [x: string]: JSONVariable };
 }
 
-export type CodeInputProps = Omit<CodeInputBaseProps, "codeLanguage" | "content" | "defaultValue" | "format" | "handleCodeLanguageChange" | "handleContentChange" | "variables">
+export type CodeInputProps = Omit<CodeInputBaseProps, "codeLanguage" | "content" | "defaultValue" | "format" | "handleCodeLanguageChange" | "handleContentChange" | "variables"> & {
+    codeLanguageField?: string;
+}
 
 export interface DateInputProps {
     isRequired?: boolean;

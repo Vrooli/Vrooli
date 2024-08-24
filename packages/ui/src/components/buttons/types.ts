@@ -5,7 +5,7 @@ import { FormErrors, SvgProps, SxType, ViewDisplayType } from "types";
 
 export type AutoFillButtonProps = {
     handleAutoFill: () => unknown;
-    isLoadingAutoFill: boolean;
+    isAutoFillLoading: boolean;
 }
 
 export interface AdvancedSearchButtonProps {

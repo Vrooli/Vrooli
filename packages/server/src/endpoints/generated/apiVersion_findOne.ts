@@ -209,6 +209,7 @@ export const apiVersion_findOne = {
     "name": true,
     "summary": true
   },
+  "schemaLanguage": true,
   "schemaText": true,
   "versionNotes": true,
   "__typename": "ApiVersion"

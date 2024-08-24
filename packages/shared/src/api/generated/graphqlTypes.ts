@@ -210,6 +210,7 @@ export type ApiVersion = {
   reportsCount: Scalars['Int'];
   resourceList?: Maybe<ResourceList>;
   root: Api;
+  schemaLanguage?: Maybe<Scalars['String']>;
   schemaText?: Maybe<Scalars['String']>;
   translations: Array<ApiVersionTranslation>;
   updated_at: Scalars['Date'];
@@ -229,6 +230,7 @@ export type ApiVersionCreateInput = {
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   rootConnect?: InputMaybe<Scalars['ID']>;
   rootCreate?: InputMaybe<ApiCreateInput>;
+  schemaLanguage?: InputMaybe<Scalars['String']>;
   schemaText?: InputMaybe<Scalars['String']>;
   translationsCreate?: InputMaybe<Array<ApiVersionTranslationCreateInput>>;
   versionLabel: Scalars['String'];
@@ -324,6 +326,7 @@ export type ApiVersionUpdateInput = {
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
   rootUpdate?: InputMaybe<ApiUpdateInput>;
+  schemaLanguage?: InputMaybe<Scalars['String']>;
   schemaText?: InputMaybe<Scalars['String']>;
   translationsCreate?: InputMaybe<Array<ApiVersionTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
@@ -11745,6 +11748,7 @@ export type ApiVersionResolvers<ContextType = any, ParentType extends ResolversP
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   resourceList?: Resolver<Maybe<ResolversTypes['ResourceList']>, ParentType, ContextType>;
   root?: Resolver<ResolversTypes['Api'], ParentType, ContextType>;
+  schemaLanguage?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   schemaText?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['ApiVersionTranslation']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;

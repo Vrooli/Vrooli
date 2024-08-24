@@ -1,11 +1,12 @@
-import { CodeType, CodeVersion, CodeVersionCreateInput, CodeVersionUpdateInput, DUMMY_ID, LINKS, Session, codeVersionTranslationValidation, codeVersionValidation, endpointGetCodeVersion, endpointPostCodeVersion, endpointPutCodeVersion, noopSubmit, orDefault } from "@local/shared";
-import { Button, Divider, useTheme } from "@mui/material";
+import { AutoFillResult, CodeLanguage, CodeShape, CodeType, CodeVersion, CodeVersionCreateInput, CodeVersionShape, CodeVersionUpdateInput, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, Session, codeVersionTranslationValidation, codeVersionValidation, endpointGetCodeVersion, endpointPostCodeVersion, endpointPutCodeVersion, noopSubmit, orDefault, shapeCodeVersion } from "@local/shared";
+import { Button, Divider } from "@mui/material";
 import { useSubmitHelper } from "api";
+import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { CodeInput, CodeLanguage } from "components/inputs/CodeInput/CodeInput";
+import { CodeInput } from "components/inputs/CodeInput/CodeInput";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
@@ -17,20 +18,18 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
+import { getAutoFillTranslationData, useAutoFill } from "hooks/useAutoFill";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { HelpIcon } from "icons";
-import { useContext, useMemo } from "react";
+import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { SearchPageTabOption } from "utils/search/objectToSearch";
-import { CodeShape } from "utils/shape/models/code";
-import { CodeVersionShape, shapeCodeVersion } from "utils/shape/models/codeVersion";
 import { validateFormValues } from "utils/validateFormValues";
 import { CodeFormProps, CodeUpsertProps } from "../types";
 
@@ -102,6 +101,10 @@ function parseList(input) {
 }
 `.trim();
 
+const codeLimitTo = [CodeLanguage.Javascript] as const;
+const relationshipListStyle = { marginBottom: 2 } as const;
+const formSectionStyle = { overflowX: "hidden", marginBottom: 2 } as const;
+
 function CodeForm({
     disabled,
     dirty,
@@ -121,7 +124,6 @@ function CodeForm({
 }: CodeFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
-    const { palette } = useTheme();
 
     // Handle translations
     const {
@@ -156,7 +158,28 @@ function CodeForm({
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "CodeVersion" });
 
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+    const getAutoFillInput = useCallback(function getAutoFillInput() {
+        return {
+            ...getAutoFillTranslationData(values, language),
+            //TODO
+        };
+    }, [language, values]);
+
+    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback({ data }: AutoFillResult) {
+        const originalValues = { ...values };
+        const updatedValues = {} as any; //TODO
+        console.log("in shapeAutoFillResult", language, data, originalValues, updatedValues);
+        return { originalValues, updatedValues };
+    }, [language, values]);
+
+    const { autoFill, isAutoFillLoading } = useAutoFill({
+        getAutoFillInput,
+        shapeAutoFillResult,
+        handleUpdate,
+        task: isCreate ? LlmTask.DataConverterAdd : LlmTask.DataConverterUpdate,
+    });
+
+    const isLoading = useMemo(() => isAutoFillLoading || isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isAutoFillLoading, isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
     const onSubmit = useSubmitHelper<CodeVersionCreateInput | CodeVersionUpdateInput, CodeVersion>({
         disabled,
@@ -168,8 +191,8 @@ function CodeForm({
         onCompleted: () => { props.setSubmitting(false); },
     });
 
-    const [codeLanguageField, , codeLanguageHelpers] = useField<CodeLanguage>("codeLanguage");
-    const [contentField, , contentHelpers] = useField<string>("content");
+    const [, , codeLanguageHelpers] = useField<CodeLanguage>("codeLanguage");
+    const [, , contentHelpers] = useField<string>("content");
     function showExample() {
         // We only have an example for JavaScript, so switch to that
         codeLanguageHelpers.setValue(CodeLanguage.Javascript);
@@ -203,7 +226,7 @@ function CodeForm({
                         <RelationshipList
                             isEditing={true}
                             objectType={"Code"}
-                            sx={{ marginBottom: 2 }}
+                            sx={relationshipListStyle}
                         />
                         <ResourceListInput
                             horizontal
@@ -211,9 +234,8 @@ function CodeForm({
                             parent={{ __typename: "CodeVersion", id: values.id }}
                             sxs={{ list: { marginBottom: 2 } }}
                         />
-                        <FormSection sx={{ overflowX: "hidden", marginBottom: 2 }}>
+                        <FormSection sx={formSectionStyle}>
                             <TranslatedTextInput
-                                autoFocus
                                 fullWidth
                                 label={t("Name")}
                                 language={language}
@@ -230,11 +252,11 @@ function CodeForm({
                             />
                             <LanguageInput
                                 currentLanguage={language}
+                                flexDirection="row-reverse"
                                 handleAdd={handleAddLanguage}
                                 handleDelete={handleDeleteLanguage}
                                 handleCurrent={setLanguage}
                                 languages={languages}
-                                sx={{ flexDirection: "row-reverse" }}
                             />
                         </FormSection>
                         <TagSelector name="root.tags" sx={{ marginBottom: 2 }} />
@@ -271,7 +293,7 @@ function CodeForm({
                     >
                         <CodeInput
                             disabled={false}
-                            limitTo={[CodeLanguage.Javascript]}
+                            limitTo={codeLimitTo}
                             name="content"
                         />
                     </ContentCollapse>
@@ -286,6 +308,10 @@ function CodeForm({
                 onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
+                sideActionButtons={<AutoFillButton
+                    handleAutoFill={autoFill}
+                    isAutoFillLoading={isAutoFillLoading}
+                />}
             />
         </MaybeLargeDialog>
     );

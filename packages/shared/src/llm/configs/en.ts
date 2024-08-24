@@ -154,6 +154,15 @@ export const config: LlmTaskConfig = {
             description: "Whether the API is private or publicly accessible.",
             example: "true, false",
         },
+        schemaLanguage: {
+            description: "The language used to define the API schema. Must be one of the \"examples\" types. \"yaml\" is preferred.",
+            type: "enum",
+            examples: ["javascript", "graphql", "yaml"]
+        },
+        schemaText: {
+            description: "The schema for the API, in the language specified by \"schemaLanguage\". Prefer writing the schema using the OpenAPI Specification version 3.1.0, unless specified otherwise.",
+            type: "string",
+        },
     },
     ApiAdd: () => ({
         label: "Add API",
@@ -168,6 +177,8 @@ export const config: LlmTaskConfig = {
             ["callLink", true],
             ["documentationLink", false],
             ["isPrivate", true],
+            ["schemaLanguage", true],
+            ["schemaText", true],
         ], config.__apiProperties),
     }),
     ApiDelete: () => ({
@@ -211,6 +222,8 @@ export const config: LlmTaskConfig = {
             ["callLink", false],
             ["documentationLink", false],
             ["isPrivate", false],
+            ["schemaLanguage", false],
+            ["schemaText", false],
         ], config.__apiProperties),
     }),
     __bot_properties: {

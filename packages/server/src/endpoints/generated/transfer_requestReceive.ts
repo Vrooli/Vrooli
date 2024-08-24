@@ -154,6 +154,7 @@ export const transfer_requestReceive = {
           "canUse": true,
           "canRead": true
         },
+        "schemaLanguage": true,
         "translations": {
           "id": true,
           "language": true,

@@ -1,4 +1,4 @@
-import { AutoFillInput, AutoFillResult, LlmTask, endpointGetAutoFill } from "@local/shared";
+import { AutoFillInput, AutoFillResult, DUMMY_ID, LlmTask, endpointGetAutoFill, getTranslation } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { useCallback } from "react";
 import { PubSub } from "utils/pubsub";
@@ -45,6 +45,86 @@ function cleanInput(input: AutoFillInput["data"]): AutoFillInput["data"] {
         }
     });
     return input;
+}
+
+/**
+ * Finds relevant autofill data from the current translation
+ * @param values The current form values, where translation data is stored in 
+ * a `translations` array
+ * @params language The current language being edited
+ * @returns The translation data to send to the autofill endpoint, notably with 
+ * fields like `language` and `id` omitted
+ */
+export function getAutoFillTranslationData<
+    Translation extends { language: string },
+>(
+    values: { translations?: Translation[] | null | undefined },
+    language: string,
+): object {
+    const currentTranslation = { ...getTranslation(values, [language], true) } as Record<string, unknown>;
+    delete currentTranslation.id;
+    delete currentTranslation.language;
+    delete currentTranslation.__typename;
+    return currentTranslation;
+}
+
+/**
+ * Creates updated translations based on autofill results and the current language.
+ * @param values The current form values, where translation data is stored in
+ * @param autofillData The data received from the autofill process, which contains translation 
+ * and other data
+ * @param language The current language being edited
+ * @param translatedFields Fields that should be included in the updated translations
+ * @returns An object containing the updated translations array and an object with the non-translated fields
+ */
+export function createUpdatedTranslations<
+    Translation extends { language: string },
+>(
+    values: { translations?: Translation[] | null | undefined },
+    autofillData: object,
+    language: string,
+    translatedFields: string[],
+): { updatedTranslations: Translation[], rest: Record<string, unknown> } {
+    const updatedTranslations: Translation[] = [];
+    const updatedTranslationFields: Partial<Translation> = {};
+    const rest: Record<string, unknown> = { ...autofillData };
+
+    // Extract translated fields from autofill data
+    translatedFields.forEach(field => {
+        if (Object.prototype.hasOwnProperty.call(autofillData, field)) {
+            updatedTranslationFields[field] = autofillData[field];
+            delete rest[field];
+        }
+    });
+
+    // We can only update translations if they existed in the first place
+    if (!values.translations || !Array.isArray(values.translations) || values.translations.length === 0) {
+        return { updatedTranslations, rest };
+    }
+
+    // Use the original translations to find the correct index to update
+    let languageIndex = values.translations.findIndex(t => t.language === language);
+    if (languageIndex < 0) {
+        languageIndex = 0; // Fallback to first translation if the language doesn't exist
+    }
+
+    values.translations.forEach((translation, index) => {
+        if (index === languageIndex) {
+            // Merge autofill data into the current translation, excluding non-translated fields
+            updatedTranslations.push({
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-ignore This is in case the translation is missing a language
+                language,
+                ...translation,
+                ...updatedTranslationFields,
+                id: (translation as { id?: string }).id || DUMMY_ID,
+            });
+        } else {
+            updatedTranslations.push(translation);
+        }
+    });
+
+    return { updatedTranslations, rest };
 }
 
 /**

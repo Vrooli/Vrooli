@@ -3,6 +3,9 @@ import { bool, details, id, maxStrErr, minStrErr, name, opt, req, summary, trans
 import { apiValidation } from "./api";
 import { resourceListValidation } from "./resourceList";
 
+// eslint-disable-next-line no-magic-numbers
+export const schemaLanguage = yup.string().trim().removeEmptyString().min(1, minStrErr).max(128, maxStrErr);
+// eslint-disable-next-line no-magic-numbers
 export const schemaText = yup.string().trim().removeEmptyString().min(3, minStrErr).max(16384, maxStrErr);
 
 export const apiVersionTranslationValidation: YupModel<["create", "update"]> = transRel({
@@ -24,6 +27,7 @@ export const apiVersionValidation: YupModel<["create", "update"]> = {
         callLink: opt(url(d)),
         documentationLink: opt(url(d)),
         isPrivate: opt(bool),
+        schemaLanguage: opt(schemaLanguage),
         schemaText: opt(schemaText),
         versionLabel: req(versionLabel(d)),
         versionNotes: opt(versionNotes),
@@ -38,6 +42,7 @@ export const apiVersionValidation: YupModel<["create", "update"]> = {
         callLink: opt(url(d)),
         documentationLink: opt(url(d)),
         isPrivate: opt(bool),
+        schemaLanguage: opt(schemaLanguage),
         schemaText: opt(schemaText),
         versionLabel: opt(versionLabel(d)),
         versionNotes: opt(versionNotes),

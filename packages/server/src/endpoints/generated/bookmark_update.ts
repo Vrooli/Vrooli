@@ -158,6 +158,7 @@ export const bookmark_update = {
           "canUse": true,
           "canRead": true
         },
+        "schemaLanguage": true,
         "translations": {
           "id": true,
           "language": true,

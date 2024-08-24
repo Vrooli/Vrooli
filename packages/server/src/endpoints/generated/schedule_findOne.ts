@@ -1399,6 +1399,7 @@ export const schedule_findOne = {
           "name": true,
           "summary": true
         },
+        "schemaLanguage": true,
         "schemaText": true,
         "versionNotes": true,
         "__typename": "ApiVersion"
