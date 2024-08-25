@@ -658,10 +658,17 @@ export const config: LlmTaskConfig = {
     }),
     __questionProperties: {
         id: {
-            description: "The ID of the question.",
+            description: "Unique identifier for the question.",
             type: "uuid",
         },
-        //...
+        name: {
+            description: "The question in under 128 characters.",
+            example: "How do I start a business?",
+        },
+        description: {
+            description: "More information about the question, in as much detail as needed.",
+            example: "I'm looking to start a business, but I'm not sure where to begin. I have some ideas, but I'm not sure how to validate them or what steps to take next.",
+        },
     },
     QuestionAdd: () => ({
         label: "Add Question",
@@ -669,7 +676,8 @@ export const config: LlmTaskConfig = {
             add: "Create a question with the provided properties.",
         },
         properties: config.__pick_properties([
-            //...
+            ["name", true],
+            ["description", true],
         ], config.__questionProperties),
     }),
     QuestionDelete: () => ({
@@ -705,7 +713,9 @@ export const config: LlmTaskConfig = {
             update: "Update a question with the provided properties.",
         },
         properties: config.__pick_properties([
-            //...
+            ["id", true],
+            ["name", false],
+            ["description", false],
         ], config.__questionProperties),
     }),
     __reminderProperties: {
@@ -1015,13 +1025,38 @@ export const config: LlmTaskConfig = {
         ], config.__scheduleProperties),
     }),
     __smartContractProperties: {
+        id: {
+            description: "Unique identifier for the smart contract.",
+            type: "uuid",
+        },
         name: {
-            example: "WeatherAPI",
+            description: "The name of the smart contract.",
+            example: "TokenSwap",
         },
         description: {
-            example: "Provides current weather information for a given location.",
+            description: "A brief description of what the smart contract does.",
+            example: "Facilitates token swaps between two parties on the blockchain.",
         },
-        //...
+        version: {
+            description: "Current version of the smart contract.",
+            example: "1.0.0",
+        },
+        isPrivate: {
+            description: "Whether the smart contract is private or publicly accessible.",
+            type: "boolean",
+            default: true,
+        },
+        codeLanguage: {
+            description: "The programming language used for the smart contract.",
+            type: "string",
+            examples: ["solidity", "haskell"],
+            default: "solidity",
+        },
+        content: {
+            description: "The smart contract code, written as a string. If the `codeLanguage` is \"solidity\", generate Solidity code (used by many chains, namely Ethereum). If the `codeLanguage` is \"haskell\", generate Plutus code (used in the Cardano ecosystem). Always use the latest version. Begin with a detailed comment block explaining the contract's purpose, its functions, and any important details. Include appropriate comments throughout the code to explain complex logic or important considerations. Do not include any external imports or dependencies.",
+            type: "string",
+            example: "pragma solidity ^0.8.0;\n\n/**\n * @title TokenSwap\n * @dev Implements a simple token swap between two parties\n * @notice This contract allows two parties to swap ERC20 tokens\n */\ncontract TokenSwap {\n    // Contract implementation...\n}"
+        }
     },
     SmartContractAdd: () => ({
         label: "Add Smart Contract",
@@ -1029,7 +1064,12 @@ export const config: LlmTaskConfig = {
             add: "Create a smart contract with the provided properties.",
         },
         properties: config.__pick_properties([
-            //...
+            ["name", true],
+            ["description", true],
+            ["version", true],
+            ["isPrivate", true],
+            ["codeLanguage", true],
+            ["content", true],
         ], config.__smartContractProperties),
     }),
     SmartContractDelete: () => ({
@@ -1065,7 +1105,13 @@ export const config: LlmTaskConfig = {
             update: "Update a smart contract with the provided properties.",
         },
         properties: config.__pick_properties([
-            //...
+            ["id", true],
+            ["name", false],
+            ["description", false],
+            ["version", false],
+            ["isPrivate", false],
+            ["codeLanguage", false],
+            ["content", false],
         ], config.__smartContractProperties),
     }),
     __standardProperties: {

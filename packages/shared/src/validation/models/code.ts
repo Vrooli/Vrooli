@@ -7,7 +7,7 @@ export const codeValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
         isPrivate: opt(bool),
-        permissions: req(permissions),
+        permissions: opt(permissions),
     }, [
         ["ownedByUser", ["Connect"], "one", "opt"],
         ["ownedByTeam", ["Connect"], "one", "opt"],

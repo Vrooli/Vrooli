@@ -18,7 +18,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { getAutoFillTranslationData, useAutoFill } from "hooks/useAutoFill";
+import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill } from "hooks/useAutoFill";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
@@ -41,7 +41,7 @@ export function smartContractInitialValues(
         __typename: "CodeVersion" as const,
         id: DUMMY_ID,
         calledByRoutineVersionsCount: 0,
-        codeLanguage: CodeLanguage.Javascript,
+        codeLanguage: CodeLanguage.Solidity,
         codeType: CodeType.SmartContract,
         content: "",
         directoryListings: [],
@@ -215,14 +215,29 @@ function SmartContractForm({
     const getAutoFillInput = useCallback(function getAutoFillInput() {
         return {
             ...getAutoFillTranslationData(values, language),
-            //TODO
+            codeLanguage: values.codeLanguage,
+            content: values.content,
+            isPrivate: values.isPrivate,
+            version: values.versionLabel,
         };
     }, [language, values]);
 
     const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback({ data }: AutoFillResult) {
         const originalValues = { ...values };
-        const updatedValues = {} as any; //TODO
-        console.log("in shapeAutoFillResult", language, data, originalValues, updatedValues);
+        const { updatedTranslations, rest } = createUpdatedTranslations(values, data, language, ["name", "description"]);
+        delete rest.id;
+        const codeLanguage = typeof rest.codeLanguage === "string" ? rest.codeLanguage : values.codeLanguage;
+        const content = typeof rest.content === "string" ? rest.content : values.content;
+        const isPrivate = typeof rest.isPrivate === "boolean" ? rest.isPrivate : values.isPrivate;
+        const versionLabel = typeof rest.version === "string" ? rest.version : values.versionLabel;
+        const updatedValues = {
+            ...values,
+            codeLanguage,
+            content,
+            isPrivate,
+            translations: updatedTranslations,
+            versionLabel,
+        };
         return { originalValues, updatedValues };
     }, [language, values]);
 

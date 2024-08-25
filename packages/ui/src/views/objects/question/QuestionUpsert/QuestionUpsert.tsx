@@ -13,7 +13,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { getAutoFillTranslationData, useAutoFill } from "hooks/useAutoFill";
+import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill } from "hooks/useAutoFill";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
@@ -109,14 +109,17 @@ function QuestionForm({
     const getAutoFillInput = useCallback(function getAutoFillInput() {
         return {
             ...getAutoFillTranslationData(values, language),
-            //TODO
         };
     }, [language, values]);
 
     const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback({ data }: AutoFillResult) {
         const originalValues = { ...values };
-        const updatedValues = {} as any; //TODO
-        console.log("in shapeAutoFillResult", language, data, originalValues, updatedValues);
+        const { updatedTranslations, rest } = createUpdatedTranslations(values, data, language, ["name", "description"]);
+        delete rest.id;
+        const updatedValues = {
+            ...values,
+            translations: updatedTranslations,
+        };
         return { originalValues, updatedValues };
     }, [language, values]);
 
