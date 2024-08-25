@@ -1,9 +1,8 @@
 import { stringifySearchParams } from "@local/shared";
-import { Box, Button, Checkbox, Divider, IconButton, Stack, Tooltip, Typography } from "@mui/material";
+import { Box, Button, Checkbox, Stack, Typography, styled } from "@mui/material";
 import BunnyCrash from "assets/img/BunnyCrash.svg";
-import { ArrowDropDownIcon, ArrowDropUpIcon, CopyIcon, HomeIcon, RefreshIcon } from "icons";
+import { HomeIcon, RefreshIcon } from "icons";
 import { Component } from "react";
-import { SlideImage } from "styles";
 import { ErrorBoundaryProps } from "../../views/types";
 
 interface ErrorBoundaryState {
@@ -17,6 +16,90 @@ interface ErrorBoundaryState {
     shouldSendReport: boolean;
     showDetails: boolean;
 }
+
+const OuterBox = styled(Box)(() => ({
+    position: "fixed",
+    overflow: "auto",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: "100vh",
+    backgroundColor: "#2b3539",
+    color: "white",
+    textAlign: "center",
+    // Style visited, active, and hovered links
+    "& span, p": {
+        "& a": {
+            color: "#dd86db",
+            "&:visited": {
+                color: "#f551ef",
+            },
+            "&:active": {
+                color: "#f551ef",
+            },
+            "&:hover": {
+                color: "#f3d4f2",
+            },
+        },
+    },
+}));
+
+const InnerBox = styled(Box)(() => ({
+    display: "flex",
+    flexDirection: "column",
+    gap: "1rem",
+    maxWidth: "600px",
+    width: "90%",
+    maxHeight: "90vh",
+    margin: "0 auto",
+}));
+
+const UhOhImage = styled("img")(() => ({
+    maxWidth: "max(150px, 50%)",
+    margin: "auto",
+    marginBottom: "1rem",
+}));
+
+const ErrorMessageBox = styled(Box)(() => ({
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 0, 0, 0.1)",
+    border: "1px solid #ff0000",
+    borderRadius: "4px",
+    padding: "1rem",
+    marginBottom: "2rem",
+    maxWidth: "100%",
+    width: "auto",
+    height: "100%",
+    minHeight: "100px",
+    overflowX: "auto",
+}));
+
+const CrashLogsBox = styled(Box)(() => ({
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+}));
+
+const CrashLogsCheckbox = styled(Checkbox)(() => ({
+    color: "white",
+    "&.Mui-checked": {
+        color: "#42f9a3",
+    },
+}));
+
+const ActionButton = styled(Button)(() => ({
+    backgroundColor: "#16a361",
+}));
+
+const actionButtonDirection = { xs: "column", sm: "row" } as const;
 
 /**
  * Displays an error message if a child component throws an error.
@@ -71,161 +154,65 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         });
     };
 
+    toHome = () => {
+        window.location.assign("/");
+    };
+
     render() {
         const { hasError, error, mailToUrl, showDetails } = this.state;
-        if (hasError) {
-            return (
-                <Box
-                    sx={{
-                        display: "flex",
-                        overflow: "auto",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        height: "100%",
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        paddingLeft: "16px",
-                        paddingRight: "16px",
-                        backgroundColor: "#2b3539",
-                        maxWidth: "100vw",
-                        maxHeight: "100vh",
-                        color: "white",
-                        // Style visited, active, and hovered links
-                        "& span, p": {
-                            "& a": {
-                                color: "#dd86db",
-                                "&:visited": {
-                                    color: "#f551ef",
-                                },
-                                "&:active": {
-                                    color: "#f551ef",
-                                },
-                                "&:hover": {
-                                    color: "#f3d4f2",
-                                },
-                            },
-                        },
-                    }}
-                >
-                    <Stack
-                        direction="column"
-                        spacing={4}
-                        style={{
-                            textAlign: "center",
-                            maxWidth: "100%",
-                            maxHeight: "100%",
-                        }}
-                    >
-                        <Box sx={{
-                            justifyContent: "center",
-                            height: "100%",
-                            display: "flex",
-                            "& > img": {
-                                maxWidth: `min(500px, ${showDetails ? "33%" : "100%"})`,
-                                maxHeight: "100%",
-                                zIndex: "3",
-                            },
-                        }}>
-                            <SlideImage
-                                alt="A lop-eared bunny calling for tech support."
-                                src={BunnyCrash}
-                            />
-                        </Box>
-                        <Typography variant="h4">Uh oh! Something went wrong 😔</Typography>
-                        <Box sx={{
-                            border: "1px solid red",
-                            borderRadius: "8px",
-                            background: "#480202",
-                            color: "white",
-                            maxWidth: "100%",
-                            maxHeight: "50vh",
-                            minHeight: "40px",
-                            overflow: "auto",
-                        }}>
-                            <Stack
-                                direction="row"
-                                spacing={1}
-                                justifyContent="center"
-                                alignItems="center"
-                                sx={{ backgroundColor: showDetails ? "#300101" : "inherit" }}
-
-                            >
-                                <Tooltip title="Copy">
-                                    <IconButton onClick={this.copyError}>
-                                        <CopyIcon fill="#42f9a3" />
-                                    </IconButton>
-                                </Tooltip>
-                                <Typography variant="body1">
-                                    {error?.toString() ?? ""}
-                                </Typography>
-                                <IconButton onClick={this.toggleDetails}>
-                                    {showDetails ? <ArrowDropUpIcon fill="#42f9a3" /> : <ArrowDropDownIcon fill="#42f9a3" />}
-                                </IconButton>
-                            </Stack>
-                            {showDetails && (
-                                <>
-                                    <Divider sx={{ backgroundColor: "#950000" }} />
-                                    <Typography
-                                        variant="body2"
-                                        style={{
-                                            textAlign: "left",
-                                            whiteSpace: "pre-wrap",
-                                            lineHeight: "2",
-                                            padding: "8px",
-                                        }}
-                                    >
-                                        {error?.stack ?? ""}
-                                    </Typography>
-                                </>
-                            )}
-                        </Box>
+        if (!hasError) return this.props.children;
+        return (
+            <OuterBox id="errorBoundary">
+                <InnerBox>
+                    <UhOhImage
+                        src={BunnyCrash}
+                        alt="Cute bunny with a hard hat and phone"
+                    />
+                    <Typography variant="h5" gutterBottom>
+                        Uh oh! Something went wrong 😔
+                    </Typography>
+                    <ErrorMessageBox>
                         <Typography variant="body1">
-                            Please try refreshing the page. If the problem persists, you can{" "}
-                            <a href={mailToUrl} target="_blank" rel="noopener noreferrer">
-                                contact us
-                            </a>{" "}
-                            and we will try to help you as soon as possible.
+                            {(showDetails ? error?.stack : error?.message) || "An unexpected error occurred."}
                         </Typography>
-                        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
-                            <Checkbox
-                                checked={this.state.shouldSendReport}
-                                onChange={this.toggleSendReport}
-                                sx={{
-                                    color: "white",
-                                    "&.Mui-checked": {
-                                        color: "#42f9a3",
-                                    },
-                                }}
-                            />
-                            <Typography>Send crash logs</Typography>
-                        </Box>
-                        <Stack direction="row" spacing={2} pt={2} pb={4} justifyContent="center" alignItems="center">
-                            <Button
-                                fullWidth
-                                variant="contained"
-                                startIcon={<RefreshIcon />}
-                                onClick={this.handleRefresh}
-                                sx={{ marginTop: "16px", backgroundColor: "#16a361" }}
-                            >
-                                Refresh
-                            </Button>
-                            <Button
-                                fullWidth
-                                variant="contained"
-                                startIcon={<HomeIcon />}
-                                onClick={() => window.location.assign("/")}
-                                sx={{ marginTop: "16px", backgroundColor: "#16a361" }}
-                            >
-                                Go to Home
-                            </Button>
-                        </Stack>
+                        <Button variant="text" onClick={this.toggleDetails}>
+                            {showDetails ? "Hide" : "Show"} Details
+                        </Button>
+                    </ErrorMessageBox>
+                    <Typography variant="body1" gutterBottom>
+                        If the problem persists, {" "}
+                        <a href={mailToUrl} target="_blank" rel="noopener noreferrer">
+                            email us
+                        </a>{" "}
+                        and we will try to help as soon as possible.
+                    </Typography>
+                    <CrashLogsBox>
+                        <CrashLogsCheckbox
+                            checked={this.state.shouldSendReport}
+                            onChange={this.toggleSendReport}
+                        />
+                        <Typography variant="body2">Send crash logs</Typography>
+                    </CrashLogsBox>
+                    <Stack direction={actionButtonDirection} spacing={2} pb={4} justifyContent="center" alignItems="center">
+                        <ActionButton
+                            fullWidth
+                            variant="contained"
+                            startIcon={<RefreshIcon />}
+                            onClick={this.handleRefresh}
+                        >
+                            Refresh
+                        </ActionButton>
+                        <ActionButton
+                            fullWidth
+                            variant="contained"
+                            startIcon={<HomeIcon />}
+                            onClick={this.toHome}
+                        >
+                            Go to Home
+                        </ActionButton>
                     </Stack>
-                </Box>
-            );
-        }
-        return this.props.children;
+                </InnerBox>
+            </OuterBox>
+        );
     }
 }
