@@ -65,7 +65,7 @@ export function CodeView({
 
     const actionData = useObjectActions({
         object: existing,
-        objectType: "Code",
+        objectType: "CodeVersion",
         openAddCommentDialog,
         setLocation,
         setObject: setCodeVersion,

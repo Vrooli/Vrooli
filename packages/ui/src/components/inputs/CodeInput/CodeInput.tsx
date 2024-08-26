@@ -16,7 +16,7 @@ import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { getCookieMatchingChat } from "utils/cookies";
 import { generateContext } from "utils/display/stringTools";
-import { PubSub } from "utils/pubsub";
+import { CHAT_SIDE_MENU_ID, PubSub } from "utils/pubsub";
 import { ChatCrud, VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
 import { ChatCrudProps } from "views/objects/chat/types";
 import { CodeInputBaseProps, CodeInputProps } from "../types";
@@ -639,7 +639,7 @@ export function CodeInputBase({
     // Handle assistant dialog
     const closeAssistantDialog = useCallback(() => {
         setAssistantDialogProps(props => ({ ...props, context: undefined, isOpen: false, overrideObject: undefined } as ChatCrudProps));
-        PubSub.get().publish("sideMenu", { id: "chat-side-menu", idPrefix: "standard", isOpen: false });
+        PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen: false });
     }, []);
     const [assistantDialogProps, setAssistantDialogProps] = useState<ChatCrudProps>({
         context: undefined,

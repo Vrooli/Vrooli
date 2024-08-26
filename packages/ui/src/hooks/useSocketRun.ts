@@ -17,7 +17,6 @@ export function processRunTaskUpdate(
     handleRunUpdate: (run: RunProject | RunRoutine) => unknown,
     payload: RunTaskInfo,
 ) {
-    console.log("qqqq in processRunTaskUpdate", payload);
     if (payload.status === TaskStatus.Failed) {
         PubSub.get().publish("snack", { messageKey: "ActionFailed", severity: "Error" });
     }

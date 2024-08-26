@@ -58,7 +58,7 @@ export function StandardView({
 
     const actionData = useObjectActions({
         object: existing,
-        objectType: "Standard",
+        objectType: "StandardVersion",
         openAddCommentDialog,
         setLocation,
         setObject: setStandardVersion,

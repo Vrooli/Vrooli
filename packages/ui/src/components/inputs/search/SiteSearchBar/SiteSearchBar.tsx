@@ -387,6 +387,7 @@ export function SiteSearchBar({
             display: "flex",
             alignItems: "center",
             borderRadius: "10px",
+            height: "48px",
         };
     }, [sxs?.paper]);
 

@@ -1,5 +1,5 @@
 import { API_CREDITS_MULTIPLIER, ActionOption, HistoryPageTabOption, LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User, endpointPostAuthLogout, endpointPostAuthSwitchCurrentAccount, endpointPutProfile, noop, profileValidation, shapeProfile } from "@local/shared";
-import { Avatar, Box, Collapse, Divider, IconButton, Link, List, ListItem, ListItemIcon, ListItemText, Palette, SwipeableDrawer, Typography, useTheme } from "@mui/material";
+import { Avatar, Box, Collapse, Divider, IconButton, Link, List, ListItem, ListItemIcon, ListItemText, Palette, SwipeableDrawer, Typography, styled, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
 import { fetchLazyWrapper } from "api";
 import { FocusModeSelector } from "components/inputs/FocusModeSelector/FocusModeSelector";
@@ -21,12 +21,13 @@ import { useLocation } from "route";
 import { noSelect } from "styles";
 import { SvgComponent } from "types";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
+import { RIGHT_DRAWER_WIDTH } from "utils/consts";
 import { removeCookie } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
 import { openObject } from "utils/navigation/openObject";
 import { Actions, performAction, toActionOption } from "utils/navigation/quickActions";
 import { NAV_ACTION_TAGS, NavAction, getUserActions } from "utils/navigation/userActions";
-import { PubSub } from "utils/pubsub";
+import { PubSub, SIDE_MENU_ID } from "utils/pubsub";
 
 export const sideMenuDisplayData = {
     persistentOnDesktop: true,
@@ -37,22 +38,36 @@ export const sideMenuDisplayData = {
 // Limited by cookie size (4kb)
 const MAX_ACCOUNTS = 10;
 
-const zIndex = 1300;
-const id = "side-menu";
+const drawerPaperProps = { id: SIDE_MENU_ID } as const;
 
-const NavListItem = ({ label, Icon, onClick, palette }: {
+function NavListItem({ label, Icon, onClick, palette }: {
     label: string;
     Icon: SvgComponent;
     onClick: (event: React.MouseEvent<HTMLElement>) => unknown;
     palette: Palette;
-}) => (
-    <ListItem button onClick={onClick}>
-        <ListItemIcon>
-            <Icon fill={palette.background.textPrimary} />
-        </ListItemIcon>
-        <ListItemText primary={label} />
-    </ListItem>
-);
+}) {
+    return (
+        <ListItem button onClick={onClick}>
+            <ListItemIcon>
+                <Icon fill={palette.background.textPrimary} />
+            </ListItemIcon>
+            <ListItemText primary={label} />
+        </ListItem>
+    );
+}
+
+const SizedDrawer = styled(SwipeableDrawer)(() => ({
+    width: RIGHT_DRAWER_WIDTH,
+    flexShrink: 0,
+    "& .MuiDrawer-paper": {
+        width: RIGHT_DRAWER_WIDTH,
+        boxSizing: "border-box",
+    },
+    "& > .MuiDrawer-root": {
+        "& > .MuiPaper-root": {
+        },
+    },
+}));
 
 export function SideMenu() {
     const session = useContext(SessionContext);
@@ -66,10 +81,10 @@ export function SideMenu() {
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
     // Handle opening and closing
-    const { isOpen, close } = useSideMenu({ id, isMobile });
+    const { isOpen, close } = useSideMenu({ id: SIDE_MENU_ID, isMobile });
     // When moving between mobile/desktop, publish current state
     useEffect(() => {
-        PubSub.get().publish("sideMenu", { id, isOpen });
+        PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen });
     }, [breakpoints, isOpen]);
 
     // Display settings collapse
@@ -165,7 +180,7 @@ export function SideMenu() {
                 removeCookie("FormData"); // Clear old form data cache
                 localStorage.removeItem("isLoggedIn");
                 PubSub.get().publish("session", data);
-                PubSub.get().publish("sideMenu", { id: "side-menu", isOpen: false });
+                PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: false });
             },
             // If error, log out anyway
             onError: () => { PubSub.get().publish("session", guestSession); },
@@ -214,27 +229,13 @@ export function SideMenu() {
     ), [accounts, handleUserClick]);
 
     return (
-        <SwipeableDrawer
+        <SizedDrawer
             anchor={isLeftHanded ? "left" : "right"}
             open={isOpen}
             onOpen={noop}
             onClose={handleClose}
-            PaperProps={{ id }}
+            PaperProps={drawerPaperProps}
             variant={isMobile ? "temporary" : "persistent"}
-            sx={{
-                zIndex,
-                "& .MuiDrawer-paper": {
-                    background: palette.background.default,
-                    overflowY: "auto",
-                    borderLeft: palette.mode === "light" ? "none" : `1px solid ${palette.divider}`,
-                    zIndex,
-                },
-                "& > .MuiDrawer-root": {
-                    "& > .MuiPaper-root": {
-                        zIndex,
-                    },
-                },
-            }}
         >
             {/* Menu title with close icon */}
             <Box
@@ -372,6 +373,6 @@ export function SideMenu() {
                     <ContactInfo />
                 </Collapse>
             </Box>
-        </SwipeableDrawer>
+        </SizedDrawer>
     );
 }

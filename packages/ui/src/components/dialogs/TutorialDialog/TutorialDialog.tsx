@@ -8,7 +8,7 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import Draggable from "react-draggable";
 import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
-import { PubSub } from "utils/pubsub";
+import { PubSub, SIDE_MENU_ID } from "utils/pubsub";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
 import { TutorialDialogProps } from "../types";
 
@@ -70,19 +70,19 @@ const sections: TutorialSection[] = [
             {
                 text: "The side menu has many useful features. Open it by pressing on your profile picture.",
                 element: "side-menu-profile-icon",
-                action: () => { PubSub.get().publish("sideMenu", { id: "side-menu", isOpen: false }); },
+                action: () => { PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: false }); },
             },
             {
                 text: "The first section lists all logged-in accounts.\n\nPress on an account to switch to it, or press on your current account to open your profile.",
-                action: () => { PubSub.get().publish("sideMenu", { id: "side-menu", isOpen: true }); },
+                action: () => { PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: true }); },
             },
             {
                 text: "The second section allows you to control your display settings. This includes:\n\n- **Theme**: Choose between light and dark mode.\n- **Text size**: Grow or shrink the text on all pages.\n- **Left handed?**: Move various elements, such as the side menu, to the left side of the screen.\n- **Language**: Change the language of the app.\n- **Focus mode**: Switch between focus modes.",
-                action: () => { PubSub.get().publish("sideMenu", { id: "side-menu", isOpen: true }); },
+                action: () => { PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: true }); },
             },
             {
                 text: "The third section displays a list of pages not listed in the main navigation bar.",
-                action: () => { PubSub.get().publish("sideMenu", { id: "side-menu", isOpen: true }); },
+                action: () => { PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: true }); },
             },
         ],
     },
@@ -92,7 +92,7 @@ const sections: TutorialSection[] = [
             {
                 text: "This page allows you to search public objects on Vrooli.",
                 page: LINKS.Search,
-                action: () => { PubSub.get().publish("sideMenu", { id: "side-menu", isOpen: false }); },
+                action: () => { PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: false }); },
             },
             {
                 text: "Use these tabs to switch between different types of objects.\n\nThe first, default tab is for **routines**. These allow you to complete and automate various tasks.\n\nLet's look at some routines now.",

@@ -45,9 +45,10 @@ export type CelebrationPub = {
     targetId?: string;
 }
 
+export const SIDE_MENU_ID = "side-menu" as const;
+export const CHAT_SIDE_MENU_ID = "chat-side-menu" as const;
 export type SideMenuPub = {
-    id: "side-menu" | "chat-side-menu";
-    idPrefix?: string;
+    id: typeof SIDE_MENU_ID | typeof CHAT_SIDE_MENU_ID;
     isOpen: boolean;
 }
 

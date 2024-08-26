@@ -9,10 +9,10 @@ import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { RunRoutineViewProps } from "../types";
 
-export const RunRoutineView = ({
+export function RunRoutineView({
     display,
     onClose,
-}: RunRoutineViewProps) => {
+}: RunRoutineViewProps) {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
@@ -42,4 +42,4 @@ export const RunRoutineView = ({
             </>
         </>
     );
-};
+}

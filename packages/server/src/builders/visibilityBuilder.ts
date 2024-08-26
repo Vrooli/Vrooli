@@ -31,8 +31,8 @@ export function visibilityBuilderPrisma({
     else {
         return combineQueries([{
             OR: [
-                validator.visibility.public,
-                combineQueries([validator.visibility.private, validator.visibility.owner(userData.id)]),
+                validator.visibility.public(userData.id),
+                combineQueries([validator.visibility.private(userData.id), validator.visibility.owner(userData.id)]),
             ],
         }]);
     }

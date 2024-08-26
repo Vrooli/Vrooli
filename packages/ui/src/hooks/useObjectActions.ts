@@ -44,16 +44,16 @@ export type UseObjectActionsReturn = {
     onActionComplete: <T extends keyof ActionCompletePayloads>(action: T, data: ActionCompletePayloads[T]) => unknown;
 }
 
-const callIfExists = (callback: (() => unknown) | null | undefined) => {
+function callIfExists(callback: (() => unknown) | null | undefined) {
     if (!exists(callback)) {
         PubSub.get().publish("snack", { messageKey: "ActionNotSupported", severity: "Error" });
         return;
     }
     callback();
-};
+}
 
 /** Hook for updating state and navigating upon completing an action */
-export const useObjectActions = ({
+export function useObjectActions({
     canNavigate,
     isListReorderable, //TODO: Implement reordering
     object,
@@ -63,7 +63,7 @@ export const useObjectActions = ({
     openAddCommentDialog,
     setLocation,
     setObject,
-}: UseObjectActionsProps): UseObjectActionsReturn => {
+}: UseObjectActionsProps): UseObjectActionsReturn {
     const session = useContext(SessionContext);
 
     // Callback when an action is completed
@@ -248,4 +248,4 @@ export const useObjectActions = ({
         onActionStart,
         onActionComplete,
     };
-};
+}

@@ -446,8 +446,7 @@ export function SignupView({
     const promoBoxStyle = useMemo(function promoBoxStyleMemo() {
         return {
             padding: 2,
-            background: palette.background.default,
-            backgroundAttachment: "fixed",
+            background: palette.mode === "light" ? "#c2cadd" : palette.background.default,
             color: "white",
             display: isMobile && currTab.key !== SignUpPageTabOption.MoreInfo
                 ? "none"

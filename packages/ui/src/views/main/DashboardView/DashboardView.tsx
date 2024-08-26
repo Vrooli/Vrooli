@@ -3,7 +3,6 @@ import { Box, Button, IconButton, styled, useTheme } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse } from "api";
 import { ChatBubbleTree, ScrollToBottomButton, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
-import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
 import { RichInputBase } from "components/inputs/RichInput/RichInput";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ResourceList } from "components/lists/resource";
@@ -182,25 +181,29 @@ export function DashboardView({
     const { active: activeFocusMode, all: allFocusModes } = useMemo(() => getFocusModeInfo(session), [session]);
 
     // Handle tabs
-    const tabs = useMemo<PageTab<DashboardTabsInfo>[]>(() => ([
-        ...allFocusModes.map((mode, index) => ({
-            color: palette.primary.contrastText,
-            data: mode,
-            index,
-            key: mode.id,
-            label: mode.name,
-            searchPlaceholder: "",
-        })),
-        {
-            color: palette.primary.contrastText,
-            data: undefined,
-            Icon: AddIcon,
-            index: allFocusModes.length,
-            key: "Add",
-            label: "Add",
-            searchPlaceholder: "",
-        },
-    ]), [allFocusModes, palette.primary.contrastText]);
+    const tabs = useMemo<PageTab<DashboardTabsInfo>[]>(() => {
+        const activeColor = isMobile ? palette.primary.contrastText : palette.background.textPrimary;
+        const inactiveColor = isMobile ? palette.primary.contrastText : palette.background.textSecondary;
+        return [
+            ...allFocusModes.map((mode, index) => ({
+                color: mode.id === activeFocusMode?.mode?.id ? activeColor : inactiveColor,
+                data: mode,
+                index,
+                key: mode.id,
+                label: mode.name,
+                searchPlaceholder: "",
+            })),
+            {
+                color: inactiveColor,
+                data: undefined,
+                Icon: AddIcon,
+                index: allFocusModes.length,
+                key: "Add",
+                label: "Add",
+                searchPlaceholder: "",
+            },
+        ];
+    }, [activeFocusMode?.mode?.id, allFocusModes, isMobile, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText]);
     const currTab = useMemo(() => {
         if (typeof activeFocusMode === "string") return "Add";
         const match = tabs.find(tab => typeof tab.data === "object" && tab.data.id === activeFocusMode?.mode?.id);
@@ -630,7 +633,6 @@ export function DashboardView({
                 sxs={inputStyle}
                 value={message}
             />
-            <ChatSideMenu />
         </DashboardBox>
     );
 }

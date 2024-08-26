@@ -156,6 +156,7 @@ export enum SignUpPageTabOption {
 export enum ChatPageTabOption {
     Chat = "Chat",
     Favorite = "Favorite",
-    Routine = "Routine",
+    History = "History",
     Prompt = "Prompt",
+    Routine = "Routine",
 }

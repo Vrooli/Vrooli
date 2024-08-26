@@ -11,10 +11,10 @@ import { useLocation } from "route";
 import { OverviewContainer } from "styles";
 import { ScheduleViewProps } from "../types";
 
-export const ScheduleView = ({
+export function ScheduleView({
     display,
     onClose,
-}: ScheduleViewProps) => {
+}: ScheduleViewProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -87,4 +87,4 @@ export const ScheduleView = ({
             {/* TODO */}
         </>
     );
-};
+}

@@ -116,3 +116,6 @@ export const CHIP_LIST_LIMIT = 3;
 
 /** Default minimum rows for rich inputs */
 export const DEFAULT_MIN_ROWS = 4;
+
+export const LEFT_DRAWER_WIDTH = 280;
+export const RIGHT_DRAWER_WIDTH = 280;

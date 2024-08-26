@@ -62,7 +62,7 @@ export const ObjectsToDeleteConfirmLevel: Record<DeleteType, ConfirmationLevel> 
     Wallet: "minimal",
 };
 
-export const useDeleter = ({
+export function useDeleter({
     object,
     objectType,
     onActionComplete,
@@ -70,7 +70,7 @@ export const useDeleter = ({
     object: ListObject | null | undefined;
     objectType: `${GqlModelType}`;
     onActionComplete: <T extends "Delete">(action: T, data: ActionCompletePayloads[T]) => unknown;
-}) => {
+}) {
     const [, setLocation] = useLocation();
 
     const hasDeletingSupport = objectType in DeleteType;
@@ -79,13 +79,20 @@ export const useDeleter = ({
 
     const [deleteOne] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     const doDelete = useCallback(() => {
-        if (!object || !object.id || !objectType) {
+        if (!object || !objectType) {
             console.error("Missing object or objectType");
             return;
         }
+        // Check if there are multiple versions
+        const isVersioned = objectType.endsWith("Version");
+        const hasOneVersion = isVersioned && Object.prototype.hasOwnProperty.call(object, "root") && ((object.root as { versionsCount?: number }).versionsCount ?? 0) === 1;
+        // If there's only one version, delete the root object instead
+        const deleteId = (hasOneVersion ? (object.root as { id: string }).id : object.id) as string;
+        const deleteType = (hasOneVersion ? objectType.replace("Version", "") : objectType) as DeleteType;
+
         fetchLazyWrapper<DeleteOneInput, Success>({
             fetch: deleteOne,
-            inputs: { id: object.id, objectType: objectType as DeleteType },
+            inputs: { id: deleteId, objectType: deleteType },
             successCondition: (data) => data.success,
             successMessage: () => ({ messageKey: "ObjectDeleted", messageVariables: { objectName: getDisplay(object).title } }),
             onSuccess: () => {
@@ -175,4 +182,4 @@ export const useDeleter = ({
         isDeleteDialogOpen,
         DeleteDialogComponent,
     };
-};
+}

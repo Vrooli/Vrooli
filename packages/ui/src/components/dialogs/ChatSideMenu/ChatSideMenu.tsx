@@ -1,5 +1,5 @@
 import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkShape, ChatPageTabOption, HistoryPageTabOption, InboxPageTabOption, LINKS, ListObject, MyStuffPageTabOption, SearchPageTabOption, endpointPostBookmark, funcTrue, getObjectUrlBase, noop, shapeBookmark, uuid } from "@local/shared";
-import { Box, Button, Divider, IconButton, SwipeableDrawer, SwipeableDrawerProps, Typography, styled, useTheme } from "@mui/material";
+import { Box, Button, Divider, IconButton, SwipeableDrawer, Typography, styled, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SiteSearchBar } from "components/inputs/search";
@@ -12,15 +12,16 @@ import { useLazyFetch } from "hooks/useLazyFetch";
 import { useSideMenu } from "hooks/useSideMenu";
 import { useTabs } from "hooks/useTabs";
 import { useWindowSize } from "hooks/useWindowSize";
-import { useZIndex } from "hooks/useZIndex";
-import { AddIcon, ArrowRightIcon, CloseIcon } from "icons";
+import { AddIcon, ArrowRightIcon, CloseIcon, CommentIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ArgsType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
-import { PubSub } from "utils/pubsub";
-import { chatTabParams } from "utils/search/objectToSearch";
+import { LEFT_DRAWER_WIDTH } from "utils/consts";
+import { CHAT_SIDE_MENU_ID, PubSub } from "utils/pubsub";
+import { ChatTabsInfo, TabParam, chatTabParams } from "utils/search/objectToSearch";
+import { ChatCrud } from "views/objects/chat";
 import { FindObjectDialog } from "../FindObjectDialog/FindObjectDialog";
 import { SelectOrCreateObjectType } from "../types";
 
@@ -29,36 +30,25 @@ export const chatSideMenuDisplayData = {
     sideForRightHanded: "left",
 } as const;
 
-const id = "chat-side-menu";
-const zIndexOffset = 1000;
 const SHORT_TAKE = 10;
 const emptyArray: readonly [] = [];
-const chatPaperProps = { id };
+const drawerPaperProps = { id: CHAT_SIDE_MENU_ID } as const;
+const CHAT_VIEW_ROUTES = [
+    LINKS.Chat,
+    LINKS.Home,
+] as string[];
 
-interface ChatDrawerProps extends Omit<SwipeableDrawerProps, "zIndex"> {
-    zIndex: number;
-}
-
-const ChatDrawer = styled(SwipeableDrawer, {
-    shouldForwardProp: (prop) => prop !== "zIndex",
-})<ChatDrawerProps>(({ theme, zIndex }) => ({
-    zIndex,
-    "& .MuiDrawer-paper": {
-        background: theme.palette.background.paper,
-        overflowY: "auto",
-        borderRight: theme.palette.mode === "light" ?
-            "none" :
-            `1px solid ${theme.palette.divider}`,
-        width: "min(250px, 100%)",
-        zIndex,
-    },
-    "& > .MuiDrawer-root": {
-        width: "min(250px, 100%)",
-        "& > .MuiPaper-root": {
-            zIndex,
-        },
-    },
-}));
+/**
+ * Tab for chat view, which is not available on all pages 
+ * (namely ones where the main content is already a chat)
+ */
+const chatViewTab = {
+    color: (palette) => palette.primary.contrastText,
+    Icon: CommentIcon,
+    key: "Chat",
+    titleKey: "Chat",
+    where: () => ({}),
+} as const;
 
 const NoResultsText = styled(Typography)(({ theme }) => ({
     color: theme.palette.background.textSecondary,
@@ -71,6 +61,19 @@ const TabsBox = styled(Box)(({ theme }) => ({
     background: theme.palette.primary.main,
 }));
 
+const SizedDrawer = styled(SwipeableDrawer)(() => ({
+    width: LEFT_DRAWER_WIDTH,
+    flexShrink: 0,
+    "& .MuiDrawer-paper": {
+        width: LEFT_DRAWER_WIDTH,
+        boxSizing: "border-box",
+    },
+    "& > .MuiDrawer-root": {
+        "& > .MuiPaper-root": {
+        },
+    },
+}));
+
 const searchBarStyle = {
     root: {
         width: "100%",
@@ -81,36 +84,38 @@ const searchBarStyle = {
 } as const;
 
 // TODO improve prompts so it searches for actual prompts, rather than just standards. Then update it so when pressed, it adds prompt to chat input
-export function ChatSideMenu({
-    idPrefix,
-}: {
-    /** Alters menu ID so that the menu has its own pub/sub events */
-    idPrefix?: string
-}) {
+// TODO change tabs based on page type. On DashboardView and ChatCrud, shouldn't have "Chat" tab (since the main page component is already a chat). Otherwise, should have "Chat" tab
+// TODO should be disabled on some pages, like SignUpView, SettingsView, etc. On pages where it's not disabled, Navbar should have ListIcon startComponent automatically
+export function ChatSideMenu() {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
-    const [, setLocation] = useLocation();
+    const [location, setLocation] = useLocation();
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const isLeftHanded = useIsLeftHanded();
 
+    const allTabParams = useMemo(() => {
+        const baseTabs = [...chatTabParams];
+        if (CHAT_VIEW_ROUTES.includes(location.pathname)) {
+            baseTabs.push(chatViewTab as TabParam<ChatTabsInfo>);
+        }
+        return baseTabs;
+    }, [location.pathname]);
     const {
         currTab,
         handleTabChange,
         searchType,
         tabs,
         where,
-    } = useTabs({ id: `${idPrefix ?? ""}chat-side-tabs`, tabParams: chatTabParams, display: "dialog" });
+    } = useTabs({ id: "chat-side-tabs", tabParams: allTabParams, display: "dialog" });
 
     // Handle opening and closing
-    const { isOpen, close } = useSideMenu({ id, idPrefix, isMobile });
+    const { isOpen, close } = useSideMenu({ id: CHAT_SIDE_MENU_ID, isMobile });
     // When moving between mobile/desktop, publish current state
     useEffect(() => {
-        PubSub.get().publish("sideMenu", { id, idPrefix, isOpen });
-    }, [breakpoints, idPrefix, isOpen]);
+        PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen });
+    }, [breakpoints, isOpen]);
     const handleClose = useCallback(() => { close(); }, [close]);
-
-    const [zIndex, handleTransitionExit] = useZIndex(isOpen, true, zIndexOffset);
 
     // Handle adding new bookmarks
     const [isFindBookmarkDialogOpen, setIsFindBookmarkDialogOpen] = useState<boolean>(false);
@@ -150,22 +155,22 @@ export function ChatSideMenu({
         });
     }, [addBookmark, bookmarkLists]);
 
-    const addButtonData = useMemo<{ [key in ChatPageTabOption]: (() => unknown) }>(() => ({
-        Chat: () => { setLocation(`${getObjectUrlBase({ __typename: "Chat" })}/add`); },
+    const addButtonData = useMemo<{ [key in Exclude<ChatPageTabOption, "Chat">]: (() => unknown) }>(() => ({
+        History: () => { setLocation(`${getObjectUrlBase({ __typename: "Chat" })}/add`); },
         Favorite: () => { openFindBookmarkDialog(); },
         Prompt: () => { setLocation(`${getObjectUrlBase({ __typename: "Standard" })}/add`); },
         Routine: () => { setLocation(`${getObjectUrlBase({ __typename: "Routine" })}/add`); },
     }), [openFindBookmarkDialog, setLocation]);
 
-    const more1ButtonData = useMemo<{ [key in ChatPageTabOption]: (() => unknown) }>(() => ({
-        Chat: () => { setLocation(`${LINKS.Inbox}?type="${InboxPageTabOption.Message}"`); },
+    const more1ButtonData = useMemo<{ [key in Exclude<ChatPageTabOption, "Chat">]: (() => unknown) }>(() => ({
+        History: () => { setLocation(`${LINKS.Inbox}?type="${InboxPageTabOption.Message}"`); },
         Favorite: () => { setLocation(`${LINKS.History}?type="${HistoryPageTabOption.Bookmarked}"`); },
         Prompt: () => { setLocation(`${LINKS.Search}?type="${SearchPageTabOption.Standard}"`); },
         Routine: () => { setLocation(`${LINKS.Search}?type="${SearchPageTabOption.Routine}"`); },
     }), [setLocation]);
 
-    const more2ButtonData = useMemo<{ [key in ChatPageTabOption]: (() => unknown) }>(() => ({
-        Chat: noop,
+    const more2ButtonData = useMemo<{ [key in Exclude<ChatPageTabOption, "Chat">]: (() => unknown) }>(() => ({
+        History: noop,
         Favorite: noop,
         Prompt: () => { setLocation(`${LINKS.MyStuff}?type="${MyStuffPageTabOption.Standard}"`); },
         Routine: () => { setLocation(`${LINKS.MyStuff}?type="${MyStuffPageTabOption.Routine}"`); },
@@ -173,6 +178,12 @@ export function ChatSideMenu({
 
     // The "Routine" and "Prompt" tabs have two search results, so we'll have two search hooks
     const { where1, where2 } = useMemo(() => {
+        if (typeof where !== "function") {
+            return {
+                where1: undefined,
+                where2: undefined,
+            };
+        }
         const whereResult = where();
         if (Object.prototype.hasOwnProperty.call(whereResult, "My")) {
             return {
@@ -193,6 +204,7 @@ export function ChatSideMenu({
         setSearchString: setSearchString1,
         updateItem: updateItem1,
     } = useFindMany<ListObject>({
+        canSearch: () => currTab.key !== "Chat",
         controlsUrl: false,
         searchType,
         take: SHORT_TAKE,
@@ -256,16 +268,14 @@ export function ChatSideMenu({
                 handleComplete={handleBookmarkAdd as any}
                 limitTo={Object.keys(BookmarkFor) as SelectOrCreateObjectType[]}
             />
-            <ChatDrawer
+            <SizedDrawer
                 // Displays opposite of main side menu
                 anchor={isLeftHanded ? "right" : "left"}
                 open={isOpen}
                 onOpen={noop}
                 onClose={handleClose}
-                onTransitionExited={handleTransitionExit}
-                PaperProps={chatPaperProps}
+                PaperProps={drawerPaperProps}
                 variant={isMobile ? "temporary" : "persistent"}
-                zIndex={zIndex}
             >
                 {/* Menu title */}
                 <Box
@@ -305,80 +315,86 @@ export function ChatSideMenu({
                 </TabsBox>
                 <Divider />
                 <Box overflow="auto" display="flex" flexDirection="column">
-                    <Box>
-                        <Typography variant="h5" p={1}>{title1}</Typography>
-                        <Divider />
-                        <ObjectList
-                            canNavigate={funcTrue}
-                            dummyItems={new Array(SHORT_TAKE).fill(searchType)}
-                            handleToggleSelect={noop}
-                            hideUpdateButton={true}
-                            isSelecting={false}
-                            items={allData1}
-                            keyPrefix={`chat-search-${currTab.key}-list-item`}
-                            loading={loading1}
-                            onAction={onAction1}
-                            selectedItems={emptyArray}
-                        />
-                        {allData1.length === 0 && <NoResultsText variant="body1">
-                            {t("NoResults", { ns: "error" })}
-                        </NoResultsText>}
-                        <Box display="flex" alignItems="center" justifyContent="space-between" pb={4}>
-                            <Button
-                                onClick={addButtonData[currTab.key]}
-                                startIcon={<AddIcon />}
-                                variant="text"
-                            >
-                                {t("Add")}
-                            </Button>
-                            <Button
-                                endIcon={<ArrowRightIcon />}
-                                onClick={more1ButtonData[currTab.key]}
-                                variant="text"
-                            >
-                                {t("More")}
-                            </Button>
-                        </Box>
-                    </Box>
-                    {where2 && <>
-                        <Box>
-                            <Typography variant="h5" p={1}>{title2}</Typography>
-                            <Divider />
-                            <ObjectList
-                                canNavigate={funcTrue}
-                                dummyItems={new Array(SHORT_TAKE).fill(searchType)}
-                                handleToggleSelect={noop}
-                                hideUpdateButton={true}
-                                isSelecting={false}
-                                items={allData2}
-                                keyPrefix={`chat-search-${searchType}-list-item`}
-                                loading={loading2}
-                                onAction={onAction2}
-                                selectedItems={emptyArray}
-                            />
-                            {allData2.length === 0 && <NoResultsText variant="body1">
-                                {t("NoResults", { ns: "error" })}
-                            </NoResultsText>}
-                            <Box display="flex" alignItems="center" justifyContent="space-between" pb={4}>
-                                <Button
-                                    onClick={addButtonData[currTab.key]}
-                                    startIcon={<AddIcon />}
-                                    variant="text"
-                                >
-                                    {t("Add")}
-                                </Button>
-                                <Button
-                                    endIcon={<ArrowRightIcon />}
-                                    onClick={more2ButtonData[currTab.key]}
-                                    variant="text"
-                                >
-                                    {t("More")}
-                                </Button>
+                    {currTab.key === "Chat" ? (
+                        <ChatCrud display="partial" isCreate={false} />
+                    ) : (
+                        <>
+                            <Box>
+                                <Typography variant="h5" p={1}>{title1}</Typography>
+                                <Divider />
+                                <ObjectList
+                                    canNavigate={funcTrue}
+                                    dummyItems={new Array(SHORT_TAKE).fill(searchType)}
+                                    handleToggleSelect={noop}
+                                    hideUpdateButton={true}
+                                    isSelecting={false}
+                                    items={allData1}
+                                    keyPrefix={`chat-search-${currTab.key}-list-item`}
+                                    loading={loading1}
+                                    onAction={onAction1}
+                                    selectedItems={emptyArray}
+                                />
+                                {allData1.length === 0 && <NoResultsText variant="body1">
+                                    {t("NoResults", { ns: "error" })}
+                                </NoResultsText>}
+                                <Box display="flex" alignItems="center" justifyContent="space-between" pb={4}>
+                                    <Button
+                                        onClick={addButtonData[currTab.key]}
+                                        startIcon={<AddIcon />}
+                                        variant="text"
+                                    >
+                                        {t("Add")}
+                                    </Button>
+                                    <Button
+                                        endIcon={<ArrowRightIcon />}
+                                        onClick={more1ButtonData[currTab.key]}
+                                        variant="text"
+                                    >
+                                        {t("More")}
+                                    </Button>
+                                </Box>
                             </Box>
-                        </Box>
-                    </>}
+                            {where2 && <>
+                                <Box>
+                                    <Typography variant="h5" p={1}>{title2}</Typography>
+                                    <Divider />
+                                    <ObjectList
+                                        canNavigate={funcTrue}
+                                        dummyItems={new Array(SHORT_TAKE).fill(searchType)}
+                                        handleToggleSelect={noop}
+                                        hideUpdateButton={true}
+                                        isSelecting={false}
+                                        items={allData2}
+                                        keyPrefix={`chat-search-${searchType}-list-item`}
+                                        loading={loading2}
+                                        onAction={onAction2}
+                                        selectedItems={emptyArray}
+                                    />
+                                    {allData2.length === 0 && <NoResultsText variant="body1">
+                                        {t("NoResults", { ns: "error" })}
+                                    </NoResultsText>}
+                                    <Box display="flex" alignItems="center" justifyContent="space-between" pb={4}>
+                                        <Button
+                                            onClick={addButtonData[currTab.key]}
+                                            startIcon={<AddIcon />}
+                                            variant="text"
+                                        >
+                                            {t("Add")}
+                                        </Button>
+                                        <Button
+                                            endIcon={<ArrowRightIcon />}
+                                            onClick={more2ButtonData[currTab.key]}
+                                            variant="text"
+                                        >
+                                            {t("More")}
+                                        </Button>
+                                    </Box>
+                                </Box>
+                            </>}
+                        </>
+                    )}
                 </Box>
-            </ChatDrawer>
+            </SizedDrawer>
         </>
     );
 }

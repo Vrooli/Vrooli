@@ -23,7 +23,7 @@ import { useLocation } from "route";
 import { FormSection, pagePaddingBottom } from "styles";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
 import { removeCookie } from "utils/cookies";
-import { PubSub } from "utils/pubsub";
+import { PubSub, SIDE_MENU_ID } from "utils/pubsub";
 import { SettingsAuthenticationFormProps, SettingsAuthenticationViewProps } from "../types";
 
 const SettingsAuthenticationForm = ({
@@ -104,7 +104,7 @@ export const SettingsAuthenticationView = ({
                 removeCookie("FormData"); // Clear old form data cache
                 localStorage.removeItem("isLoggedIn");
                 PubSub.get().publish("session", data);
-                PubSub.get().publish("sideMenu", { id: "side-menu", isOpen: false });
+                PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: false });
             },
             // If error, log out anyway
             onError: () => { PubSub.get().publish("session", guestSession); },

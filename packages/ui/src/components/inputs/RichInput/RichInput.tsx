@@ -11,7 +11,7 @@ import { getCookie, getCookieMatchingChat, setCookie } from "utils/cookies";
 import { getDeviceInfo, keyComboToString } from "utils/display/device";
 import { generateContext } from "utils/display/stringTools";
 import { getTranslationData, handleTranslationChange } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
+import { CHAT_SIDE_MENU_ID, PubSub } from "utils/pubsub";
 import { ChatCrud, VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
 import { ChatCrudProps } from "views/objects/chat/types";
 import { RichInputLexical } from "../RichInputLexical/RichInputLexical";
@@ -85,7 +85,7 @@ export function RichInputBase({
 
     const closeAssistantDialog = useCallback(() => {
         setAssistantDialogProps(props => ({ ...props, context: undefined, isOpen: false, overrideObject: undefined } as ChatCrudProps));
-        PubSub.get().publish("sideMenu", { id: "chat-side-menu", idPrefix: "note", isOpen: false });
+        PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen: false });
     }, []);
     const [assistantDialogProps, setAssistantDialogProps] = useState<ChatCrudProps>({
         context: undefined,

@@ -66,7 +66,7 @@ export function SmartContractView({
 
     const actionData = useObjectActions({
         object: existing,
-        objectType: "Code",
+        objectType: "CodeVersion",
         openAddCommentDialog,
         setLocation,
         setObject: setCodeVersion,

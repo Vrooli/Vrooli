@@ -203,7 +203,7 @@ export function PageTabs<TabList extends TabsInfo>({
 
     const tabBoxStyle = useCallback(function tabBoxStyleCallback(isSelected: boolean) {
         return {
-            padding: "10px",
+            padding: "4px",
             margin: fullWidth ? "0 auto" : "0",
             cursor: "pointer",
             textTransform: "uppercase",

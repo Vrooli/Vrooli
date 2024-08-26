@@ -9,10 +9,10 @@ import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { RunProjectViewProps } from "../types";
 
-export const RunProjectView = ({
+export function RunProjectView({
     display,
     onClose,
-}: RunProjectViewProps) => {
+}: RunProjectViewProps) {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
@@ -42,4 +42,4 @@ export const RunProjectView = ({
             </>
         </>
     );
-};
+}

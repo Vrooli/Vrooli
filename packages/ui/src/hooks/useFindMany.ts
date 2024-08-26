@@ -289,7 +289,9 @@ export function useFindMany<DataType extends Record<string, any>>({
      * Update params when search conditions change
      */
     useEffect(() => {
-        const newParams = searchTypeToParams[searchType]();
+        const newParamsFunc = searchTypeToParams[searchType];
+        if (typeof newParamsFunc !== "function") return;
+        const newParams = newParamsFunc();
         if (!newParams) return;
         const sortBy = updateSortBy(newParams, params.current.sortBy);
         after.current = {};

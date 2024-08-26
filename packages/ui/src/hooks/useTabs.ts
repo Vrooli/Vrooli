@@ -74,7 +74,7 @@ export function useTabs<TabList extends TabsInfo>({
             setCookie("LastTab", tab.key, id);
         }
         setCurrTab(tab);
-    }, [display, setLocation, id]);
+    }, [display, setLocation, disableHistory, id]);
 
     const changeTab = useCallback((key: TabList["Key"]) => {
         const tab = tabs.find(tab => tab.key === key);

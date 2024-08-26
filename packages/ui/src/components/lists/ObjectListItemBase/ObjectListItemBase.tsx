@@ -1,5 +1,5 @@
 import { Chat, ChatInvite, ChatParticipant, ListObject, Meeting, Member, MemberInvite, ReactionFor, getObjectUrl, isOfType, uuid } from "@local/shared";
-import { AvatarGroup, Box, Chip, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
+import { AvatarGroup, Box, BoxProps, Chip, ListItem, ListItemText, Stack, Tooltip, styled, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { CommentsButton } from "components/buttons/CommentsButton/CommentsButton";
 import { ReportsButton } from "components/buttons/ReportsButton/ReportsButton";
@@ -28,6 +28,21 @@ const LIST_PREFIX = "list-item-";
 const EDIT_PREFIX = "edit-list-item-";
 const TARGET_IMAGE_SIZE = 100;
 const MAX_AVATARS_IN_GROUP = 4;
+
+interface ActionButtonsRowProps extends BoxProps {
+    isMobile: boolean;
+}
+
+const ActionButtonsRow = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "isMobile",
+})<ActionButtonsRowProps>(({ isMobile, theme }) => ({
+    display: "flex",
+    flexDirection: isMobile ? "row" : "column",
+    gap: theme.spacing(1),
+    justifyContent: isMobile ? "right" : "center",
+    pointerEvents: "none",
+    alignItems: "center",
+}));
 
 /**
  * A list item that automatically supports most object types, with props 
@@ -227,17 +242,18 @@ export function ObjectListItemBase<T extends ListObject>({
     const actionButtons = useMemo(() => {
         const reportsCount: number = getCounts(object).reports;
         const { bookmarkFor, starForId } = getBookmarkFor(object);
+
+        const willShowEditButton = !hideUpdateButton && canUpdate;
+        const willShowVoteButton = isMobile && canReact && object; // Displayed elsewhere on wide screens
+        const willShowBookmarkButton = canBookmark && bookmarkFor && starForId;
+        const willShowCommentButton = canComment;
+        const willShowReportsButton = !isOfType(object, "RunRoutine", "RunProject") && reportsCount > 0;
+
+        if (!willShowEditButton && !willShowVoteButton && !willShowBookmarkButton && !willShowCommentButton && !willShowReportsButton) return null;
+
         return (
-            <Stack
-                direction={isMobile ? "row" : "column"}
-                spacing={1}
-                sx={{
-                    pointerEvents: "none",
-                    justifyContent: isMobile ? "right" : "center",
-                    alignItems: "center",
-                }}
-            >
-                {!hideUpdateButton && canUpdate &&
+            <ActionButtonsRow isMobile={isMobile}>
+                {willShowEditButton &&
                     <Box
                         id={`${EDIT_PREFIX}button-${id}`}
                         component="a"
@@ -254,8 +270,7 @@ export function ObjectListItemBase<T extends ListObject>({
                         }}>
                         <EditIcon id={`${EDIT_PREFIX}icon-${id}`} fill={palette.secondary.main} />
                     </Box>}
-                {/* Add upvote/downvote if mobile */}
-                {isMobile && canReact && object && (
+                {willShowVoteButton && (
                     <VoteButton
                         disabled={!canReact}
                         emoji={reaction}
@@ -265,23 +280,23 @@ export function ObjectListItemBase<T extends ListObject>({
                         onChange={(newEmoji: string | null, newScore: number) => { }}
                     />
                 )}
-                {canBookmark && bookmarkFor && <BookmarkButton
+                {willShowBookmarkButton && <BookmarkButton
                     disabled={!canBookmark}
                     objectId={starForId}
                     bookmarkFor={bookmarkFor}
                     isBookmarked={isBookmarked}
                     bookmarks={getCounts(object).bookmarks}
                 />}
-                {canComment && (<CommentsButton
+                {willShowCommentButton && <CommentsButton
                     commentsCount={getCounts(object).comments}
                     disabled={!canComment}
                     object={object}
-                />)}
-                {!isOfType(object, "RunRoutine", "RunProject") && reportsCount > 0 && <ReportsButton
+                />}
+                {willShowReportsButton && <ReportsButton
                     reportsCount={reportsCount}
                     object={object}
                 />}
-            </Stack>
+            </ActionButtonsRow>
         );
     }, [object, isMobile, hideUpdateButton, canUpdate, id, t, editUrl, handleEditClick, palette.secondary.main, canReact, reaction, score, canBookmark, isBookmarked, canComment]);
 
@@ -303,7 +318,7 @@ export function ObjectListItemBase<T extends ListObject>({
                 {...pressEvents}
                 sx={{
                     display: "flex",
-                    padding: isMobile ? "8px" : "8px 16px",
+                    padding: isMobile ? "4px 8px" : "8px 16px",
                     cursor: "pointer",
                     borderBottom: `1px solid ${palette.divider}`,
                     background: isSelected ? palette.secondary.light : palette.background.paper,

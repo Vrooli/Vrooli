@@ -1,7 +1,7 @@
 import { BookmarkFor, CalendarPageTabOption, ChatInviteStatus, ChatPageTabOption, CommonKey, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, RunStatus, ScheduleFor, SearchPageTabOption, SearchType, SearchVersionPageTabOption, SignUpPageTabOption, TeamPageTabOption, UserPageTabOption, VisibilityType, YouInflated } from "@local/shared";
 import { Palette } from "@mui/material";
 import { PageTab } from "hooks/useTabs";
-import { AddIcon, ApiIcon, ArticleIcon, BookmarkFilledIcon, CommentIcon, FocusModeIcon, HelpIcon, MonthIcon, NoteIcon, ProjectIcon, ReminderIcon, RoutineIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon, VisibleIcon } from "icons";
+import { AddIcon, ApiIcon, ArticleIcon, BookmarkFilledIcon, FocusModeIcon, HelpIcon, HistoryIcon, MonthIcon, NoteIcon, ProjectIcon, ReminderIcon, RoutineIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon, VisibleIcon } from "icons";
 import { SvgComponent } from "types";
 import { PolicyTabOption } from "views/legal";
 import { apiSearchParams } from "./schemas/api";
@@ -263,8 +263,8 @@ export type ChatTabsInfo = {
 
 export const chatTabParams: TabParam<ChatTabsInfo>[] = [{
     color: (palette) => palette.primary.contrastText,
-    Icon: CommentIcon,
-    key: "Chat",
+    Icon: HistoryIcon,
+    key: "History",
     titleKey: "Chat",
     searchType: "Chat",
     where: () => ({ visibility: VisibilityType.Own }),

@@ -1,5 +1,5 @@
 import { BUSINESS_NAME, LINKS } from "@local/shared";
-import { AppBar, Box, IconButton, Stack, Typography, useTheme } from "@mui/material";
+import { AppBar, Box, BoxProps, IconButton, Stack, Typography, styled, useTheme } from "@mui/material";
 import { Title } from "components/text/Title/Title";
 import { useDimensions } from "hooks/useDimensions";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
@@ -21,6 +21,31 @@ type TitleDisplayProps = Pick<NavbarProps, "help" | "options" | "startComponent"
     onLogoClick: () => unknown;
 }
 
+const NameTypography = styled(Typography)(({ theme }) => ({
+    position: "relative",
+    cursor: "pointer",
+    lineHeight: "1.3",
+    fontSize: "2.5em",
+    fontFamily: "SakBunderan",
+    color: theme.palette.primary.contrastText,
+}));
+
+interface StartAndTitleBoxProps extends BoxProps {
+    isLeftHanded: boolean;
+}
+
+const StartAndTitleBox = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "isLeftHanded",
+})<StartAndTitleBoxProps>(({ isLeftHanded, theme }) => ({
+    padding: 0,
+    paddingTop: "4px",
+    display: "flex",
+    alignItems: "center",
+    marginRight: isLeftHanded ? theme.spacing(1) : "auto",
+    marginLeft: isLeftHanded ? "auto" : theme.spacing(1),
+}));
+
+
 const logoIconStyle = {
     display: "flex",
     padding: 0,
@@ -28,6 +53,9 @@ const logoIconStyle = {
     marginLeft: "max(-5px, -5vw)",
     width: "48px",
     height: "48px",
+} as const;
+const pageTitleStyle = {
+    stack: { padding: 0, paddingLeft: 1 },
 } as const;
 
 function TitleDisplay({
@@ -70,25 +98,17 @@ function TitleDisplay({
         TitleComponent = <Title
             help={help}
             options={options}
-            sxs={{ stack: { padding: 0, paddingLeft: 1 } }}
+            sxs={pageTitleStyle}
             title={title}
             variant="header"
         />;
     } else if (location === "In") {
         isBusinessName = true;
-        TitleComponent = <Typography
+        TitleComponent = <NameTypography
             variant="h6"
             noWrap
             onClick={onLogoClick}
-            sx={{
-                position: "relative",
-                cursor: "pointer",
-                lineHeight: "1.3",
-                fontSize: "2.5em",
-                fontFamily: "SakBunderan",
-                color: palette.primary.contrastText,
-            }}
-        >{BUSINESS_NAME}</Typography>;
+        >{BUSINESS_NAME}</NameTypography>;
     }
 
     // Create start component
@@ -106,19 +126,12 @@ function TitleDisplay({
     // Render title and start component
     if (TitleComponent && StartComponent) {
         return (
-            <Box
-                sx={{
-                    padding: 0,
-                    paddingTop: "4px",
-                    display: "flex",
-                    alignItems: "center",
-                    marginRight: isLeftHanded ? 1 : "auto",
-                    marginLeft: isLeftHanded ? "auto" : 1,
-                }}
+            <StartAndTitleBox
+                isLeftHanded={isLeftHanded}
             >
                 {StartComponent}
                 {TitleComponent}
-            </Box>
+            </StartAndTitleBox>
         );
     }
     if (TitleComponent) return TitleComponent;
@@ -126,15 +139,17 @@ function TitleDisplay({
     return null;
 }
 
-function NavListComponent({ isLeftHanded }) {
-    return <Box sx={{
-        marginLeft: isLeftHanded ? 0 : "auto",
-        marginRight: isLeftHanded ? "auto" : 0,
-        maxHeight: "100%",
-    }}>
-        <NavList />
-    </Box>;
+interface NavListBoxProps extends BoxProps {
+    isLeftHanded: boolean;
 }
+
+const NavListBox = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "isLeftHanded",
+})<NavListBoxProps>(({ isLeftHanded }) => ({
+    marginLeft: isLeftHanded ? 0 : "auto",
+    marginRight: isLeftHanded ? "auto" : 0,
+    maxHeight: "100%",
+}));
 
 /**
  * Navbar displayed at the top of the page. Has a few different 
@@ -169,14 +184,7 @@ export const Navbar = forwardRef(({
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
     const { dimensions, ref: dimRef } = useDimensions();
-
-    // Determine display texts and states
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
-    const logoState = useMemo(() => {
-        if (isMobile && startComponent) return (title || titleComponent) ? "none" : "icon";
-        if (isMobile && (title || titleComponent)) return "none";
-        return "full";
-    }, [isMobile, startComponent, title, titleComponent]);
     const isLeftHanded = useIsLeftHanded();
 
 
@@ -253,7 +261,9 @@ export const Navbar = forwardRef(({
                             marginLeft: isLeftHanded ? "auto" : 1,
                         } : {}}>{startComponent}</Box> : null}
                         <TitleDisplay {...titleInProps} />
-                        <NavListComponent {...{ isLeftHanded }} />
+                        <NavListBox isLeftHanded={isLeftHanded}>
+                            <NavList />
+                        </NavListBox>
                     </Stack>
                     {/* "below" displayed inside AppBar on mobile */}
                     {isMobile && below}

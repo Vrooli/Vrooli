@@ -177,8 +177,8 @@ export const cookies: { [T in SimpleStorageType]: SimpleStorageInfo<T> } = {
         fallback: false,
     },
     SideMenuState: {
-        __type: "functional",
-        check: (value) => typeof value === "object" && value !== null && Object.values(value).every(v => typeof v === "boolean"),
+        __type: "strictlyNecessary",
+        check: (value) => typeof value === "boolean",
         fallback: false,
     },
     Theme: {
@@ -237,15 +237,15 @@ export function getCookie<T extends SimpleStorageType>(
  * @param value The value to store in the cookie
  * @param id Provides unique identifier for the cookie, if needed (e.g. last tab is stored for many different tabs)
  */
-export const setCookie = <T extends SimpleStorageType>(
+export function setCookie<T extends SimpleStorageType>(
     name: T,
     value: SimpleStoragePayloads[T],
     id?: string,
-) => {
+) {
     const { __type } = cookies[name] || {};
     const key = id ? `${name}-${id}` : name;
     ifAllowed(__type, () => { setStorageItem(key, value); });
-};
+}
 
 export const removeCookie = <T extends SimpleStorageType | CacheStorageType>(
     name: T,
