@@ -1,4 +1,4 @@
-import { ApiVersion, Bookmark, ChatParticipant, CodeVersion, GqlModelType, Member, NoteVersion, Notification, ProjectVersion, Reaction, RoutineVersion, RunProject, RunRoutine, Schedule, Session, StandardVersion, View } from "../api/generated/graphqlTypes";
+import { ApiVersion, Bookmark, ChatParticipant, Code, CodeType, CodeVersion, GqlModelType, Member, NoteVersion, Notification, ProjectVersion, Reaction, RoutineVersion, RunProject, RunRoutine, Schedule, Session, Standard, StandardType, StandardVersion, View } from "../api/generated/graphqlTypes";
 import { LINKS } from "../consts/ui";
 import { isOfType } from "./objects";
 
@@ -253,6 +253,12 @@ export function base36ToUuid(base36: string): string {
 export function getObjectUrlBase(object: Omit<NavigableObject, "id">): string {
     // If object is a user, use 'Profile'
     if (isOfType(object, "User", "SessionUser")) return LINKS.Profile;
+    // If object is a code, base URL on its type
+    if (isOfType(object, "CodeVersion")) return (object as CodeVersion).codeType === CodeType.DataConvert ? LINKS.DataConverter : LINKS.SmartContract;
+    if (isOfType(object, "Code")) return (object as Code).versions?.find(v => v.isLatest === true)?.codeType === CodeType.DataConvert ? LINKS.DataConverter : LINKS.SmartContract;
+    // If object is a standard, base URL on its type
+    if (isOfType(object, "StandardVersion")) return (object as StandardVersion).variant === StandardType.Prompt ? LINKS.Prompt : LINKS.DataStructure;
+    if (isOfType(object, "Standard")) return (object as Standard).versions?.find(v => v.isLatest === true)?.variant === StandardType.Prompt ? LINKS.Prompt : LINKS.DataStructure;
     // If object is a star/vote/some other type that links to a main object, use the "to" property
     if (isOfType(object, "Bookmark", "Reaction", "View")) return getObjectUrlBase((object as Bookmark | Reaction | View).to as NavigableObject);
     // If the object is a run routine, use the routine version

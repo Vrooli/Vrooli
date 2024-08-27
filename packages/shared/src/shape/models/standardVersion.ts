@@ -9,7 +9,7 @@ export type StandardVersionTranslationShape = Pick<StandardVersionTranslation, "
     __typename?: "StandardVersionTranslation";
 }
 
-export type StandardVersionShape = Pick<StandardVersion, "id" | "isComplete" | "isPrivate" | "isFile" | "default" | "props" | "yup" | "standardType" | "versionLabel" | "versionNotes"> & {
+export type StandardVersionShape = Pick<StandardVersion, "id" | "isComplete" | "isPrivate" | "isFile" | "codeLanguage" | "default" | "props" | "yup" | "variant" | "versionLabel" | "versionNotes"> & {
     __typename: "StandardVersion";
     directoryListings?: CanConnect<ProjectVersionDirectoryShape>[] | null;
     root: StandardShape;
@@ -24,7 +24,7 @@ export const shapeStandardVersionTranslation: ShapeModel<StandardVersionTranslat
 
 export const shapeStandardVersion: ShapeModel<StandardVersionShape, StandardVersionCreateInput, StandardVersionUpdateInput> = {
     create: (d) => {
-        const prims = createPrims(d, "id", "isComplete", "isPrivate", "isFile", "default", "props", "yup", "standardType", "versionLabel", "versionNotes");
+        const prims = createPrims(d, "id", "isComplete", "isPrivate", "isFile", "codeLanguage", "default", "props", "yup", "variant", "versionLabel", "versionNotes");
         return {
             ...prims,
             ...createRel(d, "directoryListings", ["Create"], "many", shapeProjectVersionDirectory),
@@ -34,7 +34,7 @@ export const shapeStandardVersion: ShapeModel<StandardVersionShape, StandardVers
         };
     },
     update: (o, u) => shapeUpdate(u, {
-        ...updatePrims(o, u, "id", "isComplete", "isPrivate", "isFile", "default", "props", "yup", "standardType", "versionLabel", "versionNotes"),
+        ...updatePrims(o, u, "id", "isComplete", "isPrivate", "isFile", "codeLanguage", "default", "props", "yup", "variant", "versionLabel", "versionNotes"),
         ...updateRel(o, u, "directoryListings", ["Create", "Update", "Delete"], "many", shapeProjectVersionDirectory),
         ...updateRel(o, u, "root", ["Update"], "one", shapeStandard),
         ...updateRel(o, u, "resourceList", ["Create", "Update"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: o.id, __typename: "StandardVersion" } })),

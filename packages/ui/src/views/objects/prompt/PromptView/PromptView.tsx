@@ -23,13 +23,13 @@ import { FormSection, SideActionsButton } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
-import { standardInitialValues } from "../StandardUpsert/StandardUpsert";
-import { StandardViewProps } from "../types";
+import { promptInitialValues } from "../PromptUpsert/PromptUpsert";
+import { PromptViewProps } from "../types";
 
-export function StandardView({
+export function PromptView({
     display,
     onClose,
-}: StandardViewProps) {
+}: PromptViewProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -64,7 +64,7 @@ export function StandardView({
         setObject: setStandardVersion,
     });
 
-    const initialValues = useMemo(() => standardInitialValues(session, existing), [existing, session]);
+    const initialValues = useMemo(() => promptInitialValues(session, existing), [existing, session]);
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as StandardShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
@@ -170,7 +170,7 @@ export function StandardView({
             <SideActionsButtons display={display}>
                 {/* Edit button */}
                 {permissions.canUpdate ? (
-                    <SideActionsButton aria-label={t("UpdateStandard")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }}>
+                    <SideActionsButton aria-label={t("UpdatePrompt")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }}>
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </SideActionsButton>
                 ) : null}

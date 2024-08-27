@@ -1,6 +1,6 @@
 import { ApiVersion, CodeLanguage, CodeVersion, JSONVariable, ListObject, NoteVersion, ProjectVersion, ResourceListFor, RoutineVersion, StandardVersion, Tag, TagShape } from "@local/shared";
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
-import { FindObjectTabOption } from "components/dialogs/FindObjectDialog/FindObjectDialog";
+import { FindObjectType } from "components/dialogs/types";
 import { ResourceListProps } from "components/lists/resource/types";
 import { FieldProps } from "formik";
 import { CSSProperties, RefObject } from "react";
@@ -166,7 +166,7 @@ export interface LinkInputBaseProps {
     helperText?: string | boolean | null | undefined;
     key?: string;
     label?: string;
-    limitTo?: FindObjectTabOption[];
+    limitTo?: FindObjectType[];
     name: string;
     onBlur?: (event: React.FocusEvent<HTMLElement>) => unknown;
     onChange: (newLink: string) => unknown;

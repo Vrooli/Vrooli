@@ -3,7 +3,7 @@ import { PageContainer } from "components/containers/PageContainer/PageContainer
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { ApiIcon, BotIcon, CommentIcon, HelpIcon, NoteIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, TeamIcon, TerminalIcon } from "icons";
+import { ApiIcon, ArticleIcon, BotIcon, CommentIcon, HelpIcon, NoteIcon, ObjectIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, TeamIcon, TerminalIcon } from "icons";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -70,14 +70,20 @@ export const createCards: CreateInfo[] = [
         incomplete: true,
     },
     {
-        objectType: "Standard",
-        description: "CreateStandardDescription",
-        Icon: StandardIcon,
-        id: "create-standard-card",
+        objectType: "Prompt",
+        description: "CreatePromptDescription",
+        Icon: ArticleIcon,
+        id: "create-prompt-card",
     },
     {
-        objectType: "Code",
-        description: "CreateCodeDescription",
+        objectType: "DataStructure",
+        description: "CreateDataStructureDescription",
+        Icon: ObjectIcon,
+        id: "create-data-structure-card",
+    },
+    {
+        objectType: "DataConverter",
+        description: "CreateDataConverterDescription",
         Icon: TerminalIcon,
         id: "create-code-card",
     },

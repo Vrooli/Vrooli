@@ -1,7 +1,6 @@
 import { exists, isOfType, QuestionForType, User } from "@local/shared";
 import { Tooltip } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
-import { SelectOrCreateObject, SelectOrCreateObjectType } from "components/dialogs/types";
 import { RelationshipItemQuestionForObject } from "components/lists/types";
 import { useField } from "formik";
 import { AddIcon, ApiIcon, ArticleIcon, NoteIcon, ProjectIcon, RoutineIcon, StandardIcon, TeamIcon, TerminalIcon } from "icons";
@@ -31,7 +30,7 @@ const questionForTypeIcons: Record<QuestionForType, SvgComponent> = {
     Team: TeamIcon,
 };
 
-const limitTo = Object.keys(QuestionForType) as SelectOrCreateObjectType[];
+const limitTo = ["Api", "DataConverter", "Note", "Project", "Prompt", "Routine", "SmartContract", "Team"] as const;
 
 export function QuestionForButton({
     isEditing,
@@ -117,7 +116,7 @@ export function QuestionForButton({
                     find="List"
                     isOpen={isDialogOpen}
                     handleCancel={closeDialog}
-                    handleComplete={handleSelect as (object: SelectOrCreateObject) => unknown}
+                    handleComplete={handleSelect as (data: object) => unknown}
                     limitTo={limitTo}
                 />
                 <Tooltip title={tooltip}>

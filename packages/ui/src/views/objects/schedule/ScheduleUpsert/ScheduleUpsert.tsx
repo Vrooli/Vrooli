@@ -4,7 +4,6 @@ import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { SelectOrCreateObject } from "components/dialogs/types";
 import { DateInput } from "components/inputs/DateInput/DateInput";
 import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
 import { Selector, SelectorBase } from "components/inputs/Selector/Selector";
@@ -240,7 +239,7 @@ function ScheduleForm({
     }, [t]);
 
     const [isScheduleForSearchOpen, setIsScheduleForSearchOpen] = useState(false);
-    const closeScheduleForSearch = useCallback(function closeScheduleForSearchCallback(selected?: SelectOrCreateObject) {
+    const closeScheduleForSearch = useCallback(function closeScheduleForSearchCallback(selected?: object) {
         setIsScheduleForSearchOpen(false);
         if (selected) {
             focusModeHelpers.setValue(isOfType(selected, "FocusMode") ? selected as FocusModeShape : null);
@@ -426,7 +425,7 @@ function ScheduleForm({
                             isOpen={isScheduleForSearchOpen}
                             limitTo={findScheduleForLimitTo}
                             handleCancel={closeScheduleForSearch}
-                            handleComplete={closeScheduleForSearch}
+                            handleComplete={closeScheduleForSearch as (item: object) => unknown}
                         />}
                         {canSetScheduleFor && isCreate && <Button
                             fullWidth

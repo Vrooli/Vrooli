@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 import { FormSection } from "styles";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
 import { routineInitialValues } from "views/objects/routine";
-import { RoutineApiForm, RoutineCodeForm, RoutineDataForm, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "views/objects/routine/RoutineTypeForms/RoutineTypeForms";
+import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "views/objects/routine/RoutineTypeForms/RoutineTypeForms";
 import { SubroutineViewProps } from "../types";
 
 const EMPTY_OBJECT = {};
@@ -88,7 +88,7 @@ export function SubroutineView({
             case RoutineType.Api:
                 return <RoutineApiForm {...routineTypeBaseProps} />;
             case RoutineType.Code:
-                return <RoutineCodeForm {...routineTypeBaseProps} />;
+                return <RoutineDataConverterForm {...routineTypeBaseProps} />;
             case RoutineType.Data:
                 return <RoutineDataForm {...routineTypeBaseProps} />;
             case RoutineType.Generate:

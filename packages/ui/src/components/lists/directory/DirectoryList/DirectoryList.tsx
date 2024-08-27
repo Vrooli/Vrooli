@@ -8,7 +8,6 @@ import { SearchButtonsProps } from "components/buttons/types";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
-import { SelectOrCreateObject } from "components/dialogs/types";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { ObjectListActions } from "components/lists/types";
@@ -510,7 +509,7 @@ export function DirectoryList(props: DirectoryListProps) {
                 find="List"
                 isOpen={isAddDialogOpen}
                 handleCancel={closeAddDialog}
-                handleComplete={onAdd as (item: SelectOrCreateObject) => unknown}
+                handleComplete={onAdd as (item: object) => unknown}
             />
             {BulkDeleteDialogComponent}
             <Box sx={{

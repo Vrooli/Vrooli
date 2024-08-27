@@ -1,4 +1,4 @@
-import { ActiveFocusMode, CommonKey, ErrorKey, Session } from "@local/shared";
+import { ActiveFocusMode, ChatPageTabOption, CommonKey, ErrorKey, Session } from "@local/shared";
 import { AlertDialogSeverity } from "components/dialogs/AlertDialog/AlertDialog";
 import { SnackSeverity } from "components/snacks";
 import { ThemeType } from "./cookies";
@@ -47,10 +47,30 @@ export type CelebrationPub = {
 
 export const SIDE_MENU_ID = "side-menu" as const;
 export const CHAT_SIDE_MENU_ID = "chat-side-menu" as const;
-export type SideMenuPub = {
-    id: typeof SIDE_MENU_ID | typeof CHAT_SIDE_MENU_ID;
+type SideMenuBase = {
     isOpen: boolean;
 }
+export type SideMenuPayloads = {
+    [SIDE_MENU_ID]: SideMenuBase & { id: typeof SIDE_MENU_ID };
+    [CHAT_SIDE_MENU_ID]: SideMenuBase & {
+        id: typeof CHAT_SIDE_MENU_ID;
+        /**
+         * Optional data to provide to the menu
+         */
+        data?: {
+            /**
+             * The current context to provide to the chat. 
+             * E.g. Currently highlighted text
+             */
+            context?: string;
+            /**
+             * Tab to switch to
+             */
+            tab?: ChatPageTabOption | `${ChatPageTabOption}`;
+        }
+    }
+}
+export type SideMenuPub = SideMenuPayloads[keyof SideMenuPayloads];
 
 export interface EventPayloads {
     alertDialog: AlertDialogPub;

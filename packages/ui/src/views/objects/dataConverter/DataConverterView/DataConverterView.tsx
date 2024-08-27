@@ -27,16 +27,16 @@ import { SideActionsButton } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
-import { codeInitialValues } from "../CodeUpsert/CodeUpsert";
-import { CodeViewProps } from "../types";
+import { dataConverterInitialValues } from "../DataConverterUpsert/DataConverterUpsert";
+import { DataConverterViewProps } from "../types";
 
 const codeLimitTo = [CodeLanguage.Javascript] as const;
 
-export function CodeView({
+export function DataConverterView({
     display,
     isOpen,
     onClose,
-}: CodeViewProps) {
+}: DataConverterViewProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -71,7 +71,7 @@ export function CodeView({
         setObject: setCodeVersion,
     });
 
-    const initialValues = useMemo(() => codeInitialValues(session, existing), [existing, session]);
+    const initialValues = useMemo(() => dataConverterInitialValues(session, existing), [existing, session]);
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as CodeShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
@@ -92,7 +92,7 @@ export function CodeView({
                 initialValues={initialValues}
                 onSubmit={noopSubmit}
             >
-                {(formik) => <Stack direction="column" spacing={4} sx={{
+                {() => <Stack direction="column" spacing={4} sx={{
                     marginLeft: "auto",
                     marginRight: "auto",
                     width: "min(100%, 700px)",
@@ -199,7 +199,7 @@ export function CodeView({
             <SideActionsButtons display={display}>
                 {/* Edit button */}
                 {permissions.canUpdate ? (
-                    <SideActionsButton aria-label={t("UpdateCode")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }}>
+                    <SideActionsButton aria-label={t("UpdateDataConverter")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }}>
                         <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </SideActionsButton>
                 ) : null}

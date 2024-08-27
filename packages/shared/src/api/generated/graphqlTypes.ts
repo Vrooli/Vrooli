@@ -1030,6 +1030,8 @@ export type CodeEdge = {
 
 export type CodeSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  codeLanguageLatestVersion?: InputMaybe<Scalars['String']>;
+  codeTypeLatestVersion?: InputMaybe<CodeType>;
   createdById?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
@@ -1167,6 +1169,8 @@ export type CodeVersionEdge = {
 export type CodeVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
   calledByRoutineVersionId?: InputMaybe<Scalars['ID']>;
+  codeLanguage?: InputMaybe<Scalars['String']>;
+  codeType?: InputMaybe<CodeType>;
   completedTimeFrame?: InputMaybe<TimeFrame>;
   createdByIdRoot?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
@@ -8722,6 +8726,7 @@ export type StandardEdge = {
 
 export type StandardSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  codeLanguageLatestVersion?: InputMaybe<Scalars['String']>;
   createdById?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
   excludeIds?: InputMaybe<Array<Scalars['ID']>>;
@@ -8746,6 +8751,7 @@ export type StandardSearchInput = {
   take?: InputMaybe<Scalars['Int']>;
   translationLanguagesLatestVersion?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
+  variantLatestVersion?: InputMaybe<StandardType>;
   visibility?: InputMaybe<VisibilityType>;
 };
 
@@ -8778,6 +8784,11 @@ export enum StandardSortBy {
   ViewsDesc = 'ViewsDesc'
 }
 
+export enum StandardType {
+  DataStructure = 'DataStructure',
+  Prompt = 'Prompt'
+}
+
 export type StandardUpdateInput = {
   id: Scalars['ID'];
   isInternal?: InputMaybe<Scalars['Boolean']>;
@@ -8798,6 +8809,7 @@ export type StandardUpdateInput = {
 
 export type StandardVersion = {
   __typename: 'StandardVersion';
+  codeLanguage: Scalars['String'];
   comments: Array<Comment>;
   commentsCount: Scalars['Int'];
   completedAt?: Maybe<Scalars['Date']>;
@@ -8819,10 +8831,10 @@ export type StandardVersion = {
   reportsCount: Scalars['Int'];
   resourceList?: Maybe<ResourceList>;
   root: Standard;
-  standardType: Scalars['String'];
   translations: Array<StandardVersionTranslation>;
   translationsCount: Scalars['Int'];
   updated_at: Scalars['Date'];
+  variant: StandardType;
   versionIndex: Scalars['Int'];
   versionLabel: Scalars['String'];
   versionNotes?: Maybe<Scalars['String']>;
@@ -8831,6 +8843,7 @@ export type StandardVersion = {
 };
 
 export type StandardVersionCreateInput = {
+  codeLanguage: Scalars['String'];
   default?: InputMaybe<Scalars['String']>;
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   id: Scalars['ID'];
@@ -8841,8 +8854,8 @@ export type StandardVersionCreateInput = {
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   rootConnect?: InputMaybe<Scalars['ID']>;
   rootCreate?: InputMaybe<StandardCreateInput>;
-  standardType: Scalars['String'];
   translationsCreate?: InputMaybe<Array<StandardVersionTranslationCreateInput>>;
+  variant: StandardType;
   versionLabel: Scalars['String'];
   versionNotes?: InputMaybe<Scalars['String']>;
   yup?: InputMaybe<Scalars['String']>;
@@ -8856,6 +8869,7 @@ export type StandardVersionEdge = {
 
 export type StandardVersionSearchInput = {
   after?: InputMaybe<Scalars['String']>;
+  codeLanguage?: InputMaybe<Scalars['String']>;
   completedTimeFrame?: InputMaybe<TimeFrame>;
   createdByIdRoot?: InputMaybe<Scalars['ID']>;
   createdTimeFrame?: InputMaybe<TimeFrame>;
@@ -8875,12 +8889,12 @@ export type StandardVersionSearchInput = {
   rootId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<StandardVersionSortBy>;
-  standardType?: InputMaybe<Scalars['String']>;
   tagsRoot?: InputMaybe<Array<Scalars['String']>>;
   take?: InputMaybe<Scalars['Int']>;
   translationLanguages?: InputMaybe<Array<Scalars['String']>>;
   updatedTimeFrame?: InputMaybe<TimeFrame>;
   userId?: InputMaybe<Scalars['ID']>;
+  variant?: InputMaybe<StandardType>;
   visibility?: InputMaybe<VisibilityType>;
 };
 
@@ -8933,6 +8947,7 @@ export type StandardVersionTranslationUpdateInput = {
 };
 
 export type StandardVersionUpdateInput = {
+  codeLanguage?: InputMaybe<Scalars['String']>;
   default?: InputMaybe<Scalars['String']>;
   directoryListingsConnect?: InputMaybe<Array<Scalars['ID']>>;
   directoryListingsDisconnect?: InputMaybe<Array<Scalars['ID']>>;
@@ -8944,10 +8959,10 @@ export type StandardVersionUpdateInput = {
   resourceListCreate?: InputMaybe<ResourceListCreateInput>;
   resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
   rootUpdate?: InputMaybe<StandardUpdateInput>;
-  standardType?: InputMaybe<Scalars['String']>;
   translationsCreate?: InputMaybe<Array<StandardVersionTranslationCreateInput>>;
   translationsDelete?: InputMaybe<Array<Scalars['ID']>>;
   translationsUpdate?: InputMaybe<Array<StandardVersionTranslationUpdateInput>>;
+  variant?: InputMaybe<StandardType>;
   versionLabel?: InputMaybe<Scalars['String']>;
   versionNotes?: InputMaybe<Scalars['String']>;
   yup?: InputMaybe<Scalars['String']>;
@@ -10855,6 +10870,7 @@ export type ResolversTypes = {
   StandardSearchInput: StandardSearchInput;
   StandardSearchResult: ResolverTypeWrapper<StandardSearchResult>;
   StandardSortBy: StandardSortBy;
+  StandardType: StandardType;
   StandardUpdateInput: StandardUpdateInput;
   StandardVersion: ResolverTypeWrapper<StandardVersion>;
   StandardVersionCreateInput: StandardVersionCreateInput;
@@ -14600,6 +14616,7 @@ export type StandardSearchResultResolvers<ContextType = any, ParentType extends 
 };
 
 export type StandardVersionResolvers<ContextType = any, ParentType extends ResolversParentTypes['StandardVersion'] = ResolversParentTypes['StandardVersion']> = {
+  codeLanguage?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   comments?: Resolver<Array<ResolversTypes['Comment']>, ParentType, ContextType>;
   commentsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   completedAt?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
@@ -14621,10 +14638,10 @@ export type StandardVersionResolvers<ContextType = any, ParentType extends Resol
   reportsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   resourceList?: Resolver<Maybe<ResolversTypes['ResourceList']>, ParentType, ContextType>;
   root?: Resolver<ResolversTypes['Standard'], ParentType, ContextType>;
-  standardType?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   translations?: Resolver<Array<ResolversTypes['StandardVersionTranslation']>, ParentType, ContextType>;
   translationsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  variant?: Resolver<ResolversTypes['StandardType'], ParentType, ContextType>;
   versionIndex?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   versionLabel?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   versionNotes?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;

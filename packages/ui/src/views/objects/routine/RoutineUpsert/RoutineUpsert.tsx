@@ -32,7 +32,7 @@ import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/t
 import { PubSub } from "utils/pubsub";
 import { getRoutineTypeDescription, getRoutineTypeIcon, getRoutineTypeLabel, routineTypes } from "utils/search/schemas/routine";
 import { validateFormValues } from "utils/validateFormValues";
-import { RoutineApiForm, RoutineCodeForm, RoutineDataForm, RoutineGenerateForm, RoutineInformationalForm, RoutineMultiStepForm, RoutineSmartContractForm } from "../RoutineTypeForms/RoutineTypeForms";
+import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineGenerateForm, RoutineInformationalForm, RoutineMultiStepForm, RoutineSmartContractForm } from "../RoutineTypeForms/RoutineTypeForms";
 import { BuildRoutineVersion, RoutineFormProps, RoutineUpsertProps } from "../types";
 
 export function routineInitialValues(
@@ -453,7 +453,7 @@ function RoutineForm({
             case RoutineType.Api:
                 return <RoutineApiForm {...routineTypeBaseProps} />;
             case RoutineType.Code:
-                return <RoutineCodeForm {...routineTypeBaseProps} />;
+                return <RoutineDataConverterForm {...routineTypeBaseProps} />;
             case RoutineType.Data:
                 return <RoutineDataForm {...routineTypeBaseProps} />;
             case RoutineType.Generate:

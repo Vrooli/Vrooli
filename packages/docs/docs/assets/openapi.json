@@ -42495,6 +42495,10 @@
             ],
             "type": "string"
           },
+          "codeLanguage": {
+            "title": "StandardVersion.codeLanguage",
+            "type": "string"
+          },
           "comments": {
             "items": {
               "$ref": "#/components/schemas/Comment"
@@ -42631,6 +42635,14 @@
             "title": "StandardVersion.updated_at",
             "type": "string"
           },
+          "variant": {
+            "enum": [
+              "DataStructure",
+              "Prompt"
+            ],
+            "title": "StandardVersion.variant",
+            "type": "string"
+          },
           "versionIndex": {
             "title": "StandardVersion.versionIndex",
             "type": "number"
@@ -42656,6 +42668,7 @@
         },
         "required": [
           "__typename",
+          "codeLanguage",
           "comments",
           "commentsCount",
           "created_at",
@@ -42676,6 +42689,7 @@
           "translations",
           "translationsCount",
           "updated_at",
+          "variant",
           "versionIndex",
           "versionLabel",
           "you"
@@ -42686,6 +42700,10 @@
       },
       "StandardVersionCreateInput": {
         "properties": {
+          "codeLanguage": {
+            "title": "StandardVersionCreateInput.codeLanguage",
+            "type": "string"
+          },
           "default": {
             "title": "StandardVersionCreateInput.default",
             "nullable": true,
@@ -42760,10 +42778,6 @@
             ],
             "title": "StandardVersionCreateInput.rootCreate"
           },
-          "standardType": {
-            "title": "StandardVersionCreateInput.standardType",
-            "type": "string"
-          },
           "translationsCreate": {
             "anyOf": [
               {
@@ -42779,6 +42793,14 @@
               }
             ],
             "title": "StandardVersionCreateInput.translationsCreate"
+          },
+          "variant": {
+            "enum": [
+              "DataStructure",
+              "Prompt"
+            ],
+            "title": "StandardVersionCreateInput.variant",
+            "type": "string"
           },
           "versionLabel": {
             "title": "StandardVersionCreateInput.versionLabel",
@@ -42796,10 +42818,11 @@
           }
         },
         "required": [
+          "codeLanguage",
           "id",
           "isPrivate",
           "props",
-          "standardType",
+          "variant",
           "versionLabel"
         ],
         "additionalProperties": false,
@@ -43212,6 +43235,11 @@
       },
       "StandardVersionUpdateInput": {
         "properties": {
+          "codeLanguage": {
+            "title": "StandardVersionUpdateInput.codeLanguage",
+            "nullable": true,
+            "type": "string"
+          },
           "default": {
             "title": "StandardVersionUpdateInput.default",
             "nullable": true,
@@ -43312,11 +43340,6 @@
             ],
             "title": "StandardVersionUpdateInput.rootUpdate"
           },
-          "standardType": {
-            "title": "StandardVersionUpdateInput.standardType",
-            "nullable": true,
-            "type": "string"
-          },
           "translationsCreate": {
             "anyOf": [
               {
@@ -43364,6 +43387,23 @@
               }
             ],
             "title": "StandardVersionUpdateInput.translationsUpdate"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "enum": [
+                  "DataStructure",
+                  "Prompt"
+                ],
+                "title": "StandardVersionUpdateInput.variant",
+                "type": "string"
+              },
+              {
+                "title": "StandardVersionUpdateInput.variant",
+                "nullable": true
+              }
+            ],
+            "title": "StandardVersionUpdateInput.variant"
           },
           "versionLabel": {
             "title": "StandardVersionUpdateInput.versionLabel",

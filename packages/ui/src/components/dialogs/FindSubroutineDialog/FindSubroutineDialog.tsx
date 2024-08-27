@@ -4,15 +4,17 @@ import { useField } from "formik";
 import { useCallback, useMemo } from "react";
 import { FindSubroutineDialogProps } from "../types";
 
-export const FindSubroutineDialog = ({
+const limitTo = ["Routine"] as const;
+
+export function FindSubroutineDialog({
     handleComplete,
     nodeId,
     routineVersionId,
     ...params
-}: FindSubroutineDialogProps) => {
+}: FindSubroutineDialogProps) {
     const [ownerField] = useField<OwnerShape | null | undefined>("root.owner");
 
-    const onComplete = useCallback((item: any) => {
+    const onComplete = useCallback((item: object) => {
         handleComplete(nodeId, item as RoutineVersion);
     }, [handleComplete, nodeId]);
 
@@ -46,8 +48,8 @@ export const FindSubroutineDialog = ({
         {...params}
         find="Full"
         handleComplete={onComplete}
-        limitTo={["Routine"]}
+        limitTo={limitTo}
         onlyVersioned
         where={where}
     />;
-};
+}

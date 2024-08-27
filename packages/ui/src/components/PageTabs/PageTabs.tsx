@@ -5,6 +5,9 @@ import { useWindowSize } from "hooks/useWindowSize";
 import { createRef, useCallback, useEffect, useMemo, useRef } from "react";
 import { TabStateColors, TabsInfo } from "utils/search/objectToSearch";
 
+const DRAG_END_DELAY_MS = 50;
+const RESIZE_UPDATE_UNDERLINE_DELAY_MS = 100;
+
 // Scroll so new tab is centered
 function easeInOutCubic(t: number) {
     // eslint-disable-next-line no-magic-numbers
@@ -64,7 +67,7 @@ export function PageTabs<TabList extends TabsInfo>({
         function handleMouseUp() {
             // Only set draggingRef to false if it was considered a drag
             if (distanceMoved > minimumDistance) {
-                setTimeout(() => { draggingRef.current = false; }, 50);
+                setTimeout(() => { draggingRef.current = false; }, DRAG_END_DELAY_MS);
             }
             document.removeEventListener("mousemove", handleMouseMove);
             document.removeEventListener("mouseup", handleMouseUp);
@@ -89,8 +92,11 @@ export function PageTabs<TabList extends TabsInfo>({
     }, [onChange, tabs]);
 
     useEffect(() => {
-        const selectedTab = tabRefs.current[currTab.index].current;
-        if (!selectedTab || !tabsRef.current) return;
+        if (!tabsRef.current) return;
+        const selectedTabRef = tabRefs.current[currTab.index];
+        if (!selectedTabRef) return;
+        const selectedTab = selectedTabRef.current;
+        if (!selectedTab) return;
 
         const targetScrollPosition = selectedTab.offsetLeft + selectedTab.offsetWidth / 2 - tabsRef.current.offsetWidth / 2;
         const startScrollPosition = tabsRef.current.scrollLeft;
@@ -174,7 +180,7 @@ export function PageTabs<TabList extends TabsInfo>({
     useEffect(() => {
         const timeout = setTimeout(() => {
             updateUnderline();
-        }, 100);
+        }, RESIZE_UPDATE_UNDERLINE_DELAY_MS);
         return () => {
             clearTimeout(timeout);
         };
@@ -203,7 +209,7 @@ export function PageTabs<TabList extends TabsInfo>({
 
     const tabBoxStyle = useCallback(function tabBoxStyleCallback(isSelected: boolean) {
         return {
-            padding: "4px",
+            padding: "4px 8px",
             margin: fullWidth ? "0 auto" : "0",
             cursor: "pointer",
             textTransform: "uppercase",

@@ -3,7 +3,6 @@ import { Box, Button, Card, Divider, Grid, Typography, styled, useTheme } from "
 import { LoadableButton } from "components/buttons/LoadableButton/LoadableButton";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
-import { SelectOrCreateObject } from "components/dialogs/types";
 import { CodeInputBase } from "components/inputs/CodeInput/CodeInput";
 import { SelectorBase } from "components/inputs/Selector/Selector";
 import { Title } from "components/text/Title/Title";
@@ -116,9 +115,9 @@ type CodeObjectInfo = Pick<CodeVersionShape, "__typename" | "id" | "codeLanguage
     translations?: Pick<CodeVersionTranslationShape, "id" | "name" | "description" | "jsonVariable" | "language">[];
 };
 
-const findCodeLimitTo = ["Code"] as const;
+const findCodeLimitTo = ["DataConverter"] as const;
 
-export const RoutineCodeForm = memo(function RoutineCodeFormMemo({
+export const RoutineDataConverterForm = memo(function RoutineDataConverterFormMemo({
     disabled,
     display,
     onSchemaInputChange,
@@ -132,10 +131,10 @@ export const RoutineCodeForm = memo(function RoutineCodeFormMemo({
     const [codeObject, setCodeObject] = useState<CodeObjectInfo | null>(null);
     const [isCodeSearchOpen, setIsCodeSearchOpen] = useState(false);
 
-    const closeCodeSearch = useCallback((selected?: SelectOrCreateObject) => {
+    const closeCodeSearch = useCallback((selected?: CodeObjectInfo) => {
         setIsCodeSearchOpen(false);
         if (selected) {
-            setCodeObject(selected as unknown as CodeObjectInfo);
+            setCodeObject(selected);
         }
     }, []);
 
@@ -169,7 +168,7 @@ export const RoutineCodeForm = memo(function RoutineCodeFormMemo({
                     find="Full"
                     isOpen={isCodeSearchOpen}
                     handleCancel={closeCodeSearch}
-                    handleComplete={closeCodeSearch}
+                    handleComplete={closeCodeSearch as (item: object) => unknown}
                     limitTo={findCodeLimitTo}
                 />
             )}
@@ -372,7 +371,7 @@ export const RoutineGenerateForm = memo(function RoutineGenerateFormMemo({
     }, [handleConfigCallDataChange, handleRespondingBotChange]);
 
     const [isBotSearchOpen, setIsBotSearchOpen] = useState(false);
-    const closeBotSearch = useCallback(function closeBotSearchCallback(selected?: SelectOrCreateObject) {
+    const closeBotSearch = useCallback(function closeBotSearchCallback(selected?: BotInfo) {
         setIsBotSearchOpen(false);
         if (selected) {
             handleRespondingBotChange(selected as unknown as BotInfo);
@@ -426,7 +425,7 @@ export const RoutineGenerateForm = memo(function RoutineGenerateFormMemo({
                 isOpen={isBotSearchOpen}
                 limitTo={findBotLimitTo}
                 handleCancel={closeBotSearch}
-                handleComplete={closeBotSearch}
+                handleComplete={closeBotSearch as (item: object) => unknown}
                 where={findBotWhere}
             />}
             {bot && <BotCard bot={bot} />}

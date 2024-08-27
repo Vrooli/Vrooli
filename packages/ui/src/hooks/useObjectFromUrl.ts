@@ -75,6 +75,7 @@ export function useObjectFromUrl<
     TData extends UrlObject = PartialWithType<PData>,
     TFunc extends (data: Partial<PData>) => TData = (data: Partial<PData>) => TData
 >({
+    // componentId,
     disabled,
     displayError,
     endpoint,
@@ -85,6 +86,8 @@ export function useObjectFromUrl<
     overrideObject,
     transform,
 }: {
+    // /** The ID for the component/page. Used to get and set cache data */
+    // componentId: string, TODO
     disabled?: boolean,
     /** If true, shows error snack when fetching fails */
     displayError?: boolean,

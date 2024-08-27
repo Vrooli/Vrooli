@@ -348,12 +348,6 @@ export function DashboardView({
     }, [upcomingEvents]);
 
     const openSideMenu = useCallback(() => { PubSub.get().publish("sideMenu", { id: "chat-side-menu", isOpen: true }); }, []);
-    const closeSideMenu = useCallback(() => { PubSub.get().publish("sideMenu", { id: "chat-side-menu", isOpen: false }); }, []);
-    useEffect(() => {
-        return () => {
-            closeSideMenu();
-        };
-    }, [closeSideMenu]);
 
     const [showChat, setShowChat] = useState(false);
     const hideChat = useCallback(function hideChatCallback() {
@@ -616,6 +610,7 @@ export function DashboardView({
             <TypingIndicator participants={usersTyping} />
             <RichInputBase
                 actionButtons={inputActionButtons}
+                disableAssistant={true}
                 fullWidth
                 getTaggableItems={async (message) => {
                     // TODO should be able to tag any public or owned object (e.g. "Create routine like @some_existing_routine, but change a to b")

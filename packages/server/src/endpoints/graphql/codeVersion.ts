@@ -1,4 +1,4 @@
-import { CodeVersionSortBy } from "@local/shared";
+import { CodeType, CodeVersionSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { CodeVersionEndpoints, EndpointsCodeVersion } from "../logic/codeVersion";
 
@@ -117,6 +117,8 @@ export const typeDef = gql`
     input CodeVersionSearchInput {
         after: String
         calledByRoutineVersionId: ID
+        codeLanguage: String
+        codeType: CodeType
         createdTimeFrame: TimeFrame
         completedTimeFrame: TimeFrame
         createdByIdRoot: ID
@@ -165,10 +167,12 @@ export const typeDef = gql`
 `;
 
 export const resolvers: {
+    CodeType: typeof CodeType;
     CodeVersionSortBy: typeof CodeVersionSortBy;
     Query: EndpointsCodeVersion["Query"];
     Mutation: EndpointsCodeVersion["Mutation"];
 } = {
+    CodeType,
     CodeVersionSortBy,
     ...CodeVersionEndpoints,
 };

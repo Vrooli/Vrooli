@@ -102,6 +102,8 @@ export const typeDef = gql`
 
     input CodeSearchInput {
         after: String
+        codeLanguageLatestVersion: String
+        codeTypeLatestVersion: CodeType
         createdById: ID
         createdTimeFrame: TimeFrame
         excludeIds: [ID!]

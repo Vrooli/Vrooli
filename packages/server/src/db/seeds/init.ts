@@ -2,7 +2,7 @@
  * Adds initial data to the database. (i.e. data that should be included in production). 
  * This is written so that it can be called multiple times without duplicating data.
  */
-import { CodeType, InputType, LIST_TO_NUMBERED_PLAINTEXT, LIST_TO_PLAINTEXT_ID, PARSE_RUN_IO_FROM_PLAINTEXT_ID, TRANSFORM_SEARCH_TERMS_ID, uuid, VALYXA_ID } from "@local/shared";
+import { CodeLanguage, CodeType, LIST_TO_NUMBERED_PLAINTEXT, LIST_TO_PLAINTEXT_ID, PARSE_RUN_IO_FROM_PLAINTEXT_ID, StandardType, TRANSFORM_SEARCH_TERMS_ID, uuid, VALYXA_ID } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import fs from "fs";
 import { hashPassword } from "../../auth/email";
@@ -766,7 +766,8 @@ export async function init() {
                 },
                 versionLabel: "1.0.0",
                 versionIndex: 0,
-                standardType: InputType.JSON,
+                codeLanguage: CodeLanguage.Json,
+                variant: StandardType.DataStructure,
                 props: "{\"format\":{\"<721>\":{\"<policy_id>\":{\"<asset_name>\":{\"name\":\"<asset_name>\",\"image\":\"<ipfs_link>\",\"?mediaType\":\"<mime_type>\",\"?description\":\"<description>\",\"?files\":[{\"name\":\"<asset_name>\",\"mediaType\":\"<mime_type>\",\"src\":\"<ipfs_link>\"}],\"[x]\":\"[any]\"}},\"version\":\"1.0\"}},\"defaults\":[]}",
             },
         });

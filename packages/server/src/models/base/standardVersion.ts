@@ -83,7 +83,7 @@ const querier = () => ({
         const translatedName = "";//getTranslation(data, 'name', languages).name ?? "";
         if (translatedName.length > 0) return translatedName;
         // Otherwise, generate name based on type and random string
-        const name = `${data.standardType} ${randomString(5)}`;
+        const name = `${data.variant} ${randomString(5)}`;
         return name;
     },
 });
@@ -143,12 +143,13 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
                 }
                 return {
                     id: data.id,
+                    codeLanguage: data.codeLanguage,
                     default: noNull(data.default),
                     isPrivate: data.isPrivate,
                     isComplete: noNull(data.isComplete),
                     isFile: noNull(data.isFile),
                     props: sortify(data.props, rest.userData.languages),
-                    standardType: data.standardType,
+                    variant: data.variant,
                     versionLabel: data.versionLabel,
                     versionNotes: noNull(data.versionNotes),
                     yup: data.yup ? sortify(data.yup, rest.userData.languages) : undefined,
@@ -175,12 +176,13 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
                     });
                 }
                 return {
+                    codeLanguage: noNull(data.codeLanguage),
                     default: noNull(data.default),
                     isPrivate: noNull(data.isPrivate),
                     isComplete: noNull(data.isComplete),
                     isFile: noNull(data.isFile),
                     props: data.props ? sortify(data.props, rest.userData.languages) : undefined,
-                    standardType: noNull(data.standardType),
+                    variant: noNull(data.variant),
                     versionLabel: noNull(data.versionLabel),
                     versionNotes: noNull(data.versionNotes),
                     yup: data.yup ? sortify(data.yup, rest.userData.languages) : undefined,
@@ -203,6 +205,7 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
         defaultSort: StandardVersionSortBy.DateCompletedDesc,
         sortBy: StandardVersionSortBy,
         searchFields: {
+            codeLanguage: true,
             completedTimeFrame: true,
             createdByIdRoot: true,
             createdTimeFrame: true,
@@ -219,11 +222,11 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
             ownedByUserIdRoot: true,
             reportId: true,
             rootId: true,
-            standardType: true,
             tagsRoot: true,
             translationLanguages: true,
             updatedTimeFrame: true,
             userId: true,
+            variant: true,
         },
         searchStringQuery: () => ({
             OR: [

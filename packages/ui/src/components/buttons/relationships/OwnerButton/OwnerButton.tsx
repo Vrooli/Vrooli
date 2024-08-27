@@ -2,7 +2,7 @@ import { OwnerShape, User, exists, getTranslation, noop } from "@local/shared";
 import { Tooltip } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { ListMenu } from "components/dialogs/ListMenu/ListMenu";
-import { ListMenuItemData, SelectOrCreateObjectType } from "components/dialogs/types";
+import { FindObjectType, ListMenuItemData } from "components/dialogs/types";
 import { userFromSession } from "components/lists/RelationshipList/RelationshipList";
 import { RelationshipItemTeam, RelationshipItemUser } from "components/lists/types";
 import { SessionContext } from "contexts/SessionContext";
@@ -83,8 +83,8 @@ export function OwnerButton({
     }, [closeOwnerDialog, openTeamDialog, session, versionHelpers, rootHelpers]);
 
     // FindObjectDialog
-    const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => unknown, () => unknown]>(() => {
-        if (isTeamDialogOpen) return ["Team", handleOwnerSelect, closeTeamDialog];
+    const [findType, findHandleAdd, findHandleClose] = useMemo<[FindObjectType | null, (data: object) => unknown, () => unknown]>(() => {
+        if (isTeamDialogOpen) return ["Team", handleOwnerSelect as (data: object) => unknown, closeTeamDialog];
         return [null, noop, noop];
     }, [isTeamDialogOpen, handleOwnerSelect, closeTeamDialog]);
     const limitTo = useMemo(function limitToMemo() {

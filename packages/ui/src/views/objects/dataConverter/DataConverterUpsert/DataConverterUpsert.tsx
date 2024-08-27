@@ -31,9 +31,9 @@ import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { validateFormValues } from "utils/validateFormValues";
-import { CodeFormProps, CodeUpsertProps } from "../types";
+import { DataConverterFormProps, DataConverterUpsertProps } from "../types";
 
-export function codeInitialValues(
+export function dataConverterInitialValues(
     session: Session | undefined,
     existing?: Partial<CodeVersion> | undefined,
 ): CodeVersionShape {
@@ -78,7 +78,7 @@ export function codeInitialValues(
     };
 }
 
-function transformCodeVersionValues(values: CodeVersionShape, existing: CodeVersionShape, isCreate: boolean) {
+function transformDataConverterVersionValues(values: CodeVersionShape, existing: CodeVersionShape, isCreate: boolean) {
     return isCreate ? shapeCodeVersion.create(values) : shapeCodeVersion.update(existing, values);
 }
 
@@ -120,24 +120,23 @@ function parseList(input) {
 const codeLimitTo = [CodeLanguage.Javascript] as const;
 const relationshipListStyle = { marginBottom: 2 } as const;
 const formSectionStyle = { overflowX: "hidden", marginBottom: 2 } as const;
+const resourceListStyle = { list: { marginBottom: 2 } } as const;
+const exampleButtonStyle = { marginLeft: "auto" } as const;
+const codeCollapseStyle = { titleContainer: { marginBottom: 1 } } as const;
 
-function CodeForm({
+function DataConverterForm({
     disabled,
-    dirty,
     display,
     existing,
     handleUpdate,
     isCreate,
     isOpen,
     isReadLoading,
-    onCancel,
     onClose,
-    onCompleted,
-    onDeleted,
     values,
     versions,
     ...props
-}: CodeFormProps) {
+}: DataConverterFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
 
@@ -153,6 +152,10 @@ function CodeForm({
         defaultLanguage: getUserLanguages(session)[0],
         validationSchema: codeVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
+
+    const resourceListParent = useMemo(function resourceListParentMemo() {
+        return { __typename: "CodeVersion", id: values.id } as const;
+    }, [values]);
 
     const { handleCancel, handleCompleted } = useUpsertActions<CodeVersion>({
         display,
@@ -213,7 +216,7 @@ function CodeForm({
         disabled,
         existing,
         fetch,
-        inputs: transformCodeVersionValues(values, existing, isCreate),
+        inputs: transformDataConverterVersionValues(values, existing, isCreate),
         isCreate,
         onSuccess: (data) => { handleCompleted(data); },
         onCompleted: () => { props.setSubmitting(false); },
@@ -238,10 +241,10 @@ function CodeForm({
             <TopBar
                 display={display}
                 onClose={onClose}
-                title={t(isCreate ? "CreateCode" : "UpdateCode")}
+                title={t(isCreate ? "CreateDataConverter" : "UpdateDataConverter")}
             />
             <SearchExistingButton
-                href={`${LINKS.Search}?type="${SearchPageTabOption.Code}"`}
+                href={`${LINKS.Search}?type="${SearchPageTabOption.DataConverter}"`}
                 text="Search existing codes"
             />
             <BaseForm
@@ -259,8 +262,8 @@ function CodeForm({
                         <ResourceListInput
                             horizontal
                             isCreate={true}
-                            parent={{ __typename: "CodeVersion", id: values.id }}
-                            sxs={{ list: { marginBottom: 2 } }}
+                            parent={resourceListParent}
+                            sxs={resourceListStyle}
                         />
                         <FormSection sx={formSectionStyle}>
                             <TranslatedTextInput
@@ -300,24 +303,16 @@ function CodeForm({
                         titleVariant="h4"
                         isOpen={true}
                         toTheRight={
-                            <>
-                                <Button
-                                    variant="outlined"
-                                    onClick={showExample}
-                                    startIcon={<HelpIcon />}
-                                    sx={{ marginLeft: 2 }}
-                                >
-                                    Show example
-                                </Button>
-                                {/* <IconButton
-                                    onClick={toggleFullscreen}
-                                    sx={{ marginLeft: 2 }}
-                                >
-                                    {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-                                </IconButton> */}
-                            </>
+                            <Button
+                                variant="outlined"
+                                onClick={showExample}
+                                startIcon={<HelpIcon />}
+                                sx={exampleButtonStyle}
+                            >
+                                Show example
+                            </Button>
                         }
-                        sxs={{ titleContainer: { marginBottom: 1 } }}
+                        sxs={codeCollapseStyle}
                     >
                         <CodeInput
                             disabled={false}
@@ -345,12 +340,12 @@ function CodeForm({
     );
 }
 
-export function CodeUpsert({
+export function DataConverterUpsert({
     isCreate,
     isOpen,
     overrideObject,
     ...props
-}: CodeUpsertProps) {
+}: DataConverterUpsertProps) {
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<CodeVersion, CodeVersionShape>({
@@ -358,11 +353,11 @@ export function CodeUpsert({
         isCreate,
         objectType: "CodeVersion",
         overrideObject,
-        transform: (existing) => codeInitialValues(session, existing),
+        transform: (existing) => dataConverterInitialValues(session, existing),
     });
 
     async function validateValues(values: CodeVersionShape) {
-        return await validateFormValues(values, existing, isCreate, transformCodeVersionValues, codeVersionValidation);
+        return await validateFormValues(values, existing, isCreate, transformDataConverterVersionValues, codeVersionValidation);
     }
 
     return (
@@ -372,7 +367,7 @@ export function CodeUpsert({
             onSubmit={noopSubmit}
             validate={validateValues}
         >
-            {(formik) => <CodeForm
+            {(formik) => <DataConverterForm
                 disabled={!(isCreate || permissions.canUpdate)}
                 existing={existing}
                 handleUpdate={setExisting}

@@ -110,23 +110,27 @@ export enum ParticipantManagePageTabOption {
 export enum SearchPageTabOption {
     All = "All",
     Api = "Api",
-    Code = "Code",
+    DataConverter = "DataConverter",
+    DataStructure = "DataStructure",
     Note = "Note",
     Project = "Project",
+    Prompt = "Prompt",
     Question = "Question",
     Routine = "Routine",
-    Standard = "Standard",
+    SmartContract = "SmartContract",
     Team = "Team",
     User = "User",
 }
 
 export enum SearchVersionPageTabOption {
     ApiVersion = "ApiVersion",
-    CodeVersion = "CodeVersion",
+    DataConverterVersion = "DataConverterVersion",
+    DataStructureVersion = "DataStructureVersion",
     NoteVersion = "NoteVersion",
     ProjectVersion = "ProjectVersion",
+    PromptVersion = "PromptVersion",
     RoutineVersion = "RoutineVersion",
-    StandardVersion = "StandardVersion",
+    SmartContractVersion = "SmartContractVersion",
 }
 
 export enum UserPageTabOption {
@@ -155,7 +159,6 @@ export enum SignUpPageTabOption {
 
 export enum ChatPageTabOption {
     Chat = "Chat",
-    Favorite = "Favorite",
     History = "History",
     Prompt = "Prompt",
     Routine = "Routine",

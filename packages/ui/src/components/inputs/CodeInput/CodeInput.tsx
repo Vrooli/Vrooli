@@ -17,8 +17,7 @@ import { getCurrentUser } from "utils/authentication/session";
 import { getCookieMatchingChat } from "utils/cookies";
 import { generateContext } from "utils/display/stringTools";
 import { CHAT_SIDE_MENU_ID, PubSub } from "utils/pubsub";
-import { ChatCrud, VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
-import { ChatCrudProps } from "views/objects/chat/types";
+import { VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
 import { CodeInputBaseProps, CodeInputProps } from "../types";
 
 // Stub types for code splitting
@@ -636,22 +635,6 @@ export function CodeInputBase({
 
     const id = useMemo(() => `code-container-${name}`, [name]);
 
-    // Handle assistant dialog
-    const closeAssistantDialog = useCallback(() => {
-        setAssistantDialogProps(props => ({ ...props, context: undefined, isOpen: false, overrideObject: undefined } as ChatCrudProps));
-        PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen: false });
-    }, []);
-    const [assistantDialogProps, setAssistantDialogProps] = useState<ChatCrudProps>({
-        context: undefined,
-        display: "dialog",
-        isCreate: true,
-        isOpen: false,
-        task: "standard",
-        onCancel: closeAssistantDialog,
-        onCompleted: closeAssistantDialog,
-        onClose: closeAssistantDialog,
-        onDeleted: closeAssistantDialog,
-    });
     const openAssistantDialog = useCallback(() => {
         if (disabled) return;
         const userId = getCurrentUser(session)?.id;
@@ -681,9 +664,10 @@ export function CodeInputBase({
                 user: VALYXA_INFO,
             }],
         } as unknown as ChatShape;
+        console.log("openin assistant dialog", existingChatId, overrideObject);
 
-        // Open the assistant dialog
-        setAssistantDialogProps(props => ({ ...props, isCreate: !existingChatId, isOpen: true, context, overrideObject } as ChatCrudProps));
+        // Open the side chat and provide it context
+        PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen: true, data: { context, tab: "Chat" } });
     }, [disabled, session]);
 
     // Handle action buttons
@@ -769,8 +753,6 @@ export function CodeInputBase({
 
     return (
         <>
-            {/* Assistant dialog for generating text */}
-            <ChatCrud {...assistantDialogProps} />
             <Stack direction="column" spacing={0} sx={outerStackStyle}>
                 <InfoBar>
                     {/* Select or display language */}

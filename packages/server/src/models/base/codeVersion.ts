@@ -112,6 +112,8 @@ export const CodeVersionModel: CodeVersionModelLogic = ({
         sortBy: CodeVersionSortBy,
         searchFields: {
             calledByRoutineVersionId: true,
+            codeLanguage: true,
+            codeType: true,
             completedTimeFrame: true,
             createdByIdRoot: true,
             createdTimeFrame: true,

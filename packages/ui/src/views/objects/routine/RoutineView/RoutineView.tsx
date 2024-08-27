@@ -35,7 +35,7 @@ import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils
 import { openObject } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { routineTypes } from "utils/search/schemas/routine";
-import { RoutineApiForm, RoutineCodeForm, RoutineDataForm, RoutineGenerateForm, RoutineInformationalForm, RoutineMultiStepForm, RoutineSmartContractForm } from "../RoutineTypeForms/RoutineTypeForms";
+import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineGenerateForm, RoutineInformationalForm, RoutineMultiStepForm, RoutineSmartContractForm } from "../RoutineTypeForms/RoutineTypeForms";
 import { routineInitialValues } from "../RoutineUpsert/RoutineUpsert";
 import { RoutineViewProps } from "../types";
 
@@ -233,7 +233,7 @@ export function RoutineView({
             case RoutineType.Api:
                 return <RoutineApiForm {...routineTypeBaseProps} />;
             case RoutineType.Code:
-                return <RoutineCodeForm {...routineTypeBaseProps} />;
+                return <RoutineDataConverterForm {...routineTypeBaseProps} />;
             case RoutineType.Data:
                 return <RoutineDataForm {...routineTypeBaseProps} />;
             case RoutineType.Generate:

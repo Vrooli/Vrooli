@@ -95,6 +95,10 @@ function FocusModeForm({
         setIsScheduleDialogOpen(false);
     };
 
+    const resourceListParent = useMemo(function resourceListParentMemo() {
+        return { __typename: "FocusMode", id: values.id } as const;
+    }, [values]);
+
     const { handleCancel, handleCompleted } = useUpsertActions<FocusMode>({
         display,
         isCreate,
@@ -244,7 +248,7 @@ function FocusModeForm({
                     <ResourceListInput
                         horizontal
                         isCreate={true}
-                        parent={{ __typename: "FocusMode", id: values.id }}
+                        parent={resourceListParent}
                     />
                     <ContentCollapse
                         isOpen={false}

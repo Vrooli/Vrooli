@@ -2253,8 +2253,9 @@ model standard_version {
     created_at            DateTime                       @default(now()) @db.Timestamptz(6)
     updated_at            DateTime                       @default(now()) @db.Timestamptz(6)
     completedAt           DateTime?                      @db.Timestamptz(6)
+    codeLanguage          String                         @default("json") @db.VarChar(128)
     default               String?                        @db.VarChar(2048)
-    standardType          String
+    variant               StandardType                   @default(DataStructure)
     props                 String                         @db.VarChar(8192)
     isLatest              Boolean                        @default(false)
     isLatestPublic        Boolean                        @default(false)
@@ -2954,6 +2955,11 @@ enum ScheduleRecurrenceType {
     Weekly
     Monthly
     Yearly
+}
+
+enum StandardType {
+    DataStructure
+    Prompt
 }
 
 enum TransferStatus {

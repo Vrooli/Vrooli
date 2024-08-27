@@ -52,9 +52,29 @@ export const shortcuts: PreSearchItem[] = [
         value: LINKS.Create,
     },
     {
-        label: "CreateReminder",
+        label: "CreateApi",
         keywords: createKeywords,
-        value: `${LINKS.Reminder}/add`,
+        value: `${LINKS.Api}/add`,
+    },
+    {
+        label: "CreateBot",
+        keywords: createKeywords,
+        value: `${LINKS.User}/add`,
+    },
+    {
+        label: "CreateChat",
+        keywords: createKeywords,
+        value: `${LINKS.Chat}/add`,
+    },
+    {
+        label: "CreateDataConverter",
+        keywords: createKeywords,
+        value: `${LINKS.DataConverter}/add`,
+    },
+    {
+        label: "CreateDataStructure",
+        keywords: createKeywords,
+        value: `${LINKS.DataStructure}/add`,
     },
     {
         label: "CreateNote",
@@ -72,19 +92,9 @@ export const shortcuts: PreSearchItem[] = [
         value: `${LINKS.Project}/add`,
     },
     {
-        label: "CreateTeam",
+        label: "CreatePrompt",
         keywords: createKeywords,
-        value: `${LINKS.Team}/add`,
-    },
-    {
-        label: "CreateBot",
-        keywords: createKeywords,
-        value: `${LINKS.User}/add`,
-    },
-    {
-        label: "CreateChat",
-        keywords: createKeywords,
-        value: `${LINKS.Chat}/add`,
+        value: `${LINKS.Prompt}/add`,
     },
     {
         label: "CreateQuestion",
@@ -92,19 +102,19 @@ export const shortcuts: PreSearchItem[] = [
         value: `${LINKS.Question}/add`,
     },
     {
-        label: "CreateStandard",
+        label: "CreateReminder",
         keywords: createKeywords,
-        value: `${LINKS.Standard}/add`,
+        value: `${LINKS.Reminder}/add`,
     },
     {
-        label: "CreateCode",
+        label: "CreateSmartContract",
         keywords: createKeywords,
-        value: `${LINKS.Code}/add`,
+        value: `${LINKS.SmartContract}/add`,
     },
     {
-        label: "CreateApi",
+        label: "CreateTeam",
         keywords: createKeywords,
-        value: `${LINKS.Api}/add`,
+        value: `${LINKS.Team}/add`,
     },
     {
         label: "Search",
@@ -112,9 +122,19 @@ export const shortcuts: PreSearchItem[] = [
         value: LINKS.Search,
     },
     {
-        label: "SearchRoutine",
+        label: "SearchApi",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type="${SearchPageTabOption.Routine}"`,
+        value: `${LINKS.Search}?type="${SearchPageTabOption.Api}"`,
+    },
+    {
+        label: "SearchDataConverter",
+        keywords: searchKeywords,
+        value: `${LINKS.Search}?type="${SearchPageTabOption.DataConverter}"`,
+    },
+    {
+        label: "SearchDataStructure",
+        keywords: searchKeywords,
+        value: `${LINKS.Search}?type="${SearchPageTabOption.DataStructure}"`,
     },
     {
         label: "SearchProject",
@@ -122,14 +142,34 @@ export const shortcuts: PreSearchItem[] = [
         value: `${LINKS.Search}?type="${SearchPageTabOption.Project}"`,
     },
     {
-        label: "SearchQuestion",
+        label: "SearchPrompt",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type="${SearchPageTabOption.Question}"`,
+        value: `${LINKS.Search}?type="${SearchPageTabOption.Prompt}"`,
     },
     {
         label: "SearchNote",
         keywords: searchKeywords,
         value: `${LINKS.Search}?type="${SearchPageTabOption.Note}"`,
+    },
+    {
+        label: "SearchQuestion",
+        keywords: searchKeywords,
+        value: `${LINKS.Search}?type="${SearchPageTabOption.Question}"`,
+    },
+    {
+        label: "SearchRoutine",
+        keywords: searchKeywords,
+        value: `${LINKS.Search}?type="${SearchPageTabOption.Routine}"`,
+    },
+    {
+        label: "SearchRun",
+        keywords: searchKeywords,
+        value: `${LINKS.History}?type="${HistoryPageTabOption.RunsActive}"`,
+    },
+    {
+        label: "SearchSmartContract",
+        keywords: searchKeywords,
+        value: `${LINKS.Search}?type="${SearchPageTabOption.SmartContract}"`,
     },
     {
         label: "SearchTeam",
@@ -140,26 +180,6 @@ export const shortcuts: PreSearchItem[] = [
         label: "SearchUser",
         keywords: searchKeywords,
         value: `${LINKS.Search}?type="${SearchPageTabOption.User}"`,
-    },
-    {
-        label: "SearchStandard",
-        keywords: searchKeywords,
-        value: `${LINKS.Search}?type="${SearchPageTabOption.Standard}"`,
-    },
-    {
-        label: "SearchApi",
-        keywords: searchKeywords,
-        value: `${LINKS.Search}?type="${SearchPageTabOption.Api}"`,
-    },
-    {
-        label: "SearchCode",
-        keywords: searchKeywords,
-        value: `${LINKS.Search}?type="${SearchPageTabOption.Code}"`,
-    },
-    {
-        label: "SearchRun",
-        keywords: searchKeywords,
-        value: `${LINKS.History}?type="${HistoryPageTabOption.RunsActive}"`,
     },
     {
         label: "SearchView",

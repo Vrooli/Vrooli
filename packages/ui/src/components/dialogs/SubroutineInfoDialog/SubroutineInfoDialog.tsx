@@ -24,7 +24,7 @@ import { PubSub } from "utils/pubsub";
 import { routineTypes } from "utils/search/schemas/routine";
 import { validateFormValues } from "utils/validateFormValues";
 import { routineInitialValues } from "views/objects/routine";
-import { RoutineApiForm, RoutineCodeForm, RoutineDataForm, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "views/objects/routine/RoutineTypeForms/RoutineTypeForms";
+import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "views/objects/routine/RoutineTypeForms/RoutineTypeForms";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { SubroutineFormProps, SubroutineInfoDialogProps } from "../types";
 
@@ -195,7 +195,7 @@ function SubroutineForm({
             case RoutineType.Api:
                 return <RoutineApiForm {...routineTypeBaseProps} />;
             case RoutineType.Code:
-                return <RoutineCodeForm {...routineTypeBaseProps} />;
+                return <RoutineDataConverterForm {...routineTypeBaseProps} />;
             case RoutineType.Data:
                 return <RoutineDataForm {...routineTypeBaseProps} />;
             case RoutineType.Generate:

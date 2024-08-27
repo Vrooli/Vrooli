@@ -7,13 +7,13 @@ import { useIsLeftHanded } from "hooks/useIsLeftHanded";
 import { useUndoRedo } from "hooks/useUndoRedo";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
+import { DEFAULT_MIN_ROWS } from "utils/consts";
 import { getCookie, getCookieMatchingChat, setCookie } from "utils/cookies";
 import { getDeviceInfo, keyComboToString } from "utils/display/device";
 import { generateContext } from "utils/display/stringTools";
 import { getTranslationData, handleTranslationChange } from "utils/display/translationTools";
 import { CHAT_SIDE_MENU_ID, PubSub } from "utils/pubsub";
-import { ChatCrud, VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
-import { ChatCrudProps } from "views/objects/chat/types";
+import { VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
 import { RichInputLexical } from "../RichInputLexical/RichInputLexical";
 import { RichInputMarkdown } from "../RichInputMarkdown/RichInputMarkdown";
 import { RichInputToolbar, defaultActiveStates } from "../RichInputToolbar/RichInputToolbar";
@@ -42,7 +42,7 @@ export function RichInputBase({
     helperText,
     maxChars,
     maxRows,
-    minRows = 4,
+    minRows = DEFAULT_MIN_ROWS,
     name,
     onBlur,
     onFocus,
@@ -83,21 +83,6 @@ export function RichInputBase({
 
     const id = useMemo(() => `input-container-${name}`, [name]);
 
-    const closeAssistantDialog = useCallback(() => {
-        setAssistantDialogProps(props => ({ ...props, context: undefined, isOpen: false, overrideObject: undefined } as ChatCrudProps));
-        PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen: false });
-    }, []);
-    const [assistantDialogProps, setAssistantDialogProps] = useState<ChatCrudProps>({
-        context: undefined,
-        display: "dialog",
-        isCreate: true,
-        isOpen: false,
-        onCancel: closeAssistantDialog,
-        onClose: closeAssistantDialog,
-        onCompleted: closeAssistantDialog,
-        onDeleted: closeAssistantDialog,
-        task: "note",
-    });
     const openAssistantDialog = useCallback((selected: string, fullText: string) => {
         console.log("in openAssistantDialog", id);
         if (disabled) return;
@@ -120,9 +105,10 @@ export function RichInputBase({
                 user: VALYXA_INFO,
             }],
         } as unknown as ChatShape;
+        console.log("openin assistant dialog", existingChatId, overrideObject);
 
-        // Open the assistant dialog
-        setAssistantDialogProps(props => ({ ...props, isCreate: !existingChatId, isOpen: true, context, overrideObject } as ChatCrudProps));
+        // Open the side chat and provide it context
+        PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen: true, data: { context, tab: "Chat" } });
     }, [disabled, id, session]);
 
     /** Prevents input from losing focus when the toolbar is pressed */
@@ -234,8 +220,6 @@ export function RichInputBase({
 
     return (
         <>
-            {/* Assistant dialog for generating text */}
-            {!disableAssistant && <ChatCrud {...assistantDialogProps} />}
             <Box
                 id={`markdown-input-base-${name}`}
                 onMouseDown={handleMouseDown}

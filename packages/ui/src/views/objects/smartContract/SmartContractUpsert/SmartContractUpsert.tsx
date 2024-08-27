@@ -157,6 +157,8 @@ contract HelloWorld {
 const codeLimitTo = [CodeLanguage.Solidity, CodeLanguage.Haskell] as const;
 const relationshipListStyle = { marginBottom: 2 } as const;
 const formSectionStyle = { overflowX: "hidden", marginBottom: 2 } as const;
+const resourceListStyle = { list: { marginBottom: 2 } } as const;
+const exampleButtonStyle = { marginLeft: "auto" } as const;
 
 function SmartContractForm({
     disabled,
@@ -191,6 +193,10 @@ function SmartContractForm({
         defaultLanguage: getUserLanguages(session)[0],
         validationSchema: codeVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
+
+    const resourceListParent = useMemo(function resourceListParentMemo() {
+        return { __typename: "CodeVersion", id: values.id } as const;
+    }, [values]);
 
     const { handleCancel, handleCompleted } = useUpsertActions<CodeVersion>({
         display,
@@ -282,7 +288,7 @@ function SmartContractForm({
                 title={t(isCreate ? "CreateSmartContract" : "UpdateSmartContract")}
             />
             <SearchExistingButton
-                href={`${LINKS.Search}?type="${SearchPageTabOption.Code}"`}
+                href={`${LINKS.Search}?type="${SearchPageTabOption.SmartContract}"`}
                 text="Search existing contracts"
             />
             <BaseForm
@@ -300,8 +306,8 @@ function SmartContractForm({
                         <ResourceListInput
                             horizontal
                             isCreate={true}
-                            parent={{ __typename: "CodeVersion", id: values.id }}
-                            sxs={{ list: { marginBottom: 2 } }}
+                            parent={resourceListParent}
+                            sxs={resourceListStyle}
                         />
                         <FormSection sx={formSectionStyle}>
                             <TranslatedTextInput
@@ -346,7 +352,7 @@ function SmartContractForm({
                                     variant="outlined"
                                     onClick={showExample}
                                     startIcon={<HelpIcon />}
-                                    sx={{ marginLeft: 2 }}
+                                    sx={exampleButtonStyle}
                                 >
                                     Show example
                                 </Button>

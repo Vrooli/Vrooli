@@ -1,17 +1,24 @@
 import { useCallback, useEffect, useState } from "react";
 import { getCookie, setCookie } from "utils/cookies";
-import { PubSub, SideMenuPub } from "utils/pubsub";
+import { PubSub, SideMenuPayloads, SideMenuPub } from "utils/pubsub";
 
 const COOKIE_PREFIX = "SideMenuState";
 
+type UseSideMenuParams<ID extends SideMenuPub["id"]> = {
+    /** The id of the side menu */
+    id: ID;
+    /** Whether the app is in mobile mode, which changes the initial behavior of the side menu */
+    isMobile: boolean;
+    /** Callback to perform additional logic when a pub/sub event is received */
+    onEvent?: (data: SideMenuPayloads[ID]) => unknown;
+}
+
 /** Hook for simplifying a side menu's pub/sub events */
-export function useSideMenu({
+export function useSideMenu<ID extends SideMenuPub["id"]>({
     id,
     isMobile,
-}: {
-    id: SideMenuPub["id"],
-    isMobile?: boolean,
-}) {
+    onEvent,
+}: UseSideMenuParams<ID>) {
     const defaultOpenState = getCookie(COOKIE_PREFIX, id);
     const [isOpen, setIsOpen] = useState<boolean>(isMobile ? false : defaultOpenState);
     useEffect(() => {
@@ -19,9 +26,10 @@ export function useSideMenu({
             if (data.id !== id) return;
             setIsOpen(data.isOpen);
             setCookie(COOKIE_PREFIX, data.isOpen, id);
+            onEvent?.(data as SideMenuPayloads[ID]);
         });
         return unsubscribe;
-    }, [id]);
+    }, [id, onEvent]);
 
     const close = useCallback(() => {
         setIsOpen(false);

@@ -56,6 +56,7 @@ function transformTeamValues(values: TeamShape, existing: TeamShape, isCreate: b
 
 const relationshipListStyle = { marginBottom: 4 } as const;
 const formSectionStyle = { overflowX: "hidden", marginBottom: 2 } as const;
+const resourceListStyle = { list: { marginBottom: 2 } } as const;
 
 function TeamForm({
     disabled,
@@ -89,6 +90,10 @@ function TeamForm({
         defaultLanguage: getUserLanguages(session)[0],
         validationSchema: teamTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
+
+    const resourceListParent = useMemo(function resourceListParentMemo() {
+        return { __typename: "Team", id: values.id } as const;
+    }, [values]);
 
     const { handleCancel, handleCompleted } = useUpsertActions<Team>({
         display,
@@ -211,8 +216,8 @@ function TeamForm({
                         <ResourceListInput
                             horizontal
                             isCreate={true}
-                            parent={{ __typename: "Team", id: values.id }}
-                            sxs={{ list: { marginBottom: 2 } }}
+                            parent={resourceListParent}
+                            sxs={resourceListStyle}
                         />
                     </ContentCollapse>
                 </FormContainer>

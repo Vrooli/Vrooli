@@ -157,6 +157,7 @@ export const StandardModel: StandardModelLogic = ({
         defaultSort: StandardSortBy.ScoreDesc,
         sortBy: StandardSortBy,
         searchFields: {
+            codeLanguageLatestVersion: true,
             createdById: true,
             createdTimeFrame: true,
             excludeIds: true,
@@ -177,6 +178,7 @@ export const StandardModel: StandardModelLogic = ({
             tags: true,
             translationLanguagesLatestVersion: true,
             updatedTimeFrame: true,
+            variantLatestVersion: true,
         },
         searchStringQuery: () => ({
             OR: [

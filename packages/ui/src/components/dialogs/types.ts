@@ -1,4 +1,4 @@
-import { ApiVersion, Bookmark, BookmarkFor, CodeVersion, CommonKey, FocusMode, ListObject, Meeting, Node, NodeLinkShape, NodeRoutineList, NodeRoutineListItem, NodeRoutineListItemShape, NodeShape, NoteVersion, ProjectVersion, Question, RootStep, RoutineVersion, StandardVersion, Team, User } from "@local/shared";
+import { Bookmark, BookmarkFor, CommonKey, ListObject, Node, NodeLinkShape, NodeRoutineList, NodeRoutineListItem, NodeRoutineListItemShape, NodeShape, RootStep, RoutineVersion } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
 import { TitleProps } from "components/text/types";
@@ -8,7 +8,6 @@ import { SvgComponent, SxType, ViewDisplayType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { CookiePreferences } from "utils/cookies";
 import { FormProps } from "../../types";
-import { FindObjectTabOption } from "./FindObjectDialog/FindObjectDialog";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface SideMenuProps { }
@@ -44,30 +43,30 @@ export interface DialogTitleProps extends Omit<TitleProps, "sxs"> {
     sxs?: TitleProps["sxs"] & { root?: SxType; };
 }
 
-export type SelectOrCreateObjectType = "ApiVersion" |
-    "CodeVersion" |
+/**
+ * Object type names which can be selected or created in the FindObjectDialog. 
+ * 
+ * NOTE: This does not specify object versions. That is handled by another prop.
+ */
+export type FindObjectType = |
+    "Api" |
+    "Bot" |
+    "DataConverter" |
+    "DataStructure" |
     "FocusMode" |
     "Meeting" |
-    "NoteVersion" |
-    "ProjectVersion" |
+    "Note" |
+    "Project" |
+    "Prompt" |
     "Question" |
-    "RoutineVersion" |
+    "Reminder" |
+    "Routine" |
     "RunProject" |
     "RunRoutine" |
-    "StandardVersion" |
+    "SmartContract" |
     "Team" |
     "User";
-export type SelectOrCreateObject = ApiVersion |
-    CodeVersion |
-    FocusMode |
-    Meeting |
-    NoteVersion |
-    ProjectVersion |
-    Question |
-    RoutineVersion |
-    StandardVersion |
-    Team |
-    User;
+
 /**
  * Determines what type of data is returned when an object is selected. 
  * "Full" uses an additional request to get the full object. 
@@ -75,13 +74,13 @@ export type SelectOrCreateObject = ApiVersion |
  * "Url" returns the url of the object.
  */
 export type FindObjectDialogType = "Full" | "List" | "Url";
-export interface FindObjectDialogProps<Find extends FindObjectDialogType, ObjectType extends SelectOrCreateObject> {
+export interface FindObjectDialogProps<Find extends FindObjectDialogType> {
     /** The type of data returned when an object is selected */
     find: Find;
     handleCancel: () => unknown;
-    handleComplete: (data: Find extends "Url" ? string : ObjectType) => unknown;
+    handleComplete: (data: Find extends "Url" ? string : object) => unknown;
     isOpen: boolean;
-    limitTo?: readonly FindObjectTabOption[];
+    limitTo?: readonly FindObjectType[];
     /** Forces selection to be a version, and removes unversioned items from limitTo */
     onlyVersioned?: boolean;
     where?: Record<string, any>;

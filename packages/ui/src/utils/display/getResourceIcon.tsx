@@ -1,6 +1,6 @@
 import { GqlModelType, LINKS, ResourceUsedFor } from "@local/shared";
 import { Avatar, Palette } from "@mui/material";
-import { ApiIcon, ArticleIcon, AwardIcon, BookmarkFilledIcon, BotIcon, CommentIcon, CreateIcon, DefaultSocialIcon, DonateIcon, DownloadIcon, FacebookIcon, GridIcon, HelpIcon, HistoryIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, MonthIcon, NoteIcon, NotificationsAllIcon, PremiumIcon, ProjectIcon, ProposalIcon, RedditIcon, ReminderIcon, ReportIcon, ResearchIcon, RoutineIcon, ScheduleIcon, SearchIcon, SettingsIcon, SocialVideoIcon, StandardIcon, StatsIcon, TeamIcon, TerminalIcon, UserIcon, WebsiteIcon, XIcon, YouTubeIcon } from "icons";
+import { ApiIcon, ArticleIcon, AwardIcon, BookmarkFilledIcon, BotIcon, CommentIcon, CreateIcon, DefaultSocialIcon, DonateIcon, DownloadIcon, FacebookIcon, GridIcon, HelpIcon, HistoryIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, MonthIcon, NoteIcon, NotificationsAllIcon, ObjectIcon, PremiumIcon, ProjectIcon, ProposalIcon, RedditIcon, ReminderIcon, ReportIcon, ResearchIcon, RoutineIcon, ScheduleIcon, SearchIcon, SettingsIcon, SmartContractIcon, SocialVideoIcon, StatsIcon, TeamIcon, TerminalIcon, UserIcon, WebsiteIcon, XIcon, YouTubeIcon } from "icons";
 import { SvgComponent } from "types";
 import { getCookiePartialData } from "utils/cookies";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
@@ -44,7 +44,8 @@ const LinkIconMap: { [key in LINKS]?: SvgComponent } = {
     [LINKS.BookmarkList]: BookmarkFilledIcon,
     [LINKS.Calendar]: MonthIcon,
     [LINKS.Chat]: CommentIcon,
-    [LINKS.Code]: TerminalIcon,
+    [LINKS.DataConverter]: TerminalIcon,
+    [LINKS.DataStructure]: ObjectIcon,
     [LINKS.Comment]: CommentIcon,
     [LINKS.Create]: CreateIcon,
     [LINKS.History]: HistoryIcon,
@@ -54,13 +55,14 @@ const LinkIconMap: { [key in LINKS]?: SvgComponent } = {
     [LINKS.Pro]: PremiumIcon,
     [LINKS.Profile]: UserIcon,
     [LINKS.Project]: ProjectIcon,
+    [LINKS.Prompt]: ArticleIcon,
     [LINKS.Question]: HelpIcon,
     [LINKS.Reminder]: ReminderIcon,
     [LINKS.Report]: ReportIcon,
     [LINKS.Routine]: RoutineIcon,
     [LINKS.Search]: SearchIcon,
     [LINKS.Settings]: SettingsIcon,
-    [LINKS.Standard]: StandardIcon,
+    [LINKS.SmartContract]: SmartContractIcon,
     [LINKS.Stats]: StatsIcon,
     [LINKS.Team]: TeamIcon,
 };

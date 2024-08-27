@@ -1,6 +1,5 @@
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkShape, ChatPageTabOption, HistoryPageTabOption, InboxPageTabOption, LINKS, ListObject, MyStuffPageTabOption, SearchPageTabOption, endpointPostBookmark, funcTrue, getObjectUrlBase, noop, shapeBookmark, uuid } from "@local/shared";
+import { ChatPageTabOption, InboxPageTabOption, LINKS, ListObject, MyStuffPageTabOption, SearchPageTabOption, funcTrue, getObjectUrlBase, noop } from "@local/shared";
 import { Box, Button, Divider, IconButton, SwipeableDrawer, Typography, styled, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SiteSearchBar } from "components/inputs/search";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
@@ -8,22 +7,17 @@ import { ObjectListActions } from "components/lists/types";
 import { SessionContext } from "contexts/SessionContext";
 import { useFindMany } from "hooks/useFindMany";
 import { useIsLeftHanded } from "hooks/useIsLeftHanded";
-import { useLazyFetch } from "hooks/useLazyFetch";
 import { useSideMenu } from "hooks/useSideMenu";
 import { useTabs } from "hooks/useTabs";
 import { useWindowSize } from "hooks/useWindowSize";
 import { AddIcon, ArrowRightIcon, CloseIcon, CommentIcon } from "icons";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ArgsType } from "types";
-import { getCurrentUser } from "utils/authentication/session";
 import { LEFT_DRAWER_WIDTH } from "utils/consts";
-import { CHAT_SIDE_MENU_ID, PubSub } from "utils/pubsub";
+import { CHAT_SIDE_MENU_ID, PubSub, SideMenuPayloads } from "utils/pubsub";
 import { ChatTabsInfo, TabParam, chatTabParams } from "utils/search/objectToSearch";
-import { ChatCrud } from "views/objects/chat";
-import { FindObjectDialog } from "../FindObjectDialog/FindObjectDialog";
-import { SelectOrCreateObjectType } from "../types";
 
 export const chatSideMenuDisplayData = {
     persistentOnDesktop: true,
@@ -33,7 +27,8 @@ export const chatSideMenuDisplayData = {
 const SHORT_TAKE = 10;
 const emptyArray: readonly [] = [];
 const drawerPaperProps = { id: CHAT_SIDE_MENU_ID } as const;
-const CHAT_VIEW_ROUTES = [
+/** Routes where the main content is already a chat, so the side chat should not be shown */
+const CHAT_IS_MAIN_CONTENT_ROUTES = [
     LINKS.Chat,
     LINKS.Home,
 ] as string[];
@@ -85,7 +80,9 @@ const searchBarStyle = {
 
 // TODO improve prompts so it searches for actual prompts, rather than just standards. Then update it so when pressed, it adds prompt to chat input
 // TODO change tabs based on page type. On DashboardView and ChatCrud, shouldn't have "Chat" tab (since the main page component is already a chat). Otherwise, should have "Chat" tab
-// TODO should be disabled on some pages, like SignUpView, SettingsView, etc. On pages where it's not disabled, Navbar should have ListIcon startComponent automatically
+// TODO should be mayyybe disabled on some pages, like SignUpView, SettingsView, etc. On pages where it's not disabled, Navbar should have ListIcon startComponent automatically
+// TODO instead of using ChatCrud, should make a new component that takes out common logic between DashboardView and ChatCrud. This way, we can avoid displaying the chat title and other stuff (including the navbar which is overriding the actual navbar)
+// TODO when chat history item clicked, should open chat tab with that chat if no on a CHAT_IS_MAIN_CONTENT_ROUTES page. If we are, change the chat on the main page component to that chat
 export function ChatSideMenu() {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
@@ -96,7 +93,8 @@ export function ChatSideMenu() {
 
     const allTabParams = useMemo(() => {
         const baseTabs = [...chatTabParams];
-        if (CHAT_VIEW_ROUTES.includes(location.pathname)) {
+        const canShowChatTab = !CHAT_IS_MAIN_CONTENT_ROUTES.includes(location.pathname);
+        if (canShowChatTab) {
             baseTabs.push(chatViewTab as TabParam<ChatTabsInfo>);
         }
         return baseTabs;
@@ -108,70 +106,55 @@ export function ChatSideMenu() {
         tabs,
         where,
     } = useTabs({ id: "chat-side-tabs", tabParams: allTabParams, display: "dialog" });
+    useEffect(function leaveChatTab() {
+        const canShowChatTab = !CHAT_IS_MAIN_CONTENT_ROUTES.includes(location.pathname);
+        if (!canShowChatTab && currTab.key === "Chat") {
+            // Switch to the first non-ChatView tab
+            const firstNonChatViewTab = tabs.find(tab => tab.key !== "Chat");
+            if (firstNonChatViewTab) {
+                handleTabChange(undefined, firstNonChatViewTab);
+            }
+        }
+    }, [currTab.key, handleTabChange, location.pathname, tabs]);
 
     // Handle opening and closing
-    const { isOpen, close } = useSideMenu({ id: CHAT_SIDE_MENU_ID, isMobile });
+    const onEvent = useCallback(function onEventCallback({ data }: SideMenuPayloads["chat-side-menu"]) {
+        if (!data) return;
+        if (data.context) {
+            //TODO
+        }
+        if (data.tab) {
+            const matchingTab = tabs.find(tab => tab.key === data.tab);
+            if (matchingTab) {
+                handleTabChange(undefined, matchingTab);
+            }
+        }
+    }, [handleTabChange, tabs]);
+    const { isOpen, close } = useSideMenu({
+        id: CHAT_SIDE_MENU_ID,
+        isMobile,
+        onEvent,
+    });
     // When moving between mobile/desktop, publish current state
     useEffect(() => {
         PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen });
     }, [breakpoints, isOpen]);
     const handleClose = useCallback(() => { close(); }, [close]);
 
-    // Handle adding new bookmarks
-    const [isFindBookmarkDialogOpen, setIsFindBookmarkDialogOpen] = useState<boolean>(false);
-    const openFindBookmarkDialog = useCallback(() => setIsFindBookmarkDialogOpen(true), []);
-    const closeFindBookmarkDialog = useCallback(() => setIsFindBookmarkDialogOpen(false), []);
-    const { bookmarkLists } = useMemo(() => getCurrentUser(session), [session]);
-    const [addBookmark] = useLazyFetch<BookmarkCreateInput, Bookmark>(endpointPostBookmark);
-    const handleBookmarkAdd = useCallback(function handleBookmarkAddCallback(to: BookmarkShape["to"]) {
-        let bookmarkListId: string | undefined;
-        if (bookmarkLists && bookmarkLists.length) {
-            // Try to find "Favorites" bookmark list first
-            const favorites = bookmarkLists.find(list => list.label === "Favorites");
-            if (favorites) {
-                bookmarkListId = favorites.id;
-            } else {
-                // Otherwise, just use the first bookmark list
-                bookmarkListId = bookmarkLists[0].id;
-            }
-        }
-        fetchLazyWrapper<BookmarkCreateInput, Bookmark>({
-            fetch: addBookmark,
-            inputs: shapeBookmark.create({
-                __typename: "Bookmark" as const,
-                id: uuid(),
-                to,
-                list: {
-                    __typename: "BookmarkList",
-                    id: bookmarkListId ?? uuid(),
-                    // Setting label marks this as a create, 
-                    // which should only be done if there is no bookmarkListId
-                    label: bookmarkListId ? undefined : "Favorites",
-                },
-            }),
-            onSuccess: () => {
-                //TODO add to list
-            },
-        });
-    }, [addBookmark, bookmarkLists]);
-
     const addButtonData = useMemo<{ [key in Exclude<ChatPageTabOption, "Chat">]: (() => unknown) }>(() => ({
         History: () => { setLocation(`${getObjectUrlBase({ __typename: "Chat" })}/add`); },
-        Favorite: () => { openFindBookmarkDialog(); },
         Prompt: () => { setLocation(`${getObjectUrlBase({ __typename: "Standard" })}/add`); },
         Routine: () => { setLocation(`${getObjectUrlBase({ __typename: "Routine" })}/add`); },
-    }), [openFindBookmarkDialog, setLocation]);
+    }), [setLocation]);
 
     const more1ButtonData = useMemo<{ [key in Exclude<ChatPageTabOption, "Chat">]: (() => unknown) }>(() => ({
         History: () => { setLocation(`${LINKS.Inbox}?type="${InboxPageTabOption.Message}"`); },
-        Favorite: () => { setLocation(`${LINKS.History}?type="${HistoryPageTabOption.Bookmarked}"`); },
-        Prompt: () => { setLocation(`${LINKS.Search}?type="${SearchPageTabOption.Standard}"`); },
+        Prompt: () => { setLocation(`${LINKS.Search}?type="${SearchPageTabOption.Prompt}"`); },
         Routine: () => { setLocation(`${LINKS.Search}?type="${SearchPageTabOption.Routine}"`); },
     }), [setLocation]);
 
     const more2ButtonData = useMemo<{ [key in Exclude<ChatPageTabOption, "Chat">]: (() => unknown) }>(() => ({
-        History: noop,
-        Favorite: noop,
+        History: noop, //TODO
         Prompt: () => { setLocation(`${LINKS.MyStuff}?type="${MyStuffPageTabOption.Standard}"`); },
         Routine: () => { setLocation(`${LINKS.MyStuff}?type="${MyStuffPageTabOption.Routine}"`); },
     }), [setLocation]);
@@ -261,13 +244,6 @@ export function ChatSideMenu() {
 
     return (
         <>
-            <FindObjectDialog
-                find="List"
-                isOpen={isFindBookmarkDialogOpen}
-                handleCancel={closeFindBookmarkDialog}
-                handleComplete={handleBookmarkAdd as any}
-                limitTo={Object.keys(BookmarkFor) as SelectOrCreateObjectType[]}
-            />
             <SizedDrawer
                 // Displays opposite of main side menu
                 anchor={isLeftHanded ? "right" : "left"}
@@ -316,7 +292,8 @@ export function ChatSideMenu() {
                 <Divider />
                 <Box overflow="auto" display="flex" flexDirection="column">
                     {currTab.key === "Chat" ? (
-                        <ChatCrud display="partial" isCreate={false} />
+                        // <ChatCrud display="partial" isCreate={false} />
+                        <Typography variant="body2" p={1}>TODO</Typography>
                     ) : (
                         <>
                             <Box>

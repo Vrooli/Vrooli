@@ -65,6 +65,8 @@ export const CodeModel: CodeModelLogic = ({
         defaultSort: CodeSortBy.ScoreDesc,
         sortBy: CodeSortBy,
         searchFields: {
+            codeLanguageLatestVersion: true,
+            codeTypeLatestVersion: true,
             createdById: true,
             createdTimeFrame: true,
             excludeIds: true,

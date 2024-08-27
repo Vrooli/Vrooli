@@ -1,8 +1,13 @@
-import { StandardVersionSortBy } from "@local/shared";
+import { StandardType, StandardVersionSortBy } from "@local/shared";
 import { gql } from "apollo-server-express";
 import { EndpointsStandardVersion, StandardVersionEndpoints } from "../logic/standardVersion";
 
 export const typeDef = gql`
+    enum StandardType {
+        DataStructure
+        Prompt
+    }
+
     enum StandardVersionSortBy {
         CommentsAsc
         CommentsDesc
@@ -22,12 +27,13 @@ export const typeDef = gql`
 
     input StandardVersionCreateInput {
         id: ID!
+        codeLanguage: String!
         default: String
         isComplete: Boolean
         isPrivate: Boolean!
         isFile: Boolean
         props: String!
-        standardType: String!
+        variant: StandardType!
         versionLabel: String!
         versionNotes: String
         yup: String
@@ -39,15 +45,16 @@ export const typeDef = gql`
     }
     input StandardVersionUpdateInput {
         id: ID!
+        codeLanguage: String
         isComplete: Boolean
         isPrivate: Boolean
         isFile: Boolean
         default: String
-        standardType: String
         props: String
-        yup: String
+        variant: StandardType
         versionLabel: String
         versionNotes: String
+        yup: String
         directoryListingsConnect: [ID!]
         directoryListingsDisconnect: [ID!]
         resourceListCreate: ResourceListCreateInput
@@ -62,15 +69,16 @@ export const typeDef = gql`
         created_at: Date!
         updated_at: Date!
         completedAt: Date
+        codeLanguage: String!
         isComplete: Boolean!
         isLatest: Boolean!
         isDeleted: Boolean!
         isPrivate: Boolean!
         isFile: Boolean
         default: String
-        standardType: String!
         props: String!
         yup: String
+        variant: StandardType!
         versionIndex: Int!
         versionLabel: String!
         versionNotes: String
@@ -114,6 +122,7 @@ export const typeDef = gql`
 
     input StandardVersionSearchInput {
         after: String
+        codeLanguage: String
         createdTimeFrame: TimeFrame
         completedTimeFrame: TimeFrame
         createdByIdRoot: ID
@@ -134,11 +143,11 @@ export const typeDef = gql`
         rootId: ID
         searchString: String
         sortBy: StandardVersionSortBy
-        standardType: String
         tagsRoot: [String!]
         take: Int
         updatedTimeFrame: TimeFrame
         userId: ID
+        variant: StandardType
         visibility: VisibilityType
     }
 
@@ -164,10 +173,12 @@ export const typeDef = gql`
 `;
 
 export const resolvers: {
+    StandardType: typeof StandardType;
     StandardVersionSortBy: typeof StandardVersionSortBy;
     Query: EndpointsStandardVersion["Query"];
     Mutation: EndpointsStandardVersion["Mutation"];
 } = {
+    StandardType,
     StandardVersionSortBy,
     ...StandardVersionEndpoints,
 };
