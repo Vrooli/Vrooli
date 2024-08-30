@@ -5,6 +5,24 @@
         "source.fixAll.eslint": "explicit"
     },
     "eslint.run": "onSave",
+    "eslint.workingDirectories": [
+        {
+            "directory": "./packages/ui",
+            "changeProcessCWD": true
+        },
+        {
+            "directory": "./packages/jobs",
+            "changeProcessCWD": true
+        },
+        {
+            "directory": "./packages/server",
+            "changeProcessCWD": true
+        },
+        {
+            "directory": "./packages/shared",
+            "changeProcessCWD": true
+        },
+    ],
     "[javascript]": {
         "editor.defaultFormatter": "vscode.typescript-language-features"
     },

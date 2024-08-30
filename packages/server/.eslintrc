@@ -1,0 +1,14 @@
+{
+    "extends": "../../.eslintrc",
+    "ignorePatterns": [
+        "message_signing/"
+    ],
+    "parserOptions": {
+        "ecmaVersion": 2018,
+        "sourceType": "module",
+        "project": [
+            "./tsconfig.json",
+            "./tsconfig.test.json",
+        ]
+    },
+}

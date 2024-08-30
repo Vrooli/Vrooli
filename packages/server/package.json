@@ -16,6 +16,7 @@
     },
     "scripts": {
         "test": "sh ../../scripts/setSwc.sh test > .swcrc && jest --clearCache && jest --coverage --config jest.config.cjs; bash ../../scripts/setSwc.sh development > .swcrc",
+        "lint": "eslint src",
         "pre-build-development": "sh ../../scripts/setSwc.sh development > .swcrc",
         "pre-build-production": "sh ../../scripts/setSwc.sh production > .swcrc",
         "build": "swc src -d dist && yarn post-build",

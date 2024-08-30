@@ -12,6 +12,7 @@
     "scripts": {
         "build": "yarn swc src -d dist",
         "test": "jest --clearCache && jest --coverage",
+        "lint": "eslint src",
         "type-check": "tsc --noEmit"
     },
     "dependencies": {
