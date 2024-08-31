@@ -4,6 +4,7 @@ import { fetchLazyWrapper } from "api";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
+import { SearchListScrollContainer } from "components/lists/SearchList/SearchList";
 import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
@@ -13,7 +14,7 @@ import { useLazyFetch } from "hooks/useLazyFetch";
 import { useSelectableList } from "hooks/useSelectableList";
 import { useTabs } from "hooks/useTabs";
 import { ActionIcon, AddIcon, CancelIcon, CompleteIcon, DeleteIcon } from "icons";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { pagePaddingBottom, SideActionsButton } from "styles";
@@ -22,12 +23,14 @@ import { BulkObjectAction } from "utils/actions/bulkObjectActions";
 import { DUMMY_LIST_LENGTH } from "utils/consts";
 import { inboxTabParams } from "utils/search/objectToSearch";
 import { InboxViewProps } from "../types";
+import { useInfiniteScroll } from "hooks/useInfiniteScroll";
 
 type InboxObject = Chat | Notification;
 
+const scrollContainerId = "inbox-scroll-container";
+
 export function InboxView({
     display,
-    isOpen,
     onClose,
 }: InboxViewProps) {
     const { t } = useTranslation();
@@ -108,25 +111,16 @@ export function InboxView({
         }
     }, [removeItem, updateItem]);
 
-    // If near the bottom of the page, load more data
-    const handleScroll = useCallback(() => {
-        const scrolledY = window.scrollY;
-        const windowHeight = window.innerHeight;
-        if (!loading && scrolledY > windowHeight - 500) {
-            loadMore();
-        }
-    }, [loading, loadMore]);
-
-    // Set event listener for infinite scroll
-    useEffect(() => {
-        window.addEventListener("scroll", handleScroll);
-        return () => window.removeEventListener("scroll", handleScroll);
-    }, [handleScroll]);
+    useInfiniteScroll({
+        loading,
+        loadMore,
+        scrollContainerId,
+    });
 
     const actionIconProps = useMemo(() => ({ fill: palette.secondary.contrastText, width: "36px", height: "36px" }), [palette.secondary.contrastText]);
 
     return (
-        <>
+        <SearchListScrollContainer id={scrollContainerId}>
             {BulkDeleteDialogComponent}
             <TopBar
                 display={display}
@@ -176,6 +170,6 @@ export function InboxView({
                     </SideActionsButton>
                 </Tooltip> : null}
             </SideActionsButtons>
-        </>
+        </SearchListScrollContainer>
     );
 }

@@ -151,6 +151,8 @@ export const UserModel: UserModelLogic = ({
             minBookmarks: true,
             minViews: true,
             notInChatId: true,
+            notInvitedToTeamId: true,
+            notMemberInTeamId: true,
             translationLanguages: true,
             updatedTimeFrame: true,
         },

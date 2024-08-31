@@ -2,7 +2,7 @@ import { GqlModelType, ListObject, SearchType, getObjectUrlBase } from "@local/s
 import { useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
-import { SearchList } from "components/lists/SearchList/SearchList";
+import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFindMany } from "hooks/useFindMany";
 import { useTabs } from "hooks/useTabs";
@@ -12,6 +12,8 @@ import { useLocation } from "route";
 import { SideActionsButton } from "styles";
 import { historyTabParams } from "utils/search/objectToSearch";
 import { HistoryViewProps } from "../types";
+
+const scrollContainerId = "history-search-scroll";
 
 export function HistoryView({
     display,
@@ -38,7 +40,7 @@ export function HistoryView({
     });
 
     return (
-        <>
+        <SearchListScrollContainer id={scrollContainerId}>
             <TopBar
                 display={display}
                 onClose={onClose}
@@ -55,9 +57,8 @@ export function HistoryView({
             {
                 searchType && <SearchList
                     {...findManyData}
-                    id="history-page-list"
                     display={display}
-                    sxs={{ search: { marginTop: 2 } }}
+                    scrollContainerId={scrollContainerId}
                 />
             }
             {
@@ -70,6 +71,6 @@ export function HistoryView({
                     </SideActionsButton>
                 </SideActionsButtons>
             }
-        </>
+        </SearchListScrollContainer>
     );
 }

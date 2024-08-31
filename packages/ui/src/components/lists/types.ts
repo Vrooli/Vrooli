@@ -151,6 +151,10 @@ export type SearchListProps<T extends OrArray<ListObject>> =
     Omit<UseFindManyResult<T>, "setAllData"> &
     {
         /**
+         * The border radius of the search list container
+         */
+        borderRadius?: number;
+        /**
          * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
          * If the callback returns false, the list item will not be selected.
          */
@@ -164,7 +168,7 @@ export type SearchListProps<T extends OrArray<ListObject>> =
         dummyLength?: number;
         /** If update button on list items should be hidden */
         hideUpdateButton?: boolean;
-        id: string;
+        scrollContainerId: string;
         searchPlaceholder?: CommonKey;
         searchType: SearchType | `${SearchType}`;
         sxs?: {
@@ -173,6 +177,12 @@ export type SearchListProps<T extends OrArray<ListObject>> =
             listContainer?: SxType;
         }
         onItemClick?: (item: any) => unknown;
+        /**
+         * Changes the display of the search list.
+         * - "normal" displays the list with a search bar and buttons
+         * - "minimal" displays the list without a search bar or buttons
+         */
+        variant?: "normal" | "minimal";
     }
 
 export interface SearchQueryVariablesInput<SortBy> {

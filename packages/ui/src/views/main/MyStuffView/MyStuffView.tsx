@@ -2,7 +2,7 @@ import { GqlModelType, ListObject, SearchType, getObjectUrlBase, uuidValidate } 
 import { ListItemIcon, ListItemText, Menu, MenuItem, Tooltip, useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
-import { SearchList } from "components/lists/SearchList/SearchList";
+import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { useBulkObjectActions } from "hooks/useBulkObjectActions";
@@ -20,6 +20,8 @@ import { getCurrentUser } from "utils/authentication/session";
 import { scrollIntoFocusedView } from "utils/display/scroll";
 import { myStuffTabParams } from "utils/search/objectToSearch";
 import { MyStuffViewProps } from "../types";
+
+const scrollContainerId = "my-stuff-search-scroll";
 
 export function MyStuffView({
     display,
@@ -113,7 +115,7 @@ export function MyStuffView({
     const actionIconProps = useMemo(() => ({ fill: palette.secondary.contrastText, width: "36px", height: "36px" }), [palette.secondary.contrastText]);
 
     return (
-        <>
+        <SearchListScrollContainer id={scrollContainerId}>
             {BulkDeleteDialogComponent}
             <Menu
                 id="select-create-type-menu"
@@ -154,12 +156,11 @@ export function MyStuffView({
             />
             {searchType && <SearchList
                 {...findManyData}
-                id="my-stuff-list"
                 display={display}
                 handleToggleSelect={handleToggleSelect}
                 isSelecting={isSelecting}
+                scrollContainerId={scrollContainerId}
                 selectedItems={selectedData}
-                sxs={{ search: { marginTop: 2 } }}
             />}
             <SideActionsButtons display={display}>
                 {isSelecting && selectedData.length > 0 ? <Tooltip title={t("Delete")}>
@@ -181,6 +182,6 @@ export function MyStuffView({
                     </SideActionsButton>
                 ) : null}
             </SideActionsButtons>
-        </>
+        </SearchListScrollContainer>
     );
 }

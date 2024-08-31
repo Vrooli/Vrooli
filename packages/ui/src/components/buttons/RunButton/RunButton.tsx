@@ -77,8 +77,6 @@ const NewRunButton = styled(Button)(({ theme }) => ({
     marginRight: theme.spacing(2),
 }));
 
-const listContainerStyle = { borderRadius: 0 } as const;
-
 /**
  * Handles selecting a run from a list of runs.
  */
@@ -222,9 +220,9 @@ export function RunPickerMenu({
                 />
                 <Box flexGrow={1} overflow="auto">
                     <ListContainer
+                        borderRadius={0}
                         emptyText={"No existing runs found"}
                         isEmpty={allData.length === 0 && !loading}
-                        sx={listContainerStyle}
                     >
                         <ObjectList
                             canNavigate={funcFalse}

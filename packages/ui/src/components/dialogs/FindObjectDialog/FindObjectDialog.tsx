@@ -1,9 +1,9 @@
-import { AutocompleteOption, FindByIdInput, FindVersionInput, FormInputBase, ListObject, SearchType, getObjectUrl } from "@local/shared";
-import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
+import { AutocompleteOption, FindByIdInput, FindVersionInput, FormInputBase, ListObject, SearchType, funcFalse, getObjectUrl } from "@local/shared";
+import { Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { SearchList } from "components/lists/SearchList/SearchList";
+import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFindMany } from "hooks/useFindMany";
@@ -121,6 +121,7 @@ export function convertRootObjectToVersion(item: RootObject, versionId: string):
 }
 
 
+const scrollContainerId = "find-object-search-scroll";
 const searchTitleId = "search-vrooli-for-link-title";
 const dialogStyle = { paper: { maxWidth: "min(100%, 600px)" } } as const;
 
@@ -377,33 +378,29 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
                 titleId={searchTitleId}
                 sxs={dialogStyle}
             >
-                <TopBar
-                    display="dialog"
-                    onClose={handleCancel}
-                    title={t("SearchVrooli")}
-                    titleBehaviorDesktop="ShowIn"
-                    below={tabs.length > 1 && Boolean(currTab) && <PageTabs
-                        ariaLabel="search-tabs"
-                        currTab={currTab}
-                        fullWidth
-                        ignoreIcons={true}
-                        onChange={handleTabChange}
-                        tabs={tabs}
-                    />}
-                />
-                <Box sx={{
-                    minHeight: "500px",
-                    margin: { xs: 0, sm: 2 },
-                    paddingTop: 4,
-                    overflow: "auto",
-                }}>
+                <SearchListScrollContainer id={scrollContainerId}>
+                    <TopBar
+                        display="dialog"
+                        onClose={handleCancel}
+                        title={t("SearchVrooli")}
+                        titleBehaviorDesktop="ShowIn"
+                        below={tabs.length > 1 && Boolean(currTab) && <PageTabs
+                            ariaLabel="search-tabs"
+                            currTab={currTab}
+                            fullWidth
+                            ignoreIcons={true}
+                            onChange={handleTabChange}
+                            tabs={tabs}
+                        />}
+                    />
+
                     {/* Search list to find object */}
                     {!selectedObject && <SearchList
                         {...findManyData}
-                        id="find-object-search-list"
-                        canNavigate={() => false}
+                        canNavigate={funcFalse}
                         display="dialog"
                         onItemClick={onInputSelect}
+                        scrollContainerId={scrollContainerId}
                     />}
                     {/* If object selected (and supports versioning), display buttons to select version */}
                     {selectedObject && (
@@ -432,15 +429,15 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
                             </Button>
                         </Stack>
                     )}
-                </Box>
-                <SideActionsButtons display="dialog">
-                    <SideActionsButton aria-label="filter-list" onClick={focusSearch}>
-                        <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </SideActionsButton>
-                    <SideActionsButton aria-label="create-new" onClick={onCreateStart}>
-                        <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </SideActionsButton>
-                </SideActionsButtons>
+                    <SideActionsButtons display="dialog">
+                        <SideActionsButton aria-label="filter-list" onClick={focusSearch}>
+                            <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                        </SideActionsButton>
+                        <SideActionsButton aria-label="create-new" onClick={onCreateStart}>
+                            <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                        </SideActionsButton>
+                    </SideActionsButtons>
+                </SearchListScrollContainer>
             </LargeDialog>
         </>
     );

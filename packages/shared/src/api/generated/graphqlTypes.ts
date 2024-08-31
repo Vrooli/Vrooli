@@ -9990,6 +9990,8 @@ export type UserSearchInput = {
   minBookmarks?: InputMaybe<Scalars['Int']>;
   minViews?: InputMaybe<Scalars['Int']>;
   notInChatId?: InputMaybe<Scalars['ID']>;
+  notInvitedToTeamId?: InputMaybe<Scalars['ID']>;
+  notMemberInTeamId?: InputMaybe<Scalars['ID']>;
   searchString?: InputMaybe<Scalars['String']>;
   sortBy?: InputMaybe<UserSortBy>;
   take?: InputMaybe<Scalars['Int']>;

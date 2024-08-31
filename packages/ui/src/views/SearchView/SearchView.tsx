@@ -2,7 +2,7 @@ import { GqlModelType, LINKS, ListObject, SearchType, getObjectUrlBase } from "@
 import { useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
-import { SearchList } from "components/lists/SearchList/SearchList";
+import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { useFindMany } from "hooks/useFindMany";
@@ -17,6 +17,8 @@ import { scrollIntoFocusedView } from "utils/display/scroll";
 import { PubSub } from "utils/pubsub";
 import { searchViewTabParams } from "utils/search/objectToSearch";
 import { SearchViewProps } from "views/types";
+
+const scrollContainerId = "main-search-scroll";
 
 const searchListStyle = { search: { marginTop: 2 } } as const;
 
@@ -68,7 +70,7 @@ export function SearchView({
     function focusSearch() { scrollIntoFocusedView("search-bar-main-search-page-list"); }
 
     return (
-        <>
+        <SearchListScrollContainer id={scrollContainerId}>
             <TopBar
                 display={display}
                 onClose={onClose}
@@ -86,8 +88,8 @@ export function SearchView({
             />
             {searchType && <SearchList
                 {...findManyData}
-                id="main-search-page-list"
                 display={display}
+                scrollContainerId={scrollContainerId}
                 sxs={searchListStyle}
             />}
             <SideActionsButtons display={display}>
@@ -100,6 +102,6 @@ export function SearchView({
                     </SideActionsButton>
                 ) : null}
             </SideActionsButtons>
-        </>
+        </SearchListScrollContainer>
     );
 }

@@ -356,7 +356,6 @@ function BotForm({
             <BaseForm
                 display={display}
                 isLoading={isLoading}
-                maxWidth={700}
             >
                 <FormContainer>
                     <ContentCollapse title="Basic info" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
@@ -523,7 +522,7 @@ function BotForm({
                         />
                     </ContentCollapse>
                 </FormContainer>
-            </BaseForm >
+            </BaseForm>
             <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}

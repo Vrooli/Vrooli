@@ -31,6 +31,7 @@ export interface TitleContainerProps {
 }
 
 export interface ListContainerProps {
+    borderRadius?: number;
     children: ReactNode;
     emptyText?: string;
     id?: string;
@@ -106,9 +107,4 @@ export type EditableTextProps<T extends EditTextComponent> = BaseEditableTextPro
 }
 export type EditableTextCollapseProps<T extends EditTextComponent> = BaseEditableTextCollapseProps<T> & {
     props?: PropsByComponentType[T];
-}
-
-export interface PageContainerProps {
-    children: ReactNode;
-    sx?: SxType;
 }

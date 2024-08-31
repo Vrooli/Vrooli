@@ -76,8 +76,9 @@ export enum HistoryPageTabOption {
 }
 
 export enum MemberManagePageTabOption {
-    Member = "Member",
-    MemberInvite = "MemberInvite",
+    Members = "Members",
+    Invites = "Invites",
+    NonMembers = "NonMembers",
 }
 
 export enum MyStuffPageTabOption {

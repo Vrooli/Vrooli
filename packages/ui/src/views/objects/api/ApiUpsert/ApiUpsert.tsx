@@ -450,7 +450,7 @@ const callLinkInputProps = {
 const codeLimitTo = [CodeLanguage.Json, CodeLanguage.Graphql, CodeLanguage.Yaml] as const;
 const relationshipListStyle = { marginBottom: 2 } as const;
 const formSectionStyle = { overflowX: "hidden", marginBottom: 2 } as const;
-const basicInfoCollapseStyle = { titleContainer: { marginBottom: 1 } } as const;
+const basicInfoCollapseStyle = { root: { width: "100%" }, titleContainer: { marginBottom: 1 } } as const;
 const tagSelectorStyle = { marginBottom: 2 } as const;
 const versionInputStyle = { marginBottom: 2 } as const;
 const resourceListStyle = { list: { marginBottom: 2 } } as const;
@@ -604,7 +604,6 @@ function ApiForm({
             <BaseForm
                 display={display}
                 isLoading={isLoading}
-                maxWidth={700}
             >
                 <FormContainer>
                     <ContentCollapse title="Basic info" titleVariant="h4" isOpen={true} sxs={basicInfoCollapseStyle}>

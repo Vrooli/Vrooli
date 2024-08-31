@@ -81,6 +81,7 @@ export function MembersButton({
             <>
                 <MemberManageView
                     display="dialog"
+                    isEditing={isEditing}
                     isOpen={isDialogOpen}
                     onClose={closeDialog}
                     team={formikContext.values as MemberManageViewProps["team"]}

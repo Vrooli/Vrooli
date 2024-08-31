@@ -111,7 +111,7 @@ const TitleStepsStack = styled(Stack)(() => ({
     justifyContent: "center",
 }));
 const ContentBox = styled(Box)(({ theme }) => ({
-    background: theme.palette.mode === "light" ? "#c2cadd" : theme.palette.background.default,
+    background: theme.palette.background.default,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",

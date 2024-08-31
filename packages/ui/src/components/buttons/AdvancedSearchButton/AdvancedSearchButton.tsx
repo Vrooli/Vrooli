@@ -121,7 +121,7 @@ function AdvancedSearchDialog({
                             </FormContainer>
                             {/* Search/Cancel buttons */}
                             <BottomActionsGrid display="dialog">
-                                <Grid item xs={6} p={1} pt={0}>
+                                <Grid item xs={6}>
                                     <Button
                                         fullWidth
                                         startIcon={<SearchIcon />}
@@ -130,7 +130,7 @@ function AdvancedSearchDialog({
                                         variant="contained"
                                     >{t("Search")}</Button>
                                 </Grid>
-                                <Grid item xs={6} p={1} pt={0}>
+                                <Grid item xs={6}>
                                     <Button
                                         fullWidth
                                         startIcon={<CancelIcon />}

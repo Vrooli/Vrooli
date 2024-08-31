@@ -2,7 +2,7 @@ import { ChatInvite, ChatInviteShape, ChatInviteStatus, DUMMY_ID, ListObject, no
 import { Box, Tooltip, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { SearchList } from "components/lists/SearchList/SearchList";
+import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { useBulkObjectActions } from "hooks/useBulkObjectActions";
@@ -17,6 +17,14 @@ import { BulkObjectAction } from "utils/actions/bulkObjectActions";
 import { participantTabParams } from "utils/search/objectToSearch";
 import { ChatInvitesUpsert } from "views/objects/chatInvite";
 import { ParticipantManageViewProps } from "../types";
+
+const scrollContainerId = "participant-search-scroll";
+const dialogStyle = {
+    paper: {
+        minHeight: "min(100vh - 64px, 600px)",
+        width: "min(100%, 500px)",
+    },
+} as const;
 
 /**
  * View participants and invited participants of an chat
@@ -57,6 +65,7 @@ export function ParticipantManageView({
     // Remove selection when tab changes
     useEffect(() => {
         setSelectedData([]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currTab.key]);
 
     // Handle add/update invite dialog
@@ -144,57 +153,51 @@ export function ParticipantManageView({
             id="participant-manage-dialog"
             isOpen={isOpen}
             onClose={onClose}
-            sxs={{
-                paper: {
-                    minHeight: "min(100vh - 64px, 800px)",
-                    width: "min(100%, 500px)",
-                    display: "flex",
-                },
-            }}
+            sxs={dialogStyle}
         >
-            {/* Dialog for creating/updating invites */}
-            <ChatInvitesUpsert
-                display="dialog"
-                invites={invitesToUpsert}
-                isCreate={true}
-                isMutate={true}
-                isOpen={invitesToUpsert.length > 0}
-                onCancel={() => setInvitesToUpsert([])}
-                onClose={() => setInvitesToUpsert([])}
-                onCompleted={onInviteCompleted}
-                onDeleted={() => setInvitesToUpsert([])}
-            />
-            {BulkDeleteDialogComponent}
-            {/* Main dialog */}
-            <TopBar
-                display={display}
-                onClose={onClose}
-                title={t("Participant", { count: 2 })}
-                below={<PageTabs
-                    ariaLabel="search-tabs"
-                    currTab={currTab}
-                    fullWidth
-                    onChange={handleTabChange}
-                    tabs={tabs}
-                />}
-            />
-            <Box sx={{ flexGrow: 1, overflowY: "auto" }} >
-                {searchType && <SearchList
-                    {...findManyData}
-                    id="participant-manage-list"
+            <SearchListScrollContainer id={scrollContainerId}>
+                {/* Dialog for creating/updating invites */}
+                <ChatInvitesUpsert
+                    display="dialog"
+                    invites={invitesToUpsert}
+                    isCreate={true}
+                    isMutate={true}
+                    isOpen={invitesToUpsert.length > 0}
+                    onCancel={() => setInvitesToUpsert([])}
+                    onClose={() => setInvitesToUpsert([])}
+                    onCompleted={onInviteCompleted}
+                    onDeleted={() => setInvitesToUpsert([])}
+                />
+                {BulkDeleteDialogComponent}
+                {/* Main dialog */}
+                <TopBar
                     display={display}
-                    handleToggleSelect={handleToggleSelect}
-                    isSelecting={isSelecting}
-                    selectedItems={selectedData}
-                    sxs={{
-                        search: { marginTop: 2 },
-                        listContainer: { borderRadius: 0 },
-                    }}
-                />}
-                {/* <ListContainer
+                    onClose={onClose}
+                    title={t("Participant", { count: 2 })}
+                    below={<PageTabs
+                        ariaLabel="search-tabs"
+                        currTab={currTab}
+                        fullWidth
+                        onChange={handleTabChange}
+                        tabs={tabs}
+                    />}
+                />
+                <Box sx={{ flexGrow: 1, overflowY: "auto" }} >
+                    {searchType && <SearchList
+                        {...findManyData}
+                        display={display}
+                        handleToggleSelect={handleToggleSelect}
+                        isSelecting={isSelecting}
+                        selectedItems={selectedData}
+                        scrollContainerId={scrollContainerId}
+                        sxs={{
+                            listContainer: { borderRadius: 0 },
+                        }}
+                    />}
+                    {/* <ListContainer
+                    borderRadius={0}
                     emptyText={t("NoResults", { ns: "error" })}
                     isEmpty={allData.length === 0 && !loading}
-                    sx={{ borderRadius: 0 }}
                 >
                     <ObjectList
                         dummyItems={new Array(display === "page" ? 5 : 3).fill(searchType)}
@@ -207,10 +210,11 @@ export function ParticipantManageView({
                         selectedItems={selectedData}
                     />
                 </ListContainer> */}
-            </Box>
-            <SideActionsButtons display={display} sx={{ position: "absolute" }}>
-                {sideActionButtons}
-            </SideActionsButtons>
+                </Box>
+                <SideActionsButtons display={display} sx={{ position: "absolute" }}>
+                    {sideActionButtons}
+                </SideActionsButtons>
+            </SearchListScrollContainer>
         </MaybeLargeDialog>
     );
 }

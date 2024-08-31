@@ -24,7 +24,7 @@ import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, ExportIcon, Hear
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
-import { BannerImageContainer, FormSection, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack, SideActionsButton } from "styles";
+import { BannerImageContainer, FormSection, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack, ScrollBox, SideActionsButton } from "styles";
 import { PartialWithType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { getCookieMatchingChat, getCookiePartialData, setCookiePartialData } from "utils/cookies";
@@ -36,6 +36,8 @@ import { PubSub } from "utils/pubsub";
 import { userTabParams } from "utils/search/objectToSearch";
 import { FeatureSlider } from "views/objects/bot";
 import { UserViewProps } from "../types";
+
+const scrollContainerId = "user-search-scroll";
 
 const occupationInputProps = {
     startAdornment: (
@@ -261,7 +263,7 @@ export function UserView({
     }, [language, session, setLocation, user]);
 
     return (
-        <>
+        <ScrollBox id={scrollContainerId}>
             <TopBar
                 display={display}
                 onClose={onClose}
@@ -481,18 +483,12 @@ export function UserView({
                 {currTab.key !== UserPageTabOption.Details && <Box>
                     <SearchList
                         {...findManyData}
+                        borderRadius={0}
                         display={display}
                         hideUpdateButton={true}
-                        id="user-view-list"
                         searchPlaceholder={searchPlaceholderKey}
-                        sxs={showSearchFilters ? {
-                            search: { marginTop: 2 },
-                            listContainer: { borderRadius: 0 },
-                        } : {
-                            search: { display: "none" },
-                            buttons: { display: "none" },
-                            listContainer: { borderRadius: 0 },
-                        }}
+                        scrollContainerId={scrollContainerId}
+                        variant={showSearchFilters ? "normal" : "minimal"}
                     />
                 </Box>}
             </Box>
@@ -513,6 +509,6 @@ export function UserView({
                     <CommentIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </SideActionsButton>
             </SideActionsButtons>
-        </>
+        </ScrollBox>
     );
 }

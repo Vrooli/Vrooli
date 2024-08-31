@@ -22,7 +22,7 @@ import { EditIcon, EllipsisIcon, ExportIcon, SearchIcon, TeamIcon } from "icons"
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { BannerImageContainer, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack, SideActionsButton } from "styles";
+import { BannerImageContainer, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack, ScrollBox, SideActionsButton } from "styles";
 import { extractImageUrl } from "utils/display/imageTools";
 import { placeholderColor } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
@@ -30,6 +30,8 @@ import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils
 import { PubSub } from "utils/pubsub";
 import { teamTabParams } from "utils/search/objectToSearch";
 import { TeamViewProps } from "../types";
+
+const scrollContainerId = "team-search-scroll";
 
 export function TeamView({
     display,
@@ -125,7 +127,7 @@ export function TeamView({
     });
 
     return (
-        <>
+        <ScrollBox id={scrollContainerId}>
             <TopBar
                 display={display}
                 onClose={onClose}
@@ -260,18 +262,12 @@ export function TeamView({
                         currTab.key === TeamPageTabOption.Resource ? resources : (
                             <SearchList
                                 {...findManyData}
+                                borderRadius={0}
                                 display={display}
                                 hideUpdateButton={true}
-                                id="team-view-list"
+                                scrollContainerId={scrollContainerId}
                                 searchPlaceholder={searchPlaceholderKey}
-                                sxs={showSearchFilters ? {
-                                    search: { marginTop: 2 },
-                                    listContainer: { borderRadius: 0 },
-                                } : {
-                                    search: { display: "none" },
-                                    buttons: { display: "none" },
-                                    listContainer: { borderRadius: 0 },
-                                }}
+                                variant={showSearchFilters ? "normal" : "minimal"}
                             />
                         )
                     }
@@ -289,6 +285,6 @@ export function TeamView({
                     <ExportIcon fill={palette.secondary.contrastText} width='32px' height='32px' />
                 </SideActionsButton>
             </SideActionsButtons>
-        </>
+        </ScrollBox>
     );
 }

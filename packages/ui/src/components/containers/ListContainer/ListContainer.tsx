@@ -1,46 +1,65 @@
-import { Box, List, Typography, useTheme } from "@mui/material";
+import { Box, BoxProps, List, Typography, styled } from "@mui/material";
 import { forwardRef } from "react";
 import { useTranslation } from "react-i18next";
+import { SxType } from "types";
 import { ListContainerProps } from "../types";
 
+interface OuterBoxProps extends BoxProps {
+    borderRadius?: number;
+    isEmpty: boolean;
+    sx?: SxType;
+}
+
+const OuterBox = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "borderRadius" && prop !== "isEmpty" && prop !== "sx",
+})<OuterBoxProps>(({ borderRadius, isEmpty, theme, sx }) => ({
+    maxWidth: "1000px",
+    width: "100%",
+    marginLeft: "auto",
+    marginRight: "auto",
+    ...(isEmpty ? {} : {
+        background: theme.palette.background.paper,
+        borderRadius: borderRadius !== undefined ? `${borderRadius}px` : theme.spacing(1),
+        overflow: "overlay",
+        display: "block",
+    }),
+    [theme.breakpoints.down("sm")]: {
+        borderRadius: 0,
+    },
+    ...sx,
+} as any));
+
+const listStyle = { padding: 0 } as const;
+
 export const ListContainer = forwardRef<HTMLDivElement, ListContainerProps>(({
+    borderRadius,
     children,
     emptyText,
     id,
     isEmpty = false,
     sx,
 }, ref) => {
-    const { breakpoints, palette } = useTheme();
     const { t } = useTranslation();
 
     return (
-        <Box id={id} ref={ref} sx={{
-            maxWidth: "1000px",
-            width: "100%",
-            marginLeft: "auto",
-            marginRight: "auto",
-            ...(isEmpty ? {} : {
-                background: palette.background.paper,
-                borderRadius: "8px",
-                overflow: "overlay",
-                display: "block",
-            }),
-            [breakpoints.down("sm")]: {
-                borderRadius: 0,
-            },
-            ...(sx ?? {}),
-        }}>
+        <OuterBox
+            borderRadius={borderRadius}
+            id={id}
+            isEmpty={isEmpty}
+            ref={ref}
+            sx={sx}
+        >
             {isEmpty && (
                 <Typography variant="h6" textAlign="center" pt={2}>
                     {emptyText ?? t("NoResults", { ns: "error" })}
                 </Typography>
             )}
             {!isEmpty && (
-                <List sx={{ padding: 0 }}>
+                <List sx={listStyle}>
                     {children}
                 </List>
             )}
-        </Box>
+        </OuterBox>
     );
 });
 ListContainer.displayName = "ListContainer";
