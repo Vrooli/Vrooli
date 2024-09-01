@@ -210,11 +210,11 @@ export function convertTableElement(_domNode: Node): DOMConversionOutput {
     return { node: $createNode("Table", {}) };
 }
 
-export const $createTableNodeWithDimensions = (
+export function $createTableNodeWithDimensions(
     rowCount: number,
     columnCount: number,
     includeHeaders: InsertTableCommandPayloadHeaders = true,
-): TableNode => {
+): TableNode {
     const tableNode = $createNode("Table", {});
 
     for (let iRow = 0; iRow < rowCount; iRow++) {
@@ -250,4 +250,4 @@ export const $createTableNodeWithDimensions = (
     }
 
     return tableNode;
-};
+}

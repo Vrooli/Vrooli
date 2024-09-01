@@ -657,11 +657,11 @@ export class LexicalNode extends LexicalNodeBase {
  * @param lastToInsert - The last node to insert after this one. Must be a
  * later sibling of FirstNode. If not provided, it will be its last sibling.
  */
-export const insertRangeAfter = (
+export function insertRangeAfter(
     node: LexicalNode,
     firstToInsert: LexicalNode,
     lastToInsert?: LexicalNode,
-) => {
+) {
     const lastToInsert2 =
         lastToInsert || getParent(firstToInsert, { throwIfNull: true }).getLastChild()!;
     let current = firstToInsert;
@@ -678,4 +678,4 @@ export const insertRangeAfter = (
     for (const nodeToInsert of nodesToInsert) {
         currentNode = currentNode.insertAfter(nodeToInsert);
     }
-};
+}

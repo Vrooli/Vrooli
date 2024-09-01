@@ -170,7 +170,7 @@ export class ListNode extends ElementNode {
  * parent does not have a list type of 'check'.
  * @param list - The list whose children are updated.
  */
-export const updateChildrenListItemValue = (list: ListNode): void => {
+export function updateChildrenListItemValue(list: ListNode): void {
     const isNotChecklist = list.getListType() !== "check";
     let value = list.getStart();
     for (const child of list.getChildren()) {
@@ -186,12 +186,12 @@ export const updateChildrenListItemValue = (list: ListNode): void => {
             }
         }
     }
-};
+}
 
-const setListThemeClassNames = (
+function setListThemeClassNames(
     dom: HTMLElement,
     node: ListNode,
-): void => {
+): void {
     const classesToAdd: string[] = [];
     const classesToRemove: string[] = [];
     const listTheme = {} as any;
@@ -245,7 +245,7 @@ const setListThemeClassNames = (
     if (classesToAdd.length > 0) {
         addClassNamesToElement(dom, ...classesToAdd);
     }
-};
+}
 
 /*
  * This function normalizes the children of a ListNode after the conversion from HTML,
@@ -273,7 +273,7 @@ function normalizeChildren(nodes: LexicalNode[]): Array<ListItemNode> {
     return normalizedListItems;
 }
 
-const convertListNode = (domNode: Node): DOMConversionOutput => {
+function convertListNode(domNode: Node): DOMConversionOutput {
     const nodeName = domNode.nodeName.toLowerCase();
     let node: ListNode | null = null;
     if (nodeName === "ol") {
@@ -294,14 +294,14 @@ const convertListNode = (domNode: Node): DOMConversionOutput => {
         after: normalizeChildren,
         node,
     };
-};
+}
 
 const TAG_TO_LIST_TYPE: Record<string, ListType> = {
     ol: "number",
     ul: "bullet",
 };
 
-const createListOrMerge = (node: ElementNode, listType: ListType): ListNode => {
+function createListOrMerge(node: ElementNode, listType: ListType): ListNode {
     if ($isNode("List", node)) {
         return node;
     }
@@ -339,7 +339,7 @@ const createListOrMerge = (node: ElementNode, listType: ListType): ListNode => {
         node.replace(list);
         return list;
     }
-};
+}
 
 /**
  * Inserts a new ListNode. If the selection's anchor node is an empty ListItemNode and is a child of
@@ -351,7 +351,7 @@ const createListOrMerge = (node: ElementNode, listType: ListType): ListNode => {
  * @param editor - The lexical editor.
  * @param listType - The type of list, "number" | "bullet" | "check".
  */
-export const insertList = (editor: LexicalEditor, listType: ListType): void => {
+export function insertList(editor: LexicalEditor, listType: ListType): void {
     editor.update(() => {
         const selection = $getSelection();
 
@@ -431,7 +431,7 @@ export const insertList = (editor: LexicalEditor, listType: ListType): void => {
             }
         }
     });
-};
+}
 
 /**
  * Attempts to insert a ParagraphNode at selection and selects the new node. The selection must contain a ListItemNode
@@ -442,7 +442,7 @@ export const insertList = (editor: LexicalEditor, listType: ListType): void => {
  * @returns true if a ParagraphNode was inserted succesfully, false if there is no selection
  * or the selection does not contain a ListItemNode or the node already holds text.
  */
-export const $handleListInsertParagraph = (): boolean => {
+export function $handleListInsertParagraph(): boolean {
     const selection = $getSelection();
 
     if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
@@ -498,7 +498,7 @@ export const $handleListInsertParagraph = (): boolean => {
     $removeHighestEmptyListParent(anchor);
 
     return true;
-};
+}
 
 /**
  * Searches for the nearest ancestral ListNode and removes it. If selection is an empty ListItemNode
@@ -507,7 +507,7 @@ export const $handleListInsertParagraph = (): boolean => {
  * inside a ListItemNode will be appended to the new ParagraphNodes.
  * @param editor - The lexical editor.
  */
-export const removeList = (editor: LexicalEditor): void => {
+export function removeList(editor: LexicalEditor): void {
     editor.update(() => {
         const selection = $getSelection();
 
@@ -564,12 +564,12 @@ export const removeList = (editor: LexicalEditor): void => {
             }
         }
     });
-};
+}
 
-const $isSelectingEmptyListItem = (
+function $isSelectingEmptyListItem(
     anchorNode: ListItemNode | LexicalNode,
     nodes: Array<LexicalNode>,
-): boolean => {
+): boolean {
     return (
         $isNode("ListItem", anchorNode) &&
         (nodes.length === 0 ||
@@ -577,7 +577,7 @@ const $isSelectingEmptyListItem = (
                 anchorNode.__key !== nodes[0]?.__key &&
                 anchorNode.getChildrenSize() === 0))
     );
-};
+}
 
 /**
  * A recursive function that goes through each list and their children, including nested lists,
@@ -585,7 +585,7 @@ const $isSelectingEmptyListItem = (
  * @param list1 - The first list to be merged.
  * @param list2 - The second list to be merged.
  */
-export const mergeLists = (list1: ListNode, list2: ListNode): void => {
+export function mergeLists(list1: ListNode, list2: ListNode): void {
     const listItem1 = list1.getLastChild();
     const listItem2 = list2.getFirstChild();
 
@@ -605,14 +605,14 @@ export const mergeLists = (list1: ListNode, list2: ListNode): void => {
     }
 
     list2.remove();
-};
+}
 
 /**
  * Merge the next sibling list if same type.
  * <ul> will merge with <ul>, but NOT <ul> with <ol>.
  * @param list - The list whose next sibling should be potentially merged
  */
-export const mergeNextSiblingListIfSameType = (list: ListNode): void => {
+export function mergeNextSiblingListIfSameType(list: ListNode): void {
     const nextSibling = getNextSibling(list);
     if (
         $isNode("List", nextSibling) &&
@@ -620,9 +620,9 @@ export const mergeNextSiblingListIfSameType = (list: ListNode): void => {
     ) {
         mergeLists(list, nextSibling);
     }
-};
+}
 
-const getIndent = (whitespaces: string): number => {
+function getIndent(whitespaces: string): number {
     const tabs = whitespaces.match(/\t/g);
     const spaces = whitespaces.match(/ /g);
 
@@ -637,13 +637,13 @@ const getIndent = (whitespaces: string): number => {
     }
 
     return indent;
-};
+}
 
-export const listExport = (
+export function listExport(
     listNode: ListNode,
     exportChildren: (node: ElementNode) => string,
     depth: number,
-): string => {
+): string {
     const output: string[] = [];
     const children = listNode.getChildren();
     let index = 0;
@@ -670,9 +670,9 @@ export const listExport = (
     }
 
     return output.join("\n");
-};
+}
 
-export const listReplace = (listType: ListType): ElementTransformer["replace"] => {
+export function listReplace(listType: ListType): ElementTransformer["replace"] {
     return (parentNode, children, match) => {
         const previousNode = getPreviousSibling(parentNode);
         const nextNode = getNextSibling(parentNode);
@@ -706,4 +706,4 @@ export const listReplace = (listType: ListType): ElementTransformer["replace"] =
             listItem.setIndent(indent);
         }
     };
-};
+}

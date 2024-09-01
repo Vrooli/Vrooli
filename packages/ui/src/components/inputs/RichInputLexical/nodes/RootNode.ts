@@ -12,8 +12,9 @@ export class RootNode extends ElementNode {
     /** Styled (i.e. markdown) cached text */
     __cachedMarkdown: null | string;
 
-    static clone(): RootNode {
-        return $createNode("Root", {});
+    static clone(node: RootNode): RootNode {
+        const { __key } = node;
+        return $createNode("Root", { key: __key });
     }
 
     constructor({ ...rest }: NodeConstructorPayloads["Root"]) {

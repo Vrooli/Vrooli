@@ -7,7 +7,7 @@ import { errorOnReadOnly } from "../updates";
 import { $createNode, $getCompositionKey, $getSelection, $isNode, $isRangeSelection, $setCompositionKey, getIndexWithinParent, getNextSibling, getParent, getPreviousSibling, internalMarkSiblingsAsDirty, isHTMLElement } from "../utils";
 import { LexicalNode } from "./LexicalNode";
 
-const diffComposedText = (a: string, b: string): [number, number, string] => {
+function diffComposedText(a: string, b: string): [number, number, string] {
     const aLength = a.length;
     const bLength = b.length;
     let left = 0;
@@ -25,13 +25,13 @@ const diffComposedText = (a: string, b: string): [number, number, string] => {
     }
 
     return [left, aLength - left - right, b.slice(left, bLength - right)];
-};
+}
 
-const setTextContent = (
+function setTextContent(
     nextText: string,
     dom: HTMLElement,
     node: TextNode,
-) => {
+) {
     const firstChild = dom.firstChild;
     const isComposing = node.isComposing();
     // Always add a suffix if we're composing a node
@@ -61,7 +61,7 @@ const setTextContent = (
             }
         }
     }
-};
+}
 
 /**
  * Applies styling to the provided DOM element, 
@@ -69,10 +69,10 @@ const setTextContent = (
  * @param element The DOM element to apply styling to
  * @param transformer The transformer associated with the element
  */
-const applyStyling = (
+function applyStyling(
     element: HTMLElement,
     transformer: TextFormatTransformer,
-) => {
+) {
     // Apply classes specified in transformer
     for (const className of transformer.classes) {
         element.classList.add(className);
@@ -90,16 +90,16 @@ const applyStyling = (
         // interfere with the spoiler reveal
         element.setAttribute("spellcheck", "false");
     }
-};
+}
 
-const wrapElementWith = (
+function wrapElementWith(
     element: HTMLElement | Text,
     tag: string,
-): HTMLElement => {
+): HTMLElement {
     const el = document.createElement(tag);
     el.appendChild(element);
     return el;
-};
+}
 
 export class TextNode extends LexicalNode {
     static __type: NodeType = "Text";
@@ -258,7 +258,6 @@ export class TextNode extends LexicalNode {
         // Find text formats
         const format = this.__format;
         const appliedFormats = findAppliedTextTransformers(format);
-        console.log("in createDOM", this.__text, format, appliedFormats);
         // Formats are ordered from outermost to innermost, so we can 
         // loop through it to generate the DOM elements in the correct order.
         const outerTag = appliedFormats.length > 0
@@ -854,7 +853,7 @@ export class TextNode extends LexicalNode {
     }
 }
 
-const convertSpanElement = (domNode: Node): DOMConversionOutput => {
+function convertSpanElement(domNode: Node): DOMConversionOutput {
     // domNode is a <span> since we matched it by nodeName
     const span = domNode as HTMLSpanElement;
     const style = span.style;
@@ -898,9 +897,9 @@ const convertSpanElement = (domNode: Node): DOMConversionOutput => {
         },
         node: null,
     };
-};
+}
 
-const convertBringAttentionToElement = (domNode: Node): DOMConversionOutput => {
+function convertBringAttentionToElement(domNode: Node): DOMConversionOutput {
     // domNode is a <b> since we matched it by nodeName
     const b = domNode as HTMLElement;
     // Google Docs wraps all copied HTML in a <b> with font-weight normal
@@ -915,11 +914,11 @@ const convertBringAttentionToElement = (domNode: Node): DOMConversionOutput => {
         },
         node: null,
     };
-};
+}
 
 const preParentCache = new WeakMap<Node, null | Node>();
 
-const isNodePre = (node: Node): boolean => {
+function isNodePre(node: Node): boolean {
     return (
         node.nodeName === "PRE" ||
         (node.nodeType === DOM_ELEMENT_TYPE &&
@@ -927,9 +926,9 @@ const isNodePre = (node: Node): boolean => {
             (node as HTMLElement).style.whiteSpace !== undefined &&
             (node as HTMLElement).style.whiteSpace.startsWith("pre"))
     );
-};
+}
 
-export const findParentPreDOMNode = (node: Node) => {
+export function findParentPreDOMNode(node: Node) {
     let cached;
     let parent = node.parentNode;
     const visited = [node];
@@ -946,9 +945,9 @@ export const findParentPreDOMNode = (node: Node) => {
         preParentCache.set(visited[i], resultNode);
     }
     return resultNode;
-};
+}
 
-const convertTextDOMNode = (domNode: Node): DOMConversionOutput => {
+function convertTextDOMNode(domNode: Node): DOMConversionOutput {
     const domNode_ = domNode as Text;
     const parentDom = domNode.parentElement;
     if (parentDom === null) {
@@ -1024,14 +1023,14 @@ const convertTextDOMNode = (domNode: Node): DOMConversionOutput => {
         return { node: null };
     }
     return { node: $createNode("Text", { text: textContent }) };
-};
+}
 
 const inlineParents = new RegExp(
     /^(a|abbr|acronym|b|cite|code|del|em|i|ins|kbd|label|output|q|ruby|s|samp|span|strong|sub|sup|time|u|tt|var)$/,
     "i",
 );
 
-const findTextInLine = (text: Text, forward: boolean): null | Text => {
+function findTextInLine(text: Text, forward: boolean): null | Text {
     let node: Node = text;
     // eslint-disable-next-line no-constant-condition
     while (true) {
@@ -1065,7 +1064,7 @@ const findTextInLine = (text: Text, forward: boolean): null | Text => {
             return null;
         }
     }
-};
+}
 
 const nodeNameToTextFormat: Record<string, TextFormatType> = {
     code: "CODE_INLINE",
@@ -1078,7 +1077,7 @@ const nodeNameToTextFormat: Record<string, TextFormatType> = {
     u: "UNDERLINE_TAGS",
 };
 
-const convertTextFormatElement = (domNode: Node): DOMConversionOutput => {
+function convertTextFormatElement(domNode: Node): DOMConversionOutput {
     const format = nodeNameToTextFormat[domNode.nodeName.toLowerCase()];
     if (format === undefined) {
         return { node: null };
@@ -1093,4 +1092,4 @@ const convertTextFormatElement = (domNode: Node): DOMConversionOutput => {
         },
         node: null,
     };
-};
+}

@@ -31,6 +31,7 @@ import { LexicalTransformer } from "./types";
 import { $createNode, $findMatchingParent, $getNearestNodeOfType, $getNodeByKey, $getRoot, $getSelection, $isAtNodeEnd, $isNode, $isRangeSelection, $isRootOrShadowRoot, getParent, getTopLevelElementOrThrow } from "./utils";
 
 const HISTORY_MERGE_OPTIONS = { tag: "history-merge" };
+const PADDING_HEIGHT_PX = 16.5;
 
 /** Every supported block type (e.g. lists, headers, quote) */
 const blockTypeToActionName: { [x: string]: RichInputAction | `${RichInputAction}` } = {
@@ -142,7 +143,6 @@ export type ContentEditableProps = {
     ariaOwns?: React.AriaAttributes["aria-owns"];
     ariaRequired?: React.AriaAttributes["aria-required"];
     autoCapitalize?: HTMLDivElement["autocapitalize"];
-    autoFocus?: boolean;
     "data-testid"?: string | null | undefined;
 } & React.AllHTMLAttributes<HTMLDivElement>;
 
@@ -158,7 +158,6 @@ export function ContentEditable({
     ariaOwns,
     ariaRequired,
     autoCapitalize,
-    autoFocus,
     className,
     id,
     role = "textbox",
@@ -219,7 +218,6 @@ export function ContentEditable({
             aria-readonly={!isEditable ? true : undefined}
             aria-required={ariaRequired}
             autoCapitalize={autoCapitalize}
-            autoFocus={autoFocus}
             className={className}
             contentEditable={isEditable}
             data-testid={testid}
@@ -236,7 +234,7 @@ export function ContentEditable({
 const LoadingPlaceholderBox = styled(Box)(({ theme }) => ({
     color: theme.palette.background.textSecondary,
     position: "absolute",
-    padding: "16.5px 14px",
+    padding: `${PADDING_HEIGHT_PX}px 14px`,
     pointerEvents: "none",
     top: 0,
     left: 0,
@@ -244,7 +242,6 @@ const LoadingPlaceholderBox = styled(Box)(({ theme }) => ({
 
 /** TextInput for entering WYSIWYG text */
 export function RichInputLexicalComponents({
-    autoFocus = false,
     enterWillSubmit,
     getTaggableItems,
     id,
@@ -501,7 +498,7 @@ export function RichInputLexicalComponents({
         return {
             position: "relative",
             display: "grid",
-            padding: "16.5px 14px",
+            padding: `${PADDING_HEIGHT_PX}px 14px`,
             minWidth: "-webkit-fill-available",
             maxWidth: "-webkit-fill-available",
             borderRadius: "0 0 4px 4px",
@@ -509,8 +506,8 @@ export function RichInputLexicalComponents({
             fontFamily: typography.fontFamily,
             fontSize: typography.fontSize + 2,
             lineHeight: `${lineHeight}px`,
-            minHeight: lineHeight * minRows + 16.5,
-            maxHeight: maxRows ? (lineHeight * (maxRows ?? DEFAULT_MIN_ROWS) + 16.5) : "none",
+            minHeight: lineHeight * minRows + PADDING_HEIGHT_PX,
+            maxHeight: maxRows ? (lineHeight * (maxRows ?? DEFAULT_MIN_ROWS) + PADDING_HEIGHT_PX) : "none",
             overflow: "auto",
             backgroundColor: "transparent",
             color: palette.text.primary,
@@ -535,7 +532,6 @@ export function RichInputLexicalComponents({
             <RichTextPlugin
                 contentEditable={<ContentEditable
                     id={`${id}-contenteditable`}
-                    autoFocus={autoFocus}
                     tabIndex={tabIndex}
                     style={{
                         outline: "none",

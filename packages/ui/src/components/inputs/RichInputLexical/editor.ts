@@ -12,10 +12,6 @@ import { BaseSelection, CommandListener, CommandListenerPriority, CommandPayload
 import { commitPendingUpdates, dispatchCommand, parseEditorState, readEditorState, setActiveEditor, triggerListeners, updateEditor } from "./updates";
 import { $createNode, $getRoot, $getSelection, $isNode, getDOMSelection, getDefaultView, markAllNodesAsDirty } from "./utils";
 
-export function cloneEditorState(current: EditorState): EditorState {
-    return new EditorState(new Map(current._nodeMap));
-}
-
 function exportNodeToJSON<SerializedNode extends SerializedLexicalNode>(
     node: LexicalNode,
 ): SerializedNode {
@@ -66,10 +62,9 @@ export class EditorState {
 
     clone(selection?: null | BaseSelection): EditorState {
         const editorState = new EditorState(
-            this._nodeMap,
+            new Map(this._nodeMap),
             selection === undefined ? this._selection : selection,
         );
-        editorState._readOnly = true;
 
         return editorState;
     }

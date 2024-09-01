@@ -1,3 +1,4 @@
+/* eslint-disable no-magic-numbers */
 import { ElementFormatType, TextDetailType, TextFormatType, TextModeType } from "./types";
 
 export const NO_DIRTY_NODES = 0;

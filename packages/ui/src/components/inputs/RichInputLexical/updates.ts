@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { SELECTION_CHANGE_COMMAND } from "./commands";
 import { CSS_TO_STYLES, FULL_RECONCILE, NO_DIRTY_NODES } from "./consts";
-import { EditorState, LexicalEditor, cloneEditorState, createEmptyEditorState, editorStateHasDirtySelection, resetEditor } from "./editor";
+import { EditorState, LexicalEditor, createEmptyEditorState, editorStateHasDirtySelection, resetEditor } from "./editor";
 import { $garbageCollectDetachedDecorators, $garbageCollectDetachedNodes } from "./garbageCollector";
 import { initMutationObserver } from "./mutations";
 import { type LexicalNode } from "./nodes/LexicalNode";
@@ -159,7 +159,7 @@ function triggerTextContentListeners(
 ) {
     const currentMarkdownContent = currentEditorState.read(() => $getRoot().getMarkdownContent());
     const latestMarkdownContent = pendingEditorState.read(() => $getRoot().getMarkdownContent());
-    console.log("in triggerTextContentListeners💗 - markdown comparison", currentMarkdownContent.length, latestMarkdownContent.length);
+    console.log("in triggerTextContentListeners💗 - markdown comparison", currentMarkdownContent.length, latestMarkdownContent.length, currentEditorState._nodeMap, pendingEditorState._nodeMap);
 
     if (currentMarkdownContent !== latestMarkdownContent) {
         triggerListeners("textcontent", editor, true, latestMarkdownContent);
@@ -367,7 +367,7 @@ export function commitPendingUpdates(
             const dirtyLeaves = editor._dirtyLeaves;
             observer.disconnect();
 
-            mutatedNodes = reconcileRoot(
+            mutatedNodes = reconcileRoot( //TODO this is probably causing root node to duplicate
                 currentEditorState,
                 pendingEditorState,
                 editor,
@@ -846,9 +846,8 @@ function beginUpdate(
     let editorStateWasCloned = false;
 
     if ((pendingEditorState === null || pendingEditorState._readOnly) && currentEditorState) {
-        pendingEditorState = editor._pendingEditorState = cloneEditorState(
-            pendingEditorState || currentEditorState,
-        );
+        // Set pendingEditorState and editor._pendingEditorState at the same time
+        pendingEditorState = editor._pendingEditorState = (pendingEditorState || currentEditorState).clone();
         editorStateWasCloned = true;
     }
     if (!pendingEditorState) {
