@@ -13,7 +13,7 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik } from "formik";
-import { useObjectActions } from "hooks/useObjectActions";
+import { useObjectActions } from "hooks/objectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";

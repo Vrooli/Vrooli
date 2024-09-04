@@ -19,7 +19,7 @@ import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { FormView } from "forms/FormView/FormView";
-import { getAutoFillTranslationData, useAutoFill } from "hooks/useAutoFill";
+import { getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";

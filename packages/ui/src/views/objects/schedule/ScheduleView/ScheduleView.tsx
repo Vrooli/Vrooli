@@ -2,7 +2,7 @@ import { endpointGetSchedule, Schedule } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { useObjectActions } from "hooks/useObjectActions";
+import { useObjectActions } from "hooks/objectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { EllipsisIcon } from "icons";
 import { MouseEvent, useCallback, useMemo, useState } from "react";

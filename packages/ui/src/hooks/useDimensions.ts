@@ -1,16 +1,79 @@
-import { Breakpoint, useTheme } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type Dimensions = { width: number, height: number };
+
 type UseDimensionsReturn<T extends HTMLElement> = {
     dimensions: Dimensions;
-    /** 
-     * Uses Material UI spacing syntax to style based on the dimensions of the ref object, 
-     * rather than the page's dimensions 
-     */
-    fromDims: (spacingObj: { [key in Breakpoint]?: unknown }) => any;
     ref: React.RefObject<T>;
     refreshDimensions: () => unknown;
+}
+
+export function useResizeAndMutationListener(callback: () => void, target: HTMLElement | null) {
+    useEffect(() => {
+        if (!target) return;
+
+        const resizeObserver = new ResizeObserver(callback);
+        const mutationObserver = new MutationObserver(callback);
+
+        resizeObserver.observe(target);
+        mutationObserver.observe(target, {
+            attributes: true,
+            childList: true,
+            subtree: true,
+        });
+
+        function cleanup() {
+            resizeObserver.disconnect();
+            mutationObserver.disconnect();
+        }
+
+        return cleanup;
+    }, [callback, target]);
+}
+
+export function useViewportDimensions(): Dimensions {
+    const [dimensions, setDimensions] = useState<Dimensions>({ width: 0, height: 0 });
+
+    const updateDimensions = useCallback(() => {
+        setDimensions({
+            width: window.innerWidth,
+            height: window.innerHeight,
+        });
+    }, []);
+
+    useEffect(() => {
+        updateDimensions();
+        window.addEventListener("resize", updateDimensions);
+        return () => window.removeEventListener("resize", updateDimensions);
+    }, [updateDimensions]);
+
+    return dimensions;
+}
+
+export function useElementDimensions({
+    id,
+}: {
+    id: string;
+}): Dimensions {
+    const [dimensions, setDimensions] = useState<Dimensions>({ width: 0, height: 0 });
+
+    const updateDimensions = useCallback(() => {
+        const element = document.getElementById(id);
+        if (element) {
+            setDimensions({
+                width: element.clientWidth,
+                height: element.clientHeight,
+            });
+        }
+    }, [id]);
+
+    useEffect(() => {
+        updateDimensions();
+    }, [updateDimensions]);
+
+    useResizeAndMutationListener(updateDimensions, document.getElementById(id));
+
+    return dimensions;
 }
 
 /**
@@ -22,65 +85,18 @@ type UseDimensionsReturn<T extends HTMLElement> = {
 export function useDimensions<T extends HTMLElement>(): UseDimensionsReturn<T> {
     const [dimensions, setDimensions] = useState<Dimensions>({ width: 0, height: 0 });
     const ref = useRef<T>(null);
-    const { breakpoints } = useTheme();
-
-    const fromDims = useCallback((spacingObj: { [key in Breakpoint]?: unknown }): any => {
-        let appliedSpacing = spacingObj.xs;  // Default to xs
-        for (const [breakpoint, value] of Object.entries(breakpoints.values)) {
-            if (dimensions.width >= value && spacingObj[breakpoint] !== undefined) {
-                appliedSpacing = spacingObj[breakpoint];
-            }
-        }
-        return appliedSpacing;
-    }, [dimensions.width, breakpoints]);
 
     const calculateDimensions = useCallback(() => {
         const width = ref.current?.clientWidth ?? 0;
         const height = ref.current?.clientHeight ?? 0;
         setDimensions({ width, height });
-    }, [setDimensions]);
+    }, []);
 
     useEffect(() => {
         calculateDimensions();
     }, [calculateDimensions]);
 
-    const refreshDimensions = useCallback(() => {
-        calculateDimensions();
-    }, [calculateDimensions]);
+    useResizeAndMutationListener(calculateDimensions, ref.current);
 
-    useEffect(function resizeListenerEffect() {
-        let cleanup: () => void;
-
-        function handleResize() {
-            refreshDimensions();
-        }
-
-        if (typeof ResizeObserver === "function") {
-            const observer = new ResizeObserver(() => {
-                refreshDimensions();
-            });
-
-            if (ref.current) {
-                observer.observe(ref.current);
-            }
-
-            cleanup = () => {
-                if (ref.current) {
-                    observer.unobserve(ref.current);
-                }
-            };
-        } else {
-            console.warn("Browser doesn't support ResizeObserver. Falling back to window resize listener.");
-
-
-            window.addEventListener("resize", handleResize);
-            cleanup = () => {
-                window.removeEventListener("resize", handleResize);
-            };
-        }
-
-        return cleanup;
-    }, [refreshDimensions]);
-
-    return { dimensions, fromDims, ref, refreshDimensions };
+    return { dimensions, ref, refreshDimensions: calculateDimensions };
 }

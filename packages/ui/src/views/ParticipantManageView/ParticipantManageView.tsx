@@ -5,7 +5,7 @@ import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { useBulkObjectActions } from "hooks/useBulkObjectActions";
+import { useBulkObjectActions } from "hooks/objectActions";
 import { useFindMany } from "hooks/useFindMany";
 import { useSelectableList } from "hooks/useSelectableList";
 import { useTabs } from "hooks/useTabs";

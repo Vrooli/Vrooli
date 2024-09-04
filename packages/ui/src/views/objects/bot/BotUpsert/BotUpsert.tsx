@@ -17,7 +17,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill } from "hooks/useAutoFill";
+import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";

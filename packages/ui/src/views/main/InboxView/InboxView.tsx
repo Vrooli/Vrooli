@@ -8,8 +8,9 @@ import { SearchListScrollContainer } from "components/lists/SearchList/SearchLis
 import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { useBulkObjectActions } from "hooks/useBulkObjectActions";
+import { useBulkObjectActions } from "hooks/objectActions";
 import { useFindMany } from "hooks/useFindMany";
+import { useInfiniteScroll } from "hooks/useInfiniteScroll";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useSelectableList } from "hooks/useSelectableList";
 import { useTabs } from "hooks/useTabs";
@@ -23,7 +24,6 @@ import { BulkObjectAction } from "utils/actions/bulkObjectActions";
 import { DUMMY_LIST_LENGTH } from "utils/consts";
 import { inboxTabParams } from "utils/search/objectToSearch";
 import { InboxViewProps } from "../types";
-import { useInfiniteScroll } from "hooks/useInfiniteScroll";
 
 type InboxObject = Chat | Notification;
 

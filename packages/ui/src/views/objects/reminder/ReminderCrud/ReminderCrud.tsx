@@ -13,7 +13,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useAutoFill } from "hooks/useAutoFill";
+import { useAutoFill } from "hooks/tasks";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
@@ -202,8 +202,8 @@ function ReminderForm({
                 name: step.name ?? "",
                 description: step.description ?? "",
                 dueDate: step.dueDate ?? null,
-            })) : values.reminderItems
-        }
+            })) : values.reminderItems,
+        };
         return { originalValues, updatedValues };
     }, [values]);
 
@@ -274,7 +274,6 @@ function ReminderForm({
                 <BaseForm
                     display={display}
                     isLoading={isLoading}
-                    maxWidth={700}
                 >
                     <FormContainer>
                         <ContentCollapse title="Basic info" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>

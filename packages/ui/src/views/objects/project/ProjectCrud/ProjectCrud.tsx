@@ -15,7 +15,7 @@ import { EditableTitle } from "components/text/EditableTitle/EditableTitle";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { getAutoFillTranslationData, useAutoFill } from "hooks/useAutoFill";
+import { getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
@@ -341,6 +341,10 @@ export function ProjectCrud({
         return await validateFormValues(values, existing, isCreate, transformProjectVersionValues, projectVersionValidation);
     }
 
+    const versions = useMemo(function versionsMemo() {
+        return (existing?.root as ProjectShape)?.versions?.map(v => v.versionLabel) ?? [];
+    }, [existing]);
+
     return (
         <Formik
             enableReinitialize={true}
@@ -355,7 +359,7 @@ export function ProjectCrud({
                 isCreate={isCreate}
                 isReadLoading={isReadLoading}
                 isOpen={isOpen}
-                versions={(existing?.root as ProjectShape)?.versions?.map(v => v.versionLabel) ?? []}
+                versions={versions}
                 {...props}
                 {...formik}
             />}

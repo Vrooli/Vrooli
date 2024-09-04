@@ -1,6 +1,6 @@
 import { endpointGetRunRoutine, RunRoutine } from "@local/shared";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { useObjectActions } from "hooks/useObjectActions";
+import { useObjectActions } from "hooks/objectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";

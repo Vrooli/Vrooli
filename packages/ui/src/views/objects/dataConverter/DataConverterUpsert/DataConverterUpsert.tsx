@@ -18,7 +18,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill } from "hooks/useAutoFill";
+import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
@@ -250,7 +250,6 @@ function DataConverterForm({
             <BaseForm
                 display={display}
                 isLoading={isLoading}
-                maxWidth={700}
             >
                 <FormContainer>
                     <ContentCollapse title="Basic info" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
@@ -360,6 +359,10 @@ export function DataConverterUpsert({
         return await validateFormValues(values, existing, isCreate, transformDataConverterVersionValues, codeVersionValidation);
     }
 
+    const versions = useMemo(function versionsMemo() {
+        return (existing?.root as CodeShape)?.versions?.map(v => v.versionLabel) ?? [];
+    }, [existing]);
+
     return (
         <Formik
             enableReinitialize={true}
@@ -374,7 +377,7 @@ export function DataConverterUpsert({
                 isCreate={isCreate}
                 isReadLoading={isReadLoading}
                 isOpen={isOpen}
-                versions={(existing?.root as CodeShape)?.versions?.map(v => v.versionLabel) ?? []}
+                versions={versions}
                 {...props}
                 {...formik}
             />}

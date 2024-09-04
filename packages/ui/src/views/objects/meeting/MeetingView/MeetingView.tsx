@@ -2,7 +2,7 @@ import { endpointGetMeeting, Meeting } from "@local/shared";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
-import { useObjectActions } from "hooks/useObjectActions";
+import { useObjectActions } from "hooks/objectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

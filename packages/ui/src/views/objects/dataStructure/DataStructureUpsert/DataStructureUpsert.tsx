@@ -19,7 +19,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { getAutoFillTranslationData, useAutoFill } from "hooks/useAutoFill";
+import { getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
@@ -220,7 +220,6 @@ function DataStructureForm({
             <BaseForm
                 display={display}
                 isLoading={isLoading}
-                maxWidth={700}
             >
                 <FormContainer>
                     <ContentCollapse title="Basic info" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>

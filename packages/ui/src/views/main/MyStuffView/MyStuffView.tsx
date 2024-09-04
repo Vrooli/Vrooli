@@ -5,7 +5,7 @@ import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideAc
 import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts/SessionContext";
-import { useBulkObjectActions } from "hooks/useBulkObjectActions";
+import { useBulkObjectActions } from "hooks/objectActions";
 import { useFindMany } from "hooks/useFindMany";
 import { usePopover } from "hooks/usePopover";
 import { useSelectableList } from "hooks/useSelectableList";

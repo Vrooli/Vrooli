@@ -13,7 +13,7 @@ import { EditableTitle } from "components/text/EditableTitle/EditableTitle";
 import { SessionContext } from "contexts/SessionContext";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useBulkObjectActions } from "hooks/useBulkObjectActions";
+import { useBulkObjectActions, useObjectActions } from "hooks/objectActions";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
