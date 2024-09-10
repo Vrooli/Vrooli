@@ -1,8 +1,8 @@
 import { endpointGetApi, endpointGetChat, endpointGetCode, endpointGetComment, endpointGetNote, endpointGetProject, endpointGetQuestion, endpointGetQuiz, endpointGetReport, endpointGetRoutine, endpointGetStandard, endpointGetTag, endpointGetTeam, endpointGetUser, exists, LINKS, uuid } from "@local/shared";
 import { Box, Checkbox, CircularProgress, IconButton, Link, Typography, TypographyProps, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
+import { usePress } from "hooks/gestures";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import usePress from "hooks/usePress";
 import { CopyIcon } from "icons";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

@@ -1,6 +1,6 @@
 import { Box, IconButton, DialogTitle as MuiDialogTitle, useTheme } from "@mui/material";
 import { Title } from "components/text/Title/Title";
-import { useIsLeftHanded } from "hooks/useIsLeftHanded";
+import { useIsLeftHanded } from "hooks/subscriptions";
 import { CloseIcon } from "icons";
 import { forwardRef } from "react";
 import { useLocation } from "route";

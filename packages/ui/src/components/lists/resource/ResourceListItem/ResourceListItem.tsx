@@ -3,7 +3,7 @@ import { handleRegex, ResourceUsedFor, urlRegex, walletAddressRegex } from "@loc
 import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { SessionContext } from "contexts/SessionContext";
-import usePress from "hooks/usePress";
+import { usePress } from "hooks/gestures";
 import { DeleteIcon, EditIcon, OpenInNewIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { openLink, useLocation } from "route";

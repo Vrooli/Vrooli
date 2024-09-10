@@ -6,7 +6,7 @@ import { ReportsButton } from "components/buttons/ReportsButton/ReportsButton";
 import { VoteButton } from "components/buttons/VoteButton/VoteButton";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { SessionContext } from "contexts/SessionContext";
-import usePress from "hooks/usePress";
+import { usePress } from "hooks/gestures";
 import { BookmarkFilledIcon, BotIcon, EditIcon, TeamIcon, UserIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

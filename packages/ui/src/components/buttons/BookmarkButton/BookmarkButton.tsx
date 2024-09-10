@@ -1,8 +1,8 @@
 import { Bookmark, BookmarkFor, uuidValidate } from "@local/shared";
 import { IconButton, Tooltip, useTheme } from "@mui/material";
 import { SelectBookmarkListDialog } from "components/dialogs/SelectBookmarkListDialog/SelectBookmarkListDialog";
-import { SessionContext } from "contexts/SessionContext";
-import { useBookmarker } from "hooks/useBookmarker";
+import { SessionContext } from "contexts";
+import { useBookmarker } from "hooks/objectActions";
 import { BookmarkFilledIcon, BookmarkOutlineIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

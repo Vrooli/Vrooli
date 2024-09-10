@@ -6,7 +6,7 @@ import { Box } from "@mui/material";
 import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { SiteSearchBar } from "components/inputs/search";
-import { useInfiniteScroll } from "hooks/useInfiniteScroll";
+import { useInfiniteScroll } from "hooks/gestures";
 import { ReactNode, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";

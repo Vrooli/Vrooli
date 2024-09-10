@@ -1,6 +1,6 @@
 import { Routine } from "@local/shared";
 import { Box, BoxProps, IconButton, Tooltip, Typography, TypographyProps, styled, useTheme } from "@mui/material";
-import usePress from "hooks/usePress";
+import { usePress } from "hooks/gestures";
 import { ActionIcon, CloseIcon, NoActionIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { multiLineEllipsis, noSelect } from "styles";

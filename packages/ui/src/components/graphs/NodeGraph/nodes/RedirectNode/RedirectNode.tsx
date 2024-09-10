@@ -1,5 +1,5 @@
 import { IconButton, Tooltip, Typography } from "@mui/material";
-import usePress from "hooks/usePress";
+import { usePress } from "hooks/gestures";
 import { RedirectIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";

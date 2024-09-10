@@ -6,7 +6,7 @@
  */
 import { Node, NodeType } from "@local/shared";
 import { Box, BoxProps, styled, useTheme } from "@mui/material";
-import { usePinchZoom } from "hooks/usePinchZoom";
+import { usePinchZoom } from "hooks/gestures";
 import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { firstString } from "utils/display/stringTools";
 import { PubSub } from "utils/pubsub";

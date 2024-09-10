@@ -2,7 +2,7 @@ import { Bookmark, BookmarkFor, CommonKey, ListObject, Node, NodeLinkShape, Node
 import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
 import { TitleProps } from "components/text/types";
-import { UseObjectActionsReturn } from "hooks/useObjectActions";
+import { type UseObjectActionsReturn } from "hooks/objectActions";
 import { ReactNode } from "react";
 import { SvgComponent, SxType, ViewDisplayType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";

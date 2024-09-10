@@ -9,7 +9,7 @@ import { ApiIcon, HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedI
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { pagePaddingBottom } from "styles";
+import { ScrollBox } from "styles";
 import { SettingsData, SettingsViewProps } from "../types";
 
 export const accountSettingsData: SettingsData[] = [
@@ -96,7 +96,7 @@ export function SettingsView({
     }, [setLocation]);
 
     return (
-        <>
+        <ScrollBox>
             <TopBar
                 below={<Box sx={{
                     width: "min(100%, 700px)",
@@ -117,7 +117,7 @@ export function SettingsView({
                 title={t("Settings")}
                 titleBehaviorDesktop="ShowIn"
             />
-            <Box sx={{ paddingBottom: pagePaddingBottom }}>
+            <Box>
                 <Title
                     title={t("Account")}
                     variant="header"
@@ -139,7 +139,7 @@ export function SettingsView({
                     sxs={{ text: { paddingTop: 2 } }}
                     variant="header"
                 />
-                <CardGrid minWidth={300} sx={{ paddingBottom: "64px" }}>
+                <CardGrid minWidth={300}>
                     {displaySettingsData.map(({ title, titleVariables, description, link, Icon }, index) => (
                         <TIDCard
                             buttonText={t("Open")}
@@ -152,6 +152,6 @@ export function SettingsView({
                     ))}
                 </CardGrid>
             </Box>
-        </>
+        </ScrollBox>
     );
 }

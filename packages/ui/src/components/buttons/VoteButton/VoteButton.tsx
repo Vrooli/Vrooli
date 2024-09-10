@@ -1,7 +1,7 @@
 import { getReactionScore, removeModifiers } from "@local/shared";
 import { Box, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { SessionContext } from "contexts/SessionContext";
-import { useVoter } from "hooks/useVoter";
+import { SessionContext } from "contexts";
+import { useVoter } from "hooks/objectActions";
 import { ArrowDownIcon, ArrowUpIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -9,14 +9,14 @@ import { ActionCompletePayloads, ObjectActionComplete } from "utils/actions/obje
 import { getCurrentUser } from "utils/authentication/session";
 import { VoteButtonProps } from "../types";
 
-export const VoteButton = ({
+export function VoteButton({
     disabled = false,
     emoji,
     score,
     objectId,
     voteFor,
     onChange,
-}: VoteButtonProps) => {
+}: VoteButtonProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
@@ -151,4 +151,4 @@ export const VoteButton = ({
             </Tooltip>
         </Stack>
     );
-};
+}

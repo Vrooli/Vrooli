@@ -1,14 +1,14 @@
 import { Box, LinearProgress, Typography } from "@mui/material";
 import { CompletionBarProps } from "components/types";
 
-export const CompletionBar = ({
+export function CompletionBar({
     color,
     isLoading = false,
     showLabel = true,
     value,
     sxs,
     ...props
-}: CompletionBarProps) => {
+}: CompletionBarProps) {
     return (
         <Box sx={{ display: "flex", alignItems: "center", pointerEvents: "none", ...sxs?.root }}>
             <Box sx={{ width: "100%", mr: 1, maxWidth: "300px", ...sxs?.barBox }}>
@@ -25,4 +25,4 @@ export const CompletionBar = ({
             </Box>}
         </Box>
     );
-};
+}

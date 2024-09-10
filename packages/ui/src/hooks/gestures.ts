@@ -1,4 +1,240 @@
-import React, { useCallback, useRef } from "react";
+import { RefObject, useCallback, useEffect, useRef, useState } from "react";
+
+export default function useDraggableScroll(
+    ref: RefObject<HTMLElement>,
+    options: {
+        direction?: 'vertical' | 'horizontal' | 'both';
+    } = { direction: 'both' }
+) {
+    if (process.env.NODE_ENV === 'development') {
+        if (typeof ref !== 'object' || typeof ref.current === 'undefined') {
+            console.error('`useDraggableScroll` expects a single ref argument.');
+        }
+    }
+
+    const { direction } = options;
+
+    // The initial position (scroll progress and mouse location) when the mouse is pressed down on the element
+    let initialPosition = { scrollTop: 0, scrollLeft: 0, mouseX: 0, mouseY: 0 };
+
+    const mouseMoveHandler = (event: { clientX: number; clientY: number }) => {
+        if (ref.current) {
+            // Calculate differences to see how far the user has moved
+            const dx = event.clientX - initialPosition.mouseX;
+            const dy = event.clientY - initialPosition.mouseY;
+
+            // Scroll the element according to those differences
+            if (direction !== 'horizontal')
+                ref.current.scrollTop = initialPosition.scrollTop - dy;
+            if (direction !== 'vertical')
+                ref.current.scrollLeft = initialPosition.scrollLeft - dx;
+        }
+    };
+
+    const mouseUpHandler = () => {
+        // Return to cursor: grab after the user is no longer pressing
+        if (ref.current) ref.current.style.cursor = 'grab';
+
+        // Remove the event listeners since it is not necessary to track the mouse position anymore
+        document.removeEventListener('mousemove', mouseMoveHandler);
+        document.removeEventListener('mouseup', mouseUpHandler);
+    };
+
+    const onMouseDown = (event: { clientX: number; clientY: number }) => {
+        if (ref.current) {
+            // Save the position at the moment the user presses down
+            initialPosition = {
+                scrollLeft: ref.current.scrollLeft,
+                scrollTop: ref.current.scrollTop,
+                mouseX: event.clientX,
+                mouseY: event.clientY,
+            };
+
+            // Show a cursor: grabbing style and set user-select: none to avoid highlighting text while dragging
+            ref.current.style.cursor = 'grabbing';
+            ref.current.style.userSelect = 'none';
+
+            // Add the event listeners that will track the mouse position for the rest of the interaction
+            document.addEventListener('mousemove', mouseMoveHandler);
+            document.addEventListener('mouseup', mouseUpHandler);
+        }
+    };
+
+    return { onMouseDown };
+}
+
+const DEFAULT_INFINITE_SCROLL_THRESHOLD_PX = 500;
+
+interface UseInfiniteScrollProps {
+    /** If we're currently loading more items, in which case we don't want to trigger another load */
+    loading: boolean;
+    /** Callback to load more items */
+    loadMore: () => unknown;
+    /** ID of the container to listen for scroll events on */
+    scrollContainerId: string;
+    /** The distance from the bottom of the container at which to trigger the loadMore callback */
+    threshold?: number;
+}
+
+/**
+ * Tracks when to load more items in an infinite scroll list
+ */
+export function useInfiniteScroll({
+    loading,
+    loadMore,
+    scrollContainerId,
+    threshold = DEFAULT_INFINITE_SCROLL_THRESHOLD_PX,
+}: UseInfiniteScrollProps) {
+    const handleScroll = useCallback(() => {
+        const scrollContainer = document.getElementById(scrollContainerId);
+        if (!scrollContainer) {
+            console.error(`Could not find scrolling container for id ${scrollContainerId} - infinite scroll disabled`);
+            return;
+        }
+
+        const scrolledY = scrollContainer.scrollTop;
+        const scrollableHeight = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+
+        if (
+            !loading &&
+            scrollableHeight > 0 &&
+            (scrolledY > scrollableHeight - threshold)
+        ) {
+            loadMore();
+        }
+    }, [loading, loadMore, scrollContainerId, threshold]);
+
+    useEffect(() => {
+        const scrollingContainer = document.getElementById(scrollContainerId);
+
+        if (scrollingContainer) {
+            scrollingContainer.addEventListener("scroll", handleScroll);
+            return () => scrollingContainer.removeEventListener("scroll", handleScroll);
+        } else {
+            console.error(`Could not find scrolling container for id ${scrollContainerId} - infinite scroll disabled`);
+        }
+    }, [handleScroll, scrollContainerId]);
+
+    return null;
+}
+
+interface UsePinchZoomProps {
+    onScaleChange: (scale: number, position: { x: number, y: number }) => unknown;
+    validTargetIds: string[];
+}
+
+type UsePinchZoomReturn = {
+    isPinching: boolean;
+}
+
+type PinchRefs = {
+    currDistance: number; // Most recent distance between two fingers
+    lastDistance: number; // Last distance between two fingers
+}
+
+/**
+ * Hook for zooming in and out of a component, using pinch gestures. 
+ * Supports both touch and trackpad. 
+ * NOTE: Make sure to disable the accessibility zoom on the component you're using this hook on. Not sure how to do this yet
+ */
+export const usePinchZoom = ({
+    onScaleChange,
+    validTargetIds = [],
+}: UsePinchZoomProps): UsePinchZoomReturn => {
+    const [isPinching, setIsPinching] = useState(false);
+    const refs = useRef<PinchRefs>({
+        currDistance: 0,
+        lastDistance: 0,
+    });
+    // Wait ref so we can update every k iterations
+    const waitRef = useRef<number>(0);
+
+    useEffect(() => {
+        const getTouchDistance = (e: TouchEvent) => {
+            const touch1 = e.touches[0];
+            const touch2 = e.touches[1];
+            return Math.sqrt(Math.pow(touch1.clientX - touch2.clientX, 2) + Math.pow(touch1.clientY - touch2.clientY, 2));
+        };
+        const handleTouchStart = (e: TouchEvent) => {
+            // Find the target
+            const targetId = (e as any)?.target?.id;
+            if (!targetId) return;
+            if (!validTargetIds.some(id => targetId.startsWith(id))) return;
+            // Pinch requires two touches
+            if (e.touches.length !== 2) return;
+            setIsPinching(true);
+            refs.current.currDistance = getTouchDistance(e);
+            refs.current.lastDistance = refs.current.currDistance;
+        };
+        const handleTouchMove = (e: TouchEvent) => {
+            e.preventDefault();
+            // If pinching
+            if (isPinching && e.touches.length === 2) {
+                // Only update every 5 iterations
+                if (waitRef.current < 5) {
+                    waitRef.current++;
+                    return;
+                }
+                waitRef.current = 0;
+                // Get the current position
+                const newDistance = getTouchDistance(e);
+                // Calculate the scale delta
+                const scaleDelta = (newDistance - refs.current.currDistance) / 250;
+                // Find the center of the two touches, so we can zoom in on that point
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                const center = {
+                    x: (touch1.clientX + touch2.clientX) / 2,
+                    y: (touch1.clientY + touch2.clientY) / 2,
+                };
+                // Update the scale and refs
+                onScaleChange(scaleDelta, center);
+                refs.current.lastDistance = refs.current.currDistance;
+                refs.current.currDistance = newDistance;
+            }
+        };
+        const handleTouchEnd = (e: TouchEvent) => {
+            if (e.touches.length === 0) {
+                setIsPinching(false);
+                refs.current.currDistance = 0;
+                refs.current.lastDistance = 0;
+            }
+        };
+        const handleWheel = (e: WheelEvent) => {
+            e.preventDefault();
+            // Scale down movement so it's no too fast
+            const moveBy = e.deltaY / 500;
+            // Check if the target is valid
+            const targetId = (e as any)?.target?.id;
+            if (!targetId) return;
+            if (!validTargetIds.some(id => targetId.startsWith(id))) return;
+            // Find cursor position, so we can zoom in on that point
+            const cursor = {
+                x: e.clientX,
+                y: e.clientY,
+            };
+            if (e.deltaY > 0) {
+                onScaleChange(-moveBy, cursor);
+            } else if (e.deltaY < 0) {
+                onScaleChange(-moveBy, cursor);
+            }
+        };
+        document.addEventListener("touchstart", handleTouchStart);
+        document.addEventListener("touchmove", handleTouchMove);
+        document.addEventListener("touchend", handleTouchEnd);
+        document.addEventListener("wheel", handleWheel);
+        return () => {
+            document.removeEventListener("touchstart", handleTouchStart);
+            document.removeEventListener("touchmove", handleTouchMove);
+            document.removeEventListener("touchend", handleTouchEnd);
+            document.removeEventListener("wheel", handleWheel);
+        };
+    }, [onScaleChange, isPinching, validTargetIds]);
+
+    return {
+        isPinching,
+    };
+};
 
 /**
  * Maximum travel distance allowed before a press is cancelled
@@ -240,5 +476,3 @@ export function usePress({
         onTouchStart: e => start(e),
     };
 }
-
-export default usePress;

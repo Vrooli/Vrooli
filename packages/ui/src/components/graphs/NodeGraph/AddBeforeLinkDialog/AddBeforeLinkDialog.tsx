@@ -6,7 +6,7 @@ import { DialogContent, List, ListItem, ListItemText } from "@mui/material";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { ListMenuItemData } from "components/dialogs/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { getUserLanguages } from "utils/display/translationTools";

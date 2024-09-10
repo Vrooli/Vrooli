@@ -1,5 +1,5 @@
 import { Box, BoxProps, Tooltip, Typography, TypographyProps, styled } from "@mui/material";
-import usePress from "hooks/usePress";
+import { usePress } from "hooks/gestures";
 import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";
 import { BuildAction } from "utils/consts";

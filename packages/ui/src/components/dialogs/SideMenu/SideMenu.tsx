@@ -10,7 +10,7 @@ import { ThemeSwitch } from "components/inputs/ThemeSwitch/ThemeSwitch";
 import { ContactInfo } from "components/navigation/ContactInfo/ContactInfo";
 import { SessionContext } from "contexts/SessionContext";
 import { useFormik } from "formik";
-import { useIsLeftHanded } from "hooks/useIsLeftHanded";
+import { useIsLeftHanded } from "hooks/subscriptions";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useSideMenu } from "hooks/useSideMenu";
 import { useWindowSize } from "hooks/useWindowSize";

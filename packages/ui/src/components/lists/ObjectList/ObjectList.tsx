@@ -1,8 +1,8 @@
 import { Bookmark, GqlModelType, isOfType, ListObject, noop, OrArray, Reaction, View } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
+import { useObjectActions } from "hooks/objectActions";
 import { useDimensions } from "hooks/useDimensions";
-import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectContextMenu } from "hooks/useObjectContextMenu";
 import { useStableCallback } from "hooks/useStableCallback";
 import { useStableObject } from "hooks/useStableObject";
