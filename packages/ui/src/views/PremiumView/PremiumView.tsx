@@ -6,7 +6,7 @@ import { Testimonials } from "components/Testimonials/Testimonials";
 import { IntegerInputBase } from "components/inputs/IntegerInput/IntegerInput";
 import { Footer } from "components/navigation/Footer/Footer";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useStripe } from "hooks/useStripe";
 import { useWindowSize } from "hooks/useWindowSize";
 import { ArrowUpRightIcon, CompleteIcon, ShoppingCartIcon } from "icons";
@@ -140,7 +140,7 @@ function WaysToSupportUs() {
             </Box>
         </Box>
     );
-};
+}
 
 export function PremiumView({
     display,

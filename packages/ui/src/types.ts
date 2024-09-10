@@ -197,3 +197,8 @@ export type FormProps<Model extends OrArray<ListObject>, ModelShape extends OrAr
     handleUpdate: Dispatch<SetStateAction<ModelShape>>;
     isReadLoading: boolean;
 };
+
+export interface Dimensions {
+    width: number;
+    height: number;
+}

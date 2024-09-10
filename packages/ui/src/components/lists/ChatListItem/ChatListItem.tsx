@@ -1,4 +1,4 @@
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useContext, useMemo } from "react";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";

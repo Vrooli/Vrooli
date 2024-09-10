@@ -1,7 +1,7 @@
 import { LINKS, stringifySearchParams } from "@local/shared";
 import { Box, BoxProps, styled, useTheme } from "@mui/material";
 import { PageContainer } from "components/containers/PageContainer/PageContainer";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useContext, useEffect, useMemo } from "react";
 import { Redirect, useLocation } from "route";
 import { PageProps } from "types";

@@ -2,7 +2,7 @@ import { LINKS } from "@local/shared";
 import { Box, Button, Dialog, IconButton, MobileStepper, Paper, PaperProps, Stack, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { ArrowLeftIcon, ArrowRightIcon, CompleteAllIcon, CompleteIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import Draggable from "react-draggable";

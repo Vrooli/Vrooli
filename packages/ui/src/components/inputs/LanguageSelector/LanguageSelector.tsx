@@ -1,4 +1,4 @@
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { LanguageIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

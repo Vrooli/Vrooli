@@ -2,7 +2,7 @@ import { endpointGetTranslate, Translate, TranslateInput } from "@local/shared";
 import { IconButton, ListItem, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { TextInput } from "components/inputs/TextInput/TextInput";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useZIndex } from "hooks/useZIndex";
 import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon } from "icons";

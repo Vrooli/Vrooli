@@ -148,7 +148,7 @@ interface ToolbarBoxProps extends BoxProps {
 
 const ToolbarBox = styled(Box, {
     shouldForwardProp: (prop) => prop !== "formElementsCount",
-})<ToolbarBoxProps>(({ theme, formElementsCount }) => ({
+})<ToolbarBoxProps>(({ formElementsCount, theme }) => ({
     display: "flex",
     justifyContent: "space-around",
     margin: "-4px",

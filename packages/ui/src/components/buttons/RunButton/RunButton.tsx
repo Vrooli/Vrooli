@@ -6,7 +6,7 @@ import { MenuTitle } from "components/dialogs/MenuTitle/MenuTitle";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ObjectListActions } from "components/lists/types";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useFindMany } from "hooks/useFindMany";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { usePopover } from "hooks/usePopover";

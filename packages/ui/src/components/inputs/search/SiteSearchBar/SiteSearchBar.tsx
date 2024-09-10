@@ -2,7 +2,7 @@ import { AutocompleteOption, BookmarkFor } from "@local/shared";
 import { Autocomplete, AutocompleteHighlightChangeReason, AutocompleteRenderInputParams, CircularProgress, IconButton, Input, ListItemIcon, ListItemText, MenuItem, Paper, Popper, PopperProps, Tooltip, styled, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { MicrophoneButton } from "components/buttons/MicrophoneButton/MicrophoneButton";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useDebounce } from "hooks/useDebounce";
 import { ActionIcon, ApiIcon, BookmarkFilledIcon, DeleteIcon, HelpIcon, HistoryIcon, NoteIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon, VisibleIcon } from "icons";
 import { ChangeEvent, FormEvent, HTMLAttributes, useCallback, useContext, useEffect, useMemo, useState } from "react";

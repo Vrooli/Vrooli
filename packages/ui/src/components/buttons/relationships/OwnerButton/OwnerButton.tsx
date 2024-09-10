@@ -5,7 +5,7 @@ import { ListMenu } from "components/dialogs/ListMenu/ListMenu";
 import { FindObjectType, ListMenuItemData } from "components/dialogs/types";
 import { userFromSession } from "components/lists/RelationshipList/RelationshipList";
 import { RelationshipItemTeam, RelationshipItemUser } from "components/lists/types";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useField } from "formik";
 import { usePopover } from "hooks/usePopover";
 import { TeamIcon, UserIcon } from "icons";

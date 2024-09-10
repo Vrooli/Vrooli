@@ -1,6 +1,6 @@
 import { LINKS } from "@local/shared";
 import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, IconButton, Input, ListItemText, MenuItem, Paper, Popper, PopperProps, useTheme } from "@mui/material";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { ApiIcon, HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ObjectIcon, ProfileIcon, SearchIcon, VisibleIcon, WalletIcon } from "icons";
 import { ChangeEvent, FormEvent, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

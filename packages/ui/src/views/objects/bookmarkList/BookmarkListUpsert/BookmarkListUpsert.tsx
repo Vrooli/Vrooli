@@ -10,12 +10,11 @@ import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { EditableTitle } from "components/text/EditableTitle/EditableTitle";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useBulkObjectActions, useObjectActions } from "hooks/objectActions";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useSelectableList } from "hooks/useSelectableList";
@@ -193,7 +192,7 @@ function BookmarkListForm({
                 break;
             }
         }
-    }, []);
+    }, [bookmarksField.value, bookmarksHelpers]);
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || isDeleteLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, isDeleteLoading, props.isSubmitting]);
 
@@ -230,7 +229,7 @@ function BookmarkListForm({
             return null;
         }
         return buttons;
-    }, [actionData]);
+    }, [actionIconProps, handleToggleSelecting, isSelecting, onBulkActionStart, openSearch, palette.secondary.main, selectedData.length, t]);
 
 
     return (
@@ -262,24 +261,21 @@ function BookmarkListForm({
                         },
                     }}
                     DialogContentForm={() => (
-                        <>
-                            <BaseForm
-                                display="dialog"
-                                style={{
-                                    width: "min(700px, 100vw)",
-                                    paddingBottom: "16px",
-                                }}
-                            >
-                                <FormContainer>
-                                    <Field
-                                        fullWidth
-                                        name="label"
-                                        label={t("Label")}
-                                        as={TextInput}
-                                    />
-                                </FormContainer>
-                            </BaseForm>
-                        </>
+                        <BaseForm
+                            display="dialog"
+                            style={{
+                                paddingBottom: "16px",
+                            }}
+                        >
+                            <FormContainer>
+                                <Field
+                                    fullWidth
+                                    name="label"
+                                    label={t("Label")}
+                                    as={TextInput}
+                                />
+                            </FormContainer>
+                        </BaseForm>
                     )}
                 />}
             />

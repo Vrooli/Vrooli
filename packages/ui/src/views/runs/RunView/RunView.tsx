@@ -5,7 +5,7 @@ import { AutoSaveIndicator } from "components/AutoSaveIndicator/AutoSaveIndicato
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { RunStepsDialog } from "components/dialogs/RunStepsDialog/RunStepsDialog";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { FormikProps } from "formik";
 import { useAutoSave } from "hooks/useAutoSave";
 import { useLazyFetch } from "hooks/useLazyFetch";

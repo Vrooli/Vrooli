@@ -1,7 +1,7 @@
 import { CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CommonKey, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, CreatePortalSessionParams, CreatePortalSessionResponse, LINKS, PaymentType, StripeEndpoint, SubscriptionPricesResponse, parseSearchParams } from "@local/shared";
 import { loadStripe } from "@stripe/stripe-js";
 import { fetchData } from "api";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { addSearchParams, openLink, removeSearchParams, useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";

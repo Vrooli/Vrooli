@@ -3,7 +3,7 @@
  */
 import { Stack, Typography } from "@mui/material";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useCallback, useContext } from "react";
 import { getLanguageSubtag, getUserLanguages } from "utils/display/translationTools";
 import { LanguageInputProps } from "../types";

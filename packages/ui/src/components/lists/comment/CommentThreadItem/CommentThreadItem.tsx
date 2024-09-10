@@ -7,7 +7,7 @@ import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { VoteButton } from "components/buttons/VoteButton/VoteButton";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { OwnerLabel } from "components/text/OwnerLabel/OwnerLabel";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { DeleteIcon, ReplyIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";

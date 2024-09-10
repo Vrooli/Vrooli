@@ -8,7 +8,7 @@ import { LeftHandedCheckbox } from "components/inputs/LeftHandedCheckbox/LeftHan
 import { TextSizeButtons } from "components/inputs/TextSizeButtons/TextSizeButtons";
 import { ThemeSwitch } from "components/inputs/ThemeSwitch/ThemeSwitch";
 import { ContactInfo } from "components/navigation/ContactInfo/ContactInfo";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useFormik } from "formik";
 import { useIsLeftHanded } from "hooks/subscriptions";
 import { useLazyFetch } from "hooks/useLazyFetch";

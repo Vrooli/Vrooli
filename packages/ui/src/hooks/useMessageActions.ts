@@ -1,6 +1,6 @@
 import { CancelTaskInput, Chat, ChatMessageShape, ChatShape, DUMMY_ID, LlmTask, LlmTaskInfo, RegenerateResponseInput, StartLlmTaskInput, Success, TaskType, VALYXA_ID, endpointPostCancelTask, endpointPostRegenerateResponse, endpointPostStartLlmTask, uuid } from "@local/shared";
 import { fetchLazyWrapper } from "api";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useCallback, useContext } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { setCookieTaskForMessage } from "utils/cookies";

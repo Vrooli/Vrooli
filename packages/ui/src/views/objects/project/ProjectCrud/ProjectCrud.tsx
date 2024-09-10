@@ -12,7 +12,7 @@ import { RelationshipList } from "components/lists/RelationshipList/Relationship
 import { DirectoryList } from "components/lists/directory";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { EditableTitle } from "components/text/EditableTitle/EditableTitle";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { getAutoFillTranslationData, useAutoFill } from "hooks/tasks";

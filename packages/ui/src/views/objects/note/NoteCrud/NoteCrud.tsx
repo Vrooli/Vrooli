@@ -12,7 +12,7 @@ import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectAction
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { EditableTitle } from "components/text/EditableTitle/EditableTitle";
-import { SessionContext } from "contexts/SessionContext";
+import { ActiveChatContext, SessionContext } from "contexts";
 import { Formik } from "formik";
 import { BaseForm, InnerForm } from "forms/BaseForm/BaseForm";
 import { useObjectActions } from "hooks/objectActions";

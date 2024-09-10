@@ -1,6 +1,6 @@
 import { ChatMessageShape, ChatParticipantShape, ChatShape, ChatSocketEventPayloads, DUMMY_ID, JOIN_CHAT_ROOM_ERRORS, LlmTask, LlmTaskInfo, Session } from "@local/shared";
 import { emitSocketEvent, onSocketEvent } from "api";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { getCookieTasksForMessage, removeCookieMatchingChat, removeCookiesWithChatId, setCookieMatchingChat, setCookieTaskForMessage } from "utils/cookies";

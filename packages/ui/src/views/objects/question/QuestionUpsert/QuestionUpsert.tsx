@@ -10,7 +10,7 @@ import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedTextInput } from "components/inputs/TextInput/TextInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill } from "hooks/tasks";

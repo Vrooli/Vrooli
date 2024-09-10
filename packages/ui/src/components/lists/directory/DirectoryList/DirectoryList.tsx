@@ -11,8 +11,9 @@ import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActi
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { ObjectListActions } from "components/lists/types";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { usePress } from "hooks/gestures";
+import { useBulkObjectActions, useObjectActions } from "hooks/objectActions";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectContextMenu } from "hooks/useObjectContextMenu";
 import { useSelectableList } from "hooks/useSelectableList";
@@ -49,6 +50,10 @@ function DirectorySearchButtons({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
+    const toggleViewMode = useCallback(function toggleViewModeCallback() {
+        setViewMode(viewMode === "list" ? "card" : "list");
+    }, [setViewMode, viewMode]);
+
     return (
         <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: 1, ...sx }}>
             <SortButton
@@ -64,7 +69,7 @@ function DirectorySearchButtons({
             <Tooltip title={t(viewMode === "list" ? "CardModeSwitch" : "ListModeSwitch")} placement="top">
                 <Box
                     id="card-list-toggle-button"
-                    onClick={() => setViewMode(viewMode === "list" ? "card" : "list")}
+                    onClick={toggleViewMode}
                     sx={searchButtonStyle(palette)}
                 >
                     {viewMode === "list" ? <ListIcon fill={palette.secondary.main} /> : <GridIcon fill={palette.secondary.main} />}

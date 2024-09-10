@@ -2,7 +2,7 @@ import { ListObject } from "@local/shared";
 import { Box, IconButton, Palette, Tooltip, styled, useTheme } from "@mui/material";
 import { ObjectActionDialogs } from "components/dialogs/ObjectActionDialogs/ObjectActionDialogs";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { EllipsisIcon } from "icons";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

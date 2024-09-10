@@ -6,7 +6,7 @@ import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useLazyFetch } from "hooks/useLazyFetch";

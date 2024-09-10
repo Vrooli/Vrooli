@@ -1,8 +1,10 @@
 import { BUSINESS_NAME, LINKS } from "@local/shared";
 import { AppBar, Box, BoxProps, IconButton, Stack, Typography, styled, useTheme } from "@mui/material";
 import { Title } from "components/text/Title/Title";
+import { SessionContext } from "contexts";
+import { useIsLeftHanded } from "hooks/subscriptions";
 import { useDimensions } from "hooks/useDimensions";
-import { useIsLeftHanded } from "hooks/useIsLeftHanded";
+import { useSideMenu } from "hooks/useSideMenu";
 import { useWindowSize } from "hooks/useWindowSize";
 import { VrooliIcon } from "icons";
 import { forwardRef, useCallback, useEffect, useMemo } from "react";

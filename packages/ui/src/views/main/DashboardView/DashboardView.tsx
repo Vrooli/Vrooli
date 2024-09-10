@@ -9,7 +9,7 @@ import { ResourceList } from "components/lists/resource";
 import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useDimensions } from "hooks/useDimensions";
 import { useHistoryState } from "hooks/useHistoryState";
 import { useKeyboardOpen } from "hooks/useKeyboardOpen";

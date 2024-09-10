@@ -3,7 +3,7 @@ import { DialogContent, useTheme } from "@mui/material";
 import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SiteSearchBar } from "components/inputs/search";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { parseData } from "hooks/useFindMany";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";

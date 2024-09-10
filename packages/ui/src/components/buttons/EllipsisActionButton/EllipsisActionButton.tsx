@@ -1,5 +1,5 @@
 import { Collapse, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
-import { useIsLeftHanded } from "hooks/useIsLeftHanded";
+import { useIsLeftHanded } from "hooks/subscriptions";
 import { CloseIcon, EllipsisIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

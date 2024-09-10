@@ -1,3 +1,4 @@
+// eslint-disable-next-line testing-library/no-node-access
 /* eslint-disable testing-library/no-node-access */
 import { DUMMY_ID } from "@local/shared";
 import { act, renderHook } from "@testing-library/react";
@@ -494,26 +495,26 @@ const case4 = [
  * @param roots - Array of root nodes in the message tree.
  * @throws {Error} If any root node has a parent.
  */
-const checkRootValidity = <T extends MinimumChatMessage>(
+function checkRootValidity<T extends MinimumChatMessage>(
     map: Map<string, MessageNode<T>>,
     roots: string[],
-) => {
+) {
     roots.forEach(rootId => {
         const parent = map.get(rootId)?.message.parent;
         if (parent) {
             throw new Error(`Root message with ID ${rootId} has a parent. This is invalid.`);
         }
     });
-};
+}
 
 /**
  * Checks that every message that defines a parent is in that parent's children array.
  * @param map - Map of message IDs to their corresponding nodes.
  * @throws {Error} If any message is not a child of its parent in the tree.
  */
-const checkChildParentRelationship = <T extends MinimumChatMessage>(
+function checkChildParentRelationship<T extends MinimumChatMessage>(
     map: Map<string, MessageNode<T>>,
-) => {
+) {
     map.forEach((node, id) => {
         if (node.message.parent?.id) {
             const parentNode = map.get(node.message.parent.id);
@@ -522,7 +523,7 @@ const checkChildParentRelationship = <T extends MinimumChatMessage>(
             }
         }
     });
-};
+}
 
 /**
  * Ensures the integrity of the message tree by checking for cycles and verifying reachability from roots.
@@ -530,12 +531,12 @@ const checkChildParentRelationship = <T extends MinimumChatMessage>(
  * @param roots - Array of root nodes in the message tree.
  * @throws {Error} If there are cycles or unreachable nodes.
  */
-const checkTreeIntegrity = <T extends MinimumChatMessage>(
+function checkTreeIntegrity<T extends MinimumChatMessage>(
     map: Map<string, MessageNode<T>>,
     roots: string[],
-): void => {
+): void {
     const visited = new Set<string>();
-    const traverseTree = (messageId: string, visited: Set<string>): void => {
+    function traverseTree(messageId: string, visited: Set<string>): void {
         if (visited.has(messageId)) {
             throw new Error(`Cycle detected at message with ID ${messageId}.`);
         }
@@ -545,7 +546,7 @@ const checkTreeIntegrity = <T extends MinimumChatMessage>(
             throw new Error(`Message with ID ${messageId} is not in the map.`);
         }
         node.children.forEach(child => traverseTree(child, visited));
-    };
+    }
 
     roots.forEach(rootId => traverseTree(rootId, visited));
     map.forEach((_, id) => {
@@ -553,14 +554,14 @@ const checkTreeIntegrity = <T extends MinimumChatMessage>(
             throw new Error(`Message with ID ${id} is not reachable from any root.`);
         }
     });
-};
+}
 
 /**
  * Checks if the children of each node in the message map are sorted by their sequence number.
  * @param map - Map of message IDs to their corresponding nodes.
  * @throws {Error} If children are not correctly sorted by sequence.
  */
-const checkMessageEditOrder = <T extends MinimumChatMessage>(map: Map<string, MessageNode<T>>): void => {
+function checkMessageEditOrder<T extends MinimumChatMessage>(map: Map<string, MessageNode<T>>): void {
     map.forEach((node, id) => {
         for (let i = 1; i < node.children.length; i++) {
             const currChildSequence = map.get(node.children[i])?.message?.sequence ?? -1; // Default to -1 if undefined
@@ -571,7 +572,7 @@ const checkMessageEditOrder = <T extends MinimumChatMessage>(map: Map<string, Me
             }
         }
     });
-};
+}
 
 /**
  * Verifies that all orphan nodes in the message map are listed 
@@ -580,16 +581,16 @@ const checkMessageEditOrder = <T extends MinimumChatMessage>(map: Map<string, Me
  * @param roots - Array of root nodes in the message tree.
  * @throws {Error} If there are orphan nodes in the message map.
  */
-const checkNoOrphanNodes = <T extends MinimumChatMessage>(
+function checkNoOrphanNodes<T extends MinimumChatMessage>(
     map: Map<string, MessageNode<T>>,
     roots: string[],
-): void => {
+): void {
     map.forEach((node, id) => {
         if (!node.message.parent?.id && !roots.includes(id)) {
             throw new Error(`Orphan node detected with ID ${id}.`);
         }
     });
-};
+}
 
 type IntegrityCheck = "RootValidity" | "ChildParentRelationship" | "TreeIntegrity" | "MessageEditOrder" | "NoOrphanNodes";
 /**
@@ -602,30 +603,30 @@ type IntegrityCheck = "RootValidity" | "ChildParentRelationship" | "TreeIntegrit
  * @param skip - Array of checks to skip.
  * @throws {Error} If any integrity checks fail.
  */
-const assertTreeIntegrity = <T extends MinimumChatMessage>(
+function assertTreeIntegrity<T extends MinimumChatMessage>(
     map: Map<string, MessageNode<T>>,
     roots: string[],
     skip?: IntegrityCheck[],
-): void => {
+): void {
     if (!skip) skip = [];
     if (!skip.includes("RootValidity")) checkRootValidity(map, roots);
     if (!skip.includes("ChildParentRelationship")) checkChildParentRelationship(map);
     if (!skip.includes("TreeIntegrity")) checkTreeIntegrity(map, roots);
     if (!skip.includes("MessageEditOrder")) checkMessageEditOrder(map);
     if (!skip.includes("NoOrphanNodes")) checkNoOrphanNodes(map, roots);
-};
+}
 
 /**
  * Shuffles array in place using Fisher-Yates (aka Durstenfeld) shuffle algorithm.
  * @param array The array to shuffle.
  */
-const shuffle = <T>(array: T[]): T[] => {
+function shuffle<T>(array: T[]): T[] {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [array[i], array[j]] = [array[j], array[i]] as [T, T]; // Swap elements
     }
     return array;
-};
+}
 
 /**
  * Compares two sets of roots to ensure they have the same structure.
@@ -633,17 +634,17 @@ const shuffle = <T>(array: T[]): T[] => {
  * @param roots1 The roots of the first tree to compare.
  * @param roots2 The roots of the second tree to compare.
  */
-const treesHaveSameStructure = <T extends MinimumChatMessage>(
+function treesHaveSameStructure<T extends MinimumChatMessage>(
     map: Map<string, MessageNode<T>>,
     roots1: string[],
     roots2: string[],
-): boolean => {
+): boolean {
     if (roots1.length !== roots2.length) return false;
     for (let i = 0; i < roots1.length; i++) {
         if (!compareSubtrees(map, roots1[i], roots2[i])) return false;
     }
     return true;
-};
+}
 
 /**
  * Recursively compares two subtrees to ensure they have the same structure.
@@ -651,11 +652,11 @@ const treesHaveSameStructure = <T extends MinimumChatMessage>(
  * @param tree1Id The first subtree to compare.
  * @param tree2Id The second subtree to compare.
  */
-const compareSubtrees = <T extends MinimumChatMessage>(
+function compareSubtrees<T extends MinimumChatMessage>(
     map: Map<string, MessageNode<T>>,
     tree1Id: string,
     tree2Id: string,
-): boolean => {
+): boolean {
     const tree1 = map.get(tree1Id);
     const tree2 = map.get(tree2Id);
     if (!tree1 && !tree2) return true;
@@ -668,7 +669,7 @@ const compareSubtrees = <T extends MinimumChatMessage>(
         }
     }
     return true;
-};
+}
 
 /**
  * Verifies that a tree node has a single child at each level and 
@@ -683,11 +684,11 @@ const compareSubtrees = <T extends MinimumChatMessage>(
  * @param minId The expected ID of the first node in the tree, and thus the 
  * smallest ID in the tree.
  */
-const verifySingleNodeStructureAndSequentialIds = <T extends MinimumChatMessage>(
+function verifySingleNodeStructureAndSequentialIds<T extends MinimumChatMessage>(
     map: Map<string, MessageNode<T>>,
     rootId: string,
     minId: string,
-): boolean => {
+): boolean {
     const node = map.get(rootId);
     if (!node) return false;
     // Check if the current node's ID is at least as large as the minimum expected ID
@@ -700,17 +701,17 @@ const verifySingleNodeStructureAndSequentialIds = <T extends MinimumChatMessage>
         return verifySingleNodeStructureAndSequentialIds(map, node.children[0], (parseInt(minId) + 1).toString());
     }
     return true;
-};
+}
 
 /**
  * Counts the number of nodes in the tree starting from the given node.
  * @param map The map of message IDs to their corresponding nodes.
  * @param messageId The ID of the node to start counting from.
  */
-const countNodesInTree = <T extends MinimumChatMessage>(
+function countNodesInTree<T extends MinimumChatMessage>(
     map: Map<string, MessageNode<T>>,
     messageId: string,
-): number => {
+): number {
     const node = map.get(messageId);
     if (!node) return 0;
 
@@ -723,9 +724,9 @@ const countNodesInTree = <T extends MinimumChatMessage>(
     }
 
     return count;
-};
+}
 
-const runCommonTests = (caseData: MinimumChatMessage[], chatId: string, caseTitle: string, skip?: IntegrityCheck[]) => {
+function runCommonTests(caseData: MinimumChatMessage[], chatId: string, caseTitle: string, skip?: IntegrityCheck[]) {
     describe(`Common Tests for ${caseTitle}`, () => {
         it(`${caseTitle} - Tree is created successfully`, () => {
             const { result } = renderHook(() => useMessageTree(chatId));
@@ -805,7 +806,7 @@ const runCommonTests = (caseData: MinimumChatMessage[], chatId: string, caseTitl
             expect(treesHaveSameStructure(originalMap, originalRoots, shuffledRoots)).toBe(true);
         });
     });
-};
+}
 
 describe("useMessageTree Hook", () => {
     const chatId = DUMMY_ID;

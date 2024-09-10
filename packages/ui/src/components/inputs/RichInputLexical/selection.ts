@@ -750,9 +750,9 @@ function getCharacterOffset(point: PointType): number {
         : 0;
 }
 
-export const $getCharacterOffsets = (
+export function $getCharacterOffsets(
     selection: BaseSelection,
-): [number, number] => {
+): [number, number] {
     const anchorAndFocus = selection.getStartEndPoints();
     if (anchorAndFocus === null) {
         return [0, 0];
@@ -767,7 +767,7 @@ export const $getCharacterOffsets = (
         return [0, 0];
     }
     return [getCharacterOffset(anchor), getCharacterOffset(focus)];
-};
+}
 
 export class RangeSelection implements BaseSelection {
     format: number;
@@ -2669,7 +2669,7 @@ export function adjustPointOffsetForMergedSibling(
     }
 }
 
-const selectPointOnNode = (point: PointType, node: LexicalNode): void => {
+function selectPointOnNode(point: PointType, node: LexicalNode): void {
     let key = node.__key;
     let offset = point.offset;
     let type: "element" | "text" = "element";
@@ -2694,12 +2694,12 @@ const selectPointOnNode = (point: PointType, node: LexicalNode): void => {
         }
     }
     point.set(key, offset, type);
-};
+}
 
-export const $moveSelectionPointToEnd = (
+export function $moveSelectionPointToEnd(
     point: PointType,
     node: LexicalNode,
-): void => {
+): void {
     if ($isNode("Element", node)) {
         const lastNode = node.getLastDescendant();
         if ($isNode("Element", lastNode) || $isNode("Text", lastNode)) {
@@ -2710,36 +2710,36 @@ export const $moveSelectionPointToEnd = (
     } else {
         selectPointOnNode(point, node);
     }
-};
+}
 
-export const $createRangeSelection = (): RangeSelection => {
+export function $createRangeSelection(): RangeSelection {
     const anchor = $createPoint("root", 0, "element");
     const focus = $createPoint("root", 0, "element");
     return new RangeSelection(anchor, focus, 0, "");
-};
+}
 
-export const $insertNodes = (nodes: LexicalNode[]) => {
+export function $insertNodes(nodes: LexicalNode[]) {
     let selection = $getSelection() || $getPreviousSelection();
 
     if (selection === null) {
         selection = $getRoot().selectEnd();
     }
     selection.insertNodes(nodes);
-};
+}
 
 /**
  * Tests a parent element for right to left direction.
  * @param selection - The selection whose parent is to be tested.
  * @returns true if the selections' parent element has a direction of 'rtl' (right to left), false otherwise.
  */
-export const $isParentElementRTL = (selection: RangeSelection): boolean => {
+export function $isParentElementRTL(selection: RangeSelection): boolean {
     const anchorNode = selection.anchor.getNode();
     const parent = $isNode("Root", anchorNode)
         ? anchorNode
         : getParent(anchorNode, { throwIfNull: true });
 
     return parent.getDirection() === "rtl";
-};
+}
 
 /**
  * Moves selection by character according to arguments.
@@ -2747,11 +2747,11 @@ export const $isParentElementRTL = (selection: RangeSelection): boolean => {
  * @param isHoldingShift - Is the shift key being held down during the operation.
  * @param isBackward - Is the selection backward (the focus comes before the anchor)?
  */
-export const $moveCharacter = (
+export function $moveCharacter(
     selection: RangeSelection,
     isHoldingShift: boolean,
     isBackward: boolean,
-): void => {
+): void {
     const isRTL = $isParentElementRTL(selection);
     // Move the caret selection by character
     selection.modify(
@@ -2759,7 +2759,7 @@ export const $moveCharacter = (
         isBackward ? !isRTL : isRTL,
         "character", // Granularity
     );
-};
+}
 
 /**
  * Determines if the default character selection should be overridden. Used with DecoratorNodes
@@ -2767,10 +2767,10 @@ export const $moveCharacter = (
  * @param isBackward - Is the selection backwards (the focus comes before the anchor)?
  * @returns true if it should be overridden, false if not.
  */
-export const $shouldOverrideDefaultCharacterSelection = (
+export function $shouldOverrideDefaultCharacterSelection(
     selection: RangeSelection,
     isBackward: boolean,
-): boolean => {
+): boolean {
     const possibleNode = $getAdjacentNode(selection.focus, isBackward);
 
     return (
@@ -2779,9 +2779,9 @@ export const $shouldOverrideDefaultCharacterSelection = (
             !possibleNode.isInline() &&
             !possibleNode.canBeEmpty())
     );
-};
+}
 
-export const getTable = (tableElement: HTMLElement): TableDOMTable => {
+export function getTable(tableElement: HTMLElement): TableDOMTable {
     const domRows: TableDOMRows = [];
     const grid = {
         columns: 0,
@@ -2851,15 +2851,15 @@ export const getTable = (tableElement: HTMLElement): TableDOMTable => {
     grid.rows = y + 1;
 
     return grid;
-};
+}
 
-export const caretFromPoint = (
+export function caretFromPoint(
     x: number,
     y: number,
 ): null | {
     offset: number;
     node: Node;
-} => {
+} {
     if (typeof document.caretRangeFromPoint !== "undefined") {
         const range = document.caretRangeFromPoint(x, y);
         if (range === null) {
@@ -2884,9 +2884,9 @@ export const caretFromPoint = (
         // Gracefully handle IE
         return null;
     }
-};
+}
 
-const isNodeSelected = (editor: LexicalEditor, key: NodeKey): boolean => {
+function isNodeSelected(editor: LexicalEditor, key: NodeKey): boolean {
     return editor.getEditorState()?.read(() => {
         const node = $getNodeByKey(key);
 
@@ -2896,11 +2896,11 @@ const isNodeSelected = (editor: LexicalEditor, key: NodeKey): boolean => {
 
         return isSelected(node);
     }) ?? false;
-};
+}
 
-export const useLexicalNodeSelection = (
+export function useLexicalNodeSelection(
     key: NodeKey,
-): [boolean, (arg0: boolean) => void, () => void] => {
+): [boolean, (arg0: boolean) => void, () => void] {
     const editor = useLexicalComposerContext();
 
     const [isSelected, setIsSelected] = useState(() => Boolean(editor && isNodeSelected(editor, key)));
@@ -2952,7 +2952,7 @@ export const useLexicalNodeSelection = (
     }, [editor]);
 
     return [isSelected, setSelected, clearSelected];
-};
+}
 
 export function $createRangeSelectionFromDom(
     domSelection: Selection | null,

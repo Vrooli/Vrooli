@@ -1,9 +1,10 @@
 import { ChatInviteStatus, ChatShape, DUMMY_ID, getDotNotationValue, noop, setDotNotationValue, uuid } from "@local/shared";
 import { Box, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
-import { SessionContext } from "contexts/SessionContext";
+import { ActiveChatContext, SessionContext } from "contexts";
 import { useField } from "formik";
-import { useIsLeftHanded } from "hooks/useIsLeftHanded";
+import { useIsLeftHanded } from "hooks/subscriptions";
+import { generateContextLabel } from "hooks/tasks";
 import { useUndoRedo } from "hooks/useUndoRedo";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";

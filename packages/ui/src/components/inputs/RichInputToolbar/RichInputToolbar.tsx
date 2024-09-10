@@ -1,8 +1,7 @@
 import { noop } from "@local/shared";
 import { Box, BoxProps, Button, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, Popover, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { SessionContext } from "contexts/SessionContext";
-import { useDimensions } from "hooks/useDimensions";
-import { useIsLeftHanded } from "hooks/useIsLeftHanded";
+import { SessionContext } from "contexts";
+import { useIsLeftHanded, useRichInputToolbarViewSize } from "hooks/subscriptions";
 import { usePopover } from "hooks/usePopover";
 import { TFunction } from "i18next";
 import { BoldIcon, CaseSensitiveIcon, Header1Icon, Header2Icon, Header3Icon, Header4Icon, Header5Icon, Header6Icon, HeaderIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, QuoteIcon, RedoIcon, StrikethroughIcon, TableIcon, TerminalIcon, UnderlineIcon, UndoIcon, WarningIcon } from "icons";

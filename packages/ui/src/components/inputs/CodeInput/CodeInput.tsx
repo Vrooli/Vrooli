@@ -8,7 +8,7 @@ import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState
 import { useTranslation } from "react-i18next";
 // import { isJson } from "@local/shared"; // Update this so that we can lint JSON standard input type (different from normal JSON)
 import { ChatShape } from "@local/shared";
-import { SessionContext } from "contexts/SessionContext";
+import { ActiveChatContext, SessionContext } from "contexts";
 import { useDebounce } from "hooks/useDebounce";
 import { CopyIcon, MagicIcon, OpenThreadIcon, RedoIcon, RefreshIcon, UndoIcon } from "icons";
 import React from "react";

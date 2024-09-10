@@ -6,7 +6,7 @@ import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObject
 import { CodeInputBase } from "components/inputs/CodeInput/CodeInput";
 import { SelectorBase } from "components/inputs/Selector/Selector";
 import { Title } from "components/text/Title/Title";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { FormView } from "forms/FormView/FormView";
 import { AddIcon, ApiIcon, BotIcon, MagicIcon, MinusIcon, OpenInNewIcon, RoutineIcon, SmartContractIcon, TerminalIcon } from "icons";
 import { memo, useCallback, useContext, useMemo, useState } from "react";

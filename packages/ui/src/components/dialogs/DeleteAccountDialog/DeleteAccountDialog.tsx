@@ -2,7 +2,7 @@ import { endpointDeleteUser, LINKS, Session, UserDeleteInput, userDeleteOneSchem
 import { Button, Checkbox, DialogContent, FormControlLabel, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Formik } from "formik";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { DeleteIcon } from "icons";

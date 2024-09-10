@@ -4,7 +4,7 @@ import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { AddIcon, DeleteIcon, EditIcon, FocusModeIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";

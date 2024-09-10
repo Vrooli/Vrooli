@@ -7,7 +7,7 @@ import { LinkInput } from "components/inputs/LinkInput/LinkInput";
 import { Selector, SelectorBase } from "components/inputs/Selector/Selector";
 import { TranslatedTextInput } from "components/inputs/TextInput/TextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";

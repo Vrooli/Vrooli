@@ -4,7 +4,7 @@ import { BulkDeleteDialog } from "components/dialogs/BulkDeleteDialog/BulkDelete
 import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
 import { DeleteDialog } from "components/dialogs/DeleteDialog/DeleteDialog";
 import { ObjectListItemProps } from "components/lists/types";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Dispatch, SetStateAction, useCallback, useContext, useMemo, useRef, useState } from "react";
 import { SetLocation, useLocation } from "route";
 import { BulkObjectAction, BulkObjectActionComplete, getAvailableBulkActions } from "utils/actions/bulkObjectActions";

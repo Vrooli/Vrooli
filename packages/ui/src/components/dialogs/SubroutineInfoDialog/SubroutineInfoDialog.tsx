@@ -9,7 +9,7 @@ import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { ResourceList } from "components/lists/resource";
 import { Title } from "components/text/Title/Title";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useTranslatedFields } from "hooks/useTranslatedFields";

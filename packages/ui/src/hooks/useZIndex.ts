@@ -1,15 +1,15 @@
-import { DEFAULT_Z_INDEX, ZIndexContext } from "contexts/ZIndexContext";
+import { DEFAULT_Z_INDEX, ZIndexContext } from "contexts";
 import { useContext, useEffect, useRef, useState } from "react";
 
 type UseZIndexReturn<HasTransition extends boolean> = HasTransition extends true ? [number, (() => unknown)] : number;
 
-export const useZIndex = <
+export function useZIndex<
     HasTransition extends boolean = false
 >(
     visible?: boolean,
     hasTransition?: HasTransition,
     offset = 0, // When using this for dialogs, for example, might want to offset by 1000 to make sure it's above sidebars
-): UseZIndexReturn<HasTransition> => {
+): UseZIndexReturn<HasTransition> {
     const context = useContext(ZIndexContext);
     const [zIndex, setZIndex] = useState<number>(DEFAULT_Z_INDEX + offset);
     const hasCalledGetZIndex = useRef(false);
@@ -28,14 +28,14 @@ export const useZIndex = <
         };
     }, [context]);
 
-    const handleTransitionExit = () => {
+    function handleTransitionExit() {
         if (!visible && context) {
             setZIndex(DEFAULT_Z_INDEX + offset);
             if (hasCalledGetZIndex.current) context?.releaseZIndex();
             hasCalledGetZIndex.current = false;
         }
-    };
+    }
 
     if (hasTransition) return [zIndex, handleTransitionExit] as UseZIndexReturn<HasTransition>;
     return zIndex as UseZIndexReturn<HasTransition>;
-};
+}

@@ -2,7 +2,7 @@
 import { handleRegex, ResourceUsedFor, urlRegex, walletAddressRegex } from "@local/shared";
 import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { usePress } from "hooks/gestures";
 import { DeleteIcon, EditIcon, OpenInNewIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";

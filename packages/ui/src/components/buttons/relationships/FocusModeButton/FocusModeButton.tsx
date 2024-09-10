@@ -2,7 +2,7 @@ import { LINKS } from "@local/shared";
 import { Tooltip } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { RelationshipItemFocusMode } from "components/lists/types";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useField } from "formik";
 import { AddIcon, FocusModeIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";

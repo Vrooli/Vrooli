@@ -4,7 +4,7 @@ import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useBulkObjectActions } from "hooks/objectActions";
 import { useFindMany } from "hooks/useFindMany";
 import { usePopover } from "hooks/usePopover";

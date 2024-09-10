@@ -13,7 +13,7 @@ import { SubroutineInfoDialogProps } from "components/dialogs/types";
 import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph } from "components/graphs/NodeGraph";
 import { MoveNodeMenu as MoveNodeDialog } from "components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useEditableLabel } from "hooks/useEditableLabel";
 import { useHotkeys } from "hooks/useHotkeys";
 import { useSaveToCache } from "hooks/useSaveToCache";

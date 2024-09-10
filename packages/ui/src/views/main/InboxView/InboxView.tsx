@@ -8,9 +8,9 @@ import { SearchListScrollContainer } from "components/lists/SearchList/SearchLis
 import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
+import { useInfiniteScroll } from "hooks/gestures";
 import { useBulkObjectActions } from "hooks/objectActions";
 import { useFindMany } from "hooks/useFindMany";
-import { useInfiniteScroll } from "hooks/useInfiniteScroll";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useSelectableList } from "hooks/useSelectableList";
 import { useTabs } from "hooks/useTabs";

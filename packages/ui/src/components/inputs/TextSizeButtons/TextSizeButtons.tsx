@@ -1,14 +1,14 @@
 import { IconButton, Slider, SliderThumb, useTheme } from "@mui/material";
 import { useThrottle } from "hooks/useThrottle";
 import { AddIcon, CaseSensitiveIcon, MinusIcon } from "icons";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { FONT_SIZE_MAX, FONT_SIZE_MIN } from "utils/consts";
 import { getCookie } from "utils/cookies";
 import { PubSub } from "utils/pubsub";
 
-const smallestFontSize = 10;
-const largestFontSize = 20;
+const THROTTLE_MS = 50;
 
-const ThumbComponent = (props: React.HTMLAttributes<unknown>) => {
+function ThumbComponent(props: React.HTMLAttributes<unknown>) {
     const { children, ...other } = props;
     return (
         <SliderThumb {...other}>
@@ -16,22 +16,22 @@ const ThumbComponent = (props: React.HTMLAttributes<unknown>) => {
             <CaseSensitiveIcon width="20px" height="20px" />
         </SliderThumb>
     );
-};
+}
 
 /**
  * Updates the font size of the entire app
  */
-export const TextSizeButtons = () => {
+export function TextSizeButtons() {
     const { palette } = useTheme();
 
     const [size, setSize] = useState<number>(getCookie("FontSize"));
 
-    const handleSliderChange = (newValue: number) => {
-        if (newValue >= smallestFontSize && newValue <= largestFontSize) {
+    const handleSliderChange = useCallback(function handleSliderChangeCallback(newValue: number) {
+        if (newValue >= FONT_SIZE_MIN && newValue <= FONT_SIZE_MAX) {
             setSize(newValue);
             PubSub.get().publish("fontSize", newValue);
         }
-    };
+    }, []);
 
     const handleSliderChangeThrottled = useThrottle<[Event, number | number[]]>((event, newValue) => {
         handleSliderChange(Array.isArray(newValue) ?
@@ -39,19 +39,19 @@ export const TextSizeButtons = () => {
                 newValue[0] :
                 size : // If array was empty (shouldn't ever occur), fallback to the current size
             newValue);
-    }, 50);
+    }, THROTTLE_MS);
 
     return (
         <div style={{ display: "flex", alignItems: "center" }}>
-            <IconButton onClick={() => handleSliderChange(size - 1)} disabled={size === smallestFontSize}>
+            <IconButton onClick={() => handleSliderChange(size - 1)} disabled={size === FONT_SIZE_MIN}>
                 <MinusIcon fill={palette.secondary.main} />
             </IconButton>
             <Slider
                 value={size}
                 onChange={handleSliderChangeThrottled}
                 valueLabelDisplay="auto"
-                min={smallestFontSize}
-                max={largestFontSize}
+                min={FONT_SIZE_MIN}
+                max={FONT_SIZE_MAX}
                 slots={{ thumb: ThumbComponent }}
                 sx={{
                     color: palette.secondary.main,
@@ -67,9 +67,9 @@ export const TextSizeButtons = () => {
                     },
                 }}
             />
-            <IconButton onClick={() => handleSliderChange(size + 1)} disabled={size === largestFontSize}>
+            <IconButton onClick={() => handleSliderChange(size + 1)} disabled={size === FONT_SIZE_MAX}>
                 <AddIcon fill={palette.secondary.main} />
             </IconButton>
         </div>
     );
-};
+}

@@ -1,7 +1,6 @@
 import { StyledEngineProvider, Theme, ThemeProvider, createTheme } from "@mui/material";
 import { render as rtlRender } from "@testing-library/react";
-import { SessionContext } from "../contexts/SessionContext";
-import { ZIndexProvider } from "../contexts/ZIndexContext";
+import { SessionContext, ZIndexProvider } from "../contexts";
 import { DEFAULT_THEME, themes } from "../utils/display/theme";
 
 function withFontSize(theme: Theme, fontSize: number): Theme {
