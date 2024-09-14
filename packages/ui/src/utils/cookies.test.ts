@@ -1,20 +1,13 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
+import { noop } from "@local/shared";
 import { cookies, getCookie, getOrSetCookie, getStorageItem, ifAllowed, setCookie } from "./cookies";
 
 describe("cookies (local storage)", () => {
-    const originalLocalStorage = global.localStorage;
-
-    // Mock localStorage
+    beforeAll(() => {
+        jest.spyOn(console, "warn").mockImplementation(noop);
+    });
     beforeEach(() => {
-        let store: Record<string, string> = {};
-        const mockLocalStorage = {
-            getItem: (key: string) => (key in store ? store[key] : null),
-            setItem: (key: string, value: string) => (store[key] = value),
-            removeItem: (key: string) => delete store[key],
-            clear: () => (store = {}),
-        };
-
-        global.localStorage = mockLocalStorage as unknown as typeof global.localStorage;
+        jest.clearAllMocks();
         global.localStorage.clear();
         setCookie("Preferences", {
             strictlyNecessary: true,
@@ -22,18 +15,9 @@ describe("cookies (local storage)", () => {
             functional: true,
             targeting: true,
         });
-
     });
-    afterEach(() => {
-        global.localStorage = originalLocalStorage;
-    });
-
-    beforeAll(() => {
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        jest.spyOn(console, "warn").mockImplementation(() => { });
-    });
-
     afterAll(() => {
+        global.localStorage.clear();
         jest.restoreAllMocks();
     });
 

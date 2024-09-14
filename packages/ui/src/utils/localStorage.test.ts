@@ -1,44 +1,13 @@
 import { getLocalStorageKeys } from "./localStorage";
 
-let mockLocalStorage = {};
-
-export const setupLocalStorageMock = () => {
-    mockLocalStorage = {};
-    global.localStorage = {
-        getItem(key) {
-            return key in mockLocalStorage ? mockLocalStorage[key] : null;
-        },
-        setItem(key, value) {
-            mockLocalStorage[key] = String(value);
-        },
-        removeItem(key) {
-            delete mockLocalStorage[key];
-        },
-        clear() {
-            mockLocalStorage = {};
-        },
-        key(i) {
-            const keys = Object.keys(mockLocalStorage);
-            return keys[i] || null;
-        },
-        get length() {
-            return Object.keys(mockLocalStorage).length;
-        },
-    };
-};
-
-export const teardownLocalStorageMock = () => {
-    mockLocalStorage = {};
-    global.localStorage.clear();
-};
-
 describe("getLocalStorageKeys", () => {
     beforeEach(() => {
-        setupLocalStorageMock();
+        jest.clearAllMocks();
+        global.localStorage.clear();
     });
-
-    afterEach(() => {
-        teardownLocalStorageMock();
+    afterAll(() => {
+        global.localStorage.clear();
+        jest.restoreAllMocks();
     });
 
     it("should return keys with the specified prefix and suffix", () => {

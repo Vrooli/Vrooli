@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable react-perf/jsx-no-new-object-as-prop */
 import { Formik } from "formik";
+import { act } from "react";
 import { fireEvent, render, screen } from "../../../__mocks__/testUtils";
 import { TextInput, TranslatedTextInput } from "./TextInput";
 
@@ -91,7 +92,7 @@ describe("TranslatedTextInput", () => {
     ];
 
     testCases.forEach(({ name, initialValues, language, newValue, expectedValue }) => {
-        it(`renders TranslatedTextInput and handles change with ${name}`, () => {
+        it(`renders TranslatedTextInput and handles change with ${name}`, async () => {
             render(
                 <Formik initialValues={initialValues} onSubmit={jest.fn()}>
                     {({ values }) => (
@@ -108,7 +109,9 @@ describe("TranslatedTextInput", () => {
             const initialInputValue = initialValues.translations?.find(t => t.language === language)?.testName || "";
             expect(input).toHaveValue(initialInputValue);
 
-            fireEvent.change(input, { target: { name: "testName", value: newValue } });
+            await act(async () => {
+                fireEvent.change(input, { target: { name: "testName", value: newValue } });
+            });
 
             const formValues = JSON.parse(screen.getByTestId("form-values").textContent || "{}");
             const updatedTranslation = formValues.translations.find(t => t.language === language);

@@ -1,5 +1,4 @@
 import { Session, SessionUser, uuid } from "@local/shared";
-import { setupLocalStorageMock, teardownLocalStorageMock } from "../localStorage.test";
 import { checkIfLoggedIn, getCurrentUser } from "./session";
 
 describe("getCurrentUser", () => {
@@ -61,11 +60,12 @@ describe("getCurrentUser", () => {
 
 describe("checkIfLoggedIn", () => {
     beforeEach(() => {
-        setupLocalStorageMock();
+        jest.clearAllMocks();
+        global.localStorage.clear();
     });
-
-    afterEach(() => {
-        teardownLocalStorageMock();
+    afterAll(() => {
+        global.localStorage.clear();
+        jest.restoreAllMocks();
     });
 
     it("should return true if session is null and local storage has isLoggedIn set to true", () => {

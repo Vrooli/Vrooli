@@ -1,30 +1,16 @@
+import { noop } from "@local/shared";
 import { LocalStorageLruCache } from "./localStorageLruCache";
 
 describe("LocalStorageLruCache", () => {
-    const originalLocalStorage = global.localStorage;
-
-    // Mock localStorage
+    beforeAll(() => {
+        jest.spyOn(console, "warn").mockImplementation(noop);
+    });
     beforeEach(() => {
-        let store: Record<string, string> = {};
-        const mockLocalStorage = {
-            getItem: (key: string) => (key in store ? store[key] : null),
-            setItem: (key: string, value: string) => (store[key] = value),
-            removeItem: (key: string) => delete store[key],
-            clear: () => (store = {}),
-        };
-
-        global.localStorage = mockLocalStorage as any;
+        jest.clearAllMocks();
         global.localStorage.clear();
     });
-    afterEach(() => {
-        global.localStorage = originalLocalStorage;
-    });
-
-    beforeAll(() => {
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        jest.spyOn(console, "warn").mockImplementation(() => { });
-    });
     afterAll(() => {
+        global.localStorage.clear();
         jest.restoreAllMocks();
     });
 

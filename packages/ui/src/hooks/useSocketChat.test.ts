@@ -159,22 +159,12 @@ describe("processTypingUpdates", () => {
 });
 
 describe("processParticipantsUpdates", () => {
-    const originalLocalStorage = global.localStorage;
     const setParticipants = jest.fn();
     const chat = { id: "chat1" } as ChatShape;
     const task = "RunRoutine";
 
     beforeEach(() => {
         jest.clearAllMocks();
-        let store: Record<string, string> = {};
-        const mockLocalStorage = {
-            getItem: (key: string) => (key in store ? store[key] : null),
-            setItem: (key: string, value: string) => (store[key] = value),
-            removeItem: (key: string) => delete store[key],
-            clear: () => (store = {}),
-        };
-
-        global.localStorage = mockLocalStorage as unknown as typeof global.localStorage;
         global.localStorage.clear();
         setCookie("Preferences", {
             strictlyNecessary: true,
@@ -183,8 +173,9 @@ describe("processParticipantsUpdates", () => {
             targeting: true,
         });
     });
-    afterEach(() => {
-        global.localStorage = originalLocalStorage;
+    afterAll(() => {
+        global.localStorage.clear();
+        jest.restoreAllMocks();
     });
 
     it("should add joining participants to the chat", () => {
