@@ -2,29 +2,62 @@
 import { LlmTask } from "../api/generated/graphqlTypes";
 import { PassableLogger } from "../consts/commonTypes";
 import { DEFAULT_LANGUAGE } from "../consts/ui";
-import { CommandToTask, LanguageModelResponseMode, LlmTaskConfig, LlmTaskStructuredConfig, LlmTaskUnstructuredConfig } from "./types";
+import { pascalCase } from "../utils/casing";
+import { CommandToTask, LanguageModelResponseMode, LlmTaskConfig, LlmTaskConfigBuilder, LlmTaskStructuredConfig, LlmTaskUnstructuredConfig, TaskNameMap } from "./types";
 
-export async function getLlmConfigLocation(): Promise<string> {
+const CONFIG_RELATIVE_PATH = "../../dist/llm/configs";
+
+export async function getLlmConfigLocation(urlBase?: string): Promise<{ location: string, shouldFetch: boolean }> {
     // Test environment - Use absolute path
     if (process.env.NODE_ENV === "test") {
         const path = await import("path");
         const url = await import("url");
         const dirname = path.dirname(url.fileURLToPath(import.meta.url));
-        return path.join(dirname, "configs");
+        return { location: path.join(dirname, CONFIG_RELATIVE_PATH), shouldFetch: false };
     }
     // Node.js environment - Use relative path
     else if (process.env.npm_package_name === "@local/server") {
-        return "./configs";
+        return { location: CONFIG_RELATIVE_PATH, shouldFetch: false };
     }
     // Browser environment - Fetch from server
     else {
-        return "http://localhost:5329/llm/configs";
+        return { location: `${urlBase || "http://localhost:5329"}/llm/configs`, shouldFetch: true };
     }
 }
 
-async function loadFile(modulePath: string) {
-    const module = await import(/* @vite-ignore */modulePath);
-    return module;
+async function loadFile(path: string, shouldFetch: boolean) {
+    if (shouldFetch) {
+        const response = await fetch(path);
+        if (!response.ok) {
+            throw new Error(`Configuration at ${path} not found`);
+        }
+        return await response.json();
+    } else {
+        const module = await import(/* @vite-ignore */path);
+        return module;
+    }
+}
+
+export async function importHelper(
+    language: string,
+    logger: PassableLogger,
+    urlBase?: string,
+): Promise<{
+    file: Record<string, unknown>,
+    extension: string,
+}> {
+    const { location, shouldFetch } = await getLlmConfigLocation(urlBase);
+    const extension = shouldFetch ? "json" : "js";
+    try {
+        const path = `${location}/${language}.${extension}`;
+        const file = await loadFile(path, shouldFetch);
+        return { file, extension };
+    } catch (error) {
+        logger.error(`Configuration for language ${language} not found. Falling back to ${DEFAULT_LANGUAGE}.`, { trace: "0309", location, shouldFetch });
+        const path = `${location}/${DEFAULT_LANGUAGE}.${extension}`;
+        const file = await loadFile(path, shouldFetch);
+        return { file, extension };
+    }
 }
 
 /**
@@ -33,14 +66,22 @@ async function loadFile(modulePath: string) {
 export async function importConfig(
     language: string,
     logger: PassableLogger,
+    urlBase?: string,
 ): Promise<LlmTaskConfig> {
-    const config_location = await getLlmConfigLocation();
-    try {
-        return (await loadFile(`${config_location}/${language}.js`)).config;
-    } catch (error) {
-        logger.error(`Configuration for language ${language} not found. Falling back to ${DEFAULT_LANGUAGE}.`, { trace: "0309", config_location });
-        return (await loadFile(`${config_location}/${DEFAULT_LANGUAGE}`)).config;
-    }
+    const { file, extension } = await importHelper(language, logger, urlBase);
+    return extension === "json" ? file as LlmTaskConfig : (file as { config: LlmTaskConfig }).config;
+}
+
+/**
+ * Dynamically imports the configuration builder for the specified language.
+ */
+export async function importBuilder(
+    language: string,
+    logger: PassableLogger,
+    urlBase?: string,
+): Promise<LlmTaskConfigBuilder> {
+    const { file, extension } = await importHelper(language, logger, urlBase);
+    return extension === "json" ? {} as LlmTaskConfigBuilder : (file as { builder: LlmTaskConfigBuilder }).builder;
 }
 
 /**
@@ -51,13 +92,23 @@ export async function importCommandToTask(
     language: string,
     logger: PassableLogger,
 ): Promise<CommandToTask> {
-    const config_location = await getLlmConfigLocation();
+    // Fetch the task name map
+    let map: TaskNameMap = { command: {}, action: {} };
     try {
-        return (await loadFile(`${config_location}/${language}.js`)).commandToTask;
+        const config = await importConfig(language, logger);
+        map = config.__task_name_map;
     } catch (error) {
-        logger.error(`Command to task function for language ${language} not found. Falling back to ${DEFAULT_LANGUAGE}.`, { trace: "0041" });
-        return (await loadFile(`${config_location}/${DEFAULT_LANGUAGE}`)).commandToTask;
+        logger.error(`Unable to fetch task name map for language ${language}`, { trace: "0041" });
     }
+    // Wrap in a function that converts commands to tasks
+    return function commandToTask(command: Parameters<CommandToTask>[0], action: Parameters<CommandToTask>[1]): ReturnType<CommandToTask> {
+        let result: string;
+        // if (action) result = `${pascalCase(command)}${pascalCase(action)}`;
+        if (action) result = `${map.command[command] || pascalCase(command)}${map.action[action] || pascalCase(action)}`;
+        else result = map.command[command] || pascalCase(command);
+        if (Object.keys(LlmTask).includes(result)) return result as LlmTask;
+        return null;
+    };
 }
 
 /**
@@ -69,8 +120,7 @@ export async function getUnstructuredTaskConfig(
     language: string = DEFAULT_LANGUAGE,
     logger: PassableLogger,
 ): Promise<LlmTaskUnstructuredConfig> {
-    const unstructuredConfig = await importConfig(language, logger);
-    const taskConfig = unstructuredConfig[task];
+    const taskConfig = (await importConfig(language, logger))[task];
 
     // Fallback to a default message if the task is not found in the config
     if (!taskConfig || typeof taskConfig !== "function") {
@@ -106,8 +156,8 @@ export async function getStructuredTaskConfig({
     mode,
     task,
 }: GetStructuredTaskConfigProps): Promise<LlmTaskStructuredConfig> {
-    const unstructuredConfig = await importConfig(language, logger);
-    const taskConfig = unstructuredConfig[task];
+    const taskConfig = (await importConfig(language, logger))[task];
+    const builder = await importBuilder(language, logger);
 
     // Fallback to a default message if the task is not found in the config
     if (!taskConfig || typeof taskConfig !== "function") {
@@ -116,7 +166,7 @@ export async function getStructuredTaskConfig({
     }
 
     // Build context based on the mode and force parameters
-    if (mode === "json") return unstructuredConfig.__construct_context_json(taskConfig());
-    if (force === true) return unstructuredConfig.__construct_context_text_force(taskConfig());
-    return unstructuredConfig.__construct_context_text(taskConfig());
+    if (mode === "json") return builder.__construct_context_json(taskConfig());
+    if (force === true) return builder.__construct_context_text_force(taskConfig());
+    return builder.__construct_context_text(taskConfig());
 }

@@ -1,6 +1,68 @@
-import { LlmTask } from "../../api/generated/graphqlTypes";
-import { pascalCase } from "../../utils/casing";
-import { CommandToTask, LlmTaskConfig, LlmTaskProperty, LlmTaskUnstructuredConfig } from "../types";
+import { LlmTaskConfig, LlmTaskConfigBuilder, LlmTaskProperty, LlmTaskUnstructuredConfig } from "../types";
+
+export const builder: LlmTaskConfigBuilder = {
+    __pick_properties(selectedFields: [string, boolean | undefined][], __availableFields: Record<string, Omit<LlmTaskProperty, "name">>) {
+        return selectedFields.map(([fieldName, isRequired]) => ({
+            name: fieldName,
+            is_required: typeof isRequired === "boolean" ? isRequired : __availableFields[fieldName]?.is_required,
+            ...__availableFields[fieldName],
+        }));
+    },
+    __construct_context_base: ({
+        actions,
+        properties,
+        commands,
+        ...rest
+    }: LlmTaskUnstructuredConfig) => ({
+        commands: {
+            prefix: "/",
+            list: Object.keys(commands),
+            descriptions: commands,
+        },
+        actions: actions ? {
+            description: properties ?
+                "Placed after `/` and the command, to specify the action to be performed. Can be followed by specified properties. E.g: `/note add name='My Note' content='This is my note'`" :
+                "Placed after `/` and the command, to specify the action to be performed. No other modifiers should be applied. E.g: `/note add`",
+            list: actions,
+        } : undefined,
+        properties: properties ? {
+            description: actions ?
+                "Placed after the action, to specify the properties of the command. E.g: `/note add name='My Note' content='This is my note'`" :
+                "Placed after the command, to specify the properties of the command. E.g: `/note name='My Note' content='This is my note'`",
+            list: properties,
+        } : undefined,
+        response_formats: actions ? config.__response_formats_with_actions : config.__response_formats_without_actions,
+        ...rest,
+        // Label is for displaying the task to the user, and is not needed in the context
+        label: undefined,
+    }),
+    __construct_context_text: (props: LlmTaskUnstructuredConfig) => ({
+        ...builder.__construct_context_base(props),
+        rules: Array.isArray(props.rules) ? [...(config.__rules_text as string[]), ...props.rules] : config.__rules_text,
+
+    }),
+    __construct_context_text_force: (props: LlmTaskUnstructuredConfig) => ({
+        ...builder.__construct_context_base(props),
+        response_formats: undefined,
+        response_format: config.__finish_context_response_format,
+        rules: Array.isArray(props.rules) ? [...(config.__rules_text_force as string[]), ...props.rules] : config.__rules_text,
+    }),
+    __construct_context_json: (props: LlmTaskUnstructuredConfig) => {
+        const base = builder.__construct_context_base(props);
+        // Remove text-specific instructions
+        delete base.commands.prefix;
+        delete base.actions?.description;
+        base.actions = base.actions?.list;
+        delete base.properties?.description;
+        base.properties = base.properties?.list;
+        delete base.response_formats;
+
+        return {
+            ...base,
+            rules: Array.isArray(props.rules) ? [...(config.__rules_json as string[]), ...props.rules] : (config.__rules_json as string[]),
+        };
+    },
+}
 
 export const config: LlmTaskConfig = {
     __suggested_prefix: "suggested",
@@ -52,66 +114,27 @@ export const config: LlmTaskConfig = {
         "Ensure JSON keys and string values are properly quoted.",
         "Use only the commands, actions, and properties defined in the configuration for generating responses.",
     ],
-    __pick_properties(selectedFields: [string, boolean | undefined][], __availableFields: Record<string, Omit<LlmTaskProperty, "name">>) {
-        return selectedFields.map(([fieldName, isRequired]) => ({
-            name: fieldName,
-            is_required: typeof isRequired === "boolean" ? isRequired : __availableFields[fieldName]?.is_required,
-            ...__availableFields[fieldName],
-        }));
-    },
-    __construct_context_base: ({
-        actions,
-        properties,
-        commands,
-        ...rest
-    }: LlmTaskUnstructuredConfig) => ({
-        commands: {
-            prefix: "/",
-            list: Object.keys(commands),
-            descriptions: commands,
+    __task_name_map: {
+        command: {
+            note: "Note",
+            reminder: "Reminder",
+            schedule: "Schedule",
+            routine: "Routine",
+            project: "Project",
+            team: "Team",
+            role: "Role",
+            bot: "Bot",
+            user: "User",
+            standard: "Standard",
+            api: "Api",
+            smart_contract: "SmartContract",
         },
-        actions: actions ? {
-            description: properties ?
-                "Placed after `/` and the command, to specify the action to be performed. Can be followed by specified properties. E.g: `/note add name='My Note' content='This is my note'`" :
-                "Placed after `/` and the command, to specify the action to be performed. No other modifiers should be applied. E.g: `/note add`",
-            list: actions,
-        } : undefined,
-        properties: properties ? {
-            description: actions ?
-                "Placed after the action, to specify the properties of the command. E.g: `/note add name='My Note' content='This is my note'`" :
-                "Placed after the command, to specify the properties of the command. E.g: `/note name='My Note' content='This is my note'`",
-            list: properties,
-        } : undefined,
-        response_formats: actions ? config.__response_formats_with_actions : config.__response_formats_without_actions,
-        ...rest,
-        // Label is for displaying the task to the user, and is not needed in the context
-        label: undefined,
-    }),
-    __construct_context_text: (props: LlmTaskUnstructuredConfig) => ({
-        ...config.__construct_context_base(props),
-        rules: Array.isArray(props.rules) ? [...config.__rules_text, ...props.rules] : config.__rules_text,
-
-    }),
-    __construct_context_text_force: (props: LlmTaskUnstructuredConfig) => ({
-        ...config.__construct_context_base(props),
-        response_formats: undefined,
-        response_format: config.__finish_context_response_format,
-        rules: Array.isArray(props.rules) ? [...config.__rules_text_force, ...props.rules] : config.__rules_text,
-    }),
-    __construct_context_json: (props: LlmTaskUnstructuredConfig) => {
-        const base = config.__construct_context_base(props);
-        // Remove text-specific instructions
-        delete base.commands.prefix;
-        delete base.actions?.description;
-        base.actions = base.actions?.list;
-        delete base.properties?.description;
-        base.properties = base.properties?.list;
-        delete base.response_formats;
-
-        return {
-            ...base,
-            rules: Array.isArray(props.rules) ? [...config.__rules_json, ...props.rules] : config.__rules_json,
-        };
+        action: {
+            add: "Add",
+            find: "Find",
+            update: "Update",
+            delete: "Delete",
+        },
     },
     __apiProperties: {
         id: {
@@ -150,7 +173,7 @@ export const config: LlmTaskConfig = {
         schemaLanguage: {
             description: "The language used to define the API schema. Must be one of the \"examples\" types. \"yaml\" is preferred.",
             type: "enum",
-            examples: ["javascript", "graphql", "yaml"]
+            examples: ["javascript", "graphql", "yaml"],
         },
         schemaText: {
             description: "The schema for the API, in the language specified by \"schemaLanguage\". Prefer writing the schema using the OpenAPI Specification version 3.1.0, unless specified otherwise.",
@@ -162,7 +185,7 @@ export const config: LlmTaskConfig = {
         commands: {
             add: "Create an API with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             ["name", true],
             ["summary", true],
             ["details", false],
@@ -206,7 +229,7 @@ export const config: LlmTaskConfig = {
         commands: {
             update: "Update an API with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             ["id", true],
             ["name", false],
             ["summary", false],
@@ -269,7 +292,7 @@ export const config: LlmTaskConfig = {
         commands: {
             add: "Create a bot with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             ["name", true],
             ["bio", false],
             ["occupation", false],
@@ -322,7 +345,7 @@ export const config: LlmTaskConfig = {
         commands: {
             add: "Update a bot with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             ["id", true],
             ["name", false],
             ["isBotDepictingPerson", false],
@@ -363,15 +386,15 @@ export const config: LlmTaskConfig = {
         content: {
             description: "The JavaScript function, written as a string, that transforms the data from one format to another. Begin with a docstring immediately before the function declaration that includes a detailed description of the function's purpose, its parameters, and its return value. Do not include any imports or require statements. Comments should be clear and concise, placed appropriately to explain non-obvious parts of the code.",
             type: "string",
-            example: "/**\n * Converts a comma-separated string of numbers into an array of numbers.\n * @param {string} numbersString - A string containing numbers separated by commas.\n * @return {Array<number>} - An array of numbers extracted from the given string.\n */\nfunction stringToNumberArray(numbersString) {\n  return numbersString.split(',').map(Number);\n}"
-        }
+            example: "/**\n * Converts a comma-separated string of numbers into an array of numbers.\n * @param {string} numbersString - A string containing numbers separated by commas.\n * @return {Array<number>} - An array of numbers extracted from the given string.\n */\nfunction stringToNumberArray(numbersString) {\n  return numbersString.split(',').map(Number);\n}",
+        },
     },
     DataConverterAdd: () => ({
         label: "Add Code Converter Function",
         commands: {
             add: "Create a JavaScript function to transform data from one format to another.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             ["name", true],
             ["description", true],
             ["version", true],
@@ -411,7 +434,7 @@ export const config: LlmTaskConfig = {
         commands: {
             update: "Update a code converter function with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             ["id", true],
             ["name", false],
             ["description", false],
@@ -463,7 +486,7 @@ export const config: LlmTaskConfig = {
         commands: {
             add: "Invite a member with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             ["willBeAdmin", false],
             ["willHavePermissions", false],
             ["teamId", true],
@@ -510,7 +533,7 @@ export const config: LlmTaskConfig = {
         commands: {
             update: "Update a member with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             ["id", true],
             ["isAdmin", false],
             ["permissions", false],
@@ -540,7 +563,7 @@ export const config: LlmTaskConfig = {
         commands: {
             add: "Create a note with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             ["name", true],
             ["description", true],
             ["text", true],
@@ -579,7 +602,7 @@ export const config: LlmTaskConfig = {
         commands: {
             update: "Update a note with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             ["id", true],
             ["name", false],
             ["description", false],
@@ -611,7 +634,7 @@ export const config: LlmTaskConfig = {
         commands: {
             add: "Create a project with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             ["name", true],
             ["description", true],
             ["isPrivate", true],
@@ -649,7 +672,7 @@ export const config: LlmTaskConfig = {
         commands: {
             update: "Update a project with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             ["id", true],
             ["name", false],
             ["description", false],
@@ -675,7 +698,7 @@ export const config: LlmTaskConfig = {
         commands: {
             add: "Create a question with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             ["name", true],
             ["description", true],
         ], config.__questionProperties),
@@ -712,7 +735,7 @@ export const config: LlmTaskConfig = {
         commands: {
             update: "Update a question with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             ["id", true],
             ["name", false],
             ["description", false],
@@ -787,7 +810,7 @@ export const config: LlmTaskConfig = {
         commands: {
             add: "Create a reminder with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             ["name", true],
             ["description", false],
             ["dueDate", true],
@@ -827,7 +850,7 @@ export const config: LlmTaskConfig = {
         commands: {
             update: "Update a reminder with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             ["id", true],
             ["name", false],
             ["description", false],
@@ -851,7 +874,7 @@ export const config: LlmTaskConfig = {
         commands: {
             add: "Create a role with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             ["name", true],
             ["permissions", true],
         ], config.__roleProperties),
@@ -882,7 +905,7 @@ export const config: LlmTaskConfig = {
             },
             {
                 name: "teamId",
-                ...config.__roleProperties.teamId,
+                ...(config.__roleProperties as { teamId: any }).teamId,
                 is_required: true,
             },
         ],
@@ -893,7 +916,7 @@ export const config: LlmTaskConfig = {
         commands: {
             update: "Update a role with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             ["id", true],
             ["name", false],
         ], config.__roleProperties),
@@ -924,7 +947,7 @@ export const config: LlmTaskConfig = {
         commands: {
             add: "Create a routine with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             ["name", true],
             ["isInternal", false],
             ["isPrivate", false],
@@ -961,7 +984,7 @@ export const config: LlmTaskConfig = {
         commands: {
             update: "Update a routine with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             ["id", true],
             ["name", false],
             ["isInternal", false],
@@ -984,7 +1007,7 @@ export const config: LlmTaskConfig = {
         commands: {
             add: "Create a schedule with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             //...
         ], config.__scheduleProperties),
     }),
@@ -1020,7 +1043,7 @@ export const config: LlmTaskConfig = {
         commands: {
             update: "Update a schedule with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             //...
         ], config.__scheduleProperties),
     }),
@@ -1055,15 +1078,15 @@ export const config: LlmTaskConfig = {
         content: {
             description: "The smart contract code, written as a string. If the `codeLanguage` is \"solidity\", generate Solidity code (used by many chains, namely Ethereum). If the `codeLanguage` is \"haskell\", generate Plutus code (used in the Cardano ecosystem). Always use the latest version. Begin with a detailed comment block explaining the contract's purpose, its functions, and any important details. Include appropriate comments throughout the code to explain complex logic or important considerations. Do not include any external imports or dependencies.",
             type: "string",
-            example: "pragma solidity ^0.8.0;\n\n/**\n * @title TokenSwap\n * @dev Implements a simple token swap between two parties\n * @notice This contract allows two parties to swap ERC20 tokens\n */\ncontract TokenSwap {\n    // Contract implementation...\n}"
-        }
+            example: "pragma solidity ^0.8.0;\n\n/**\n * @title TokenSwap\n * @dev Implements a simple token swap between two parties\n * @notice This contract allows two parties to swap ERC20 tokens\n */\ncontract TokenSwap {\n    // Contract implementation...\n}",
+        },
     },
     SmartContractAdd: () => ({
         label: "Add Smart Contract",
         commands: {
             add: "Create a smart contract with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             ["name", true],
             ["description", true],
             ["version", true],
@@ -1104,7 +1127,7 @@ export const config: LlmTaskConfig = {
         commands: {
             update: "Update a smart contract with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             ["id", true],
             ["name", false],
             ["description", false],
@@ -1128,7 +1151,7 @@ export const config: LlmTaskConfig = {
         commands: {
             add: "Create a standard with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             //...
         ], config.__standardProperties),
     }),
@@ -1164,7 +1187,7 @@ export const config: LlmTaskConfig = {
         commands: {
             update: "Update a standard with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             //...
         ], config.__standardProperties),
     }),
@@ -1201,7 +1224,7 @@ export const config: LlmTaskConfig = {
         commands: {
             add: "Create a team with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             //...
         ], config.__teamProperties),
     }),
@@ -1237,16 +1260,8 @@ export const config: LlmTaskConfig = {
         commands: {
             update: "Update a team with the provided properties.",
         },
-        properties: config.__pick_properties([
+        properties: builder.__pick_properties([
             //...
         ], config.__teamProperties),
     }),
 };
-
-export function commandToTask(command: Parameters<CommandToTask>[0], action: Parameters<CommandToTask>[1]): ReturnType<CommandToTask> {
-    let result: string;
-    if (action) result = `${pascalCase(command)}${pascalCase(action)}`;
-    else result = pascalCase(command);
-    if (Object.keys(LlmTask).includes(result)) return result as LlmTask;
-    return null;
-}
