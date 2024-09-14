@@ -14,6 +14,7 @@ import { getBotInfo } from "../../tasks/llm/context";
 import { calculateMaxCredits, generateResponseWithFallback } from "../../tasks/llm/service";
 import { runUserCode } from "../../tasks/sandbox";
 import { type RecursivePartial, type SessionUserToken } from "../../types";
+import { reduceUserCredits } from "../../utils/reduceCredits";
 import { permissionsCheck } from "../../validators/permissions";
 import { type RunProjectPayload, type RunRequestPayload, type RunRoutinePayload } from "./queue";
 
@@ -440,14 +441,7 @@ export async function doRunProject({
         //TODO generate response and get cost
         const cost = 0;
         // Reduce user's credits
-        const updatedUser = await prismaInstance.user.update({
-            where: { id: userData.id },
-            data: { premium: { update: { credits: { decrement: cost } } } },
-            select: { premium: { select: { credits: true } } },
-        });
-        if (updatedUser.premium) {
-            emitSocketEvent("apiCredits", userData.id, { credits: updatedUser.premium.credits + "" });
-        }
+        await reduceUserCredits(userData.id, cost);
         //TODO perform routine
     } catch (error) {
         emitSocketEvent("runTask", runId, { status: "Failed", ...baseTaskInfo });
@@ -973,17 +967,7 @@ export async function doRunRoutine({
             emitSocketEvent("runTask", runId, taskSocketInfo);
 
             // Reduce user's credits
-            if (totalStepCost > 0) {
-                const updatedUser = await prismaInstance.user.update({
-                    where: { id: userData.id },
-                    data: { premium: { update: { credits: { decrement: totalStepCost } } } },
-                    select: { premium: { select: { credits: true } } },
-                });
-
-                if (updatedUser.premium) {
-                    emitSocketEvent("apiCredits", userData.id, { credits: updatedUser.premium.credits + "" });
-                }
-            }
+            await reduceUserCredits(userData.id, totalStepCost);
 
             return true;
         } catch (error) {

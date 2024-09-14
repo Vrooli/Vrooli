@@ -13,6 +13,7 @@ import { ChatMessageModelInfo } from "../../models/base/types";
 import { emitSocketEvent } from "../../sockets/events";
 import { PreMapChatData, PreMapMessageData, PreMapUserData, getChatParticipantData } from "../../utils/chat";
 import { getSingleTypePermissions } from "../../validators/permissions";
+import { reduceUserCredits } from "../../utils/reduceCredits";
 import { processLlmTask } from "../llmTask";
 import { getBotInfo } from "./context";
 import { type LlmRequestPayload, type RequestAutoFillPayload, type RequestBotMessagePayload, type StartLlmTaskPayload } from "./queue";
@@ -249,14 +250,7 @@ export async function llmProcessBotMessage({
         }
 
         // Reduce user's credits
-        const updatedUser = await prismaInstance.user.update({
-            where: { id: userData.id },
-            data: { premium: { update: { credits: { decrement: totalCost } } } },
-            select: { premium: { select: { credits: true } } },
-        });
-        if (updatedUser.premium) {
-            emitSocketEvent("apiCredits", userData.id, { credits: updatedUser.premium.credits + "" });
-        }
+        await reduceUserCredits(userData.id, totalCost);
     } catch (error) {
         logger.error("Caught error in llmProcessBotResponse", { trace: "0081", error });
     }
