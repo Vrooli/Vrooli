@@ -8,7 +8,7 @@ import { EmailList } from "components/lists/devices/EmailList/EmailList";
 import { PushList } from "components/lists/devices/PushList/PushList";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsToggleListItem } from "components/lists/SettingsToggleListItem/SettingsToggleListItem";
-import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
+import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Title } from "components/text/Title/Title";
 import { Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
@@ -18,7 +18,7 @@ import { useProfileQuery } from "hooks/useProfileQuery";
 import { EmailIcon, NotificationsAllIcon, PhoneIcon } from "icons";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { pagePaddingBottom } from "styles";
+import { ScrollBox } from "styles";
 import { PubSub } from "utils/pubsub";
 import { SettingsNotificationFormProps, SettingsNotificationsViewProps } from "../types";
 
@@ -192,13 +192,13 @@ export function SettingsNotificationsView({
     const [updateFetch, { loading: isUpdating }] = useLazyFetch<NotificationSettingsUpdateInput, NotificationSettings>(endpointPutNotificationSettings);
 
     return (
-        <>
+        <ScrollBox>
             <SettingsTopBar
                 display={display}
                 onClose={onClose}
                 title={t("Notification", { count: 2 })}
             />
-            <Stack direction="row" sx={{ paddingBottom: pagePaddingBottom }}>
+            <SettingsContent>
                 <SettingsList />
                 <Formik
                     enableReinitialize={true}
@@ -228,7 +228,7 @@ export function SettingsNotificationsView({
                         {...formik}
                     />}
                 </Formik>
-            </Stack>
-        </>
+            </SettingsContent>
+        </ScrollBox>
     );
 }

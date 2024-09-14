@@ -1,5 +1,5 @@
 import { endpointPutProfile, ProfileUpdateInput, profileValidation, User } from "@local/shared";
-import { Box, Button, Stack, useTheme } from "@mui/material";
+import { Box, Button, Divider, Grid, styled, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { FocusModeSelector } from "components/inputs/FocusModeSelector/FocusModeSelector";
@@ -8,58 +8,124 @@ import { LeftHandedCheckbox } from "components/inputs/LeftHandedCheckbox/LeftHan
 import { TextSizeButtons } from "components/inputs/TextSizeButtons/TextSizeButtons";
 import { ThemeSwitch } from "components/inputs/ThemeSwitch/ThemeSwitch";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
-import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
+import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts";
 import { Formik } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { InnerForm, OuterForm } from "forms/BaseForm/BaseForm";
+import { useShowBotWarning } from "hooks/subscriptions";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useProfileQuery } from "hooks/useProfileQuery";
-import { SearchIcon } from "icons";
-import { useContext } from "react";
+import { useCallback, useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { pagePaddingBottom } from "styles";
+import { FormSection, ScrollBox } from "styles";
 import { getSiteLanguage } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 import { clearSearchHistory } from "utils/search/clearSearchHistory";
 import { SettingsDisplayFormProps, SettingsDisplayViewProps } from "../types";
 
-const SettingsDisplayForm = ({
+const ClearSettingBox = styled(Box)(({ theme }) => ({
+    background: theme.palette.background.paper,
+    color: theme.palette.background.textPrimary,
+    borderRadius: theme.spacing(1),
+    padding: theme.spacing(1),
+}));
+
+function ClearSettingButton({ onClick, title, description }) {
+    return (
+        <ClearSettingBox>
+            <Grid container spacing={2} alignItems="center">
+                <Grid item xs>
+                    <Typography variant="subtitle1">{title}</Typography>
+                    <Typography variant="body2">{description}</Typography>
+                </Grid>
+                <Grid item>
+                    <Button
+                        variant="outlined"
+                        color="secondary"
+                        onClick={onClick}
+                    >
+                        Clear
+                    </Button>
+                </Grid>
+            </Grid>
+        </ClearSettingBox>
+    );
+}
+
+const dividerStyle = {
+    width: "100%",
+    paddingTop: 2,
+} as const;
+
+function SettingsDisplayForm({
     display,
-    dirty,
     isLoading,
     onCancel,
-    values,
     ...props
-}: SettingsDisplayFormProps) => {
+}: SettingsDisplayFormProps) {
+    const session = useContext(SessionContext);
     const { t } = useTranslation();
+    const botWarningPreferences = useShowBotWarning();
+
+    const handleClearSearchHistory = useCallback(function handleClearSearchHistoryCallback() {
+        if (!session) return;
+        clearSearchHistory(session);
+    }, [session]);
+
+    const handleClearBotWarning = useCallback(function handleClearBotWarningCallback() {
+        botWarningPreferences.handleUpdateShowBotWarning(null);
+    }, [botWarningPreferences]);
 
     return (
-        <>
-            <BaseForm
+        <OuterForm display={display}>
+            <InnerForm
                 display={display}
                 isLoading={isLoading}
             >
-                <Title
-                    help={t("DisplayAccountHelp")}
-                    title={t("DisplayAccount")}
-                    variant="subheader"
-                />
-                <Stack direction="column" spacing={2} p={1}>
+                <FormSection variant="transparent">
+                    <Title
+                        help={t("DisplayAccountHelp")}
+                        title={t("DisplayAccount")}
+                        variant="subheader"
+                    />
                     <LanguageSelector />
                     <FocusModeSelector />
-                </Stack>
-                <Title
-                    help={t("DisplayDeviceHelp")}
-                    title={t("DisplayDevice")}
-                    variant="subheader"
-                />
-                <Stack direction="column" spacing={2} p={1}>
-                    <ThemeSwitch updateServer={false} />
+                </FormSection>
+                <Divider sx={dividerStyle} />
+                <FormSection variant="transparent">
+                    <Title
+                        help={t("DisplayDeviceHelp")}
+                        title={t("DisplayDevice")}
+                        variant="subheader"
+                    />
+                    <Box width="fit-content">
+                        <ThemeSwitch updateServer={false} />
+                    </Box>
                     <TextSizeButtons />
-                    <LeftHandedCheckbox />
-                </Stack>
-            </BaseForm>
+                    <Box width="fit-content">
+                        <LeftHandedCheckbox />
+                    </Box>
+                </FormSection>
+                <Divider sx={dividerStyle} />
+                <FormSection variant="transparent">
+                    <Title
+                        help={"Clear different types of display caches to reset display preferences and reduce storage."}
+                        title={"Display Cache"}
+                        variant="subheader"
+                    />
+                    <ClearSettingButton
+                        onClick={handleClearSearchHistory}
+                        title={t("ClearSearchHistory")}
+                        description={"This will clear your search history suggestions when typing in search bars."}
+                    />
+                    <ClearSettingButton
+                        onClick={handleClearBotWarning}
+                        title={"Reset \"Hide Bot Warning\""}
+                        description={"When starting a new chat with a bot, the warning that the chat is with a bot will be displayed."}
+                    />
+                </FormSection>
+            </InnerForm>
             <BottomActionsButtons
                 display={display}
                 errors={props.errors}
@@ -69,15 +135,14 @@ const SettingsDisplayForm = ({
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
             />
-        </>
+        </OuterForm>
     );
-};
+}
 
-
-export const SettingsDisplayView = ({
+export function SettingsDisplayView({
     display,
     onClose,
-}: SettingsDisplayViewProps) => {
+}: SettingsDisplayViewProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -86,16 +151,16 @@ export const SettingsDisplayView = ({
     const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);
 
     return (
-        <>
+        <ScrollBox>
             <SettingsTopBar
                 display={display}
                 help={t("DisplaySettingsDescription")}
                 onClose={onClose}
                 title={t("Display")}
             />
-            <Stack direction="row" sx={{ paddingBottom: pagePaddingBottom }}>
+            <SettingsContent>
                 <SettingsList />
-                <Box m="auto">
+                <Box display="flex" flexDirection="column" p={1} margin="auto" width="100%">
                     <Formik
                         enableReinitialize={true}
                         initialValues={{
@@ -125,20 +190,8 @@ export const SettingsDisplayView = ({
                             {...formik}
                         />}
                     </Formik>
-                    <Box sx={{ marginTop: 5, display: "flex", justifyContent: "center", alignItems: "center" }}>
-                        <Button
-                            id="clear-search-history-button"
-                            color="secondary"
-                            startIcon={<SearchIcon />}
-                            onClick={() => { session && clearSearchHistory(session); }}
-                            variant="outlined"
-                            sx={{
-                                marginLeft: "auto",
-                                marginRight: "auto",
-                            }}>{t("ClearSearchHistory")}</Button>
-                    </Box>
                 </Box>
-            </Stack>
-        </>
+            </SettingsContent>
+        </ScrollBox>
     );
-};
+}

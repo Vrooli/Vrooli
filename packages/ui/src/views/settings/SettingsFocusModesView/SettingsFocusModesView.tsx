@@ -3,23 +3,23 @@ import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, us
 import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
-import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
+import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { SessionContext } from "contexts";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { AddIcon, DeleteIcon, EditIcon, FocusModeIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { multiLineEllipsis, pagePaddingBottom } from "styles";
+import { multiLineEllipsis, ScrollBox } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 import { FocusModeUpsert } from "views/objects/focusMode";
 import { SettingsFocusModesViewProps } from "../types";
 
-export const SettingsFocusModesView = ({
+export function SettingsFocusModesView({
     display,
     onClose,
-}: SettingsFocusModesViewProps) => {
+}: SettingsFocusModesViewProps) {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
     const { palette } = useTheme();
@@ -154,7 +154,7 @@ export const SettingsFocusModesView = ({
     }, [focusModes, session]);
 
     return (
-        <>
+        <ScrollBox>
             <FocusModeUpsert
                 display="dialog"
                 isCreate={editingFocusMode === null}
@@ -170,7 +170,7 @@ export const SettingsFocusModesView = ({
                 onClose={onClose}
                 title={t("FocusMode", { count: 2 })}
             />
-            <Stack direction="row" sx={{ paddingBottom: pagePaddingBottom }}>
+            <SettingsContent>
                 <SettingsList />
                 <Box m="auto" mt={2}>
                     <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
@@ -262,7 +262,7 @@ export const SettingsFocusModesView = ({
                         ))}
                     </ListContainer>
                 </Box>
-            </Stack>
-        </>
+            </SettingsContent>
+        </ScrollBox>
     );
-};
+}

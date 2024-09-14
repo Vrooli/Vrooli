@@ -9,7 +9,7 @@ import { EmailList } from "components/lists/devices/EmailList/EmailList";
 import { PhoneList } from "components/lists/devices/PhoneList/PhoneList";
 import { WalletList } from "components/lists/devices/WalletList/WalletList";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
-import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
+import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts";
 import { Formik } from "formik";
@@ -20,20 +20,20 @@ import { DeleteIcon, EmailIcon, LogOutIcon, PhoneIcon, WalletIcon } from "icons"
 import { useCallback, useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { FormSection, pagePaddingBottom } from "styles";
+import { FormSection, ScrollBox } from "styles";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
 import { removeCookie } from "utils/cookies";
 import { PubSub, SIDE_MENU_ID } from "utils/pubsub";
 import { SettingsAuthenticationFormProps, SettingsAuthenticationViewProps } from "../types";
 
-const SettingsAuthenticationForm = ({
+function SettingsAuthenticationForm({
     display,
     dirty,
     isLoading,
     onCancel,
     values,
     ...props
-}: SettingsAuthenticationFormProps) => {
+}: SettingsAuthenticationFormProps) {
     const { t } = useTranslation();
     console.log("settingsauthenticationform render", props.errors, values);
 
@@ -81,12 +81,12 @@ const SettingsAuthenticationForm = ({
             />
         </>
     );
-};
+}
 
-export const SettingsAuthenticationView = ({
+export function SettingsAuthenticationView({
     display,
     onClose,
-}: SettingsAuthenticationViewProps) => {
+}: SettingsAuthenticationViewProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -148,7 +148,7 @@ export const SettingsAuthenticationView = ({
     const closeDelete = useCallback(() => setDeleteOpen(false), [setDeleteOpen]);
 
     return (
-        <>
+        <ScrollBox>
             {/* Delete account confirmation dialog */}
             <DeleteAccountDialog
                 isOpen={deleteOpen}
@@ -159,7 +159,7 @@ export const SettingsAuthenticationView = ({
                 onClose={onClose}
                 title={t("Authentication")}
             />
-            <Stack direction="row" pt={2} sx={{ paddingBottom: pagePaddingBottom }}>
+            <SettingsContent>
                 <SettingsList />
                 <Stack
                     direction="column"
@@ -296,7 +296,7 @@ export const SettingsAuthenticationView = ({
                         >{t("DeleteAccount")}</Button>
                     </Box>
                 </Stack>
-            </Stack>
-        </>
+            </SettingsContent>
+        </ScrollBox>
     );
-};
+}
