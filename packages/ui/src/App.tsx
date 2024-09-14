@@ -1,6 +1,7 @@
 import { ActiveFocusMode, endpointPostAuthValidateSession, endpointPutFocusModeActive, getActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
 import { Box, BoxProps, createTheme, CssBaseline, GlobalStyles, styled, StyledEngineProvider, Theme, ThemeProvider } from "@mui/material";
 import { fetchLazyWrapper, hasErrorCode } from "api";
+import { fetchLlmConfig } from "api/llmConfig";
 import { BannerChicken } from "components/BannerChicken/BannerChicken";
 import { Celebration } from "components/Celebration/Celebration";
 import { DiagonalWaveLoader } from "components/DiagonalWaveLoader/DiagonalWaveLoader";
@@ -221,6 +222,8 @@ export function App() {
     useEffect(() => {
         // Ignore if cimode (for testing) is enabled
         if (!CI_MODE) i18next.changeLanguage(language);
+        // Refetch LLM config data, which is language-dependent
+        fetchLlmConfig(language);
     }, [language]);
     useEffect(() => {
         if (!session) return;
