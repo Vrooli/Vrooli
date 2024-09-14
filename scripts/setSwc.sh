@@ -1,5 +1,6 @@
 #!/bin/sh
-# Automatically generates an .swcrc file based on the environment
+# Automatically generates an .swcrc file based on the environment. 
+# Customizes the "exclude" and "sourceMaps" properties based on the environment.
 
 # Check if an argument was provided
 if [ "$#" -ne 1 ]; then
@@ -7,23 +8,13 @@ if [ "$#" -ne 1 ]; then
     exit 1
 fi
 
-# Start of the .swcrc configuration
-cat << 'EOF'
+# More of the .swcrc configuration
+cat << EOF
 {
     "exclude": [
-EOF
-
-# Conditional exclude for non-tests
-if [ "$1" != "test" ]; then
-cat << 'EOF'
-        "/.*__mocks__.*/",
-EOF
-fi
-
-# More of the .swcrc configuration
-cat << 'EOF'
-        "/.*\\/types\\.ts$/",
-        "/.*\\/types\\.d\\.ts$/"
+$( [ "$1" != "test" ] && echo '        "/.*__mocks__.*/",' )
+        "/.*\\\/types\\\.ts$/",
+        "/.*\\\/types\\\.d\\\.ts$/"
     ],
     "jsc": {
         "minify": {
@@ -41,19 +32,6 @@ cat << 'EOF'
     "module": {
         "type": "es6"
     },
-EOF
-
-# Conditional sourceMaps configuration
-if [ "$1" = "development" ]; then
-cat << 'EOF'
-        "sourceMaps": true
-EOF
-else
-cat << 'EOF'
-        "sourceMaps": false
-EOF
-fi
-
-cat << 'EOF'
+    "sourceMaps": $( [ "$1" = "development" ] && echo "true" || echo false )
 }
 EOF
