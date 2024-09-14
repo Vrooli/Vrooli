@@ -84,7 +84,7 @@ export class WorkerThreadManager {
                 if (this.rejectWorkerReady) {
                     this.rejectWorkerReady(new Error("Worker failed to initialize within the timeout period"));
                 }
-                this._terminateWorker();
+                this.terminate();
             }, WORKER_READY_TIMEOUT_MS);
 
             // Clear the timeout when the worker is ready
@@ -112,16 +112,20 @@ export class WorkerThreadManager {
         if (this.timeoutHandle) {
             clearTimeout(this.timeoutHandle);
         }
-        this.timeoutHandle = setTimeout(() => this._terminateWorker(), this.idleTimeout);
+        this.timeoutHandle = setTimeout(() => this.terminate(), this.idleTimeout);
     }
 
     /**
      * Terminates the child process if it is running.
      */
-    private _terminateWorker(): void {
+    public terminate(): void {
         if (this.worker) {
             this.worker.terminate();
             this.worker = null;
+            if (this.timeoutHandle) {
+                clearTimeout(this.timeoutHandle);
+                this.timeoutHandle = null;
+            }
             // Reset the workerReady promise
             this.workerReady = new Promise((resolve, reject) => {
                 this.resolveWorkerReady = resolve;
@@ -135,7 +139,7 @@ export class WorkerThreadManager {
         if (job) {
             job.reject(error);
         }
-        this._terminateWorker();
+        this.terminate();
         this._processNextJob();
     }
 

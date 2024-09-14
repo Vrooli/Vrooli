@@ -37,6 +37,7 @@ describe("WorkerThreadManager", () => {
 
     afterEach(() => {
         jest.useRealTimers();
+        manager.terminate();
         // @ts-ignore: Testing runtime scenario
         Worker.resetMock();
     });
@@ -350,6 +351,7 @@ describe("WorkerThreadManager", () => {
 
                 // Check if the circular reference is preserved
                 expect(result.output).toHaveProperty("foo", "bar");
+                // @ts-ignore Testing runtime scenario
                 expect(result.output.self).toBe(result.output);
             });
             test("array with circular reference", async () => {
@@ -368,8 +370,11 @@ describe("WorkerThreadManager", () => {
 
                 // Check if the circular reference is preserved
                 expect(result.output).toHaveLength(3);
+                // @ts-ignore Testing runtime scenario
                 expect(result.output[0]).toBe("foo");
+                // @ts-ignore Testing runtime scenario
                 expect(result.output[1]).toBe("bar");
+                // @ts-ignore Testing runtime scenario
                 expect(result.output[2]).toBe(result.output);
             });
             test("object with Date", async () => {
@@ -378,6 +383,7 @@ describe("WorkerThreadManager", () => {
 
                 expect(result).not.toHaveProperty("error");
                 expect(result).toHaveProperty("output");
+                // @ts-ignore Testing runtime scenario
                 expect(result.output.date).toEqual(input.input.date);
             });
         });
