@@ -646,18 +646,22 @@ export function inputToMaps<
     return rootNode;
 }
 
-// TODO Try adding `readMany` so we can use this for reads. I believe the current way we do reads doesn't properly check relation permissions, so this would solve that.
-export async function cudInputsToMaps({
-    inputData,
-}: {
+export type CudInputsToMapsParams = {
     inputData: CudInputData[],
-}): Promise<{
+}
+
+export type CudInputsToMapsResult = {
     idsByAction: IdsByAction,
     idsByType: IdsByType,
     idsCreateToConnect: IdsCreateToConnect,
     inputsById: InputsById,
     inputsByType: InputsByType,
-}> {
+}
+
+// TODO Try adding `readMany` so we can use this for reads. I believe the current way we do reads doesn't properly check relation permissions, so this would solve that.
+export async function cudInputsToMaps({
+    inputData,
+}: CudInputsToMapsParams): Promise<CudInputsToMapsResult> {
     const idsByAction: IdsByAction = {};
     const idsByType: IdsByType = {};
     const idsCreateToConnect: IdsCreateToConnect = {};
