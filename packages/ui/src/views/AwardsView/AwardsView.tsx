@@ -1,13 +1,16 @@
 import { Award, AwardCategory, AwardKey, AwardSearchInput, AwardSearchResult, endpointPostAwards } from "@local/shared";
-import { Box, Card, CardContent, Typography, useTheme } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { CompletionBar } from "components/CompletionBar/CompletionBar";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
+import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts";
 import { useFetch } from "hooks/useFetch";
+import { AwardIcon } from "icons";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ScrollBox } from "styles";
 import { AwardDisplay } from "types";
 import { awardToDisplay } from "utils/display/awardsDisplay";
 import { getUserLanguages } from "utils/display/translationTools";
@@ -15,9 +18,17 @@ import { AwardsViewProps } from "views/types";
 
 // Category array for sorting
 const categoryList = Object.values(AwardCategory);
+const PERCENTS = 100;
+const ALMOST_THERE_PERCENT = 90;
 
 //TODO store tiers in @local/shared, so we can show tier progress and stuff
 //TODO store title and description for category (i.e. no tier) in awards.json
+
+const completionBarStyle = {
+    root: { display: "block" },
+    barBox: { maxWidth: "unset" },
+} as const;
+const almostThereStyle = { fontStyle: "italic" } as const;
 
 function AwardCard({
     award,
@@ -26,8 +37,6 @@ function AwardCard({
     award: AwardDisplay;
     isEarned: boolean;
 }) {
-    const { breakpoints, palette } = useTheme();
-
     // Display highest earned tier or next tier,
     // depending on isEarned
     const { title, description, level } = useMemo(() => {
@@ -47,77 +56,49 @@ function AwardCard({
     const percentage = useMemo(() => {
         if (award.progress === 0) return 0;
         if (level === 0) return -1;
-        return Math.round((award.progress / level) * 100);
+        return Math.round((award.progress / level) * PERCENTS);
     }, [award.progress, level]);
 
     const isAlmostThere = useMemo(() => {
-        return percentage > 90 && percentage < 100 || level - award.progress === 1;
+        return percentage > ALMOST_THERE_PERCENT && percentage < PERCENTS || level - award.progress === 1;
     }, [percentage, award.progress, level]);
 
     return (
-        <Card sx={{
-            width: "100%",
-            height: "100%",
-            background: palette.background.paper,
-            color: palette.background.textPrimary,
-            boxShadow: 0,
-            borderRadius: { xs: 0, sm: 2 },
-            margin: 0,
-            [breakpoints.down("sm")]: {
-                borderBottom: `1px solid ${palette.divider}`,
-            },
-        }}>
-            <CardContent sx={{
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                height: "100%",
-            }}>
-                {/* TODO add brone, silver, gold, etc. AwardIcon depending on tier */}
-                <Typography
-                    variant="h6"
-                    component="h2"
-                    textAlign="center"
-                    mb={2}
-                >{title}</Typography>
+        <TIDCard
+            description={description}
+            Icon={AwardIcon} //TODO Add custom icons/images for each category
+            id={award.category}
+            key={award.category}
+            title={title}
+            below={percentage >= 0 && <Box mt={2}>
+                <CompletionBar
+                    color={isAlmostThere ? "warning" : "secondary"}
+                    showLabel={false}
+                    value={percentage}
+                    sxs={completionBarStyle}
+                />
                 <Typography
                     variant="body2"
                     component="p"
                     textAlign="center"
-                    mb={4}
+                    mt={1}
                     color="text.secondary"
-                >{description}</Typography>
-                {/* Display progress */}
-                {percentage >= 0 && <>
-                    <CompletionBar
-                        color={isAlmostThere ? "warning" : "secondary"}
-                        showLabel={false}
-                        value={percentage}
-                        sxs={{ root: { display: "flex", justifyContent: "center" } }}
-                    />
+                >
+                    {award.progress} / {level} ({percentage}%)
+                </Typography>
+                {isAlmostThere &&
                     <Typography
                         variant="body2"
                         component="p"
-                        textAlign="center"
+                        textAlign="start"
                         mt={1}
-                        color="text.secondary"
+                        style={almostThereStyle}
                     >
-                        {award.progress} / {level} ({percentage}%)
+                        Almost there!
                     </Typography>
-                    {isAlmostThere &&
-                        <Typography
-                            variant="body2"
-                            component="p"
-                            textAlign="center"
-                            mt={1}
-                            style={{ fontStyle: "italic" }}
-                        >
-                            Almost there!
-                        </Typography>
-                    }
-                </>}
-            </CardContent>
-        </Card>
+                }
+            </Box>}
+        />
     );
 }
 
@@ -154,7 +135,7 @@ export function AwardsView({
     console.log(awards);
 
     return (
-        <>
+        <ScrollBox>
             <TopBar
                 display={display}
                 onClose={onClose}
@@ -171,7 +152,7 @@ export function AwardsView({
                     title={t("Earned") + "🏆"}
                     sxs={{ titleContainer: { margin: 2, display: "flex", justifyContent: "center" } }}
                 >
-                    <CardGrid minWidth={300} disableMargin={true}>
+                    <CardGrid minWidth={300}>
                         {awards.filter(a => Boolean(a.earnedTier) && a.progress > 0).map((award) => (
                             <AwardCard
                                 key={award.category}
@@ -187,7 +168,7 @@ export function AwardsView({
                     title={t("InProgress") + "🏃‍♂️"}
                     sxs={{ titleContainer: { margin: 2, display: "flex", justifyContent: "center" } }}
                 >
-                    <CardGrid minWidth={300} disableMargin={true}>
+                    <CardGrid minWidth={300}>
                         {awards.map((award) => (
                             <AwardCard
                                 key={award.category}
@@ -198,6 +179,6 @@ export function AwardsView({
                     </CardGrid>
                 </ContentCollapse>
             </Box>
-        </>
+        </ScrollBox>
     );
 }

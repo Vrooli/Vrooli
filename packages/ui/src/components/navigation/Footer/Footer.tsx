@@ -1,13 +1,11 @@
-import { CommonKey, LINKS, SOCIALS, uuidValidate } from "@local/shared";
-import { Box, Grid, List, ListItem, ListItemIcon, ListItemText, Tooltip, useTheme } from "@mui/material";
+import { CommonKey, LINKS, SOCIALS } from "@local/shared";
+import { Box, List, ListItem, ListItemIcon, ListItemText, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { CopyrightBreadcrumbs } from "components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs";
-import { SessionContext } from "contexts/SessionContext";
 import { GitHubIcon, InfoIcon, StatsIcon, XIcon } from "icons";
-import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
+import { pagePaddingBottom } from "styles";
 import { SvgComponent } from "types";
-import { getCurrentUser } from "utils/authentication/session";
 import { getDeviceInfo } from "utils/display/device";
 
 /** aria-label, tooltip, link, displayed text, icon */
@@ -20,106 +18,99 @@ const contactLinks: [string, CommonKey, string, CommonKey, SvgComponent][] = [
 const aboutUsLink = LINKS.About;
 const viewStatsLink = LINKS.Stats;
 
-const pagesWithFooter: string[] = [LINKS.About, LINKS.Pro, LINKS.Privacy, LINKS.Signup, LINKS.Login, LINKS.ForgotPassword, LINKS.ResetPassword, LINKS.Terms];
+const StyledFooter = styled(Box)(({ theme }) => ({
+    display: "block",
+    position: "relative",
+    overflow: "hidden",
+    backgroundColor: theme.palette.primary.dark,
+    color: theme.palette.primary.contrastText,
+    paddingBottom: pagePaddingBottom,
+    zIndex: 5,
+    "@media print": {
+        display: "none",
+    },
+}));
+
+const listItemStyle = {
+    padding: 1
+} as const;
+const footerColumn = {
+    display: "flex",
+    flexDirection: "column",
+    padding: 2
+};
 
 export function Footer() {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const session = useContext(SessionContext);
-    const { id } = useMemo(() => getCurrentUser(session), [session]);
 
-    // Dont' display footer when app is running standalone, 
-    // when the page isn't one of the pages with a footer,
-    // or when the user is at the home page ("/") and logged in (since this becomes the dashboard page)
+    // Dont' display footer when app is running standalone
     const { isStandalone } = getDeviceInfo();
     if (isStandalone) return null;
-    if (window.location.pathname !== LINKS.Home && !pagesWithFooter.some((page) => window.location.pathname.startsWith(page))) return null;
-    if (window.location.pathname === LINKS.Home && uuidValidate(id)) return null;
     return (
-        <>
-            <Box
-                display={"block"}
-                overflow="hidden"
-                position="relative"
-                sx={{
-                    backgroundColor: palette.primary.dark,
-                    color: palette.primary.contrastText,
-                    paddingBottom: {
-                        xs: "calc(64px + env(safe-area-inset-bottom))",
-                        md: "env(safe-area-inset-bottom)",
-                    },
-                    zIndex: 5,
-                    "@media print": {
-                        display: "none",
-                    },
-                }}
-            >
-                <Grid container justifyContent='center' spacing={1}>
-                    <Grid item xs={12} sm={6}>
-                        <List component="nav" dense>
-                            <ListItem component="h3" >
-                                <ListItemText primary={t("Resource", { count: 2 })} sx={{ textTransform: "uppercase" }} />
-                            </ListItem>
-                            <ListItem
-                                component="a"
-                                href={aboutUsLink}
-                                onClick={(e) => { e.preventDefault(); openLink(setLocation, aboutUsLink); }}
-                                sx={{ padding: 2 }}
-                            >
-                                <ListItemIcon>
-                                    <InfoIcon fill={palette.primary.contrastText} />
-                                </ListItemIcon>
-                                <ListItemText primary={t("AboutUs")} sx={{ color: palette.primary.contrastText }} />
-                            </ListItem>
-                            <ListItem
-                                component="a"
-                                href={viewStatsLink}
-                                onClick={(e) => { e.preventDefault(); openLink(setLocation, viewStatsLink); }}
-                                sx={{ padding: 2 }}
-                            >
-                                <ListItemIcon>
-                                    <StatsIcon fill={palette.primary.contrastText} />
-                                </ListItemIcon>
-                                <ListItemText primary={t("StatisticsShort")} sx={{ color: palette.primary.contrastText }} />
-                            </ListItem>
-                        </List>
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
-                        <List component="nav" dense>
-                            <ListItem component="h3" >
-                                <ListItemText primary={t("Contact")} sx={{ textTransform: "uppercase" }} />
-                            </ListItem>
-                            {contactLinks.map(([label, tooltip, src, text, Icon], key) => (
-                                <Tooltip key={key} title={t(tooltip)} placement="left">
-                                    <ListItem
-                                        aria-label={label}
-                                        component="a"
-                                        href={src}
-                                        onClick={(e) => { e.preventDefault(); openLink(setLocation, src); }}
-                                        sx={{ padding: 2 }}
-                                    >
-                                        <ListItemIcon>
-                                            <Icon fill={palette.primary.contrastText} />
-                                        </ListItemIcon>
-                                        <ListItemText primary={t(text)} sx={{ color: palette.primary.contrastText }} />
-                                    </ListItem>
-                                </Tooltip>
-                            ))}
-                        </List>
-                    </Grid>
-                </Grid>
-                <CopyrightBreadcrumbs sx={{ color: palette.primary.contrastText }} />
+        <StyledFooter id="footer" component="footer">
+            <Box display="flex" justifyContent="center" sx={{ width: '100%' }}>
+                <Box sx={footerColumn}>
+                    <Typography variant="body1" sx={{ textTransform: "uppercase" }}>{t("Resource", { count: 2 })}</Typography>
+                    <List component="nav" dense>
+                        <ListItem
+                            component="a"
+                            href={aboutUsLink}
+                            onClick={(e) => { e.preventDefault(); openLink(setLocation, aboutUsLink); }}
+                            sx={listItemStyle}
+                        >
+                            <ListItemIcon>
+                                <InfoIcon fill={palette.primary.contrastText} />
+                            </ListItemIcon>
+                            <ListItemText primary={t("AboutUs")} sx={{ color: palette.primary.contrastText }} />
+                        </ListItem>
+                        <ListItem
+                            component="a"
+                            href={viewStatsLink}
+                            onClick={(e) => { e.preventDefault(); openLink(setLocation, viewStatsLink); }}
+                            sx={listItemStyle}
+                        >
+                            <ListItemIcon>
+                                <StatsIcon fill={palette.primary.contrastText} />
+                            </ListItemIcon>
+                            <ListItemText primary={t("StatisticsShort")} sx={{ color: palette.primary.contrastText }} />
+                        </ListItem>
+                    </List>
+                </Box>
+                <Box sx={footerColumn}>
+                    <Typography variant="body1" sx={{ textTransform: "uppercase" }}>{t("Contact")}</Typography>
+                    <List component="nav" dense>
+                        {contactLinks.map(([label, tooltip, src, text, Icon], key) => (
+                            <Tooltip key={key} title={t(tooltip)} placement="left">
+                                <ListItem
+                                    aria-label={label}
+                                    component="a"
+                                    href={src}
+                                    onClick={(e) => { e.preventDefault(); openLink(setLocation, src); }}
+                                    sx={listItemStyle}
+                                >
+                                    <ListItemIcon>
+                                        <Icon fill={palette.primary.contrastText} />
+                                    </ListItemIcon>
+                                    <ListItemText primary={t(text)} sx={{ color: palette.primary.contrastText }} />
+                                </ListItem>
+                            </Tooltip>
+                        ))}
+                    </List>
+                </Box>
             </Box>
+            <CopyrightBreadcrumbs sx={{ color: palette.primary.contrastText }} />
             {/* Hidden div under the footer for bottom overscroll color */}
             <Box sx={{
                 backgroundColor: palette.primary.dark,
                 height: "50vh",
-                position: "fixed",
-                bottom: "0",
-                width: "100%",
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                bottom: 0,
                 zIndex: -2, // Below the main content, but above the page's hidden div
             }} />
-        </>
+        </StyledFooter>
     );
 }

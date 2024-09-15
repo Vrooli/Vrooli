@@ -1,20 +1,142 @@
 import { BUSINESS_NAME, LINKS } from "@local/shared";
-import { AppBar, Box, BoxProps, IconButton, Stack, Typography, styled, useTheme } from "@mui/material";
+import { AppBar, Avatar, Box, BoxProps, Button, IconButton, Palette, Stack, Typography, styled, useTheme } from "@mui/material";
+import { PopupMenu } from "components/buttons/PopupMenu/PopupMenu";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts";
 import { useIsLeftHanded } from "hooks/subscriptions";
 import { useDimensions } from "hooks/useDimensions";
 import { useSideMenu } from "hooks/useSideMenu";
 import { useWindowSize } from "hooks/useWindowSize";
-import { VrooliIcon } from "icons";
-import { forwardRef, useCallback, useEffect, useMemo } from "react";
-import { useLocation } from "route";
+import { ListIcon, LogInIcon, ProfileIcon, VrooliIcon } from "icons";
+import { forwardRef, useCallback, useContext, useEffect, useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import { openLink, useLocation } from "route";
 import { noSelect } from "styles";
+import { checkIfLoggedIn, getCurrentUser } from "utils/authentication/session";
+import { extractImageUrl } from "utils/display/imageTools";
+import { NAV_ACTION_TAGS, NavAction, actionsToMenu, getUserActions } from "utils/navigation/userActions";
+import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID } from "utils/pubsub";
+import { ContactInfo } from "../ContactInfo/ContactInfo";
 import { HideOnScroll } from "../HideOnScroll/HideOnScroll";
-import { NavList } from "../NavList/NavList";
 import { NavbarProps } from "../types";
 
 const zIndex = 300;
+const MIN_APP_BAR_HEIGHT_PX = 64;
+
+function navItemStyle(palette: Palette) {
+    return {
+        background: "transparent",
+        color: palette.primary.contrastText,
+        textTransform: "none",
+        fontSize: "1.4em",
+        "&:hover": {
+            color: palette.secondary.light,
+        },
+    } as const;
+}
+
+interface OuterBoxProps extends BoxProps {
+    isLeftHanded: boolean;
+}
+
+const OuterBox = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "isLeftHanded",
+})<OuterBoxProps>(({ isLeftHanded }) => ({
+    display: "flex",
+    height: "100%",
+    paddingBottom: "0",
+    paddingRight: "0 !important",
+    right: "0",
+    // Reverse order on left handed mode
+    flexDirection: isLeftHanded ? "row-reverse" : "row",
+}));
+
+const EnterButton = styled(Button)(({ theme }) => ({
+    whiteSpace: "nowrap",
+    // Hide text on small screens, and remove start icon's padding
+    fontSize: "1.4em",
+    [theme.breakpoints.down("md")]: {
+        fontSize: "1em",
+    },
+    [theme.breakpoints.down("sm")]: {
+        fontSize: "0px",
+        "& .MuiButton-startIcon": {
+            marginLeft: "0px",
+            marginRight: "0px",
+        },
+    },
+}));
+
+const ProfileAvatar = styled(Avatar)(({ theme }) => ({
+    background: theme.palette.primary.contrastText,
+    width: "40px",
+    height: "40px",
+    margin: "auto",
+    marginRight: theme.spacing(1),
+    cursor: "pointer",
+}));
+
+export function NavList() {
+    const session = useContext(SessionContext);
+    const user = useMemo(() => getCurrentUser(session), [session]);
+    const isLeftHanded = useIsLeftHanded();
+    const { t } = useTranslation();
+    const { breakpoints, palette } = useTheme();
+    const [, setLocation] = useLocation();
+
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+    const navActions = useMemo<NavAction[]>(() => getUserActions({ session, exclude: [NAV_ACTION_TAGS.Home, NAV_ACTION_TAGS.LogIn] }), [session]);
+
+    const { isOpen: isSideMenuOpen } = useSideMenu({ id: SIDE_MENU_ID, isMobile });
+    const openSideMenu = useCallback(() => { PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: true }); }, []);
+
+    const toLoginPage = useCallback(function toLoginPageCallback(e: React.MouseEvent<HTMLElement>) {
+        e.preventDefault();
+        openLink(setLocation, LINKS.Login);
+    }, [setLocation]);
+
+    return (
+        <OuterBox isLeftHanded={isLeftHanded}>
+            {/* Contact menu */}
+            {!isMobile && !getCurrentUser(session).id && !isSideMenuOpen && <PopupMenu
+                text={t("Contact")}
+                variant="text"
+                size="large"
+                sx={navItemStyle(palette)}
+            >
+                <ContactInfo />
+            </PopupMenu>}
+            {/* List items displayed when on wide screen */}
+            <Box>
+                {!isMobile && !isSideMenuOpen && actionsToMenu({
+                    actions: navActions,
+                    setLocation,
+                    sx: navItemStyle(palette),
+                })}
+            </Box>
+            {/* Enter button displayed when not logged in */}
+            {!checkIfLoggedIn(session) && (
+                <EnterButton
+                    href={LINKS.Login}
+                    onClick={toLoginPage}
+                    startIcon={<LogInIcon />}
+                    variant="contained"
+                >
+                    {t("LogIn")}
+                </EnterButton>
+            )}
+            {checkIfLoggedIn(session) && (
+                <ProfileAvatar
+                    id="side-menu-profile-icon"
+                    src={extractImageUrl(user.profileImage, user.updated_at, 50)}
+                    onClick={openSideMenu}
+                >
+                    <ProfileIcon fill={palette.primary.dark} width="100%" height="100%" />
+                </ProfileAvatar>
+            )}
+        </OuterBox>
+    );
+}
 
 type TitleDisplayProps = Pick<NavbarProps, "help" | "options" | "startComponent" | "title" | "titleComponent" | "titleBehaviorDesktop" | "titleBehaviorMobile"> & {
     isLeftHanded: boolean;
@@ -74,6 +196,7 @@ function TitleDisplay({
     titleBehaviorMobile,
 }: TitleDisplayProps) {
     const { palette } = useTheme();
+    const { isOpen: isChatSideMenuOpen } = useSideMenu({ id: CHAT_SIDE_MENU_ID, isMobile });
 
     let TitleComponent: JSX.Element | null = null;
     let StartComponent: JSX.Element | null = null;
@@ -125,7 +248,7 @@ function TitleDisplay({
         </IconButton>;
     }
 
-    // Render title and start component
+    if (isChatSideMenuOpen) return null;
     if (TitleComponent && StartComponent) {
         return (
             <StartAndTitleBox
@@ -152,6 +275,14 @@ const NavListBox = styled(Box, {
     marginRight: isLeftHanded ? "auto" : 0,
     maxHeight: "100%",
 }));
+
+const sideMenuStyle = {
+    width: "48px",
+    height: "48px",
+    marginLeft: 1,
+    marginRight: 1,
+    cursor: "pointer",
+} as const;
 
 /**
  * Navbar displayed at the top of the page. Has a few different 
@@ -186,6 +317,7 @@ export const Navbar = forwardRef(({
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
     const { dimensions, ref: dimRef } = useDimensions();
+    const session = useContext(SessionContext);
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const isLeftHanded = useIsLeftHanded();
 
@@ -200,7 +332,7 @@ export const Navbar = forwardRef(({
 
     const outerBoxStyle = useMemo(function outerBoxStyleMemo() {
         return {
-            paddingTop: `${Math.max(dimensions.height, 64)}px`,
+            paddingTop: `${Math.max(dimensions.height, MIN_APP_BAR_HEIGHT_PX)}px`,
             "@media print": {
                 display: "none",
             },
@@ -212,7 +344,7 @@ export const Navbar = forwardRef(({
         return {
             ...noSelect,
             background: palette.primary.dark,
-            minHeight: "64px!important",
+            minHeight: `${MIN_APP_BAR_HEIGHT_PX}px!important`,
             position: "fixed", // Allows items to be displayed below the navbar
             justifyContent: "center",
             zIndex,
@@ -247,6 +379,28 @@ export const Navbar = forwardRef(({
         } as const;
     }, [help, isLeftHanded, isMobile, options, title, titleBehaviorDesktop, titleBehaviorMobile, titleComponent, toHome]);
 
+    const openSideMenu = useCallback(() => { PubSub.get().publish("sideMenu", { id: "chat-side-menu", isOpen: true }); }, []);
+    const displayedStartComponent = useMemo(function displayedStartComponentMemo() {
+        // If startComponent provided, display it
+        if (startComponent) {
+            return startComponent;
+        }
+        // If not, display icon to open chat menu if logged in
+        if (session?.isLoggedIn) {
+            return (
+                <IconButton
+                    aria-label="Open chat menu"
+                    onClick={openSideMenu}
+                    sx={sideMenuStyle}
+                >
+                    <ListIcon fill={palette.primary.contrastText} width="100%" height="100%" />
+                </IconButton>
+            );
+        }
+        // Otherwise, display nothing
+        return null;
+    }, [openSideMenu, palette.primary.contrastText, session?.isLoggedIn, startComponent]);
+
     return (
         <Box
             id='navbar'
@@ -258,10 +412,7 @@ export const Navbar = forwardRef(({
                     ref={dimRef}
                     sx={appBarStyle}>
                     <Stack direction="row" spacing={0} alignItems="center" sx={appBarStackStyle}>
-                        {startComponent ? <Box sx={isMobile ? {
-                            marginRight: isLeftHanded ? 1 : "auto",
-                            marginLeft: isLeftHanded ? "auto" : 1,
-                        } : {}}>{startComponent}</Box> : null}
+                        {displayedStartComponent}
                         <TitleDisplay {...titleInProps} />
                         <NavListBox isLeftHanded={isLeftHanded}>
                             <NavList />

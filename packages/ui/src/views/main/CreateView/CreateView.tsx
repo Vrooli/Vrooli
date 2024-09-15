@@ -1,5 +1,4 @@
 import { CommonKey, LINKS } from "@local/shared";
-import { PageContainer } from "components/containers/PageContainer/PageContainer";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -7,6 +6,7 @@ import { ApiIcon, ArticleIcon, BotIcon, CommentIcon, HelpIcon, NoteIcon, ObjectI
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { ScrollBox } from "styles";
 import { SvgComponent } from "types";
 import { CreateType, getCookie, setCookie } from "utils/cookies";
 import { CreateViewProps } from "../types";
@@ -143,7 +143,7 @@ export function CreateView({
     }, [setLocation]);
 
     return (
-        <PageContainer>
+        <ScrollBox>
             <TopBar
                 display={display}
                 onClose={onClose}
@@ -164,6 +164,6 @@ export function CreateView({
                     />
                 ))}
             </CardGrid>
-        </PageContainer>
+        </ScrollBox>
     );
 }
