@@ -110,7 +110,7 @@
         "jest-environment-jsdom": "^29.7.0",
         "source-map-explorer": "^2.5.2",
         "ts-jest": "^29.1.1",
-        "vite": "^5.2.13",
+        "vite": "^5.2.14",
         "workbox-build": "^7.1.1"
     },
     "eslintConfig": {
