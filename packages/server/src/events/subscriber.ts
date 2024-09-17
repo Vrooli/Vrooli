@@ -1,5 +1,6 @@
 import { SubscribableObject } from "@local/shared";
 import { Prisma } from "@prisma/client";
+import { permissionsSelectHelper } from "../builders/permissionsSelectHelper";
 import { PrismaDelegate } from "../builders/types";
 import { prismaInstance } from "../db/instance";
 import { ModelMap } from "../models/base";
@@ -52,7 +53,7 @@ export function Subscriber() {
             const { dbTable, validate } = ModelMap.getLogic(["dbTable", "validate"], object.__typename);
             const permissionData = await (prismaInstance[dbTable] as PrismaDelegate).findUnique({
                 where: { id: object.id },
-                select: validate().permissionsSelect,
+                select: permissionsSelectHelper(validate().permissionsSelect, userData.id, userData.languages),
             });
             const isPublic = permissionData && validate().isPublic(permissionData, () => undefined, userData.languages);
             const isDeleted = permissionData && validate().isDeleted(permissionData, userData.languages);

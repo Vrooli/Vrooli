@@ -70,28 +70,30 @@ export function SearchView({
     function focusSearch() { scrollIntoFocusedView("search-bar-main-search-page-list"); }
 
     return (
-        <SearchListScrollContainer id={scrollContainerId}>
-            <TopBar
-                display={display}
-                onClose={onClose}
-                title={t("Search")}
-                titleBehaviorDesktop="ShowIn"
-                below={<PageTabs
-                    ariaLabel="search-tabs"
-                    fullWidth
-                    id="search-tabs"
-                    ignoreIcons
-                    currTab={currTab}
-                    onChange={handleTabChange}
-                    tabs={tabs}
+        <>
+            <SearchListScrollContainer id={scrollContainerId}>
+                <TopBar
+                    display={display}
+                    onClose={onClose}
+                    title={t("Search")}
+                    titleBehaviorDesktop="ShowIn"
+                    below={<PageTabs
+                        ariaLabel="search-tabs"
+                        fullWidth
+                        id="search-tabs"
+                        ignoreIcons
+                        currTab={currTab}
+                        onChange={handleTabChange}
+                        tabs={tabs}
+                    />}
+                />
+                {searchType && <SearchList
+                    {...findManyData}
+                    display={display}
+                    scrollContainerId={scrollContainerId}
+                    sxs={searchListStyle}
                 />}
-            />
-            {searchType && <SearchList
-                {...findManyData}
-                display={display}
-                scrollContainerId={scrollContainerId}
-                sxs={searchListStyle}
-            />}
+            </SearchListScrollContainer>
             <SideActionsButtons display={display}>
                 <SideActionsButton aria-label={t("FilterList")} onClick={focusSearch}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
@@ -102,6 +104,6 @@ export function SearchView({
                     </SideActionsButton>
                 ) : null}
             </SideActionsButtons>
-        </SearchListScrollContainer>
+        </>
     );
 }

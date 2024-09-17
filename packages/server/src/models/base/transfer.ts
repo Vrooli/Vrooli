@@ -76,7 +76,7 @@ export const transfer = () => ({
         const { dbTable, validate } = ModelMap.getLogic(["dbTable", "validate"], object.__typename);
         const permissionData = await (prismaInstance[dbTable] as PrismaDelegate).findUnique({
             where: { id: object.id },
-            select: validate().permissionsSelect,
+            select: permissionsSelectHelper(validate().permissionsSelect, userData.id, userData.languages),
         });
         const owner = permissionData && validate().owner(permissionData, userData.id);
         // Check if user is allowed to transfer this object

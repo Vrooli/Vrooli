@@ -127,6 +127,7 @@ export function VoteButton({
                     marginLeft: "4px",
                     marginRight: "4px",
                     pointerEvents: "none",
+                    color: palette.background.textSecondary,
                 }}
             >{internalScore}</Typography>
             {/* Downvote arrow */}

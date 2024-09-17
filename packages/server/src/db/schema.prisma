@@ -1683,6 +1683,8 @@ model reaction_summary {
     quiz             quiz?            @relation("reaction_summary_quiz", fields: [quizId], references: [id], onDelete: Cascade)
     routine          routine?         @relation("reaction_summary_routine", fields: [routineId], references: [id], onDelete: Cascade)
     standard         standard?        @relation("reaction_summary_standard", fields: [standardId], references: [id], onDelete: Cascade)
+
+    @@unique([emoji, apiId, chatMessageId, codeId, commentId, issueId, noteId, postId, projectId, questionId, questionAnswerId, quizId, routineId, standardId], name: "reaction_summary_emoji_unique")
 }
 
 model reminder_list {

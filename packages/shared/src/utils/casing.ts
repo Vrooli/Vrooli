@@ -1,5 +1,6 @@
 /**
  * Lowercases the first letter of a string
+ * @example lowercaseFirstLetter("Hello") // "hello"
  * @param str String to lowercase
  * @returns Lowercased string
  */
@@ -9,6 +10,7 @@ export const lowercaseFirstLetter = (str: string): string => {
 
 /**
  * Uppercases the first letter of a string
+ * @example uppercaseFirstLetter("hello") // "Hello"
  * @param str String to capitalize
  * @returns Uppercased string
  */
@@ -18,6 +20,7 @@ export const uppercaseFirstLetter = (str: string): string => {
 
 /**
  * Converts a string to pascalCase
+ * @example pascalCase("hello-world") // "HelloWorld"
  * @param str String to convert
  * @returns PascalCased string
  */
@@ -27,6 +30,7 @@ export const pascalCase = (str: string): string => {
 
 /**
  * Converts a string to camcelCase
+ * @example camelCase("HelloWorld") // "helloWorld"
  * @param str String to convert
  * @returns camelCased string
  */
@@ -36,6 +40,7 @@ export const camelCase = (str: string): string => {
 
 /**
  * Converts a string to snake_case
+ * @example snakeCase("HelloWorld") // "hello_world"
  * @param str String to convert
  * @returns snake_cased string
  */

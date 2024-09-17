@@ -79,15 +79,21 @@ export function getYou(
         ...Object.keys(defaultYou).reduce((acc, key) => ({ ...acc, [key]: typeof defaultYou[key] === "boolean" ? false : defaultYou[key] }), {}),
         canDelete: true,
     } as YouInflated;
+    // Helper function to determine if a field is valid
+    function isYouPropertyValid(key: keyof YouInflated, value: unknown): boolean {
+        if (key === "reaction") return value === null || typeof value === "string";
+        return typeof value === "boolean";
+    }
     // Helper function to get permissions
-    function getPermission(key: keyof YouInflated): boolean {
+    function getPermission<Key extends keyof YouInflated>(key: Key): Key extends "reaction" ? (null | string) : boolean {
         // Check if the field is in the object
         const field = valueFromDot(object, `you.${key}`);
-        if (field === true || field === false || typeof field === "boolean") return field;
+        if (isYouPropertyValid(key, field)) return field as Key extends "reaction" ? (null | string) : boolean;
         // If not, check if the field is in the root.you object
         const rootField = valueFromDot(object, `root.you.${key}`);
-        if (rootField === true || rootField === false || typeof rootField === "boolean") return rootField;
-        return false; // Default to false if no field found
+        if (isYouPropertyValid(key, rootField)) return rootField as Key extends "reaction" ? (null | string) : boolean;
+        // Default to false if no field found, or null if it's the reaction field
+        return (key === "reaction" ? null : false) as Key extends "reaction" ? (null | string) : boolean;
     }
     // Some permissions are based on a relation (e.g. bookmarking a View's "to" relation), 
     // while others are always based on the current object (e.g. deleting a member instead of the user it's associated with).
