@@ -15,11 +15,14 @@ import { CudInputData } from "../utils/types";
 import { maxObjectsCheck } from "../validators/maxObjectsCheck";
 import { permissionsCheck } from "../validators/permissions";
 import { profanityCheck } from "../validators/profanityCheck";
+import { CudAdditionalData } from "./types";
 
 type CudHelperParams = {
     inputData: CudInputData[],
     partialInfo: PartialGraphQLInfo,
     userData: SessionUserToken,
+    /** Additional data that can be passed to ModelLogic functions */
+    additionalData?: CudAdditionalData,
 }
 
 type CudHelperResult = Array<boolean | Record<string, any>>;
@@ -295,11 +298,13 @@ function processTransactionResults(
  * Calls the afterMutations trigger for each type, if applicable.
  * @param transactionData The data collected during the transaction preparation.
  * @param maps The maps of data calculated by groupDataIntoMaps.
+ * @param additionalData Additional data to pass to the trigger.
  * @param userData The session user data.
  */
 async function triggerAfterMutations(
     transactionData: CudTransactionData,
     maps: CudDataMaps,
+    additionalData: CudAdditionalData,
     userData: SessionUserToken,
 ): Promise<void> {
     const { deletedIdsByType, beforeDeletedData } = transactionData;
@@ -319,6 +324,7 @@ async function triggerAfterMutations(
         const deletedIds = deletedIdsByType[type as GqlModelType] || [];
 
         await mutate.trigger.afterMutations({
+            additionalData,
             beforeDeletedData,
             createdIds,
             createInputs,
@@ -337,7 +343,7 @@ async function triggerAfterMutations(
  * @returns An array of results corresponding to the inputData operations.
  */
 export async function cudHelper(params: CudHelperParams): Promise<CudHelperResult> {
-    const { inputData, partialInfo, userData } = params;
+    const { additionalData, inputData, partialInfo, userData } = params;
 
     const result = initializeResults(inputData.length);
     await validateAndCastInputs(inputData, userData);
@@ -356,7 +362,7 @@ export async function cudHelper(params: CudHelperParams): Promise<CudHelperResul
 
     const transactionResult = await executeTransaction(transactionData.operations, userData);
     processTransactionResults(transactionResult, transactionData, topInputsByType, inputData, partialInfo, result);
-    await triggerAfterMutations(transactionData, maps, userData);
+    await triggerAfterMutations(transactionData, maps, additionalData || {}, userData);
 
     return result;
 }

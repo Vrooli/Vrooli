@@ -13,6 +13,7 @@ import { CreateManyHelperProps, CreateOneHelperProps } from "./types";
  * @returns GraphQL response object
  */
 export async function createManyHelper<GraphQLModel>({
+    additionalData,
     info,
     input,
     objectType,
@@ -24,6 +25,7 @@ export async function createManyHelper<GraphQLModel>({
     const partialInfo = toPartialGqlInfo(info, format.gqlRelMap, req.session.languages, true);
     // Create objects. cudHelper will check permissions
     const created = await cudHelper({
+        additionalData,
         inputData: input.map(d => ({
             action: "Create",
             input: d,

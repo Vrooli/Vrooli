@@ -82,7 +82,7 @@ export type ShapeHelperProps<
  * Creates the relationship operations for a mutater shape create or update function
  * @returns An object with the connections
  */
-export const shapeHelper = async<
+export async function shapeHelper<
     IsOneToOne extends boolean,
     Types extends readonly RelationshipType[],
     PrimaryKey extends string = "id",
@@ -100,7 +100,7 @@ export const shapeHelper = async<
     softDelete = false as SoftDelete,
     userData,
 }: ShapeHelperProps<IsOneToOne, Types, SoftDelete>):
-    Promise<ShapeHelperOutput<IsOneToOne, PrimaryKey>> => {
+    Promise<ShapeHelperOutput<IsOneToOne, PrimaryKey>> {
     // Initialize result
     let result: { [x: string]: any } = {};
     // Loop through relation types, and convert all to a Prisma-shaped array
@@ -270,7 +270,7 @@ export const shapeHelper = async<
     // NOTE: To please the type checker, we pretend that we're returning a non-undefined value
     if (Object.keys(result).length === 0) return undefined as unknown as ShapeHelperOutput<IsOneToOne, PrimaryKey>;
     return result as ShapeHelperOutput<IsOneToOne, PrimaryKey>;
-};
+}
 
 /** Typical relations for create inputs */
 export const addRels = ["Create", "Connect"] as const;

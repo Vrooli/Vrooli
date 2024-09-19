@@ -114,8 +114,6 @@ export function loadCodes() {
         const srcFileContent = fs.readFileSync(srcCodeFile, "utf-8");
         const functionMetadata = parseDocstrings(srcFileContent);
 
-        console.log("code info", functions, functionMetadata);
-
         if (functions.length !== functionMetadata.length) {
             logger.error("Error loading built-in functions. Function count mismatch", { trace: "0629" });
             return;
