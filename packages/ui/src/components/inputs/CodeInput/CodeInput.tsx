@@ -1,4 +1,4 @@
-import { ChatInviteStatus, CodeLanguage, DUMMY_ID, LangsKey, Status, isEqual, uuid } from "@local/shared";
+import { CodeLanguage, LangsKey, Status, isEqual } from "@local/shared";
 import { Box, Grid, IconButton, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { StatusButton } from "components/buttons/StatusButton/StatusButton";
@@ -7,17 +7,15 @@ import { useField } from "formik";
 import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 // import { isJson } from "@local/shared"; // Update this so that we can lint JSON standard input type (different from normal JSON)
-import { ChatShape } from "@local/shared";
 import { ActiveChatContext, SessionContext } from "contexts";
+import { generateContextLabel } from "hooks/tasks";
 import { useDebounce } from "hooks/useDebounce";
 import { CopyIcon, MagicIcon, OpenThreadIcon, RedoIcon, RefreshIcon, UndoIcon } from "icons";
 import React from "react";
 import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
-import { getCookieMatchingChat } from "utils/cookies";
 import { generateContext } from "utils/display/stringTools";
 import { CHAT_SIDE_MENU_ID, PubSub } from "utils/pubsub";
-import { VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
 import { CodeInputBaseProps, CodeInputProps } from "../types";
 
 // Stub types for code splitting
@@ -495,6 +493,7 @@ export function CodeInputBase({
     const { t } = useTranslation();
     const session = useContext(SessionContext);
     const { credits } = useMemo(() => getCurrentUser(session), [session]);
+    const { chat } = useContext(ActiveChatContext);
 
     const availableLanguages = Array.isArray(limitTo) && limitTo.length > 0 ? limitTo : Object.values(CodeLanguage);
 
@@ -639,6 +638,8 @@ export function CodeInputBase({
         if (disabled) return;
         const userId = getCurrentUser(session)?.id;
         if (!userId) return;
+        const chatId = chat?.id;
+        if (!chatId) return;
 
         if (!codeMirrorRef.current || !codeMirrorRef.current.view) {
             console.error("CodeMirror not found");
@@ -649,26 +650,31 @@ export function CodeInputBase({
         // Only use the first selection range, if it exists
         const selection = selectionRanges.length > 0 ? codeDoc.sliceString(selectionRanges[0].from, selectionRanges[0].to) : "";
         const fullText = codeDoc.sliceString(0, Number.MAX_SAFE_INTEGER);
-        const context = generateContext(selection, fullText);
-
-        // Now we'll try to find an existing chat with Valyxa for this task
-        const existingChatId = getCookieMatchingChat([userId, VALYXA_INFO.id], "standard");
-        const overrideObject = {
-            __typename: "Chat" as const,
-            id: existingChatId ?? DUMMY_ID,
-            openToAnyoneWithInvite: false,
-            invites: [{
-                __typename: "ChatInvite" as const,
-                id: uuid(),
-                status: ChatInviteStatus.Pending,
-                user: VALYXA_INFO,
-            }],
-        } as unknown as ChatShape;
-        console.log("openin assistant dialog", existingChatId, overrideObject);
+        const contextValue = generateContext(selection, fullText);
 
         // Open the side chat and provide it context
-        PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen: true, data: { context, tab: "Chat" } });
-    }, [disabled, session]);
+        PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen: true, data: { tab: "Chat" } });
+        const context = {
+            id: `code-${name}`,
+            data: contextValue,
+            label: generateContextLabel(contextValue),
+            template: `Code:\n\`\`\`${codeLanguage}\n<DATA>\n\`\`\``,
+            templateVariables: { data: "<DATA>" },
+        };
+        PubSub.get().publish("chatTask", {
+            chatId,
+            contexts: {
+                add: {
+                    behavior: "replace",
+                    connect: {
+                        __type: "contextId",
+                        data: context.id,
+                    },
+                    value: [context],
+                },
+            },
+        });
+    }, [chat?.id, codeLanguage, disabled, name, session]);
 
     // Handle action buttons
     type Action = {
@@ -751,6 +757,11 @@ export function CodeInputBase({
         PubSub.get().publish("snack", { message: "Copied to clipboard", severity: "Success" });
     }, [content]);
 
+    const getOptionLabel = useCallback(function getOptionLabelMemo(option: CodeLanguage) {
+        const [labelKey] = languageDisplayMap[option] ?? ["Unknown"];
+        return t(labelKey, { ns: "langs" });
+    }, [t]);
+
     return (
         <>
             <Stack direction="column" spacing={0} sx={outerStackStyle}>
@@ -764,10 +775,7 @@ export function CodeInputBase({
                                 onChange={changeCodeLanguage}
                                 disabled={disabled}
                                 options={availableLanguages}
-                                getOptionLabel={(r) => {
-                                    const [labelKey] = languageDisplayMap[r as CodeLanguage] ?? ["Unknown"];
-                                    return t(labelKey, { ns: "langs" });
-                                }}
+                                getOptionLabel={getOptionLabel}
                                 fullWidth
                                 inputAriaLabel="select language"
                                 label={"Language"}

@@ -7,8 +7,10 @@
  */
 import { ActiveFocusMode, FocusMode, GqlModelType, LlmTaskInfo, NavigableObject } from "@local/shared";
 import { chatMatchHash } from "./codes";
+import { FONT_SIZE_MAX, FONT_SIZE_MIN } from "./consts";
 import { getDeviceInfo } from "./display/device";
 import { LocalStorageLruCache } from "./localStorageLruCache";
+import { RichInputToolbarViewSize } from "./pubsub";
 
 const MAX_CACHE_SIZE = 300;
 const KB_1 = 1024;
@@ -52,6 +54,8 @@ type SimpleStoragePayloads = {
     IsLeftHanded: boolean,
     FocusModeActive: ActiveFocusMode | null,
     FocusModeAll: FocusMode[],
+    RichInputToolbarViewSize: RichInputToolbarViewSize,
+    ShowBotWarning: boolean,
     ShowMarkdown: boolean,
     SideMenuState: boolean,
 }
@@ -137,7 +141,7 @@ export const cookies: { [T in SimpleStorageType]: SimpleStorageInfo<T> } = {
         check: (value) => typeof value === "number",
         fallback: 14,
         // Ensure font size is not too small or too large. This would make the UI unusable.
-        shape: (value) => Math.max(8, Math.min(24, value)),
+        shape: (value) => Math.max(FONT_SIZE_MIN, Math.min(FONT_SIZE_MAX, value)),
     },
     IsLeftHanded: {
         __type: "functional",
@@ -176,6 +180,16 @@ export const cookies: { [T in SimpleStorageType]: SimpleStorageInfo<T> } = {
                 targeting: value.targeting || false,
             };
         },
+    },
+    RichInputToolbarViewSize: {
+        __type: "functional",
+        check: (value) => value === "minimal" || value === "partial" || value === "full",
+        fallback: "full",
+    },
+    ShowBotWarning: {
+        __type: "functional",
+        check: (value) => typeof value === "boolean",
+        fallback: true,
     },
     ShowMarkdown: {
         __type: "functional",
@@ -328,19 +342,19 @@ type ChatGroupCookie = {
     chatId: string;
 };
 const chatGroupCache = new LocalStorageLruCache<ChatGroupCookie>("chatGroup", CHAT_GROUP_CACHE_LIMIT, CACHE_LIMIT_128KB);
-export function getCookieMatchingChat(userIds: string[], task?: string): string | undefined {
+export function getCookieMatchingChat(userIds: string[]): string | undefined {
     return ifAllowed("functional", function getCookieMatchingChatCallback() {
-        return chatGroupCache.get(chatMatchHash(userIds, task))?.chatId;
+        return chatGroupCache.get(chatMatchHash(userIds))?.chatId;
     });
 }
-export function setCookieMatchingChat(chatId: string, userIds: string[], task?: string) {
+export function setCookieMatchingChat(chatId: string, userIds: string[]) {
     return ifAllowed("functional", function setCookieMatchingChatCallback() {
-        chatGroupCache.set(chatMatchHash(userIds, task), { chatId });
+        chatGroupCache.set(chatMatchHash(userIds), { chatId });
     });
 }
-export function removeCookieMatchingChat(userIds: string[], task?: string) {
+export function removeCookieMatchingChat(userIds: string[]) {
     return ifAllowed("functional", function removeCookieMatchingChatCallback() {
-        chatGroupCache.remove(chatMatchHash(userIds, task));
+        chatGroupCache.remove(chatMatchHash(userIds));
     });
 }
 export function removeCookiesWithChatId(chatId: string) {
@@ -349,41 +363,57 @@ export function removeCookiesWithChatId(chatId: string) {
     });
 }
 
-type MessageTasks = {
+type ChatTasks = {
     tasks: LlmTaskInfo[];
 }
-const llmTasksCache = new LocalStorageLruCache<MessageTasks>("llmTasks", LLM_TASKS_CACHE_LIMIT, CACHE_LIMT_1MB);
-export function getCookieTasksForMessage(messageId: string): MessageTasks | undefined {
+const llmTasksCache = new LocalStorageLruCache<ChatTasks>("llmTasks", LLM_TASKS_CACHE_LIMIT, CACHE_LIMT_1MB);
+export function getCookieTasksForChat(chatId: string): ChatTasks | undefined {
     return ifAllowed("functional", () => {
-        const existing = llmTasksCache.get(messageId);
+        const existing = llmTasksCache.get(chatId);
         if (typeof existing === "object" && Array.isArray(existing.tasks)) {
             return existing;
         }
     });
 }
-export const setCookieTaskForMessage = (messageId: string, task: LlmTaskInfo) => ifAllowed("functional", () => {
-    const existing = getCookieTasksForMessage(messageId) || { tasks: [] };
-    const taskIndex = existing.tasks.findIndex(t => t.taskId === task.taskId);
-    if (taskIndex > -1) {
-        existing.tasks[taskIndex] = task; // Replace existing task with the same ID
-    } else {
-        existing.tasks.push(task); // Add new task
-    }
-    llmTasksCache.set(messageId, existing);
-});
-export const removeTaskForMessage = (messageId: string, taskId: string) => ifAllowed("functional", () => {
-    const existing = getCookieTasksForMessage(messageId);
-    if (!existing || !existing.tasks.length) return;
-    const updated = { tasks: existing.tasks.filter(t => t.taskId !== taskId) };
-    if (updated.tasks.length) {
-        llmTasksCache.set(messageId, updated);
-    } else {
-        llmTasksCache.remove(messageId); // Remove the entry if no tasks left
-    }
-});
-export const removeTasksForMessage = (messageId: string) => ifAllowed("functional", () => {
-    llmTasksCache.remove(messageId);
-});
+export function setCookieTaskForChat(chatId: string, task: LlmTaskInfo) {
+    return ifAllowed("functional", () => {
+        const existing = getCookieTasksForChat(chatId) || { tasks: [] };
+        const taskIndex = existing.tasks.findIndex(t => t.taskId === task.taskId);
+        if (taskIndex > -1) {
+            existing.tasks[taskIndex] = task; // Replace existing task with the same ID
+        } else {
+            existing.tasks.push(task); // Add new task
+        }
+        llmTasksCache.set(chatId, existing);
+    });
+}
+export function updateCookieTaskForChat(chatId: string, task: Partial<LlmTaskInfo>) {
+    return ifAllowed("functional", () => {
+        const existing = getCookieTasksForChat(chatId);
+        if (!existing || !existing.tasks.length) return;
+        const taskIndex = existing.tasks.findIndex(t => t.taskId === task.taskId);
+        if (taskIndex < 0) return;
+        existing.tasks[taskIndex] = { ...existing.tasks[taskIndex], ...task };
+        llmTasksCache.set(chatId, existing);
+    });
+}
+export function removeTaskForMessage(chatId: string, taskId: string) {
+    return ifAllowed("functional", () => {
+        const existing = getCookieTasksForChat(chatId);
+        if (!existing || !existing.tasks.length) return;
+        const updated = { tasks: existing.tasks.filter(t => t.taskId !== taskId) };
+        if (updated.tasks.length) {
+            llmTasksCache.set(chatId, updated);
+        } else {
+            llmTasksCache.remove(chatId); // Remove the entry if no tasks left
+        }
+    });
+}
+export function removeTasksForChat(chatId: string) {
+    return ifAllowed("functional", () => {
+        llmTasksCache.remove(chatId);
+    });
+}
 
 /** Supports ID data from URL params, as well as partial object */
 export type CookiePartialData = {
@@ -415,37 +445,41 @@ type Cache = {
 
 
 /** Get object containing all cached objects */
-const getCache = (): Cache => getOrSetCookie(
-    "PartialData", // Cookie name
-    (value: unknown): value is Cache =>
-        typeof value === "object" &&
-        typeof (value as Partial<Cache>)?.idMap === "object" &&
-        typeof (value as Partial<Cache>)?.handleMap === "object" &&
-        typeof (value as Partial<Cache>)?.idRootMap === "object" &&
-        typeof (value as Partial<Cache>)?.handleRootMap === "object" &&
-        Array.isArray((value as Partial<Cache>)?.order),
-    {
-        idMap: {},
-        handleMap: {},
-        idRootMap: {},
-        handleRootMap: {},
-        order: [],
-    }, // Default value
-) as Cache;
+function getCache(): Cache {
+    return getOrSetCookie(
+        "PartialData", // Cookie name
+        (value: unknown): value is Cache =>
+            typeof value === "object" &&
+            typeof (value as Partial<Cache>)?.idMap === "object" &&
+            typeof (value as Partial<Cache>)?.handleMap === "object" &&
+            typeof (value as Partial<Cache>)?.idRootMap === "object" &&
+            typeof (value as Partial<Cache>)?.handleRootMap === "object" &&
+            Array.isArray((value as Partial<Cache>)?.order),
+        {
+            idMap: {},
+            handleMap: {},
+            idRootMap: {},
+            handleRootMap: {},
+            order: [],
+        }, // Default value
+    ) as Cache;
+}
 
 /** Shape knownData to replace idRoot and handleRoot with proper root object */
-const shapeKnownData = <T extends CookiePartialData>(knownData: T): T => ({
-    ...knownData,
-    idRoot: undefined,
-    handleRoot: undefined,
-    ...(knownData.idRoot || knownData.handleRoot ? {
-        root: {
-            ...knownData.root,
-            id: knownData.idRoot,
-            handle: knownData.handleRoot,
-        },
-    } : {}),
-});
+function shapeKnownData<T extends CookiePartialData>(knownData: T): T {
+    return {
+        ...knownData,
+        idRoot: undefined,
+        handleRoot: undefined,
+        ...(knownData.idRoot || knownData.handleRoot ? {
+            root: {
+                ...knownData.root,
+                id: knownData.idRoot,
+                handle: knownData.handleRoot,
+            },
+        } : {}),
+    };
+}
 export function getCookiePartialData<T extends CookiePartialData>(knownData: CookiePartialData): T {
     return ifAllowed("functional",
         () => {
@@ -467,8 +501,8 @@ export function getCookiePartialData<T extends CookiePartialData>(knownData: Coo
         shapeKnownData(knownData),
     );
 }
-export const setCookiePartialData = (partialData: CookiePartialData, dataType: DataType) => ifAllowed("functional", () => {
-    ifAllowed("functional", () => {
+export function setCookiePartialData(partialData: CookiePartialData, dataType: DataType) {
+    return ifAllowed("functional", () => {
         // Get the cache
         const cache = getCache();
         // Create a key that includes every identifier for the object
@@ -516,21 +550,23 @@ export const setCookiePartialData = (partialData: CookiePartialData, dataType: D
 
         setStorageItem("PartialData", cache);
     });
-});
-export const removeCookiePartialData = (partialData: CookiePartialData) => ifAllowed("functional", () => {
-    // Get the cache
-    const cache = getCache();
-    // Create a key that includes every identifier for the object
-    const key = `${partialData.id}|${partialData.handle}|${partialData.root?.id}|${partialData.root?.handle}`;
-    // Remove the object from the cache
-    delete cache.idMap[partialData.id || ""];
-    delete cache.handleMap[partialData.handle || ""];
-    delete cache.idRootMap[partialData.root?.id || ""];
-    delete cache.handleRootMap[partialData.root?.handle || ""];
-    // Remove the key from the order array
-    const existingIndex = cache.order.indexOf(key);
-    if (existingIndex !== -1) {
-        cache.order.splice(existingIndex, 1);
-    }
-    setStorageItem("PartialData", cache);
-});
+}
+export function removeCookiePartialData(partialData: CookiePartialData) {
+    return ifAllowed("functional", () => {
+        // Get the cache
+        const cache = getCache();
+        // Create a key that includes every identifier for the object
+        const key = `${partialData.id}|${partialData.handle}|${partialData.root?.id}|${partialData.root?.handle}`;
+        // Remove the object from the cache
+        delete cache.idMap[partialData.id || ""];
+        delete cache.handleMap[partialData.handle || ""];
+        delete cache.idRootMap[partialData.root?.id || ""];
+        delete cache.handleRootMap[partialData.root?.handle || ""];
+        // Remove the key from the order array
+        const existingIndex = cache.order.indexOf(key);
+        if (existingIndex !== -1) {
+            cache.order.splice(existingIndex, 1);
+        }
+        setStorageItem("PartialData", cache);
+    });
+}

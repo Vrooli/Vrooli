@@ -5,7 +5,7 @@ import { handleRegex, urlRegex, urlRegexDev, walletAddressRegex } from "@local/s
  * @param strings Strings to check
  * @returns First non-blank, non-whitespace string, or empty string if none found
  */
-export const firstString = (...strings: unknown[]): string => {
+export function firstString(...strings: unknown[]): string {
     for (const obj of strings) {
         let str: string | undefined;
 
@@ -22,14 +22,14 @@ export const firstString = (...strings: unknown[]): string => {
     }
 
     return "";
-};
+}
 
 /**
  * Displays a date in a human readable format
  * @param timestamp Timestamp of date to display as seconds since epoch, or an ISO string
  * @param showDateAndTime Whether to display the time and date, or just the date
  */
-export const displayDate = (timestamp: number | string, showDateAndTime = true): string | null => {
+export function displayDate(timestamp: number | string, showDateAndTime = true): string | null {
     let date: Date;
 
     if (typeof timestamp === "number") {
@@ -65,7 +65,7 @@ export const displayDate = (timestamp: number | string, showDateAndTime = true):
     }
     // Return date and/or time string
     return showDateAndTime ? `${dateString}${!isToday ? "," : ""} ${timeString}` : dateString;
-};
+}
 
 /**
  * Converts font sizes (rem, em, px) to pixels
@@ -73,7 +73,7 @@ export const displayDate = (timestamp: number | string, showDateAndTime = true):
  * @param id - id of element, used to get em size
  * @returns font size number in pixels
  */
-export const fontSizeToPixels = (size: string | number, id?: string): number => {
+export function fontSizeToPixels(size: string | number, id?: string): number {
     if (typeof size === "number") {
         return size;
     }
@@ -95,7 +95,7 @@ export const fontSizeToPixels = (size: string | number, id?: string): number => 
         }
     }
     return 0;
-};
+}
 
 /**
  * Replaces selected text with new text.
@@ -105,20 +105,20 @@ export const fontSizeToPixels = (size: string | number, id?: string): number => 
  * @param end Index of cursor or selection end.
  * @returns New text with selected text replaced.
  */
-export const replaceText = (text: string, newText: string, start: number, end: number): string => {
+export function replaceText(text: string, newText: string, start: number, end: number): string {
     // Ignores out of bounds indexes
     if (start < 0 || end < 0 || start > text.length || end > text.length) {
         return text;
     }
     return text.substring(0, start) + newText + text.substring(end);
-};
+}
 
 /**
  * Uses element ID to get start, end, and element.
  * @param id The ID of the element to get the selection of
  * @returns Object containing start, end, and element
  */
-export const getTextSelection = (id: string) => {
+export function getTextSelection(id: string) {
     const element = document.getElementById(id);
     if (!element || element.tagName !== "TEXTAREA") {
         console.error(`Element not found or is not a textarea: ${id}`);
@@ -131,7 +131,7 @@ export const getTextSelection = (id: string) => {
         selected: textArea.value.substring(textArea.selectionStart, textArea.selectionEnd),
         inputElement: textArea,
     };
-};
+}
 
 /**
  * Determines start index of the current line.
@@ -139,10 +139,10 @@ export const getTextSelection = (id: string) => {
  * @param start Index of cursor or selection start.
  * @returns Index of start of current line.
  */
-export const getLineStart = (text: string, start: number) => {
+export function getLineStart(text: string, start: number) {
     if (start < 0 || start > text.length) return 0;
     return text.substring(0, start).lastIndexOf("\n") + 1;
-};
+}
 
 /**
  * Determines end index of the current line.
@@ -150,7 +150,7 @@ export const getLineStart = (text: string, start: number) => {
  * @param start Index of cursor or selection start.
  * @returns Index of end of current line.
  */
-export const getLineEnd = (text: string, start: number) => {
+export function getLineEnd(text: string, start: number) {
     if (start < 0 || start > text.length) return text.length;
 
     // Find the index of the next newline character after the start index
@@ -163,19 +163,19 @@ export const getLineEnd = (text: string, start: number) => {
 
     // Otherwise, adjust the end index to be relative to the entire text
     return endIndex + start;
-};
+}
 
 /**
  * Finds the line the specified index is on.
  * @returns The line's text, as well as its start and end index
  */
-export const getLineAtIndex = (text: string | null | undefined, index: number): [string, number, number] => {
+export function getLineAtIndex(text: string | null | undefined, index: number): [string, number, number] {
     if (!text || index < 0 || index > text.length) return ["", 0, 0];
     const start = getLineStart(text, index);
     const end = getLineEnd(text, index);
     const line = text.substring(start, end);
     return [line, start, end];
-};
+}
 
 /**
  * Determines all lines the cursor or highlighted text is on
@@ -184,7 +184,7 @@ export const getLineAtIndex = (text: string | null | undefined, index: number): 
  * @param end The index of the end of highlighted text
  * @returns The lines the cursor is on (or null), as well as their start and end index
  */
-export const getLinesAtRange = (text: string, start: number, end: number): [string[], number, number] => {
+export function getLinesAtRange(text: string, start: number, end: number): [string[], number, number] {
     // If out of bounds, return empty array
     if (typeof text !== "string" || text.length === 0 || start < 0 || end < 0 || start > text.length || end > text.length) {
         return [[], 0, 0];
@@ -193,7 +193,7 @@ export const getLinesAtRange = (text: string, start: number, end: number): [stri
     const lineEnd = getLineEnd(text, end);
     const lines = lineStart === lineEnd ? [] : text.substring(lineStart, lineEnd).split("\n");
     return [lines, lineStart, lineEnd];
-};
+}
 
 export enum Headers {
     h1 = "h1",
@@ -228,7 +228,7 @@ export type TextStyleResult = {
  * @param end - The end index of the cursor/selection.
  * @returns The updated text, start, and end index of the cursor.
  */
-export const insertHeader = (header: Headers, text: string, start: number, end: number): TextStyleResult => {
+export function insertHeader(header: Headers, text: string, start: number, end: number): TextStyleResult {
     let updatedText = text;
     const startLine = getLineStart(updatedText, start);
     const headerText = headerMarkdowns[header];
@@ -268,7 +268,7 @@ export const insertHeader = (header: Headers, text: string, start: number, end: 
     const updatedEnd = end + cursorAdjustment;
 
     return { text: updatedText, start: updatedStart, end: updatedEnd };
-};
+}
 
 /**
  * Toggles padding around the selection, with special handling for Markdown italics and bold.
@@ -280,13 +280,13 @@ export const insertHeader = (header: Headers, text: string, start: number, end: 
  * @param end The end index of the cursor/selection
  * @returns The updated text, start, and end index of the cursor
  */
-export const padSelection = (
+export function padSelection(
     padStart: string,
     padEnd: string,
     text: string,
     start: number,
     end: number,
-): TextStyleResult => {
+): TextStyleResult {
     let updatedText = text;
     let updatedStart = start;
     let updatedEnd = end;
@@ -340,7 +340,7 @@ export const padSelection = (
     }
 
     return { text: updatedText, start: updatedStart, end: updatedEnd };
-};
+}
 
 /**
  * Inserts a markdown link at the cursor or around the selected text.
@@ -349,7 +349,7 @@ export const padSelection = (
  * @param end The end index of the cursor/selection
  * @returns The updated text, start, and end index of the cursor
  */
-export const insertLink = (text: string, start: number, end: number): TextStyleResult => {
+export function insertLink(text: string, start: number, end: number): TextStyleResult {
     const isValidUrl = (url: string): boolean => {
         return urlRegex.test(url)
             || urlRegexDev.test(url)
@@ -388,7 +388,7 @@ export const insertLink = (text: string, start: number, end: number): TextStyleR
     }
 
     return { text: updatedText, start: updatedStart, end: updatedEnd };
-};
+}
 
 /**
  * Toggles a bullet list item at the beginning of each line in the selection.
@@ -397,7 +397,7 @@ export const insertLink = (text: string, start: number, end: number): TextStyleR
  * @param end The end index of the cursor/selection
  * @returns The updated text, start, and end index of the cursor
  */
-export const insertBulletList = (text: string, start: number, end: number): TextStyleResult => {
+export function insertBulletList(text: string, start: number, end: number): TextStyleResult {
     // Helper function to detect if a line is bulleted
     const isBulleted = (line: string) => line.startsWith("* ");
 
@@ -429,7 +429,7 @@ export const insertBulletList = (text: string, start: number, end: number): Text
     const updatedStart = start + 2;
     const updatedEnd = end + (2 * lines.length);
     return { text: updatedText, start: updatedStart, end: updatedEnd };
-};
+}
 
 /**
  * Toggles a number list item at the beginning of each line in the selection.
@@ -438,7 +438,7 @@ export const insertBulletList = (text: string, start: number, end: number): Text
  * @param end The end index of the cursor/selection
  * @returns The updated text, start, and end index of the cursor
  */
-export const insertNumberList = (text: string, start: number, end: number): TextStyleResult => {
+export function insertNumberList(text: string, start: number, end: number): TextStyleResult {
     // Get all lines in the selection
     // eslint-disable-next-line prefer-const
     let [lines, linesStart, linesEnd] = getLinesAtRange(text, start, end);
@@ -470,7 +470,7 @@ export const insertNumberList = (text: string, start: number, end: number): Text
     const updatedText = replaceText(text, updatedLines.join("\n"), linesStart, linesEnd);
 
     return { text: updatedText, start: updatedStart, end: updatedEnd };
-};
+}
 
 /**
  * Toggles a checkbox list item at the beginning of each line in the selection.
@@ -479,7 +479,7 @@ export const insertNumberList = (text: string, start: number, end: number): Text
  * @param end The end index of the cursor/selection
  * @returns The updated text, start, and end index of the cursor
  */
-export const insertCheckboxList = (text: string, start: number, end: number): TextStyleResult => {
+export function insertCheckboxList(text: string, start: number, end: number): TextStyleResult {
     // Get all lines in the selection
     // eslint-disable-next-line prefer-const
     let [lines, linesStart, linesEnd] = getLinesAtRange(text, start, end);
@@ -512,7 +512,7 @@ export const insertCheckboxList = (text: string, start: number, end: number): Te
     const updatedText = replaceText(text, updatedLines.join("\n"), linesStart, linesEnd);
 
     return { text: updatedText, start: updatedStart, end: updatedEnd };
-};
+}
 
 /**
  * Toggles code quotes or a code block, depending on the selection.
@@ -521,7 +521,7 @@ export const insertCheckboxList = (text: string, start: number, end: number): Te
  * @param end The end index of the cursor/selection
  * @returns The updated text, start, and end index of the cursor
  */
-export const insertCode = (text: string, start: number, end: number): TextStyleResult => {
+export function insertCode(text: string, start: number, end: number): TextStyleResult {
     const selection = text.substring(start, end);
     const isMultiLine = selection.includes("\n");
 
@@ -584,7 +584,7 @@ export const insertCode = (text: string, start: number, end: number): TextStyleR
         // Otherwise, add inline code markers around the selection
         return padSelection(inlineCodeMarker, inlineCodeMarker, text, start, end);
     }
-};
+}
 
 /**
  * Inserts quotes or a quote block, depending on the selection.
@@ -593,7 +593,7 @@ export const insertCode = (text: string, start: number, end: number): TextStyleR
  * @param end The end index of the cursor/selection
  * @returns The updated text, start, and end index of the cursor
  */
-export const insertQuote = (text: string, start: number, end: number): TextStyleResult => {
+export function insertQuote(text: string, start: number, end: number): TextStyleResult {
     // Get all lines in the selection
     // eslint-disable-next-line prefer-const
     let [lines, linesStart, linesEnd] = getLinesAtRange(text, start, end);
@@ -648,7 +648,7 @@ export const insertQuote = (text: string, start: number, end: number): TextStyle
     start = Math.max(linesStart, start);
 
     return { text: updatedText, start, end };
-};
+}
 
 /**
  * Inserts table markdown with the required number of rows and columns.
@@ -659,7 +659,7 @@ export const insertQuote = (text: string, start: number, end: number): TextStyle
  * @param end The end index of the cursor/selection
  * @returns The updated text, start, and end index of the cursor
  */
-export const insertTable = (rows: number, cols: number, text: string, start: number, end: number): TextStyleResult => {
+export function insertTable(rows: number, cols: number, text: string, start: number, end: number): TextStyleResult {
     // Don't do anything if rows or cols are invalid
     if (rows <= 0 || cols <= 0) {
         return { text, start, end };
@@ -702,7 +702,7 @@ export const insertTable = (rows: number, cols: number, text: string, start: num
     // Insert table markdown at the cursor
     const updatedText = replaceText(text, tableStr, tableStart, tableEnd);
     return { text: updatedText, start: updatedStart, end: updatedEnd };
-};
+}
 
 const MAX_CONTENT_LENGTH = 1500;
 
@@ -712,18 +712,15 @@ const MAX_CONTENT_LENGTH = 1500;
  * @param fullText The full text from the input field
  * @returns The formatted context string
  */
-export const generateContext = (selected: string, fullText: string): string => {
-    // Wraps text in a quote block to indicate that it's context
-    const wrapContext = (context: string) => {
-        return `"""\n${context}\n"""\n\n`;
-    };
+export function generateContext(selected: string, fullText: string): string {
     let context = selected.trim();
+    const ellipsis = "…";
     // If selected text is too long, provide the last 1500 characters
     if (context.length > MAX_CONTENT_LENGTH) {
-        context = "..." + context.substring(context.length - MAX_CONTENT_LENGTH - 3, context.length);
-        return wrapContext(context.trim());
+        context = ellipsis + context.substring(context.length - MAX_CONTENT_LENGTH - ellipsis.length, context.length);
+        return context.trim();
     } else if (context.length > 0) {
-        return wrapContext(context.trim());
+        return context.trim();
     }
     const fullValue = fullText.trim();
     if (fullValue.length <= 0) {
@@ -732,6 +729,6 @@ export const generateContext = (selected: string, fullText: string): string => {
     // If there's no selection, provide the full text if it's not too long
     if (fullValue.length <= MAX_CONTENT_LENGTH) context = fullValue;
     // Otherwise, provide the last 1500 characters
-    else context = "..." + fullValue.substring(fullValue.length - MAX_CONTENT_LENGTH - 3, fullValue.length);
-    return wrapContext(context.trim());
-};
+    else context = ellipsis + fullValue.substring(fullValue.length - MAX_CONTENT_LENGTH - ellipsis.length, fullValue.length);
+    return context.trim();
+}

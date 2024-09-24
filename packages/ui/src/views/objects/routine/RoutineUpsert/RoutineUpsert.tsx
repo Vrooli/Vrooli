@@ -1,4 +1,4 @@
-import { AutoFillResult, ConfigCallData, DUMMY_ID, FormInputBase, FormSchema, LINKS, LlmModel, LlmTask, NodeLinkShape, NodeShape, RoutineShape, RoutineType, RoutineVersion, RoutineVersionCreateInput, RoutineVersionInputShape, RoutineVersionOutputShape, RoutineVersionShape, RoutineVersionUpdateInput, SearchPageTabOption, Session, defaultConfigCallDataMap, defaultConfigFormInputMap, defaultConfigFormOutputMap, endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, initializeRoutineGraph, noop, noopSubmit, orDefault, parseConfigCallData, parseSchemaInput, parseSchemaOutput, routineVersionTranslationValidation, routineVersionValidation, shapeRoutineVersion, uuid, uuidValidate } from "@local/shared";
+import { ConfigCallData, DUMMY_ID, FormInputBase, FormSchema, LINKS, LlmModel, LlmTask, NodeLinkShape, NodeShape, RoutineShape, RoutineType, RoutineVersion, RoutineVersionCreateInput, RoutineVersionInputShape, RoutineVersionOutputShape, RoutineVersionShape, RoutineVersionUpdateInput, SearchPageTabOption, Session, defaultConfigCallDataMap, defaultConfigFormInputMap, defaultConfigFormOutputMap, endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, initializeRoutineGraph, noop, noopSubmit, orDefault, parseConfigCallData, parseSchemaInput, parseSchemaOutput, routineVersionTranslationValidation, routineVersionValidation, shapeRoutineVersion, uuid, uuidValidate } from "@local/shared";
 import { Checkbox, Divider, FormControlLabel, Grid, Tooltip } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
@@ -18,7 +18,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts";
 import { FieldHelperProps, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
+import { UseAutoFillProps, getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
@@ -406,7 +406,7 @@ function RoutineForm({
         };
     }, [language, values]);
 
-    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback({ data }: AutoFillResult) {
+    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback(data: Parameters<UseAutoFillProps["shapeAutoFillResult"]>[0]) {
         const originalValues = { ...values };
         const updatedValues = {} as any; //TODO
         console.log("in shapeAutoFillResult", language, data, originalValues, updatedValues);

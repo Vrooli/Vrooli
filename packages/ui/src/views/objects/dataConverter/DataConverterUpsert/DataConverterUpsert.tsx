@@ -1,4 +1,4 @@
-import { AutoFillResult, CodeLanguage, CodeShape, CodeType, CodeVersion, CodeVersionCreateInput, CodeVersionShape, CodeVersionUpdateInput, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, Session, codeVersionTranslationValidation, codeVersionValidation, endpointGetCodeVersion, endpointPostCodeVersion, endpointPutCodeVersion, noopSubmit, orDefault, shapeCodeVersion } from "@local/shared";
+import { CodeLanguage, CodeShape, CodeType, CodeVersion, CodeVersionCreateInput, CodeVersionShape, CodeVersionUpdateInput, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, Session, codeVersionTranslationValidation, codeVersionValidation, endpointGetCodeVersion, endpointPostCodeVersion, endpointPutCodeVersion, noopSubmit, orDefault, shapeCodeVersion } from "@local/shared";
 import { Button, Divider } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
@@ -18,7 +18,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
+import { UseAutoFillProps, createUpdatedTranslations, getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
@@ -186,7 +186,7 @@ function DataConverterForm({
         };
     }, [language, values]);
 
-    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback({ data }: AutoFillResult) {
+    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback(data: Parameters<UseAutoFillProps["shapeAutoFillResult"]>[0]) {
         const originalValues = { ...values };
         const { updatedTranslations, rest } = createUpdatedTranslations(values, data, language, ["name", "description"]);
         delete rest.id;

@@ -1,20 +1,20 @@
 import { DUMMY_ID } from "@local/shared";
 import { defaultYou, getYou, placeholderColor, placeholderColors, simpleHash } from "./listTools";
 
-describe('getYou function', () => {
+describe("getYou function", () => {
     beforeEach(() => {
         jest.clearAllMocks();
     });
 
-    it('should return defaultYou when object is null or undefined', () => {
+    it("should return defaultYou when object is null or undefined", () => {
         expect(getYou(null)).toEqual(defaultYou);
         expect(getYou(undefined)).toEqual(defaultYou);
     });
 
-    it('should handle DUMMY_ID case', () => {
+    it("should handle DUMMY_ID case", () => {
         const dummyObject = {
             __typename: "Api",
-            id: DUMMY_ID
+            id: DUMMY_ID,
         } as const;
         const result = getYou(dummyObject);
         expect(result).toEqual({
@@ -23,7 +23,7 @@ describe('getYou function', () => {
         });
     });
 
-    it('should get permissions from object.you', () => {
+    it("should get permissions from object.you", () => {
         const object = {
             __typename: "RoutineVersion",
             you: {
@@ -36,7 +36,7 @@ describe('getYou function', () => {
         expect(result.canDelete).toBe(false);
     });
 
-    it('should get permissions from object.root.you if not in object.you', () => {
+    it("should get permissions from object.root.you if not in object.you", () => {
         const object = {
             __typename: "CodeVersion",
             you: {},
@@ -53,19 +53,19 @@ describe('getYou function', () => {
         expect(result.canDelete).toBe(false);
     });
 
-    it('should default to false if permission is not found', () => {
+    it("should default to false if permission is not found", () => {
         const object = {
             __typename: "Standard",
-            you: {}
+            you: {},
         } as const;
         const result = getYou(object);
         expect(result.canUpdate).toBe(false);
         expect(result.canDelete).toBe(false);
     });
 
-    it('should filter invalid actions', () => {
+    it("should filter invalid actions", () => {
         const object = {
-            __typename: 'InvalidType',
+            __typename: "InvalidType",
             you: {
                 canBookmark: true,
                 canComment: true,

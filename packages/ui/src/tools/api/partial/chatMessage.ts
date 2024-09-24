@@ -43,7 +43,6 @@ export const chatMessage: GqlPartial<ChatMessage> = {
         you: () => rel(chatMessageYou, "full"),
     },
     full: {
-        chat: async () => rel((await import("./chat")).chat, "full", { omit: "messages" }),
         translations: () => rel(chatMessageTranslation, "full"),
     },
     list: {

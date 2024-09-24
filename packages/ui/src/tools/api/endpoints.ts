@@ -99,8 +99,8 @@ export const endpoints = {
             findOne: toQuery("chatMessage", "FindByIdInput", chatMessage, "full"),
             findMany: toQuery("chatMessages", "ChatMessageSearchInput", ...(await toSearch(chatMessage))),
             findTree: toQuery("chatMessageTree", "ChatMessageSearchTreeInput", chatMessageSearchTreeResult, "common"),
-            create: toMutation("chatMessageCreate", "ChatMessageCreateInput", chatMessage, "full"),
-            update: toMutation("chatMessageUpdate", "ChatMessageUpdateInput", chatMessage, "full"),
+            create: toMutation("chatMessageCreate", "ChatMessageCreateWithTaskInfoInput", chatMessage, "full"),
+            update: toMutation("chatMessageUpdate", "ChatMessageUpdateWithTaskInfoInput", chatMessage, "full"),
             regenerateResponse: toMutation("regenerateResponse", "RegenerateResponseInput", success, "full"),
         };
     },
@@ -701,10 +701,9 @@ export const endpoints = {
         };
     },
     task: async () => {
-        const { autoFillResult, checkTaskStatusesResult } = await import("./partial/task");
+        const { checkTaskStatusesResult } = await import("./partial/task");
         const { success } = await import("./partial/success");
         return {
-            autoFill: toMutation("autoFill", "AutoFillInput", autoFillResult, "full"),
             startLlmTask: toMutation("startLlmTask", "StartLlmTaskInput", success, "full"),
             startRunTask: toMutation("startRunTask", "StartRunTaskInput", success, "full"),
             cancelTask: toMutation("cancelTask", "CancelTaskInput", success, "full"),

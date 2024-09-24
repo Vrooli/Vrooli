@@ -1,4 +1,4 @@
-import { ApiShape, ApiVersion, ApiVersionCreateInput, ApiVersionShape, apiVersionTranslationValidation, ApiVersionUpdateInput, apiVersionValidation, AutoFillResult, CodeLanguage, DUMMY_ID, endpointGetApiVersion, endpointPostApiVersion, endpointPutApiVersion, LINKS, LlmTask, noopSubmit, orDefault, SearchPageTabOption, Session, shapeApiVersion } from "@local/shared";
+import { ApiShape, ApiVersion, ApiVersionCreateInput, ApiVersionShape, apiVersionTranslationValidation, ApiVersionUpdateInput, apiVersionValidation, CodeLanguage, DUMMY_ID, endpointGetApiVersion, endpointPostApiVersion, endpointPutApiVersion, LINKS, LlmTask, noopSubmit, orDefault, SearchPageTabOption, Session, shapeApiVersion } from "@local/shared";
 import { Button, Divider, InputAdornment, Stack } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
@@ -17,7 +17,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
+import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "hooks/tasks";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
@@ -535,7 +535,7 @@ function ApiForm({
         };
     }, [language, values]);
 
-    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback({ data }: AutoFillResult) {
+    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback(data: Parameters<UseAutoFillProps["shapeAutoFillResult"]>[0]) {
         const originalValues = { ...values };
         const { updatedTranslations, rest } = createUpdatedTranslations(values, data, language, ["name", "summary", "details"]);
         delete rest.id;

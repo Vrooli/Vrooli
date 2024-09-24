@@ -1,4 +1,4 @@
-import { AutoFillResult, CodeLanguage, DUMMY_ID, endpointGetStandardVersion, endpointPostStandardVersion, endpointPutStandardVersion, LINKS, LlmTask, noopSubmit, orDefault, SearchPageTabOption, Session, shapeStandardVersion, StandardType, StandardVersion, StandardVersionCreateInput, StandardVersionShape, standardVersionTranslationValidation, StandardVersionUpdateInput, standardVersionValidation } from "@local/shared";
+import { CodeLanguage, DUMMY_ID, endpointGetStandardVersion, endpointPostStandardVersion, endpointPutStandardVersion, LINKS, LlmTask, noopSubmit, orDefault, SearchPageTabOption, Session, shapeStandardVersion, StandardType, StandardVersion, StandardVersionCreateInput, StandardVersionShape, standardVersionTranslationValidation, StandardVersionUpdateInput, standardVersionValidation } from "@local/shared";
 import { Button, Divider } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
@@ -19,7 +19,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
+import { getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "hooks/tasks";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
@@ -162,7 +162,7 @@ function DataStructureForm({
         };
     }, [language, values]);
 
-    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback({ data }: AutoFillResult) {
+    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback(data: Parameters<UseAutoFillProps["shapeAutoFillResult"]>[0]) {
         const originalValues = { ...values };
         const updatedValues = {} as any; //TODO
         console.log("in shapeAutoFillResult", language, data, originalValues, updatedValues);

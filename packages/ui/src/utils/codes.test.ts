@@ -30,15 +30,6 @@ describe("chatMatchHash", () => {
         expect(hash1).not.toEqual(hash2);
     });
 
-    it("generates different hash when specifying a task", () => {
-        const participantIds = ["alice", "bob", "charlie"];
-
-        const hash1 = chatMatchHash(participantIds);
-        const hash2 = chatMatchHash(participantIds, "task");
-
-        expect(hash1).not.toEqual(hash2);
-    });
-
     it("generates a consistent hash for a given set of participant user IDs", () => {
         const participantIds = ["alice", "bob", "charlie"];
 

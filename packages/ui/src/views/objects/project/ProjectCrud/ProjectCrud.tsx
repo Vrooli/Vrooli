@@ -1,4 +1,4 @@
-import { AutoFillResult, DUMMY_ID, DeleteOneInput, DeleteType, ListObject, LlmTask, ProjectShape, ProjectVersion, ProjectVersionCreateInput, ProjectVersionDirectoryShape, ProjectVersionShape, ProjectVersionUpdateInput, Session, Success, endpointGetProjectVersion, endpointPostDeleteOne, endpointPostProjectVersion, endpointPutProjectVersion, noopSubmit, orDefault, projectVersionTranslationValidation, projectVersionValidation, shapeProjectVersion } from "@local/shared";
+import { DUMMY_ID, DeleteOneInput, DeleteType, ListObject, LlmTask, ProjectShape, ProjectVersion, ProjectVersionCreateInput, ProjectVersionDirectoryShape, ProjectVersionShape, ProjectVersionUpdateInput, Session, Success, endpointGetProjectVersion, endpointPostDeleteOne, endpointPostProjectVersion, endpointPutProjectVersion, noopSubmit, orDefault, projectVersionTranslationValidation, projectVersionValidation, shapeProjectVersion } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { fetchLazyWrapper, useSubmitHelper } from "api";
 import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
@@ -15,7 +15,7 @@ import { EditableTitle } from "components/text/EditableTitle/EditableTitle";
 import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
+import { UseAutoFillProps, getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
@@ -173,7 +173,7 @@ function ProjectForm({
         };
     }, [language, values]);
 
-    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback({ data }: AutoFillResult) {
+    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback(data: Parameters<UseAutoFillProps["shapeAutoFillResult"]>[0]) {
         const originalValues = { ...values };
         const updatedValues = {} as any; //TODO
         console.log("in shapeAutoFillResult", language, data, originalValues, updatedValues);

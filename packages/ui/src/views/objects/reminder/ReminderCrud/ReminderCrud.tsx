@@ -1,4 +1,4 @@
-import { AutoFillInput, AutoFillResult, DeleteOneInput, DeleteType, DUMMY_ID, endpointGetReminder, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, LlmTask, noopSubmit, Reminder, ReminderCreateInput, ReminderItemShape, ReminderShape, ReminderUpdateInput, reminderValidation, Session, shapeReminder, Success, uuid } from "@local/shared";
+import { DeleteOneInput, DeleteType, DUMMY_ID, endpointGetReminder, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, LlmTask, noopSubmit, Reminder, ReminderCreateInput, ReminderItemShape, ReminderShape, ReminderUpdateInput, reminderValidation, Session, shapeReminder, Success, uuid } from "@local/shared";
 import { Box, Button, Checkbox, Divider, FormControlLabel, IconButton, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper, useSubmitHelper } from "api";
 import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
@@ -13,7 +13,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useAutoFill } from "hooks/tasks";
+import { useAutoFill, UseAutoFillProps } from "hooks/tasks";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
@@ -181,20 +181,22 @@ function ReminderForm({
                 isComplete: step.isComplete,
                 name: step.name,
             })) ?? [],
-        } as AutoFillInput["data"];
-        if (input.steps.length === 0) delete input.steps;
+        } as Record<string, unknown> & { steps?: Record<string, unknown>[] };
+        if (input.steps && input.steps.length === 0) delete input.steps;
         return input;
     }, [values]);
 
-    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback({ data }: AutoFillResult) {
+    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback(data: Parameters<UseAutoFillProps["shapeAutoFillResult"]>[0]) {
         const originalValues = { ...values };
+        if (!data || typeof data !== "object") return { originalValues, updatedValues: originalValues };
+        const dataObject = data as Record<string, unknown>;
         const updatedValues = {
             ...values,
-            description: typeof data.description === "string" ? data.description : values.description,
-            dueDate: typeof data.dueDate === "string" ? data.dueDate : values.dueDate,
-            isComplete: typeof data.isComplete === "boolean" ? data.isComplete : values.isComplete,
-            name: typeof data.name === "string" ? data.name : values.name,
-            reminderItems: Array.isArray(data.steps) ? data.steps.map((step, i) => ({
+            description: typeof dataObject.description === "string" ? dataObject.description : values.description,
+            dueDate: typeof dataObject.dueDate === "string" ? dataObject.dueDate : values.dueDate,
+            isComplete: typeof dataObject.isComplete === "boolean" ? dataObject.isComplete : values.isComplete,
+            name: typeof dataObject.name === "string" ? dataObject.name : values.name,
+            reminderItems: Array.isArray(dataObject.steps) ? dataObject.steps.map((step, i) => ({
                 //...values.reminderItems?.[i],
                 id: DUMMY_ID,
                 index: i,
@@ -203,7 +205,7 @@ function ReminderForm({
                 description: step.description ?? "",
                 dueDate: step.dueDate ?? null,
             })) : values.reminderItems,
-        };
+        } as ReminderShape;
         return { originalValues, updatedValues };
     }, [values]);
 

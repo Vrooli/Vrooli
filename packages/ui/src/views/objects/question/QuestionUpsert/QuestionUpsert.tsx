@@ -1,4 +1,4 @@
-import { AutoFillResult, DUMMY_ID, endpointGetQuestion, endpointPostQuestion, endpointPutQuestion, LlmTask, noopSubmit, orDefault, Question, QuestionCreateInput, QuestionShape, questionTranslationValidation, QuestionUpdateInput, questionValidation, Session, shapeQuestion } from "@local/shared";
+import { DUMMY_ID, endpointGetQuestion, endpointPostQuestion, endpointPutQuestion, LlmTask, noopSubmit, orDefault, Question, QuestionCreateInput, QuestionShape, questionTranslationValidation, QuestionUpdateInput, questionValidation, Session, shapeQuestion } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
@@ -13,7 +13,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts";
 import { Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
+import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "hooks/tasks";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
@@ -112,7 +112,7 @@ function QuestionForm({
         };
     }, [language, values]);
 
-    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback({ data }: AutoFillResult) {
+    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback(data: Parameters<UseAutoFillProps["shapeAutoFillResult"]>[0]) {
         const originalValues = { ...values };
         const { updatedTranslations, rest } = createUpdatedTranslations(values, data, language, ["name", "description"]);
         delete rest.id;

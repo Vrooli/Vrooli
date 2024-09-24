@@ -1,4 +1,4 @@
-import { AutoFillResult, AVAILABLE_MODELS, BotCreateInput, BotShape, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetUser, endpointPostBot, endpointPutBot, findBotData, LINKS, LlmModel, LlmTask, noopSubmit, SearchPageTabOption, Session, shapeBot, User, validateAndGetYupErrors } from "@local/shared";
+import { AVAILABLE_MODELS, BotCreateInput, BotShape, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetUser, endpointPostBot, endpointPutBot, findBotData, LINKS, LlmModel, LlmTask, noopSubmit, SearchPageTabOption, Session, shapeBot, User, validateAndGetYupErrors } from "@local/shared";
 import { Divider, InputAdornment, Slider, Stack, Typography } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
@@ -17,7 +17,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
+import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "hooks/tasks";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
@@ -302,7 +302,7 @@ function BotForm({
         };
     }, [language, values]);
 
-    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback({ data }: AutoFillResult) {
+    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback(data: Parameters<UseAutoFillProps["shapeAutoFillResult"]>[0]) {
         const originalValues = { ...values };
         const { updatedTranslations, rest } = createUpdatedTranslations(values, data, language, ["bio", "occupation", "persona", "startingMessage", "tone", "keyPhrases", "domainKnowledge", "bias"]);
         delete rest.id;

@@ -1,5 +1,4 @@
-import { noop } from "@local/shared";
-import { Box, BoxProps, Button, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, Popover, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { Box, BoxProps, Button, IconButton, List, ListItem, ListItemIcon, ListItemProps, ListItemText, Menu, MenuItem, Palette, Popover, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { SessionContext } from "contexts";
 import { useIsLeftHanded, useRichInputToolbarViewSize } from "hooks/subscriptions";
 import { usePopover } from "hooks/usePopover";
@@ -10,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { SxType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { keyComboToString } from "utils/display/device";
+import { RichInputToolbarViewSize } from "utils/pubsub";
 import { RichInputAction, RichInputActiveStates } from "../types";
 
 type PopoverActionItem = {
@@ -17,9 +17,6 @@ type PopoverActionItem = {
     icon: React.ReactNode,
     label: string
 };
-
-/** Determines how many options should be displayed directly */
-type ViewSize = "minimal" | "partial" | "full";
 
 type ActionPopoverProps = {
     activeStates: Omit<RichInputActiveStates, "SetValue">;
@@ -29,7 +26,6 @@ type ActionPopoverProps = {
     isOpen: boolean;
     items: PopoverActionItem[];
     onClose: () => unknown;
-    palette: any;//Theme["palette"];
 }
 
 type TablePopoverProps = {
@@ -112,6 +108,22 @@ const ToolButton = forwardRef(({
 });
 ToolButton.displayName = "ToolButton";
 
+const ActionPopoverList = styled(List)(({ theme }) => ({
+    background: theme.palette.background.paper,
+    color: theme.palette.background.textPrimary,
+}));
+
+interface ActionPopoverListItemProps extends ListItemProps {
+    action: PopoverActionItem["action"];
+    activeStates: Omit<RichInputActiveStates, "SetValue">;
+}
+const ActionPopoverListItem = styled(ListItem, {
+    shouldForwardProp: (prop) => prop !== "action" && prop !== "activeStates",
+})<ActionPopoverListItemProps>(({ action, activeStates, theme }) => ({
+    background: activeStates[action] ? theme.palette.secondary.light : "transparent",
+}));
+
+
 const popoverAnchorOrigin = { vertical: "bottom", horizontal: "center" } as const;
 
 function ActionPopover({
@@ -122,7 +134,6 @@ function ActionPopover({
     isOpen,
     items,
     onClose,
-    palette,
 }: ActionPopoverProps) {
     return (
         <Popover
@@ -132,26 +143,43 @@ function ActionPopover({
             onClose={onClose}
             anchorOrigin={popoverAnchorOrigin}
         >
-            <List sx={{ background: palette.background.paper, color: palette.background.contrastText }}>
-                {items.map(({ action, icon, label }) => (
-                    <ListItem
-                        button
-                        key={action}
-                        onClick={() => { handleAction(action); }}
-                        sx={{
-                            background: activeStates[action] ? palette.secondary.light : "transparent",
-                        }}
-                    >
-                        <ListItemIcon>
-                            {icon}
-                        </ListItemIcon>
-                        <ListItemText primary={label} />
-                    </ListItem>
-                ))}
-            </List>
+            <ActionPopoverList>
+                {items.map(({ action, icon, label }) => {
+                    function onAction() {
+                        handleAction(action);
+                    }
+                    return (
+                        <ActionPopoverListItem
+                            action={action}
+                            activeStates={activeStates}
+                            // eslint-disable-next-line
+                            // @ts-ignore
+                            button
+                            key={action}
+                            onClick={onAction}
+                        >
+                            <ListItemIcon>
+                                {icon}
+                            </ListItemIcon>
+                            <ListItemText primary={label} />
+                        </ActionPopoverListItem>
+                    );
+                })}
+            </ActionPopoverList>
         </Popover>
     );
 }
+
+const TableStack = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: theme.spacing(1),
+    padding: theme.spacing(2),
+    background: theme.palette.background.paper,
+    color: theme.palette.background.textPrimary,
+}));
 
 function TablePopover({
     anchorEl,
@@ -223,51 +251,52 @@ function TablePopover({
             onClose={onClose}
             anchorOrigin={popoverAnchorOrigin}
         >
-            <Stack
-                direction="column"
-                justifyContent="center"
-                alignItems="center"
-                spacing={1}
-                p={2}
-                sx={{ background: palette.background.paper, color: palette.background.contrastText }}
-            >
+            <TableStack>
                 <Typography align="center" variant="h6" pb={1}>
                     {t("TableSelectSize")}
                 </Typography>
                 <Box>
                     {[...Array(maxRows)].map((_, rowIndex) => (
                         <Box key={rowIndex} display="flex">
-                            {[...Array(maxCols)].map((_, colIndex) => (
-                                <Box
-                                    key={colIndex}
-                                    component="button"
-                                    onMouseEnter={canHover ? () => {
-                                        setHoveredRow(rowIndex + 1);
-                                        setHoveredCol(colIndex + 1);
-                                    } : noop}
-                                    onClick={() => {
-                                        setHoveredRow(rowIndex + 1);
-                                        setHoveredCol(colIndex + 1);
-                                        // Submit immediately if the user can hover
-                                        if (canHover) {
-                                            handleTableInsert(rowIndex + 1, colIndex + 1);
-                                        }
-                                    }}
-                                    sx={{
-                                        width: 25,
-                                        height: 25,
-                                        border: `1px solid ${palette.divider}`,
-                                        background: (rowIndex < hoveredRow && colIndex < hoveredCol) ?
-                                            palette.secondary.light :
-                                            "transparent",
-                                        cursor: "pointer",
-                                    }}
-                                />
-                            ))}
+                            {[...Array(maxCols)].map((_, colIndex) => {
+                                function handleMouseEnter() {
+                                    if (!canHover) {
+                                        return;
+                                    }
+                                    setHoveredRow(rowIndex + 1);
+                                    setHoveredCol(colIndex + 1);
+                                }
+                                function handleClick() {
+                                    setHoveredRow(rowIndex + 1);
+                                    setHoveredCol(colIndex + 1);
+                                    // Submit immediately if the user can hover
+                                    if (canHover) {
+                                        handleTableInsert(rowIndex + 1, colIndex + 1);
+                                    }
+                                }
+
+                                return (
+                                    <Box
+                                        key={colIndex}
+                                        component="button"
+                                        onMouseEnter={handleMouseEnter}
+                                        onClick={handleClick}
+                                        sx={{
+                                            width: 25,
+                                            height: 25,
+                                            border: `1px solid ${palette.divider}`,
+                                            background: (rowIndex < hoveredRow && colIndex < hoveredCol) ?
+                                                palette.secondary.light :
+                                                "transparent",
+                                            cursor: "pointer",
+                                        }}
+                                    />
+                                );
+                            })}
                         </Box>
                     ))}
                 </Box>
-                <Typography align="center" variant="body2" sx={{ marginTop: 1 }}>
+                <Typography align="center" variant="body2" marginTop={1}>
                     {hoveredRow} x {hoveredCol}
                 </Typography>
                 {!canHover && (
@@ -275,7 +304,7 @@ function TablePopover({
                         {t("Submit")}
                     </Button>
                 )}
-            </Stack>
+            </TableStack>
         </Popover>
     );
 }
@@ -283,7 +312,7 @@ function TablePopover({
 interface LeftSectionProps extends BoxProps {
     disabled: boolean;
     isLeftHanded: boolean;
-    viewSize: ViewSize
+    viewSize: RichInputToolbarViewSize
 }
 
 const LeftSection = styled(Box, {
@@ -318,6 +347,8 @@ const ModeSelectorLabel = styled(Typography)(({ theme }) => ({
     borderRadius: 2,
 }));
 
+const contextItemStyle = { display: "flex", alignItems: "center" } as const;
+
 export function RichInputToolbar({
     activeStates,
     canRedo,
@@ -342,16 +373,29 @@ export function RichInputToolbar({
     name: string,
     sx?: SxType;
 }) {
-    const { breakpoints, palette } = useTheme();
+    const { palette } = useTheme();
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const { credits } = useMemo(() => getCurrentUser(session), [session]);
-    const { dimensions, fromDims, ref: dimRef } = useDimensions();
-    const viewSize = useMemo<ViewSize>(() => {
-        if (dimensions.width <= 375) return "minimal";
-        if (dimensions.width <= breakpoints.values.sm) return "partial";
-        return "full";
-    }, [breakpoints, dimensions]);
+
+    const { dimRef, handleUpdateViewSize, viewSize } = useRichInputToolbarViewSize();
+    const [contextMenu, setContextMenu] = useState<{ mouseX: number; mouseY: number } | null>(null);
+    const onUpdateViewSize = useCallback(function onUpdateViewSizeCallback(viewSize: RichInputToolbarViewSize) {
+        handleUpdateViewSize(viewSize);
+        setContextMenu(null);
+    }, [handleUpdateViewSize]);
+    const handleContextMenu = useCallback(function handleContextMenuCallback(event: React.MouseEvent) {
+        event.preventDefault();
+        setContextMenu(
+            contextMenu === null
+                ? { mouseX: event.clientX - 2, mouseY: event.clientY - 4 }
+                : null,
+        );
+    }, [contextMenu]);
+    const handleContextMenuClose = useCallback(function handleContextMenuClose() {
+        setContextMenu(null);
+    }, []);
+
     const isLeftHanded = useIsLeftHanded();
 
     const handleToggleAction = useCallback(function handleToggleActionCallback(action: string, data?: unknown) {
@@ -463,9 +507,34 @@ export function RichInputToolbar({
             aria-label="Rich text editor toolbar"
             component="section"
             id={id}
+            onContextMenu={handleContextMenu}
             ref={dimRef}
             sx={outerBoxStyle}
         >
+            {/* Right-click context menu */}
+            <Menu
+                open={contextMenu !== null}
+                onClose={handleContextMenuClose}
+                anchorReference="anchorPosition"
+                anchorPosition={
+                    contextMenu !== null
+                        ? { top: contextMenu.mouseY, left: contextMenu.mouseX }
+                        : undefined
+                }
+            >
+                <MenuItem onClick={() => onUpdateViewSize("minimal")}
+                    sx={contextItemStyle}>
+                    <ListItemText primary="Minimal View" secondary="Show fewer toolbar options for a cleaner interface." />
+                </MenuItem>
+                <MenuItem onClick={() => onUpdateViewSize("partial")}
+                    sx={contextItemStyle}>
+                    <ListItemText primary="Partial View" secondary="Display commonly used tools for convenient access." />
+                </MenuItem>
+                <MenuItem onClick={() => onUpdateViewSize("full")}
+                    sx={contextItemStyle}>
+                    <ListItemText primary="Full View" secondary="Show all available tools for maximum functionality." />
+                </MenuItem>
+            </Menu>
             {/* Group of main editor controls including AI assistant and formatting tools */}
             <LeftSection
                 disabled={disabled}
@@ -495,7 +564,6 @@ export function RichInputToolbar({
                     onClose={closeHeader}
                     items={headerItems}
                     handleAction={handleToggleAction}
-                    palette={palette}
                 />
                 {viewSize === "minimal" ? (
                     <>
@@ -515,7 +583,6 @@ export function RichInputToolbar({
                             onClose={closeCombined}
                             items={combinedItems}
                             handleAction={handleCombinedAction}
-                            palette={palette}
                         />
                     </>
                 ) : (
@@ -539,7 +606,6 @@ export function RichInputToolbar({
                                     onClose={closeFormat}
                                     items={formatItems}
                                     handleAction={handleToggleAction}
-                                    palette={palette}
                                 />
                             </>
                         )}
@@ -577,7 +643,6 @@ export function RichInputToolbar({
                             onClose={closeList}
                             items={listItems}
                             handleAction={handleToggleAction}
-                            palette={palette}
                         />
                         <ToolButton
                             disabled={disabled}
