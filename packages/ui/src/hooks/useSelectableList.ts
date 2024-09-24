@@ -10,7 +10,7 @@ type UseSelectableListReturn<T extends ListObject> = {
     setSelectedData: (selectedData: T[]) => void;
 };
 
-export const useSelectableList = <T extends ListObject>(): UseSelectableListReturn<T> => {
+export function useSelectableList<T extends ListObject>(): UseSelectableListReturn<T> {
     const [isSelecting, setIsSelecting] = useState(false);
     const [selectedData, setSelectedData] = useState<T[]>([]);
 
@@ -42,4 +42,4 @@ export const useSelectableList = <T extends ListObject>(): UseSelectableListRetu
         setIsSelecting,
         setSelectedData,
     };
-};
+}

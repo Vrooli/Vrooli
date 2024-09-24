@@ -4,7 +4,7 @@ import { useCallback, useRef } from "react";
  * A custom hook that returns a stable callback function, ensuring that the
  * callback function does not cause re-renders unless the function itself changes.
  */
-export const useStableCallback = <T extends ((...args: any[]) => unknown) | undefined>(callback: T): T => {
+export function useStableCallback<T extends ((...args: any[]) => unknown) | undefined>(callback: T): T {
     // Create a ref to store the current callback
     const callbackRef = useRef<T>(callback);
 
@@ -24,4 +24,4 @@ export const useStableCallback = <T extends ((...args: any[]) => unknown) | unde
 
     // If the callback is undefined, return undefined directly
     return callback ? (stableCallback as T) : callback;
-};
+}

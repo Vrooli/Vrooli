@@ -32,6 +32,7 @@ export function LanguageSelector() {
     const [language, setLanguage] = useState(getSiteLanguage(session));
     const handleLanguageChange = useCallback(function handleLanguageChangeCallback(newLang: string) {
         setLanguage(newLang);
+        // Let the app know the language has changed
         PubSub.get().publish("language", newLang);
     }, []);
 

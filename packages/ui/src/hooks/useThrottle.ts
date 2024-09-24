@@ -6,7 +6,7 @@ import { useCallback, useRef } from "react";
  * This is different than debouncing, which means that the function will only be called once
  * after the last call within `delay` milliseconds.
  */
-export const useThrottle = <T extends unknown[]>(callback: (...args: T) => unknown, delay: number) => {
+export function useThrottle<T extends unknown[]>(callback: (...args: T) => unknown, delay: number) {
     const lastCallRef = useRef<number>(Date.now());
 
     const throttledFunction = useCallback((...args: T) => {
@@ -17,4 +17,4 @@ export const useThrottle = <T extends unknown[]>(callback: (...args: T) => unkno
     }, [callback, delay]);
 
     return throttledFunction as ((...args: T) => unknown);
-};
+}

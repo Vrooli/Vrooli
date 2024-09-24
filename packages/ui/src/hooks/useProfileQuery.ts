@@ -4,7 +4,7 @@ import { useCallback, useContext, useEffect, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 import { useLazyFetch } from "./useLazyFetch";
 
-export const useProfileQuery = () => {
+export function useProfileQuery() {
     const session = useContext(SessionContext);
     const [getData, { data, loading: isProfileLoading }] = useLazyFetch<never, User>(endpointGetProfile);
     useEffect(() => {
@@ -23,4 +23,4 @@ export const useProfileQuery = () => {
         isProfileLoading,
         profile,
     };
-};
+}

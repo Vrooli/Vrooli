@@ -8,7 +8,12 @@ type HotkeyConfig = {
     callback: () => unknown
 };
 
-export const useHotkeys = (hotkeys: HotkeyConfig[], condition = true, targetRef: React.RefObject<HTMLElement> | null = null) => {
+export function useHotkeys(
+    hotkeys: HotkeyConfig[],
+    condition = true,
+    targetRef: React.RefObject<HTMLElement> | null = null,
+
+) {
     useEffect(() => {
         // Sort hotkeys by number of conditions to prioritize more specific hotkeys
         const sortedHotkeys = [...hotkeys].sort((a, b) => {
@@ -17,7 +22,7 @@ export const useHotkeys = (hotkeys: HotkeyConfig[], condition = true, targetRef:
             return conditionsB - conditionsA;
         });
 
-        const handleKeyDown = (e: Event) => {
+        function handleKeyDown(e: Event) {
             // Check if the event is a KeyboardEvent
             if (e instanceof KeyboardEvent) {
                 for (const hotkey of sortedHotkeys) {
@@ -33,7 +38,7 @@ export const useHotkeys = (hotkeys: HotkeyConfig[], condition = true, targetRef:
                     }
                 }
             }
-        };
+        }
 
         const targetElement = targetRef && targetRef.current ? targetRef.current : document;
 
@@ -44,4 +49,4 @@ export const useHotkeys = (hotkeys: HotkeyConfig[], condition = true, targetRef:
             };
         }
     }, [hotkeys, condition, targetRef]);
-};
+}

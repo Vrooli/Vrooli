@@ -1,6 +1,6 @@
 import { AutocompleteOption, ListObject, SearchType, TimeFrame, deepClone, deleteArrayIndex, exists, lowercaseFirstLetter, parseSearchParams, updateArray } from "@local/shared";
 import { SearchQueryVariablesInput } from "components/lists/types";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { SetLocation, addSearchParams, useLocation } from "route";
 import { listToAutocomplete } from "utils/display/listTools";

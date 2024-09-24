@@ -56,49 +56,51 @@ export type LinkProps = Omit<
 // the implicitly created router (see `useRouter` below)
 const RouterCtx = createContext<{ [x: string]: any }>({});
 
-const buildRouter = ({
+function buildRouter({
     hook = locationHook,
     base = "",
     matcher = makeMatcher(),
-} = {}) => ({ hook, base, matcher });
+} = {}) {
+    return { hook, base, matcher };
+}
 
-export const useRouter = () => {
+export function useRouter() {
     const globalRef = useContext(RouterCtx);
 
     // either obtain the router from the outer context (provided by the
     // `<Router /> component) or create an implicit one on demand.
     return globalRef.v || (globalRef.v = buildRouter());
-};
+}
 
-export const useLocation = (): UseLocationResult => {
+export function useLocation(): UseLocationResult {
     const router = useRouter();
     return router.hook(router);
-};
+}
 
-export const useRoute = <
+export function useRoute<
     T extends DefaultParams | undefined = undefined,
     RoutePath extends Pathname = Pathname>(
         pattern: RoutePath,
     ):
-    Match<T extends DefaultParams ? T : ExtractRouteParams<RoutePath>> => {
+    Match<T extends DefaultParams ? T : ExtractRouteParams<RoutePath>> {
     const [{ pathname }] = useLocation();
     return useRouter().matcher(pattern, pathname);
-};
+}
 
 // internal hook used by Link and Redirect in order to perform navigation
-const useNavigate = (options: NavigationalProps & SetLocationOptions) => {
+function useNavigate(options: NavigationalProps & SetLocationOptions) {
     const navRef = useRef<any>();
     const [, navigate] = useLocation();
 
     navRef.current = () => navigate((options.to || options.href) as string, options);
     return navRef;
-};
+}
 
 /*
  * Part 2, Low Carb Router API: Router, Route, Link, Switch
  */
 
-export const Router = (props: RouterProps): FunctionComponent<Partial<RouterProps> & { children: ReactNode }> => {
+export function Router(props: RouterProps): FunctionComponent<Partial<RouterProps> & { children: ReactNode }> {
     const ref = useRef<any>();
 
     // this little trick allows to avoid having unnecessary
@@ -110,7 +112,7 @@ export const Router = (props: RouterProps): FunctionComponent<Partial<RouterProp
         value,
         children: (props as any).children,
     }) as any;
-};
+}
 
 export type RouteProps = {
     /** If sitemapIndex is true, this specifies the change frequency of the page  */
@@ -126,7 +128,7 @@ export type RouteProps = {
     sitemapIndex?: boolean;
 }
 
-export const Route = ({ path, match, component, children }: RouteProps) => {
+export function Route({ path, match, component, children }: RouteProps) {
     const useRouteMatch = useRoute(path as any);
 
     // Store last and current url data in session storage, if not already stored
@@ -149,9 +151,9 @@ export const Route = ({ path, match, component, children }: RouteProps) => {
 
     // support render prop or plain children
     return typeof children === "function" ? (children as any)(params) : children;
-};
+}
 
-export const Link = (props: LinkProps) => {
+export function Link(props: LinkProps) {
     const navRef = useNavigate(props);
     const { base } = useRouter();
 
@@ -186,14 +188,14 @@ export const Link = (props: LinkProps) => {
     const jsx = isValidElement(children) ? children : createElement("a", props as any);
 
     return cloneElement(jsx, extraProps);
-};
+}
 
 /**
  * Recursively flattens an array
  * @param children
  * @returns 
  */
-const flattenChildren = (children: Array<any> | any): any => {
+function flattenChildren(children: Array<any> | any): any {
     return Array.isArray(children)
         ? [].concat(
             ...children.map((c) =>
@@ -203,7 +205,7 @@ const flattenChildren = (children: Array<any> | any): any => {
             ),
         )
         : [children];
-};
+}
 
 type SwitchProps = {
     children: JSX.Element | JSX.Element[];
@@ -215,7 +217,7 @@ type SwitchProps = {
     fallback?: JSX.Element;
 }
 
-export const Switch = ({ children, location, fallback }: SwitchProps) => {
+export function Switch({ children, location, fallback }: SwitchProps) {
     const { matcher } = useRouter();
     const [{ pathname: originalPath }] = useLocation();
 
@@ -242,9 +244,9 @@ export const Switch = ({ children, location, fallback }: SwitchProps) => {
     }
 
     return null;
-};
+}
 
-export const Redirect = (props: NavigationalProps): JSX.Element | null => {
+export function Redirect(props: NavigationalProps): JSX.Element | null {
     const navRef = useNavigate(props);
 
     // empty array means running the effect once, navRef is a ref so it never changes
@@ -253,6 +255,6 @@ export const Redirect = (props: NavigationalProps): JSX.Element | null => {
     }, [navRef]);
 
     return null;
-};
+}
 
 export default useRoute;

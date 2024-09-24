@@ -3,12 +3,14 @@ import { useCallback, useEffect } from "react";
 import { getCookieAllowFormCache, removeCookieAllowFormCache, setCookieFormData } from "utils/cookies";
 import { useDebounce } from "./useDebounce";
 
-const shouldValuesBeSaved = (values: object) => {
+const DEFAULT_DEBOUNCE_TIME_MS = 200;
+
+function shouldValuesBeSaved(values: object) {
     return Object.keys(values).length > 0;
-};
+}
 
 /** Caches updates to the `values` prop in localStorage*/
-export const useSaveToCache = <T extends object>({
+export function useSaveToCache<T extends object>({
     values,
     objectId,
     debounceTime,
@@ -24,7 +26,7 @@ export const useSaveToCache = <T extends object>({
     isCacheOn?: boolean;
     isCreate: boolean;
     disabled?: boolean;
-}) => {
+}) {
     // Create a unique cache key using the objectType and objectId (if it exists)
     const formCacheId = isCreate ? `${objectType}-${DUMMY_ID}` : `${objectType}-${objectId}`;
 
@@ -35,7 +37,7 @@ export const useSaveToCache = <T extends object>({
         setCookieFormData(formCacheId, currentValues);
     }, [disabled, formCacheId, isCacheOn, objectId, objectType]);
 
-    const [saveToCacheDebounced] = useDebounce(saveToCache, debounceTime ?? 200);
+    const [saveToCacheDebounced] = useDebounce(saveToCache, debounceTime ?? DEFAULT_DEBOUNCE_TIME_MS);
 
     // Effect to handle saving values to cache whenever they change
     useEffect(() => {
@@ -55,4 +57,4 @@ export const useSaveToCache = <T extends object>({
     useEffect(() => {
         removeCookieAllowFormCache(objectType, objectId);
     }, [objectId, objectType]);
-};
+}

@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
+import { cleanup, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import React from "react";
 import { render, screen, waitFor } from "../../__mocks__/testUtils";
-import { NavigationArrows } from "./ChatBubble";
+import { NavigationArrows, ScrollToBottomButton } from "./ChatBubbleTree";
 
 // describe("ChatBubbleStatus Component", () => {
 //     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -180,5 +182,67 @@ describe("NavigationArrows Component", () => {
         render(<NavigationArrows activeIndex={2} numSiblings={3} onIndexChange={handleIndexChangeMock} />);
         const rightButton = screen.getByLabelText("right");
         expect(rightButton).toBeDisabled();
+    });
+});
+
+describe("ScrollToBottomButton", () => {
+    let containerElement;
+
+    beforeEach(() => {
+        // Create a mock container element
+        containerElement = document.createElement("div");
+        Object.defineProperty(containerElement, "scrollHeight", { value: 1000, writable: true });
+        Object.defineProperty(containerElement, "scrollTop", { value: 0, writable: true });
+        Object.defineProperty(containerElement, "clientHeight", { value: 500, writable: true });
+        // Mock the scroll method to allow calling during tests
+        containerElement.scroll = jest.fn((options) => {
+            // Optionally, you can directly set scrollTop to simulate instant scrolling,
+            // or handle it more dynamically if your tests need to consider different scenarios.
+            containerElement.scrollTop = options.top;
+        });
+        jest.spyOn(React, "useRef").mockReturnValue({ current: containerElement });
+    });
+
+    afterEach(() => {
+        cleanup();
+        jest.restoreAllMocks();
+    });
+
+    it("renders button and checks initial visibility based on scroll", () => {
+        const { getByRole } = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
+        const button = getByRole("button");
+        // Initially not visible as we are at the top
+        expect(button).toHaveStyle("opacity: 0");
+    });
+
+    it("button becomes visible when not close to bottom", () => {
+        containerElement.scrollTop = 300; // Not close to the bottom
+        const { getByRole } = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
+        fireEvent.scroll(containerElement);
+        const button = getByRole("button");
+        expect(button).toHaveStyle("opacity: 0.8");
+    });
+
+    it("button becomes invisible when scrolled close to bottom", async () => {
+        containerElement.scrollTop = 901; // Close to the bottom
+        const { getByRole } = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
+        fireEvent.scroll(containerElement);
+        const button = getByRole("button");
+        expect(button).toHaveStyle("opacity: 0");
+    });
+
+    it("scrolls to bottom on button click", () => {
+        const { getByRole } = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
+        const button = getByRole("button");
+        fireEvent.click(button);
+        // Expected to be scrolled to the bottom
+        expect(containerElement.scrollTop).toBe(containerElement.scrollHeight - containerElement.clientHeight);
+    });
+
+    it("cleans up event listener on unmount", () => {
+        const removeEventListenerSpy = jest.spyOn(containerElement, "removeEventListener");
+        const { unmount } = render(<ScrollToBottomButton containerRef={React.useRef(containerElement)} />);
+        unmount();
+        expect(removeEventListenerSpy).toHaveBeenCalledWith("scroll", expect.any(Function));
     });
 });
