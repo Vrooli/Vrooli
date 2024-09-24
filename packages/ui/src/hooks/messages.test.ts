@@ -1,11 +1,9 @@
-// eslint-disable-next-line testing-library/no-node-access
-/* eslint-disable testing-library/no-node-access */
-import { DUMMY_ID } from "@local/shared";
+import { ChatMessage, DUMMY_ID } from "@local/shared";
 import { act, renderHook } from "@testing-library/react";
-import { MessageNode, MinimumChatMessage, useMessageTree } from "./useMessageTree";
+import { MessageNode, MinimumChatMessage, useMessageTree } from "./messages";
 
 /** First test case: Result should have messages in order from ID 1 to 10, each with node having a single child */
-const case1 = [
+const case1: MinimumChatMessage[] = [
     {
         id: "3",
         parent: { id: "2" },
@@ -16,6 +14,7 @@ const case1 = [
         }],
         created_at: "2021-10-01T02:00:00Z",
         sequence: 2,
+        versionIndex: 0,
     },
     {
         id: "1",
@@ -27,6 +26,7 @@ const case1 = [
         }],
         created_at: "2021-10-01T00:00:00Z",
         sequence: 0,
+        versionIndex: 0,
     },
     {
         id: "2",
@@ -38,6 +38,7 @@ const case1 = [
         }],
         created_at: "2021-10-01T01:00:00Z",
         sequence: 1,
+        versionIndex: 0,
     },
     {
         id: "4",
@@ -49,6 +50,7 @@ const case1 = [
         }],
         created_at: "2021-10-01T03:00:00Z",
         sequence: 3,
+        versionIndex: 0,
     },
     {
         id: "5",
@@ -60,6 +62,7 @@ const case1 = [
         }],
         created_at: "2021-10-01T04:00:00Z",
         sequence: 4,
+        versionIndex: 0,
     },
     {
         id: "6",
@@ -71,6 +74,7 @@ const case1 = [
         }],
         created_at: "2021-10-01T05:00:00Z",
         sequence: 5,
+        versionIndex: 0,
     },
     {
         id: "7",
@@ -82,6 +86,7 @@ const case1 = [
         }],
         created_at: "2021-10-01T06:00:00Z",
         sequence: 6,
+        versionIndex: 0,
     },
     {
         id: "8",
@@ -93,6 +98,7 @@ const case1 = [
         }],
         created_at: "2021-10-01T07:00:00Z",
         sequence: 7,
+        versionIndex: 0,
     },
     {
         id: "9",
@@ -104,6 +110,7 @@ const case1 = [
         }],
         created_at: "2021-10-01T08:00:00Z",
         sequence: 8,
+        versionIndex: 0,
     },
     {
         id: "10",
@@ -115,11 +122,12 @@ const case1 = [
         }],
         created_at: "2021-10-01T09:00:00Z",
         sequence: 9,
+        versionIndex: 0,
     },
 ];
 
 /** Second test case: 2 roots */
-const case2 = [
+const case2: MinimumChatMessage[] = [
     {
         id: "1",
         parent: null,
@@ -130,6 +138,7 @@ const case2 = [
         }],
         created_at: "2021-10-02T00:00:00Z",
         sequence: 0,
+        versionIndex: 0,
     },
     {
         id: "2",
@@ -141,6 +150,7 @@ const case2 = [
         }],
         created_at: "2021-10-02T01:00:00Z",
         sequence: 1,
+        versionIndex: 0,
     },
     {
         id: "3",
@@ -152,6 +162,7 @@ const case2 = [
         }],
         created_at: "2021-10-02T02:00:00Z",
         sequence: 2,
+        versionIndex: 0,
     },
     {
         id: "4",
@@ -163,11 +174,12 @@ const case2 = [
         }],
         created_at: "2021-10-02T03:00:00Z",
         sequence: 3,
+        versionIndex: 0,
     },
 ];
 
 /** Third test case: 1 root, 1 child, 3 grandchildren, 6 great-grandchildren (2 for each grandchild) */
-const case3 = [
+const case3: MinimumChatMessage[] = [
     {
         id: "1",
         parent: null,
@@ -178,6 +190,7 @@ const case3 = [
         }],
         created_at: "2021-10-03T00:00:00Z",
         sequence: 0,
+        versionIndex: 0,
     },
     {
         id: "2",
@@ -189,6 +202,7 @@ const case3 = [
         }],
         created_at: "2021-10-03T01:00:00Z",
         sequence: 1,
+        versionIndex: 0,
     },
     {
         id: "3",
@@ -200,6 +214,7 @@ const case3 = [
         }],
         created_at: "2021-10-03T02:00:00Z",
         sequence: 2,
+        versionIndex: 0,
     },
     {
         id: "4",
@@ -211,6 +226,7 @@ const case3 = [
         }],
         created_at: "2021-10-03T03:00:00Z",
         sequence: 3,
+        versionIndex: 0,
     },
     {
         id: "5",
@@ -222,6 +238,7 @@ const case3 = [
         }],
         created_at: "2021-10-03T04:00:00Z",
         sequence: 4,
+        versionIndex: 0,
     },
     {
         id: "6",
@@ -233,6 +250,7 @@ const case3 = [
         }],
         created_at: "2021-10-03T05:00:00Z",
         sequence: 5,
+        versionIndex: 0,
     },
     {
         id: "7",
@@ -244,6 +262,7 @@ const case3 = [
         }],
         created_at: "2021-10-03T06:00:00Z",
         sequence: 6,
+        versionIndex: 0,
     },
     {
         id: "8",
@@ -255,6 +274,7 @@ const case3 = [
         }],
         created_at: "2021-10-03T07:00:00Z",
         sequence: 7,
+        versionIndex: 0,
     },
     {
         id: "9",
@@ -266,6 +286,7 @@ const case3 = [
         }],
         created_at: "2021-10-03T08:00:00Z",
         sequence: 8,
+        versionIndex: 0,
     },
     {
         id: "10",
@@ -277,6 +298,7 @@ const case3 = [
         }],
         created_at: "2021-10-03T09:00:00Z",
         sequence: 9,
+        versionIndex: 0,
     },
     {
         id: "11",
@@ -288,206 +310,224 @@ const case3 = [
         }],
         created_at: "2021-10-03T10:00:00Z",
         sequence: 10,
+        versionIndex: 0,
     },
 ];
 
 /** Fourth test case: 1 root without any branches. But a message in the middle was deleted */
-const case4 = [
+const case4: MinimumChatMessage[] = [
     {
-        "parent": {
-            "id": "0e92e862-f80f-461d-b9db-ab1c61e53810",
-            "parent": {
-                "id": "228dff1c-db18-4da9-a4b6-fd33d751ff94",
+        parent: {
+            id: "0e92e862-f80f-461d-b9db-ab1c61e53810",
+            parent: {
+                id: "228dff1c-db18-4da9-a4b6-fd33d751ff94",
             },
 
         },
-        "id": "77483f3d-132b-48ce-a10d-0dd0f607905d",
-        "sequence": 112,
-        "versionIndex": 0,
+        id: "77483f3d-132b-48ce-a10d-0dd0f607905d",
+        sequence: 112,
+        translations: [],
+        versionIndex: 0,
     },
     {
-        "parent": {
-            "id": "228dff1c-db18-4da9-a4b6-fd33d751ff94",
-            "parent": {
-                "id": "a765bdec-e4b1-4927-b001-122b6d326b30",
+        parent: {
+            id: "228dff1c-db18-4da9-a4b6-fd33d751ff94",
+            parent: {
+                id: "a765bdec-e4b1-4927-b001-122b6d326b30",
             },
 
         },
-        "id": "0e92e862-f80f-461d-b9db-ab1c61e53810",
-        "sequence": 111,
-        "versionIndex": 0,
+        id: "0e92e862-f80f-461d-b9db-ab1c61e53810",
+        sequence: 111,
+        translations: [],
+        versionIndex: 0,
     },
     {
-        "parent": {
-            "id": "a765bdec-e4b1-4927-b001-122b6d326b30",
-            "parent": {
-                "id": "1edf6c8f-3107-4ab7-894e-2805230950f3",
+        parent: {
+            id: "a765bdec-e4b1-4927-b001-122b6d326b30",
+            parent: {
+                id: "1edf6c8f-3107-4ab7-894e-2805230950f3",
             },
 
         },
-        "id": "228dff1c-db18-4da9-a4b6-fd33d751ff94",
-        "sequence": 110,
-        "versionIndex": 0,
+        id: "228dff1c-db18-4da9-a4b6-fd33d751ff94",
+        sequence: 110,
+        translations: [],
+        versionIndex: 0,
     },
     {
-        "parent": {
-            "id": "1edf6c8f-3107-4ab7-894e-2805230950f3",
-            "parent": {
-                "id": "6aa3b3dd-93f5-49b3-86ba-1828df622e74",
+        parent: {
+            id: "1edf6c8f-3107-4ab7-894e-2805230950f3",
+            parent: {
+                id: "6aa3b3dd-93f5-49b3-86ba-1828df622e74",
             },
 
         },
-        "id": "a765bdec-e4b1-4927-b001-122b6d326b30",
-        "sequence": 109,
-        "versionIndex": 0,
+        id: "a765bdec-e4b1-4927-b001-122b6d326b30",
+        sequence: 109,
+        translations: [],
+        versionIndex: 0,
     },
     {
-        "parent": {
-            "id": "6aa3b3dd-93f5-49b3-86ba-1828df622e74",
-            "parent": {
-                "id": "cc7070c0-1948-41df-8d76-2c30f8810a50",
+        parent: {
+            id: "6aa3b3dd-93f5-49b3-86ba-1828df622e74",
+            parent: {
+                id: "cc7070c0-1948-41df-8d76-2c30f8810a50",
             },
         },
-        "id": "1edf6c8f-3107-4ab7-894e-2805230950f3",
-        "sequence": 108,
-        "versionIndex": 0,
+        id: "1edf6c8f-3107-4ab7-894e-2805230950f3",
+        sequence: 108,
+        translations: [],
+        versionIndex: 0,
     },
     {
-        "parent": {
-            "id": "cc7070c0-1948-41df-8d76-2c30f8810a50",
-            "parent": {
-                "id": "bee03f1b-e94b-44ea-ad2f-a39518b66b24",
-            },
-
-        },
-        "id": "6aa3b3dd-93f5-49b3-86ba-1828df622e74",
-        "sequence": 107,
-        "versionIndex": 0,
-    },
-    {
-        "parent": {
-            "id": "bee03f1b-e94b-44ea-ad2f-a39518b66b24",
-            "parent": {
-                "id": "ee5ce218-d878-41a1-a8e0-1f070bb482fc",
+        parent: {
+            id: "cc7070c0-1948-41df-8d76-2c30f8810a50",
+            parent: {
+                id: "bee03f1b-e94b-44ea-ad2f-a39518b66b24",
             },
 
         },
-        "id": "cc7070c0-1948-41df-8d76-2c30f8810a50",
-        "sequence": 106,
-        "versionIndex": 0,
+        id: "6aa3b3dd-93f5-49b3-86ba-1828df622e74",
+        sequence: 107,
+        translations: [],
+        versionIndex: 0,
     },
     {
-        "parent": {
-            "id": "ee5ce218-d878-41a1-a8e0-1f070bb482fc",
-            "parent": {
-                "id": "5cd3c541-31d1-4ee1-a152-4e4e210a0ef0",
+        parent: {
+            id: "bee03f1b-e94b-44ea-ad2f-a39518b66b24",
+            parent: {
+                id: "ee5ce218-d878-41a1-a8e0-1f070bb482fc",
             },
 
         },
-        "id": "bee03f1b-e94b-44ea-ad2f-a39518b66b24",
-        "sequence": 105,
-        "versionIndex": 0,
+        id: "cc7070c0-1948-41df-8d76-2c30f8810a50",
+        sequence: 106,
+        translations: [],
+        versionIndex: 0,
     },
     {
-        "parent": {
-            "id": "5cd3c541-31d1-4ee1-a152-4e4e210a0ef0",
-            "parent": {
-                "id": "710026fd-e5c9-493b-b0c7-82ceae668f83",
+        parent: {
+            id: "ee5ce218-d878-41a1-a8e0-1f070bb482fc",
+            parent: {
+                id: "5cd3c541-31d1-4ee1-a152-4e4e210a0ef0",
             },
 
         },
-        "id": "ee5ce218-d878-41a1-a8e0-1f070bb482fc",
-        "sequence": 104,
-        "versionIndex": 0,
+        id: "bee03f1b-e94b-44ea-ad2f-a39518b66b24",
+        sequence: 105,
+        translations: [],
+        versionIndex: 0,
     },
     {
-        "parent": {
-            "id": "710026fd-e5c9-493b-b0c7-82ceae668f83",
-            "parent": {
-                "id": "53e60a3f-bd6c-40fe-abcc-b069782e3e3b",
+        parent: {
+            id: "5cd3c541-31d1-4ee1-a152-4e4e210a0ef0",
+            parent: {
+                id: "710026fd-e5c9-493b-b0c7-82ceae668f83",
             },
 
         },
-        "id": "5cd3c541-31d1-4ee1-a152-4e4e210a0ef0",
-        "sequence": 103,
-        "versionIndex": 0,
+        id: "ee5ce218-d878-41a1-a8e0-1f070bb482fc",
+        sequence: 104,
+        translations: [],
+        versionIndex: 0,
     },
     {
-        "parent": {
-            "id": "53e60a3f-bd6c-40fe-abcc-b069782e3e3b",
-            "parent": {
-                "id": "f96c651d-2c33-4ace-99a8-73039d93ba71",
+        parent: {
+            id: "710026fd-e5c9-493b-b0c7-82ceae668f83",
+            parent: {
+                id: "53e60a3f-bd6c-40fe-abcc-b069782e3e3b",
             },
 
         },
-        "id": "710026fd-e5c9-493b-b0c7-82ceae668f83",
-        "sequence": 98,
-        "versionIndex": 0,
+        id: "5cd3c541-31d1-4ee1-a152-4e4e210a0ef0",
+        sequence: 103,
+        translations: [],
+        versionIndex: 0,
     },
     {
-        "parent": {
-            "id": "f96c651d-2c33-4ace-99a8-73039d93ba71",
-            "parent": {
-                "id": "af8392d4-9f7e-4dbc-a0a5-56f44360fdf3",
-            },
-        },
-        "id": "53e60a3f-bd6c-40fe-abcc-b069782e3e3b",
-        "sequence": 97,
-        "versionIndex": 0,
-    },
-    {
-        "parent": {
-            "id": "af8392d4-9f7e-4dbc-a0a5-56f44360fdf3",
-            "parent": {
-                "id": "531f5edb-6179-4e13-a5e1-77fd30cda76d",
+        parent: {
+            id: "53e60a3f-bd6c-40fe-abcc-b069782e3e3b",
+            parent: {
+                id: "f96c651d-2c33-4ace-99a8-73039d93ba71",
             },
 
         },
-        "id": "f96c651d-2c33-4ace-99a8-73039d93ba71",
-        "sequence": 96,
-        "versionIndex": 0,
+        id: "710026fd-e5c9-493b-b0c7-82ceae668f83",
+        sequence: 98,
+        translations: [],
+        versionIndex: 0,
     },
     {
-        "parent": {
-            "id": "38963722-bf55-464e-9e32-2209cdc6ef70",
-            "parent": {
-                "id": "0ef23969-2021-4a34-99b0-314961d58ad5",
+        parent: {
+            id: "f96c651d-2c33-4ace-99a8-73039d93ba71",
+            parent: {
+                id: "af8392d4-9f7e-4dbc-a0a5-56f44360fdf3",
+            },
+        },
+        id: "53e60a3f-bd6c-40fe-abcc-b069782e3e3b",
+        sequence: 97,
+        translations: [],
+        versionIndex: 0,
+    },
+    {
+        parent: {
+            id: "af8392d4-9f7e-4dbc-a0a5-56f44360fdf3",
+            parent: {
+                id: "531f5edb-6179-4e13-a5e1-77fd30cda76d",
             },
 
         },
-        "id": "531f5edb-6179-4e13-a5e1-77fd30cda76d",
-        "sequence": 94,
-        "versionIndex": 0,
+        id: "f96c651d-2c33-4ace-99a8-73039d93ba71",
+        sequence: 96,
+        translations: [],
+        versionIndex: 0,
     },
     {
-        "parent": {
-            "id": "0ef23969-2021-4a34-99b0-314961d58ad5",
-            "parent": {
-                "id": "a9330a80-cbeb-4526-aca7-c50081187756",
+        parent: {
+            id: "38963722-bf55-464e-9e32-2209cdc6ef70",
+            parent: {
+                id: "0ef23969-2021-4a34-99b0-314961d58ad5",
             },
 
         },
-        "id": "38963722-bf55-464e-9e32-2209cdc6ef70",
-        "sequence": 93,
-        "versionIndex": 0,
+        id: "531f5edb-6179-4e13-a5e1-77fd30cda76d",
+        sequence: 94,
+        translations: [],
+        versionIndex: 0,
     },
     {
-        "parent": {
-            "id": "a9330a80-cbeb-4526-aca7-c50081187756",
-            "parent": null,
+        parent: {
+            id: "0ef23969-2021-4a34-99b0-314961d58ad5",
+            parent: {
+                id: "a9330a80-cbeb-4526-aca7-c50081187756",
+            },
 
         },
-        "id": "0ef23969-2021-4a34-99b0-314961d58ad5",
-        "sequence": 92,
-        "versionIndex": 0,
+        id: "38963722-bf55-464e-9e32-2209cdc6ef70",
+        sequence: 93,
+        translations: [],
+        versionIndex: 0,
     },
     {
-        "id": "a9330a80-cbeb-4526-aca7-c50081187756",
-        "sequence": 91,
-        "versionIndex": 0,
-        "parent": null,
+        parent: {
+            id: "a9330a80-cbeb-4526-aca7-c50081187756",
+            parent: null,
+
+        },
+        id: "0ef23969-2021-4a34-99b0-314961d58ad5",
+        sequence: 92,
+        translations: [],
+        versionIndex: 0,
     },
-] as MinimumChatMessage[];
+    {
+        id: "a9330a80-cbeb-4526-aca7-c50081187756",
+        sequence: 91,
+        translations: [],
+        versionIndex: 0,
+        parent: null,
+    },
+];
 
 /**
  * Checks the validity of root nodes in the message tree.
@@ -732,7 +772,7 @@ function runCommonTests(caseData: MinimumChatMessage[], chatId: string, caseTitl
             const { result } = renderHook(() => useMessageTree(chatId));
 
             act(() => {
-                result.current.addMessages(caseData);
+                result.current.addMessages(caseData as ChatMessage[]);
             });
 
             const { map, roots } = result.current.tree;
@@ -743,7 +783,7 @@ function runCommonTests(caseData: MinimumChatMessage[], chatId: string, caseTitl
             const { result } = renderHook(() => useMessageTree(chatId));
 
             act(() => {
-                result.current.addMessages(caseData);
+                result.current.addMessages(caseData as ChatMessage[]);
             });
 
             let totalNodes = 0;
@@ -759,7 +799,7 @@ function runCommonTests(caseData: MinimumChatMessage[], chatId: string, caseTitl
             const { result } = renderHook(() => useMessageTree(chatId));
 
             act(() => {
-                result.current.addMessages(caseData);
+                result.current.addMessages(caseData as ChatMessage[]);
             });
 
             const { map, roots } = result.current.tree;
@@ -770,7 +810,7 @@ function runCommonTests(caseData: MinimumChatMessage[], chatId: string, caseTitl
                 expect(map.get(roots[i])?.message?.sequence).toBeLessThan(nextSequence ?? 0);
             }
 
-            const checkChildOrder = (messageId: string) => {
+            function checkChildOrder(messageId: string) {
                 const node = map.get(messageId);
                 expect(node).toBeDefined();
                 if (!node) return;
@@ -780,30 +820,37 @@ function runCommonTests(caseData: MinimumChatMessage[], chatId: string, caseTitl
                     expect(map.get(node.children[i])?.message?.sequence).toBeLessThan(nextSequence ?? 0);
                 }
                 node.children.forEach(checkChildOrder);
-            };
+            }
 
             roots.forEach(checkChildOrder);
         });
 
         it(`${caseTitle} - Result is the same when shuffled`, () => {
-            const shuffledCaseData = shuffle([...caseData]);
+            const repeatCount = 10; // Run the test multiple times to maximize our chances of catching any issues
+            for (let i = 0; i < repeatCount; i++) {
+                const shuffledCaseData = shuffle([...caseData]);
 
-            const { result: originalResult } = renderHook(() => useMessageTree(chatId));
-            act(() => {
-                originalResult.current.addMessages(caseData);
-            });
+                const { result: originalResult } = renderHook(() => useMessageTree(chatId));
+                act(() => {
+                    originalResult.current.addMessages(caseData as ChatMessage[]);
+                });
 
-            const { result: shuffledResult } = renderHook(() => useMessageTree(chatId));
-            act(() => {
-                shuffledResult.current.addMessages(shuffledCaseData);
-            });
+                const { result: shuffledResult } = renderHook(() => useMessageTree(chatId));
+                act(() => {
+                    shuffledResult.current.addMessages(shuffledCaseData as ChatMessage[]);
+                });
 
-            const { map: originalMap, roots: originalRoots } = originalResult.current.tree;
-            expect(() => assertTreeIntegrity(originalMap, originalRoots, skip)).not.toThrow();
-            const { map: shuffledMap, roots: shuffledRoots } = shuffledResult.current.tree;
-            expect(() => assertTreeIntegrity(shuffledMap, shuffledRoots, skip)).not.toThrow();
+                const { map: originalMap, roots: originalRoots } = originalResult.current.tree;
+                console.log("yeet tree 1 for ", caseTitle, "is ", originalMap, originalRoots);
+                expect(() => assertTreeIntegrity(originalMap, originalRoots, skip)).not.toThrow();
 
-            expect(treesHaveSameStructure(originalMap, originalRoots, shuffledRoots)).toBe(true);
+                const { map: shuffledMap, roots: shuffledRoots } = shuffledResult.current.tree;
+                console.log("yeet tree 2 for ", caseTitle, "is ", shuffledMap, shuffledRoots);
+                expect(() => assertTreeIntegrity(shuffledMap, shuffledRoots, skip)).not.toThrow();
+
+                // Check that the trees have the same structure
+                expect(treesHaveSameStructure(originalMap, originalRoots, shuffledRoots)).toBe(true);
+            }
         });
     });
 }
@@ -825,7 +872,7 @@ describe("useMessageTree Hook", () => {
         const { result } = renderHook(() => useMessageTree(chatId));
 
         act(() => {
-            result.current.addMessages(case1);
+            result.current.addMessages(case1 as ChatMessage[]);
         });
 
         const { map, roots } = result.current.tree;
@@ -841,7 +888,7 @@ describe("useMessageTree Hook", () => {
         const { result } = renderHook(() => useMessageTree(chatId));
 
         act(() => {
-            result.current.addMessages(case2);
+            result.current.addMessages(case2 as ChatMessage[]);
         });
 
         const { map, roots } = result.current.tree;
@@ -850,7 +897,6 @@ describe("useMessageTree Hook", () => {
         const firstRootId = roots[0];
         const firstRoot = map.get(firstRootId);
         const secondRootId = roots[1];
-        const secondRoot = map.get(secondRootId);
 
         expect(firstRoot?.children).toHaveLength(0);
         const isValidStructureForSecondRoot = verifySingleNodeStructureAndSequentialIds(map, secondRootId, "2");
@@ -862,7 +908,7 @@ describe("useMessageTree Hook", () => {
         const { result } = renderHook(() => useMessageTree(chatId));
 
         act(() => {
-            result.current.addMessages(case3);
+            result.current.addMessages(case3 as ChatMessage[]);
         });
 
         const { map, roots } = result.current.tree;
@@ -887,7 +933,7 @@ describe("useMessageTree Hook", () => {
         const { result } = renderHook(() => useMessageTree(chatId));
 
         act(() => {
-            result.current.addMessages(case4);
+            result.current.addMessages(case4 as ChatMessage[]);
         });
 
         const { map, roots } = result.current.tree;
@@ -929,11 +975,11 @@ describe("MessageTree Operations", () => {
         const { result } = renderHook(() => useMessageTree(chatId));
 
         act(() => {
-            result.current.addMessages(initialMessages);
+            result.current.addMessages(initialMessages as ChatMessage[]);
         });
 
         act(() => {
-            result.current.addMessages([newMessage]);
+            result.current.addMessages([newMessage] as ChatMessage[]);
         });
 
         // Find and verify the newly added message
@@ -947,13 +993,13 @@ describe("MessageTree Operations", () => {
         let initialNodeCount = 0;
 
         act(() => {
-            result.current.addMessages([...initialMessages, newMessage]);
+            result.current.addMessages([...initialMessages, newMessage] as ChatMessage[]);
         });
 
         initialNodeCount = result.current.tree.map.size;
 
         act(() => {
-            result.current.addMessages([newMessage]);
+            result.current.addMessages([newMessage] as ChatMessage[]);
         });
 
         expect(result.current.tree.map.size).toBe(initialNodeCount);
@@ -963,15 +1009,15 @@ describe("MessageTree Operations", () => {
         const { result } = renderHook(() => useMessageTree(chatId));
 
         act(() => {
-            result.current.addMessages(case4);
+            result.current.addMessages(case4 as ChatMessage[]);
         });
 
         act(() => {
-            result.current.addMessages(case4);
+            result.current.addMessages(case4 as ChatMessage[]);
         });
 
         act(() => {
-            result.current.addMessages(case4);
+            result.current.addMessages(case4 as ChatMessage[]);
         });
 
         expect(result.current.tree.map.size).toBe(case4.length);
@@ -981,7 +1027,7 @@ describe("MessageTree Operations", () => {
         const { result } = renderHook(() => useMessageTree(chatId));
 
         act(() => {
-            result.current.addMessages([...initialMessages, newMessage]);
+            result.current.addMessages([...initialMessages, newMessage] as ChatMessage[]);
         });
 
         const updatedMessage = {
@@ -994,7 +1040,7 @@ describe("MessageTree Operations", () => {
         };
 
         act(() => {
-            result.current.editMessage(updatedMessage);
+            result.current.editMessage(updatedMessage as ChatMessage);
         });
 
         const updatedNode = result.current.tree.map.get(updatedMessage.id);
@@ -1006,7 +1052,7 @@ describe("MessageTree Operations", () => {
         const { result } = renderHook(() => useMessageTree(chatId));
 
         act(() => {
-            result.current.addMessages(initialMessages);
+            result.current.addMessages(initialMessages as ChatMessage[]);
         });
 
         const updatedMessage = {
@@ -1019,7 +1065,7 @@ describe("MessageTree Operations", () => {
         };
 
         act(() => {
-            result.current.editMessage(updatedMessage);
+            result.current.editMessage(updatedMessage as ChatMessage);
         });
 
         const updatedNode = result.current.tree.map.get(updatedMessage.id);
@@ -1031,7 +1077,7 @@ describe("MessageTree Operations", () => {
         const { result } = renderHook(() => useMessageTree(chatId));
 
         act(() => {
-            result.current.addMessages([...initialMessages, newMessage]);
+            result.current.addMessages([...initialMessages, newMessage] as ChatMessage[]);
         });
 
         act(() => {
@@ -1046,7 +1092,7 @@ describe("MessageTree Operations", () => {
         const { result } = renderHook(() => useMessageTree(chatId));
 
         act(() => {
-            result.current.addMessages(initialMessages);
+            result.current.addMessages(initialMessages as ChatMessage[]);
         });
 
         // Verify that the tree is not empty
@@ -1069,13 +1115,13 @@ describe("MessageTree Operations", () => {
 
         // Add all messages to the empty tree
         act(() => {
-            result1.current.addMessages(initialMessages);
+            result1.current.addMessages(initialMessages as ChatMessage[]);
         });
         act(() => {
             result2.current.clearMessages();
         });
         act(() => {
-            result2.current.addMessages(initialMessages);
+            result2.current.addMessages(initialMessages as ChatMessage[]);
         });
 
         // Verify that the resulting trees are the same
