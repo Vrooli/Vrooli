@@ -1,10 +1,11 @@
 import { Box, BoxProps, Button, IconButton, Input, Palette, Paper, Popover, PopoverProps, styled, useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { MicrophoneButton } from "components/buttons/MicrophoneButton/MicrophoneButton";
+import { useDebounce } from "hooks/useDebounce";
 import { PageTab, useTabs } from "hooks/useTabs";
 import { useZIndex } from "hooks/useZIndex";
-import { AirplaneIcon, AwardIcon, CompleteIcon, FoodIcon, HistoryIcon, ProjectIcon, ReportIcon, RoutineValidIcon, SearchIcon, VrooliIcon } from "icons";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AddIcon, AirplaneIcon, AwardIcon, CompleteIcon, FoodIcon, HistoryIcon, ProjectIcon, ReportIcon, RoutineValidIcon, SearchIcon, VrooliIcon } from "icons";
+import { ChangeEvent, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TabParam } from "utils/search/objectToSearch";
 // import emojis from "./data/emojis";
@@ -14,6 +15,13 @@ const Z_INDEX_OFFSET = 1000;
 const PERCENTS = 100;
 const SUGGESTED_EMOJIS_LIMIT = 20;
 const SKIN_OPTION_WIDTH_WITH_SPACING = 28;
+const SEARCH_STRING_DEBOUNCE_MS = 200;
+
+type FallbackEmojiPickerProps = {
+    anchorEl: HTMLElement | null;
+    onClose: () => unknown;
+    onSelect: (emoji: string) => unknown;
+};
 
 enum CategoryTabOption {
     Suggested = "Suggested",
@@ -145,67 +153,8 @@ export function parseNativeEmoji(unified: string): string {
 
 let namesByCode: Record<string, string[] | undefined> = {};
 const codeByName: Record<string, string | undefined> = {};
-/**
- * Loads emoji names
- */
-async function fetchEmojiNames() {
-    const response = await fetch("/emojis/locales/en.json");
-    if (!response.ok) {
-        console.error("Failed to fetch emoji names: response was not ok");
-        return;
-    }
-    const data = await response.json();
-    if (typeof data !== "object") {
-        console.error("Failed to fetch emoji names: response was not an object");
-        return;
-    }
-    namesByCode = data;
-    // Iterate over the namesByCode to create the codeByName mapping
-    for (const code in namesByCode) {
-        const names = namesByCode[code];
-        if (Array.isArray(names)) {
-            names.forEach(name => {
-                codeByName[name] = code;
-            });
-        }
-    }
-}
-if (process.env.NODE_ENV !== "test") {
-    fetchEmojiNames();
-}
-
 let emojisByCategory: { [key in Exclude<CategoryTabOption, "Suggested">]?: DataEmoji[] } = {};
 const emojiByCode: Record<string, DataEmoji | undefined> = {};
-/**
- * Loads emoji data
- */
-async function fetchEmojiData() {
-    const response = await fetch("/emojis/data.json");
-    if (!response.ok) {
-        console.error("Failed to fetch emoji data: response was not ok");
-        return;
-    }
-    const data = await response.json();
-    if (typeof data !== "object") {
-        console.error("Failed to fetch emoji data: response was not an object");
-        return;
-    }
-    emojisByCategory = data;
-    // Iterate over categories to create the emojiByCode mapping
-    Object.entries(emojisByCategory).forEach(([category, emojis]) => {
-        if (!(category in CategoryTabOption) || !Array.isArray(emojis)) {
-            console.warn(`Invalid category "${category}" or emojis data for category`);
-            return;
-        }
-        emojis.map((emojiData: DataEmoji) => {
-            const unified = emojiData[EmojiProperties.unified];
-            emojiByCode[unified] = emojiData;
-        });
-    });
-}
-if (process.env.NODE_ENV !== "test") {
-    fetchEmojiData();
-}
 
 /**
  * Removes any skin tone data from a unified emoji code to normalize it.
@@ -570,28 +519,89 @@ const searchIconButtonStyle = {
     height: "48px",
 } as const;
 
-export function EmojiPicker({
+export function FallbackEmojiPicker({
     anchorEl,
     onClose,
     onSelect,
-}: {
-    anchorEl: HTMLElement | null;
-    onClose: () => unknown;
-    onSelect: (emoji: string) => unknown;
-}) {
+}: FallbackEmojiPickerProps) {
     const { t } = useTranslation();
     const { palette } = useTheme();
     const zIndex = useZIndex(Boolean(anchorEl), false, Z_INDEX_OFFSET);
 
     const [searchString, setSearchString] = useState("");
-    function handleChange(value: string) {
-        setSearchString(value);
+    const [internalSearchString, setInternalSearchString] = useState("");
+    const [debouncedSetSearchString] = useDebounce(setSearchString, SEARCH_STRING_DEBOUNCE_MS);
+    function handleSearchChange(value: string) {
+        setInternalSearchString(value);
+        debouncedSetSearchString(value);
+    }
+    function handleSearchInputChange(event: React.ChangeEvent<HTMLInputElement>) {
+        const value = event.target.value;
+        setInternalSearchString(value);
+        debouncedSetSearchString(value);
+    }
+    function getInputProps() {
+        return {
+            enterKeyHint: "search",
+        };
     }
 
     const [hoveredEmoji, setHoveredEmoji] = useState<string | null>(null);
     const [activeSkinTone, setActiveSkinTone] = useState(SkinTone.Neutral);
     const [isSkinTonePickerOpen, setIsSkinTonePickerOpen] = useState(false);
     const [suggestedEmojis, setSuggestedEmojis] = useState<SuggestedItem[]>([]);
+
+    // State for loading
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(function loadData() {
+        async function fetchData() {
+            try {
+                // Fetch emoji names and data
+                const [namesResponse, dataResponse] = await Promise.all([
+                    fetch("/emojis/locales/en.json"),
+                    fetch("/emojis/data.json"),
+                ]);
+                const [namesData, emojiData] = await Promise.all([
+                    namesResponse.json(),
+                    dataResponse.json(),
+                ]);
+                if (typeof namesData !== "object" || typeof emojiData !== "object") {
+                    console.error("Failed to fetch emoji data: response was not an object");
+                    return;
+                }
+                emojisByCategory = emojiData;
+                namesByCode = namesData;
+
+                // Iterate over the namesByCode to create the codeByName mapping
+                for (const code in namesByCode) {
+                    const names = namesByCode[code];
+                    if (Array.isArray(names)) {
+                        names.forEach(name => {
+                            codeByName[name] = code;
+                        });
+                    }
+                }
+                // Iterate over categories to create the emojiByCode mapping
+                Object.entries(emojisByCategory).forEach(([category, emojis]) => {
+                    if (!(category in CategoryTabOption) || !Array.isArray(emojis)) {
+                        console.warn(`Invalid category "${category}" or emojis data for category`);
+                        return;
+                    }
+                    emojis.map((emojiData: DataEmoji) => {
+                        const unified = emojiData[EmojiProperties.unified];
+                        emojiByCode[unified] = emojiData;
+                    });
+                });
+
+                setIsLoading(false);
+            } catch (error) {
+                console.error("Failed to fetch emoji data", error);
+            }
+        }
+
+        fetchData();
+    }, []);
 
     // Handle categories
     const {
@@ -615,7 +625,11 @@ export function EmojiPicker({
         }
     }
 
-    const setActiveCategory = useCallback(function setActiveCategoryCallback(_: unknown, newCategory: PageTab<EmojiTabsInfo>, disableScroll = false) {
+    const setActiveCategory = useCallback(function setActiveCategoryCallback(
+        _: ChangeEvent<unknown> | undefined,
+        newCategory: PageTab<EmojiTabsInfo>,
+        disableScroll = false,
+    ) {
         if (disableScroll) {
             handleTabChange(_, newCategory);
         } else {
@@ -722,17 +736,23 @@ export function EmojiPicker({
             >
                 <HeaderBox>
                     <Box display="flex" flexDirection="row" alignItems="center" padding={1} gap={1}>
-                        <SearchBarPaper component="form">
+                        <SearchBarPaper
+                            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                            // @ts-ignore
+                            action="#" // Needed for iOS to accept enterKeyHint: https://stackoverflow.com/a/39485162/406725
+                            component="form"
+                        >
                             <Input
                                 id="emoji-search-input"
                                 disableUnderline={true}
                                 fullWidth={true}
-                                value={searchString}
-                                onChange={(e) => { handleChange(e.target.value); }}
+                                inputProps={getInputProps()}
+                                value={internalSearchString}
+                                onChange={handleSearchInputChange}
                                 placeholder={t("Search") + "..."}
                                 sx={searchBarInputStyle}
                             />
-                            <MicrophoneButton onTranscriptChange={handleChange} />
+                            <MicrophoneButton onTranscriptChange={handleSearchChange} />
                             <IconButton sx={searchIconButtonStyle} aria-label="main-search-icon">
                                 <SearchIcon fill={palette.background.textSecondary} />
                             </IconButton>
@@ -782,7 +802,8 @@ export function EmojiPicker({
                     ref={scrollRef}
                     onScroll={onScroll}
                 >
-                    <FullEmojiList>
+                    {isLoading && <div>Loading...</div>}
+                    {!isLoading && <FullEmojiList>
                         {filteredTabs.map((category) => {
                             if (category.key === CategoryTabOption.Suggested) {
                                 return <Suggested
@@ -804,7 +825,7 @@ export function EmojiPicker({
                                 />
                             );
                         })}
-                    </FullEmojiList>
+                    </FullEmojiList>}
                     <HoveredEmojiBox>
                         <HoveredEmojiDisplay>
                             {hoveredEmoji ? parseNativeEmoji(hoveredEmoji) : "‎"}
@@ -817,5 +838,71 @@ export function EmojiPicker({
                 </EmojiPickerBody>
             </MainBox>
         </EmojiPopover>
+    );
+}
+
+const addEmojiIconButtonStyle = { borderRadius: 0, background: "transparent" } as const;
+const hiddenInputStyle = { position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 } as const;
+
+export function EmojiPicker({
+    onSelect,
+}: {
+    onSelect: (emoji: string) => unknown;
+}) {
+    // Hidden input for native emoji picker
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+
+    function supportsNativeEmojiPicker() {
+        // See https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement/showPicker
+        // return "showPicker" in HTMLInputElement.prototype; //TODO isn't reliable
+        return false;
+    }
+
+    function handleButtonClick(event: React.MouseEvent<HTMLButtonElement>) {
+        if (inputRef.current && supportsNativeEmojiPicker()) {
+            inputRef.current.showPicker();
+        } else {
+            // Fallback to custom emoji picker
+            setAnchorEl(event.currentTarget);
+        }
+    }
+
+    function handleInputChange(event: React.ChangeEvent<HTMLInputElement>) {
+        const emoji = event.target.value;
+        onSelect(emoji);
+        event.target.value = ""; // Reset the input
+    }
+
+    function handleCustomPickerSelect(emoji: string) {
+        onSelect(emoji);
+        setAnchorEl(null);
+    }
+
+    function handleCustomPickerClose() {
+        setAnchorEl(null);
+    }
+
+    return (
+        <>
+            <IconButton
+                size="small"
+                style={addEmojiIconButtonStyle}
+                onClick={handleButtonClick}
+            >
+                <AddIcon />
+            </IconButton>
+            <input
+                ref={inputRef}
+                type="text"
+                style={hiddenInputStyle}
+                onChange={handleInputChange}
+            />
+            <FallbackEmojiPicker
+                anchorEl={anchorEl}
+                onClose={handleCustomPickerClose}
+                onSelect={handleCustomPickerSelect}
+            />
+        </>
     );
 }

@@ -12,7 +12,7 @@ import { MessageTree } from "hooks/messages";
 import { useDeleter } from "hooks/objectActions";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { usePopover } from "hooks/usePopover";
-import { AddIcon, ArrowDownIcon, BotIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, DeleteIcon, EditIcon, ErrorIcon, RefreshIcon, ReplyIcon, UserIcon } from "icons";
+import { ArrowDownIcon, BotIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, DeleteIcon, EditIcon, ErrorIcon, RefreshIcon, ReplyIcon, UserIcon } from "icons";
 import { Dispatch, RefObject, SetStateAction, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -323,20 +323,9 @@ function ChatBubbleReactions({
                         </Box>
                     );
                 })}
-                {!isOwn && (
-                    <IconButton
-                        size="small"
-                        style={reactionIconButtonStyle}
-                        onClick={openReactionMenu}
-                    >
-                        <AddIcon />
-                    </IconButton>
-                )}
-                <EmojiPicker
-                    anchorEl={anchorEl}
-                    onClose={closeReactionMenu}
+                {!isOwn && <EmojiPicker
                     onSelect={onReactionAdd}
-                />
+                />}
             </ReactionsMainStack>
             <Stack direction="row">
                 <Tooltip title={t("Copy")}>
