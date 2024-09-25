@@ -7,15 +7,16 @@ import { useZIndex } from "hooks/useZIndex";
 import { AddIcon, AirplaneIcon, AwardIcon, CompleteIcon, FoodIcon, HistoryIcon, ProjectIcon, ReportIcon, RoutineValidIcon, SearchIcon, VrooliIcon } from "icons";
 import { ChangeEvent, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { VariableSizeList } from "react-window";
 import { TabParam } from "utils/search/objectToSearch";
 // import emojis from "./data/emojis";
 
 // const KNOWN_FAILING_EMOJIS = ["2640-fe0f", "2642-fe0f", "2695-fe0f"];
 const Z_INDEX_OFFSET = 1000;
-const PERCENTS = 100;
 const SUGGESTED_EMOJIS_LIMIT = 20;
 const SKIN_OPTION_WIDTH_WITH_SPACING = 28;
 const SEARCH_STRING_DEBOUNCE_MS = 200;
+const NATIVE_PICKER_FAIL_TIMEOUT_MS = 500;
 
 type FallbackEmojiPickerProps = {
     anchorEl: HTMLElement | null;
@@ -410,8 +411,8 @@ const EmojiPopover = styled(Popover, {
         background: theme.palette.background.default,
         border: theme.palette.mode === "light" ? "none" : `1px solid ${theme.palette.divider}`,
         borderRadius: theme.spacing(2),
-        width: "min(100%, 410px)",
-        height: "min(100%, 410px)",
+        // width: "min(100%, 410px)",
+        // height: "min(100%, 410px)",
     },
 }));
 
@@ -479,11 +480,6 @@ const SkinColorOption = styled(Box, {
     zIndex: isActive ? 1 : 0, // Ensure selected is on top
 }));
 
-const FullEmojiList = styled("ul")(({ theme }) => ({
-    padding: theme.spacing(1),
-    margin: 0,
-}));
-
 const EmojiPickerBody = styled(Box)(() => ({
     overflow: "scroll",
     "&::-webkit-scrollbar": {
@@ -528,6 +524,8 @@ export function FallbackEmojiPicker({
     const { palette } = useTheme();
     const zIndex = useZIndex(Boolean(anchorEl), false, Z_INDEX_OFFSET);
 
+    const listRef = useRef<VariableSizeList | null>(null);
+
     const [searchString, setSearchString] = useState("");
     const [internalSearchString, setInternalSearchString] = useState("");
     const [debouncedSetSearchString] = useDebounce(setSearchString, SEARCH_STRING_DEBOUNCE_MS);
@@ -545,6 +543,11 @@ export function FallbackEmojiPicker({
             enterKeyHint: "search",
         };
     }
+    useEffect(function updateListSizeOnSearchStringChange() {
+        if (listRef.current) {
+            listRef.current.resetAfterIndex(0, true);
+        }
+    }, [searchString]);
 
     const [hoveredEmoji, setHoveredEmoji] = useState<string | null>(null);
     const [activeSkinTone, setActiveSkinTone] = useState(SkinTone.Neutral);
@@ -610,33 +613,6 @@ export function FallbackEmojiPicker({
         tabs,
     } = useTabs({ id: "emoji-picker-tabs", tabParams: categoryTabParams, display: "dialog" });
 
-    function scrollCategoryIntoView(key: string) {
-        const scrollContainer = scrollRef.current;
-        if (!scrollContainer) return;
-
-        const categoryDiv = scrollContainer.querySelector(`[data-name="${key}"]`);
-        if (categoryDiv) {
-            // Scroll to container, minus some spacing to account for the header
-            const HEADER_HEIGHT_APPROX = 120;
-            const categoryTop = (categoryDiv as HTMLElement).offsetTop - HEADER_HEIGHT_APPROX;
-            scrollContainer.scrollTo({ top: categoryTop, behavior: "smooth" });
-        } else {
-            console.error(`Failed to scroll category into view: category "${key}" not found`);
-        }
-    }
-
-    const setActiveCategory = useCallback(function setActiveCategoryCallback(
-        _: ChangeEvent<unknown> | undefined,
-        newCategory: PageTab<EmojiTabsInfo>,
-        disableScroll = false,
-    ) {
-        if (disableScroll) {
-            handleTabChange(_, newCategory);
-        } else {
-            scrollCategoryIntoView(newCategory.key);
-        }
-    }, [handleTabChange]);
-
     useEffect(function getSuggestedEmojisCallback() {
         setSuggestedEmojis(getSuggested());
     }, []);
@@ -648,44 +624,6 @@ export function FallbackEmojiPicker({
             return true;
         }) as PageTab<EmojiTabsInfo>[];
     }, [suggestedEmojis, tabs]);
-
-    // Change active category based on scroll position
-    const scrollRef = useRef<HTMLDivElement>(null);
-    function onScroll() {
-        const scrollContainer = scrollRef.current;
-        if (!scrollContainer) return;
-
-        const scrollContainerRect = scrollContainer.getBoundingClientRect();
-        const scrollContainerTop = scrollContainerRect.top;
-        const scrollContainerBottom = scrollContainerRect.bottom;
-
-        const categoryDivs = Array.from(scrollContainer.querySelectorAll("li"));
-
-        let maxVisiblePercentage = 0;
-        let mostVisibleCategoryKey: string = activeCategory.key;
-
-        categoryDivs.forEach((div) => {
-            const divRect = div.getBoundingClientRect();
-            const visibleTop = Math.max(divRect.top, scrollContainerTop);
-            const visibleBottom = Math.min(divRect.bottom, scrollContainerBottom);
-            const visibleHeight = Math.max(visibleBottom - visibleTop, 0);
-            const visiblePercentage = (visibleHeight / divRect.height) * PERCENTS;
-            if (visiblePercentage > maxVisiblePercentage) {
-                maxVisiblePercentage = visiblePercentage;
-                const categoryKey = div.getAttribute("data-name");
-                if (categoryKey) {
-                    mostVisibleCategoryKey = categoryKey;
-                }
-            }
-        });
-
-        if (mostVisibleCategoryKey !== activeCategory.key) {
-            const newActiveCategory = filteredTabs.find(tab => tab.key === mostVisibleCategoryKey);
-            if (newActiveCategory) {
-                setActiveCategory(undefined, newActiveCategory, true);
-            }
-        }
-    }
 
     const handleSelect = useCallback(function handleSelectCallback({ emoji, unified }: EmojiSelectProps) {
         setSuggestedEmojis(prevSuggested => {
@@ -722,6 +660,62 @@ export function FallbackEmojiPicker({
 
         onSelect(emoji);
     }, [onSelect]);
+
+    const scrollToCategory = useCallback((categoryKey) => {
+        const index = filteredTabs.findIndex(tab => tab.key === categoryKey);
+        if (index >= 0 && listRef.current) {
+            listRef.current.scrollToItem(index, "start");
+        }
+    }, [filteredTabs]);
+
+    const setActiveCategory = useCallback(function setActiveCategoryCallback(
+        _: ChangeEvent<unknown> | undefined,
+        newCategory: PageTab<EmojiTabsInfo>,
+        disableScroll = false,
+    ) {
+        if (disableScroll) {
+            handleTabChange(_, newCategory);
+        } else {
+            scrollToCategory(newCategory.key);
+        }
+    }, [handleTabChange, scrollToCategory]);
+
+    const getItemSize = useCallback((index: number) => {
+        const tab = filteredTabs[index];
+
+        // Height for the category title
+        const categoryTitleHeight = 24;
+
+        // Get emojis for this category after filtering
+        let numEmojisInCategory = 0;
+        if (tab.key === CategoryTabOption.Suggested) {
+            numEmojisInCategory = getSuggested().filter(suggestedItem => filterEmoji(searchString, { [EmojiProperties.unified]: suggestedItem.unified })).length;
+        } else {
+            numEmojisInCategory = (emojisByCategory[tab.key]?.filter(emoji => filterEmoji(searchString, emoji)) ?? []).length;
+        }
+
+        // Calculate the number of rows needed for the emojis
+        const emojisPerRow = 6;
+        const emojiRowHeight = 54;
+
+        const numberOfRows = Math.ceil(numEmojisInCategory / emojisPerRow);
+        const emojisHeight = numberOfRows * emojiRowHeight;
+
+        if (emojisHeight === 0) {
+            return 0;
+        }
+        return categoryTitleHeight + emojisHeight;
+    }, [filteredTabs, searchString]);
+
+    const onItemsRendered = useCallback(({ visibleStartIndex }) => {
+        const mostVisibleIndex = visibleStartIndex;
+        const mostVisibleTab = filteredTabs[mostVisibleIndex];
+
+        if (mostVisibleTab && mostVisibleTab.key !== activeCategory.key) {
+            // Update active category without scrolling
+            setActiveCategory(undefined, mostVisibleTab, true);
+        }
+    }, [filteredTabs, activeCategory, setActiveCategory]);
 
     return (
         <EmojiPopover
@@ -797,35 +791,46 @@ export function FallbackEmojiPicker({
                         tabs={filteredTabs}
                     />
                 </HeaderBox>
-                <EmojiPickerBody
-                    id="emoji-picker-body"
-                    ref={scrollRef}
-                    onScroll={onScroll}
-                >
+                <EmojiPickerBody id="emoji-picker-body">
                     {isLoading && <div>Loading...</div>}
-                    {!isLoading && <FullEmojiList>
-                        {filteredTabs.map((category) => {
-                            if (category.key === CategoryTabOption.Suggested) {
-                                return <Suggested
-                                    key={category.key}
-                                    category={category.key}
-                                    onSelect={handleSelect}
-                                    searchString={searchString}
-                                    setHoveredEmoji={setHoveredEmoji}
-                                />;
-                            }
-                            return (
-                                <RenderCategory
-                                    key={category.key}
-                                    activeSkinTone={activeSkinTone}
-                                    category={category.key}
-                                    onSelect={handleSelect}
-                                    searchString={searchString}
-                                    setHoveredEmoji={setHoveredEmoji}
-                                />
-                            );
-                        })}
-                    </FullEmojiList>}
+                    {!isLoading && (
+                        <VariableSizeList
+                            ref={listRef}
+                            height={320}
+                            width={400}
+                            itemCount={filteredTabs.length}
+                            itemSize={getItemSize}
+                            onItemsRendered={onItemsRendered}
+                            overscanCount={2}
+                        >
+                            {({ index, style }) => {
+                                const tab = filteredTabs[index];
+
+                                return (
+                                    <div style={style}>
+                                        {tab.key === CategoryTabOption.Suggested ? (
+                                            <Suggested
+                                                key={tab.key}
+                                                category={tab.key}
+                                                onSelect={handleSelect}
+                                                searchString={searchString}
+                                                setHoveredEmoji={setHoveredEmoji}
+                                            />
+                                        ) : (
+                                            <RenderCategory
+                                                key={tab.key}
+                                                activeSkinTone={activeSkinTone}
+                                                category={tab.key}
+                                                onSelect={handleSelect}
+                                                searchString={searchString}
+                                                setHoveredEmoji={setHoveredEmoji}
+                                            />
+                                        )}
+                                    </div>
+                                );
+                            }}
+                        </VariableSizeList>
+                    )}
                     <HoveredEmojiBox>
                         <HoveredEmojiDisplay>
                             {hoveredEmoji ? parseNativeEmoji(hoveredEmoji) : "‎"}
@@ -855,17 +860,49 @@ export function EmojiPicker({
 
     function supportsNativeEmojiPicker() {
         // See https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement/showPicker
-        // return "showPicker" in HTMLInputElement.prototype; //TODO isn't reliable
+        // return "showPicker" in HTMLInputElement.prototype; // Currently doesn't work on any browser. For now, showPicker only supports, dates, colors, etc. Basically everything except emojis.
         return false;
     }
 
-    function handleButtonClick(event: React.MouseEvent<HTMLButtonElement>) {
-        if (inputRef.current && supportsNativeEmojiPicker()) {
-            inputRef.current.showPicker();
-        } else {
-            // Fallback to custom emoji picker
-            setAnchorEl(event.currentTarget);
+    function handleButtonClick(event) {
+        // Get target now, or it will be null after the timeout
+        const anchorEl = event.currentTarget;
+
+        // Fallback to custom emoji picker if native picker is not supported
+        if (!inputRef.current || !supportsNativeEmojiPicker()) {
+            setAnchorEl(anchorEl);
+            return;
         }
+
+        let pickerOpened = false;
+
+        function onInputChange() {
+            pickerOpened = true;
+            inputRef.current?.removeEventListener("input", onInputChange);
+        }
+
+        inputRef.current.addEventListener("input", onInputChange);
+        inputRef.current.focus();
+
+        try {
+            inputRef.current.showPicker();
+        } catch (error) {
+            console.error("showPicker failed:", error);
+            inputRef.current.removeEventListener("input", onInputChange);
+            // Fallback to custom emoji picker
+            setAnchorEl(anchorEl);
+            return;
+        }
+
+        setTimeout(function fallbackAfterTimeout() {
+            if (pickerOpened) {
+                return;
+            }
+            // Picker didn't open or user didn't select an emoji
+            inputRef.current?.removeEventListener("input", onInputChange);
+            // Fallback to custom emoji picker
+            setAnchorEl(anchorEl);
+        }, NATIVE_PICKER_FAIL_TIMEOUT_MS);
     }
 
     function handleInputChange(event: React.ChangeEvent<HTMLInputElement>) {

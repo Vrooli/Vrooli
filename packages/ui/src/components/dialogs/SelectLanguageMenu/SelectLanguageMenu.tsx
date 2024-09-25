@@ -53,14 +53,14 @@ const autoTranslateLanguages = [
 
 const titleId = "select-language-dialog-title";
 
-export const SelectLanguageMenu = ({
+export function SelectLanguageMenu({
     currentLanguage,
     handleDelete,
     handleCurrent,
     isEditing = false,
     languages,
     sxs,
-}: SelectLanguageMenuProps) => {
+}: SelectLanguageMenuProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -344,4 +344,4 @@ export const SelectLanguageMenu = ({
             </Tooltip>
         </>
     );
-};
+}
