@@ -1,15 +1,19 @@
 import { RefObject, useCallback, useEffect, useRef, useState } from "react";
 
-export default function useDraggableScroll(
-    ref: RefObject<HTMLElement>,
+type useDraggableScrollProps = {
+    ref: RefObject<HTMLElement>;
     options: {
-        direction?: 'vertical' | 'horizontal' | 'both';
-    } = { direction: 'both' }
-) {
-    if (process.env.NODE_ENV === 'development') {
-        if (typeof ref !== 'object' || typeof ref.current === 'undefined') {
-            console.error('`useDraggableScroll` expects a single ref argument.');
-        }
+        direction?: "vertical" | "horizontal" | "both";
+    };
+}
+
+// Taken from: https://github.com/g-delmo/use-draggable-scroll
+export default function useDraggableScroll({
+    ref,
+    options = { direction: "both" },
+}: useDraggableScrollProps) {
+    if (typeof ref !== "object" || typeof ref.current === "undefined") {
+        console.error("`useDraggableScroll` expects a single ref argument.");
     }
 
     const { direction } = options;
@@ -17,30 +21,30 @@ export default function useDraggableScroll(
     // The initial position (scroll progress and mouse location) when the mouse is pressed down on the element
     let initialPosition = { scrollTop: 0, scrollLeft: 0, mouseX: 0, mouseY: 0 };
 
-    const mouseMoveHandler = (event: { clientX: number; clientY: number }) => {
+    function mouseMoveHandler(event: { clientX: number; clientY: number }) {
         if (ref.current) {
             // Calculate differences to see how far the user has moved
             const dx = event.clientX - initialPosition.mouseX;
             const dy = event.clientY - initialPosition.mouseY;
 
             // Scroll the element according to those differences
-            if (direction !== 'horizontal')
+            if (direction !== "horizontal")
                 ref.current.scrollTop = initialPosition.scrollTop - dy;
-            if (direction !== 'vertical')
+            if (direction !== "vertical")
                 ref.current.scrollLeft = initialPosition.scrollLeft - dx;
         }
-    };
+    }
 
-    const mouseUpHandler = () => {
+    function mouseUpHandler() {
         // Return to cursor: grab after the user is no longer pressing
-        if (ref.current) ref.current.style.cursor = 'grab';
+        if (ref.current) ref.current.style.cursor = "grab";
 
         // Remove the event listeners since it is not necessary to track the mouse position anymore
-        document.removeEventListener('mousemove', mouseMoveHandler);
-        document.removeEventListener('mouseup', mouseUpHandler);
-    };
+        document.removeEventListener("mousemove", mouseMoveHandler);
+        document.removeEventListener("mouseup", mouseUpHandler);
+    }
 
-    const onMouseDown = (event: { clientX: number; clientY: number }) => {
+    function onMouseDown(event: { clientX: number; clientY: number }) {
         if (ref.current) {
             // Save the position at the moment the user presses down
             initialPosition = {
@@ -51,14 +55,14 @@ export default function useDraggableScroll(
             };
 
             // Show a cursor: grabbing style and set user-select: none to avoid highlighting text while dragging
-            ref.current.style.cursor = 'grabbing';
-            ref.current.style.userSelect = 'none';
+            ref.current.style.cursor = "grabbing";
+            ref.current.style.userSelect = "none";
 
             // Add the event listeners that will track the mouse position for the rest of the interaction
-            document.addEventListener('mousemove', mouseMoveHandler);
-            document.addEventListener('mouseup', mouseUpHandler);
+            document.addEventListener("mousemove", mouseMoveHandler);
+            document.addEventListener("mouseup", mouseUpHandler);
         }
-    };
+    }
 
     return { onMouseDown };
 }
@@ -137,10 +141,10 @@ type PinchRefs = {
  * Supports both touch and trackpad. 
  * NOTE: Make sure to disable the accessibility zoom on the component you're using this hook on. Not sure how to do this yet
  */
-export const usePinchZoom = ({
+export function usePinchZoom({
     onScaleChange,
     validTargetIds = [],
-}: UsePinchZoomProps): UsePinchZoomReturn => {
+}: UsePinchZoomProps): UsePinchZoomReturn {
     const [isPinching, setIsPinching] = useState(false);
     const refs = useRef<PinchRefs>({
         currDistance: 0,
@@ -150,12 +154,12 @@ export const usePinchZoom = ({
     const waitRef = useRef<number>(0);
 
     useEffect(() => {
-        const getTouchDistance = (e: TouchEvent) => {
+        function getTouchDistance(e: TouchEvent) {
             const touch1 = e.touches[0];
             const touch2 = e.touches[1];
             return Math.sqrt(Math.pow(touch1.clientX - touch2.clientX, 2) + Math.pow(touch1.clientY - touch2.clientY, 2));
-        };
-        const handleTouchStart = (e: TouchEvent) => {
+        }
+        function handleTouchStart(e: TouchEvent) {
             // Find the target
             const targetId = (e as any)?.target?.id;
             if (!targetId) return;
@@ -165,8 +169,8 @@ export const usePinchZoom = ({
             setIsPinching(true);
             refs.current.currDistance = getTouchDistance(e);
             refs.current.lastDistance = refs.current.currDistance;
-        };
-        const handleTouchMove = (e: TouchEvent) => {
+        }
+        function handleTouchMove(e: TouchEvent) {
             e.preventDefault();
             // If pinching
             if (isPinching && e.touches.length === 2) {
@@ -192,15 +196,15 @@ export const usePinchZoom = ({
                 refs.current.lastDistance = refs.current.currDistance;
                 refs.current.currDistance = newDistance;
             }
-        };
-        const handleTouchEnd = (e: TouchEvent) => {
+        }
+        function handleTouchEnd(e: TouchEvent) {
             if (e.touches.length === 0) {
                 setIsPinching(false);
                 refs.current.currDistance = 0;
                 refs.current.lastDistance = 0;
             }
-        };
-        const handleWheel = (e: WheelEvent) => {
+        }
+        function handleWheel(e: WheelEvent) {
             e.preventDefault();
             // Scale down movement so it's no too fast
             const moveBy = e.deltaY / 500;
@@ -218,7 +222,7 @@ export const usePinchZoom = ({
             } else if (e.deltaY < 0) {
                 onScaleChange(-moveBy, cursor);
             }
-        };
+        }
         document.addEventListener("touchstart", handleTouchStart);
         document.addEventListener("touchmove", handleTouchMove);
         document.addEventListener("touchend", handleTouchEnd);
@@ -234,7 +238,7 @@ export const usePinchZoom = ({
     return {
         isPinching,
     };
-};
+}
 
 /**
  * Maximum travel distance allowed before a press is cancelled

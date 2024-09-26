@@ -841,11 +841,9 @@ function runCommonTests(caseData: MinimumChatMessage[], chatId: string, caseTitl
                 });
 
                 const { map: originalMap, roots: originalRoots } = originalResult.current.tree;
-                console.log("yeet tree 1 for ", caseTitle, "is ", originalMap, originalRoots);
                 expect(() => assertTreeIntegrity(originalMap, originalRoots, skip)).not.toThrow();
 
                 const { map: shuffledMap, roots: shuffledRoots } = shuffledResult.current.tree;
-                console.log("yeet tree 2 for ", caseTitle, "is ", shuffledMap, shuffledRoots);
                 expect(() => assertTreeIntegrity(shuffledMap, shuffledRoots, skip)).not.toThrow();
 
                 // Check that the trees have the same structure

@@ -3,7 +3,7 @@ import { useThrottle } from "hooks/useThrottle";
 import { AddIcon, CaseSensitiveIcon, MinusIcon } from "icons";
 import { useCallback, useState } from "react";
 import { FONT_SIZE_MAX, FONT_SIZE_MIN } from "utils/consts";
-import { getCookie } from "utils/cookies";
+import { getCookie } from "utils/localStorage";
 import { PubSub } from "utils/pubsub";
 
 const THROTTLE_MS = 50;

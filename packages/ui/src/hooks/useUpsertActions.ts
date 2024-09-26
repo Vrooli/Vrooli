@@ -3,7 +3,7 @@ import { ObjectDialogAction } from "components/dialogs/types";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SetLocation, useLocation } from "route";
-import { removeCookieFormData, removeCookiePartialData, setCookieAllowFormCache, setCookiePartialData } from "utils/cookies";
+import { removeCookieFormData, removeCookiePartialData, setCookieAllowFormCache, setCookiePartialData } from "utils/localStorage";
 import { PubSub } from "utils/pubsub";
 import { FormProps } from "../types";
 

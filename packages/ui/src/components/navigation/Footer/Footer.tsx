@@ -32,12 +32,12 @@ const StyledFooter = styled(Box)(({ theme }) => ({
 }));
 
 const listItemStyle = {
-    padding: 1
+    padding: 1,
 } as const;
 const footerColumn = {
     display: "flex",
     flexDirection: "column",
-    padding: 2
+    padding: 2,
 };
 
 export function Footer() {
@@ -50,7 +50,7 @@ export function Footer() {
     if (isStandalone) return null;
     return (
         <StyledFooter id="footer" component="footer">
-            <Box display="flex" justifyContent="center" sx={{ width: '100%' }}>
+            <Box display="flex" justifyContent="center" sx={{ width: "100%" }}>
                 <Box sx={footerColumn}>
                     <Typography variant="body1" sx={{ textTransform: "uppercase" }}>{t("Resource", { count: 2 })}</Typography>
                     <List component="nav" dense>
@@ -105,7 +105,7 @@ export function Footer() {
             <Box sx={{
                 backgroundColor: palette.primary.dark,
                 height: "50vh",
-                position: 'absolute',
+                position: "absolute",
                 left: 0,
                 right: 0,
                 bottom: 0,

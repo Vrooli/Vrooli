@@ -15,6 +15,7 @@ type HeadingLevel = "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
 
 type HeadingProps = {
     children: string;
+    // eslint-disable-next-line no-magic-numbers
     level: 1 | 2 | 3 | 4 | 5 | 6;
 };
 
@@ -54,13 +55,13 @@ function CodeBlock({ children }) {
         };
     }, []);
 
-    const copyCode = () => {
+    function copyCode() {
         if (textRef && textRef.current) {
             // Copy the text content of the code block
             navigator.clipboard.writeText(textRef.current.textContent ?? "");
             PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
         }
-    };
+    }
 
     return (
         <div style={{ position: "relative" }}>

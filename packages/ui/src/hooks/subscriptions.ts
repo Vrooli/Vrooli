@@ -1,7 +1,7 @@
 import { Breakpoints, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Dimensions } from "types";
-import { getCookie, setCookie } from "utils/cookies";
+import { getCookie, removeCookie, setCookie } from "utils/localStorage";
 import { PubSub, RichInputToolbarViewSize } from "utils/pubsub";
 import { useDimensions } from "./useDimensions";
 
@@ -67,4 +67,26 @@ export function useRichInputToolbarViewSize() {
     }, []);
 
     return { dimRef, handleUpdateViewSize, viewSize };
+}
+
+export function useShowBotWarning() {
+    const [showBotWarning, setShowBotWarning] = useState<boolean>(getCookie("ShowBotWarning"));
+    useEffect(() => {
+        const unsubscribe = PubSub.get().subscribe("showBotWarning", (data) => {
+            setShowBotWarning(data);
+        });
+        return unsubscribe;
+    }, []);
+
+    const handleUpdateShowBotWarning = useCallback(function handleUpdateShowBotWarning(showWarning: boolean | null | undefined) {
+        if (typeof showWarning !== "boolean") {
+            removeCookie("ShowBotWarning");
+            PubSub.get().publish("showBotWarning", true);
+        } else {
+            setCookie("ShowBotWarning", showWarning);
+            PubSub.get().publish("showBotWarning", showWarning);
+        }
+    }, []);
+
+    return { handleUpdateShowBotWarning, showBotWarning };
 }

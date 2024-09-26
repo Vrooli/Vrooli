@@ -1,6 +1,6 @@
 import { ActiveFocusMode, FocusMode, Session, SessionUser, uuidValidate } from "@local/shared";
-import { getCookie } from "utils/cookies";
 import { getUserLanguages } from "utils/display/translationTools";
+import { getCookie } from "utils/localStorage";
 
 /**
  * Session object that indicates no user is logged in

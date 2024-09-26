@@ -3,6 +3,7 @@ import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
 import { FindObjectType } from "components/dialogs/types";
 import { ResourceListProps } from "components/lists/resource/types";
 import { FieldProps } from "formik";
+import { type UseChatTaskReturn } from "hooks/tasks";
 import { CSSProperties, RefObject } from "react";
 import { SvgComponent, SxType } from "types";
 
@@ -179,6 +180,7 @@ export interface LinkInputBaseProps {
 
 export type LinkInputProps = Omit<LinkInputBaseProps, "onChange" | "value">;
 
+export type GetTaggableItemsFunc = (query: string) => Promise<ListObject[]>;
 export type RichInputBaseProps = Omit<TextInputProps, "onChange" | "onSubmit"> & {
     actionButtons?: Array<{
         disabled?: boolean;
@@ -194,7 +196,7 @@ export type RichInputBaseProps = Omit<TextInputProps, "onChange" | "onSubmit"> &
      * Callback to provide data for "@" tagging dropdown. 
      * If not provided, the dropdown will not appear.
      */
-    getTaggableItems?: (query: string) => Promise<ListObject[]>;
+    getTaggableItems?: GetTaggableItemsFunc;
     helperText?: string | boolean | null | undefined;
     maxChars?: number;
     maxRows?: number;
@@ -207,6 +209,7 @@ export type RichInputBaseProps = Omit<TextInputProps, "onChange" | "onSubmit"> &
     onSubmit?: (newText: string) => unknown;
     placeholder?: string;
     tabIndex?: number;
+    taskInfo?: Pick<UseChatTaskReturn, "activeTask" | "contexts">;
     value: string;
     sxs?: {
         topBar?: SxType;

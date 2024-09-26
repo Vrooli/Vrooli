@@ -2,7 +2,7 @@ import { GqlModelType, LINKS, ResourceUsedFor } from "@local/shared";
 import { Avatar, Palette } from "@mui/material";
 import { ApiIcon, ArticleIcon, AwardIcon, BookmarkFilledIcon, BotIcon, CommentIcon, CreateIcon, DefaultSocialIcon, DonateIcon, DownloadIcon, FacebookIcon, GridIcon, HelpIcon, HistoryIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, MonthIcon, NoteIcon, NotificationsAllIcon, ObjectIcon, PremiumIcon, ProjectIcon, ProposalIcon, RedditIcon, ReminderIcon, ReportIcon, ResearchIcon, RoutineIcon, ScheduleIcon, SearchIcon, SettingsIcon, SmartContractIcon, SocialVideoIcon, StatsIcon, TeamIcon, TerminalIcon, UserIcon, WebsiteIcon, XIcon, YouTubeIcon } from "icons";
 import { SvgComponent } from "types";
-import { getCookiePartialData } from "utils/cookies";
+import { getCookiePartialData } from "utils/localStorage";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { extractImageUrl } from "./imageTools";
 import { getDisplay, placeholderColor } from "./listTools";

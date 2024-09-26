@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ScrollBox } from "styles";
 import { SvgComponent } from "types";
-import { CreateType, getCookie, setCookie } from "utils/cookies";
+import { CreateType, getCookie, setCookie } from "utils/localStorage";
 import { CreateViewProps } from "../types";
 
 type CreateInfo = {

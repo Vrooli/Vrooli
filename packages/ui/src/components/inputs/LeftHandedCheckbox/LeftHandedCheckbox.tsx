@@ -3,7 +3,7 @@ import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { noSelect } from "styles";
 import { SxType } from "types";
-import { getCookie } from "utils/cookies";
+import { getCookie } from "utils/localStorage";
 import { PubSub } from "utils/pubsub";
 
 type LeftHandedCheckboxProps = {

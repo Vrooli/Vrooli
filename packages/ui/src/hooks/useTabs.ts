@@ -4,7 +4,7 @@ import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { addSearchParams, useLocation } from "route";
 import { ViewDisplayType } from "types";
-import { getCookie, setCookie } from "utils/cookies";
+import { getCookie, setCookie } from "utils/localStorage";
 import { TabParam, TabsInfo } from "utils/search/objectToSearch";
 
 export type PageTab<TabList extends TabsInfo> = Omit<TabParam<TabList>, "color" | "searchPlaceholderKey" | "titleKey"> & {

@@ -1,7 +1,7 @@
 import { ActiveFocusMode, ChatPageTabOption, CommonKey, ErrorKey, LlmTask, LlmTaskInfo, Session, TaskContextInfo } from "@local/shared";
 import { AlertDialogSeverity } from "components/dialogs/AlertDialog/AlertDialog";
 import { SnackSeverity } from "components/snacks";
-import { ThemeType } from "./cookies";
+import { ThemeType } from "./localStorage";
 
 export type TranslatedSnackMessage<KeyList = CommonKey | ErrorKey> = {
     messageKey: KeyList;

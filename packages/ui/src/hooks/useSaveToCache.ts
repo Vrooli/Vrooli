@@ -1,6 +1,6 @@
 import { DUMMY_ID, GqlModelType } from "@local/shared";
 import { useCallback, useEffect } from "react";
-import { getCookieAllowFormCache, removeCookieAllowFormCache, setCookieFormData } from "utils/cookies";
+import { getCookieAllowFormCache, removeCookieAllowFormCache, setCookieFormData } from "utils/localStorage";
 import { useDebounce } from "./useDebounce";
 
 const DEFAULT_DEBOUNCE_TIME_MS = 200;

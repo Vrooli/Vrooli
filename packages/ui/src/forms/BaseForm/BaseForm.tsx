@@ -48,7 +48,7 @@ export function OuterForm({
             paddingRight: 1,
             paddingBottom: "56px",
         } as const;
-    }, [maxWidth]);
+    }, [display, maxWidth]);
 
     return (
         <Box flex={1} style={innerStyle}>
@@ -108,5 +108,5 @@ export function BaseForm({
         <OuterForm display={display} maxWidth={maxWidth}>
             <InnerForm display={display} maxWidth={maxWidth} {...rest} />
         </OuterForm>
-    )
-}
+    );
+} 

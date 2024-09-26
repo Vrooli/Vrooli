@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { FormSection, ScrollBox } from "styles";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
-import { removeCookie } from "utils/cookies";
+import { removeCookie } from "utils/localStorage";
 import { PubSub, SIDE_MENU_ID } from "utils/pubsub";
 import { SettingsAuthenticationFormProps, SettingsAuthenticationViewProps } from "../types";
 
