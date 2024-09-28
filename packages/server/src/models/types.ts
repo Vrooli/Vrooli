@@ -336,12 +336,27 @@ export type Validator<
      * Partial queries for various visibility checks
      */
     visibility: {
-        /** For private objects (i.e. only the owner can see them) */
-        private: (userId: string) => Model["PrismaWhere"];
-        /** For public objects (i.e. anyone can see them) */
-        public: (userId: string) => Model["PrismaWhere"];
-        /** For both private and public objects that you own */
-        owner: (userId: string) => Model["PrismaWhere"];
+        /** 
+         * For private objects (i.e. only the owner can see them).
+         * 
+         * Set to null if this query type is not supported. This will throw an error 
+         * if the query is attempted.
+         */
+        private: ((userId: string) => Model["PrismaWhere"]) | null;
+        /** 
+         * For public objects (i.e. anyone can see them).
+         * 
+         * Set to null if this query type is not supported. This will throw an error
+         * if the query is attempted.
+         */
+        public: ((userId: string) => Model["PrismaWhere"]) | null;
+        /** 
+         * For both private and public objects that you own.
+         * 
+         * Set to null if this query type is not supported. This will throw an error
+         * if the query is attempted.
+         */
+        owner: ((userId: string) => Model["PrismaWhere"]) | null;
     }
     /**
      * Uses query result to determine if the object is soft-deleted
@@ -506,10 +521,12 @@ export type Mutater<Model extends {
          * on versions not specified in the mutation)
          */
         afterMutations?: ({ createdIds, deletedIds, updatedIds, updateInputs, userData }: {
+            additionalData: Record<string, any>,
             beforeDeletedData: { [key in `${GqlModelType}`]?: object },
             createdIds: string[],
             createInputs: Model["GqlCreate"][],
             deletedIds: string[],
+            resultsById: { [key: string]: unknown },
             updatedIds: string[],
             updateInputs: Model["GqlUpdate"][],
             preMap: PreMap,
