@@ -206,7 +206,7 @@ function TitleDisplay({
     const showOnDesktop = behavior
         ? behavior === "Hide"
             ? false
-            : (location === "In" && behavior === "ShowIn") || (location === "Below" && behavior === "ShowBelow")
+            : (location === "In" && behavior === "ShowIn") || (location === "Below" && behavior === "ShowBelow") || (location === "Below" && isChatSideMenuOpen)
         : location === "Below";
     const showOnMobile = behavior
         ? behavior === "Hide"
@@ -248,7 +248,6 @@ function TitleDisplay({
         </IconButton>;
     }
 
-    if (isChatSideMenuOpen) return null;
     if (TitleComponent && StartComponent) {
         return (
             <StartAndTitleBox

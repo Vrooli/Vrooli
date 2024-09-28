@@ -1,5 +1,5 @@
 import { LINKS } from "@local/shared";
-import { Box, useTheme } from "@mui/material";
+import { Box } from "@mui/material";
 import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
 import { ScrollToTop } from "components/ScrollToTop";
 import { NavbarProps } from "components/navigation/types";
@@ -38,7 +38,7 @@ const {
 const {
     PrivacyPolicyView,
     TermsView,
-} = lazily(() => import("./views/legal"));
+} = lazily(() => import("./views/PolicyView/PolicyView"));
 const { AboutView } = lazily(() => import("./views/AboutView/AboutView"));
 const { AwardsView } = lazily(() => import("./views/AwardsView/AwardsView"));
 const { CalendarView } = lazily(() => import("./views/CalendarView/CalendarView"));
@@ -62,6 +62,7 @@ const { RoutineUpsert, RoutineView } = lazily(() => import("./views/objects/rout
 const { SmartContractUpsert, SmartContractView } = lazily(() => import("./views/objects/smartContract"));
 const { UserView } = lazily(() => import("./views/objects/user"));
 const { RunView } = lazily(() => import("./views/runs/RunView/RunView"));
+const { ReportsView } = lazily(() => import("./views/ReportsView/ReportsView"));
 
 const fallbackNavbarStyle = {
     background: (t) => t.palette.primary.dark,
@@ -105,8 +106,6 @@ const noSidePadding = {
 };
 
 export function Routes(props: { sessionChecked: boolean }) {
-    const { palette } = useTheme();
-
     return (
         <>
             <ScrollToTop />
@@ -116,7 +115,7 @@ export function Routes(props: { sessionChecked: boolean }) {
                     sitemapIndex
                     priority={0.5}
                     changeFreq="monthly"
-                    sx={{ background: palette.background.paper }}
+                    excludePageContainer
                     {...props}
                 >
                     <AboutView display="page" />
@@ -229,6 +228,7 @@ export function Routes(props: { sessionChecked: boolean }) {
                     sitemapIndex
                     priority={0.2}
                     changeFreq="yearly"
+                    excludePageContainer
                     {...props}
                 >
                     <PrivacyPolicyView display="page" />
@@ -295,6 +295,9 @@ export function Routes(props: { sessionChecked: boolean }) {
                 </NavRoute>
                 <NavRoute path={`${LINKS.Reminder}/:id`} {...props}>
                     <ReminderCrud display="page" isCreate={false} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Reports}/:objectType/:objectOrRootId/:versionId?`} {...props}>
+                    <ReportsView />
                 </NavRoute>
                 <NavRoute
                     path={`${LINKS.ResetPassword}/:params*`}
@@ -407,6 +410,7 @@ export function Routes(props: { sessionChecked: boolean }) {
                     sitemapIndex
                     priority={0.2}
                     changeFreq="yearly"
+                    excludePageContainer
                     {...props}
                 >
                     <TermsView display="page" />

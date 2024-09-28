@@ -1,4 +1,4 @@
-import { DUMMY_ID, GqlModelType, LINKS, ListObject, NavigableObject, OrArray, getObjectUrl } from "@local/shared";
+import { CommonKey, DUMMY_ID, GqlModelType, LINKS, ListObject, NavigableObject, OrArray, getObjectUrl } from "@local/shared";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -82,17 +82,33 @@ export function useUpsertActions<T extends TType>({
     const [, setLocation] = useLocation();
 
     /** Helper function to publish a snack message */
-    const publishSnack = useCallback((actionType: "Created" | "Updated", count: number) => {
+    const publishSnack = useCallback((actionType: "Created" | "Updated", count: number, item: NavigableObject) => {
         if (suppressSnack) return;
         const rootType = objectType.replace("Version", "");
         const objectTranslation = t(rootType, { count: 1, defaultValue: rootType });
+
+        // Some actions have buttons
+        let buttonKey: CommonKey | undefined;
+        let buttonClicked: (() => unknown) | undefined;
+        // Create ations typically have a button to create a new object
+        if (actionType === "Created") {
+            // But for some objects, it makes more sense for the button to open the object
+            const shouldOpenObject = [GqlModelType.Report].includes(objectType as GqlModelType);
+            if (shouldOpenObject) {
+                buttonKey = "View";
+                const url = objectType === GqlModelType.Report ? `${LINKS.Reports}${getObjectUrl(item)}` : getObjectUrl(item);
+                buttonClicked = () => setLocation(url);
+            } else {
+                buttonKey = "CreateNew";
+                buttonClicked = () => setLocation(`${LINKS[rootType]}/add`);
+            }
+        }
+
         PubSub.get().publish("snack", {
             message: t(`Object${actionType}`, { objectName: objectTranslation, count }),
             severity: "Success",
-            ...(actionType === "Created" && {
-                buttonKey: "CreateNew",
-                buttonClicked: () => setLocation(`${LINKS[rootType]}/add`),
-            }),
+            buttonKey,
+            buttonClicked,
         });
     }, [objectType, setLocation, suppressSnack, t]);
 
@@ -111,7 +127,7 @@ export function useUpsertActions<T extends TType>({
             }
         }
 
-        function handleAddOrUpdate(messageType: "Created" | "Updated") {
+        function handleAddOrUpdate(messageType: "Created" | "Updated", item: NavigableObject) {
             if (canStore) {
                 setCookiePartialData(item as NavigableObject, "full"); // Update cache to view object more quickly
                 removeCookieFormData(`${objectType}-${isCreate ? DUMMY_ID : objectId}`); // Remove form backup data from cache
@@ -119,16 +135,16 @@ export function useUpsertActions<T extends TType>({
             }
 
             if (display === "page") { setLocation(viewUrl ?? LINKS.Home, { replace: true }); }
-            else { onCompleted?.(item); }
 
             if ((isCreate && messageType === "Created") || (!isCreate && messageType === "Updated")) {
-                publishSnack(messageType, Array.isArray(item) ? item.length : 1);
+                publishSnack(messageType, Array.isArray(item) ? item.length : 1, item);
             }
         }
 
         switch (action) {
             case ObjectDialogAction.Add:
-                if (item && !Array.isArray(item)) handleAddOrUpdate("Created");
+                if (item && !Array.isArray(item)) handleAddOrUpdate("Created", item);
+                onCompleted?.(item);
                 break;
             case ObjectDialogAction.Cancel:
                 // Remove form backup data from cache
@@ -156,7 +172,8 @@ export function useUpsertActions<T extends TType>({
                 // Don't display snack message, as we don't have enough information for the message's "Undo" button
                 break;
             case ObjectDialogAction.Save:
-                if (item) handleAddOrUpdate("Updated");
+                if (item && !Array.isArray(item)) handleAddOrUpdate("Updated", item);
+                onCompleted?.(item);
                 break;
         }
 

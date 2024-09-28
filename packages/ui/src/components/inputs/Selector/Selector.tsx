@@ -74,7 +74,7 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                 </Stack>
             </MenuItem>
         );
-    }), [options, getOptionLabel, getOptionDescription, getOptionIcon, palette.background.textSecondary, getOptionStyle, typography.fontWeightRegular]);
+    }), [options, getOptionLabel, getOptionDescription, getOptionIcon, getLabelStyle, palette.background.textSecondary, getOptionStyle]);
 
     // Find option from label
     const findOption = useCallback((label: string) => options.find((option) => getOptionLabel(option) === label), [options, getOptionLabel]);
@@ -113,7 +113,7 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                 {/* Note that we omit the description */}
             </Stack>
         );
-    }, []);
+    }, [findOption, getDisplayIcon, getOptionIcon, getOptionLabel, getOptionStyle, palette.background.textSecondary]);
 
     const selectStyle = useMemo(function selectStyle() {
         return {

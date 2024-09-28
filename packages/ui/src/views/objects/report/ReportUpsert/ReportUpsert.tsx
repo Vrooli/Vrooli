@@ -1,7 +1,7 @@
-import { DUMMY_ID, endpointGetReport, endpointPostReport, endpointPutReport, noopSubmit, Report, ReportCreateInput, ReportFor, ReportShape, ReportUpdateInput, reportValidation, Session, shapeReport } from "@local/shared";
-import { Link, Typography } from "@mui/material";
+import { DUMMY_ID, endpointGetReport, endpointPostReport, endpointPutReport, getObjectSlug, getObjectUrlBase, noopSubmit, Report, ReportCreateInput, ReportFor, ReportShape, ReportUpdateInput, reportValidation, Session, shapeReport } from "@local/shared";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { RichInput } from "components/inputs/RichInput/RichInput";
@@ -11,15 +11,14 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { formNavLink } from "forms/styles";
 import { useObjectFromUrl } from "hooks/useObjectFromUrl";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { useCallback, useContext, useMemo } from "react";
+import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { clickSize, FormContainer } from "styles";
+import { FormContainer, FormSection } from "styles";
 import { getUserLanguages } from "utils/display/translationTools";
 import { validateFormValues } from "utils/validateFormValues";
 import { ReportFormProps, ReportUpsertProps } from "../types";
@@ -40,21 +39,20 @@ const ReportReasons = {
     [ReportOptions.Other]: "Other",
 };
 
-/** New resources must include a createdFor __typename and ID */
-export type NewReportShape = Partial<Omit<Report, "createdFor">> & { createdFor: { __typename: ReportFor, id: string } };
-
 export function reportInitialValues(
     session: Session | undefined,
-    existing: NewReportShape,
+    existing: Omit<Partial<ReportShape>, "createdFor">,
+    createdFor: { __typename: ReportFor, id: string },
 ): ReportShape {
     return {
+        ...existing,
         __typename: "Report" as const,
         id: DUMMY_ID,
         reason: "",
         otherReason: "",
         details: "",
         language: getUserLanguages(session)[0],
-        ...existing,
+        createdFor,
     };
 }
 
@@ -62,31 +60,23 @@ export function transformReportValues(values: ReportShape, existing: ReportShape
     return isCreate ? shapeReport.create(values) : shapeReport.update(existing, values);
 }
 
+function getReasonLabel(reason: string) {
+    return ReportReasons[reason] || "";
+}
+
 function ReportForm({
     disabled,
-    dirty,
     display,
     existing,
-    handleUpdate,
     isCreate,
     isOpen,
     isReadLoading,
-    onCancel,
     onClose,
-    onCompleted,
-    onDeleted,
     values,
     ...props
 }: ReportFormProps) {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
-
-    /**
-     * Opens existing reports in a new tab
-     */
-    const toExistingReports = useCallback(() => {
-        window.open("/reports", "_blank");// TODO change url
-    }, []);
 
     const {
         handleAddLanguage,
@@ -144,53 +134,47 @@ function ReportForm({
                 title={t("Report", { count: 1 })}
                 help={t("ReportsHelp")}
             />
-            <Link onClick={toExistingReports}>
-                <Typography sx={{
-                    ...clickSize,
-                    ...formNavLink,
-                    justifyContent: "center",
-                    marginTop: 2,
-                }}>
-                    {t("ViewExistingReports")}
-                </Typography>
-            </Link>
+            <SearchExistingButton
+                href={`/reports${getObjectUrlBase(values.createdFor)}/${getObjectSlug(values.createdFor)}`}
+                text={t("ViewExistingReports")}
+            />
             <BaseForm
                 display={display}
                 isLoading={isLoading}
-                maxWidth={700}
-                style={{ paddingBottom: "64px" }}
             >
-                <FormContainer sx={{ gap: 2 }}>
-                    <LanguageInput
-                        currentLanguage={language}
-                        handleAdd={handleAddLanguage}
-                        handleDelete={handleDeleteLanguage}
-                        handleCurrent={setLanguage}
-                        languages={languages}
-                    />
-                    <Selector
-                        name="reason"
-                        disabled={isLoading}
-                        options={Object.keys(ReportReasons)}
-                        getOptionLabel={(r) => ReportReasons[r]}
-                        fullWidth
-                        label={t("Reason")}
-                    />
-                    {reasonField.value === ReportOptions.Other && <Field
-                        fullWidth
-                        name="otherReason"
-                        label={t("ReasonCustom")}
-                        helperText={t("ReasonCustomHelp")}
-                        as={TextInput}
-                    />}
-                    <RichInput
-                        isRequired={false}
-                        maxChars={8192}
-                        maxRows={10}
-                        minRows={4}
-                        name="details"
-                        placeholder={t("Details")}
-                    />
+                <FormContainer>
+                    <FormSection variant="transparent">
+                        <Selector
+                            name="reason"
+                            disabled={isLoading}
+                            options={Object.keys(ReportReasons)}
+                            getOptionLabel={getReasonLabel}
+                            fullWidth
+                            label={t("Reason")}
+                        />
+                        {reasonField.value === ReportOptions.Other && <Field
+                            fullWidth
+                            name="otherReason"
+                            label={t("ReasonCustom")}
+                            helperText={t("ReasonCustomHelp")}
+                            as={TextInput}
+                        />}
+                        <RichInput
+                            isRequired={false}
+                            maxChars={8192}
+                            maxRows={10}
+                            minRows={4}
+                            name="details"
+                            placeholder={t("Details")}
+                        />
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleDeleteLanguage}
+                            handleCurrent={setLanguage}
+                            languages={languages}
+                        />
+                    </FormSection>
                 </FormContainer>
             </BaseForm>
             <BottomActionsButtons
@@ -208,9 +192,9 @@ function ReportForm({
 }
 
 export function ReportUpsert({
+    createdFor,
     isCreate,
     isOpen,
-    overrideObject,
     ...props
 }: ReportUpsertProps) {
     const session = useContext(SessionContext);
@@ -219,16 +203,20 @@ export function ReportUpsert({
         ...endpointGetReport,
         isCreate,
         objectType: "Report",
-        overrideObject,
-        transform: (existing) => reportInitialValues(session, existing as NewReportShape),
+        transform: (existing) => reportInitialValues(session, existing, createdFor),
     });
+
+    async function validateValues(values: ReportShape) {
+        if (!existing) return;
+        return await validateFormValues(values, { ...existing, createdFor }, isCreate, transformReportValues, reportValidation);
+    }
 
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformReportValues, reportValidation)}
+            validate={validateValues}
         >
             {(formik) => <ReportForm
                 disabled={!(isCreate || permissions.canUpdate)}

@@ -155,7 +155,7 @@ export function SettingsProfileView({
             }],
             updated_at: profile?.updated_at ?? null, // Used for cache busting on profile image
         } as const;
-    }, []);
+    }, [profile, session]);
 
     return (
         <ScrollBox>

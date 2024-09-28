@@ -1,10 +1,23 @@
-import { Box, ListItemText, Stack, useTheme } from "@mui/material";
+import { Box, Typography, styled, useTheme } from "@mui/material";
 import { ReportIcon } from "icons";
 import { useCallback, useMemo } from "react";
-import { useLocation } from "route";
+import { Link, useLocation } from "route";
 import { multiLineEllipsis } from "styles";
 import { getObjectReportUrl } from "utils/navigation/openObject";
 import { ReportsButtonProps } from "../types";
+
+const OuterBox = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "row",
+    gap: theme.spacing(0.5),
+    pointerEvents: "none",
+}));
+
+const CountLabel = styled(Typography)(({ theme }) => ({
+    ...multiLineEllipsis(1),
+    pointerEvents: "none",
+    color: theme.palette.background.textSecondary,
+}));
 
 export const ReportsButton = ({
     reportsCount = 0,
@@ -24,30 +37,11 @@ export const ReportsButton = ({
     }, [link, setLocation]);
 
     return (
-        <Stack
-            direction="row"
-            spacing={0.5}
-            sx={{
-                marginRight: 0,
-                pointerEvents: "none",
-            }}
-        >
-            <Box
-                component="a"
-                href={link}
-                onClick={handleClick}
-                sx={{
-                    display: "contents",
-                    cursor: "pointer",
-                    pointerEvents: "all",
-                }}
-            >
-                <ReportIcon fill={palette.secondary.main} />
-            </Box>
-            <ListItemText
-                primary={reportsCount}
-                sx={{ ...multiLineEllipsis(1), pointerEvents: "none" }}
-            />
-        </Stack>
+        <OuterBox>
+            <Link to={link} onClick={handleClick}>
+                <ReportIcon fill={palette.background.textSecondary} />
+            </Link>
+            <CountLabel variant="body1">{reportsCount}</CountLabel>
+        </OuterBox>
     );
 };

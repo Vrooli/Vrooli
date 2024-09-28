@@ -3546,20 +3546,6 @@
         }
       }
     },
-    "/autoFill": {
-      "get": {
-        "operationId": "endpointGetAutoFill",
-        "tags": [
-          "task"
-        ],
-        "parameters": [],
-        "responses": {
-          "default": {
-            "description": "Default response. Replace this with real responses."
-          }
-        }
-      }
-    },
     "/startLlmTask": {
       "post": {
         "operationId": "endpointPostStartLlmTask",
@@ -5861,106 +5847,6 @@
         "title": "ApiYou",
         "type": "object"
       },
-      "AutoFillInput": {
-        "properties": {
-          "data": {
-            "title": "AutoFillInput.data"
-          },
-          "task": {
-            "enum": [
-              "ApiAdd",
-              "ApiDelete",
-              "ApiFind",
-              "ApiUpdate",
-              "BotAdd",
-              "BotDelete",
-              "BotFind",
-              "BotUpdate",
-              "DataConverterAdd",
-              "DataConverterDelete",
-              "DataConverterFind",
-              "DataConverterUpdate",
-              "MembersAdd",
-              "MembersDelete",
-              "MembersFind",
-              "MembersUpdate",
-              "NoteAdd",
-              "NoteDelete",
-              "NoteFind",
-              "NoteUpdate",
-              "ProjectAdd",
-              "ProjectDelete",
-              "ProjectFind",
-              "ProjectUpdate",
-              "QuestionAdd",
-              "QuestionDelete",
-              "QuestionFind",
-              "QuestionUpdate",
-              "ReminderAdd",
-              "ReminderDelete",
-              "ReminderFind",
-              "ReminderUpdate",
-              "RoleAdd",
-              "RoleDelete",
-              "RoleFind",
-              "RoleUpdate",
-              "RoutineAdd",
-              "RoutineDelete",
-              "RoutineFind",
-              "RoutineUpdate",
-              "RunProjectStart",
-              "RunRoutineStart",
-              "ScheduleAdd",
-              "ScheduleDelete",
-              "ScheduleFind",
-              "ScheduleUpdate",
-              "SmartContractAdd",
-              "SmartContractDelete",
-              "SmartContractFind",
-              "SmartContractUpdate",
-              "StandardAdd",
-              "StandardDelete",
-              "StandardFind",
-              "StandardUpdate",
-              "Start",
-              "TeamAdd",
-              "TeamDelete",
-              "TeamFind",
-              "TeamUpdate"
-            ],
-            "title": "AutoFillInput.task",
-            "type": "string"
-          }
-        },
-        "required": [
-          "data",
-          "task"
-        ],
-        "additionalProperties": false,
-        "title": "AutoFillInput",
-        "type": "object"
-      },
-      "AutoFillResult": {
-        "properties": {
-          "__typename": {
-            "title": "AutoFillResult.__typename",
-            "enum": [
-              "AutoFillResult"
-            ],
-            "type": "string"
-          },
-          "data": {
-            "title": "AutoFillResult.data"
-          }
-        },
-        "required": [
-          "__typename",
-          "data"
-        ],
-        "additionalProperties": false,
-        "title": "AutoFillResult",
-        "type": "object"
-      },
       "Award": {
         "properties": {
           "__typename": {
@@ -7868,6 +7754,11 @@
             "title": "ChatMessageCreateInput.id",
             "type": "string"
           },
+          "parentConnect": {
+            "title": "ChatMessageCreateInput.parentConnect",
+            "nullable": true,
+            "type": "string"
+          },
           "translationsCreate": {
             "anyOf": [
               {
@@ -7901,6 +7792,94 @@
         ],
         "additionalProperties": false,
         "title": "ChatMessageCreateInput",
+        "type": "object"
+      },
+      "ChatMessageCreateWithTaskInfoInput": {
+        "properties": {
+          "message": {
+            "$ref": "#/components/schemas/ChatMessageCreateInput",
+            "title": "ChatMessageCreateWithTaskInfoInput.message"
+          },
+          "task": {
+            "enum": [
+              "ApiAdd",
+              "ApiDelete",
+              "ApiFind",
+              "ApiUpdate",
+              "BotAdd",
+              "BotDelete",
+              "BotFind",
+              "BotUpdate",
+              "DataConverterAdd",
+              "DataConverterDelete",
+              "DataConverterFind",
+              "DataConverterUpdate",
+              "MembersAdd",
+              "MembersDelete",
+              "MembersFind",
+              "MembersUpdate",
+              "NoteAdd",
+              "NoteDelete",
+              "NoteFind",
+              "NoteUpdate",
+              "ProjectAdd",
+              "ProjectDelete",
+              "ProjectFind",
+              "ProjectUpdate",
+              "QuestionAdd",
+              "QuestionDelete",
+              "QuestionFind",
+              "QuestionUpdate",
+              "ReminderAdd",
+              "ReminderDelete",
+              "ReminderFind",
+              "ReminderUpdate",
+              "RoleAdd",
+              "RoleDelete",
+              "RoleFind",
+              "RoleUpdate",
+              "RoutineAdd",
+              "RoutineDelete",
+              "RoutineFind",
+              "RoutineUpdate",
+              "RunProjectStart",
+              "RunRoutineStart",
+              "ScheduleAdd",
+              "ScheduleDelete",
+              "ScheduleFind",
+              "ScheduleUpdate",
+              "SmartContractAdd",
+              "SmartContractDelete",
+              "SmartContractFind",
+              "SmartContractUpdate",
+              "StandardAdd",
+              "StandardDelete",
+              "StandardFind",
+              "StandardUpdate",
+              "Start",
+              "TeamAdd",
+              "TeamDelete",
+              "TeamFind",
+              "TeamUpdate"
+            ],
+            "title": "ChatMessageCreateWithTaskInfoInput.task",
+            "type": "string"
+          },
+          "taskContexts": {
+            "items": {
+              "$ref": "#/components/schemas/TaskContextInfoInput"
+            },
+            "title": "ChatMessageCreateWithTaskInfoInput.taskContexts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "message",
+          "task",
+          "taskContexts"
+        ],
+        "additionalProperties": false,
+        "title": "ChatMessageCreateWithTaskInfoInput",
         "type": "object"
       },
       "ChatMessageEdge": {
@@ -8311,6 +8290,94 @@
         ],
         "additionalProperties": false,
         "title": "ChatMessageUpdateInput",
+        "type": "object"
+      },
+      "ChatMessageUpdateWithTaskInfoInput": {
+        "properties": {
+          "message": {
+            "$ref": "#/components/schemas/ChatMessageUpdateInput",
+            "title": "ChatMessageUpdateWithTaskInfoInput.message"
+          },
+          "task": {
+            "enum": [
+              "ApiAdd",
+              "ApiDelete",
+              "ApiFind",
+              "ApiUpdate",
+              "BotAdd",
+              "BotDelete",
+              "BotFind",
+              "BotUpdate",
+              "DataConverterAdd",
+              "DataConverterDelete",
+              "DataConverterFind",
+              "DataConverterUpdate",
+              "MembersAdd",
+              "MembersDelete",
+              "MembersFind",
+              "MembersUpdate",
+              "NoteAdd",
+              "NoteDelete",
+              "NoteFind",
+              "NoteUpdate",
+              "ProjectAdd",
+              "ProjectDelete",
+              "ProjectFind",
+              "ProjectUpdate",
+              "QuestionAdd",
+              "QuestionDelete",
+              "QuestionFind",
+              "QuestionUpdate",
+              "ReminderAdd",
+              "ReminderDelete",
+              "ReminderFind",
+              "ReminderUpdate",
+              "RoleAdd",
+              "RoleDelete",
+              "RoleFind",
+              "RoleUpdate",
+              "RoutineAdd",
+              "RoutineDelete",
+              "RoutineFind",
+              "RoutineUpdate",
+              "RunProjectStart",
+              "RunRoutineStart",
+              "ScheduleAdd",
+              "ScheduleDelete",
+              "ScheduleFind",
+              "ScheduleUpdate",
+              "SmartContractAdd",
+              "SmartContractDelete",
+              "SmartContractFind",
+              "SmartContractUpdate",
+              "StandardAdd",
+              "StandardDelete",
+              "StandardFind",
+              "StandardUpdate",
+              "Start",
+              "TeamAdd",
+              "TeamDelete",
+              "TeamFind",
+              "TeamUpdate"
+            ],
+            "title": "ChatMessageUpdateWithTaskInfoInput.task",
+            "type": "string"
+          },
+          "taskContexts": {
+            "items": {
+              "$ref": "#/components/schemas/TaskContextInfoInput"
+            },
+            "title": "ChatMessageUpdateWithTaskInfoInput.taskContexts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "message",
+          "task",
+          "taskContexts"
+        ],
+        "additionalProperties": false,
+        "title": "ChatMessageUpdateWithTaskInfoInput",
         "type": "object"
       },
       "ChatMessageYou": {
@@ -9635,6 +9702,28 @@
             "nullable": true,
             "type": "string"
           },
+          "codeLanguageLatestVersion": {
+            "title": "CodeSearchInput.codeLanguageLatestVersion",
+            "nullable": true,
+            "type": "string"
+          },
+          "codeTypeLatestVersion": {
+            "anyOf": [
+              {
+                "enum": [
+                  "DataConvert",
+                  "SmartContract"
+                ],
+                "title": "CodeSearchInput.codeTypeLatestVersion",
+                "type": "string"
+              },
+              {
+                "title": "CodeSearchInput.codeTypeLatestVersion",
+                "nullable": true
+              }
+            ],
+            "title": "CodeSearchInput.codeTypeLatestVersion"
+          },
           "createdById": {
             "title": "CodeSearchInput.createdById",
             "nullable": true,
@@ -10444,6 +10533,28 @@
             "title": "CodeVersionSearchInput.calledByRoutineVersionId",
             "nullable": true,
             "type": "string"
+          },
+          "codeLanguage": {
+            "title": "CodeVersionSearchInput.codeLanguage",
+            "nullable": true,
+            "type": "string"
+          },
+          "codeType": {
+            "anyOf": [
+              {
+                "enum": [
+                  "DataConvert",
+                  "SmartContract"
+                ],
+                "title": "CodeVersionSearchInput.codeType",
+                "type": "string"
+              },
+              {
+                "title": "CodeVersionSearchInput.codeType",
+                "nullable": true
+              }
+            ],
+            "title": "CodeVersionSearchInput.codeType"
           },
           "completedTimeFrame": {
             "anyOf": [
@@ -30922,10 +31033,84 @@
           "messageId": {
             "title": "RegenerateResponseInput.messageId",
             "type": "string"
+          },
+          "task": {
+            "enum": [
+              "ApiAdd",
+              "ApiDelete",
+              "ApiFind",
+              "ApiUpdate",
+              "BotAdd",
+              "BotDelete",
+              "BotFind",
+              "BotUpdate",
+              "DataConverterAdd",
+              "DataConverterDelete",
+              "DataConverterFind",
+              "DataConverterUpdate",
+              "MembersAdd",
+              "MembersDelete",
+              "MembersFind",
+              "MembersUpdate",
+              "NoteAdd",
+              "NoteDelete",
+              "NoteFind",
+              "NoteUpdate",
+              "ProjectAdd",
+              "ProjectDelete",
+              "ProjectFind",
+              "ProjectUpdate",
+              "QuestionAdd",
+              "QuestionDelete",
+              "QuestionFind",
+              "QuestionUpdate",
+              "ReminderAdd",
+              "ReminderDelete",
+              "ReminderFind",
+              "ReminderUpdate",
+              "RoleAdd",
+              "RoleDelete",
+              "RoleFind",
+              "RoleUpdate",
+              "RoutineAdd",
+              "RoutineDelete",
+              "RoutineFind",
+              "RoutineUpdate",
+              "RunProjectStart",
+              "RunRoutineStart",
+              "ScheduleAdd",
+              "ScheduleDelete",
+              "ScheduleFind",
+              "ScheduleUpdate",
+              "SmartContractAdd",
+              "SmartContractDelete",
+              "SmartContractFind",
+              "SmartContractUpdate",
+              "StandardAdd",
+              "StandardDelete",
+              "StandardFind",
+              "StandardUpdate",
+              "Start",
+              "TeamAdd",
+              "TeamDelete",
+              "TeamFind",
+              "TeamUpdate"
+            ],
+            "title": "RegenerateResponseInput.task",
+            "type": "string"
+          },
+          "taskContexts": {
+            "items": {
+              "$ref": "#/components/schemas/TaskContextInfoInput"
+            },
+            "title": "RegenerateResponseInput.taskContexts",
+            "type": "array"
           }
         },
         "required": [
-          "messageId"
+          "messageId",
+          "task",
+          "taskContexts"
         ],
         "additionalProperties": false,
         "title": "RegenerateResponseInput",
@@ -31632,6 +31817,25 @@
             ],
             "type": "string"
           },
+          "createdFor": {
+            "enum": [
+              "ApiVersion",
+              "ChatMessage",
+              "CodeVersion",
+              "Comment",
+              "Issue",
+              "NoteVersion",
+              "Post",
+              "ProjectVersion",
+              "RoutineVersion",
+              "StandardVersion",
+              "Tag",
+              "Team",
+              "User"
+            ],
+            "title": "Report.createdFor",
+            "type": "string"
+          },
           "created_at": {
             "title": "Report.created_at",
             "type": "string"
@@ -31687,6 +31891,7 @@
         },
         "required": [
           "__typename",
+          "createdFor",
           "created_at",
           "id",
           "language",
@@ -31703,7 +31908,11 @@
       },
       "ReportCreateInput": {
         "properties": {
-          "createdFor": {
+          "createdForConnect": {
+            "title": "ReportCreateInput.createdForConnect",
+            "type": "string"
+          },
+          "createdForType": {
             "enum": [
               "ApiVersion",
               "ChatMessage",
@@ -31719,11 +31928,7 @@
               "Team",
               "User"
             ],
-            "title": "ReportCreateInput.createdFor",
-            "type": "string"
-          },
-          "createdForConnect": {
-            "title": "ReportCreateInput.createdForConnect",
+            "title": "ReportCreateInput.createdForType",
             "type": "string"
           },
           "details": {
@@ -31745,8 +31950,8 @@
           }
         },
         "required": [
-          "createdFor",
           "createdForConnect",
+          "createdForType",
           "id",
           "language",
           "reason"
@@ -32389,13 +32594,18 @@
           "canUpdate": {
             "title": "ReportYou.canUpdate",
             "type": "boolean"
+          },
+          "isOwn": {
+            "title": "ReportYou.isOwn",
+            "type": "boolean"
           }
         },
         "required": [
           "__typename",
           "canDelete",
           "canRespond",
-          "canUpdate"
+          "canUpdate",
+          "isOwn"
         ],
         "additionalProperties": false,
         "title": "ReportYou",
@@ -42028,6 +42238,11 @@
             "nullable": true,
             "type": "string"
           },
+          "codeLanguageLatestVersion": {
+            "title": "StandardSearchInput.codeLanguageLatestVersion",
+            "nullable": true,
+            "type": "string"
+          },
           "createdById": {
             "title": "StandardSearchInput.createdById",
             "nullable": true,
@@ -42248,6 +42463,23 @@
               }
             ],
             "title": "StandardSearchInput.updatedTimeFrame"
+          },
+          "variantLatestVersion": {
+            "anyOf": [
+              {
+                "enum": [
+                  "DataStructure",
+                  "Prompt"
+                ],
+                "title": "StandardSearchInput.variantLatestVersion",
+                "type": "string"
+              },
+              {
+                "title": "StandardSearchInput.variantLatestVersion",
+                "nullable": true
+              }
+            ],
+            "title": "StandardSearchInput.variantLatestVersion"
           },
           "visibility": {
             "anyOf": [
@@ -42616,10 +42848,6 @@
             "$ref": "#/components/schemas/Standard",
             "title": "StandardVersion.root"
           },
-          "standardType": {
-            "title": "StandardVersion.standardType",
-            "type": "string"
-          },
           "translations": {
             "items": {
               "$ref": "#/components/schemas/StandardVersionTranslation"
@@ -42685,7 +42913,6 @@
           "reports",
           "reportsCount",
           "root",
-          "standardType",
           "translations",
           "translationsCount",
           "updated_at",
@@ -42863,6 +43090,11 @@
             "nullable": true,
             "type": "string"
           },
+          "codeLanguage": {
+            "title": "StandardVersionSearchInput.codeLanguage",
+            "nullable": true,
+            "type": "string"
+          },
           "completedTimeFrame": {
             "anyOf": [
               {
@@ -43009,11 +43241,6 @@
             ],
             "title": "StandardVersionSearchInput.sortBy"
           },
-          "standardType": {
-            "title": "StandardVersionSearchInput.standardType",
-            "nullable": true,
-            "type": "string"
-          },
           "tagsRoot": {
             "anyOf": [
               {
@@ -43068,6 +43295,23 @@
             "title": "StandardVersionSearchInput.userId",
             "nullable": true,
             "type": "string"
+          },
+          "variant": {
+            "anyOf": [
+              {
+                "enum": [
+                  "DataStructure",
+                  "Prompt"
+                ],
+                "title": "StandardVersionSearchInput.variant",
+                "type": "string"
+              },
+              {
+                "title": "StandardVersionSearchInput.variant",
+                "nullable": true
+              }
+            ],
+            "title": "StandardVersionSearchInput.variant"
           },
           "visibility": {
             "anyOf": [
@@ -43492,20 +43736,22 @@
       },
       "StartLlmTaskInput": {
         "properties": {
-          "botId": {
-            "title": "StartLlmTaskInput.botId",
+          "chatId": {
+            "title": "StartLlmTaskInput.chatId",
             "type": "string"
           },
-          "label": {
-            "title": "StartLlmTaskInput.label",
+          "parentId": {
+            "title": "StartLlmTaskInput.parentId",
+            "nullable": true,
             "type": "string"
           },
-          "messageId": {
-            "title": "StartLlmTaskInput.messageId",
+          "respondingBotId": {
+            "title": "StartLlmTaskInput.respondingBotId",
             "type": "string"
           },
-          "properties": {
-            "title": "StartLlmTaskInput.properties"
+          "shouldNotRunTasks": {
+            "title": "StartLlmTaskInput.shouldNotRunTasks",
+            "type": "boolean"
           },
           "task": {
             "enum": [
@@ -43572,18 +43818,20 @@
             "title": "StartLlmTaskInput.task",
             "type": "string"
           },
-          "taskId": {
-            "title": "StartLlmTaskInput.taskId",
-            "type": "string"
+          "taskContexts": {
+            "items": {
+              "$ref": "#/components/schemas/TaskContextInfoInput"
+            },
+            "title": "StartLlmTaskInput.taskContexts",
+            "type": "array"
           }
         },
         "required": [
-          "botId",
-          "label",
-          "messageId",
-          "properties",
+          "chatId",
+          "respondingBotId",
+          "shouldNotRunTasks",
           "task",
-          "taskId"
+          "taskContexts"
         ],
         "additionalProperties": false,
         "title": "StartLlmTaskInput",
@@ -46375,6 +46623,64 @@
         ],
         "additionalProperties": false,
         "title": "TagYou",
+        "type": "object"
+      },
+      "TaskContextInfoInput": {
+        "properties": {
+          "data": {
+            "title": "TaskContextInfoInput.data"
+          },
+          "id": {
+            "title": "TaskContextInfoInput.id",
+            "type": "string"
+          },
+          "label": {
+            "title": "TaskContextInfoInput.label",
+            "type": "string"
+          },
+          "template": {
+            "title": "TaskContextInfoInput.template",
+            "nullable": true,
+            "type": "string"
+          },
+          "templateVariables": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TaskContextInfoTemplateVariablesInput",
+                "title": "TaskContextInfoInput.templateVariables"
+              },
+              {
+                "title": "TaskContextInfoInput.templateVariables",
+                "nullable": true
+              }
+            ],
+            "title": "TaskContextInfoInput.templateVariables"
+          }
+        },
+        "required": [
+          "data",
+          "id",
+          "label"
+        ],
+        "additionalProperties": false,
+        "title": "TaskContextInfoInput",
+        "type": "object"
+      },
+      "TaskContextInfoTemplateVariablesInput": {
+        "properties": {
+          "data": {
+            "title": "TaskContextInfoTemplateVariablesInput.data",
+            "nullable": true,
+            "type": "string"
+          },
+          "task": {
+            "title": "TaskContextInfoTemplateVariablesInput.task",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "additionalProperties": false,
+        "title": "TaskContextInfoTemplateVariablesInput",
         "type": "object"
       },
       "TaskStatusInfo": {
@@ -49450,6 +49756,16 @@
           },
           "notInChatId": {
             "title": "UserSearchInput.notInChatId",
+            "nullable": true,
+            "type": "string"
+          },
+          "notInvitedToTeamId": {
+            "title": "UserSearchInput.notInvitedToTeamId",
+            "nullable": true,
+            "type": "string"
+          },
+          "notMemberInTeamId": {
+            "title": "UserSearchInput.notMemberInTeamId",
             "nullable": true,
             "type": "string"
           },

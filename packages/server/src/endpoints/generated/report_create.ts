@@ -6,10 +6,12 @@ export const report_create = {
   "language": true,
   "reason": true,
   "responsesCount": true,
+  "status": true,
   "you": {
     "canDelete": true,
     "canRespond": true,
-    "canUpdate": true
+    "canUpdate": true,
+    "isOwn": true
   },
   "responses": {
     "id": true,

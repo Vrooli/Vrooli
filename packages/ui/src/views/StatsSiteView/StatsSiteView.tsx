@@ -87,10 +87,10 @@ const MIN_DATE = new Date(2023, 1, 1);
 /**
  * Displays site-wide statistics, organized by time period.
  */
-export const StatsSiteView = ({
+export function StatsSiteView({
     display,
     onClose,
-}: StatsSiteViewProps) => {
+}: StatsSiteViewProps) {
     const { breakpoints, palette } = useTheme();
     const { t } = useTranslation();
 
@@ -201,7 +201,7 @@ export const StatsSiteView = ({
             return (
                 <LineGraphCard
                     data={data}
-                    key={index}
+                    key={`line-graph-card-${field}`}
                     index={index}
                     lineColor='white'
                     title={title}
@@ -289,4 +289,4 @@ export const StatsSiteView = ({
             </ContentCollapse>
         </>
     );
-};
+}

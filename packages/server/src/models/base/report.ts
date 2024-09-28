@@ -50,15 +50,24 @@ export const ReportModel: ReportModelLogic = ({
             pre: async ({ Create, userData }) => {
                 // Make sure user does not have any open reports on these objects
                 if (Create.length) {
+                    const where = {
+                        status: "Open",
+                        user: { id: userData.id },
+                        OR: Create.map((x) => ({
+                            [forMapper[x.input.createdForType]]: { id: x.input.createdForConnect },
+                        })),
+                    };
+                    console.log("report pre where", JSON.stringify(where));
                     const existing = await prismaInstance.report.findMany({
                         where: {
                             status: "Open",
                             user: { id: userData.id },
                             OR: Create.map((x) => ({
-                                [forMapper[x.input.createdFor]]: { id: x.input.createdForConnect },
+                                [forMapper[x.input.createdForType]]: { id: x.input.createdForConnect },
                             })),
                         },
                     });
+                    console.log("existing", existing);
                     if (existing.length > 0)
                         throw new CustomError("0337", "MaxReportsReached", userData.languages);
                 }
@@ -71,7 +80,7 @@ export const ReportModel: ReportModelLogic = ({
                     details: data.details,
                     status: ReportStatus.Open,
                     createdBy: { connect: { id: userData.id } },
-                    [forMapper[data.createdFor]]: { connect: { id: data.createdForConnect } },
+                    [forMapper[data.createdForType]]: { connect: { id: data.createdForConnect } },
                 };
             },
             update: async ({ data }) => {
@@ -102,6 +111,7 @@ export const ReportModel: ReportModelLogic = ({
             commentId: true,
             createdTimeFrame: true,
             fromId: true,
+            includeOwnReport: true,
             issueId: true,
             languageIn: true,
             noteVersionId: true,
@@ -138,13 +148,14 @@ export const ReportModel: ReportModelLogic = ({
             id: true,
             createdBy: "User",
         }),
-        permissionResolvers: ({ data, isAdmin, isLoggedIn }) => ({
+        permissionResolvers: ({ data, isAdmin, isLoggedIn, isPublic }) => ({
             canConnect: () => isLoggedIn && data.status !== "Open",
             canDisconnect: () => isLoggedIn,
             canDelete: () => isLoggedIn && isAdmin && data.status !== "Open",
-            canRead: () => true,
+            canRead: () => isPublic,
             canRespond: () => isLoggedIn && data.status === "Open",
             canUpdate: () => isLoggedIn && isAdmin && data.status !== "Open",
+            isOwn: () => isAdmin,
         }),
         owner: (data) => ({
             User: data?.createdBy,

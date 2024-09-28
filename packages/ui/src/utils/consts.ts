@@ -117,5 +117,42 @@ export const CHIP_LIST_LIMIT = 3;
 /** Default minimum rows for rich inputs */
 export const DEFAULT_MIN_ROWS = 4;
 
+export const FONT_SIZE_MIN = 8;
+export const FONT_SIZE_MAX = 24;
+
 export const LEFT_DRAWER_WIDTH = 280;
 export const RIGHT_DRAWER_WIDTH = 280;
+
+export const BUSINESS_DATA = {
+    BUSINESS_NAME: "Vrooli",
+    EMAIL: {
+        Label: "info@vrooli.com",
+        Link: "mailto:info@vrooli.com",
+    },
+    SUPPORT_EMAIL: {
+        Label: "support@vrooli.com",
+        Link: "mailto:support@vrooli.com",
+    },
+    SOCIALS: {
+        Discord: "https://discord.gg/VyrDFzbmmF",
+        GitHub: "https://github.com/MattHalloran/Vrooli",
+        X: "https://x.com/VrooliOfficial",
+    },
+    APP_URL: "https://vrooli.com",
+};
+
+// Determine origin of API server
+const isLocalhost: boolean = window.location.host.includes("localhost") || window.location.host.includes("192.168.") || window.location.host.includes("127.0.0.1");
+const serverUrlProvided = Boolean(process.env.VITE_SERVER_URL && process.env.VITE_SERVER_URL.length > 0);
+const portServer: string = process.env.VITE_PORT_SERVER ?? "5329";
+export const apiUrlBase: string = isLocalhost ?
+    `http://${window.location.hostname}:${portServer}/api` :
+    serverUrlProvided ?
+        `${process.env.VITE_SERVER_URL}` :
+        `http://${process.env.VITE_SITE_IP}:${portServer}/api`;
+export const restBase = "/v2/rest";
+export const webSocketUrlBase: string = isLocalhost ?
+    `http://${window.location.hostname}:${portServer}` :
+    serverUrlProvided ?
+        `${process.env.VITE_SERVER_URL}` :
+        `http://${process.env.VITE_SITE_IP}:${portServer}`;

@@ -37,7 +37,7 @@ export const typeDef = gql`
 
     input ReportCreateInput {
         id: ID!
-        createdFor: ReportFor!
+        createdForType: ReportFor!
         createdForConnect: ID!
         details: String
         language: String!
@@ -54,6 +54,7 @@ export const typeDef = gql`
         id: ID!
         created_at: Date!
         updated_at: Date!
+        createdFor: ReportFor!
         details: String
         language: String!
         reason: String!
@@ -67,9 +68,11 @@ export const typeDef = gql`
         canDelete: Boolean!
         canRespond: Boolean!
         canUpdate: Boolean!
+        isOwn: Boolean!
     }
 
     input ReportSearchInput {
+        includeOwnReport: Boolean
         ids: [ID!]
         languageIn: [String!]
         sortBy: ReportSortBy
@@ -80,8 +83,8 @@ export const typeDef = gql`
         take: Int
         fromId: ID
         apiVersionId: ID
-        codeVersionId: ID
         chatMessageId: ID
+        codeVersionId: ID
         commentId: ID
         issueId: ID
         noteVersionId: ID

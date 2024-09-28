@@ -8,6 +8,7 @@ export const reportYou: GqlPartial<ReportYou> = {
         canDelete: true,
         canRespond: true,
         canUpdate: true,
+        isOwn: true,
     },
     full: {},
     list: {},
@@ -23,6 +24,7 @@ export const report: GqlPartial<Report> = {
         language: true,
         reason: true,
         responsesCount: true,
+        status: true,
         you: () => rel(reportYou, "full"),
     },
     full: {

@@ -1,10 +1,8 @@
-import { Report, ReportShape } from "@local/shared";
-import { CrudPropsDialog, CrudPropsPage, FormProps } from "../../../types";
-import { NewReportShape } from "./ReportUpsert/ReportUpsert";
+import { Report, ReportFor, ReportShape } from "@local/shared";
+import { CrudPropsDialog, FormProps } from "../../../types";
 
-type ReportUpsertPropsPage = CrudPropsPage;
 type ReportUpsertPropsDialog = Omit<CrudPropsDialog<Report>, "overrideObject"> & {
-    overrideObject?: NewReportShape;
+    createdFor: { __typename: ReportFor, id: string };
 };
-export type ReportUpsertProps = ReportUpsertPropsPage | ReportUpsertPropsDialog;
+export type ReportUpsertProps = ReportUpsertPropsDialog;
 export type ReportFormProps = FormProps<Report, ReportShape>

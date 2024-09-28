@@ -55,8 +55,8 @@ export function applyDataTransform<
 export function fetchDataUsingUrl(
     params: UrlInfo,
     getData: ((input: FetchInput, inputOptions?: FetchInputOptions | undefined) => unknown),
-    onError: FetchInputOptions["onError"],
-    displayError: boolean | undefined,
+    onError?: FetchInputOptions["onError"],
+    displayError?: boolean | undefined,
 ) {
     const inputOptions = { onError, displayError };
     if (exists(params.handle)) getData({ handle: params.handle }, inputOptions);

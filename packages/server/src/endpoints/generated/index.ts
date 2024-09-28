@@ -267,7 +267,6 @@ export * from "./tag_findOne";
 export * from "./tag_findMany";
 export * from "./tag_create";
 export * from "./tag_update";
-export * from "./task_autoFill";
 export * from "./task_startLlmTask";
 export * from "./task_startRunTask";
 export * from "./task_cancelTask";

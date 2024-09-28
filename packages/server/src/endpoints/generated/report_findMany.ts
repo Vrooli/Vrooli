@@ -9,10 +9,12 @@ export const report_findMany = {
       "language": true,
       "reason": true,
       "responsesCount": true,
+      "status": true,
       "you": {
         "canDelete": true,
         "canRespond": true,
-        "canUpdate": true
+        "canUpdate": true,
+        "isOwn": true
       }
     }
   },

@@ -1,4 +1,4 @@
-import { AutocompleteOption, ListObject, SearchType, TimeFrame, deepClone, deleteArrayIndex, exists, lowercaseFirstLetter, parseSearchParams, updateArray } from "@local/shared";
+import { AutocompleteOption, ListObject, SearchType, TimeFrame, addToArray, deepClone, deleteArrayIndex, exists, lowercaseFirstLetter, parseSearchParams, updateArray } from "@local/shared";
 import { SearchQueryVariablesInput } from "components/lists/types";
 import { SessionContext } from "contexts";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -21,25 +21,26 @@ type UseFindManyProps = {
 }
 
 export type UseFindManyResult<DataType extends Record<string, any>> = {
+    addItem: (item: DataType) => unknown;
     advancedSearchParams: object | null;
     advancedSearchSchema: any;
     allData: DataType[];
     autocompleteOptions: AutocompleteOption[];
     defaultSortBy: string;
     loading: boolean;
-    loadMore: () => void;
-    removeItem: (id: string, idField?: string) => void;
+    loadMore: () => unknown;
+    removeItem: (id: string, idField?: string) => unknown;
     searchString: string;
     searchType: SearchType | `${SearchType}`;
-    setAdvancedSearchParams: (advancedSearchParams: object | null) => void;
+    setAdvancedSearchParams: (advancedSearchParams: object | null) => unknown;
     setAllData: React.Dispatch<React.SetStateAction<DataType[]>>;
-    setSortBy: (sortBy: string) => void;
-    setSearchString: (searchString: string) => void;
-    setTimeFrame: (timeFrame: TimeFrame | undefined) => void;
+    setSortBy: (sortBy: string) => unknown;
+    setSearchString: (searchString: string) => unknown;
+    setTimeFrame: (timeFrame: TimeFrame | undefined) => unknown;
     sortBy: string;
     sortByOptions: Record<string, string>;
     timeFrame: TimeFrame | undefined;
-    updateItem: (item: DataType, idField?: string) => void;
+    updateItem: (item: DataType, idField?: string) => unknown;
 }
 
 type FullSearchParams = Partial<SearchParams> & {
@@ -265,6 +266,9 @@ export function useFindMany<DataType extends Record<string, any>>({
     const updateItem = useCallback((item: DataType, idField?: string) => {
         setAllData(curr => updateArray(curr, curr.findIndex(i => i[idField ?? "id"] === item[idField ?? "id"]), item));
     }, []);
+    const addItem = useCallback((item: DataType) => {
+        setAllData(curr => addToArray(curr, item));
+    }, []);
 
     // Handle advanced search params
     const [advancedSearchParams, setSearchParams] = useState<object | null>(params.current.advancedSearchParams);
@@ -407,6 +411,7 @@ export function useFindMany<DataType extends Record<string, any>>({
     }, [getData]);
 
     return {
+        addItem,
         advancedSearchParams,
         advancedSearchSchema: params?.current?.advancedSearchSchema,
         allData,

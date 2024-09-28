@@ -42,7 +42,7 @@ function getListItemComponent(objectType: `${GqlModelType}` | "CalendarEvent") {
     }
 }
 
-function ObjectListItem<T extends ListObject>({
+export function ObjectListItem<T extends ListObject>({
     objectType,
     ...props
 }: ObjectListItemProps<T>) {
