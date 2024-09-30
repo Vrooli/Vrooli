@@ -2,6 +2,7 @@ import { MaxObjects, nodeLinkValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { NodeLinkFormat } from "../formats";
 import { NodeLinkModelInfo, NodeLinkModelLogic, NodeModelInfo, NodeModelLogic, RoutineVersionModelInfo, RoutineVersionModelLogic } from "./types";
@@ -56,15 +57,15 @@ export const NodeLinkModel: NodeLinkModelLogic = ({
         visibility: {
             private: function getVisibilityPrivate(...params) {
                 return {
-                    routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().visibility.private(...params),
+                    routineVersion: useVisibility("Routine", "private", ...params),
                 };
             },
             public: function getVisibilityPublic(...params) {
                 return {
-                    routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().visibility.public(...params),
+                    routineVersion: useVisibility("Routine", "public", ...params),
                 };
             },
-            owner: (userId) => ({ routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().visibility.owner(userId) }),
+            owner: (...params) => ({ routineVersion: useVisibility("Routine", "owner", ...params) }),
         },
     }),
 });

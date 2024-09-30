@@ -57,12 +57,8 @@ export const BookmarkListModel: BookmarkListModelLogic = ({
             user: "User",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
-            },
-            public: function getVisibilityPublic() {
-                return {};
-            },
+            private: null, // Search method disabled
+            public: null, // Search method disabled
             owner: (userId) => ({
                 user: { id: userId },
             }),

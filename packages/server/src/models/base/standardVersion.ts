@@ -3,6 +3,7 @@ import { ModelMap } from ".";
 import { randomString } from "../../auth/codes";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { SessionUserToken } from "../../types";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { sortify } from "../../utils/objectTools";
@@ -270,26 +271,35 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
         visibility: {
             private: function getVisibilityPrivate(...params) {
                 return {
-                    isDeleted: false,
-                    root: { isDeleted: false },
-                    OR: [
+                    isDeleted: false, // Can't be deleted
+                    root: { isDeleted: false }, // Parent can't be deleted
+                    OR: [ // Either the version, root, or the owner is private
                         { isPrivate: true },
                         { root: { isPrivate: true } },
+                        { root: { ownedByTeam: useVisibility("Team", "private", ...params) } },
+                        { root: { ownedByUser: { isPrivate: true } } },
+                        { root: { ownedByUser: { isPrivateStandards: true } } },
                     ],
                 };
             },
             public: function getVisibilityPublic(...params) {
                 return {
-                    isDeleted: false,
-                    root: { isDeleted: false },
-                    AND: [
-                        { isPrivate: false },
-                        { root: { isPrivate: false } },
-                    ],
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false, // Can't be private
+                    root: {
+                        isDeleted: false, // Root can't be deleted
+                        isPrivate: false, // Root can't be private
+                        OR: [ // Either the owner is public, or there is no owner
+                            { ownedByTeam: null, ownedByUser: null },
+                            { ownedByTeam: useVisibility("Team", "public", ...params) },
+                            { ownedByUser: { isPrivate: false, isPrivateStandards: false } },
+                        ],
+                    },
                 };
             },
-            owner: (userId) => ({
-                root: ModelMap.get<StandardModelLogic>("Standard").validate().visibility.owner(userId),
+            owner: (...params) => ({
+                isDeleted: false, // Can't be deleted
+                root: useVisibility("Standard", "owner", ...params),
             }),
         },
     }),

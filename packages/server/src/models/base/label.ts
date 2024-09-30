@@ -93,12 +93,8 @@ export const LabelModel: LabelModelLogic = ({
                 ["ownedByUser", "User"],
             ], data, ...rest),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
-            },
-            public: function getVisibilityPublic() {
-                return {};
-            },
+            private: null, // Search method disabled
+            public: null, // Search method disabled
             owner: (userId) => ({
                 OR: [
                     { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },

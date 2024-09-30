@@ -1,6 +1,7 @@
 import { focusModeFilterValidation, MaxObjects } from "@local/shared";
 import { ModelMap } from ".";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions } from "../../utils";
 import { FocusModeFilterFormat } from "../formats";
 import { FocusModeFilterModelLogic, FocusModeModelInfo, FocusModeModelLogic, TagModelInfo, TagModelLogic } from "./types";
@@ -41,14 +42,10 @@ export const FocusModeFilterModel: FocusModeFilterModelLogic = ({
             focusMode: "FocusMode",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
-            },
-            public: function getVisibilityPublic() {
-                return {};
-            },
-            owner: (userId) => ({
-                focusMode: ModelMap.get<FocusModeModelLogic>("FocusMode").validate().visibility.owner(userId),
+            private: null, // Search method disabled
+            public: null, // Search method disabled
+            owner: (...params) => ({
+                focusMode: useVisibility("FocusMode", "owner", ...params),
             }),
         },
     }),

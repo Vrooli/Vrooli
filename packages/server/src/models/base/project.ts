@@ -2,6 +2,7 @@ import { MaxObjects, ProjectSortBy, projectValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { getLabels } from "../../getters";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
@@ -10,7 +11,7 @@ import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions, handlesCheck } from "../../validators";
 import { ProjectFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, ProjectModelInfo, ProjectModelLogic, ProjectVersionModelLogic, ReactionModelLogic, TeamModelLogic, UserModelLogic, ViewModelLogic } from "./types";
+import { BookmarkModelLogic, ProjectModelInfo, ProjectModelLogic, ProjectVersionModelLogic, ReactionModelLogic, TeamModelLogic, ViewModelLogic } from "./types";
 
 type ProjectPre = PreShapeRootResult;
 
@@ -146,26 +147,29 @@ export const ProjectModel: ProjectModelLogic = ({
         visibility: {
             private: function getVisibilityPrivate(...params) {
                 return {
-                    isDeleted: false,
-                    OR: [
+                    isDeleted: false, // Can't be deleted
+                    OR: [ // Either the object is private, its owner is private, or the owner has disabled public visibility
                         { isPrivate: true },
-                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private(...params) },
-                        { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.private(...params) },
+                        { ownedByTeam: useVisibility("Team", "private", ...params) },
+                        { ownedByUser: { isPrivate: true } },
+                        { ownedByUser: { isPrivateProjects: true } },
+                        // NOTE: We don't need `{ createdBy: { isPrivateProjectsCreated: true } }` because that is only for hiding the creator. The object can still be public.
                     ],
                 };
             },
             public: function getVisibilityPublic(...params) {
                 return {
-                    isDeleted: false,
-                    isPrivate: false,
-                    OR: [
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false, // Can't be private
+                    OR: [ // Either the owner is public, or there is no owner
                         { ownedByTeam: null, ownedByUser: null },
-                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public(...params) },
-                        { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.public(...params) },
+                        { ownedByTeam: useVisibility("Team", "public", ...params) },
+                        { ownedByUser: { isPrivate: false, isPrivateProjects: false } },
                     ],
                 };
             },
             owner: (userId) => ({
+                isDeleted: false, // Can't be deleted
                 OR: [
                     { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
                     { ownedByUser: { id: userId } },

@@ -2,6 +2,7 @@ import { MaxObjects, getTranslation, nodeRoutineListItemValidation } from "@loca
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { NodeRoutineListItemFormat } from "../formats";
@@ -59,15 +60,15 @@ export const NodeRoutineListItemModel: NodeRoutineListItemModelLogic = ({
         visibility: {
             private: function getVisibilityPrivate(...params) {
                 return {
-                    list: ModelMap.get<NodeRoutineListModelLogic>("NodeRoutineList").validate().visibility.private(...params),
+                    list: useVisibility("NodeRoutineList", "private", ...params),
                 };
             },
             public: function getVisibilityPublic(...params) {
                 return {
-                    list: ModelMap.get<NodeRoutineListModelLogic>("NodeRoutineList").validate().visibility.public(...params),
+                    list: useVisibility("NodeRoutineList", "public", ...params),
                 };
             },
-            owner: (userId) => ({ list: ModelMap.get<NodeRoutineListModelLogic>("NodeRoutineList").validate().visibility.owner(userId) }),
+            owner: (...params) => ({ list: useVisibility("NodeRoutineList", "owner", ...params) }),
         },
     }),
 });

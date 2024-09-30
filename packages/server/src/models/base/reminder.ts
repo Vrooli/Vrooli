@@ -75,12 +75,8 @@ export const ReminderModel: ReminderModelLogic = ({
             reminderList: "ReminderList",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
-            },
-            public: function getVisibilityPublic() {
-                return {};
-            },
+            private: null, // Search method disabled
+            public: null, // Search method disabled
             owner: (userId) => ({
                 reminderList: ModelMap.get<ReminderListModelLogic>("ReminderList").validate().visibility.owner(userId),
             }),

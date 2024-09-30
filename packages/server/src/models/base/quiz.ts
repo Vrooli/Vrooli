@@ -2,13 +2,14 @@ import { MaxObjects, QuizSortBy, getTranslation, quizValidation } from "@local/s
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { QuizFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, ProjectModelLogic, QuizModelInfo, QuizModelLogic, ReactionModelLogic, RoutineModelLogic } from "./types";
+import { BookmarkModelLogic, QuizModelInfo, QuizModelLogic, ReactionModelLogic } from "./types";
 
 type QuizPre = PreShapeEmbeddableTranslatableResult;
 
@@ -145,8 +146,8 @@ export const QuizModel: QuizModelLogic = ({
                 return {
                     OR: [
                         { isPrivate: true },
-                        { project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.private(...params) },
-                        { routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.private(...params) },
+                        { project: useVisibility("Project", "private", ...params) },
+                        { routine: useVisibility("Routine", "private", ...params) },
                     ],
                 };
             },
@@ -154,8 +155,8 @@ export const QuizModel: QuizModelLogic = ({
                 return {
                     AND: [
                         { isPrivate: false },
-                        { project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.public(...params) },
-                        { routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.public(...params) },
+                        { project: useVisibility("Project", "public", ...params) },
+                        { routine: useVisibility("Routine", "public", ...params) },
                     ],
                 };
             },

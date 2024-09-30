@@ -1,6 +1,7 @@
 import { StatsProjectSortBy } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsProjectFormat } from "../formats";
 import { ProjectModelInfo, ProjectModelLogic, StatsProjectModelInfo, StatsProjectModelLogic } from "./types";
@@ -42,15 +43,15 @@ export const StatsProjectModel: StatsProjectModelLogic = ({
         visibility: {
             private: function getVisibilityPrivate(...params) {
                 return {
-                    project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.private(...params),
+                    project: useVisibility("Project", "private", ...params),
                 };
             },
             public: function getVisibilityPublic(...params) {
                 return {
-                    project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.public(...params),
+                    project: useVisibility("Project", "public", ...params),
                 };
             },
-            owner: (userId) => ({ project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.owner(userId) }),
+            owner: (...params) => ({ project: useVisibility("Project", "owner", ...params) }),
         },
     }),
 });

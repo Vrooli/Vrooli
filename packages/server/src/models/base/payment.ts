@@ -50,12 +50,8 @@ export const PaymentModel: PaymentModelLogic = ({
             user: "User",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
-            },
-            public: function getVisibilityPublic() {
-                return {};
-            },
+            private: null, // Search method disabled
+            public: null, // Search method disabled
             owner: (userId) => ({
                 OR: [
                     { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },

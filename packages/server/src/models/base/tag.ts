@@ -98,12 +98,12 @@ export const TagModel: TagModelLogic = ({
         profanityFields: ["tag"],
         visibility: {
             private: function getVisibilityPrivate() {
-                return {};
+                return {}; // Intentionally empty becase tags are always public
             },
             public: function getVisibilityPublic() {
-                return {};
+                return {}; // Intentionally empty becase tags are always public
             },
-            owner: () => ({}),
+            owner: null, // Search method disabled because you can't own a tag
         },
     }),
 });

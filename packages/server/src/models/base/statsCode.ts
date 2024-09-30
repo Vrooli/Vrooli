@@ -1,6 +1,7 @@
 import { StatsCodeSortBy } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsCodeFormat } from "../formats";
 import { CodeModelInfo, CodeModelLogic, StatsCodeModelInfo, StatsCodeModelLogic } from "./types";
@@ -42,15 +43,15 @@ export const StatsCodeModel: StatsCodeModelLogic = ({
         visibility: {
             private: function getVisibilityPrivate(...params) {
                 return {
-                    code: ModelMap.get<CodeModelLogic>("Code").validate().visibility.private(...params),
+                    code: useVisibility("Code", "private", ...params),
                 };
             },
             public: function getVisibilityPublic(...params) {
                 return {
-                    code: ModelMap.get<CodeModelLogic>("Code").validate().visibility.public(...params),
+                    code: useVisibility("Code", "public", ...params),
                 };
             },
-            owner: (userId) => ({ code: ModelMap.get<CodeModelLogic>("Code").validate().visibility.owner(userId) }),
+            owner: (...params) => ({ code: useVisibility("Code", "owner", ...params) }),
         },
     }),
 });

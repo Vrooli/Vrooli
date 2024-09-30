@@ -2,6 +2,7 @@ import { MaxObjects, nodeRoutineListValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { NodeRoutineListFormat } from "../formats";
 import { NodeModelInfo, NodeModelLogic, NodeRoutineListModelInfo, NodeRoutineListModelLogic } from "./types";
@@ -46,15 +47,15 @@ export const NodeRoutineListModel: NodeRoutineListModelLogic = ({
         visibility: {
             private: function getVisibilityPrivate(...params) {
                 return {
-                    node: ModelMap.get<NodeModelLogic>("Node").validate().visibility.private(...params),
+                    node: useVisibility("Node", "private", ...params),
                 };
             },
             public: function getVisibilityPublic(...params) {
                 return {
-                    node: ModelMap.get<NodeModelLogic>("Node").validate().visibility.public(...params),
+                    node: useVisibility("Node", "public", ...params),
                 };
             },
-            owner: (userId) => ({ node: ModelMap.get<NodeModelLogic>("Node").validate().visibility.owner(userId) }),
+            owner: (...params) => ({ node: useVisibility("Node", "owner", ...params) }),
         },
     }),
 });

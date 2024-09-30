@@ -2,6 +2,7 @@ import { MaxObjects, RoutineVersionCreateInput, RoutineVersionSortBy, RoutineVer
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { SubroutineWeightData, calculateWeightData, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { PreShapeVersionResult, afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
@@ -227,28 +228,37 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
         }),
         permissionResolvers: defaultPermissions,
         visibility: {
-            private: function getVisibilityPrivate() {
+            private: function getVisibilityPrivate(...params) {
                 return {
-                    isDeleted: false,
-                    root: { isDeleted: false },
-                    OR: [
+                    isDeleted: false, // Can't be deleted
+                    root: { isDeleted: false }, // Parent can't be deleted
+                    OR: [ // Either the version, root, or the owner is private
                         { isPrivate: true },
                         { root: { isPrivate: true } },
+                        { root: { ownedByTeam: useVisibility("Team", "private", ...params) } },
+                        { root: { ownedByUser: { isPrivate: true } } },
+                        { root: { ownedByUser: { isPrivateRoutines: true } } },
                     ],
                 };
             },
-            public: function getVisibilityPublic() {
+            public: function getVisibilityPublic(...params) {
                 return {
-                    isDeleted: false,
-                    root: { isDeleted: false },
-                    AND: [
-                        { isPrivate: false },
-                        { root: { isPrivate: false } },
-                    ],
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false, // Can't be private
+                    root: {
+                        isDeleted: false, // Root can't be deleted
+                        isPrivate: false, // Root can't be private
+                        OR: [ // Either the owner is public, or there is no owner
+                            { ownedByTeam: null, ownedByUser: null },
+                            { ownedByTeam: useVisibility("Team", "public", ...params) },
+                            { ownedByUser: { isPrivate: false, isPrivateRoutines: false } },
+                        ],
+                    },
                 };
             },
-            owner: (userId) => ({
-                root: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.owner(userId),
+            owner: (...params) => ({
+                isDeleted: false, // Can't be deleted
+                root: useVisibility("Routine", "owner", ...params),
             }),
         },
     }),

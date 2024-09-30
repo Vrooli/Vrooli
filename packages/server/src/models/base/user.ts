@@ -203,7 +203,7 @@ export const UserModel: UserModelLogic = ({
                 };
             },
             owner: (userId) => ({
-                OR: [
+                OR: [ // Either yourself or a bot you created
                     { id: userId },
                     { isBot: true, invitedByUser: { id: userId } },
                 ],

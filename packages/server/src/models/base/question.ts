@@ -1,7 +1,8 @@
-import { MaxObjects, QuestionForType, QuestionSortBy, getTranslation, questionValidation } from "@local/shared";
+import { GqlModelType, MaxObjects, QuestionForType, QuestionSortBy, getTranslation, questionValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, getEmbeddableString } from "../../utils";
 import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
 import { afterMutationsPlain } from "../../utils/triggers";
@@ -145,14 +146,21 @@ export const QuestionModel: QuestionModelLogic = ({
             createdBy: "User",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
+            private: function getVisibilityPrivate(...params) {
                 return {
                     isPrivate: true,
+                    OR: [
+                        ...Object.entries(forMapper).map(([key, value]) => ({ [value]: useVisibility(key as GqlModelType, "private", ...params) })),
+                    ],
                 };
             },
-            public: function getVisibilityPublic() {
+            public: function getVisibilityPublic(...params) {
                 return {
                     isPrivate: false,
+                    // Can use OR because only one relation will be present
+                    OR: [
+                        ...Object.entries(forMapper).map(([key, value]) => ({ [value]: useVisibility(key as GqlModelType, "public", ...params) })),
+                    ],
                 };
             },
             owner: (userId) => ({

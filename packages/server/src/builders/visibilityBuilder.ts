@@ -34,7 +34,7 @@ export function visibilityBuilderPrisma({
     else if (visibility === "Private") {
         assertFunc(privateFunc, objectType, "private");
         assertFunc(ownerFunc, objectType, "owner");
-        return combineQueries([privateFunc(userData.id), ownerFunc(userData.id)]);
+        return combineQueries([privateFunc(userData.id), ownerFunc(userData.id)], { mergeMode: "strict" });
     }
     // If visibility is set to own, query all objects that you own
     else if (visibility === "Own") {
@@ -47,12 +47,12 @@ export function visibilityBuilderPrisma({
         assertFunc(publicFunc, objectType, "public");
         assertFunc(privateFunc, objectType, "private");
         assertFunc(ownerFunc, objectType, "owner");
-        return combineQueries([{
+        return {
             OR: [
                 publicFunc(userData.id),
-                combineQueries([privateFunc(userData.id), ownerFunc(userData.id)]),
+                combineQueries([privateFunc(userData.id), ownerFunc(userData.id)], { mergeMode: "strict" }),
             ],
-        }]);
+        };
     }
 }
 

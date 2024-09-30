@@ -44,12 +44,8 @@ export const ReminderListModel: ReminderListModelLogic = ({
         isDeleted: () => false,
         isPublic: () => false,
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
-            },
-            public: function getVisibilityPublic() {
-                return {};
-            },
+            private: null, // Search method disabled
+            public: null, // Search method disabled
             owner: (userId) => ({
                 focusMode: ModelMap.get<FocusModeModelLogic>("FocusMode").validate().visibility.owner(userId),
             }),

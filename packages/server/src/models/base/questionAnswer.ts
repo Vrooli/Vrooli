@@ -1,5 +1,6 @@
 import { MaxObjects, QuestionAnswerSortBy, getTranslation, questionAnswerValidation } from "@local/shared";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { QuestionAnswerFormat } from "../formats";
@@ -62,11 +63,15 @@ export const QuestionAnswerModel: QuestionAnswerModelLogic = ({
             createdBy: "User",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            private: function getVisibilityPrivate(...params) {
+                return {
+                    question: useVisibility("Question", "private", ...params),
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            public: function getVisibilityPublic(...params) {
+                return {
+                    question: useVisibility("Question", "public", ...params),
+                };
             },
             owner: (userId) => ({
                 createdBy: { id: userId },

@@ -14,6 +14,10 @@ import { ReactionFormat } from "../formats";
 import { ReactionModelLogic } from "./types";
 
 function reactionForToRelation(reactionFor: keyof typeof ReactionFor): string {
+    if (!ReactionFor[reactionFor]) {
+        throw new CustomError("0597", "InvalidArgs", ["en"], { reactionFor });
+    }
+    // Convert to camelCase and sanitize
     return camelCase(reactionFor);
 }
 
@@ -78,7 +82,7 @@ export const ReactionModel: ReactionModelLogic = ({
         const { dbTable: reactedOnDbTable, validate: reactedOnValidate } = ModelMap.getLogic(["dbTable", "validate"], input.reactionFor as string as GqlModelType, true, `ModelMap.react for ${input.reactionFor}`);
         const reactedOnValidator = reactedOnValidate();
         // Chat messages get additional treatment, as we need to send the updated reaction summaries to the chat room to update open clients
-        const isChatMessage = input.reactionFor === 'ChatMessage';
+        const isChatMessage = input.reactionFor === "ChatMessage";
         // Check if object being reacted on exists, and if the user has already reacted on it
         const reactedOnObject = await (prismaInstance[reactedOnDbTable] as PrismaDelegate).findUnique({
             where: { id: input.forConnect },
@@ -89,7 +93,7 @@ export const ReactionModel: ReactionModelLogic = ({
                     where: { byId: userData.id },
                     select: {
                         id: true,
-                        emoji: true
+                        emoji: true,
                     },
                 },
                 reactionSummaries: {
@@ -108,6 +112,8 @@ export const ReactionModel: ReactionModelLogic = ({
         }
         // Check if the user has permission to react on this object
         const authData = { __typename: input.reactionFor, ...reactedOnObject };
+        console.log("permissions select", JSON.stringify(permissionsSelectHelper(reactedOnValidator.permissionsSelect, userData.id, userData.languages)));
+        console.log("auth data", JSON.stringify(authData));
         const permissions = await calculatePermissions(authData, userData, reactedOnValidator);
         const ownerData = reactedOnValidator.owner(authData, userData.id);
         const objectOwner = ownerData.Team ? { __typename: "Team" as const, id: ownerData.Team.id } : ownerData.User ? { __typename: "User" as const, id: ownerData.User.id } : null;
@@ -141,7 +147,7 @@ export const ReactionModel: ReactionModelLogic = ({
             },
         }) as Prisma.PrismaPromise<object>);
         // Prepare in-memory reaction summaries for updating chat room
-        let updatedReactionSummaries = [...reactedOnObject.reactionSummaries];
+        const updatedReactionSummaries = [...reactedOnObject.reactionSummaries];
         // Determine reaction summary query
         const reactedOnIdField = `${reactionForToRelation(input.reactionFor)}Id` as keyof Prisma.reaction_summaryWhereInput;
         type EmojiAdjustment = { emoji: string, delta: number };
@@ -164,7 +170,7 @@ export const ReactionModel: ReactionModelLogic = ({
         // Update reaction summary for each emoji
         for (const { emoji, delta } of emojisToAdjust) {
             const whereClause = {
-                emoji: emoji,
+                emoji,
                 [reactedOnIdField]: input.forConnect,
             } as const;
 
@@ -177,14 +183,14 @@ export const ReactionModel: ReactionModelLogic = ({
                     VALUES ($1::UUID, $2, $3, $4::UUID)
                     ON CONFLICT (emoji, "apiId", "chatMessageId", "codeId", "commentId", "issueId", "noteId", "postId", "projectId", "questionId", "questionAnswerId", "quizId", "routineId", "standardId")
                     DO UPDATE SET count = reaction_summary.count + $5
-                  `, createId, emoji, delta, input.forConnect, delta) as unknown as Prisma.PrismaPromise<object>
+                  `, createId, emoji, delta, input.forConnect, delta) as unknown as Prisma.PrismaPromise<object>,
                 );
                 // Add/update in-memory summaries
                 const summary = updatedReactionSummaries.find((s) => s.emoji === emoji);
                 if (summary) {
                     summary.count += delta;
                 } else {
-                    updatedReactionSummaries.push({ id: createId, emoji: emoji, count: delta });
+                    updatedReactionSummaries.push({ id: createId, emoji, count: delta });
                 }
             } else if (delta < 0) {
                 // Decrement count
@@ -196,7 +202,7 @@ export const ReactionModel: ReactionModelLogic = ({
                                 decrement: -delta,
                             },
                         },
-                    }) as Prisma.PrismaPromise<object>
+                    }) as Prisma.PrismaPromise<object>,
                 );
                 // Delete summaries where count <= 0
                 transactionOps.push(
@@ -207,7 +213,7 @@ export const ReactionModel: ReactionModelLogic = ({
                                 lte: 0,
                             },
                         },
-                    }) as Prisma.PrismaPromise<object>
+                    }) as Prisma.PrismaPromise<object>,
                 );
                 // Update in-memory summaries
                 const summaryIndex = updatedReactionSummaries.findIndex((s) => s.emoji === emoji);

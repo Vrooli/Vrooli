@@ -1,3 +1,7 @@
+type CombineQueriesOptions = {
+    mergeMode?: "strict" | "loose";
+};
+
 /**
  * Sensibly combines multiple Prisma query objects into a single Prisma query object.
  * 
@@ -8,30 +12,35 @@
  * NOTE 2: Inspect the tests for examples and to make sure the function works as expected.
  * 
  * @param queries Array of query objects to combine
+ * @param options Used to specify how to combine the queries
  * @returns Combined query object, with all fields combined
  */
 export function combineQueries(
     queries: ({ [x: string]: any } | null | undefined)[],
+    options?: CombineQueriesOptions,
 ): { [x: string]: any } {
     const conditions: Array<{ [x: string]: any }> = [];
+    // Default to "strict" mode for safety
+    const optionsWithDefaults = { mergeMode: "strict", ...options } as const;
 
     for (const query of queries) {
         if (!query) continue;
         conditions.push(query);
     }
 
-    const combined = mergeConditions(conditions);
+    const combined = mergeConditions(conditions, optionsWithDefaults);
 
     return combined;
 }
 
 function mergeConditions(
     conditions: Array<{ [x: string]: any }>,
+    options: CombineQueriesOptions,
 ): { [x: string]: any } {
     let result: { [x: string]: any } = {};
 
     for (const condition of conditions) {
-        const merged = mergeTwoConditions(result, condition);
+        const merged = mergeTwoConditions(result, condition, options);
         result = merged.result;
     }
 
@@ -41,6 +50,7 @@ function mergeConditions(
 function mergeTwoConditions(
     cond1: { [x: string]: any },
     cond2: { [x: string]: any },
+    options: CombineQueriesOptions,
 ): { result: { [x: string]: any }, conflict?: boolean } {
     const result: { [x: string]: any } = {};
     let conflict = false;
@@ -51,15 +61,51 @@ function mergeTwoConditions(
         const val1 = cond1[key];
         const val2 = cond2[key];
 
-        if (val1 === undefined) {
+        if (["AND", "OR", "NOT"].includes(key)) {
+            // Handle logical operators
+            const currValue = Array.isArray(val1) ? val1 : typeof val1 === "object" ? [val1] : [];
+            const newValue = Array.isArray(val2) ? val2 : typeof val2 === "object" ? [val2] : [];
+
+            // ORs get put in an AND with "strict" mode enabled
+            if (key === "OR" && options.mergeMode === "strict") {
+                const hasORsInAnd =
+                    Array.isArray(result["AND"]) &&
+                    result["AND"].some((item: { [x: string]: any }) =>
+                        Object.prototype.hasOwnProperty.call(item, "OR") && Object.keys(item).length === 1,
+                    );
+                const shouldAddCurrValue = currValue.length > 0;
+                const shouldAddNewValue = newValue.length > 0;
+                // Only add ORs to AND if the total number of ORs is greater than 1
+                if (!hasORsInAnd && !(shouldAddCurrValue && shouldAddNewValue)) {
+                    result["OR"] = shouldAddCurrValue ? currValue : newValue;
+                } else {
+                    if (!result["AND"]) {
+                        result["AND"] = [];
+                    }
+                    if (currValue.length > 0) {
+                        result["AND"].push({ OR: currValue });
+                    }
+                    if (newValue.length > 0) {
+                        result["AND"].push({ OR: newValue });
+                    }
+                }
+            }
+            // Otherwise, just merge the arrays
+            else {
+                if (!result[key]) {
+                    result[key] = [];
+                }
+                if (currValue.length > 0) {
+                    result[key].push(...currValue);
+                }
+                if (newValue.length > 0) {
+                    result[key].push(...newValue);
+                }
+            }
+        } else if (val1 === undefined) {
             result[key] = val2;
         } else if (val2 === undefined) {
             result[key] = val1;
-        } else if (["AND", "OR", "NOT"].includes(key)) {
-            // Handle logical operators
-            const currValue = Array.isArray(val1) ? val1 : [val1];
-            const newValue = Array.isArray(val2) ? val2 : [val2];
-            result[key] = [...currValue, ...newValue];
         } else if (
             typeof val1 === "object" &&
             val1 !== null &&
@@ -81,7 +127,7 @@ function mergeTwoConditions(
                 }
             } else {
                 // Nested objects
-                const merged = mergeTwoConditions(val1, val2);
+                const merged = mergeTwoConditions(val1, val2, options);
                 if (merged.conflict) {
                     result[key] = { AND: [val1, val2] };
                 } else {

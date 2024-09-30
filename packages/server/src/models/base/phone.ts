@@ -17,8 +17,9 @@ export const PhoneModel: PhoneModelLogic = ({
             // Only display last 4 digits of phone number
             get: (select) => {
                 // Make sure number is at least 4 digits long
-                if (select.phoneNumber.length < 4) return select.phoneNumber;
-                return `...${select.phoneNumber.slice(-4)}`;
+                const DIGITS_TO_SHOW = 4;
+                if (select.phoneNumber.length < DIGITS_TO_SHOW) return select.phoneNumber;
+                return `...${select.phoneNumber.slice(-DIGITS_TO_SHOW)}`;
             },
         },
     }),
@@ -92,12 +93,8 @@ export const PhoneModel: PhoneModelLogic = ({
             user: "User",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
-            },
-            public: function getVisibilityPublic() {
-                return {};
-            },
+            private: null, // Search method disabled
+            public: null, // Search method disabled
             owner: (userId) => ({
                 OR: [
                     { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },

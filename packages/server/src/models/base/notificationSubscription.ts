@@ -76,12 +76,8 @@ export const NotificationSubscriptionModel: NotificationSubscriptionModelLogic =
             subscriber: "User",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
-            },
-            public: function getVisibilityPublic() {
-                return {};
-            },
+            private: null, // Search method disabled
+            public: null, // Search method disabled
             owner: (userId) => ({
                 subscriber: { id: userId },
             }),

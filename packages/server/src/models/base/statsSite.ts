@@ -38,12 +38,12 @@ export const StatsSiteModel: StatsSiteModelLogic = ({
         }),
         visibility: {
             private: function getVisibilityPrivate() {
-                return {};
+                return {}; // Intentionally empty, since site stats are always public
             },
             public: function getVisibilityPublic() {
-                return {};
+                return {}; // Intentionally empty, since site stats are always public
             },
-            owner: () => ({}),
+            owner: null, // Search method disabled, since no one owns site stats
         },
     }),
 });

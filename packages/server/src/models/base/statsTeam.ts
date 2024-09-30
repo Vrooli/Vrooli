@@ -1,6 +1,7 @@
 import { StatsTeamSortBy } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsTeamFormat } from "../formats";
 import { StatsTeamModelInfo, StatsTeamModelLogic, TeamModelInfo, TeamModelLogic } from "./types";
@@ -42,15 +43,15 @@ export const StatsTeamModel: StatsTeamModelLogic = ({
         visibility: {
             private: function getVisibilityPrivate(...params) {
                 return {
-                    team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private(...params),
+                    team: useVisibility("Team", "private", ...params),
                 };
             },
             public: function getVisibilityPublic(...params) {
                 return {
-                    team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public(...params),
+                    team: useVisibility("Team", "public", ...params),
                 };
             },
-            owner: (userId) => ({ team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.owner(userId) }),
+            owner: (...params) => ({ team: useVisibility("Team", "owner", ...params) }),
         },
     }),
 });

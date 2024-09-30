@@ -2,6 +2,7 @@ import { ApiSortBy, apiValidation, MaxObjects } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions } from "../../utils/defaultPermissions";
 import { oneIsPublic } from "../../utils/oneIsPublic";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
@@ -10,7 +11,7 @@ import { afterMutationsRoot } from "../../utils/triggers/afterMutationsRoot";
 import { getSingleTypePermissions } from "../../validators/permissions";
 import { ApiFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { ApiModelInfo, ApiModelLogic, ApiVersionModelLogic, BookmarkModelLogic, ReactionModelLogic, TeamModelLogic, UserModelLogic, ViewModelLogic } from "./types";
+import { ApiModelInfo, ApiModelLogic, ApiVersionModelLogic, BookmarkModelLogic, ReactionModelLogic, TeamModelLogic, ViewModelLogic } from "./types";
 
 type ApiPre = PreShapeRootResult;
 
@@ -140,29 +141,31 @@ export const ApiModel: ApiModelLogic = ({
             versions: ["ApiVersion", ["root"]],
         }),
         visibility: {
-            //TODO for morning: all visiblity private/public need to be updated. Some are just blank when they should at MINIMUM look like the ones below, and ones like this one should also be checking that either the owners are both null, or the owner is also public/private
             private: function getVisibilityPrivate(...params) {
                 return {
-                    isDeleted: false,
-                    OR: [
+                    isDeleted: false, // Can't be deleted
+                    OR: [ // Either the object is private, its owner is private, or the owner has disabled public visibility
                         { isPrivate: true },
-                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private(...params) },
-                        { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.private(...params) },
+                        { ownedByTeam: useVisibility("Team", "private", ...params) },
+                        { ownedByUser: { isPrivate: true } },
+                        { ownedByUser: { isPrivateApis: true } },
+                        // NOTE: We don't need `{ createdBy: { isPrivateApisCreated: true } }` because that is only for hiding the creator. The object can still be public.
                     ],
                 };
             },
             public: function getVisibilityPublic(...params) {
                 return {
-                    isDeleted: false,
-                    isPrivate: false,
-                    OR: [
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false, // Can't be private
+                    OR: [ // Either the owner is public, or there is no owner
                         { ownedByTeam: null, ownedByUser: null },
-                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public(...params) },
-                        { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.public(...params) },
+                        { ownedByTeam: useVisibility("Team", "public", ...params) },
+                        { ownedByUser: { isPrivate: false, isPrivateApis: false } },
                     ],
                 };
             },
             owner: (userId) => ({
+                isDeleted: false, // Can't be deleted
                 OR: [
                     { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
                     { ownedByUser: { id: userId } },

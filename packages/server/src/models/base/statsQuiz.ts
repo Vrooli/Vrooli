@@ -1,6 +1,7 @@
 import { StatsQuizSortBy } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsQuizFormat } from "../formats";
 import { QuizModelInfo, QuizModelLogic, StatsQuizModelInfo, StatsQuizModelLogic } from "./types";
@@ -42,15 +43,15 @@ export const StatsQuizModel: StatsQuizModelLogic = ({
         visibility: {
             private: function getVisibilityPrivate(...params) {
                 return {
-                    quiz: ModelMap.get<QuizModelLogic>("Quiz").validate().visibility.private(...params),
+                    quiz: useVisibility("Quiz", "private", ...params),
                 };
             },
             public: function getVisibilityPublic(...params) {
                 return {
-                    quiz: ModelMap.get<QuizModelLogic>("Quiz").validate().visibility.public(...params),
+                    quiz: useVisibility("Quiz", "public", ...params),
                 };
             },
-            owner: (userId) => ({ quiz: ModelMap.get<QuizModelLogic>("Quiz").validate().visibility.owner(userId) }),
+            owner: (...params) => ({ quiz: useVisibility("Quiz", "owner", ...params) }),
         },
     }),
 });

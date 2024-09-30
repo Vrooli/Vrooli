@@ -1,6 +1,7 @@
 import { StatsApiSortBy } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsApiFormat } from "../formats";
 import { ApiModelInfo, ApiModelLogic, StatsApiModelInfo, StatsApiModelLogic } from "./types";
@@ -42,15 +43,15 @@ export const StatsApiModel: StatsApiModelLogic = ({
         visibility: {
             private: function getVisibilityPrivate(...params) {
                 return {
-                    api: ModelMap.get<ApiModelLogic>("Api").validate().visibility.private(...params),
+                    api: useVisibility("Api", "private", ...params),
                 };
             },
             public: function getVisibilityPublic(...params) {
                 return {
-                    api: ModelMap.get<ApiModelLogic>("Api").validate().visibility.public(...params),
+                    api: useVisibility("Api", "public", ...params),
                 };
             },
-            owner: (userId) => ({ api: ModelMap.get<ApiModelLogic>("Api").validate().visibility.owner(userId) }),
+            owner: (...params) => ({ api: useVisibility("Api", "owner", ...params) }),
         },
     }),
 });

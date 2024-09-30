@@ -1,6 +1,7 @@
 import { StatsUserSortBy } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsUserFormat } from "../formats";
 import { StatsUserModelInfo, StatsUserModelLogic, UserModelInfo, UserModelLogic } from "./types";
@@ -42,15 +43,15 @@ export const StatsUserModel: StatsUserModelLogic = ({
         visibility: {
             private: function getVisibilityPrivate(...params) {
                 return {
-                    user: ModelMap.get<UserModelLogic>("User").validate().visibility.private(...params),
+                    user: useVisibility("User", "private", ...params),
                 };
             },
             public: function getVisibilityPublic(...params) {
                 return {
-                    user: ModelMap.get<UserModelLogic>("User").validate().visibility.public(...params),
+                    user: useVisibility("User", "public", ...params),
                 };
             },
-            owner: (userId) => ({ user: ModelMap.get<UserModelLogic>("User").validate().visibility.owner(userId) }),
+            owner: (...params) => ({ user: useVisibility("User", "owner", ...params) }),
         },
     }),
 });

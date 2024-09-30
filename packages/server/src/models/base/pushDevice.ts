@@ -14,8 +14,9 @@ export const PushDeviceModel: PushDeviceModelLogic = ({
             get: (select) => {
                 // Return name if it exists
                 if (select.name) return select.name;
+                const DIGITS_TO_SHOW = 4;
                 // Otherwise, return last 4 digits of p256dh
-                return select.p256dh.length < 4 ? select.p256dh : `...${select.p256dh.slice(-4)}`;
+                return select.p256dh.length < DIGITS_TO_SHOW ? select.p256dh : `...${select.p256dh.slice(-DIGITS_TO_SHOW)}`;
             },
         },
     }),
@@ -51,12 +52,8 @@ export const PushDeviceModel: PushDeviceModelLogic = ({
             user: "User",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
-            },
-            public: function getVisibilityPublic() {
-                return {};
-            },
+            private: null, // Search method disabled
+            public: null, // Search method disabled
             owner: (userId) => ({
                 user: { id: userId },
             }),

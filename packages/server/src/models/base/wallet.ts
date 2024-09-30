@@ -58,14 +58,11 @@ export const WalletModel: WalletModelLogic = ({
         isDeleted: () => false,
         isPublic: () => false, // Can make public in the future for donations, but for now keep private for security
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
-            },
-            public: function getVisibilityPublic() {
-                return {};
-            },
+            private: null, // Search method disabled
+            public: null, // Search method disabled
             owner: (userId) => ({
                 OR: [
+                    // TODO will have to update how owners are determined in the future. All members shouldn't always be considered owners. Just members with certain roles.
                     { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
                     { user: { id: userId } },
                 ],

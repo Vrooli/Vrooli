@@ -1,6 +1,7 @@
 import { StatsRoutineSortBy } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsRoutineFormat } from "../formats";
 import { RoutineModelInfo, RoutineModelLogic, StatsRoutineModelInfo, StatsRoutineModelLogic } from "./types";
@@ -42,15 +43,15 @@ export const StatsRoutineModel: StatsRoutineModelLogic = ({
         visibility: {
             private: function getVisibilityPrivate(...params) {
                 return {
-                    routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.private(...params),
+                    routine: useVisibility("Routine", "private", ...params),
                 };
             },
             public: function getVisibilityPublic(...params) {
                 return {
-                    routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.public(...params),
+                    routine: useVisibility("Routine", "public", ...params),
                 };
             },
-            owner: (userId) => ({ routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.owner(userId) }),
+            owner: (...params) => ({ routine: useVisibility("Routine", "owner", ...params) }),
         },
     }),
 });

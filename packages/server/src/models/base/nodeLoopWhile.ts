@@ -2,6 +2,7 @@ import { MaxObjects, nodeLoopWhileValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { NodeLoopWhileFormat } from "../formats";
@@ -48,15 +49,15 @@ export const NodeLoopWhileModel: NodeLoopWhileModelLogic = ({
         visibility: {
             private: function getVisibilityPrivate(...params) {
                 return {
-                    loop: ModelMap.get<NodeLoopModelLogic>("NodeLoop").validate().visibility.private(...params),
+                    loop: useVisibility("NodeLoop", "private", ...params),
                 };
             },
             public: function getVisibilityPublic(...params) {
                 return {
-                    loop: ModelMap.get<NodeLoopModelLogic>("NodeLoop").validate().visibility.public(...params),
+                    loop: useVisibility("NodeLoop", "public", ...params),
                 };
             },
-            owner: (userId) => ({ loop: ModelMap.get<NodeLoopModelLogic>("NodeLoop").validate().visibility.owner(userId) }),
+            owner: (...params) => ({ loop: useVisibility("NodeLoop", "owner", ...params) }),
         },
     }),
 });
