@@ -1,8 +1,9 @@
-import { GqlModelType, MaxObjects, ResourceListFor, ResourceListSortBy, getTranslation, resourceListValidation, uppercaseFirstLetter } from "@local/shared";
+import { GqlModelType, MaxObjects, ResourceListFor, ResourceListSearchInput, ResourceListSortBy, getTranslation, resourceListValidation, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { ModelMap } from ".";
 import { findFirstRel } from "../../builders/findFirstRel";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { ResourceListFormat } from "../formats";
@@ -18,6 +19,9 @@ const forMapper: { [key in ResourceListFor]: keyof Prisma.resource_listUpsertArg
     StandardVersion: "standardVersion",
     Team: "team",
 };
+const reversedForMapper = Object.fromEntries(
+    Object.entries(forMapper).map(([key, value]) => [value, key])
+);
 
 const __typename = "ResourceList" as const;
 export const ResourceListModel: ResourceListModelLogic = ({
@@ -86,17 +90,86 @@ export const ResourceListModel: ResourceListModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<ResourceListModelInfo["PrismaSelect"]>(Object.entries(forMapper).map(([key, value]) => [value, key as GqlModelType]), ...rest),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                const searchInput = data.searchInput as ResourceListSearchInput;
+                // If the search input has a relation ID, return that relation only
+                const forSearch = Object.keys(searchInput).find(searchKey =>
+                    searchKey.endsWith("Id") &&
+                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)]
+                );
+                if (forSearch) {
+                    const relation = forSearch.substring(0, forSearch.length - "Id".length);
+                    return { [relation]: useVisibility(reversedForMapper[relation] as GqlModelType, "Own", data) };
+                }
+                // Otherwise, use an OR on all relations
+                return {
+                    OR: [
+                        ...Object.entries(forMapper).map(([key, value]) => ({ [value]: useVisibility(key as GqlModelType, "Own", data) })),
+                    ],
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    OR: [
+                        useVisibility("ResourceList", "Own", data),
+                        useVisibility("ResourceList", "Public", data),
+                    ],
+                };
             },
-            owner: (userId) => ({
-                OR: [
-                    ...Object.entries(forMapper).map(([key, value]) => ({ [value]: ModelMap.get(key as GqlModelType).validate().visibility.owner(userId) })),
-                ],
-            }),
+            ownPrivate: function getOwnPrivate(data) {
+                const searchInput = data.searchInput as ResourceListSearchInput;
+                // If the search input has a relation ID, return that relation only
+                const forSearch = Object.keys(searchInput).find(searchKey =>
+                    searchKey.endsWith("Id") &&
+                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)]
+                );
+                if (forSearch) {
+                    const relation = forSearch.substring(0, forSearch.length - "Id".length);
+                    return { [relation]: useVisibility(reversedForMapper[relation] as GqlModelType, "OwnPrivate", data) };
+                }
+                // Otherwise, use an OR on all relations
+                return {
+                    OR: [
+                        ...Object.entries(forMapper).map(([key, value]) => ({ [value]: useVisibility(key as GqlModelType, "OwnPrivate", data) })),
+                    ],
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                const searchInput = data.searchInput as ResourceListSearchInput;
+                // If the search input has a relation ID, return that relation only
+                const forSearch = Object.keys(searchInput).find(searchKey =>
+                    searchKey.endsWith("Id") &&
+                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)]
+                );
+                if (forSearch) {
+                    const relation = forSearch.substring(0, forSearch.length - "Id".length);
+                    return { [relation]: useVisibility(reversedForMapper[relation] as GqlModelType, "OwnPublic", data) };
+                }
+                // Otherwise, use an OR on all relations
+                return {
+                    OR: [
+                        ...Object.entries(forMapper).map(([key, value]) => ({ [value]: useVisibility(key as GqlModelType, "OwnPublic", data) })),
+                    ],
+                };
+            },
+            public: function getPublic(data) {
+                const searchInput = data.searchInput as ResourceListSearchInput;
+                // If the search input has a relation ID, return that relation only
+                const forSearch = Object.keys(searchInput).find(searchKey =>
+                    searchKey.endsWith("Id") &&
+                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)]
+                );
+                if (forSearch) {
+                    const relation = forSearch.substring(0, forSearch.length - "Id".length);
+                    return { [relation]: useVisibility(reversedForMapper[relation] as GqlModelType, "Public", data) };
+                }
+                // Otherwise, use an OR on all relations
+                return {
+                    OR: [
+                        ...Object.entries(forMapper).map(([key, value]) => ({ [value]: useVisibility(key as GqlModelType, "Public", data) })),
+                    ],
+                };
+            }
         },
     }),
 });

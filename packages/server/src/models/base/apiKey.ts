@@ -2,6 +2,7 @@ import { apiKeyValidation, MaxObjects, uuid } from "@local/shared";
 import { ModelMap } from ".";
 import { randomString } from "../../auth/codes";
 import { noNull } from "../../builders/noNull";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions } from "../../utils";
 import { ApiKeyFormat } from "../formats";
 import { ApiKeyModelLogic, TeamModelLogic } from "./types";
@@ -63,14 +64,24 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
             user: "User",
         }),
         visibility: {
-            private: null, // Search method disabled
+            own: function getOwn(data) {
+                return {
+                    OR: [
+                        { user: { id: data.userId } },
+                        { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                    ],
+                };
+            },
+            // Always private, so it's the same as "own"
+            ownOrPublic: function getOwnOrPublic(data) {
+                return useVisibility("ApiKey", "Own", data);
+            },
+            // Always private, so it's the same as "own"
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("ApiKey", "Own", data);
+            },
+            ownPublic: null, // Search method disabled
             public: null, // Search method disabled
-            owner: (userId) => ({
-                OR: [
-                    { user: { id: userId } },
-                    { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
-                ],
-            }),
         },
     }),
 });

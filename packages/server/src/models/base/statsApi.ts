@@ -1,4 +1,4 @@
-import { StatsApiSortBy } from "@local/shared";
+import { MaxObjects, StatsApiSortBy } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
 import { useVisibility } from "../../builders/visibilityBuilder";
@@ -31,7 +31,7 @@ export const StatsApiModel: StatsApiModelLogic = ({
     },
     validate: () => ({
         isTransferable: false,
-        maxObjects: 0,
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
             api: "Api",
@@ -41,17 +41,31 @@ export const StatsApiModel: StatsApiModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<StatsApiModelInfo["PrismaSelect"]>([["api", "Api"]], ...rest),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    api: useVisibility("Api", "private", ...params),
+                    api: useVisibility("Api", "Own", data),
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    api: useVisibility("Api", "public", ...params),
+                    api: useVisibility("Api", "OwnOrPublic", data),
                 };
             },
-            owner: (...params) => ({ api: useVisibility("Api", "owner", ...params) }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    api: useVisibility("Api", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    api: useVisibility("Api", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    api: useVisibility("Api", "Public", data),
+                };
+            },
         },
     }),
 });

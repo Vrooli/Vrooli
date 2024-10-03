@@ -252,11 +252,21 @@ export const BookmarkModel: BookmarkModelLogic = ({
             ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, key as GqlModelType])),
         }),
         visibility: {
-            private: null, // Search method disabled
+            own: function getOwn(data) {
+                return {
+                    list: useVisibility("BookmarkList", "Own", data),
+                };
+            },
+            // Always private, so it's the same as "own"
+            ownOrPublic: function getOwnOrPublic(data) {
+                return useVisibility("Bookmark", "Own", data);
+            },
+            // Always private, so it's the same as "own"
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("Bookmark", "Own", data);
+            },
+            ownPublic: null, // Search method disabled
             public: null, // Search method disabled
-            owner: (...params) => ({
-                list: useVisibility("BookmarkList", "owner", ...params),
-            }),
         },
     }),
 });

@@ -1,5 +1,6 @@
 import { AwardKey, awardNames, AwardSortBy, MaxObjects } from "@local/shared";
 import i18next from "i18next";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions } from "../../utils";
 import { AwardFormat } from "../formats";
 import { SuppFields } from "../suppFields";
@@ -29,10 +30,6 @@ export const AwardModel: AwardModelLogic = ({
             updatedTimeFrame: true,
         },
         searchStringQuery: () => ({}),
-        /**
-         * Can only ever search your own awards
-         */
-        customQueryData: (_, user) => ({ user: { id: user!.id } }),
         supplemental: {
             dbFields: ["category", "progress"],
             graphqlFields: SuppFields[__typename],
@@ -68,11 +65,21 @@ export const AwardModel: AwardModelLogic = ({
         }),
         permissionResolvers: defaultPermissions,
         visibility: {
-            private: null, // Search method disabled
+            own: function getOwn(data) {
+                return {
+                    user: { id: data.userId },
+                };
+            },
+            // Always private, so it's the same as "own"
+            ownOrPublic: function getOwnOrPublic(data) {
+                return useVisibility("Award", "Own", data);
+            },
+            // Always private, so it's the same as "own"
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("Award", "Own", data);
+            },
+            ownPublic: null, // Search method disabled
             public: null, // Search method disabled
-            owner: (userId) => ({
-                user: { id: userId },
-            }),
         },
     }),
 });

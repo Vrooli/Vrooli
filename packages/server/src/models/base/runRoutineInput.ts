@@ -1,6 +1,7 @@
 import { MaxObjects, RunRoutineInputSortBy, runRoutineInputValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { RunRoutineInputFormat } from "../formats";
 import { RoutineVersionInputModelInfo, RoutineVersionInputModelLogic, RunRoutineInputModelInfo, RunRoutineInputModelLogic, RunRoutineModelInfo, RunRoutineModelLogic } from "./types";
@@ -70,17 +71,31 @@ export const RunRoutineInputModel: RunRoutineInputModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<RunRoutineInputModelInfo["PrismaSelect"]>([["runRoutine", "RunRoutine"]], ...rest),
         visibility: {
-            private: function getVisibilityPrivate() {
+            own: function getOwn(data) {
                 return {
-                    runRoutine: { isPrivate: true },
+                    runRoutine: useVisibility("RunRoutine", "Own", data),
                 };
             },
-            public: function getVisibilityPublic() {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    runRoutine: { isPrivate: false },
+                    runRoutine: useVisibility("RunRoutine", "OwnOrPublic", data),
                 };
             },
-            owner: (userId) => ({ runRoutine: ModelMap.get<RunRoutineModelLogic>("RunRoutine").validate().visibility.owner(userId) }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    runRoutine: useVisibility("RunRoutine", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    runRoutine: useVisibility("RunRoutine", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    runRoutine: useVisibility("RunRoutine", "Public", data),
+                };
+            },
         },
     }),
 });

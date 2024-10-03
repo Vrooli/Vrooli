@@ -35,3 +35,4 @@ export type CudInputData = {
 //     input: PrismaSelect;
 //     objectType: GqlModelType | `${GqlModelType}`;
 // };
+export type ResultsById = { [id: string]: unknown };

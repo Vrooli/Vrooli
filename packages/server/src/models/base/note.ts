@@ -132,36 +132,56 @@ export const NoteModel: NoteModelLogic = ({
             versions: ["NoteVersion", ["root"]],
         }),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
                     isDeleted: false, // Can't be deleted
-                    OR: [ // Either the object is private, its owner is private, or the owner has disabled public visibility
-                        { isPrivate: true },
-                        { ownedByTeam: useVisibility("Team", "private", ...params) },
-                        { ownedByUser: { isPrivate: true } },
-                        { ownedByUser: { isPrivateNotes: true } },
-                        // NOTE: We don't need `{ createdBy: { isPrivateNotesCreated: true } }` because that is only for hiding the creator. The object can still be public.
+                    OR: [
+                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                        { ownedByUser: { id: data.userId } },
                     ],
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    OR: [
+                        // Owned objects
+                        {
+                            OR: (useVisibility("Note", "Own", data) as { OR: object[] }).OR,
+                        },
+                        // Public objects
+                        {
+                            isPrivate: false, // Can't be private
+                            OR: (useVisibility("Note", "Public", data) as { OR: object[] }).OR,
+                        },
+                    ],
+                };
+            },
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: true,  // Must be private
+                    OR: (useVisibility("Note", "Own", data) as { OR: object[] }).OR,
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false,  // Must be public
+                    OR: (useVisibility("Note", "Own", data) as { OR: object[] }).OR,
+                };
+            },
+            public: function getPublic(data) {
                 return {
                     isDeleted: false, // Can't be deleted
                     isPrivate: false, // Can't be private
-                    OR: [ // Either the owner is public, or there is no owner
+                    OR: [
                         { ownedByTeam: null, ownedByUser: null },
-                        { ownedByTeam: useVisibility("Team", "public", ...params) },
+                        { ownedByTeam: useVisibility("Team", "Public", data) },
                         { ownedByUser: { isPrivate: false, isPrivateNotes: false } },
                     ],
                 };
             },
-            owner: (userId) => ({
-                isDeleted: false, // Can't be deleted
-                OR: [
-                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
-                    { ownedByUser: { id: userId } },
-                ],
-            }),
         },
     }),
 });

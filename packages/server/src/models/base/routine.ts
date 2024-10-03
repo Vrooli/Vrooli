@@ -333,36 +333,60 @@ export const RoutineModel: RoutineModelLogic = ({
             versions: ["RoutineVersion", ["root"]],
         }),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
                     isDeleted: false, // Can't be deleted
-                    OR: [ // Either the object is private, its owner is private, or the owner has disabled public visibility
-                        { isPrivate: true },
-                        { ownedByTeam: useVisibility("Team", "private", ...params) },
-                        { ownedByUser: { isPrivate: true } },
-                        { ownedByUser: { isPrivateRoutines: true } },
-                        // NOTE: We don't need `{ createdBy: { isPrivateRoutinesCreated: true } }` because that is only for hiding the creator. The object can still be public.
+                    isInternal: false, // Internal routines should never be in search results
+                    OR: [
+                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                        { ownedByUser: { id: data.userId } },
                     ],
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
                     isDeleted: false, // Can't be deleted
+                    isInternal: false, // Internal routines should never be in search results
+                    OR: [
+                        // Owned objects
+                        {
+                            OR: (useVisibility("Routine", "Own", data) as { OR: object[] }).OR,
+                        },
+                        // Public objects
+                        {
+                            isPrivate: false, // Can't be private
+                            OR: (useVisibility("Routine", "Public", data) as { OR: object[] }).OR,
+                        },
+                    ],
+                };
+            },
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isInternal: false, // Internal routines should never be in search results
+                    isPrivate: true,  // Must be private
+                    OR: (useVisibility("Routine", "Own", data) as { OR: object[] }).OR,
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false, // Must be public
+                    OR: (useVisibility("Routine", "Own", data) as { OR: object[] }).OR,
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isInternal: false, // Internal routines should never be in search results
                     isPrivate: false, // Can't be private
-                    OR: [ // Either the owner is public, or there is no owner
+                    OR: [
                         { ownedByTeam: null, ownedByUser: null },
-                        { ownedByTeam: useVisibility("Team", "public", ...params) },
+                        { ownedByTeam: useVisibility("Team", "Public", data) },
                         { ownedByUser: { isPrivate: false, isPrivateRoutines: false } },
                     ],
                 };
             },
-            owner: (userId) => ({
-                isDeleted: false, // Can't be deleted
-                OR: [
-                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
-                    { ownedByUser: { id: userId } },
-                ],
-            }),
         },
     }),
 });

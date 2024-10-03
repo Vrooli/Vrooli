@@ -9,6 +9,7 @@ import { selectHelper } from "../../builders/selectHelper";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { GraphQLInfo, PartialGraphQLInfo } from "../../builders/types";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
@@ -25,7 +26,6 @@ import { SuppFields } from "../suppFields";
 import { ChatMessageModelInfo, ChatMessageModelLogic, ChatModelInfo, ChatModelLogic, ReactionModelLogic, UserModelLogic } from "./types";
 
 const DEFAULT_CHAT_TAKE = 50;
-const DISPLAY_MESSAGE_CUTOFF_LENGTH = 30;
 
 const __typename = "ChatMessage" as const;
 export const ChatMessageModel: ChatMessageModelLogic = ({
@@ -36,8 +36,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
             get: (select, languages) => {
-                const best = getTranslation(select, languages).text ?? "";
-                return best.length > DISPLAY_MESSAGE_CUTOFF_LENGTH ? best.slice(0, DISPLAY_MESSAGE_CUTOFF_LENGTH) + "..." : best;
+                return getTranslation(select, languages).text ?? "";
             },
         },
     }),
@@ -526,15 +525,33 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             user: "User",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return { // If you own the chat or created the message
+                    OR: [
+                        { chat: useVisibility("Chat", "Own", data) },
+                        { user: { id: data.userId } },
+                    ],
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    OR: [
+                        { chat: useVisibility("Chat", "Own", data) },
+                        { chat: useVisibility("Chat", "Public", data) },
+                    ],
+                };
             },
-            owner: (userId) => ({
-                chat: ModelMap.get<ChatModelLogic>("Chat").validate().visibility.owner(userId),
-            }),
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("Chat", "OwnPrivate", data);
+            },
+            ownPublic: function getOwnPublic(data) {
+                return useVisibility("Chat", "OwnPublic", data);
+            },
+            public: function getPublic(data) {
+                return {
+                    chat: useVisibility("Chat", "Public", data),
+                };
+            },
         },
     }),
 });

@@ -10,7 +10,7 @@ import { DEFAULT_LANGUAGE } from "../consts";
 export function getTranslation<
     Translation extends { language: string },
 >(
-    obj: { translations?: Translation[] | null | undefined } | null | undefined,
+    obj: { translations?: readonly Translation[] | null | undefined } | null | undefined,
     languages: readonly string[] | null | undefined,
     showAny = true,
 ): Partial<Translation> {

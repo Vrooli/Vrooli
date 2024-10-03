@@ -1,13 +1,13 @@
 /**
  * Checks if the user has admin privileges on an object's creator/owner
  */
-export const isOwnerAdminCheck = (
+export function isOwnerAdminCheck(
     owner: {
         Team?: { [x: string]: any } | null,
         User?: { [x: string]: any } | null,
     },
     userId: string | null | undefined,
-): boolean => {
+): boolean {
     // Can't be an admin if not logged in
     if (userId === null || userId === undefined) return false;
     // If the owner is a user, check id
@@ -20,4 +20,4 @@ export const isOwnerAdminCheck = (
     }
     // If the owner is neither a user nor a team, return false
     return false;
-};
+}

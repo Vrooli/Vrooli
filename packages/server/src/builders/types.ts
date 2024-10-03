@@ -189,6 +189,12 @@ export type RelDelete<IDField extends string> = { [key in IDField]: string }
 
 export type VisibilityBuilderProps = {
     objectType: `${GqlModelType}`,
+    searchInput: { [x: string]: any };
     userData: SessionUserToken | null | undefined,
     visibility?: VisibilityType | null | undefined,
+}
+
+export type VisibilityBuilderPrismaResult = {
+    query: { [x: string]: any };
+    visibilityUsed: VisibilityType;
 }

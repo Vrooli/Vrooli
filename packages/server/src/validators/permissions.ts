@@ -235,7 +235,7 @@ export async function calculatePermissions(
     authData: AuthDataItem,
     userData: SessionUserToken | null,
     validator: ReturnType<Validator<any>>,
-    inputsById?: InputsById
+    inputsById?: InputsById,
 ): Promise<ResolvedPermissions> {
     const languages = userData?.languages ?? ["en"];
     const isAdmin = userData?.id ? isOwnerAdminCheck(validator.owner(authData, userData.id), userData.id) : false;

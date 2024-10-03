@@ -63,19 +63,32 @@ export const QuestionAnswerModel: QuestionAnswerModelLogic = ({
             createdBy: "User",
         }),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    question: useVisibility("Question", "private", ...params),
+                    createdBy: { id: data.userId },
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    question: useVisibility("Question", "public", ...params),
+                    OR: [
+                        { createdBy: { id: data.userId } },
+                        { question: useVisibility("Question", "Public", data) },
+                    ],
                 };
             },
-            owner: (userId) => ({
-                createdBy: { id: userId },
-            }),
+            // Search method not useful for this object because answers are not explicitly set as private, so we'll return "Own"
+            // TODO when drafts are added, this and related functions will have to change
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("QuestionAnswer", "Own", data);
+            },
+            ownPublic: function getOwnPublic(data) {
+                return useVisibility("QuestionAnswer", "Own", data);
+            },
+            public: function getPublic(data) {
+                return {
+                    question: useVisibility("Question", "Public", data),
+                };
+            },
         },
     }),
 });

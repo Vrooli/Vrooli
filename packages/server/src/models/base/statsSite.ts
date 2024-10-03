@@ -1,5 +1,6 @@
-import { StatsSiteSortBy } from "@local/shared";
+import { MaxObjects, StatsSiteSortBy } from "@local/shared";
 import i18next from "i18next";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions } from "../../utils";
 import { StatsSiteFormat } from "../formats";
 import { StatsSiteModelLogic } from "./types";
@@ -30,20 +31,23 @@ export const StatsSiteModel: StatsSiteModelLogic = ({
         isDeleted: () => false,
         isPublic: () => true,
         isTransferable: false,
-        maxObjects: 10000000,
+        maxObjects: MaxObjects[__typename],
         owner: () => ({}),
         permissionResolvers: (params) => defaultPermissions({ ...params, isAdmin: false }), // Force isAdmin false, since there is no "visibility.owner" query
         permissionsSelect: () => ({
             id: true,
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {}; // Intentionally empty, since site stats are always public
+            own: null, // Search method disabled, since no one owns site stats
+            // Always public, os it's the same as "public"
+            ownOrPublic: function getOwnOrPublic(data) {
+                return useVisibility("StatsSite", "Public", data);
             },
+            ownPrivate: null, // Search method disabled, since no one owns site stats
+            ownPublic: null, // Search method disabled, since no one owns site stats
             public: function getVisibilityPublic() {
                 return {}; // Intentionally empty, since site stats are always public
             },
-            owner: null, // Search method disabled, since no one owns site stats
         },
     }),
 });

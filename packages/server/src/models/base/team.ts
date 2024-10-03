@@ -4,6 +4,7 @@ import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { onlyValidIds } from "../../builders/onlyValidIds";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { getLabels } from "../../getters";
 import { defaultPermissions, getEmbeddableString } from "../../utils";
@@ -299,17 +300,36 @@ export const TeamModel: TeamModelLogic = ({
             } : {}),
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
+            own: function getOwn(data) {
+                return ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId)
+            },
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
+                    OR: [
+                        // Owned objects
+                        ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId),
+                        // Public objects
+                        useVisibility("Team", "Public", data),
+                    ],
+                };
+            },
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    ...ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId),
                     isPrivate: true,
                 };
             },
-            public: function getVisibilityPublic() {
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    ...ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId),
+                    isPrivate: false,
+                };
+            },
+            public: function getPublic() {
                 return {
                     isPrivate: false,
                 };
             },
-            owner: (userId) => ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId),
         },
     }),
 });

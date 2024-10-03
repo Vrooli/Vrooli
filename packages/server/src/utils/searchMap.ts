@@ -47,6 +47,8 @@ function oneToManyIds<RelField extends string>(ids: string[], relField: RelField
 type RequestData = {
     /** The object type being queried */
     objectType: GqlModelType | `${GqlModelType}`;
+    /** Full search input query */
+    searchInput: { [x: string]: any };
     /** The current user's session token */
     userData: SessionUserToken | null;
     /** The visibility of the query */
@@ -433,5 +435,5 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
             },
         },
     }) : {},
-    visibility: (visibility: VisibilityType | null | undefined, { objectType, userData }) => visibilityBuilderPrisma({ objectType, userData, visibility }),
+    visibility: (visibility: VisibilityType | null | undefined, { objectType, searchInput, userData }) => visibilityBuilderPrisma({ objectType, searchInput, userData, visibility }).query,
 } as SearchMapType<typeof SearchMap>;

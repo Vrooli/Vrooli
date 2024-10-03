@@ -1,4 +1,4 @@
-import { StatsProjectSortBy } from "@local/shared";
+import { MaxObjects, StatsProjectSortBy } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
 import { useVisibility } from "../../builders/visibilityBuilder";
@@ -31,7 +31,7 @@ export const StatsProjectModel: StatsProjectModelLogic = ({
     },
     validate: () => ({
         isTransferable: false,
-        maxObjects: 0,
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
             project: "Project",
@@ -41,17 +41,31 @@ export const StatsProjectModel: StatsProjectModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<StatsProjectModelInfo["PrismaSelect"]>([["project", "Project"]], ...rest),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    project: useVisibility("Project", "private", ...params),
+                    project: useVisibility("Project", "Own", data),
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    project: useVisibility("Project", "public", ...params),
+                    project: useVisibility("Project", "OwnOrPublic", data),
                 };
             },
-            owner: (...params) => ({ project: useVisibility("Project", "owner", ...params) }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    project: useVisibility("Project", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    project: useVisibility("Project", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    project: useVisibility("Project", "Public", data),
+                };
+            },
         },
     }),
 });

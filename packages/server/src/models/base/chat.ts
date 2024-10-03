@@ -1,6 +1,8 @@
 import { ChatInviteStatus, ChatSortBy, chatValidation, getTranslation, MaxObjects, uuidValidate } from "@local/shared";
+import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { defaultPermissions, getEmbeddableString } from "../../utils";
 import { ChatPre, populatePreMapForChatUpdates, prepareChatMessageOperations } from "../../utils/chat";
@@ -8,7 +10,7 @@ import { labelShapeHelper, preShapeEmbeddableTranslatable, translationShapeHelpe
 import { getSingleTypePermissions } from "../../validators";
 import { ChatFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { ChatModelInfo, ChatModelLogic } from "./types";
+import { ChatModelInfo, ChatModelLogic, TeamModelLogic } from "./types";
 
 const __typename = "Chat" as const;
 export const ChatModel: ChatModelLogic = ({
@@ -257,15 +259,49 @@ export const ChatModel: ChatModelLogic = ({
             } : {}),
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            // For now, this also includes if you're a participant
+            own: function getOwn(data) {
+                return {
+                    OR: [
+                        { creator: { id: data.userId } },
+                        { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                        {
+                            participants: {
+                                some: {
+                                    user: {
+                                        id: data.userId,
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    OR: [
+                        useVisibility("Chat", "Own", data),
+                        useVisibility("Chat", "Public", data),
+                    ],
+                };
             },
-            owner: (userId) => ({
-                creator: { id: userId },
-            }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    isPrivate: true,
+                    ...useVisibility("Chat", "Own", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    isPrivate: false,
+                    ...useVisibility("Chat", "Own", data),
+                };
+            },
+            public: function getPublic() {
+                return {
+                    isPrivate: false,
+                };
+            },
         },
     }),
 });

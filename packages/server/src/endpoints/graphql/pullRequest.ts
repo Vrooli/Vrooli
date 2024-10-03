@@ -34,6 +34,7 @@ export const typeDef = gql`
     }
 
     enum PullRequestStatus {
+        Draft
         Open
         Canceled
         Merged

@@ -2,6 +2,7 @@ import { MaxObjects, MeetingSortBy, getTranslation, meetingValidation } from "@l
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, getEmbeddableString } from "../../utils";
 import { PreShapeEmbeddableTranslatableResult, labelShapeHelper, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { afterMutationsPlain } from "../../utils/triggers";
@@ -145,13 +146,25 @@ export const MeetingModel: MeetingModelLogic = ({
         isDeleted: () => false,
         isPublic: (data) => data.showOnTeamProfile === true,
         visibility: {
-            private: function getVisibilityPrivate() {
+            own: function getOwn(data) {
+                return {
+                    team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId),
+                };
+            },
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
                     OR: [
-                        { showOnTeamProfile: false },
-                        { team: { isPrivate: true } },
+                        useVisibility("Meeting", "Own", data),
+                        useVisibility("Meeting", "Public", data),
                     ],
                 };
+            },
+            // Search method not useful for this object because meetings are not explicitly set as private, so we'll return "Own"
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("Meeting", "Own", data);
+            },
+            ownPublic: function getOwnPublic(data) {
+                return useVisibility("Meeting", "Own", data);
             },
             public: function getVisibilityPublic() {
                 return {
@@ -159,15 +172,14 @@ export const MeetingModel: MeetingModelLogic = ({
                     team: { isPrivate: false },
                 };
             },
-            owner: (userId) => ({
-                team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId),
-            }),
-            attendingOrInvited: (userId) => ({
-                OR: [
-                    { attendees: { some: { user: { id: userId } } } },
-                    { invites: { some: { userId } } },
-                ],
-            }),
+            attendingOrInvited: function getAttendingOrInvited(data) {
+                return {
+                    OR: [
+                        { attendees: { some: { user: { id: data.userId } } } },
+                        { invites: { some: { user: { id: data.userId } } } },
+                    ],
+                };
+            },
         },
     }),
 });

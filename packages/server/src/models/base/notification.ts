@@ -1,4 +1,5 @@
 import { MaxObjects, NotificationSortBy } from "@local/shared";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions } from "../../utils";
 import { NotificationFormat } from "../formats";
 import { NotificationModelLogic } from "./types";
@@ -43,11 +44,21 @@ export const NotificationModel: NotificationModelLogic = ({
             user: "User",
         }),
         visibility: {
-            private: null, // Search method disabled
+            own: function getOwn(data) {
+                return {
+                    user: { id: data.userId },
+                };
+            },
+            // Always private, so it's the same as "own"
+            ownOrPublic: function getOwnOrPublic(data) {
+                return useVisibility("Notification", "Own", data);
+            },
+            // Always private, so it's the same as "own"
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("Notification", "Own", data);
+            },
+            ownPublic: null, // Search method disabled
             public: null, // Search method disabled
-            owner: (userId) => ({
-                user: { id: userId },
-            }),
         },
     }),
 });

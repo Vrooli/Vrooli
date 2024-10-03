@@ -272,6 +272,6 @@ export class RedisClientMock {
     };
 }
 
-export const createClient = ({ url }: { url: string }) => {
+export function createClient({ url }: { url: string }) {
     return new RedisClientMock({ url });
-};
+}

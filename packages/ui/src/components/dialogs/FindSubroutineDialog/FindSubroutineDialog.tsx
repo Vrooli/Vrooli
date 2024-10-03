@@ -23,7 +23,7 @@ export function FindSubroutineDialog({
      */
     const where = useMemo<{ [key: string]: object }>(() => {
         // If no routineVersionId, then we are creating a new routine
-        if (!routineVersionId || !uuidValidate(routineVersionId)) return { visibility: VisibilityType.All };
+        if (!routineVersionId || !uuidValidate(routineVersionId)) return { visibility: VisibilityType.Public };
         return {
             // Ignore current routine
             excludeIds: [routineVersionId],
@@ -40,7 +40,7 @@ export function FindSubroutineDialog({
                 isCompleteWithRoot: true,
                 isInternalWithRoot: false,
             } : {}),
-            visibility: VisibilityType.All,
+            visibility: VisibilityType.OwnOrPublic,
         } as any;
     }, [ownerField, routineVersionId]);
 

@@ -3,13 +3,14 @@ import { RunStatus, RunStepStatus } from "@prisma/client";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { Trigger } from "../../events/trigger";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { RunRoutineFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { RoutineVersionModelLogic, RunRoutineModelInfo, RunRoutineModelLogic, TeamModelLogic } from "./types";
+import { RoutineVersionModelLogic, RunRoutineModelInfo, RunRoutineModelLogic } from "./types";
 
 const __typename = "RunRoutine" as const;
 export const RunRoutineModel: RunRoutineModelLogic = ({
@@ -212,22 +213,45 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
             ),
         profanityFields: ["name"],
         visibility: {
-            private: function getVisibilityPrivate() {
+            own: function getOwn(data) {
+                return {
+                    OR: [
+                        { team: useVisibility("Team", "Own", data) },
+                        { user: useVisibility("User", "Own", data) },
+                    ]
+                }
+            },
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    OR: [
+                        { team: useVisibility("Team", "OwnOrPublic", data) },
+                        { user: useVisibility("User", "OwnOrPublic", data) },
+                    ]
+                }
+            },
+            ownPrivate: function getOwnPrivate(data) {
                 return {
                     isPrivate: true,
+                    OR: [
+                        { team: useVisibility("Team", "Own", data) },
+                        { user: useVisibility("User", "Own", data) },
+                    ]
                 };
             },
-            public: function getVisibilityPublic() {
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    isPrivate: false,
+                    OR: [
+                        { team: useVisibility("Team", "Own", data) },
+                        { user: useVisibility("User", "Own", data) },
+                    ]
+                };
+            },
+            public: function getPublic() {
                 return {
                     isPrivate: false,
                 };
             },
-            owner: (userId) => ({
-                OR: [
-                    { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
-                    { user: { id: userId } },
-                ],
-            }),
         },
     }),
 });

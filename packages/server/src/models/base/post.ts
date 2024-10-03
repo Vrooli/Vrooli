@@ -2,6 +2,7 @@ import { MaxObjects, PostSortBy, getTranslation, postValidation } from "@local/s
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, getEmbeddableString } from "../../utils";
 import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
 import { afterMutationsPlain } from "../../utils/triggers";
@@ -118,24 +119,55 @@ export const PostModel: PostModelLogic = ({
             user: "User",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
+            own: function getOwn(data) {
                 return {
-                    isDeleted: false,
-                    isPrivate: true,
+                    isDeleted: false, // Can't be deleted
+                    OR: [
+                        { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                        { user: useVisibility("User", "Own", data) },
+                    ],
                 };
             },
-            public: function getVisibilityPublic() {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    isDeleted: false,
-                    isPrivate: false,
+                    isDeleted: false, // Can't be deleted
+                    OR: [
+                        // Owned objects
+                        {
+                            OR: (useVisibility("Post", "Own", data) as { OR: object[] }).OR,
+                        },
+                        // Public objects
+                        {
+                            OR: (useVisibility("Post", "Public", data) as { OR: object[] }).OR,
+                        },
+                    ],
                 };
             },
-            owner: (userId) => ({
-                OR: [
-                    { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
-                    { user: { id: userId } },
-                ],
-            }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: true,  // Must be private
+                    OR: (useVisibility("Post", "Own", data) as { OR: object[] }).OR,
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false, // Must be public
+                    OR: (useVisibility("Post", "Own", data) as { OR: object[] }).OR,
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false, // Can't be private
+                    OR: [
+                        { team: null, user: null },
+                        { team: useVisibility("Team", "Public", data) },
+                        { user: { isPrivate: false } },
+                    ],
+                };
+            },
         },
     }),
 });

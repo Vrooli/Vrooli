@@ -7,6 +7,7 @@ export const LINKS = {
     BookmarkList: "/bookmarks",
     Calendar: "/calendar",
     Chat: "/chat",
+    ChatMessage: "/chat-message",
     Comment: "/comment",
     Create: "/create",
     DataConverter: "/code",
@@ -16,9 +17,11 @@ export const LINKS = {
     History: "/history",
     Home: "/", // Main dashboard for logged in users
     Inbox: "/inbox",
+    Issue: "/issue",
     Login: "/auth/login",
     MyStuff: "/my",
     Note: "/note",
+    Post: "/post",
     Pro: "/pro",
     Privacy: "/privacy", // Privacy policy
     Profile: "/profile",
@@ -28,6 +31,7 @@ export const LINKS = {
     Quiz: "/quiz",
     Reminder: "/reminder",
     Report: "/report",
+    Reports: "/reports",
     ResetPassword: "/auth/password-reset",
     Routine: "/routine",
     Run: "/run",

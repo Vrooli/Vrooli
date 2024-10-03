@@ -5,6 +5,7 @@ import { ModelMap } from ".";
 import { findFirstRel } from "../../builders/findFirstRel";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { labelShapeHelper } from "../../utils/shapes";
 import { ScheduleFormat } from "../formats";
@@ -112,32 +113,43 @@ export const ScheduleModel: ScheduleModelLogic = ({
             ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, key as GqlModelType])),
         }),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
                     OR: [
-                        ...Object.entries(forMapper).map(([key, value]) => ({ [value]: ModelMap.get(key as GqlModelType).validate().visibility.private(...params) })),
+                        ...Object.entries(forMapper).map(([key, value]) => ({
+                            [value]: { some: useVisibility(key as GqlModelType, "Own", data) },
+                        })),
                     ],
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    OR: [
+                        useVisibility("Schedule", "Own", data),
+                        useVisibility("Schedule", "Public", data),
+                    ],
+                };
+            },
+            // Search method not useful for this object because schedules are not explicitly set as private, so we'll return "Own"
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("Schedule", "Own", data);
+            },
+            ownPublic: function getOwnPublic(data) {
+                return useVisibility("Schedule", "Own", data);
+            },
+            public: function getPublic(data) {
                 return {
                     // Can use OR because only one relation will be present
                     OR: [
                         ...Object.entries(forMapper).map(([key, value]) => ({
                             // Custom validation for meetings
-                            // [value]: ModelMap.get(key as GqlModelType).validate().visibility.public 
                             [value]: key === "Meeting"
-                                ? (ModelMap.get<MeetingModelLogic>("Meeting").validate().visibility as any).attendingOrInvited(...params)
-                                : ModelMap.get(key as GqlModelType).validate().visibility.public(...params),
+                                ? (ModelMap.get<MeetingModelLogic>("Meeting").validate().visibility as any).attendingOrInvited(data)
+                                : useVisibility(key as GqlModelType, "Public", data),
                         })),
                     ],
                 };
             },
-            owner: (userId) => ({
-                OR: [
-                    ...Object.entries(forMapper).map(([key, value]) => ({ [value]: { some: ModelMap.get(key as GqlModelType).validate().visibility.owner(userId) } })),
-                ],
-            }),
         },
     }),
 });

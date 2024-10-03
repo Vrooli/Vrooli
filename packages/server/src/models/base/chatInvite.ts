@@ -2,6 +2,7 @@ import { ChatInviteSortBy, chatInviteValidation, MaxObjects, uuidValidate } from
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { ChatInviteFormat } from "../formats";
@@ -92,15 +93,20 @@ export const ChatInviteModel: ChatInviteModelLogic = ({
             user: "User",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return { // If you created the invite or were invited
+                    OR: [
+                        { chat: useVisibility("Chat", "Own", data) },
+                        { user: { id: data.userId } },
+                    ],
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            ownOrPublic: null, // Search method disabled
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("ChatInvite", "Own", data);
             },
-            owner: (userId) => ({
-                chat: ModelMap.get<ChatModelLogic>("Chat").validate().visibility.owner(userId),
-            }),
+            ownPublic: null, // Search method disabled
+            public: null, // Search method disabled
         },
     }),
 });

@@ -2,6 +2,7 @@ import { MaxObjects, getTranslation, projectVersionDirectoryValidation } from "@
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { ProjectVersionDirectoryFormat } from "../formats";
@@ -67,15 +68,31 @@ export const ProjectVersionDirectoryModel: ProjectVersionDirectoryModelLogic = (
             projectVersion: "ProjectVersion",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return {
+                    projectVersion: useVisibility("ProjectVersion", "Own", data),
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    projectVersion: useVisibility("ProjectVersion", "OwnOrPublic", data),
+                };
             },
-            owner: (userId) => ({
-                projectVersion: ModelMap.get<ProjectVersionModelLogic>("ProjectVersion").validate().visibility.owner(userId),
-            }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    projectVersion: useVisibility("ProjectVersion", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    projectVersion: useVisibility("ProjectVersion", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    projectVersion: useVisibility("ProjectVersion", "Public", data),
+                };
+            },
         },
     }),
 });

@@ -1,6 +1,7 @@
 import { MaxObjects, reminderListValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions } from "../../utils";
 import { ReminderListFormat } from "../formats";
 import { FocusModeModelInfo, FocusModeModelLogic, ReminderListModelLogic } from "./types";
@@ -44,11 +45,21 @@ export const ReminderListModel: ReminderListModelLogic = ({
         isDeleted: () => false,
         isPublic: () => false,
         visibility: {
-            private: null, // Search method disabled
+            own: function getOwn(data) {
+                return {
+                    focusMode: useVisibility("FocusMode", "Own", data),
+                };
+            },
+            // Always private, so it's the same as "own"
+            ownOrPublic: function getOwnOrPublic(data) {
+                return useVisibility("ReminderList", "Own", data);
+            },
+            // Always private, so it's the same as "own"
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("ReminderList", "Own", data);
+            },
+            ownPublic: null, // Search method disabled
             public: null, // Search method disabled
-            owner: (userId) => ({
-                focusMode: ModelMap.get<FocusModeModelLogic>("FocusMode").validate().visibility.owner(userId),
-            }),
         },
     }),
 });

@@ -458,112 +458,131 @@ describe("combineQueries", () => {
 
     // Tests that simulate where we use combineQueries in the codebase
     describe("real-world queries", () => {
-        // Test scenarios that occur in the visibilityBuilderPrisma function 
-        describe("visibilityBuilderPrisma", () => {
-            test("api private and owner", () => {
-                const userId = "userId";
-                const roles = ["admin"];
-                const apiPrivate = {
-                    isDeleted: false,
-                    OR: [
-                        { isPrivate: true },
-                        { ownedByTeam: { isPrivate: true } },
-                        { ownedByUser: { isPrivate: true } },
-                        { ownedByUser: { isPrivateApis: true } },
-                    ],
+        describe("counts.ts", () => {
+            test("counting public teams", () => {
+                const customWhere = undefined;
+                const createdQuery = {
+                    created_at: {
+                        gte: new Date("2021-01-01T00:00:00.000Z").toISOString(),
+                    },
                 };
-                const apiOwner = {
-                    isDeleted: false,
-                    OR: [
-                        { ownedByTeam: { roles: { some: { name: { in: roles }, members: { some: { user: { id: userId } } } } } } },
-                        { ownedByUser: { id: userId } },
-                    ],
+                const updatedQuery = {
+                    updated_at: {
+                        gte: new Date("2022-02-02T00:00:00.000Z").toISOString(),
+                        lte: new Date("2023-03-03T23:59:59.999Z").toISOString(),
+                    },
                 };
-                const queries = [apiPrivate, apiOwner];
+                const visibilityQuery = {
+                    isPrivate: false,
+                };
+                const queries = [customWhere, createdQuery, updatedQuery, visibilityQuery];
                 const expected = {
+                    created_at: {
+                        gte: new Date("2021-01-01T00:00:00.000Z").toISOString(),
+                    },
+                    updated_at: {
+                        gte: new Date("2022-02-02T00:00:00.000Z").toISOString(),
+                        lte: new Date("2023-03-03T23:59:59.999Z").toISOString(),
+                    },
+                    isPrivate: false,
+                };
+                expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
+            });
+        });
+        describe("reads.ts", () => {
+            test("searching own private routine versions with search string 'boop'", () => {
+                const userId = "user123";
+                const additionalQueries = { root: { isInternal: true } };
+                const createdQuery = undefined;
+                const updatedQuery = undefined;
+                const visibilityQuery = {
                     isDeleted: false,
-                    // Note that the OR clauses are put inside an AND clause, and not combined
-                    AND: [
+                    OR: [
                         {
-                            OR: [
-                                { isPrivate: true },
-                                { ownedByTeam: { isPrivate: true } },
-                                { ownedByUser: { isPrivate: true } },
-                                { ownedByUser: { isPrivateApis: true } },
-                            ],
+                            isPrivate: true,
+                            root: {
+                                isDeleted: false,
+                                isPrivate: true,
+                                OR: [
+                                    { ownedByTeam: { members: { some: { user: { id: userId } } } } },
+                                    { ownedByUser: { id: userId } },
+                                ],
+                            },
                         },
                         {
-                            OR: [
-                                { ownedByTeam: { roles: { some: { name: { in: roles }, members: { some: { user: { id: userId } } } } } } },
-                                { ownedByUser: { id: userId } },
-                            ],
+                            root: {
+                                isPrivate: true,
+                                isDeleted: false,
+                                OR: [
+                                    { ownedByTeam: { members: { some: { user: { id: userId } } } } },
+                                    { ownedByUser: { id: userId } },
+                                ],
+                            },
+                        },
+                    ],
+                };
+                const queries = [additionalQueries, createdQuery, updatedQuery, visibilityQuery];
+                const expected = {
+                    isDeleted: false,
+                    root: { isInternal: true },
+                    OR: [
+                        {
+                            isPrivate: true,
+                            root: {
+                                isDeleted: false,
+                                isPrivate: true,
+                                OR: [
+                                    { ownedByTeam: { members: { some: { user: { id: userId } } } } },
+                                    { ownedByUser: { id: userId } },
+                                ],
+                            },
+                        },
+                        {
+                            root: {
+                                isPrivate: true,
+                                isDeleted: false,
+                                OR: [
+                                    { ownedByTeam: { members: { some: { user: { id: userId } } } } },
+                                    { ownedByUser: { id: userId } },
+                                ],
+                            },
                         },
                     ],
                 };
                 expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
             });
-
-            test("routine version all (i.e. public objects and your private objects", () => {
-                const userId = "userId";
-                const roles = ["admin"];
-                const routineVersionPrivate = {
-                    isDeleted: false,
-                    root: { isDeleted: false },
-                    OR: [
-                        { isPrivate: true },
-                        { root: { isPrivate: true } },
-                        { root: { ownedByTeam: { isPrivate: true } } },
-                        { root: { ownedByUser: { isPrivate: true } } },
-                        { root: { ownedByUser: { isPrivateApis: true } } },
-                    ],
-                };
-                // const routineVersionPublic = {
-                //     isDeleted: false,
-                //     isPrivate: false,
-                //     root: {
-                //         isDeleted: false,
-                //         isPrivate: false,
-                //         OR: [
-                //             { ownedByTeam: null, ownedByUser: null },
-                //             { ownedByTeam: { isPrivate: false } },
-                //             { ownedByUser: { isPrivate: false, isPrivateRoutines: false } },
-                //         ],
-                //     },
-                // };
-                const routineVersionOwner = {
-                    isDeleted: false,
-                    root: {
-                        OR: [
-                            { ownedByTeam: { roles: { some: { name: { in: roles }, members: { some: { user: { id: userId } } } } } } },
-                            { ownedByUser: { id: userId } },
-                        ],
+        });
+        describe("feed.ts", () => {
+            test("reminders with focus mode", () => {
+                const activeFocusModeId = "focusMode123";
+                const userId = "user123";
+                const customWhere = {
+                    reminderList: {
+                        focusMode: {
+                            id: activeFocusModeId,
+                        },
                     },
                 };
-                // We only combine the private and owner queries
-                const queries = [routineVersionPrivate, routineVersionOwner];
+                const visibilityQuery = {
+                    reminderList: {
+                        focusMode: {
+                            user: {
+                                id: userId,
+                            },
+                        },
+                    },
+                };
+                const queries = [customWhere, visibilityQuery];
                 const expected = {
-                    isDeleted: false,
-                    root: {
-                        isDeleted: false,
-                        AND: [
-                            {
-                                OR: [
-                                    { isPrivate: true },
-                                    { ownedByTeam: { isPrivate: true } },
-                                    { ownedByUser: { isPrivate: true } },
-                                    { ownedByUser: { isPrivateApis: true } },
-                                ],
+                    reminderList: {
+                        focusMode: {
+                            id: activeFocusModeId,
+                            user: {
+                                id: userId,
                             },
-                            {
-                                OR: [
-                                    { ownedByTeam: { roles: { some: { name: { in: roles }, members: { some: { user: { id: userId } } } } } } },
-                                    { ownedByUser: { id: userId } },
-                                ],
-                            },
-                        ],
+                        },
                     },
                 };
-                console.log("yeet result", JSON.stringify(combineQueries(queries, { mergeMode: "strict" })));
                 expect(combineQueries(queries, { mergeMode: "strict" })).toEqual(expected);
             });
         });

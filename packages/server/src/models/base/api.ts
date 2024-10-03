@@ -112,6 +112,12 @@ export const ApiModel: ApiModelLogic = ({
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted === false,
+        // isPublic: function getIsPublic(data, ...rest) {
+        //     if (data.isPrivate || data.isDeleted) return false;
+        //     if (data.ownedByTeam === null && data.ownedByUser === null) return true;
+        //     if (data.ownedByTeam && data.ownedByTeam.isPrivate) return false;
+        //     if (data.ownedByUser && (data.ownedByUser.isPrivate || data.ownedByUser.isPrivateApi)) return false;
+        // },
         isPublic: (data, ...rest) =>
             data.isPrivate === false &&
             data.isDeleted === false &&
@@ -141,36 +147,56 @@ export const ApiModel: ApiModelLogic = ({
             versions: ["ApiVersion", ["root"]],
         }),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
                     isDeleted: false, // Can't be deleted
-                    OR: [ // Either the object is private, its owner is private, or the owner has disabled public visibility
-                        { isPrivate: true },
-                        { ownedByTeam: useVisibility("Team", "private", ...params) },
-                        { ownedByUser: { isPrivate: true } },
-                        { ownedByUser: { isPrivateApis: true } },
-                        // NOTE: We don't need `{ createdBy: { isPrivateApisCreated: true } }` because that is only for hiding the creator. The object can still be public.
+                    OR: [
+                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                        { ownedByUser: { id: data.userId } },
                     ],
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    OR: [
+                        // Owned objects
+                        {
+                            OR: (useVisibility("Api", "Own", data) as { OR: object[] }).OR,
+                        },
+                        // Public objects
+                        {
+                            isPrivate: false, // Can't be private
+                            OR: (useVisibility("Api", "Public", data) as { OR: object[] }).OR,
+                        },
+                    ],
+                };
+            },
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: true,  // Must be private
+                    OR: (useVisibility("Api", "Own", data) as { OR: object[] }).OR,
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false,  // Must be public
+                    OR: (useVisibility("Api", "Own", data) as { OR: object[] }).OR,
+                };
+            },
+            public: function getPublic(data) {
                 return {
                     isDeleted: false, // Can't be deleted
                     isPrivate: false, // Can't be private
-                    OR: [ // Either the owner is public, or there is no owner
+                    OR: [
                         { ownedByTeam: null, ownedByUser: null },
-                        { ownedByTeam: useVisibility("Team", "public", ...params) },
+                        { ownedByTeam: useVisibility("Team", "Public", data) },
                         { ownedByUser: { isPrivate: false, isPrivateApis: false } },
                     ],
                 };
             },
-            owner: (userId) => ({
-                isDeleted: false, // Can't be deleted
-                OR: [
-                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
-                    { ownedByUser: { id: userId } },
-                ],
-            }),
         },
     }),
 });

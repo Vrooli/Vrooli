@@ -2,6 +2,7 @@ import { BotUpdateInput, MaxObjects, ProfileUpdateInput, UserSortBy, getTranslat
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { withRedis } from "../../redisConn";
 import { defaultPermissions, getEmbeddableString } from "../../utils";
 import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
@@ -192,22 +193,47 @@ export const UserModel: UserModelLogic = ({
         isPublic: (data) => data.isPrivate === false,
         profanityFields: ["name", "handle"],
         visibility: {
-            private: function getVisibilityPrivate() {
+            own: function getOwn(data) {
                 return {
-                    isPrivate: true,
+                    OR: [ // Either yourself or a bot you created
+                        { id: data.userId },
+                        { isBot: true, invitedByUser: { id: data.userId } },
+                    ],
                 };
             },
-            public: function getVisibilityPublic() {
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    OR: [
+                        // Owned objects
+                        useVisibility("User", "Own", data),
+                        // Public objects
+                        useVisibility("User", "Public", data),
+                    ],
+                };
+            },
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    isPrivate: true,
+                    OR: [ // Either yourself or a bot you created
+                        { id: data.userId },
+                        { isBot: true, invitedByUser: { id: data.userId } },
+                    ],
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    isPrivate: false,
+                    OR: [ // Either yourself or a bot you created
+                        { id: data.userId },
+                        { isBot: true, invitedByUser: { id: data.userId } },
+                    ],
+                };
+            },
+            public: function getPublic() {
                 return {
                     isPrivate: false,
                 };
             },
-            owner: (userId) => ({
-                OR: [ // Either yourself or a bot you created
-                    { id: userId },
-                    { isBot: true, invitedByUser: { id: userId } },
-                ],
-            }),
         },
         // createMany.forEach(input => lineBreaksCheck(input, ['bio'], 'LineBreaksBio'));
     }),

@@ -2,6 +2,7 @@ import { MaxObjects, QuizQuestionSortBy, getTranslation, quizQuestionValidation 
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
@@ -80,15 +81,31 @@ export const QuizQuestionModel: QuizQuestionModelLogic = ({
             quiz: "Quiz",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return {
+                    quiz: useVisibility("Quiz", "Own", data),
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    quiz: useVisibility("Quiz", "OwnOrPublic", data),
+                };
             },
-            owner: (userId) => ({
-                quiz: ModelMap.get<QuizModelLogic>("Quiz").validate().visibility.owner(userId),
-            }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    quiz: useVisibility("Quiz", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    quiz: useVisibility("Quiz", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    quiz: useVisibility("Quiz", "Public", data),
+                };
+            },
         },
     }),
 });

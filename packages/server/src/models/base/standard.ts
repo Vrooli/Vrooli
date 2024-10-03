@@ -189,11 +189,6 @@ export const StandardModel: StandardModelLogic = ({
                 { versions: { some: "transDescriptionWrapped" } },
             ],
         }),
-        /**
-         * Internal standards should never appear in the query, since they are 
-         * only meant for a single input/output
-         */
-        customQueryData: () => ({ isInternal: false }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, userData }) => {
@@ -243,36 +238,60 @@ export const StandardModel: StandardModelLogic = ({
             User: data?.ownedByUser,
         }),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
                     isDeleted: false, // Can't be deleted
-                    OR: [ // Either the object is private, its owner is private, or the owner has disabled public visibility
-                        { isPrivate: true },
-                        { ownedByTeam: useVisibility("Team", "private", ...params) },
-                        { ownedByUser: { isPrivate: true } },
-                        { ownedByUser: { isPrivateStandards: true } },
-                        // NOTE: We don't need `{ createdBy: { isPrivateStandardsCreated: true } }` because that is only for hiding the creator. The object can still be public.
+                    isInternal: false, // Internal standards should never be in search results
+                    OR: [
+                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                        { ownedByUser: { id: data.userId } },
                     ],
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
                     isDeleted: false, // Can't be deleted
+                    isInternal: false, // Internal standards should never be in search results
+                    OR: [
+                        // Owned objects
+                        {
+                            OR: (useVisibility("Standard", "Own", data) as { OR: object[] }).OR,
+                        },
+                        // Public objects
+                        {
+                            isPrivate: false, // Can't be private
+                            OR: (useVisibility("Standard", "Public", data) as { OR: object[] }).OR,
+                        },
+                    ],
+                };
+            },
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isInternal: false, // Internal standards should never be in search results
+                    isPrivate: true,  // Must be private
+                    OR: (useVisibility("Standard", "Own", data) as { OR: object[] }).OR,
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false, // Must be public
+                    OR: (useVisibility("Standard", "Own", data) as { OR: object[] }).OR,
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isInternal: false, // Internal standards should never be in search results
                     isPrivate: false, // Can't be private
-                    OR: [ // Either the owner is public, or there is no owner
+                    OR: [
                         { ownedByTeam: null, ownedByUser: null },
-                        { ownedByTeam: useVisibility("Team", "public", ...params) },
+                        { ownedByTeam: useVisibility("Team", "Public", data) },
                         { ownedByUser: { isPrivate: false, isPrivateStandards: false } },
                     ],
                 };
             },
-            owner: (userId) => ({
-                isDeleted: false, // Can't be deleted
-                OR: [
-                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
-                    { ownedByUser: { id: userId } },
-                ],
-            }),
         },
         // TODO perform unique checks: Check if standard with same createdByUserId, createdByTeamId, name, and version already exists with the same creator
         // TODO when deleting, anonymize standards which are being used by inputs/outputs

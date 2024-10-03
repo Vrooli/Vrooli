@@ -114,10 +114,11 @@ export const typeDef = gql`
     }
 
     enum VisibilityType {
-        All
         Own
+        OwnOrPublic
+        OwnPrivate
+        OwnPublic
         Public
-        Private
     }
 
     scalar Date

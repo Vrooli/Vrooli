@@ -3,6 +3,7 @@ import i18next from "i18next";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { QuizQuestionResponseFormat } from "../formats";
@@ -74,15 +75,31 @@ export const QuizQuestionResponseModel: QuizQuestionResponseModelLogic = ({
             quizAttempt: "QuizAttempt",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return {
+                    quizAttempt: useVisibility("QuizAttempt", "Own", data),
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    quizAttempt: useVisibility("QuizAttempt", "OwnOrPublic", data),
+                };
             },
-            owner: (userId) => ({
-                quizAttempt: ModelMap.get<QuizAttemptModelLogic>("QuizAttempt").validate().visibility.owner(userId),
-            }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    quizAttempt: useVisibility("QuizAttempt", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    quizAttempt: useVisibility("QuizAttempt", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    quizAttempt: useVisibility("QuizAttempt", "Public", data),
+                };
+            },
         },
     }),
 });

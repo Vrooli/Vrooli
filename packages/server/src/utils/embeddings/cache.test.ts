@@ -27,24 +27,24 @@ describe("SearchEmbeddingsCache", () => {
 
         it("should not include user ID for public visibility type", () => {
             const key = SearchEmbeddingsCache.createKey({
-                objectType: "Routine",
+                objectType: "RoutineVersion",
                 searchString: "query",
                 sortOption: "EmbedTopAsc",
                 visibility: VisibilityType.Public,
                 userId: "123",
             });
-            expect(key).toBe("search:Routine:query:EmbedTopAsc:Public");
+            expect(key).toBe("search:RoutineVersion:query:EmbedTopAsc:Public");
         });
 
         it("should change to public if user ID is not provided", () => {
             const key = SearchEmbeddingsCache.createKey({
-                objectType: "Project",
+                objectType: "ProjectVersion",
                 searchString: "query",
                 sortOption: "EmbedDateCreatedDesc",
-                visibility: VisibilityType.All,
+                visibility: VisibilityType.OwnOrPublic,
                 userId: null,
             });
-            expect(key).toBe("search:Project:query:EmbedDateCreatedDesc:Public");
+            expect(key).toBe("search:ProjectVersion:query:EmbedDateCreatedDesc:Public");
         });
     });
 

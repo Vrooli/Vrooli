@@ -11,6 +11,10 @@ export function noop() {
     console.warn("Noop called");
 }
 
+export async function noopAsync() {
+    console.warn("NoopAsync called");
+}
+
 export function funcTrue() {
     return true;
 }

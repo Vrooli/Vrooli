@@ -195,6 +195,7 @@ model chat {
     created_at             DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at             DateTime                    @default(now()) @db.Timestamptz(6)
     inviteId               String?                     @db.Uuid
+    isPrivate              Boolean                     @default(true)
     openToAnyoneWithInvite Boolean                     @default(false)
     creatorId              String?                     @db.Uuid
     teamId                 String?                     @db.Uuid
@@ -2576,6 +2577,8 @@ model user {
     isPrivateApisCreated           Boolean                     @default(false)
     isPrivateCodes                 Boolean                     @default(false)
     isPrivateCodesCreated          Boolean                     @default(false)
+    isPrivateNotes                 Boolean                     @default(false)
+    isPrivateNotesCreated          Boolean                     @default(false)
     isPrivateMemberships           Boolean                     @default(false)
     isPrivateProjects              Boolean                     @default(false)
     isPrivateProjectsCreated       Boolean                     @default(false)
@@ -2831,7 +2834,9 @@ enum FocusModeFilterType {
 }
 
 enum IssueStatus {
+    Draft
     Open
+    Canceled
     ClosedResolved
     ClosedUnresolved
     Rejected
@@ -2878,6 +2883,7 @@ enum PeriodType {
 }
 
 enum PullRequestStatus {
+    Draft
     Open
     Canceled
     Merged

@@ -1,6 +1,7 @@
 import { GqlModelType, MaxObjects, NotificationSubscriptionSortBy, notificationSubscriptionValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { subscribableMapper } from "../../events/subscriber";
 import { defaultPermissions } from "../../utils";
 import { NotificationSubscriptionFormat } from "../formats";
@@ -57,10 +58,6 @@ export const NotificationSubscriptionModel: NotificationSubscriptionModelLogic =
                 ...Object.entries(subscribableMapper).map(([key, value]) => ({ [value]: ModelMap.getLogic(["search"], key as GqlModelType).search.searchStringQuery() })),
             ],
         }),
-        /**
-         * Extra protection to ensure only you can see your own subscriptions
-         */
-        customQueryData: (_, user) => ({ subscriber: { id: user!.id } }),
     },
     validate: () => ({
         isDeleted: () => false,
@@ -76,11 +73,21 @@ export const NotificationSubscriptionModel: NotificationSubscriptionModelLogic =
             subscriber: "User",
         }),
         visibility: {
-            private: null, // Search method disabled
+            own: function getOwn(data) {
+                return {
+                    subscriber: { id: data.userId },
+                };
+            },
+            // Always private, so it's the same as "own"
+            ownOrPublic: function getOwnOrPublic(data) {
+                return useVisibility("NotificationSubscription", "Own", data);
+            },
+            // Always private, so it's the same as "own"
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("NotificationSubscription", "Own", data);
+            },
+            ownPublic: null, // Search method disabled
             public: null, // Search method disabled
-            owner: (userId) => ({
-                subscriber: { id: userId },
-            }),
         },
     }),
 });

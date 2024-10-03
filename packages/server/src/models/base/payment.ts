@@ -1,5 +1,6 @@
 import { MaxObjects, PaymentSortBy } from "@local/shared";
 import { ModelMap } from ".";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions } from "../../utils";
 import { PaymentFormat } from "../formats";
 import { PaymentModelLogic, TeamModelLogic } from "./types";
@@ -11,8 +12,7 @@ export const PaymentModel: PaymentModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, description: true }),
-            // Cut off the description at 20 characters TODO should do this for every label
-            get: (select) => select.description.length > 20 ? select.description.slice(0, 20) + "..." : select.description,
+            get: (select) => select.description,
         },
     }),
     format: PaymentFormat,
@@ -50,14 +50,24 @@ export const PaymentModel: PaymentModelLogic = ({
             user: "User",
         }),
         visibility: {
-            private: null, // Search method disabled
+            own: function getOwn(data) {
+                return {
+                    OR: [
+                        { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                        { user: { id: data.userId } },
+                    ],
+                };
+            },
+            // Always private, so it's the same as "own"
+            ownOrPublic: function getOwnOrPublic(data) {
+                return useVisibility("Payment", "Own", data);
+            },
+            // Always private, so it's the same as "own"
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("Payment", "Own", data);
+            },
+            ownPublic: null, // Search method disabled
             public: null, // Search method disabled
-            owner: (userId) => ({
-                OR: [
-                    { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
-                    { user: { id: userId } },
-                ],
-            }),
         },
     }),
 });

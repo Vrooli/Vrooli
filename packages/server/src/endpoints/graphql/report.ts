@@ -72,7 +72,6 @@ export const typeDef = gql`
     }
 
     input ReportSearchInput {
-        includeOwnReport: Boolean
         ids: [ID!]
         languageIn: [String!]
         sortBy: ReportSortBy
@@ -95,6 +94,7 @@ export const typeDef = gql`
         tagId: ID
         teamId: ID
         userId: ID
+        visibility: VisibilityType
     }
 
     type ReportSearchResult {

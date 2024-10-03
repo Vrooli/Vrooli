@@ -146,26 +146,48 @@ export const QuestionModel: QuestionModelLogic = ({
             createdBy: "User",
         }),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    isPrivate: true,
+                    createdBy: { id: data.userId },
                     OR: [
-                        ...Object.entries(forMapper).map(([key, value]) => ({ [value]: useVisibility(key as GqlModelType, "private", ...params) })),
+                        // The question is not tied to an object
+                        Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value + "Id", null])),
+                        // The object the question is tied to is public
+                        Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, useVisibility(key as GqlModelType, "Public", data)])),
                     ],
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    OR: [
+                        useVisibility("Question", "Own", data),
+                        useVisibility("Question", "Public", data),
+                    ]
+                };
+            },
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    ...useVisibility("Question", "Own", data),
+                    isPrivate: true,
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    ...useVisibility("Question", "Own", data),
+                    isPrivate: true,
+                };
+            },
+            public: function getPublic(data) {
                 return {
                     isPrivate: false,
-                    // Can use OR because only one relation will be present
                     OR: [
-                        ...Object.entries(forMapper).map(([key, value]) => ({ [value]: useVisibility(key as GqlModelType, "public", ...params) })),
+                        // The question is not tied to an object
+                        Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value + "Id", null])),
+                        // The object the question is tied to is public
+                        Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, useVisibility(key as GqlModelType, "Public", data)])),
                     ],
                 };
             },
-            owner: (userId) => ({
-                createdBy: { id: userId },
-            }),
         },
     }),
 });

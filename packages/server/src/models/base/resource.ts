@@ -2,6 +2,7 @@ import { MaxObjects, ResourceSortBy, getTranslation, resourceValidation } from "
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { ResourceFormat } from "../formats";
@@ -68,13 +69,31 @@ export const ResourceModel: ResourceModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<ResourceModelInfo["PrismaSelect"]>([["list", "ResourceList"]], ...rest),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return {
+                    list: useVisibility("ResourceList", "Own", data),
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    list: useVisibility("ResourceList", "OwnOrPublic", data),
+                };
             },
-            owner: (userId) => ({ list: ModelMap.get<ResourceListModelLogic>("ResourceList").validate().visibility.owner(userId) }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    list: useVisibility("ResourceList", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    list: useVisibility("ResourceList", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    list: useVisibility("ResourceList", "Public", data),
+                };
+            },
         },
     }),
 });

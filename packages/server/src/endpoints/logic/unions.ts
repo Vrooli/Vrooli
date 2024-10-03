@@ -30,10 +30,10 @@ export const UnionsEndpoints: EndpointsUnions = {
             // If any "after" cursor is provided, we can assume that missing cursors mean that we've reached the end for that object type
             const anyAfters = Object.entries(input).some(([key, value]) => key.endsWith("After") && typeof value === "string" && value.trim() !== "");
             // Checks if object type should be included in results
-            const shouldInclude = (objectType: `${ProjectOrRoutineSearchInput["objectType"]}`) => {
+            function shouldInclude(objectType: `${ProjectOrRoutineSearchInput["objectType"]}`) {
                 if (anyAfters && (input[`${objectType.toLowerCase()}After`]?.trim() ?? "") === "") return false;
                 return input.objectType ? input.objectType === objectType : true;
-            };
+            }
             // Collect search data
             const userData = getUser(req.session);
             const searchData = { userData, visibility: input.visibility ?? VisibilityType.Public };
@@ -49,7 +49,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                     hasCompleteVersion: input.hasCompleteVersion,
                     hasCompleteExceptions: input.hasCompleteVersionExceptions,
                     ids: input.ids,
-                    languages: input.translationLanguagesLatestVersion && searchLanguageFunc ? searchLanguageFunc(input.translationLanguagesLatestVersion, { ...searchData, objectType: "Project" }) : undefined,
+                    languages: input.translationLanguagesLatestVersion && searchLanguageFunc ? searchLanguageFunc(input.translationLanguagesLatestVersion, { ...searchData, objectType: "Project", searchInput: {} }) : undefined,
                     maxBookmarks: input.maxBookmarks,
                     maxScore: input.maxScore,
                     minBookmarks: input.minBookmarks,
@@ -81,7 +81,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                     isInternal: false,
                     hasCompleteVersion: input.hasCompleteVersion,
                     hasCompleteExceptions: input.hasCompleteVersionExceptions,
-                    languages: input.translationLanguagesLatestVersion && searchLanguageFunc ? searchLanguageFunc(input.translationLanguagesLatestVersion, { ...searchData, objectType: "Routine" }) : undefined,
+                    languages: input.translationLanguagesLatestVersion && searchLanguageFunc ? searchLanguageFunc(input.translationLanguagesLatestVersion, { ...searchData, objectType: "Routine", searchInput: {} }) : undefined,
                     minComplexity: input.routineMinComplexity,
                     maxComplexity: input.routineMaxComplexity,
                     maxBookmarks: input.maxBookmarks,
@@ -143,10 +143,10 @@ export const UnionsEndpoints: EndpointsUnions = {
             // If any "after" cursor is provided, we can assume that missing cursors mean that we've reached the end for that object type
             const anyAfters = Object.entries(input).some(([key, value]) => key.endsWith("After") && typeof value === "string" && value.trim() !== "");
             // Checks if object type should be included in results
-            const shouldInclude = (objectType: `${RunProjectOrRunRoutineSearchInput["objectType"]}`) => {
+            function shouldInclude(objectType: `${RunProjectOrRunRoutineSearchInput["objectType"]}`) {
                 if (anyAfters && (input[`${objectType.toLowerCase()}After`]?.trim() ?? "") === "") return false;
                 return input.objectType ? input.objectType === objectType : true;
-            };
+            }
             const userData = getUser(req.session);
             // Query run projects
             const { nodes: runProjects, pageInfo: runProjectsInfo } = shouldInclude("RunProject") ? await readManyAsFeedHelper({
@@ -230,10 +230,10 @@ export const UnionsEndpoints: EndpointsUnions = {
             // If any "after" cursor is provided, we can assume that missing cursors mean that we've reached the end for that object type
             const anyAfters = Object.entries(input).some(([key, value]) => key.endsWith("After") && typeof value === "string" && value.trim() !== "");
             // Checks if object type should be included in results
-            const shouldInclude = (objectType: `${ProjectOrTeamSearchInput["objectType"]}`) => {
+            function shouldInclude(objectType: `${ProjectOrTeamSearchInput["objectType"]}`) {
                 if (anyAfters && (input[`${objectType.toLowerCase()}After`]?.trim() ?? "") === "") return false;
                 return input.objectType ? input.objectType === objectType : true;
-            };
+            }
             // Collect search data
             const userData = getUser(req.session);
             const searchData = { userData, visibility: input.visibility ?? VisibilityType.Public };
@@ -249,7 +249,7 @@ export const UnionsEndpoints: EndpointsUnions = {
                     ids: input.ids,
                     isComplete: input.projectIsComplete,
                     isCompleteExceptions: input.projectIsCompleteExceptions,
-                    languages: input.translationLanguagesLatestVersion && searchLanguageFunc ? searchLanguageFunc(input.translationLanguagesLatestVersion, { ...searchData, objectType: "Project" }) : undefined,
+                    languages: input.translationLanguagesLatestVersion && searchLanguageFunc ? searchLanguageFunc(input.translationLanguagesLatestVersion, { ...searchData, objectType: "Project", searchInput: {} }) : undefined,
                     maxBookmarks: input.maxBookmarks,
                     maxScore: input.projectMaxScore,
                     maxViews: input.maxViews,

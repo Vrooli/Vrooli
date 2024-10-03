@@ -1,7 +1,8 @@
-import { runProjectStepValidation } from "@local/shared";
+import { MaxObjects, runProjectStepValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { RunProjectStepFormat } from "../formats";
 import { RunProjectModelInfo, RunProjectModelLogic, RunProjectStepModelInfo, RunProjectStepModelLogic } from "./types";
@@ -55,18 +56,36 @@ export const RunProjectStepModel: RunProjectStepModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<RunProjectStepModelInfo["PrismaSelect"]>([["runProject", "RunProject"]], ...rest),
         isTransferable: false,
-        maxObjects: 100000,
+        maxObjects: MaxObjects[__typename],
         owner: (data, userId) => ModelMap.get<RunProjectModelLogic>("RunProject").validate().owner(data?.runProject as RunProjectModelInfo["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({ id: true, runProject: "RunProject" }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return {
+                    runProject: useVisibility("RunProject", "Own", data),
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    runProject: useVisibility("RunProject", "OwnOrPublic", data),
+                };
             },
-            owner: (userId) => ({ runProject: ModelMap.get<RunProjectModelLogic>("RunProject").validate().visibility.owner(userId) }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    runProject: useVisibility("RunProject", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    runProject: useVisibility("RunProject", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    runProject: useVisibility("RunProject", "Public", data),
+                };
+            },
         },
     }),
 });

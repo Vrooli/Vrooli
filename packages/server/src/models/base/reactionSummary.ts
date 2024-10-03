@@ -1,3 +1,4 @@
+import { MaxObjects } from "@local/shared";
 import { defaultPermissions } from "../../utils";
 import { ReactionSummaryFormat } from "../formats";
 import { ReactionSummaryModelLogic } from "./types";
@@ -17,7 +18,7 @@ export const ReactionSummaryModel: ReactionSummaryModelLogic = ({
     // Never queried directly, so should be fine without validation
     validate: () => ({
         isTransferable: false,
-        maxObjects: 0,
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({}),
         permissionResolvers: defaultPermissions,
         owner: () => ({
@@ -26,14 +27,13 @@ export const ReactionSummaryModel: ReactionSummaryModelLogic = ({
         }),
         isDeleted: () => false,
         isPublic: () => false,
+        // These are never searched directly, so all search methods can be disabled
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
-            },
-            public: function getVisibilityPublic() {
-                return {};
-            },
-            owner: () => ({}),
+            own: null,
+            ownOrPublic: null,
+            ownPrivate: null,
+            ownPublic: null,
+            public: null,
         },
     }),
 });

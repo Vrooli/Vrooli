@@ -1,4 +1,4 @@
-import { StatsStandardSortBy } from "@local/shared";
+import { MaxObjects, StatsStandardSortBy } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
 import { useVisibility } from "../../builders/visibilityBuilder";
@@ -31,7 +31,7 @@ export const StatsStandardModel: StatsStandardModelLogic = ({
     },
     validate: () => ({
         isTransferable: false,
-        maxObjects: 0,
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
             standard: "Standard",
@@ -41,17 +41,31 @@ export const StatsStandardModel: StatsStandardModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<StatsStandardModelInfo["PrismaSelect"]>([["standard", "Standard"]], ...rest),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    standard: useVisibility("Standard", "private", ...params),
+                    standard: useVisibility("Standard", "Own", data),
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    standard: useVisibility("Standard", "public", ...params),
+                    standard: useVisibility("Standard", "OwnOrPublic", data),
                 };
             },
-            owner: (...params) => ({ standard: useVisibility("Standard", "owner", ...params) }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    standard: useVisibility("Standard", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    standard: useVisibility("Standard", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    standard: useVisibility("Standard", "Public", data),
+                };
+            },
         },
     }),
 });

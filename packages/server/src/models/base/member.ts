@@ -1,5 +1,6 @@
 import { MaxObjects, MemberSortBy } from "@local/shared";
 import { ModelMap } from ".";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { MemberFormat } from "../formats";
@@ -57,18 +58,21 @@ export const MemberModel: MemberModelLogic = ({
         owner: (data, userId) => ModelMap.get<TeamModelLogic>("Team").validate().owner(data?.team as TeamModelInfo["PrismaModel"], userId),
         isDeleted: (data, languages) => ModelMap.get<TeamModelLogic>("Team").validate().isDeleted(data.team as TeamModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<MemberModelInfo["PrismaSelect"]>([["team", "Team"]], ...rest),
+        // Not sure which search methods are needed, so we'll add them as needed
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: null,
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private(...params),
+                    team: useVisibility("Team", "OwnOrPublic", data),
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownPrivate: null,
+            ownPublic: null,
+            public: function getPublic(data) {
                 return {
-                    team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public(...params),
+                    team: useVisibility("Team", "Public", data),
                 };
             },
-            owner: (userId) => ({ team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.owner(userId) }),
         },
     }),
 });

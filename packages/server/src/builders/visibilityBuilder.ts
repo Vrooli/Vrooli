@@ -1,13 +1,32 @@
-import { DUMMY_ID, GqlModelType } from "@local/shared";
+import { DUMMY_ID, GqlModelType, VisibilityType } from "@local/shared";
 import { CustomError } from "../events/error";
 import { GenericModelLogic, ModelMap } from "../models/base";
-import { combineQueries } from "./combineQueries";
-import { VisibilityBuilderProps } from "./types";
+import { VisibilityFuncInput } from "../models/types";
+import { VisibilityBuilderPrismaResult, VisibilityBuilderProps } from "./types";
 
-function assertFunc<T>(func: T | null, objectType: GqlModelType | `${GqlModelType}`, message: string): asserts func is T {
-    if (!func) {
-        throw new CustomError("0680", "InternalError", ["en"], { objectType, message });
+// Create a map of visibility types to their corresponding function names
+const visibilityFuncNames = {
+    [VisibilityType.Own]: "own",
+    [VisibilityType.OwnOrPublic]: "ownOrPublic",
+    [VisibilityType.OwnPrivate]: "ownPrivate",
+    [VisibilityType.OwnPublic]: "ownPublic",
+    [VisibilityType.Public]: "public",
+} as const;
+
+// Function to get the visibility function based on type
+function getVisibilityFunc<T extends GenericModelLogic>(
+    objectType: GqlModelType | `${GqlModelType}`,
+    visibilityType: VisibilityType | `${VisibilityType}`,
+) {
+    const validator = ModelMap.get<T>(objectType).validate();
+    const funcName = visibilityFuncNames[visibilityType as VisibilityType];
+    const visibilityFunc = validator.visibility[funcName];
+
+    if (visibilityFunc === null || visibilityFunc === undefined) {
+        throw new CustomError("0680", "InternalError", ["en"], { objectType, funcName });
     }
+
+    return visibilityFunc;
 }
 
 /**
@@ -15,53 +34,27 @@ function assertFunc<T>(func: T | null, objectType: GqlModelType | `${GqlModelTyp
  */
 export function visibilityBuilderPrisma({
     objectType,
+    searchInput,
     userData,
     visibility,
-}: VisibilityBuilderProps): { [x: string]: any } {
-    // Get validator for object type
-    const validator = ModelMap.get(objectType).validate();
-    const publicFunc = validator.visibility.public;
-    const privateFunc = validator.visibility.private;
-    const ownerFunc = validator.visibility.owner;
-    // If visibility is set to public or not defined, 
-    // or user is not logged in, or model does not have 
-    // the correct data to query for ownership
-    if (!visibility || visibility === "Public" || !userData) {
-        assertFunc(publicFunc, objectType, "public");
-        return publicFunc(DUMMY_ID);
-    }
-    // If visibility is set to private, query private objects that you own
-    else if (visibility === "Private") {
-        assertFunc(privateFunc, objectType, "private");
-        assertFunc(ownerFunc, objectType, "owner");
-        return combineQueries([privateFunc(userData.id), ownerFunc(userData.id)], { mergeMode: "strict" });
-    }
-    // If visibility is set to own, query all objects that you own
-    else if (visibility === "Own") {
-        assertFunc(ownerFunc, objectType, "owner");
-        return ownerFunc(userData.id);
-    }
-    // Otherwise, query all. Be careful with this one, as we don't 
-    // want to include private objects that you don't own
-    else {
-        assertFunc(publicFunc, objectType, "public");
-        assertFunc(privateFunc, objectType, "private");
-        assertFunc(ownerFunc, objectType, "owner");
-        return {
-            OR: [
-                publicFunc(userData.id),
-                combineQueries([privateFunc(userData.id), ownerFunc(userData.id)], { mergeMode: "strict" }),
-            ],
-        };
-    }
+}: VisibilityBuilderProps): VisibilityBuilderPrismaResult {
+    console.log('in visibilityBuilderPrisma', !visibility, !userData, visibility, typeof userData);
+    const defaultVisibility = (!visibility || !userData) ? VisibilityType.Public : VisibilityType.OwnOrPublic;
+    const chosenVisibility = visibility || defaultVisibility;
+
+    const visibilityFunc = getVisibilityFunc(objectType, chosenVisibility);
+
+    const userId = userData?.id || DUMMY_ID;
+    const query = visibilityFunc({ searchInput, userId });
+
+    return { query, visibilityUsed: chosenVisibility };
 }
 
 export function useVisibility<T extends GenericModelLogic>(
     objectType: GqlModelType | `${GqlModelType}`,
-    which: "public" | "private" | "owner",
-    userId: string,
+    which: VisibilityType | `${VisibilityType}`,
+    data: VisibilityFuncInput,
 ) {
-    const validatorFunc = ModelMap.get<T>(objectType).validate().visibility[which];
-    assertFunc(validatorFunc, objectType, which);
-    return validatorFunc(userId);
+    const visibilityFunc = getVisibilityFunc<T>(objectType, which);
+    return visibilityFunc(data);
 }

@@ -55,17 +55,31 @@ export const NodeLinkModel: NodeLinkModelLogic = ({
         isDeleted: (data, languages) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().isDeleted(data.routineVersion as RoutineVersionModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<NodeLinkModelInfo["PrismaSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    routineVersion: useVisibility("Routine", "private", ...params),
+                    routineVersion: useVisibility("RoutineVersion", "Own", data),
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    routineVersion: useVisibility("Routine", "public", ...params),
+                    routineVersion: useVisibility("RoutineVersion", "OwnOrPublic", data),
                 };
             },
-            owner: (...params) => ({ routineVersion: useVisibility("Routine", "owner", ...params) }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    routineVersion: useVisibility("RoutineVersion", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    routineVersion: useVisibility("RoutineVersion", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    routineVersion: useVisibility("RoutineVersion", "Public", data),
+                };
+            },
         },
     }),
 });

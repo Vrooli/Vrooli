@@ -42,11 +42,21 @@ export const FocusModeFilterModel: FocusModeFilterModelLogic = ({
             focusMode: "FocusMode",
         }),
         visibility: {
-            private: null, // Search method disabled
+            own: function getOwn(data) {
+                return {
+                    focusMode: useVisibility("FocusMode", "Own", data),
+                };
+            },
+            // Always private, so it's the same as "own"
+            ownOrPublic: function getOwnOrPublic(data) {
+                return useVisibility("FocusModeFilter", "Own", data);
+            },
+            // Always private, so it's the same as "own"
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("FocusModeFilter", "Own", data);
+            },
+            ownPublic: null, // Search method disabled
             public: null, // Search method disabled
-            owner: (...params) => ({
-                focusMode: useVisibility("FocusMode", "owner", ...params),
-            }),
         },
     }),
 });

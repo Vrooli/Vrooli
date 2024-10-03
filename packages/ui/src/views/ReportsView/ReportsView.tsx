@@ -1,4 +1,4 @@
-import { FindByIdInput, FindVersionInput, LINKS, ListObject, Report, ReportFor, ReportSearchInput, ReportStatus, endpointGetApiVersion, endpointGetChatMessage, endpointGetCodeVersion, endpointGetComment, endpointGetIssue, endpointGetNoteVersion, endpointGetPost, endpointGetProjectVersion, endpointGetRoutineVersion, endpointGetStandardVersion, endpointGetTag, endpointGetTeam, endpointGetUser, getObjectUrl, noop, uuidValidate } from "@local/shared";
+import { FindByIdInput, FindVersionInput, LINKS, ListObject, Report, ReportFor, ReportSearchInput, ReportStatus, VisibilityType, endpointGetApiVersion, endpointGetChatMessage, endpointGetCodeVersion, endpointGetComment, endpointGetIssue, endpointGetNoteVersion, endpointGetPost, endpointGetProjectVersion, endpointGetRoutineVersion, endpointGetStandardVersion, endpointGetTag, endpointGetTeam, endpointGetUser, getObjectUrl, noop, uuidValidate } from "@local/shared";
 import { Box, Button, Typography, styled, useTheme } from "@mui/material";
 import { SortButton } from "components/buttons/SortButton/SortButton";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -229,7 +229,10 @@ export function ReportsView() {
         where: objectType ? {
             [reportForSearchFields[objectType]]: object?.id,
             // status: statusFilter !== "All" ? [statusFilter] : undefined,
-        } : {},
+            visibility: VisibilityType.OwnOrPublic
+        } : {
+            visibility: VisibilityType.OwnOrPublic
+        },
     });
 
     useInfiniteScroll({
@@ -244,8 +247,9 @@ export function ReportsView() {
         controlsUrl: false,
         searchType: "Report",
         where: objectType && object?.id && userId ? {
-            includeOwnReport: true,
+            [reportForSearchFields[objectType]]: object?.id,
             sortBy: findManyData.sortBy,
+            visibility: VisibilityType.Own,
         } : {},
     });
     const yourOpenReports = useMemo<Report[]>(function haveAlreadyReportedMemo() {

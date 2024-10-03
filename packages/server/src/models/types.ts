@@ -264,10 +264,6 @@ export type Searcher<
      */
     searchStringQuery: () => SearchStringQuery<Model["PrismaWhere"]>;
     /**
-     * Any additional data to add to the Prisma query. Not usually needed
-     */
-    customQueryData?: (input: Model["GqlSearch"], userData: SessionUserToken | null) => Model["PrismaWhere"];
-    /**
      * Data for adding supplemental fields to the GraphQL object
      */
     supplemental?: SupplementalConverter<SuppFields>;
@@ -291,6 +287,16 @@ export type Searcher<
 export type PermissionsMap<ModelSelect extends GqlObject> = {
     [x in keyof ModelSelect]: ModelSelect[x] | `${GqlModelType}` | [`${GqlModelType}`, string[]]
 }
+
+export type VisibilityFuncInput = {
+    searchInput: { [x: string]: any },
+    userId: string,
+}
+/**
+ * Function for building partial Prisma select queries. 
+ * Used to safely query only the objects you are allowed to see.
+ */
+export type VisibilityFunc<PrismaWhere extends Exclude<ModelLogicType["PrismaWhere"], undefined>> = ((data: VisibilityFuncInput) => PrismaWhere);
 
 /**
  * Describes shape of component that has validation rules 
@@ -337,27 +343,43 @@ export type Validator<
      */
     visibility: {
         /** 
-         * For private objects (i.e. only the owner can see them).
+         * For objects you own (both private and public).
          * 
          * Set to null if this query type is not supported. This will throw an error 
          * if the query is attempted.
          */
-        private: ((userId: string) => Model["PrismaWhere"]) | null;
+        own: VisibilityFunc<Model["PrismaWhere"]> | null;
         /** 
-         * For public objects (i.e. anyone can see them).
+         * Union of objects you own and public objects (so it should include public objects
+         * you don't own).
          * 
          * Set to null if this query type is not supported. This will throw an error
          * if the query is attempted.
          */
-        public: ((userId: string) => Model["PrismaWhere"]) | null;
+        ownOrPublic: VisibilityFunc<Model["PrismaWhere"]> | null;
         /** 
-         * For both private and public objects that you own.
+        * For public objects you own (i.e. intersection of objects you own and private objects).
+        * 
+        * Set to null if this query type is not supported. This will throw an error
+        * if the query is attempted.
+        */
+        ownPublic: VisibilityFunc<Model["PrismaWhere"]> | null;
+        /** 
+         * For private objects you own.
          * 
          * Set to null if this query type is not supported. This will throw an error
          * if the query is attempted.
          */
-        owner: ((userId: string) => Model["PrismaWhere"]) | null;
-    }
+        ownPrivate: VisibilityFunc<Model["PrismaWhere"]> | null;
+        /**
+         * For public objects.
+         * 
+         * Set to null if this query type is not supported. This will throw an error
+         * if the query is attempted.
+         */
+        public: VisibilityFunc<Model["PrismaWhere"]> | null;
+        // Allow additional visibility queries
+    } & { [x: string]: VisibilityFunc<Model["PrismaWhere"]> | null };
     /**
      * Uses query result to determine if the object is soft-deleted
      */

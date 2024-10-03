@@ -2,6 +2,7 @@ import { MaxObjects, reminderItemValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { ReminderItemFormat } from "../formats";
 import { ReminderItemModelInfo, ReminderItemModelLogic, ReminderModelInfo, ReminderModelLogic } from "./types";
@@ -51,11 +52,21 @@ export const ReminderItemModel: ReminderItemModelLogic = ({
             reminder: "Reminder",
         }),
         visibility: {
-            private: null, // Search method disabled
+            own: function getOwn(data) {
+                return {
+                    reminder: useVisibility("Reminder", "Own", data),
+                };
+            },
+            // Always private, so it's the same as "own"
+            ownOrPublic: function getOwnOrPublic(data) {
+                return useVisibility("ReminderItem", "Own", data);
+            },
+            // Always private, so it's the same as "own"
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("ReminderItem", "Own", data);
+            },
+            ownPublic: null, // Search method disabled
             public: null, // Search method disabled
-            owner: (userId) => ({
-                reminder: ModelMap.get<ReminderModelLogic>("Reminder").validate().visibility.owner(userId),
-            }),
         },
     }),
 });

@@ -1,11 +1,11 @@
 export class LRUCache<KeyType, ValueType> {
     private limit: number;
-    private maxSize: number | null; // maxSize in bytes, null means no limit
+    private maxSizeBytes: number | null; // maxSizeBytes in bytes, null means no limit
     private cache: Map<KeyType, ValueType>;
 
-    constructor(limit: number, maxSize: number | null = null) {
+    constructor(limit: number, maxSizeBytes: number | null = null) {
         this.limit = limit;
-        this.maxSize = maxSize;
+        this.maxSizeBytes = maxSizeBytes;
         this.cache = new Map<KeyType, ValueType>();
     }
 
@@ -20,11 +20,11 @@ export class LRUCache<KeyType, ValueType> {
     }
 
     set(key: KeyType, value: ValueType): void {
-        if (this.maxSize != null) {
+        if (this.maxSizeBytes != null) {
             const size = this.calculateValueSize(value);
-            if (size > this.maxSize) {
-                // Skip setting the value if it's larger than the maxSize
-                console.warn(`Skipping cache set for key ${key}: value size ${size} exceeds maxSize ${this.maxSize}`);
+            if (size > this.maxSizeBytes) {
+                // Skip setting the value if it's larger than the maxSizeBytes
+                console.warn(`Skipping cache set for key ${key}: value size ${size} exceeds maxSizeBytes ${this.maxSizeBytes}`);
                 return;
             }
         }

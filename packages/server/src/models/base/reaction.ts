@@ -1,17 +1,38 @@
-import { camelCase, exists, getReactionScore, GqlModelType, lowercaseFirstLetter, ReactInput, ReactionFor, removeModifiers, uuid } from "@local/shared";
+import { GqlModelType, MaxObjects, ReactInput, ReactionFor, ReactionSearchInput, ReactionSortBy, camelCase, exists, getReactionScore, lowercaseFirstLetter, removeModifiers, uuid } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { ModelMap } from ".";
 import { onlyValidIds } from "../../builders/onlyValidIds";
 import { permissionsSelectHelper } from "../../builders/permissionsSelectHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
 import { Trigger } from "../../events/trigger";
 import { emitSocketEvent } from "../../sockets/events";
 import { PrismaDelegate, SessionUserToken } from "../../types";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { calculatePermissions } from "../../validators/permissions";
 import { ReactionFormat } from "../formats";
-import { ReactionModelLogic } from "./types";
+import { ReactionModelInfo, ReactionModelLogic } from "./types";
+
+const forMapper: { [key in ReactionFor]?: keyof Prisma.reactionUpsertArgs["create"] } = {
+    Api: "api",
+    ChatMessage: "chatMessage",
+    Code: "code",
+    Comment: "comment",
+    Issue: "issue",
+    Note: "note",
+    Post: "post",
+    Project: "project",
+    Question: "question",
+    QuestionAnswer: "questionAnswer",
+    Quiz: "quiz",
+    Routine: "routine",
+    Standard: "standard",
+};
+const reversedForMapper = Object.fromEntries(
+    Object.entries(forMapper).map(([key, value]) => [value, key])
+);
 
 function reactionForToRelation(reactionFor: keyof typeof ReactionFor): string {
     if (!ReactionFor[reactionFor]) {
@@ -247,6 +268,97 @@ export const ReactionModel: ReactionModelLogic = ({
         });
         return true;
     },
-    search: {} as any,
-    validate: () => ({}) as any,
+    search: {
+        defaultSort: ReactionSortBy.DateUpdatedDesc,
+        sortBy: ReactionSortBy,
+        searchFields: {
+            apiId: true,
+            chatMessageId: true,
+            codeId: true,
+            commentId: true,
+            excludeLinkedToTag: true,
+            issueId: true,
+            noteId: true,
+            postId: true,
+            projectId: true,
+            questionId: true,
+            questionAnswerId: true,
+            quizId: true,
+            routineId: true,
+            standardId: true,
+        },
+        searchStringQuery: () => ({}), // Intentionally empty
+    },
+    validate: () => ({
+        isDeleted: () => false,
+        isPublic: function getIsPublic(data, ...rest) {
+            if (!data.by) return false;
+            if (data.by.isPrivateVotes) return false;
+            return oneIsPublic<ReactionModelInfo["PrismaSelect"]>([
+                ["api", "Api"],
+                ["chatMessage", "ChatMessage"],
+                ["code", "Code"],
+                ["comment", "Comment"],
+                ["issue", "Issue"],
+                ["note", "Note"],
+                ["post", "Post"],
+                ["project", "Project"],
+                ["question", "Question"],
+                ["questionAnswer", "QuestionAnswer"],
+                ["quiz", "Quiz"],
+                ["routine", "Routine"],
+                ["standard", "Standard"],
+            ], data, ...rest);
+        },
+        isTransferable: false,
+        maxObjects: MaxObjects[__typename],
+        owner: (data) => ({
+            User: data?.by,
+        }),
+        permissionResolvers: defaultPermissions,
+        permissionsSelect: () => ({
+            id: true,
+            by: "User",
+        }),
+        visibility: {
+            own: function getOwn(data) {
+                return {
+                    by: { id: data.userId },
+                    // Any non-public, non-owned objects should be filtered out
+                    // Can use OR because only one relation will be present
+                    OR: [
+                        ...Object.entries(forMapper).map(([key, value]) => ({ [value]: useVisibility(key as GqlModelType, "OwnOrPublic", data) })),
+                    ],
+                };
+            },
+            // Not useful for this object type
+            ownOrPublic: null,
+            // Not useful for this object type
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("View", "Own", data);
+            },
+            // Not useful for this object type
+            ownPublic: function getOwnPublic(data) {
+                return useVisibility("View", "Own", data);
+            },
+            public: function getPublic(data) {
+                const searchInput = data.searchInput as ReactionSearchInput;
+                // If the search input has a relation ID, return that relation only
+                const forSearch = Object.keys(searchInput).find(searchKey =>
+                    searchKey.endsWith("Id") &&
+                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)]
+                );
+                if (forSearch) {
+                    const relation = forSearch.substring(0, forSearch.length - "Id".length);
+                    return { [relation]: useVisibility(reversedForMapper[relation] as GqlModelType, "Public", data) };
+                }
+                // Otherwise, use an OR on all relations
+                return {
+                    OR: [
+                        ...Object.entries(forMapper).map(([key, value]) => ({ [value]: useVisibility(key as GqlModelType, "Public", data) })),
+                    ],
+                };
+            },
+        },
+    }),
 });

@@ -49,17 +49,31 @@ export const NodeLoopModel: NodeLoopModelLogic = ({
         isDeleted: (data, languages) => ModelMap.get<NodeModelLogic>("Node").validate().isDeleted(data.node as NodeModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<NodeLoopModelInfo["PrismaSelect"]>([["node", "Node"]], ...rest),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    node: useVisibility("Node", "private", ...params),
+                    node: useVisibility("Node", "Own", data),
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    node: useVisibility("Node", "public", ...params),
+                    node: useVisibility("Node", "OwnOrPublic", data),
                 };
             },
-            owner: (...params) => ({ node: useVisibility("Node", "owner", ...params) }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    node: useVisibility("Node", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    node: useVisibility("Node", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    node: useVisibility("Node", "Public", data),
+                };
+            },
         },
     }),
 });

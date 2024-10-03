@@ -1,5 +1,6 @@
 import { MaxObjects, TagSortBy, getTranslation, tagValidation } from "@local/shared";
 import { ModelMap } from ".";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { defaultPermissions } from "../../utils";
 import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString";
@@ -97,13 +98,16 @@ export const TagModel: TagModelLogic = ({
         isPublic: () => true,
         profanityFields: ["tag"],
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {}; // Intentionally empty becase tags are always public
+            own: null, // Search method disabled, since no one owns site stats
+            // Always public, os it's the same as "public"
+            ownOrPublic: function getOwnOrPublic(data) {
+                return useVisibility("StatsSite", "Public", data);
             },
+            ownPrivate: null, // Search method disabled, since no one owns site stats
+            ownPublic: null, // Search method disabled, since no one owns site stats
             public: function getVisibilityPublic() {
-                return {}; // Intentionally empty becase tags are always public
+                return {}; // Intentionally empty, since site stats are always public
             },
-            owner: null, // Search method disabled because you can't own a tag
         },
     }),
 });

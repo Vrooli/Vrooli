@@ -1,4 +1,4 @@
-import { Count, GqlModelType, HOURS_1_MS, lowercaseFirstLetter, ViewFor, ViewSortBy } from "@local/shared";
+import { Count, GqlModelType, HOURS_1_MS, MaxObjects, ViewFor, ViewSortBy, lowercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { ModelMap } from ".";
@@ -219,7 +219,7 @@ export const ViewModel: ViewModelLogic = ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
-        maxObjects: 10000000,
+        maxObjects: MaxObjects[__typename],
         owner: (data) => ({
             User: data?.by,
         }),
@@ -229,24 +229,34 @@ export const ViewModel: ViewModelLogic = ({
             by: "User",
         }),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
+                    by: { id: data.userId },
+                    // Any non-public, non-owned objects should be filtered out
+                    // Can use OR because only one relation will be present
                     OR: [
-                        ...Object.entries(displayMapper).map(([key, value]) => ({ [value]: useVisibility(key as GqlModelType, "private", ...params) })),
+                        ...Object.entries(displayMapper).map(([key, value]) => ({ [value]: useVisibility(key as GqlModelType, "OwnOrPublic", data) })),
                     ],
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            // Not useful for this object type
+            ownOrPublic: null,
+            // Not useful for this object type
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("View", "Own", data);
+            },
+            // Not useful for this object type
+            ownPublic: function getOwnPublic(data) {
+                return useVisibility("View", "Own", data);
+            },
+            public: function getPublic(data) {
                 return {
                     // Can use OR because only one relation will be present
                     OR: [
-                        ...Object.entries(displayMapper).map(([key, value]) => ({ [value]: useVisibility(key as GqlModelType, "public", ...params) })),
+                        ...Object.entries(displayMapper).map(([key, value]) => ({ [value]: useVisibility(key as GqlModelType, "Public", data) })),
                     ],
                 };
             },
-            owner: (userId) => ({
-                by: { id: userId },
-            }),
         },
     }),
     /**

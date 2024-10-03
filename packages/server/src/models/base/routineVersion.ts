@@ -228,38 +228,85 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
         }),
         permissionResolvers: defaultPermissions,
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
                     isDeleted: false, // Can't be deleted
-                    root: { isDeleted: false }, // Parent can't be deleted
-                    OR: [ // Either the version, root, or the owner is private
-                        { isPrivate: true },
-                        { root: { isPrivate: true } },
-                        { root: { ownedByTeam: useVisibility("Team", "private", ...params) } },
-                        { root: { ownedByUser: { isPrivate: true } } },
-                        { root: { ownedByUser: { isPrivateRoutines: true } } },
+                    root: useVisibility("Routine", "Own", data),
+                };
+            },
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    OR: [
+                        // Objects you own
+                        {
+                            root: useVisibility("Routine", "Own", data),
+                        },
+                        // Public objects
+                        {
+                            isPrivate: false, // Can't be private
+                            root: (useVisibility("RoutineVersion", "Public", data) as { root: object }).root,
+                        },
                     ],
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownPrivate: function getOwnPrivate(data) {
                 return {
                     isDeleted: false, // Can't be deleted
-                    isPrivate: false, // Can't be private
+                    OR: [
+                        // Private versions you own
+                        {
+                            isPrivate: true, // Version is private
+                            root: useVisibility("Routine", "Own", data),
+                        },
+                        // Private roots you own
+                        {
+                            root: {
+                                isPrivate: true, // Root is private
+                                ...useVisibility("Routine", "Own", data),
+                            },
+                        },
+                    ],
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    OR: [
+                        // Public versions you own
+                        {
+                            isPrivate: false, // Version is public
+                            root: useVisibility("Routine", "Own", data),
+                        },
+                        // Public roots you own
+                        {
+                            root: {
+                                isPrivate: false, // Root is public
+                                ...useVisibility("Routine", "Own", data),
+                            },
+                        },
+                    ],
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false, // Version can't be private
                     root: {
                         isDeleted: false, // Root can't be deleted
+                        isInternal: false, // Internal routines should never be in search results
                         isPrivate: false, // Root can't be private
-                        OR: [ // Either the owner is public, or there is no owner
+                        OR: [
+                            // Unowned
                             { ownedByTeam: null, ownedByUser: null },
-                            { ownedByTeam: useVisibility("Team", "public", ...params) },
+                            // Owned by public teams
+                            { ownedByTeam: useVisibility("Team", "Public", data) },
+                            // Owned by public users
                             { ownedByUser: { isPrivate: false, isPrivateRoutines: false } },
                         ],
                     },
                 };
             },
-            owner: (...params) => ({
-                isDeleted: false, // Can't be deleted
-                root: useVisibility("Routine", "owner", ...params),
-            }),
         },
     }),
     validateNodePositions,

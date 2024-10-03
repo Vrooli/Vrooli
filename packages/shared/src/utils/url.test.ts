@@ -56,14 +56,14 @@ describe("parseSearchParams", () => {
     const originalLocation = window.location;
 
     // Helper function to set window.location.search
-    const setWindowSearch = (search) => {
+    function setWindowSearch(search) {
         Object.defineProperty(window, "location", {
             value: {
                 search,
             },
             writable: true,
         });
-    };
+    }
 
     afterEach(() => {
         // Restore the original window.location after each test

@@ -142,25 +142,66 @@ export const QuizModel: QuizModelLogic = ({
             routine: "Routine",
         }),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
+                return {
+                    createdBy: useVisibility("User", "Own", data),
+                };
+            },
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
                     OR: [
-                        { isPrivate: true },
-                        { project: useVisibility("Project", "private", ...params) },
-                        { routine: useVisibility("Routine", "private", ...params) },
+                        useVisibility("Quiz", "Own", data),
+                        useVisibility("Quiz", "Public", data),
                     ],
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownPrivate: function getOwnPrivate(data) {
                 return {
-                    AND: [
-                        { isPrivate: false },
-                        { project: useVisibility("Project", "public", ...params) },
-                        { routine: useVisibility("Routine", "public", ...params) },
+                    createdBy: useVisibility("User", "Own", data),
+                    OR: [ // Either the quiz or the connected object is private
+                        { isPrivate: true },
+                        {
+                            project: {
+                                OR: [
+                                    { isPrivate: true },
+                                    { ownedByTeam: { isPrivate: true } },
+                                    { ownedByUser: { isPrivate: true } },
+                                    { ownedByUser: { isPrivateProjects: true } },
+                                ],
+                            },
+                        },
+                        {
+                            routine: {
+                                OR: [
+                                    { isPrivate: true },
+                                    { ownedByTeam: { isPrivate: true } },
+                                    { ownedByUser: { isPrivate: true } },
+                                    { ownedByUser: { isPrivateRoutines: true } },
+                                ],
+                            },
+                        },
                     ],
                 };
             },
-            owner: (userId) => ({ createdBy: { id: userId } }),
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    isPrivate: false,
+                    createdBy: useVisibility("User", "Own", data),
+                    OR: [ // Connected object must also be public
+                        { project: useVisibility("Project", "Public", data) },
+                        { routine: useVisibility("Routine", "Public", data) },
+                    ],
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    isPrivate: false,
+                    OR: [ // Connected object must also be public
+                        { project: useVisibility("Project", "Public", data) },
+                        { routine: useVisibility("Routine", "Public", data) },
+                    ],
+                };
+            },
         },
     }),
 });

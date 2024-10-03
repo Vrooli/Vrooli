@@ -36,243 +36,245 @@ export const TransferableFieldMap: { [x in TransferObjectType]: string } = {
  * 3. Otherwise, a notification is sent to the user/org that is receiving the object,
  *   and they can accept or reject the transfer.
  */
-export const transfer = () => ({
-    /**
-     * Checks if objects being created/updated require a transfer request. Used by mutate functions 
-     * of other models, so model-specific permissions checking is not required.
-     * @param owners List of owners of the objects being created/updated
-     * @param userData Session data of the user making the request
-     * @returns List of booleans indicating if the object requires a transfer request. 
-     * List is in same order as owners list.
-     */
-    checkTransferRequests: async (
-        owners: { id: string, __typename: "Team" | "User" }[],
-        userData: SessionUserToken,
-    ): Promise<boolean[]> => {
-        // Grab all create team IDs
-        const orgIds = owners.filter(o => o.__typename === "Team").map(o => o.id);
-        // Check if user is an admin of each team
-        const isAdmins: boolean[] = await ModelMap.get<TeamModelLogic>("Team").query.hasRole(userData.id, orgIds);
-        // Create return list
-        const requiresTransferRequest: boolean[] = owners.map((o, i) => {
-            // If owner is a user, transfer is required if user is not the same as the session user
-            if (o.__typename === "User") return o.id !== userData.id;
-            // If owner is a team, transfer is required if user is not an admin
-            const orgIdIndex = orgIds.indexOf(o.id);
-            return !isAdmins[orgIdIndex];
-        });
-        return requiresTransferRequest;
-    },
-    /**
-     * Initiates a transfer request from an object you own, to another user/org
-     * @returns The ID of the transfer request
-     */
-    requestSend: async (
-        input: TransferRequestSendInput,
-        userData: SessionUserToken,
-    ): Promise<string> => {
-        // Find the object and its owner
-        const object: { __typename: `${TransferObjectType}`, id: string } = { __typename: input.objectType, id: input.objectConnect };
-        const { dbTable, validate } = ModelMap.getLogic(["dbTable", "validate"], object.__typename);
-        const permissionData = await (prismaInstance[dbTable] as PrismaDelegate).findUnique({
-            where: { id: object.id },
-            select: permissionsSelectHelper(validate().permissionsSelect, userData.id, userData.languages),
-        });
-        const owner = permissionData && validate().owner(permissionData, userData.id);
-        // Check if user is allowed to transfer this object
-        if (!owner || !isOwnerAdminCheck(owner, userData.id))
-            throw new CustomError("0286", "NotAuthorizedToTransfer", userData.languages);
-        // Get 'to' data
-        const toType = input.toTeamConnect ? "Team" : "User";
-        const toId: string = input.toTeamConnect || input.toUserConnect as string;
-        // Create transfer request
-        const request = await prismaInstance.transfer.create({
-            data: {
-                fromUser: owner.User ? { connect: { id: owner.User.id } } : undefined,
-                fromTeam: owner.Team ? { connect: { id: owner.Team.id } } : undefined,
-                [TransferableFieldMap[object.__typename]]: { connect: { id: object.id } },
-                toUser: toType === "User" ? { connect: { id: toId } } : undefined,
-                toTeam: toType === "Team" ? { connect: { id: toId } } : undefined,
-                status: "Pending",
-                message: input.message,
-            },
-            select: { id: true },
-        });
-        // Notify user/org that is receiving the object
-        const pushNotification = Notify(userData.languages).pushTransferRequestSend(request.id, object.__typename, object.id);
-        if (toType === "User") await pushNotification.toUser(toId);
-        else await pushNotification.toTeam(toId);
-        // Return the transfer request ID
-        return request.id;
-    },
-    /**
-     * Initiates a transfer request from an object someone else owns, to you
-     */
-    requestReceive: async (
-        info: GraphQLResolveInfo | PartialGraphQLInfo,
-        input: TransferRequestReceiveInput,
-        userData: SessionUserToken,
-    ): Promise<string> => {
-        return "";//TODO
-    },
-    /**
-     * Cancels a transfer request that you initiated
-     * @param transferId The ID of the transfer request
-     * @param userData The session data of the user who is cancelling the transfer request
-     */
-    cancel: async (transferId: string, userData: SessionUserToken) => {
-        // Find the transfer request
-        const transfer = await prismaInstance.transfer.findUnique({
-            where: { id: transferId },
-            select: {
-                id: true,
-                fromTeamId: true,
-                fromUserId: true,
-                toTeamId: true,
-                toUserId: true,
-                status: true,
-            },
-        });
-        // Make sure transfer exists, and is not already accepted or rejected
-        if (!transfer)
-            throw new CustomError("0293", "TransferNotFound", userData.languages);
-        if (transfer.status === "Accepted")
-            throw new CustomError("0294", "TransferAlreadyAccepted", userData.languages);
-        if (transfer.status === "Denied")
-            throw new CustomError("0295", "TransferAlreadyRejected", userData.languages);
-        // Make sure user is the owner of the transfer request
-        if (transfer.fromTeamId) {
-            const { validate } = ModelMap.getLogic(["validate"], "Team");
-            const permissionData = await prismaInstance.team.findUnique({
-                where: { id: transfer.fromTeamId },
+export function transfer() {
+    return {
+        /**
+         * Checks if objects being created/updated require a transfer request. Used by mutate functions 
+         * of other models, so model-specific permissions checking is not required.
+         * @param owners List of owners of the objects being created/updated
+         * @param userData Session data of the user making the request
+         * @returns List of booleans indicating if the object requires a transfer request. 
+         * List is in same order as owners list.
+         */
+        checkTransferRequests: async (
+            owners: { id: string, __typename: "Team" | "User" }[],
+            userData: SessionUserToken,
+        ): Promise<boolean[]> => {
+            // Grab all create team IDs
+            const orgIds = owners.filter(o => o.__typename === "Team").map(o => o.id);
+            // Check if user is an admin of each team
+            const isAdmins: boolean[] = await ModelMap.get<TeamModelLogic>("Team").query.hasRole(userData.id, orgIds);
+            // Create return list
+            const requiresTransferRequest: boolean[] = owners.map((o, i) => {
+                // If owner is a user, transfer is required if user is not the same as the session user
+                if (o.__typename === "User") return o.id !== userData.id;
+                // If owner is a team, transfer is required if user is not an admin
+                const orgIdIndex = orgIds.indexOf(o.id);
+                return !isAdmins[orgIdIndex];
+            });
+            return requiresTransferRequest;
+        },
+        /**
+         * Initiates a transfer request from an object you own, to another user/org
+         * @returns The ID of the transfer request
+         */
+        requestSend: async (
+            input: TransferRequestSendInput,
+            userData: SessionUserToken,
+        ): Promise<string> => {
+            // Find the object and its owner
+            const object: { __typename: `${TransferObjectType}`, id: string } = { __typename: input.objectType, id: input.objectConnect };
+            const { dbTable, validate } = ModelMap.getLogic(["dbTable", "validate"], object.__typename);
+            const permissionData = await (prismaInstance[dbTable] as PrismaDelegate).findUnique({
+                where: { id: object.id },
                 select: permissionsSelectHelper(validate().permissionsSelect, userData.id, userData.languages),
             });
-            if (!permissionData || !isOwnerAdminCheck(validate().owner(permissionData, userData.id), userData.id))
-                throw new CustomError("0300", "TransferRejectNotAuthorized", userData.languages);
-        } else if (transfer.fromUserId !== userData.id) {
-            throw new CustomError("0301", "TransferRejectNotAuthorized", userData.languages);
-        }
-        // Delete transfer request
-        await prismaInstance.transfer.delete({
-            where: { id: transferId },
-        });
-    },
-    /**
-     * Accepts a transfer request
-     * @param transferId The ID of the transfer request
-     * @param userData The session data of the user who is accepting the transfer request
-     */
-    accept: async (transferId: string, userData: SessionUserToken) => {
-        // Find the transfer request
-        const transfer = await prismaInstance.transfer.findUnique({
-            where: { id: transferId },
-        });
-        // Make sure transfer exists, and is not accepted or rejected
-        if (!transfer)
-            throw new CustomError("0287", "TransferNotFound", userData.languages);
-        if (transfer.status === "Accepted")
-            throw new CustomError("0288", "TransferAlreadyAccepted", userData.languages);
-        if (transfer.status === "Denied")
-            throw new CustomError("0289", "TransferAlreadyRejected", userData.languages);
-        // Make sure transfer is going to you or a team you can control
-        if (transfer.toTeamId) {
-            const { validate } = ModelMap.getLogic(["validate"], "Team");
-            const permissionData = await prismaInstance.team.findUnique({
-                where: { id: transfer.toTeamId },
-                select: permissionsSelectHelper(validate().permissionsSelect, userData.id, userData.languages),
+            const owner = permissionData && validate().owner(permissionData, userData.id);
+            // Check if user is allowed to transfer this object
+            if (!owner || !isOwnerAdminCheck(owner, userData.id))
+                throw new CustomError("0286", "NotAuthorizedToTransfer", userData.languages);
+            // Get 'to' data
+            const toType = input.toTeamConnect ? "Team" : "User";
+            const toId: string = input.toTeamConnect || input.toUserConnect as string;
+            // Create transfer request
+            const request = await prismaInstance.transfer.create({
+                data: {
+                    fromUser: owner.User ? { connect: { id: owner.User.id } } : undefined,
+                    fromTeam: owner.Team ? { connect: { id: owner.Team.id } } : undefined,
+                    [TransferableFieldMap[object.__typename]]: { connect: { id: object.id } },
+                    toUser: toType === "User" ? { connect: { id: toId } } : undefined,
+                    toTeam: toType === "Team" ? { connect: { id: toId } } : undefined,
+                    status: "Pending",
+                    message: input.message,
+                },
+                select: { id: true },
             });
-            if (!permissionData || !isOwnerAdminCheck(validate().owner(permissionData, userData.id), userData.id))
-                throw new CustomError("0302", "TransferAcceptNotAuthorized", userData.languages);
-        } else if (transfer.toUserId !== userData.id) {
-            throw new CustomError("0303", "TransferAcceptNotAuthorized", userData.languages);
-        }
-        // Transfer object, then mark transfer request as accepted
-        // Find the object type, based on which relation is not null
-        const typeField = [
-            "apiId",
-            "codeId",
-            "noteId",
-            "projectId",
-            "routineId",
-            "standardId",
-        ].find((field) => transfer[field] !== null);
-        if (!typeField)
-            throw new CustomError("0290", "TransferMissingData", userData.languages);
-        const type = typeField.replace("Id", "");
-        await prismaInstance.transfer.update({
-            where: { id: transferId },
-            data: {
-                status: "Accepted",
-                [type]: {
-                    update: {
-                        ownerId: transfer.toUserId,
-                        teamId: transfer.toTeamId,
+            // Notify user/org that is receiving the object
+            const pushNotification = Notify(userData.languages).pushTransferRequestSend(request.id, object.__typename, object.id);
+            if (toType === "User") await pushNotification.toUser(toId);
+            else await pushNotification.toTeam(toId);
+            // Return the transfer request ID
+            return request.id;
+        },
+        /**
+         * Initiates a transfer request from an object someone else owns, to you
+         */
+        requestReceive: async (
+            info: GraphQLResolveInfo | PartialGraphQLInfo,
+            input: TransferRequestReceiveInput,
+            userData: SessionUserToken,
+        ): Promise<string> => {
+            return "";//TODO
+        },
+        /**
+         * Cancels a transfer request that you initiated
+         * @param transferId The ID of the transfer request
+         * @param userData The session data of the user who is cancelling the transfer request
+         */
+        cancel: async (transferId: string, userData: SessionUserToken) => {
+            // Find the transfer request
+            const transfer = await prismaInstance.transfer.findUnique({
+                where: { id: transferId },
+                select: {
+                    id: true,
+                    fromTeamId: true,
+                    fromUserId: true,
+                    toTeamId: true,
+                    toUserId: true,
+                    status: true,
+                },
+            });
+            // Make sure transfer exists, and is not already accepted or rejected
+            if (!transfer)
+                throw new CustomError("0293", "TransferNotFound", userData.languages);
+            if (transfer.status === "Accepted")
+                throw new CustomError("0294", "TransferAlreadyAccepted", userData.languages);
+            if (transfer.status === "Denied")
+                throw new CustomError("0295", "TransferAlreadyRejected", userData.languages);
+            // Make sure user is the owner of the transfer request
+            if (transfer.fromTeamId) {
+                const { validate } = ModelMap.getLogic(["validate"], "Team");
+                const permissionData = await prismaInstance.team.findUnique({
+                    where: { id: transfer.fromTeamId },
+                    select: permissionsSelectHelper(validate().permissionsSelect, userData.id, userData.languages),
+                });
+                if (!permissionData || !isOwnerAdminCheck(validate().owner(permissionData, userData.id), userData.id))
+                    throw new CustomError("0300", "TransferRejectNotAuthorized", userData.languages);
+            } else if (transfer.fromUserId !== userData.id) {
+                throw new CustomError("0301", "TransferRejectNotAuthorized", userData.languages);
+            }
+            // Delete transfer request
+            await prismaInstance.transfer.delete({
+                where: { id: transferId },
+            });
+        },
+        /**
+         * Accepts a transfer request
+         * @param transferId The ID of the transfer request
+         * @param userData The session data of the user who is accepting the transfer request
+         */
+        accept: async (transferId: string, userData: SessionUserToken) => {
+            // Find the transfer request
+            const transfer = await prismaInstance.transfer.findUnique({
+                where: { id: transferId },
+            });
+            // Make sure transfer exists, and is not accepted or rejected
+            if (!transfer)
+                throw new CustomError("0287", "TransferNotFound", userData.languages);
+            if (transfer.status === "Accepted")
+                throw new CustomError("0288", "TransferAlreadyAccepted", userData.languages);
+            if (transfer.status === "Denied")
+                throw new CustomError("0289", "TransferAlreadyRejected", userData.languages);
+            // Make sure transfer is going to you or a team you can control
+            if (transfer.toTeamId) {
+                const { validate } = ModelMap.getLogic(["validate"], "Team");
+                const permissionData = await prismaInstance.team.findUnique({
+                    where: { id: transfer.toTeamId },
+                    select: permissionsSelectHelper(validate().permissionsSelect, userData.id, userData.languages),
+                });
+                if (!permissionData || !isOwnerAdminCheck(validate().owner(permissionData, userData.id), userData.id))
+                    throw new CustomError("0302", "TransferAcceptNotAuthorized", userData.languages);
+            } else if (transfer.toUserId !== userData.id) {
+                throw new CustomError("0303", "TransferAcceptNotAuthorized", userData.languages);
+            }
+            // Transfer object, then mark transfer request as accepted
+            // Find the object type, based on which relation is not null
+            const typeField = [
+                "apiId",
+                "codeId",
+                "noteId",
+                "projectId",
+                "routineId",
+                "standardId",
+            ].find((field) => transfer[field] !== null);
+            if (!typeField)
+                throw new CustomError("0290", "TransferMissingData", userData.languages);
+            const type = typeField.replace("Id", "");
+            await prismaInstance.transfer.update({
+                where: { id: transferId },
+                data: {
+                    status: "Accepted",
+                    [type]: {
+                        update: {
+                            ownerId: transfer.toUserId,
+                            teamId: transfer.toTeamId,
+                        },
                     },
                 },
-            },
-        });
-        //TODO update object's hasBeenTransferred flag
-        // TODO Notify user/org that sent the transfer request
-        //const pushNotification = Notify(userData.languages).pushTransferAccepted(transfer.objectTitle, transferId, type);
-        // if (transfer.fromUserId) await pushNotification.toUser(transfer.fromUserId);
-        // else await pushNotification.toTeam(transfer.fromTeamId as string, userData.id);
-    },
-    /**
-     * Denies a transfer request
-     * @param transferId The ID of the transfer request
-     * @param userData The session data of the user who is rejecting the transfer request
-     * @param reason Optional reason for rejecting the transfer request
-     */
-    deny: async (transferId: string, userData: SessionUserToken, reason?: string) => {
-        // Find the transfer request
-        const transfer = await prismaInstance.transfer.findUnique({
-            where: { id: transferId },
-        });
-        // Make sure transfer exists, and is not already accepted or rejected
-        if (!transfer)
-            throw new CustomError("0320", "TransferNotFound", userData.languages);
-        if (transfer.status === "Accepted")
-            throw new CustomError("0291", "TransferAlreadyAccepted", userData.languages);
-        if (transfer.status === "Denied")
-            throw new CustomError("0292", "TransferAlreadyRejected", userData.languages);
-        // Make sure transfer is going to you or a team you can control
-        if (transfer.toTeamId) {
-            const { validate } = ModelMap.getLogic(["validate"], "Team");
-            const permissionData = await prismaInstance.team.findUnique({
-                where: { id: transfer.toTeamId },
-                select: permissionsSelectHelper(validate().permissionsSelect, userData.id, userData.languages),
             });
-            if (!permissionData || !isOwnerAdminCheck(validate().owner(permissionData, userData.id), userData.id))
-                throw new CustomError("0312", "TransferRejectNotAuthorized", userData.languages);
-        } else if (transfer.toUserId !== userData.id) {
-            throw new CustomError("0313", "TransferRejectNotAuthorized", userData.languages);
-        }
-        // Find the object type, based on which relation is not null
-        const typeField = [
-            "apiId",
-            "codeId",
-            "noteId",
-            "projectId",
-            "routineId",
-            "standardId",
-        ].find((field) => transfer[field] !== null);
-        if (!typeField)
-            throw new CustomError("0290", "TransferMissingData", userData.languages);
-        const type = typeField.replace("Id", "");
-        // Deny the transfer
-        await prismaInstance.transfer.update({
-            where: { id: transferId },
-            data: {
-                status: "Denied",
-                denyReason: reason,
-            },
-        });
-        // Notify user/org that sent the transfer request
-        //const pushNotification = Notify(userData.languages).pushTransferRejected(transfer.objectTitle, type, transferId);
-        // if (transfer.fromUserId) await pushNotification.toUser(transfer.fromUserId);
-        // else await pushNotification.toTeam(transfer.fromTeamId as string, userData.id);
-    },
-});
+            //TODO update object's hasBeenTransferred flag
+            // TODO Notify user/org that sent the transfer request
+            //const pushNotification = Notify(userData.languages).pushTransferAccepted(transfer.objectTitle, transferId, type);
+            // if (transfer.fromUserId) await pushNotification.toUser(transfer.fromUserId);
+            // else await pushNotification.toTeam(transfer.fromTeamId as string, userData.id);
+        },
+        /**
+         * Denies a transfer request
+         * @param transferId The ID of the transfer request
+         * @param userData The session data of the user who is rejecting the transfer request
+         * @param reason Optional reason for rejecting the transfer request
+         */
+        deny: async (transferId: string, userData: SessionUserToken, reason?: string) => {
+            // Find the transfer request
+            const transfer = await prismaInstance.transfer.findUnique({
+                where: { id: transferId },
+            });
+            // Make sure transfer exists, and is not already accepted or rejected
+            if (!transfer)
+                throw new CustomError("0320", "TransferNotFound", userData.languages);
+            if (transfer.status === "Accepted")
+                throw new CustomError("0291", "TransferAlreadyAccepted", userData.languages);
+            if (transfer.status === "Denied")
+                throw new CustomError("0292", "TransferAlreadyRejected", userData.languages);
+            // Make sure transfer is going to you or a team you can control
+            if (transfer.toTeamId) {
+                const { validate } = ModelMap.getLogic(["validate"], "Team");
+                const permissionData = await prismaInstance.team.findUnique({
+                    where: { id: transfer.toTeamId },
+                    select: permissionsSelectHelper(validate().permissionsSelect, userData.id, userData.languages),
+                });
+                if (!permissionData || !isOwnerAdminCheck(validate().owner(permissionData, userData.id), userData.id))
+                    throw new CustomError("0312", "TransferRejectNotAuthorized", userData.languages);
+            } else if (transfer.toUserId !== userData.id) {
+                throw new CustomError("0313", "TransferRejectNotAuthorized", userData.languages);
+            }
+            // Find the object type, based on which relation is not null
+            const typeField = [
+                "apiId",
+                "codeId",
+                "noteId",
+                "projectId",
+                "routineId",
+                "standardId",
+            ].find((field) => transfer[field] !== null);
+            if (!typeField)
+                throw new CustomError("0290", "TransferMissingData", userData.languages);
+            const type = typeField.replace("Id", "");
+            // Deny the transfer
+            await prismaInstance.transfer.update({
+                where: { id: transferId },
+                data: {
+                    status: "Denied",
+                    denyReason: reason,
+                },
+            });
+            // Notify user/org that sent the transfer request
+            //const pushNotification = Notify(userData.languages).pushTransferRejected(transfer.objectTitle, type, transferId);
+            // if (transfer.fromUserId) await pushNotification.toUser(transfer.fromUserId);
+            // else await pushNotification.toTeam(transfer.fromTeamId as string, userData.id);
+        },
+    };
+}
 
 export const TransferModel: TransferModelLogic = ({
     __typename,
