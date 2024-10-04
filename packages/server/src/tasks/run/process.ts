@@ -486,7 +486,7 @@ async function doRunRoutineApi({
 
     // Make sure that the code is valid and runnable
     if (!codeVersion) {
-        logger.error("No code version found", { trace: "0626", routineVersionId: routineVersion.id });
+        logger.error("No code version found", { trace: "0636", routineVersionId: routineVersion.id });
         return { cost };
     }
     if (!SUPPORTED_CODE_LANGUAGES.includes(codeVersion.codeLanguage.toLowerCase())) {

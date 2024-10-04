@@ -1,7 +1,7 @@
 import { DUMMY_ID, GqlModelType, VisibilityType } from "@local/shared";
 import { CustomError } from "../events/error";
 import { GenericModelLogic, ModelMap } from "../models/base";
-import { VisibilityFuncInput } from "../models/types";
+import { VisibilityFunc, VisibilityFuncInput } from "../models/types";
 import { VisibilityBuilderPrismaResult, VisibilityBuilderProps } from "./types";
 
 // Create a map of visibility types to their corresponding function names
@@ -14,19 +14,28 @@ const visibilityFuncNames = {
 } as const;
 
 // Function to get the visibility function based on type
-function getVisibilityFunc<T extends GenericModelLogic>(
+export function getVisibilityFunc<
+    ModelLogic extends GenericModelLogic,
+    Throw extends boolean = true,
+>(
     objectType: GqlModelType | `${GqlModelType}`,
     visibilityType: VisibilityType | `${VisibilityType}`,
-) {
-    const validator = ModelMap.get<T>(objectType).validate();
+    throwIfNotFound: Throw = true as Throw,
+): Throw extends true ? VisibilityFunc<any> : (VisibilityFunc<any> | null) {
+    const validator = ModelMap.get<ModelLogic>(objectType).validate();
     const funcName = visibilityFuncNames[visibilityType as VisibilityType];
     const visibilityFunc = validator.visibility[funcName];
 
     if (visibilityFunc === null || visibilityFunc === undefined) {
-        throw new CustomError("0680", "InternalError", ["en"], { objectType, funcName });
+        // throw new CustomError("0680", "InternalError", ["en"], { objectType, funcName });
+        if (throwIfNotFound) {
+            throw new CustomError("0680", "InternalError", ["en"], { objectType, funcName });
+        } else {
+            null;
+        }
     }
 
-    return visibilityFunc;
+    return visibilityFunc as Throw extends true ? VisibilityFunc<any> : (VisibilityFunc<any> | null);
 }
 
 /**
@@ -38,7 +47,6 @@ export function visibilityBuilderPrisma({
     userData,
     visibility,
 }: VisibilityBuilderProps): VisibilityBuilderPrismaResult {
-    console.log('in visibilityBuilderPrisma', !visibility, !userData, visibility, typeof userData);
     const defaultVisibility = (!visibility || !userData) ? VisibilityType.Public : VisibilityType.OwnOrPublic;
     const chosenVisibility = visibility || defaultVisibility;
 

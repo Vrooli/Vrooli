@@ -13,7 +13,7 @@
  */
 import { GqlModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, ObjectLimitPrivacy } from "@local/shared";
 import { PrismaDelegate } from "../builders/types";
-import { useVisibility } from "../builders/visibilityBuilder";
+import { getVisibilityFunc } from "../builders/visibilityBuilder";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
@@ -196,8 +196,13 @@ export async function maxObjectsCheck(
         for (const ownerId in counts[objectType]!) {
             // Query the database for the current counts of objects owned by the owner
             const searchData = { searchInput: {}, userId: ownerId };
-            let currCountPrivate = await delegator.count({ where: useVisibility(objectType as GqlModelType, "OwnPrivate", searchData) });
-            let currCountPublic = await delegator.count({ where: useVisibility(objectType as GqlModelType, "OwnPublic", searchData) });
+            let currCountPrivate = 0;
+            let currCountPublic = 0;
+            // Some objects don't support private/public, so may have null visibility functions. We can ignore these.
+            const privateVisibility = getVisibilityFunc(objectType as GqlModelType, "OwnPrivate", false);
+            const publicVisibility = getVisibilityFunc(objectType as GqlModelType, "OwnPublic", false);
+            if (privateVisibility) currCountPrivate = await delegator.count({ where: privateVisibility(searchData) });
+            if (publicVisibility) currCountPublic = await delegator.count({ where: publicVisibility(searchData) });
             // Add count obtained from add and deletes to the current counts
             currCountPrivate += counts[objectType]![ownerId].private;
             currCountPublic += counts[objectType]![ownerId].public;
