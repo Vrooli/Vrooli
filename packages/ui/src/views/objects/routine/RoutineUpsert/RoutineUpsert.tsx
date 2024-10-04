@@ -19,7 +19,7 @@ import { SessionContext } from "contexts";
 import { FieldHelperProps, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { UseAutoFillProps, getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
@@ -611,6 +611,7 @@ function RoutineForm({
 }
 
 export function RoutineUpsert({
+    display,
     isCreate,
     isOpen,
     isSubroutine = false,
@@ -619,8 +620,9 @@ export function RoutineUpsert({
 }: RoutineUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<RoutineVersion, RoutineVersionShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<RoutineVersion, RoutineVersionShape>({
         ...endpointGetRoutineVersion,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "RoutineVersion",
         overrideObject,
@@ -642,6 +644,7 @@ export function RoutineUpsert({
         >
             {(formik) => <RoutineForm
                 disabled={!(isCreate || permissions.canUpdate)}
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

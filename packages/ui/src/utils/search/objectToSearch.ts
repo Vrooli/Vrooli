@@ -3,7 +3,7 @@ import { Palette } from "@mui/material";
 import { PageTab } from "hooks/useTabs";
 import { AddIcon, ApiIcon, ArticleIcon, FocusModeIcon, HelpIcon, HistoryIcon, MonthIcon, NoteIcon, ObjectIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon, VisibleIcon } from "icons";
 import { SvgComponent } from "types";
-import { PolicyTabOption } from "views/legal";
+import { PolicyTabOption } from "views/PolicyView/PolicyView";
 import { apiSearchParams } from "./schemas/api";
 import { apiVersionSearchParams } from "./schemas/apiVersion";
 import { SearchParams } from "./schemas/base";
@@ -562,16 +562,22 @@ export type MemberTabsInfo = {
 
 export const memberTabParams: TabParam<MemberTabsInfo>[] = [
     {
-        key: "Member",
+        key: "Members",
         titleKey: "Member",
         searchType: "Member",
         where: ({ teamId }) => ({ teamId }),
     },
     {
-        key: "MemberInvite",
+        key: "Invites",
         titleKey: "Invite",
         searchType: "MemberInvite",
         where: ({ teamId }) => ({ teamId, statuses: [MemberInviteStatus.Pending, MemberInviteStatus.Declined] }),
+    },
+    {
+        key: "NonMembers",
+        titleKey: "NonMembers",
+        searchType: "User",
+        where: ({ teamId }) => ({ notMemberInTeamId: teamId, notInvitedToTeamId: teamId }),
     },
 ];
 
@@ -605,7 +611,7 @@ export const teamTabParams: TabParam<TeamTabsInfo>[] = [
         key: "Project",
         titleKey: "Project",
         searchType: "Project",
-        where: ({ teamId, permissions }) => ({ ownedByTeamId: teamId, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All }),
+        where: ({ teamId, permissions }) => ({ ownedByTeamId: teamId, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.OwnOrPublic }),
     },
     {
         color: teamTabColor,
@@ -647,7 +653,7 @@ export const userTabParams: TabParam<UserTabsInfo>[] = [
         titleKey: "Project",
         searchPlaceholderKey: "SearchProject",
         searchType: "Project",
-        where: ({ userId, permissions }) => ({ ownedByUserId: userId, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.All }),
+        where: ({ userId, permissions }) => ({ ownedByUserId: userId, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.OwnOrPublic }),
     },
     {
         color: userTabColor,
@@ -655,7 +661,7 @@ export const userTabParams: TabParam<UserTabsInfo>[] = [
         titleKey: "Team",
         searchPlaceholderKey: "SearchTeam",
         searchType: "Team",
-        where: ({ userId }) => ({ memberUserIds: [userId], visibility: VisibilityType.All }),
+        where: ({ userId }) => ({ memberUserIds: [userId], visibility: VisibilityType.OwnOrPublic }),
     },
 ];
 

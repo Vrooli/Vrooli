@@ -8,7 +8,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
@@ -234,6 +234,7 @@ function RunProjectForm({
 }
 
 export function RunProjectUpsert({
+    display,
     isCreate,
     isOpen,
     overrideObject,
@@ -241,23 +242,29 @@ export function RunProjectUpsert({
 }: RunProjectUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<RunProject, RunProjectShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<RunProject, RunProjectShape>({
         ...endpointGetRunProject,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "RunProject",
         overrideObject,
         transform: (existing) => runProjectInitialValues(session, existing),
     });
 
+    async function validateValues(values: RunProjectShape) {
+        return await validateFormValues(values, existing, isCreate, transformRunProjectValues, runProjectValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformRunProjectValues, runProjectValidation)}
+            validate={validateValues}
         >
             {(formik) => <RunProjectForm
                 disabled={!(isCreate || permissions.canUpdate)}
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

@@ -15,7 +15,7 @@ import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
@@ -602,8 +602,9 @@ export function ScheduleUpsert({
         setScheduleFor(newScheduleFor);
     }, []);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Schedule, ScheduleShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Schedule, ScheduleShape>({
         ...endpointGetSchedule,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "Schedule",
         overrideObject,

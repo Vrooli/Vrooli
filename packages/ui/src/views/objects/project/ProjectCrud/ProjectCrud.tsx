@@ -17,7 +17,7 @@ import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { UseAutoFillProps, getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
@@ -322,6 +322,7 @@ function ProjectForm({
 }
 
 export function ProjectCrud({
+    display,
     isCreate,
     isOpen,
     overrideObject,
@@ -329,8 +330,9 @@ export function ProjectCrud({
 }: ProjectCrudProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<ProjectVersion, ProjectVersionShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<ProjectVersion, ProjectVersionShape>({
         ...endpointGetProjectVersion,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "ProjectVersion",
         overrideObject,
@@ -354,6 +356,7 @@ export function ProjectCrud({
         >
             {(formik) => <ProjectForm
                 disabled={!(isCreate || permissions.canUpdate)}
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

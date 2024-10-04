@@ -1,7 +1,7 @@
 import { endpointGetRunRoutine, RunRoutine } from "@local/shared";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useObjectActions } from "hooks/objectActions";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -16,7 +16,7 @@ export function RunRoutineView({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const { object: existing, isLoading, setObject: setRunRoutine } = useObjectFromUrl<RunRoutine>({
+    const { object: existing, isLoading, setObject: setRunRoutine } = useManagedObject<RunRoutine>({
         ...endpointGetRunRoutine,
         objectType: "RunRoutine",
     });

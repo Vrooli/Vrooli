@@ -1,5 +1,5 @@
 import { ChatMessage, ChatParticipant, ChatShape, LlmTaskInfo, Session, uuid } from "@local/shared";
-import { getCookieTasksForChat, setCookie, upsertCookieTaskForChat } from "../utils/localStorage";
+import { fullPreferences, getCookieTasksForChat, setCookie, upsertCookieTaskForChat } from "../utils/localStorage";
 import { processLlmTasks, processMessages, processParticipantsUpdates, processResponseStream, processTypingUpdates } from "./useSocketChat";
 
 describe("processMessages", () => {
@@ -165,12 +165,7 @@ describe("processParticipantsUpdates", () => {
     beforeEach(() => {
         jest.clearAllMocks();
         global.localStorage.clear();
-        setCookie("Preferences", {
-            strictlyNecessary: true,
-            performance: true,
-            functional: true,
-            targeting: true,
-        });
+        setCookie("Preferences", fullPreferences);
     });
     afterAll(() => {
         global.localStorage.clear();
@@ -261,12 +256,7 @@ describe("processLlmTasks", () => {
     beforeEach(() => {
         jest.clearAllMocks();
         global.localStorage.clear();
-        setCookie("Preferences", {
-            strictlyNecessary: true,
-            performance: true,
-            functional: true,
-            targeting: true,
-        });
+        setCookie("Preferences", fullPreferences);
     });
     afterAll(() => {
         global.localStorage.clear();

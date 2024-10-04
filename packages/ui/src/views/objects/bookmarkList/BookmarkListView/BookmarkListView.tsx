@@ -11,7 +11,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts";
 import { useDeleter, useObjectActions } from "hooks/objectActions";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -34,7 +34,7 @@ export function BookmarkListView({
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
 
-    const { object: existing, isLoading, setObject: setBookmarkList } = useObjectFromUrl<BookmarkList>({
+    const { object: existing, isLoading, setObject: setBookmarkList } = useManagedObject<BookmarkList>({
         ...endpointGetBookmarkList,
         objectType: "BookmarkList",
     });

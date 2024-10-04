@@ -15,7 +15,7 @@ import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useBulkObjectActions, useObjectActions } from "hooks/objectActions";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useSelectableList } from "hooks/useSelectableList";
 import { useUpsertActions } from "hooks/useUpsertActions";
@@ -162,7 +162,7 @@ function BookmarkListForm({
         selectedData,
         setIsSelecting,
         setSelectedData,
-    } = useSelectableList<BookmarkShape>();
+    } = useSelectableList<BookmarkShape>(bookmarksField.value);
     const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions<BookmarkShape>({
         allData: bookmarksField.value,
         selectedData,
@@ -335,6 +335,7 @@ function BookmarkListForm({
 }
 
 export function BookmarkListUpsert({
+    display,
     isCreate,
     isOpen,
     overrideObject,
@@ -342,8 +343,9 @@ export function BookmarkListUpsert({
 }: BookmarkListUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<BookmarkList, BookmarkListShape>({
+    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useManagedObject<BookmarkList, BookmarkListShape>({
         ...endpointGetBookmarkList,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "BookmarkList",
         overrideObject,
@@ -363,6 +365,7 @@ export function BookmarkListUpsert({
         >
             {(formik) => <BookmarkListForm
                 disabled={false}
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

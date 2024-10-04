@@ -17,7 +17,7 @@ import { SessionContext } from "contexts";
 import { Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { UseAutoFillProps, getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
@@ -241,6 +241,7 @@ function TeamForm({
 }
 
 export function TeamUpsert({
+    display,
     isCreate,
     isOpen,
     overrideObject,
@@ -248,8 +249,9 @@ export function TeamUpsert({
 }: TeamUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Team, TeamShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Team, TeamShape>({
         ...endpointGetTeam,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "Team",
         overrideObject,
@@ -269,6 +271,7 @@ export function TeamUpsert({
         >
             {(formik) => <TeamForm
                 disabled={!(isCreate || permissions.canUpdate)}
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

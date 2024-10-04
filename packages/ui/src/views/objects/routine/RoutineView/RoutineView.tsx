@@ -20,7 +20,7 @@ import { Formik } from "formik";
 import { useObjectActions } from "hooks/objectActions";
 import { useErrorPopover } from "hooks/useErrorPopover";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { EditIcon, SuccessIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -147,7 +147,7 @@ export function RoutineView({
     const { t } = useTranslation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    const { isLoading, object: existing, permissions, setObject: setRoutineVersion } = useObjectFromUrl<RoutineVersion>({
+    const { isLoading, object: existing, permissions, setObject: setRoutineVersion } = useManagedObject<RoutineVersion>({
         ...endpointGetRoutineVersion,
         onInvalidUrlParams: handleInvalidUrlParams,
         objectType: "RoutineVersion",

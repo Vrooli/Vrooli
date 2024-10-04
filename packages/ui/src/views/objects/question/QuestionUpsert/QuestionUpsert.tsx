@@ -14,7 +14,7 @@ import { SessionContext } from "contexts";
 import { Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "hooks/tasks";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
@@ -222,6 +222,7 @@ function QuestionForm({
 }
 
 export function QuestionUpsert({
+    display,
     isCreate,
     isOpen,
     overrideObject,
@@ -229,13 +230,18 @@ export function QuestionUpsert({
 }: QuestionUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Question, QuestionShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Question, QuestionShape>({
         ...endpointGetQuestion,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "Question",
         overrideObject,
         transform: (existing) => questionInitialValues(session, existing),
     });
+
+    async function validateValues(values: QuestionShape) {
+        return await validateFormValues(values, existing, isCreate, transformQuestionValues, questionValidation);
+    }
 
     return (
         <Formik
@@ -245,10 +251,11 @@ export function QuestionUpsert({
                 forObject: null,
             } as QuestionShape}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformQuestionValues, questionValidation)}
+            validate={validateValues}
         >
             {(formik) => <QuestionForm
                 disabled={!(isCreate || permissions.canUpdate)}
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

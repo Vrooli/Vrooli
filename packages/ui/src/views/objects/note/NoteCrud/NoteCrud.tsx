@@ -1,11 +1,10 @@
-import { DUMMY_ID, DeleteOneInput, DeleteType, ListObject, NoteVersion, NoteVersionCreateInput, NoteVersionShape, NoteVersionUpdateInput, OwnerShape, Session, Success, endpointGetNoteVersion, endpointPostDeleteOne, endpointPostNoteVersion, endpointPutNoteVersion, noopSubmit, noteVersionTranslationValidation, noteVersionValidation, orDefault, shapeNoteVersion } from "@local/shared";
-import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
+import { DUMMY_ID, DeleteOneInput, DeleteType, ListObject, LlmTask, NoteVersion, NoteVersionCreateInput, NoteVersionShape, NoteVersionUpdateInput, OwnerShape, Session, Success, endpointGetNoteVersion, endpointPostDeleteOne, endpointPostNoteVersion, endpointPutNoteVersion, noopSubmit, noteVersionTranslationValidation, noteVersionValidation, orDefault, shapeNoteVersion } from "@local/shared";
+import { Box, IconButton, Tooltip, styled, useTheme } from "@mui/material";
 import { fetchLazyWrapper, useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
 import { TranslatedTextInput } from "components/inputs/TextInput/TextInput";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
@@ -17,26 +16,28 @@ import { Formik } from "formik";
 import { BaseForm, InnerForm } from "forms/BaseForm/BaseForm";
 import { useObjectActions } from "hooks/objectActions";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { useObjectActions } from "hooks/useObjectActions";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { useWindowSize } from "hooks/useWindowSize";
 import { MagicIcon } from "icons";
-import { useCallback, useContext, useMemo } from "react";
+import { useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { FormContainer, FormSection } from "styles";
+import { FormContainer, FormSection, ScrollBox } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
+import { taskToTaskInfo } from "utils/display/chatTools";
 import { getDisplay } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { validateFormValues } from "utils/validateFormValues";
 import { NoteCrudProps } from "views/objects/note/types";
 import { NoteFormProps } from "../types";
+
+const sideActionButtonsExclude = [ObjectAction.Delete, ObjectAction.Edit] as const;
 
 function noteInitialValues(
     session: Session | undefined,
@@ -78,6 +79,21 @@ function transformNoteVersionValues(values: NoteVersionShape, existing: NoteVers
     return isCreate ? shapeNoteVersion.create(values) : shapeNoteVersion.update(existing, values);
 }
 
+const OuterFormBox = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "column",
+    height: "100vh",
+    overflow: "hidden",
+}));
+
+const dialogStyle = { paper: { height: "100%" } } as const;
+const relationshipListStyle = { marginBottom: 4 } as const;
+const titleDialogFormStyle = {
+    padding: "16px",
+    width: "600px",
+} as const;
+const formStyle = { display: "contents" } as const;
+
 function NoteForm({
     disabled,
     display,
@@ -92,6 +108,7 @@ function NoteForm({
 }: NoteFormProps) {
     const session = useContext(SessionContext);
     const { credits } = useMemo(() => getCurrentUser(session), [session]);
+    const { chat } = useContext(ActiveChatContext);
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const { breakpoints, palette } = useTheme();
@@ -176,13 +193,30 @@ function NoteForm({
         assistantButton?.click();
     }, []);
 
+    // Suggest the autofill task to the main chat
+    useEffect(function suggestTaskEffect() {
+        const chatId = chat?.id;
+        if (!chatId) return;
+        PubSub.get().publish("chatTask", {
+            chatId,
+            tasks: {
+                add: {
+                    inactive: {
+                        behavior: "onlyIfNoTaskType",
+                        value: [taskToTaskInfo(isCreate ? LlmTask.NoteAdd : LlmTask.NoteUpdate)],
+                    },
+                },
+            },
+        });
+    }, [chat?.id, isCreate]);
+
     const sideActionButtons = useMemo(() => {
         const buttons: JSX.Element[] = [];
         if (!isCreate) {
             buttons.push(
                 <ObjectActionsRow
                     actionData={actionData}
-                    exclude={[ObjectAction.Delete, ObjectAction.Edit]}
+                    exclude={sideActionButtonsExclude}
                     object={values as ListObject}
                 />,
             );
@@ -228,6 +262,85 @@ function NoteForm({
 
     const isLoading = useMemo(() => isCreateLoading || isDeleteLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isDeleteLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
+    const titleDialogContentForm = useCallback(function titleDialogContentFormCallback() {
+        return (
+            <ScrollBox>
+                <BaseForm
+                    display="dialog"
+                    isNested={display === "dialog"}
+                    maxWidth={600}
+                    style={titleDialogFormStyle}
+                >
+                    <FormContainer>
+                        <RelationshipList
+                            isEditing={!disabled}
+                            objectType={"Note"}
+                            sx={relationshipListStyle}
+                        />
+                        <FormSection>
+                            <TranslatedTextInput
+                                fullWidth
+                                label={t("Name")}
+                                language={language}
+                                name="name"
+                            />
+                            <TranslatedRichInput
+                                language={language}
+                                maxChars={2048}
+                                minRows={4}
+                                name="description"
+                                placeholder={t("DescriptionPlaceholder")}
+                            />
+                        </FormSection>
+                    </FormContainer>
+                </BaseForm>
+            </ScrollBox>
+        );
+    }, [display, disabled, t, language]);
+
+    const topBarStyle = useMemo(function topBarStyleMemo() {
+        return {
+            stack: {
+                padding: 0,
+                ...(display === "page" && !isMobile ? {
+                    margin: "auto",
+                    maxWidth: "800px",
+                    paddingTop: 1,
+                    paddingBottom: 1,
+                } : {}),
+            },
+        } as const;
+    }, [display, isMobile]);
+
+    const pageInputStyle = useMemo(function pageInputStyleMemo() {
+        return {
+            root: {
+                display: "flex",
+                position: "relative",
+                width: "100%",
+                maxWidth: "800px",
+                borderRadius: 0,
+                overflow: "hidden",
+                margin: "auto",
+                flex: 1,
+            },
+            topBar: {
+                borderRadius: 0,
+            },
+            inputRoot: {
+                borderRadius: 0,
+                height: "100%",
+                overflow: "scroll",
+                background: palette.background.paper,
+                border: "none",
+                flex: 1,
+            },
+            textArea: {
+                paddingBottom: "128px",
+            },
+        } as const;
+    }, [palette.background.paper]);
+
     return (
         <>
             <MaybeLargeDialog
@@ -235,14 +348,9 @@ function NoteForm({
                 id="note-crud-dialog"
                 isOpen={isOpen}
                 onClose={onClose}
-                sxs={{ paper: { height: "100%" } }}
+                sxs={dialogStyle}
             >
-                <Box sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    height: "100vh",
-                    overflow: "hidden",
-                }}>
+                <OuterFormBox>
                     <TopBar
                         display={display}
                         keepVisible
@@ -255,123 +363,42 @@ function NoteForm({
                             titleField="name"
                             subtitleField="description"
                             variant="subheader"
-                            sxs={{
-                                stack: {
-                                    padding: 0,
-                                    ...(display === "page" && !isMobile ? {
-                                        margin: "auto",
-                                        maxWidth: "800px",
-                                        paddingTop: 1,
-                                        paddingBottom: 1,
-                                    } : {}),
-                                },
-                            }}
-                            DialogContentForm={() => (
-                                <>
-                                    <BaseForm
-                                        display="dialog"
-                                        style={{
-                                            width: "min(700px, 100vw)",
-                                            paddingBottom: "16px",
-                                        }}
-                                    >
-                                        <FormContainer>
-                                            <RelationshipList
-                                                isEditing={!disabled}
-                                                objectType={"Note"}
-                                                sx={{ marginBottom: 4 }}
-                                            />
-                                            <FormSection sx={{ overflowX: "hidden" }}>
-                                                <LanguageInput
-                                                    currentLanguage={language}
-                                                    handleAdd={handleAddLanguage}
-                                                    handleDelete={handleDeleteLanguage}
-                                                    handleCurrent={setLanguage}
-                                                    languages={languages}
-                                                />
-                                                <TranslatedTextInput
-                                                    fullWidth
-                                                    label={t("Name")}
-                                                    language={language}
-                                                    name="name"
-                                                />
-                                                <TranslatedRichInput
-                                                    language={language}
-                                                    maxChars={2048}
-                                                    minRows={4}
-                                                    name="description"
-                                                    placeholder={t("DescriptionPlaceholder")}
-                                                />
-                                            </FormSection>
-                                        </FormContainer>
-                                    </BaseForm>
-                                </>
-                            )}
+                            sxs={topBarStyle}
+                            DialogContentForm={titleDialogContentForm}
                         />}
                     />
-                    <BaseForm
+                    <InnerForm
                         display={display}
                         isLoading={isLoading}
-                        style={{ display: "contents" }}
+                        style={formStyle}
                     >
                         <TranslatedRichInput
                             language={language}
                             name="pages[0].text"
                             placeholder={t("PleaseBeNice")}
                             disabled={disabled}
-                            sxs={{
-                                root: {
-                                    display: "flex",
-                                    position: "relative",
-                                    width: "100%",
-                                    maxWidth: "800px",
-                                    borderRadius: { xs: 0, md: 1 },
-                                    overflow: "hidden",
-                                    margin: "auto",
-                                    flex: 1,
-                                },
-                                topBar: {
-                                    borderRadius: 0,
-                                },
-                                inputRoot: {
-                                    borderRadius: 0,
-                                    height: "100%",
-                                    overflow: "scroll",
-                                    background: palette.background.paper,
-                                    border: "none",
-                                    flex: 1,
-                                },
-                                textArea: {
-                                    paddingBottom: "128px",
-                                },
-                            }}
+                            sxs={pageInputStyle}
                         />
-                    </BaseForm>
-                    <Box sx={{
-                        position: "absolute",
-                        left: 0,
-                        right: 0,
-                        bottom: isMobile ? "calc(64px - 8px)" : 0,
-                    }}>
-                        <BottomActionsButtons
-                            display={display}
-                            errors={combineErrorsWithTranslations(props.errors, translationErrors)}
-                            hideButtons={disabled}
-                            isCreate={isCreate}
-                            loading={isLoading}
-                            onCancel={handleCancel}
-                            onSetSubmitting={props.setSubmitting}
-                            onSubmit={onSubmit}
-                            sideActionButtons={sideActionButtons}
-                        />
-                    </Box>
-                </Box>
+                    </InnerForm>
+                    <BottomActionsButtons
+                        display={display}
+                        errors={combineErrorsWithTranslations(props.errors, translationErrors)}
+                        hideButtons={disabled}
+                        isCreate={isCreate}
+                        loading={isLoading}
+                        onCancel={handleCancel}
+                        onSetSubmitting={props.setSubmitting}
+                        onSubmit={onSubmit}
+                        sideActionButtons={sideActionButtons}
+                    />
+                </OuterFormBox>
             </MaybeLargeDialog>
         </>
     );
 }
 
 export function NoteCrud({
+    display,
     isCreate,
     isOpen,
     overrideObject,
@@ -379,8 +406,9 @@ export function NoteCrud({
 }: NoteCrudProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<NoteVersion, NoteVersionShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<NoteVersion, NoteVersionShape>({
         ...endpointGetNoteVersion,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "NoteVersion",
         overrideObject,
@@ -402,6 +430,7 @@ export function NoteCrud({
                 <>
                     <NoteForm
                         disabled={!(isCreate || permissions.canUpdate)}
+                        display={display}
                         existing={existing}
                         handleUpdate={setExisting}
                         isCreate={isCreate}

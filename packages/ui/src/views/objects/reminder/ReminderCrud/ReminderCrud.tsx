@@ -15,7 +15,7 @@ import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useAutoFill, UseAutoFillProps } from "hooks/tasks";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
@@ -424,6 +424,7 @@ function ReminderForm({
 }
 
 export function ReminderCrud({
+    display,
     isCreate,
     isOpen,
     overrideObject,
@@ -431,23 +432,29 @@ export function ReminderCrud({
 }: ReminderCrudProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Reminder, ReminderShape>({
+    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useManagedObject<Reminder, ReminderShape>({
         ...endpointGetReminder,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "Reminder",
         overrideObject: overrideObject as Reminder,
         transform: (existing) => reminderInitialValues(session, existing),
     });
 
+    async function validateValues(values: ReminderShape) {
+        return await validateFormValues(values, existing, isCreate, transformReminderValues, reminderValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformReminderValues, reminderValidation)}
+            validate={validateValues}
         >
             {(formik) => <ReminderForm
                 disabled={false} // Can always update reminders
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

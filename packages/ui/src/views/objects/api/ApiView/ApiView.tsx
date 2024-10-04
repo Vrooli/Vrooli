@@ -11,7 +11,7 @@ import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts";
 import { useObjectActions } from "hooks/objectActions";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { ApiIcon, EditIcon, EllipsisIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -33,7 +33,7 @@ export function ApiView({
     const profileColors = useMemo(() => placeholderColor(), []);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    const { id, isLoading, object: apiVersion, permissions, setObject: setApiVersion } = useObjectFromUrl<ApiVersion>({
+    const { id, isLoading, object: apiVersion, permissions, setObject: setApiVersion } = useManagedObject<ApiVersion>({
         ...endpointGetApiVersion,
         objectType: "ApiVersion",
     });

@@ -74,6 +74,19 @@ interface GetLocalStorageKeysProps {
     suffix?: string;
 }
 
+export const noPreferences = {
+    strictlyNecessary: false,
+    performance: false,
+    functional: false,
+    targeting: false,
+};
+export const fullPreferences = {
+    strictlyNecessary: true,
+    performance: true,
+    functional: true,
+    targeting: true,
+};
+
 export const cookies: { [T in SimpleStorageType]: SimpleStorageInfo<T> } = {
     CreateOrder: {
         __type: "functional",
@@ -115,12 +128,7 @@ export const cookies: { [T in SimpleStorageType]: SimpleStorageInfo<T> } = {
     Preferences: {
         __type: "strictlyNecessary",
         check: (value) => typeof value === "object",
-        fallback: {
-            strictlyNecessary: false,
-            performance: false,
-            functional: false,
-            targeting: false,
-        },
+        fallback: noPreferences,
         // Allow all for PWAs
         shape: (value) => {
             if (getDeviceInfo().isStandalone) {
@@ -294,6 +302,7 @@ export function getStorageItem<T extends SimpleStorageType | string>(
     typeCheck: (value: unknown) => boolean,
 ): (T extends SimpleStorageType ? SimpleStoragePayloads[T] : unknown) | undefined {
     const cookie = localStorage.getItem(name);
+    if (cookie === null) return undefined;
     // Try to parse
     try {
         const parsed = JSON.parse(cookie ?? "");
@@ -404,19 +413,38 @@ type FormCacheEntry = {
     [key: string]: any; // This would be the form data
 }
 const formDataCache = new LocalStorageLruCache<FormCacheEntry>("formData", FORM_CACHE_LIMIT, CACHE_LIMIT_512KB);
-export function getCookieFormData(formId: string): FormCacheEntry | undefined {
+function getFormCacheKey(
+    objectType: GqlModelType | `${GqlModelType}`,
+    objectId: string,
+) {
+    return `${objectType}:${objectId}`;
+}
+export function getCookieFormData(
+    objectType: GqlModelType | `${GqlModelType}`,
+    objectId: string,
+): FormCacheEntry | undefined {
     return ifAllowed("functional", () => {
-        return formDataCache.get(formId);
+        const key = getFormCacheKey(objectType, objectId);
+        return formDataCache.get(key);
     });
 }
-export function setCookieFormData(formId: string, data: FormCacheEntry) {
+export function setCookieFormData(
+    objectType: GqlModelType | `${GqlModelType}`,
+    objectId: string,
+    data: FormCacheEntry,
+) {
     return ifAllowed("functional", () => {
-        formDataCache.set(formId, data);
+        const key = getFormCacheKey(objectType, objectId);
+        formDataCache.set(key, data);
     });
 }
-export function removeCookieFormData(formId: string) {
+export function removeCookieFormData(
+    objectType: GqlModelType | `${GqlModelType}`,
+    objectId: string,
+) {
     return ifAllowed("functional", () => {
-        formDataCache.remove(formId);
+        const key = getFormCacheKey(objectType, objectId);
+        formDataCache.remove(key);
     });
 }
 
@@ -616,18 +644,19 @@ function getCache(): Cache {
 
 /** Shape knownData to replace idRoot and handleRoot with proper root object */
 function shapeKnownData<T extends CookiePartialData>(knownData: T): T {
-    return {
-        ...knownData,
-        idRoot: undefined,
-        handleRoot: undefined,
-        ...(knownData.idRoot || knownData.handleRoot ? {
+    let result = { ...knownData };
+    if (knownData.idRoot || knownData.handleRoot) {
+        result = {
+            ...result,
             root: {
-                ...knownData.root,
                 id: knownData.idRoot,
                 handle: knownData.handleRoot,
             },
-        } : {}),
-    };
+        };
+    }
+    delete result.idRoot;
+    delete result.handleRoot;
+    return result;
 }
 export function getCookiePartialData<T extends CookiePartialData>(knownData: CookiePartialData): T {
     return ifAllowed("functional",

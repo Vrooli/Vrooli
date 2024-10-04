@@ -19,7 +19,7 @@ import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { UseAutoFillProps, createUpdatedTranslations, getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
@@ -392,6 +392,7 @@ function SmartContractForm({
 }
 
 export function SmartContractUpsert({
+    display,
     isCreate,
     isOpen,
     overrideObject,
@@ -399,8 +400,9 @@ export function SmartContractUpsert({
 }: SmartContractUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<CodeVersion, CodeVersionShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<CodeVersion, CodeVersionShape>({
         ...endpointGetCodeVersion,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "CodeVersion",
         overrideObject,
@@ -424,6 +426,7 @@ export function SmartContractUpsert({
         >
             {(formik) => <SmartContractForm
                 disabled={!(isCreate || permissions.canUpdate)}
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

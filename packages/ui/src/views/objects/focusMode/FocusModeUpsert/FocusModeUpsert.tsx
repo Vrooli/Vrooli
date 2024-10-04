@@ -13,7 +13,7 @@ import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
@@ -285,6 +285,7 @@ function FocusModeForm({
 }
 
 export function FocusModeUpsert({
+    display,
     isCreate,
     isOpen,
     overrideObject,
@@ -292,8 +293,9 @@ export function FocusModeUpsert({
 }: FocusModeUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<FocusMode, FocusModeShape>({
+    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useManagedObject<FocusMode, FocusModeShape>({
         ...endpointGetFocusMode,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "FocusMode",
         overrideObject,
@@ -313,6 +315,7 @@ export function FocusModeUpsert({
         >
             {(formik) => <FocusModeForm
                 disabled={false} // Can always update focus mode
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

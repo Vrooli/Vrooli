@@ -8,7 +8,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
@@ -242,6 +242,7 @@ function MeetingForm({
 }
 
 export function MeetingUpsert({
+    display,
     isCreate,
     isOpen,
     overrideObject,
@@ -249,8 +250,9 @@ export function MeetingUpsert({
 }: MeetingUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Meeting, MeetingShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Meeting, MeetingShape>({
         ...endpointGetMeeting,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "Meeting",
         overrideObject,
@@ -270,6 +272,7 @@ export function MeetingUpsert({
         >
             {(formik) => <MeetingForm
                 disabled={!(isCreate || permissions.canUpdate)}
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

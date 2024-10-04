@@ -20,7 +20,7 @@ import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { FormView } from "forms/FormView/FormView";
 import { getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "hooks/tasks";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
@@ -412,6 +412,7 @@ function PromptForm({
 }
 
 export function PromptUpsert({
+    display,
     isCreate,
     isOpen,
     overrideObject,
@@ -419,8 +420,9 @@ export function PromptUpsert({
 }: PromptUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<StandardVersion, StandardVersionShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<StandardVersion, StandardVersionShape>({
         ...endpointGetStandardVersion,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "StandardVersion",
         overrideObject,
@@ -440,6 +442,7 @@ export function PromptUpsert({
         >
             {(formik) => <PromptForm
                 disabled={!(isCreate || permissions.canUpdate)}
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

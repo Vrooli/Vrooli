@@ -3,7 +3,7 @@ import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useObjectActions } from "hooks/objectActions";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { EllipsisIcon } from "icons";
 import { MouseEvent, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -19,7 +19,7 @@ export function ScheduleView({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const { id, isLoading, object: schedule, permissions, setObject: setSchedule } = useObjectFromUrl<Schedule>({
+    const { id, isLoading, object: schedule, permissions, setObject: setSchedule } = useManagedObject<Schedule>({
         ...endpointGetSchedule,
         objectType: "Schedule",
     });

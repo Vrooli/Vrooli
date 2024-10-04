@@ -18,7 +18,7 @@ import { SessionContext } from "contexts";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "hooks/tasks";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
@@ -739,6 +739,7 @@ function ApiForm({
 }
 
 export function ApiUpsert({
+    display,
     isCreate,
     isOpen,
     overrideObject,
@@ -746,8 +747,9 @@ export function ApiUpsert({
 }: ApiUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<ApiVersion, ApiVersionShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<ApiVersion, ApiVersionShape>({
         ...endpointGetApiVersion,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "ApiVersion",
         overrideObject,
@@ -771,6 +773,7 @@ export function ApiUpsert({
         >
             {(formik) => <ApiForm
                 disabled={!(isCreate || permissions.canUpdate)}
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

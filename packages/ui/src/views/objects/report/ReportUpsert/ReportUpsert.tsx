@@ -11,7 +11,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
@@ -193,14 +193,16 @@ function ReportForm({
 
 export function ReportUpsert({
     createdFor,
+    display,
     isCreate,
     isOpen,
     ...props
 }: ReportUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Report, ReportShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Report, ReportShape>({
         ...endpointGetReport,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "Report",
         transform: (existing) => reportInitialValues(session, existing, createdFor),
@@ -220,6 +222,7 @@ export function ReportUpsert({
         >
             {(formik) => <ReportForm
                 disabled={!(isCreate || permissions.canUpdate)}
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

@@ -10,7 +10,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
@@ -18,6 +18,7 @@ import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { CompleteIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { FormContainer, FormSection } from "styles";
 import { getResourceIcon } from "utils/display/getResourceIcon";
 import { combineErrorsWithTranslations, getUserLanguages, handleTranslationChange } from "utils/display/translationTools";
 import { shortcuts } from "utils/navigation/quickActions";
@@ -65,10 +66,8 @@ export function transformResourceValues(values: ResourceShape, existing: Resourc
 
 function ResourceForm({
     disabled,
-    dirty,
     display,
     existing,
-    handleUpdate,
     isCreate,
     isMutate,
     isOpen,
@@ -190,85 +189,87 @@ function ResourceForm({
             <BaseForm
                 display={display}
                 isLoading={isLoading}
-                maxWidth={500}
             >
-                <Stack direction="column" spacing={4} padding={2}>
-                    {/* Select shortcut or object */}
-                    <Stack direction="row" spacing={2}>
-                        <Button
-                            disabled={disabled || resourceType === "link"}
-                            fullWidth
-                            onClick={() => { handleResourceTypeChange("link"); }}
-                            variant={"outlined"}
-                            startIcon={resourceType === "link" ? <CompleteIcon /> : undefined}
-                        >
-                            {t("Link", { count: 1 })}
-                        </Button>
-                        <Button
-                            disabled={disabled || resourceType === "shortcut"}
-                            fullWidth
-                            onClick={() => { handleResourceTypeChange("shortcut"); }}
-                            variant={"outlined"}
-                            startIcon={resourceType === "shortcut" ? <CompleteIcon /> : undefined}
-                        >
-                            {t("Shortcut", { count: 1 })}
-                        </Button>
-                    </Stack>
-                    {resourceType === "shortcut" && <>
-                        <SelectorBase
-                            name="shortcut"
-                            value={selectedShortcut}
-                            onChange={(newValue) => { handleShortcutChange(newValue); }}
-                            options={shortcuts}
-                            getOptionLabel={(shortcut) => t(shortcut.label as CommonKey, { count: 1 })}
-                            fullWidth
-                            label={t("SelectShortcut")}
-                        />
-                    </>}
-                    {resourceType === "link" && <>
-                        {/* Enter link or search for object */}
-                        <LinkInput
-                            autoFocus
-                            name="link"
-                            onObjectData={foundLinkData}
-                            tabIndex={0}
-                        />
-                        <Selector
-                            name="usedFor"
-                            options={Object.keys(ResourceUsedFor)}
-                            getOptionIcon={(i) => getResourceIcon(i as ResourceUsedFor)}
-                            getOptionLabel={(l) => t(l as CommonKey, { count: 2 })}
-                            fullWidth
-                            label={t("Type")}
-                        />
-                    </>}
+                <FormContainer>
+                    <FormSection variant="transparent">
+                        <Stack direction="row" spacing={2}>
+                            <Button
+                                disabled={disabled || resourceType === "link"}
+                                fullWidth
+                                onClick={() => { handleResourceTypeChange("link"); }}
+                                variant={"outlined"}
+                                startIcon={resourceType === "link" ? <CompleteIcon /> : undefined}
+                            >
+                                {t("Link", { count: 1 })}
+                            </Button>
+                            <Button
+                                disabled={disabled || resourceType === "shortcut"}
+                                fullWidth
+                                onClick={() => { handleResourceTypeChange("shortcut"); }}
+                                variant={"outlined"}
+                                startIcon={resourceType === "shortcut" ? <CompleteIcon /> : undefined}
+                            >
+                                {t("Shortcut", { count: 1 })}
+                            </Button>
+                        </Stack>
+                        {resourceType === "shortcut" && <>
+                            <SelectorBase
+                                name="shortcut"
+                                value={selectedShortcut}
+                                onChange={(newValue) => { handleShortcutChange(newValue); }}
+                                options={shortcuts}
+                                getOptionLabel={(shortcut) => t(shortcut.label as CommonKey, { count: 1 })}
+                                fullWidth
+                                label={t("SelectShortcut")}
+                            />
+                        </>}
+                        {resourceType === "link" && <>
+                            {/* Enter link or search for object */}
+                            <LinkInput
+                                autoFocus
+                                name="link"
+                                onObjectData={foundLinkData}
+                                tabIndex={0}
+                            />
+                            <Selector
+                                name="usedFor"
+                                options={Object.keys(ResourceUsedFor)}
+                                getOptionIcon={(i) => getResourceIcon(i as ResourceUsedFor)}
+                                getOptionLabel={(l) => t(l as CommonKey, { count: 2 })}
+                                fullWidth
+                                label={t("Type")}
+                            />
+                        </>}
+                    </FormSection>
                     <Divider />
-                    <TranslatedTextInput
-                        fullWidth
-                        isRequired={false}
-                        label={t("Name")}
-                        language={language}
-                        name="name"
-                    />
-                    <TranslatedTextInput
-                        fullWidth
-                        isRequired={false}
-                        label={t("Description")}
-                        language={language}
-                        multiline
-                        minRows={2}
-                        maxRows={8}
-                        name="description"
-                    />
-                    {/* Language select */}
-                    {/*<LanguageInput
+                    <FormSection variant="transparent">
+                        <TranslatedTextInput
+                            fullWidth
+                            isRequired={false}
+                            label={t("Name")}
+                            language={language}
+                            name="name"
+                        />
+                        <TranslatedTextInput
+                            fullWidth
+                            isRequired={false}
+                            label={t("Description")}
+                            language={language}
+                            multiline
+                            minRows={2}
+                            maxRows={8}
+                            name="description"
+                        />
+                        {/* Language select */}
+                        {/*<LanguageInput
                         currentLanguage={language}
                         handleAdd={handleAddLanguage}
                         handleDelete={handleDeleteLanguage}
                         handleCurrent={setLanguage}
                         languages={languages}
                     />*/}
-                </Stack>
+                    </FormSection>
+                </FormContainer>
             </BaseForm>
             <BottomActionsButtons
                 display={display}
@@ -280,11 +281,12 @@ function ResourceForm({
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
             />
-        </MaybeLargeDialog>
+        </MaybeLargeDialog >
     );
 }
 
 export function ResourceUpsert({
+    display,
     isCreate,
     isMutate,
     isOpen,
@@ -293,23 +295,30 @@ export function ResourceUpsert({
 }: ResourceUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Resource, ResourceShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Resource, ResourceShape>({
         ...endpointGetResource,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "Resource",
         overrideObject: overrideObject as Resource,
         transform: (existing) => resourceInitialValues(session, existing as ResourceShape),
     });
 
+    async function validateValues(values: ResourceShape) {
+        if (!existing) return;
+        return await validateFormValues(values, existing, isCreate, transformResourceValues, resourceValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformResourceValues, resourceValidation)}
+            validate={validateValues}
         >
             {(formik) => <ResourceForm
                 disabled={!(isCreate || permissions.canUpdate)}
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

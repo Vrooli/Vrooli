@@ -18,7 +18,7 @@ import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { SessionContext } from "contexts";
 import { Formik } from "formik";
 import { useObjectActions } from "hooks/objectActions";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { AddIcon, EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -44,7 +44,7 @@ export function SmartContractView({
     const { t } = useTranslation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    const { isLoading, object: existing, permissions, setObject: setCodeVersion } = useObjectFromUrl<CodeVersion>({
+    const { isLoading, object: existing, permissions, setObject: setCodeVersion } = useManagedObject<CodeVersion>({
         ...endpointGetCodeVersion,
         objectType: "CodeVersion",
     });

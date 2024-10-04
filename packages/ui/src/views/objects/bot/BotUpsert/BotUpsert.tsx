@@ -18,7 +18,7 @@ import { SessionContext } from "contexts";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "hooks/tasks";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
@@ -542,6 +542,7 @@ function BotForm({
 }
 
 export function BotUpsert({
+    display,
     isCreate,
     isOpen,
     overrideObject,
@@ -549,8 +550,9 @@ export function BotUpsert({
 }: BotUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<User, BotShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<User, BotShape>({
         ...endpointGetUser,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "User",
         overrideObject,
@@ -571,6 +573,7 @@ export function BotUpsert({
             {(formik) =>
                 <BotForm
                     disabled={!(isCreate || permissions.canUpdate)}
+                    display={display}
                     existing={existing}
                     handleUpdate={setExisting}
                     isCreate={isCreate}

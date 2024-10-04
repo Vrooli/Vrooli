@@ -16,7 +16,7 @@ import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts";
 import { useObjectActions } from "hooks/objectActions";
 import { useFindMany } from "hooks/useFindMany";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useTabs } from "hooks/useTabs";
 import { EditIcon, EllipsisIcon, ExportIcon, SearchIcon, TeamIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -44,7 +44,7 @@ export function TeamView({
     const profileColors = useMemo(() => placeholderColor(), []);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    const { isLoading, object: team, permissions, setObject: setTeam } = useObjectFromUrl<Team>({
+    const { isLoading, object: team, permissions, setObject: setTeam } = useManagedObject<Team>({
         ...endpointGetTeam,
         objectType: "Team",
     });

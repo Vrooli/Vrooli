@@ -12,7 +12,7 @@ import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay
 import { SessionContext } from "contexts";
 import { Formik } from "formik";
 import { useObjectActions } from "hooks/objectActions";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -34,7 +34,7 @@ export function QuestionView({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const { isLoading, object: existing, permissions, setObject: setQuestion } = useObjectFromUrl<Question>({
+    const { isLoading, object: existing, permissions, setObject: setQuestion } = useManagedObject<Question>({
         ...endpointGetQuestion,
         objectType: "Question",
     });

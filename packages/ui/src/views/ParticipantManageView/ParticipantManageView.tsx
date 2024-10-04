@@ -61,7 +61,7 @@ export function ParticipantManageView({
         selectedData,
         setIsSelecting,
         setSelectedData,
-    } = useSelectableList();
+    } = useSelectableList(findManyData.allData);
     // Remove selection when tab changes
     useEffect(() => {
         setSelectedData([]);

@@ -130,8 +130,11 @@ export function useUpsertActions<T extends TType>({
         function handleAddOrUpdate(messageType: "Created" | "Updated", item: NavigableObject) {
             if (canStore) {
                 setCookiePartialData(item as NavigableObject, "full"); // Update cache to view object more quickly
-                removeCookieFormData(`${objectType}-${isCreate ? DUMMY_ID : objectId}`); // Remove form backup data from cache
-                setCookieAllowFormCache(objectType as GqlModelType, objectId ?? DUMMY_ID, false);
+                const formId = isCreate ? DUMMY_ID : objectId;
+                if (formId) {
+                    removeCookieFormData(objectType as GqlModelType, formId); // Remove form backup data from cache
+                    setCookieAllowFormCache(objectType as GqlModelType, formId, false);
+                }
             }
 
             if (display === "page") { setLocation(viewUrl ?? LINKS.Home, { replace: true }); }
@@ -149,8 +152,11 @@ export function useUpsertActions<T extends TType>({
             case ObjectDialogAction.Cancel:
                 // Remove form backup data from cache
                 if (canStore) {
-                    removeCookieFormData(`${objectType}-${isCreate ? DUMMY_ID : objectId}`);
-                    setCookieAllowFormCache(objectType as GqlModelType, objectId ?? DUMMY_ID, false);
+                    const formId = isCreate ? DUMMY_ID : objectId;
+                    if (formId) {
+                        removeCookieFormData(objectType as GqlModelType, formId);
+                        setCookieAllowFormCache(objectType as GqlModelType, formId, false);
+                    }
                 }
                 if (display === "page") goBack(setLocation, isCreate ? undefined : viewUrl);
                 else onCancel?.();
@@ -164,8 +170,11 @@ export function useUpsertActions<T extends TType>({
                 // Remove both the object and the form backup data from cache
                 if (canStore) {
                     removeCookiePartialData(item as NavigableObject);
-                    removeCookieFormData(`${objectType}-${objectId}`);
-                    setCookieAllowFormCache(objectType as GqlModelType, objectId ?? DUMMY_ID, false);
+                    const formId = isCreate ? DUMMY_ID : objectId;
+                    if (formId) {
+                        removeCookieFormData(objectType as GqlModelType, formId);
+                        setCookieAllowFormCache(objectType as GqlModelType, formId, false);
+                    }
                 }
                 if (display === "page") goBack(setLocation);
                 else onDeleted?.(item);

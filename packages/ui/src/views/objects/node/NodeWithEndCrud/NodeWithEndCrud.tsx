@@ -7,7 +7,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
@@ -31,15 +31,12 @@ export function transformNodeWithEndValues(values: NodeWithEndShape, existing: N
 
 function NodeWithEndForm({
     disabled,
-    dirty,
     display,
     existing,
-    handleUpdate,
     isCreate,
     isEditing,
     isOpen,
     isReadLoading,
-    onCancel,
     onClose,
     onCompleted,
     onDeleted,
@@ -65,6 +62,10 @@ function NodeWithEndForm({
         isCreate,
         objectId: values.id,
         objectType: "Node",
+        onAction: onClose,
+        onCompleted: onCompleted as (data: NodeWithEndShape) => unknown,
+        onDeleted: onDeleted as (data: NodeWithEndShape) => unknown,
+        suppressSnack: true,
         ...props,
     });
     useSaveToCache({ isCacheOn: false, isCreate, values, objectId: values.id, objectType: "Node" });
@@ -74,6 +75,32 @@ function NodeWithEndForm({
     }, [handleCompleted, values]);
 
     const isLoading = useMemo(() => isReadLoading || props.isSubmitting, [isReadLoading, props.isSubmitting]);
+
+    const topBarOptions = useMemo(function topBarOptionsMemo() {
+        if (isCreate) return [];
+        return [{
+            Icon: DeleteIcon,
+            label: t("Delete"),
+            onClick: () => { onDeleted?.(existing as NodeWithEnd); },
+        }];
+    }, [existing, isCreate, onDeleted, t]);
+
+    const nameProps = useMemo(function namePropsMemo() {
+        return {
+            language,
+            fullWidth: true,
+            multiline: false,
+        } as const;
+    }, [language]);
+
+    const descriptionProps = useMemo(function descriptionPropsMemo() {
+        return {
+            language,
+            maxChars: 2048,
+            minRows: 4,
+            maxRows: 8,
+        } as const;
+    }, [language]);
 
     return (
         <MaybeLargeDialog
@@ -86,39 +113,26 @@ function NodeWithEndForm({
                 display="dialog"
                 onClose={onClose}
                 title={firstString(getDisplay(values).title, t(isCreate ? "CreateNodeEnd" : "UpdateNodeEnd"))}
-                options={!isCreate ? [{
-                    Icon: DeleteIcon,
-                    label: t("Delete"),
-                    onClick: () => { onDeleted?.(existing as NodeWithEnd); },
-                }] : []}
+                options={topBarOptions}
             />
             <BaseForm
                 display={display}
                 isLoading={isLoading}
                 maxWidth={500}
             >
-                <FormContainer sx={{ marginBottom: 8 }}>
+                <FormContainer marginBottom={0}>
                     <EditableTextCollapse
                         component="TranslatedTextInput"
                         isEditing={isEditing}
                         name="name"
-                        props={{
-                            language,
-                            fullWidth: true,
-                            multiline: true,
-                        }}
+                        props={nameProps}
                         title={t("Label")}
                     />
                     <EditableTextCollapse
                         component='TranslatedMarkdown'
                         isEditing={isEditing}
                         name="description"
-                        props={{
-                            language,
-                            maxChars: 2048,
-                            minRows: 4,
-                            maxRows: 8,
-                        }}
+                        props={descriptionProps}
                         title={t("Description")}
                     />
                     <Tooltip placement={"top"} title={t("NodeWasSuccessfulHelp")}>
@@ -160,8 +174,8 @@ export function NodeWithEndCrud({
     ...props
 }: NodeWithEndCrudProps) {
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<NodeWithEndShape, NodeWithEndShape>({
-        ...endpointGetApi, // Won't be used. Need to pass an endpoint to useObjectFromUrl
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<NodeWithEndShape, NodeWithEndShape>({
+        ...endpointGetApi, // Won't be used. Need to pass an endpoint to useManagedObject
         isCreate: false,
         objectType: "Node",
         overrideObject: overrideObject as NodeWithEndShape,
