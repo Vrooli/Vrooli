@@ -1,5 +1,6 @@
 import { ChatMessage, DUMMY_ID } from "@local/shared";
-import { act, renderHook } from "@testing-library/react";
+import { renderHook } from "@testing-library/react";
+import { act } from "react";
 import { MessageNode, MinimumChatMessage, useMessageTree } from "./messages";
 
 /** First test case: Result should have messages in order from ID 1 to 10, each with node having a single child */

@@ -1,5 +1,5 @@
 import { IconButton, Tooltip, Typography } from "@mui/material";
-import { usePress } from "hooks/gestures";
+import { UsePressEvent, usePress } from "hooks/gestures";
 import { RedirectIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";
@@ -36,7 +36,7 @@ export function RedirectNode({
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
-    const openContext = useCallback((target: EventTarget) => {
+    const openContext = useCallback(({ target }: UsePressEvent) => {
         // Ignore if not linked or editing
         if (!canDrag || !isLinked) return;
         setContextAnchor(target);

@@ -83,7 +83,7 @@ export function MyStuffView({
         selectedData,
         setIsSelecting,
         setSelectedData,
-    } = useSelectableList<ListObject>();
+    } = useSelectableList<ListObject>(findManyData.allData);
     const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions<ListObject>({
         ...findManyData,
         selectedData,

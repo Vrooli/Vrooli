@@ -1,6 +1,6 @@
 import { Routine } from "@local/shared";
 import { Box, BoxProps, IconButton, Tooltip, Typography, TypographyProps, styled, useTheme } from "@mui/material";
-import { usePress } from "hooks/gestures";
+import { UsePressEvent, usePress } from "hooks/gestures";
 import { ActionIcon, CloseIcon, NoActionIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { multiLineEllipsis, noSelect } from "styles";
@@ -114,7 +114,7 @@ export function SubroutineNode({
         }
         handleAction(action, data.id);
     }, [data.id, handleAction]);
-    const openSubroutine = useCallback((target: EventTarget) => {
+    const openSubroutine = useCallback(({ target }: UsePressEvent) => {
         if (!shouldOpen(target.id)) return;
         onAction(null, BuildAction.OpenSubroutine);
     }, [onAction]);
@@ -132,7 +132,7 @@ export function SubroutineNode({
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const contextId = useMemo(() => `subroutine-context-menu-${data.id}`, [data?.id]);
     const contextOpen = Boolean(contextAnchor);
-    const openContext = useCallback((target: EventTarget) => {
+    const openContext = useCallback(({ target }: UsePressEvent) => {
         // Ignore if not editing
         if (!isEditing) return;
         setContextAnchor(target);

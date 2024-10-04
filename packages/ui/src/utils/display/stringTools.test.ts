@@ -354,13 +354,15 @@ describe("replaceText", () => {
 
 describe("getTextSelection", () => {
     // Mocking the textArea object
-    const mockTextArea = () => ({
-        tagName: "TEXTAREA",
-        value: "Hello, world!",
-        selectionStart: 0,
-        selectionEnd: 0,
-        // You can add more properties and methods if needed
-    });
+    function mockTextArea() {
+        return {
+            tagName: "TEXTAREA",
+            value: "Hello, world!",
+            selectionStart: 0,
+            selectionEnd: 0,
+            // You can add more properties and methods if needed
+        } as const;
+    }
 
     beforeAll(() => {
         // Mock console.error to avoid cluttering test output

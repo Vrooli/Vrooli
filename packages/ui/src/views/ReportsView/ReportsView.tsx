@@ -13,8 +13,8 @@ import { useObjectActions } from "hooks/objectActions";
 import { useDimensions } from "hooks/useDimensions";
 import { useFindMany } from "hooks/useFindMany";
 import { useLazyFetch } from "hooks/useLazyFetch";
+import { fetchDataUsingUrl } from "hooks/useManagedObject";
 import { useObjectContextMenu } from "hooks/useObjectContextMenu";
-import { fetchDataUsingUrl } from "hooks/useObjectFromUrl";
 import { goBack } from "hooks/useUpsertActions";
 import { ReportIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -229,9 +229,9 @@ export function ReportsView() {
         where: objectType ? {
             [reportForSearchFields[objectType]]: object?.id,
             // status: statusFilter !== "All" ? [statusFilter] : undefined,
-            visibility: VisibilityType.OwnOrPublic
+            visibility: VisibilityType.OwnOrPublic,
         } : {
-            visibility: VisibilityType.OwnOrPublic
+            visibility: VisibilityType.OwnOrPublic,
         },
     });
 

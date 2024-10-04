@@ -1,6 +1,7 @@
 import { Bookmark, GqlModelType, isOfType, ListObject, noop, OrArray, Reaction, View } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
+import { UsePressEvent } from "hooks/gestures";
 import { useObjectActions } from "hooks/objectActions";
 import { useDimensions } from "hooks/useDimensions";
 import { useObjectContextMenu } from "hooks/useObjectContextMenu";
@@ -69,7 +70,7 @@ type ObjectListItemPropsForMultiple<T extends OrArray<ListObject>> = T extends L
 export type ObjectListProps<T extends OrArray<ListObject>> = Pick<ObjectListItemPropsForMultiple<T>, "canNavigate" | "hideUpdateButton" | "loading" | "onAction" | "onClick"> & {
     /** List of dummy items types to display while loading */
     dummyItems?: (GqlModelType | `${GqlModelType}`)[];
-    handleToggleSelect?: (item: ListObject) => unknown,
+    handleToggleSelect?: (item: ListObject, event?: UsePressEvent) => unknown,
     /** True if list can be reordered (e.g. resource list) */
     isListReorderable?: boolean;
     /** The list of item data. Objects like view and star are converted to their respective objects. */
@@ -101,7 +102,6 @@ export function ObjectList<T extends OrArray<ListObject>>({
     const { breakpoints } = useTheme();
     const [, setLocation] = useLocation();
     const stableItems = useStableObject(items);
-    const stableOnClick = useStableCallback(onClick);
     const stableOnAction = useStableCallback(onAction);
 
     const { dimensions, ref: dimRef } = useDimensions();
@@ -150,11 +150,11 @@ export function ObjectList<T extends OrArray<ListObject>>({
                     loading={false}
                     objectType={curr.__typename}
                     onAction={stableOnAction}
-                    onClick={stableOnClick}
+                    onClick={onClick}
                 />
             );
         });
-    }, [stableItems, keyPrefix, canNavigate, contextData.handleContextMenu, handleToggleSelect, hideUpdateButton, isMobile, isSelecting, selectedItems, stableOnAction, stableOnClick]);
+    }, [stableItems, keyPrefix, canNavigate, contextData.handleContextMenu, handleToggleSelect, hideUpdateButton, isMobile, isSelecting, selectedItems, stableOnAction, onClick]);
 
     // Generate dummy items
     const dummyListItems = useMemo(() => {

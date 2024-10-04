@@ -174,7 +174,7 @@ describe("stringifySearchParams", () => {
 describe("stringifySearchParams and parseSearchParams", () => {
     const originalLocation = window.location;
 
-    const setWindowSearch = (search: string) => {
+    function setWindowSearch(search: string) {
         Object.defineProperty(window, "location", {
             value: {
                 ...originalLocation,
@@ -182,7 +182,7 @@ describe("stringifySearchParams and parseSearchParams", () => {
             },
             writable: true,
         });
-    };
+    }
 
     afterEach(() => {
         Object.defineProperty(window, "location", {

@@ -1,6 +1,6 @@
 import { getTranslation, NodeRoutineListItem } from "@local/shared";
 import { Box, Button, Collapse, Container, ContainerProps, IconButton, styled, Tooltip, Typography, TypographyProps, useTheme } from "@mui/material";
-import { usePress } from "hooks/gestures";
+import { usePress, UsePressEvent } from "hooks/gestures";
 import { useDebounce } from "hooks/useDebounce";
 import { ActionIcon, AddIcon, CloseIcon, EditIcon, ExpandLessIcon, ExpandMoreIcon, ListBulletIcon, ListNumberIcon, NoActionIcon } from "icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -145,7 +145,7 @@ export function RoutineListNode({
     // Default to open if editing and empty
     const [collapseOpen, setCollapseOpen] = useState<boolean>(isEditing && node.routineList.items?.length === 0);
     const [collapseDebounce] = useDebounce(setCollapseOpen, COLLAPSE_DEBOUNCE_MS);
-    const toggleCollapse = useCallback((target: EventTarget) => {
+    const toggleCollapse = useCallback(({ target }: UsePressEvent) => {
         if (isLinked && shouldCollapse(target.id)) {
             PubSub.get().publish("fastUpdate", { duration: 1000 });
             collapseDebounce(!collapseOpen);
@@ -277,7 +277,7 @@ export function RoutineListNode({
     const [contextAnchor, setContextAnchor] = useState<any | null>(null);
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
-    const openContext = useCallback((target: EventTarget) => {
+    const openContext = useCallback(({ target }: UsePressEvent) => {
         // Ignore if not linked, not editing, or in the middle of an event (drag, collapse, move, etc.)
         if (!canDrag || !isLinked || !isEditing || fastUpdateRef.current) return;
         setContextAnchor(target);
@@ -323,6 +323,7 @@ export function RoutineListNode({
                 overrideObject={node as NodeWithRoutineList}
             />
             <StyledDraggableNode
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                 // @ts-ignore We're overriding borderColor
                 borderColor={borderColor}
                 className="handle"

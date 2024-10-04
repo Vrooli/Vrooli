@@ -64,7 +64,7 @@ export function InboxView({
         selectedData,
         setIsSelecting,
         setSelectedData,
-    } = useSelectableList<InboxObject>();
+    } = useSelectableList<InboxObject>(allData);
     const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions<InboxObject>({
         allData,
         selectedData,

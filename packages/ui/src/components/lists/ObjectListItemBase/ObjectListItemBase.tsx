@@ -8,12 +8,12 @@ import { VoteButton } from "components/buttons/VoteButton/VoteButton";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { CompletionBarProps } from "components/types";
 import { SessionContext } from "contexts";
-import { usePress } from "hooks/gestures";
+import { UsePressEvent, usePress } from "hooks/gestures";
 import { BookmarkFilledIcon, BotIcon, EditIcon, TeamIcon, UserIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { ObjectListProfileAvatar, multiLineEllipsis } from "styles";
+import { ObjectListProfileAvatar, multiLineEllipsis, noSelect } from "styles";
 import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
 import { extractImageUrl } from "utils/display/imageTools";
@@ -121,7 +121,7 @@ export function ListItemCompletionBar({
         return {
             bar: {
                 backgroundColor: background,
-            }
+            },
         } as const;
     }, [color, palette]);
 
@@ -153,6 +153,7 @@ const StyledListItem = styled(Box, {
     "& *": {
         textDecoration: "none",
     },
+    ...noSelect,
 }));
 
 const TitleBox = styled(Box)(({ theme }) => ({
@@ -190,6 +191,35 @@ const EditIconBox = styled(Box, {
     cursor: "pointer",
     pointerEvents: "all",
     paddingBottom: isMobile ? "0px" : "4px",
+}));
+
+interface GiantSelectorProps extends BoxProps {
+    isSelected: boolean;
+}
+const GiantSelector = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "isSelected",
+})<GiantSelectorProps>(({ isSelected, theme }) => ({
+    width: theme.spacing(3),
+    height: theme.spacing(3),
+    borderRadius: "50%",
+    backgroundColor: isSelected ? theme.palette.secondary.dark : theme.palette.background.paper,
+    border: `1px solid ${theme.palette.divider}`,
+    pointerEvents: "none",
+    marginRight: theme.spacing(1),
+    marginTop: "auto",
+    marginBottom: "auto",
+}));
+
+const TitleText = styled(ListItemText)(({ theme }) => ({
+    color: theme.palette.background.textPrimary,
+    ...noSelect,
+}));
+
+const SubtitleText = styled(MarkdownDisplay)(({ theme }) => ({
+    color: theme.palette.text.secondary,
+    pointerEvents: "none",
+    ...multiLineEllipsis(2),
+    ...noSelect,
 }));
 
 /**
@@ -241,13 +271,13 @@ export function ObjectListItemBase<T extends ListObject>({
         !isSelecting ?
         getObjectUrl(data) :
         "", [data, canNavigate, isSelecting, onClick]);
-    const handleClick = useCallback((target: EventTarget) => {
-        if (!target.id || !target.id.startsWith(LIST_PREFIX)) return;
+    const handleClick = useCallback((event: UsePressEvent) => {
+        if (!event.target.id || !event.target.id.startsWith(LIST_PREFIX)) return;
         // If data not supplied, don't open
         if (data === null) return;
         // If in selection mode, toggle selection
         if (isSelecting && typeof handleToggleSelect === "function") {
-            handleToggleSelect(data);
+            handleToggleSelect(data, event);
             return;
         }
         // If onClick is supplied, call it instead of navigating
@@ -283,9 +313,9 @@ export function ObjectListItemBase<T extends ListObject>({
     }, [canNavigate, data, editUrl, setLocation]);
 
     const pressEvents = usePress({
-        onLongPress: (target) => { handleContextMenu(target, data); },
+        onLongPress: ({ target }) => { handleContextMenu(target, data); },
         onClick: handleClick,
-        onRightClick: (target) => { handleContextMenu(target, data); },
+        onRightClick: ({ target }) => { handleContextMenu(target, data); },
     });
 
     /**
@@ -465,17 +495,8 @@ export function ObjectListItemBase<T extends ListObject>({
                 isSelected={isSelected}
                 {...pressEvents}
             >
-                {/* Giant radio button if isSelecting */}
-                {isSelecting && <Box
-                    sx={{
-                        width: "24px",
-                        height: "24px",
-                        borderRadius: "50%",
-                        backgroundColor: isSelected ? palette.secondary.main : palette.background.paper,
-                        border: `1px solid ${palette.divider}`,
-                        pointerEvents: "none",
-                        marginRight: "8px",
-                    }}
+                {isSelecting && <GiantSelector
+                    isSelected={isSelected}
                 />}
                 {leftColumn}
                 <Stack
@@ -494,7 +515,7 @@ export function ObjectListItemBase<T extends ListObject>({
                         : (titleOverride ?? title)
                             ? (
                                 <TitleBox id={titleId}>
-                                    <ListItemText primary={titleOverride ?? title} sx={{ color: palette.background.textPrimary }} />
+                                    <TitleText primary={titleOverride ?? title} />
                                     {adornments.map(({ Adornment, key }) => (
                                         <Box key={key} sx={{
                                             height: fontSizeToPixels(typography.body1.fontSize ?? "1rem", titleId) * Number(typography.body1.lineHeight ?? "1.5"),
@@ -511,9 +532,8 @@ export function ObjectListItemBase<T extends ListObject>({
                         loading
                             ? <TextLoading />
                             : (subtitleOverride ?? subtitle)
-                                ? <MarkdownDisplay
+                                ? <SubtitleText
                                     content={subtitleOverride ?? subtitle}
-                                    sx={{ ...multiLineEllipsis(2), color: palette.text.secondary, pointerEvents: "none" }}
                                 />
                                 : null
                     }

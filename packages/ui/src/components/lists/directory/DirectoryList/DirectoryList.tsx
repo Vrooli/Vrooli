@@ -12,7 +12,7 @@ import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { ObjectListActions } from "components/lists/types";
 import { SessionContext } from "contexts";
-import { usePress } from "hooks/gestures";
+import { UsePressEvent, usePress } from "hooks/gestures";
 import { useBulkObjectActions, useObjectActions } from "hooks/objectActions";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useObjectContextMenu } from "hooks/useObjectContextMenu";
@@ -111,7 +111,7 @@ export function DirectoryCard({
     }, [data]);
 
     const href = useMemo(() => data ? getObjectUrl(data) : "#", [data]);
-    const handleClick = useCallback((target: EventTarget) => {
+    const handleClick = useCallback(({ target }: UsePressEvent) => {
         // Check if delete button was clicked
         const targetId: string | undefined = target.id;
         if (targetId && targetId.startsWith("delete-")) {
@@ -122,7 +122,7 @@ export function DirectoryCard({
             setLocation(href);
         }
     }, [data, href, onDelete, setLocation]);
-    const handleContextMenu = useCallback((target: EventTarget) => {
+    const handleContextMenu = useCallback(({ target }: UsePressEvent) => {
         onContextMenu(target, data);
     }, [onContextMenu, data]);
 
@@ -427,7 +427,7 @@ export function DirectoryList(props: DirectoryListProps) {
         selectedData,
         setIsSelecting,
         setSelectedData,
-    } = useSelectableList<DirectoryItem>();
+    } = useSelectableList<DirectoryItem>(list);
     const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions<DirectoryItem>({
         allData: list,
         selectedData,

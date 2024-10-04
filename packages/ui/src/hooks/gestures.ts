@@ -248,12 +248,18 @@ const DEFAULT_PRESS_DELAY = 300;
 const DEFAULT_HOVER_DELAY = 900;
 const EVENT_TIME_THRESHOLD = 20;
 
-interface UsePressProps {
-    onLongPress: (target: EventTarget) => unknown;
-    onClick?: (target: EventTarget) => unknown;
-    onHover?: (target: EventTarget) => unknown;
-    onHoverEnd?: (target: EventTarget) => unknown;
-    onRightClick?: (target: EventTarget) => unknown;
+/** Partial event data, since callbacks can be triggered by different event types */
+export type UsePressEvent = {
+    shiftKey: boolean;
+    target: EventTarget;
+}
+
+type UsePressProps = {
+    onLongPress: (event: UsePressEvent) => unknown;
+    onClick?: (event: UsePressEvent) => unknown;
+    onHover?: (event: UsePressEvent) => unknown;
+    onHoverEnd?: (event: UsePressEvent) => unknown;
+    onRightClick?: (event: UsePressEvent) => unknown;
     shouldPreventDefault?: boolean;
     pressDelay?: number;
     hoverDelay?: number;
@@ -347,8 +353,9 @@ export function usePress({
     // Positions to calculate travel (drag) distance
     const startPosition = useRef<{ x: number, y: number }>({ x: 0, y: 0 });
     const lastPosition = useRef<{ x: number, y: number }>({ x: 0, y: 0 });
-    // Event target, for adding/removing event listeners
+    // Store event data
     const target = useRef<React.MouseEvent["target"]>();
+    const shiftKey = useRef<boolean>(false);
     // Stores if click was a right click
     const isRightClick = useRef<boolean>(false);
     // Stores if object is currently being pressed
@@ -358,7 +365,7 @@ export function usePress({
     // Stores if object is currently being dragged
     const isDragging = useRef<boolean>(false);
 
-    const hover = useCallback((event: React.MouseEvent | React.TouchEvent) => {
+    const hover = useCallback(function handleHoverCallback(event: React.MouseEvent | React.TouchEvent) {
         // Ignore if pressing or already hovered
         if (isPressing.current || isHovering.current) return;
         // Cancel if already triggered
@@ -368,14 +375,17 @@ export function usePress({
         }
         // Set timeout. Hover delay is longer than press delay
         hoverTimeout.current = setTimeout(() => {
-            if (target.current) onHover?.(target.current);
+            if (target.current) onHover?.({
+                shiftKey: false, // Hover events don't have shift key
+                target: target.current,
+            });
             isHovering.current = true;
         }, hoverDelay);
         // Store target
         target.current = event.target ?? event.currentTarget as React.MouseEvent["target"];
     }, [onHover, hoverDelay]);
 
-    const start = useCallback((event: React.MouseEvent | React.TouchEvent) => {
+    const start = useCallback(function handleStartCallback(event: React.MouseEvent | React.TouchEvent) {
         // Ignore if start event has already been triggered
         if (!isNewEvent(event, "start")) return;
         // Cancel hover timeout
@@ -395,15 +405,19 @@ export function usePress({
                 event.target.addEventListener("touchEnd", preventDefaultTouch as any, { passive: false });
             }
         }
-        // Store target
+        // Store event information
         target.current = event.target ?? event.currentTarget as React.MouseEvent["target"];
+        shiftKey.current = event.shiftKey;
         // Store position
         const currentPosition = getPosition(event);
         startPosition.current = currentPosition;
         lastPosition.current = currentPosition;
         // Start pressTimeout to determine if long press
         pressTimeout.current = setTimeout(() => {
-            if (!longPressTriggered.current && target.current) onLongPress(target.current);
+            if (!longPressTriggered.current && target.current) onLongPress({
+                shiftKey: shiftKey.current,
+                target: target.current,
+            });
             longPressTriggered.current = true;
         }, pressDelay);
     }, [onLongPress, shouldPreventDefault, pressDelay]);
@@ -436,7 +450,10 @@ export function usePress({
         }
         // If hover was triggered, trigger hoverEnd
         if (isHovering.current) {
-            if (target.current) onHoverEnd?.(target.current);
+            if (target.current) onHoverEnd?.({
+                shiftKey: false, // Hover events don't have shift key
+                target: target.current,
+            });
             isHovering.current = false;
         }
         // Calculate distance travelled
@@ -455,9 +472,15 @@ export function usePress({
             target.current
         ) {
             if (isRightClick.current) {
-                typeof onRightClick === "function" && onRightClick(target.current);
+                typeof onRightClick === "function" && onRightClick({
+                    shiftKey: shiftKey.current,
+                    target: target.current,
+                });
             } else {
-                typeof onClick === "function" && onClick(target.current);
+                typeof onClick === "function" && onClick({
+                    shiftKey: shiftKey.current,
+                    target: target.current,
+                });
             }
         }
         // Reset state and remove event listeners

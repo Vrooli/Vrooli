@@ -1,5 +1,5 @@
 import { Box, BoxProps, Tooltip, Typography, TypographyProps, styled } from "@mui/material";
-import { usePress } from "hooks/gestures";
+import { UsePressEvent, usePress } from "hooks/gestures";
 import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";
 import { BuildAction } from "utils/consts";
@@ -69,7 +69,7 @@ export function StartNode({
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
-    const openContext = useCallback((target: EventTarget) => {
+    const openContext = useCallback(({ target }: UsePressEvent) => {
         if (!isEditing) return;
         setContextAnchor(target);
     }, [isEditing]);

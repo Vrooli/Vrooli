@@ -3,7 +3,7 @@ import { handleRegex, ResourceUsedFor, urlRegex, walletAddressRegex } from "@loc
 import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { SessionContext } from "contexts";
-import { usePress } from "hooks/gestures";
+import { usePress, UsePressEvent } from "hooks/gestures";
 import { DeleteIcon, EditIcon, OpenInNewIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { openLink, useLocation } from "route";
@@ -22,12 +22,12 @@ import { ResourceListItemProps } from "../types";
  * @param link String to check
  * @returns ResourceType if type found, or null if not
  */
-const getResourceType = (link: string): ResourceType | null => {
+function getResourceType(link: string): ResourceType | null {
     if (urlRegex.test(link)) return ResourceType.Url;
     if (walletAddressRegex.test(link)) return ResourceType.Wallet;
     if (handleRegex.test(link)) return ResourceType.Handle;
     return null;
-};
+}
 
 export function ResourceListItem({
     canUpdate,
@@ -46,7 +46,7 @@ export function ResourceListItem({
     const Icon = useMemo(() => getResourceIcon(data.usedFor ?? ResourceUsedFor.Related, data.link), [data]);
 
     const href = useMemo(() => getResourceUrl(data.link), [data]);
-    const handleClick = useCallback((target: EventTarget) => {
+    const handleClick = useCallback(({ target }: UsePressEvent) => {
         // Ignore if clicked edit or delete button
         if (target.id && ["delete-icon-button", "edit-icon-button"].includes(target.id)) return;
         // If no resource type or link, show error

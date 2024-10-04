@@ -73,7 +73,7 @@ export function getYou(
 ): YouInflated {
     // Initialize fields to false (except reaction, since that's an emoji or null instead of a boolean)
     const objectPermissions = { ...defaultYou };
-    if (!object) return objectPermissions;
+    if (!object || !Object.prototype.hasOwnProperty.call(object, "__typename")) return objectPermissions;
     // Shortcut: If ID is DUMMY_ID, then it's a new object and you only delete it
     if (object.id === DUMMY_ID) return {
         ...Object.keys(defaultYou).reduce((acc, key) => ({ ...acc, [key]: typeof defaultYou[key] === "boolean" ? false : defaultYou[key] }), {}),

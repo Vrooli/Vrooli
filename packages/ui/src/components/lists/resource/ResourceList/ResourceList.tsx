@@ -10,7 +10,7 @@ import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { ObjectListActions } from "components/lists/types";
 import { SessionContext } from "contexts";
 import { useField } from "formik";
-import { usePress } from "hooks/gestures";
+import { UsePressEvent, usePress } from "hooks/gestures";
 import { useBulkObjectActions, useObjectActions } from "hooks/objectActions";
 import { useDebounce } from "hooks/useDebounce";
 import { useLazyFetch } from "hooks/useLazyFetch";
@@ -61,7 +61,7 @@ const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
     }, [data.link, data.usedFor]);
 
     const href = useMemo(() => getResourceUrl(data.link), [data]);
-    const handleClick = useCallback((target: EventTarget) => {
+    const handleClick = useCallback(({ target }: UsePressEvent) => {
         // Check if edit or delete button was clicked
         const targetId: string | undefined = target.id;
         if (targetId && targetId.startsWith("edit-")) {
@@ -82,7 +82,7 @@ const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
         }
     }, [data, href, onDelete, onEdit, setLocation]);
     const [handleClickDebounce] = useDebounce(handleClick, 100);
-    const handleContextMenu = useCallback((target: EventTarget) => {
+    const handleContextMenu = useCallback(({ target }: UsePressEvent) => {
         onContextMenu(target, data);
     }, [data, onContextMenu]);
 
@@ -488,7 +488,7 @@ export function ResourceList(props: ResourceListProps) {
         selectedData,
         setIsSelecting,
         setSelectedData,
-    } = useSelectableList<Resource>();
+    } = useSelectableList<Resource>(list?.resources ?? []);
     const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions<Resource>({
         allData: list?.resources ?? [],
         selectedData,
