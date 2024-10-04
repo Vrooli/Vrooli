@@ -202,6 +202,14 @@ export function findBotData(
     };
 }
 
+/**
+ * Using the participants and the responding bot ID, parses the stringified bot information 
+ * associated with the responding bot.
+ * @param participants The participants in the chat
+ * @param respondingBotId The ID of the bot that is responding
+ * @param logger The logger to use for logging errors
+ * @returns The bot settings for the responding bot, or null if the bot is not found
+ */
 export function parseBotInformation(
     participants: Record<string, { name: string, botSettings: string }>,
     respondingBotId: string,

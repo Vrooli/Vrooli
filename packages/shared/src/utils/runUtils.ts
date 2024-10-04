@@ -147,7 +147,11 @@ export type RunRequestPayloadBase = {
     status: TaskStatus | `${TaskStatus}`;
     /** Why the status changed */
     statusChangeReason?: RunStatusChangeReason;
-    /** Unique ID to track task */
+    /**
+     * Unique ID to track task 
+     * 
+     * NOTE: This is the ID of the task job for managing the task queue, not the LlmTask task ID
+     */
     taskId: string;
 }
 
@@ -2053,7 +2057,7 @@ export function defaultSchemaOutputGenerate(): FormSchema {
             {
                 fieldName: "response",
                 id: "response",
-                label: i18next.t("Response"),
+                label: i18next.t("Response", { count: 1 }),
                 props: {
                     placeholder: "Model response will be displayed here",
                 },

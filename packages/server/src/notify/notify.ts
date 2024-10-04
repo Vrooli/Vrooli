@@ -184,13 +184,16 @@ function getEventStartLabel(date: Date) {
     return `in ${Math.round(diff / DAYS_1_MS)} days`;
 }
 
+type Owner = { __typename: "User" | "Team", id: string };
+
 type NotifyResultType = {
-    toUser: (userId: string) => Promise<void>,
-    toUsers: (userIds: (string | { userId: string, delays: number[] })[]) => Promise<void>,
-    toTeam: (teamId: string, excludedUsers?: string[] | string) => Promise<void>,
-    toOwner: (owner: { __typename: "User" | "Team", id: string }, excludedUsers?: string[] | string) => Promise<void>,
-    toSubscribers: (objectType: SubscribableObject | `${SubscribableObject}`, objectId: string, excludedUsers?: string[] | string) => Promise<void>,
-    toChatParticipants: (chatId: string, excludedUsers?: string[] | string) => Promise<void>,
+    toUser: (userId: string) => Promise<unknown>,
+    toUsers: (userIds: (string | { userId: string, delays: number[] })[]) => Promise<unknown>,
+    toTeam: (teamId: string, excludedUsers?: string[] | string) => Promise<unknown>,
+    toOwner: (owner: { __typename: "User" | "Team", id: string }, excludedUsers?: string[] | string) => Promise<unknown>,
+    toSubscribers: (objectType: SubscribableObject | `${SubscribableObject}`, objectId: string, excludedUsers?: string[] | string) => Promise<unknown>,
+    toChatParticipants: (chatId: string, excludedUsers?: string[] | string) => Promise<unknown>,
+    toAll: (objectType: GqlModelType | `${GqlModelType}`, objectId: string, owner: Owner | null | undefined, excludedUsers?: string | string[]) => Promise<unknown>,
 }
 
 /**
@@ -273,22 +276,14 @@ async function replaceLabels(
  * Class returned by each notify function. Allows us to either
  * send the notification to one user, or to all admins of a team
  */
-function NotifyResult({
-    bodyKey,
-    bodyVariables,
-    category,
-    languages,
-    link,
-    silent,
-    titleKey,
-    titleVariables,
-}: NotifyResultParams): NotifyResultType {
+function NotifyResult(notification: NotifyResultParams): NotifyResultType {
     return {
         /**
          * Sends a notification to a user
          * @param userId The user's id
          */
         toUser: async (userId) => {
+            const { bodyKey, bodyVariables, category, link, titleKey, titleVariables, silent, languages } = notification;
             // Shape and translate the notification for the user
             const users = await replaceLabels(bodyVariables, titleVariables, silent, languages, [{ languages, userId }]);
             // Send the notification
@@ -299,6 +294,7 @@ function NotifyResult({
          * @param userIds The users' ids
          */
         toUsers: async (userIds) => {
+            const { bodyKey, bodyVariables, category, link, titleKey, titleVariables, silent, languages } = notification;
             // Shape and translate the notification for each user
             const users = await replaceLabels(
                 bodyVariables,
@@ -320,6 +316,7 @@ function NotifyResult({
          * (usually the user who triggered the notification)
          */
         toTeam: async (teamId, excludedUsers) => {
+            const { bodyKey, bodyVariables, category, link, titleKey, titleVariables, silent, languages } = notification;
             // Find every admin of the team, excluding the user who triggered the notification
             const adminData = await ModelMap.get<TeamModelLogic>("Team").query.findAdminInfo(teamId, excludedUsers);
             // Shape and translate the notification for each admin
@@ -336,10 +333,10 @@ function NotifyResult({
          * @param excludedUsers IDs of users to exclude from the notification
          */
         toOwner: async (owner, excludedUsers) => {
-            if (owner.__typename === "User") {
-                await NotifyResult({ bodyKey, bodyVariables, category, languages, link, silent, titleKey, titleVariables }).toUser(owner.id);
+            if (owner.__typename === "User" && !excludedUsers?.includes(owner.id)) {
+                await NotifyResult(notification).toUser(owner.id);
             } else if (owner.__typename === "Team") {
-                await NotifyResult({ bodyKey, bodyVariables, category, languages, link, silent, titleKey, titleVariables }).toTeam(owner.id, excludedUsers);
+                await NotifyResult(notification).toTeam(owner.id, excludedUsers);
             }
         },
         /**
@@ -350,6 +347,7 @@ function NotifyResult({
          */
         toSubscribers: async (objectType, objectId, excludedUsers) => {
             try {
+                const { bodyKey, bodyVariables, category, link, titleKey, titleVariables, silent, languages } = notification;
                 await batch<Prisma.notification_subscriptionFindManyArgs>({
                     objectType: "NotificationSubscription",
                     processBatch: async (batch: { subscriberId: string, silent: boolean }[]) => {
@@ -386,6 +384,7 @@ function NotifyResult({
          */
         toChatParticipants: async (chatId, excludedUsers) => {
             try {
+                const { bodyKey, bodyVariables, category, link, titleKey, titleVariables, silent, languages } = notification;
                 await batch<Prisma.chat_participantsFindManyArgs>({
                     objectType: "ChatParticipant",
                     processBatch: async (batch: { user: { id: string } }[]) => {
@@ -406,6 +405,33 @@ function NotifyResult({
                 });
             } catch (error) {
                 logger.error("Caught error in toChatParticipants", { trace: "0498", error });
+            }
+        },
+        /**
+         * Sends a notification to all relevant recipients:
+         * - Owner (User or Team)
+         * - Subscribers (if subscribable)
+         * - Team members (if owner is a Team)
+         * @param params Configuration for sending notifications
+         */
+        toAll: async (
+            objectType,
+            objectId,
+            owner,
+            excludedUsers,
+        ) => {
+            // If the object is subscribable, notify subscribers
+            const isSubscribable = isObjectSubscribable(objectType);
+            if (isSubscribable) {
+                await NotifyResult(notification).toSubscribers(objectType as string as SubscribableObject, objectId, excludedUsers);
+            }
+            // If the object is not subscribable, for now we'll assume that it shouldn't trigger any notifications
+            else {
+                return;
+            }
+            // Notify the owner
+            if (owner) {
+                await NotifyResult(notification).toOwner(owner, excludedUsers);
             }
         },
     };
@@ -540,7 +566,7 @@ export function Notify(languages: string[]) {
             issueId: string,
             objectId: string,
             objectType: GqlModelType | `${GqlModelType}`,
-            status: IssueStatus | `${IssueStatus}`,
+            status: Exclude<IssueStatus, "Draft"> | `${Exclude<IssueStatus, "Draft">}`,
         ): NotifyResultType => NotifyResult({
             bodyKey: `IssueStatus${status}Body`,
             bodyVariables: { issueName: `<Label|Issue:${issueId}>`, objectName: `<Label|${objectType}:${objectId}>` },
@@ -647,7 +673,7 @@ export function Notify(languages: string[]) {
             reportId: string,
             objectId: string,
             objectType: GqlModelType | `${GqlModelType}`,
-            status: PullRequestStatus | `${PullRequestStatus}`,
+            status: Exclude<PullRequestStatus, "Draft"> | `${Exclude<PullRequestStatus, "Draft">}`,
         ): NotifyResultType => NotifyResult({
             bodyKey: `PullRequestStatus${status}Body`,
             bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },

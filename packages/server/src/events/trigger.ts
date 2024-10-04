@@ -1,9 +1,9 @@
-import { AwardCategory, BookmarkFor, ChatMessage, CopyType, GqlModelType, IssueStatus, PullRequestStatus, ReactionFor, ReportStatus, SubscribableObject } from "@local/shared";
+import { AwardCategory, BookmarkFor, ChatMessage, CopyType, GqlModelType, IssueStatus, PullRequestStatus, ReactionFor, ReportStatus } from "@local/shared";
 import { setupEmailVerificationCode } from "../auth/email";
 import { prismaInstance } from "../db/instance";
 import { Notify, isObjectSubscribable } from "../notify";
 import { emitSocketEvent } from "../sockets/events";
-import { ChatMessageBeforeDeletedData, PreMapMessageData } from "../utils/chat";
+import { PreMapMessageData, PreMapMessageDataDelete } from "../utils/chat";
 import { Award, objectAwardCategory } from "./awards";
 import { logger } from "./logger";
 import { Reputation, objectReputationEvent } from "./reputation";
@@ -66,26 +66,24 @@ export function Trigger(languages: string[]) {
             data,
             message,
         }: {
-            data: PreMapMessageData,
+            data: Pick<PreMapMessageData, "chatId">,
             message: ChatMessage,
         }) => {
             if (data.chatId) {
-                emitSocketEvent("messages", data.chatId, { edited: [message] });
+                emitSocketEvent("messages", data.chatId, { updated: [message] });
             } else {
                 logger.error("Could not send socket event for ChatMessage", { trace: "0496", message, data });
             }
         },
         chatMessageDeleted: async ({
             data,
-            messageId,
         }: {
-            data: ChatMessageBeforeDeletedData,
-            messageId: string,
+            data: Pick<PreMapMessageDataDelete, "chatId" | "messageId">,
         }) => {
             if (data.chatId) {
-                emitSocketEvent("messages", data.chatId, { deleted: [messageId] });
+                emitSocketEvent("messages", data.chatId, { removed: [data.messageId] });
             } else {
-                logger.error("Could not send socket event for ChatMessage}", { trace: "0497", messageId, data });
+                logger.error("Could not send socket event for ChatMessage}", { trace: "0497", data });
             }
         },
         issueActivity: async ({
@@ -107,6 +105,8 @@ export function Trigger(languages: string[]) {
             objectType: GqlModelType | `${GqlModelType}`,
             userUpdatingIssueId: string,
         }) => {
+            // Ignore drafts
+            if (issueStatus === "Draft") return;
             // If issue has never been closed or rejected (to prevent users from reopning issues to get awards/reputation)
             if (!issueHasBeenClosedOrRejected) {
                 // If creating, track award progress of issue creator. 
@@ -122,16 +122,9 @@ export function Trigger(languages: string[]) {
                     await Reputation().update("IssueCreatedWasRejected", issueCreatedById);
                 }
             }
-            // Send notification to object owner(s) and subscribers of both the team and the object with the issue
-            const isSubscribable = isObjectSubscribable(objectType);
-            if (isSubscribable) {
-                const notification = Notify(languages).pushIssueStatusChange(issueId, objectId, objectType, issueStatus);
-                if (objectOwner.__typename === "Team") {
-                    notification.toTeam(objectOwner.id, userUpdatingIssueId);
-                    notification.toSubscribers("Team", objectOwner.id, userUpdatingIssueId);
-                }
-                notification.toSubscribers(objectType as SubscribableObject, objectId, userUpdatingIssueId);
-            }
+            // Send notification
+            const notification = Notify(languages).pushIssueStatusChange(issueId, objectId, objectType, issueStatus);
+            notification.toAll("Issue", objectId, objectOwner, [userUpdatingIssueId])
         },
         /**
          * Handle object creation. 
@@ -249,15 +242,9 @@ export function Trigger(languages: string[]) {
             // Step 2
             // If the object has a new project
             if (projectId && projectId !== originalProjectId) {
-                // If the object is subscribable, send notification to project members
-                const isSubscribable = isObjectSubscribable(objectType);
-                if (isSubscribable) {
-                    const notification = Notify(languages).pushNewObjectInProject(objectType, objectId, projectId);
-                    // Send notification to object owner
-                    notification.toOwner(owner, updatedById);
-                    // Send notification to subscribers of the project
-                    notification.toSubscribers("Project", projectId, updatedById);
-                }
+                // Send notification to owner(s) and subscribers
+                const notification = Notify(languages).pushNewObjectInProject(objectType, objectId, projectId);
+                notification.toAll(objectType, objectId, owner, [updatedById]);
             }
         },
         /**
@@ -308,13 +295,32 @@ export function Trigger(languages: string[]) {
             // // Increase reputation score of object owner(s)
             // asdfasdf
         },
-        objectReact: async (previousReaction: string | null | undefined, currentReaction: string | null | undefined, objectType: ReactionFor, objectId: string, userId: string) => {
-            // const notification = Notify(languages).pushObjectReact();
-            // // If previousReaction is null, Send notification to owner(s), depending on how many votes the object already has
-            // asdf
+        objectReact: async ({
+            deltaScore,
+            objectType,
+            objectId,
+            updatedScore,
+            userId,
+            objectOwner,
+            languages,
+        }: {
+            deltaScore: number;
+            objectType: ReactionFor;
+            objectId: string;
+            updatedScore: number,
+            userId: string;
+            objectOwner: Owner | null | undefined,
+            languages: string[];
+        }) => {
+            // Define score thresholds for sending notifications
+            const scoreNotifyThresolds = [1, 5, 10, 25, 50, 100, 250, 500, 1000];
+            const dontNotifyFor = ["ChatMessage"];
+            if (scoreNotifyThresolds.includes(updatedScore) && deltaScore > 0 && !dontNotifyFor.includes(objectType)) {
+                const notification = Notify(languages).pushObjectReceivedUpvote(objectType, objectId, updatedScore);
+                notification.toAll(objectType as string as GqlModelType, objectId, objectOwner, [userId])
+            }
             // // Increase/decrease reputation score of object owner(s), depending on sentiment of currentReaction compared to previousReaction
-            // asdfasdf
-            //TODO if reacted on chat message, send io addReaction event. Also make sure ChatCrud handles it
+            // TODO
         },
         /**
          * Call this any time a pull request's status changes, including when it is first created.
@@ -338,6 +344,8 @@ export function Trigger(languages: string[]) {
             objectType: GqlModelType | `${GqlModelType}`,
             userUpdatingPullRequestId: string,
         }) => {
+            // Ignore drafts
+            if (pullRequestStatus === "Draft") return;
             // If pullRequest has never been closed or rejected (to prevent users from reopning pullRequests to get awards/reputation)
             if (!pullRequestHasBeenClosedOrRejected) {
                 // If creating, track award progress of pullRequest creator. 
@@ -358,16 +366,10 @@ export function Trigger(languages: string[]) {
                     await Reputation().update("PullRequestWasRejected", pullRequestCreatedById);
                 }
             }
-            // Send notification to object owner(s) and subscribers of both the team and the object with the pullRequest
-            const isSubscribable = isObjectSubscribable(objectType);
-            if (isSubscribable) {
-                const notification = Notify(languages).pushPullRequestStatusChange(pullRequestId, objectId, objectType, pullRequestStatus);
-                if (objectOwner.__typename === "Team") {
-                    notification.toTeam(objectOwner.id, userUpdatingPullRequestId);
-                    notification.toSubscribers("Team", objectOwner.id, userUpdatingPullRequestId);
-                }
-                notification.toSubscribers(objectType as SubscribableObject, objectId, userUpdatingPullRequestId);
-            }
+            // Send notification to object owner(s) and subscribers for the pull request and the object with the pull request
+            const notification = Notify(languages).pushPullRequestStatusChange(pullRequestId, objectId, objectType, pullRequestStatus);
+            notification.toAll("PullRequest", pullRequestId, { __typename: "User" as const, id: pullRequestCreatedById }, [userUpdatingPullRequestId]);
+            notification.toAll(objectType, objectId, objectOwner, [userUpdatingPullRequestId]);
         },
         questionAccepted: async (questionId: string, answerId: string, userId: string) => {
             // // Increase award progress and reputation of answer creator
@@ -465,17 +467,9 @@ export function Trigger(languages: string[]) {
                     await Reputation().update("ObjectDeletedFromReport", objectOwner.id);
                 }
             }
-            // Send notification to object owner(s) and subscribers of both the team and the object with the report
-            const isSubscribable = isObjectSubscribable(objectType);
-            const excludeUserIds = userUpdatingReportId ? [userUpdatingReportId] : [];
-            if (isSubscribable) {
-                const notification = Notify(languages).pushReportStatusChange(reportId, objectId, objectType, reportStatus);
-                if (objectOwner.__typename === "Team") {
-                    notification.toTeam(objectOwner.id, excludeUserIds);
-                    notification.toSubscribers("Team", objectOwner.id, excludeUserIds);
-                }
-                notification.toSubscribers(objectType as SubscribableObject, objectId, excludeUserIds);
-            }
+            // Send notification to object owner(s) and subscribers of the object with the report
+            const notification = Notify(languages).pushReportStatusChange(reportId, objectId, objectType, reportStatus);
+            notification.toAll(objectType, objectId, objectOwner, userUpdatingReportId ? [userUpdatingReportId] : []);
         },
         runProjectComplete: async (runId: string, userId: string, wasAutomatic: boolean) => {
             // If completed automatically, send notification to user

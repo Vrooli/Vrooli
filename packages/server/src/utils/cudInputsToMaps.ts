@@ -5,10 +5,10 @@ import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
 import { ModelMap } from "../models/base";
-import { Formatter, ModelLogicType } from "../models/types";
+import { Formatter, ModelLogicType, PreMap } from "../models/types";
 import { getActionFromFieldName } from "./getActionFromFieldName";
 import { InputNode } from "./inputNode";
-import { CudInputData, IdsByAction, IdsByPlaceholder, IdsByType, IdsCreateToConnect, InputsById, InputsByType, QueryAction } from "./types";
+import { CudInputData, IdsByAction, IdsByPlaceholder, IdsByType, IdsCreateToConnect, InputsById, InputsByType, QueryAction, ResultsById } from "./types";
 
 /** Information about the closest known object with a valid, **existing** ID (i.e. not a new object) in a mutation */
 type ClosestWithId = { __typename: string, id: string, path: string };
@@ -656,9 +656,18 @@ export type CudInputsToMapsResult = {
     idsCreateToConnect: IdsCreateToConnect,
     inputsById: InputsById,
     inputsByType: InputsByType,
+    // Populated later
+    preMap: PreMap
+    // Populated later
+    resultsById: ResultsById,
 }
 
 // TODO Try adding `readMany` so we can use this for reads. I believe the current way we do reads doesn't properly check relation permissions, so this would solve that.
+/**
+ * Groups all input data into various maps for validation and data shaping.
+ * @param inputData The array of input data to group.
+ * @returns An object containing maps grouped by action, type, etc.
+ */
 export async function cudInputsToMaps({
     inputData,
 }: CudInputsToMapsParams): Promise<CudInputsToMapsResult> {
@@ -732,5 +741,7 @@ export async function cudInputsToMaps({
         idsCreateToConnect,
         inputsById,
         inputsByType,
+        preMap: {},
+        resultsById: {},
     };
 }

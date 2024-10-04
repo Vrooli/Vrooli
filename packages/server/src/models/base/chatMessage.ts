@@ -542,10 +542,10 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 };
             },
             ownPrivate: function getOwnPrivate(data) {
-                return useVisibility("Chat", "OwnPrivate", data);
+                return { chat: useVisibility("Chat", "OwnPrivate", data) };
             },
             ownPublic: function getOwnPublic(data) {
-                return useVisibility("Chat", "OwnPublic", data);
+                return { chat: useVisibility("Chat", "OwnPublic", data) };
             },
             public: function getPublic(data) {
                 return {

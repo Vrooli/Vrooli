@@ -11,7 +11,7 @@ type CurrentLlmTaskInfo = Omit<PartialTaskInfo, "lastUpdated" | "properties" | "
     properties: (string | number | boolean | null)[];
 };
 
-type GetValidTasksFromMessageParams = {
+export type GetValidTasksFromMessageParams = {
     /** A function for converting a command and action to a valid task name */
     commandToTask: CommandToTask,
     /**

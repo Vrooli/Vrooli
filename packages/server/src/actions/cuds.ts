@@ -27,9 +27,7 @@ type CudHelperParams = {
 
 type CudHelperResult = Array<boolean | Record<string, any>>;
 
-type CudDataMaps = CudInputsToMapsResult & {
-    preMap: PreMap,
-}
+type CudDataMaps = CudInputsToMapsResult;
 
 type TopLevelInputsByAction = {
     Create: { index: number, input: PrismaCreate }[],
@@ -87,26 +85,13 @@ async function validateAndCastInputs(
 }
 
 /**
- * Groups all input data into various maps for validation and data shaping.
- * @param inputData The array of input data to group.
- * @returns An object containing maps grouped by action, type, etc.
- */
-async function groupDataIntoMaps(inputData: CudInputData[]): Promise<CudDataMaps> {
-    const result = await cudInputsToMaps({ inputData });
-    return {
-        ...result,
-        preMap: {},
-    };
-}
-
-/**
  * Calculates pre-shape data for each type, which can include custom input validation.
  * @param inputsByType The inputs grouped by type.
  * @param userData The session user data.
  * @param inputsById The inputs grouped by ID.
  * @param preMap A map to store pre-shape data.
  */
-async function calculatePreShapeData(
+export async function calculatePreShapeData(
     inputsByType: { [key: string]: any },
     userData: SessionUserToken,
     inputsById: { [key: string]: any },
@@ -257,6 +242,7 @@ async function executeTransaction(operations: PrismaPromise<object>[], userData:
  * @param topInputsByType The top-level inputs grouped by type and action.
  * @param inputData The original input data.
  * @param partialInfo The partial GraphQL info for selecting fields.
+ * @param maps The maps containing grouped data.
  * @param result The array to store the final results.
  */
 function processTransactionResults(
@@ -265,22 +251,29 @@ function processTransactionResults(
     topInputsByType: TopLevelInputsByType,
     inputData: CudInputData[],
     partialInfo: PartialGraphQLInfo,
+    maps: CudDataMaps,
     result: Array<boolean | Record<string, any>>
 ): void {
     let transactionIndex = 0;
     const { deletedIdsByType } = transactionData;
 
     for (const [objectType, { Create, Update, Delete }] of Object.entries(topInputsByType)) {
-        for (const { index } of Create) {
+        for (const { index, input } of Create) {
             const createdObject = transactionResult[transactionIndex++];
             const converted = modelToGql<object>(createdObject, partialInfo);
             result[index] = converted;
+            if (input.id) {
+                maps.resultsById[input.id as string] = converted;
+            }
         }
 
-        for (const { index } of Update) {
+        for (const { index, input } of Update) {
             const updatedObject = transactionResult[transactionIndex++];
             const converted = modelToGql<object>(updatedObject, partialInfo);
             result[index] = converted;
+            if (input.id) {
+                maps.resultsById[input.id as string] = converted;
+            }
         }
 
         if (Delete.length > 0) {
@@ -308,7 +301,7 @@ async function triggerAfterMutations(
     userData: SessionUserToken,
 ): Promise<void> {
     const { deletedIdsByType, beforeDeletedData } = transactionData;
-    const { idsByAction, inputsById, preMap } = maps;
+    const { idsByAction, inputsById, preMap, resultsById } = maps;
     const outputsByType = cudOutputsToMaps({ idsByAction, inputsById });
     const allTypes = new Set([...Object.keys(outputsByType), ...Object.keys(deletedIdsByType)]);
 
@@ -330,6 +323,7 @@ async function triggerAfterMutations(
             createInputs,
             deletedIds,
             preMap,
+            resultsById,
             updatedIds,
             updateInputs,
             userData,
@@ -348,7 +342,7 @@ export async function cudHelper(params: CudHelperParams): Promise<CudHelperResul
     const result = initializeResults(inputData.length);
     await validateAndCastInputs(inputData, userData);
 
-    const maps = await groupDataIntoMaps(inputData);
+    const maps = await cudInputsToMaps({ inputData })
     await calculatePreShapeData(maps.inputsByType, userData, maps.inputsById, maps.preMap);
 
     const authDataById = await getAuthenticatedData(maps.idsByType, userData);
@@ -361,7 +355,7 @@ export async function cudHelper(params: CudHelperParams): Promise<CudHelperResul
     const transactionData = await buildOperations(topInputsByType, inputData, partialInfo, userData, maps);
 
     const transactionResult = await executeTransaction(transactionData.operations, userData);
-    processTransactionResults(transactionResult, transactionData, topInputsByType, inputData, partialInfo, result);
+    processTransactionResults(transactionResult, transactionData, topInputsByType, inputData, partialInfo, maps, result);
     await triggerAfterMutations(transactionData, maps, additionalData || {}, userData);
 
     return result;
