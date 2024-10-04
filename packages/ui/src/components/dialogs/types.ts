@@ -6,7 +6,7 @@ import { type UseObjectActionsReturn } from "hooks/objectActions";
 import { ReactNode } from "react";
 import { SvgComponent, SxType, ViewDisplayType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
-import { CookiePreferences } from "utils/cookies";
+import { CookiePreferences } from "utils/localStorage";
 import { FormProps } from "../../types";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -287,7 +287,6 @@ export interface WalletSelectDialogProps {
 export interface PopoverWithArrowProps extends Omit<PopoverProps, "open" | "sx"> {
     anchorEl: HTMLElement | null;
     children: ReactNode;
-    disableScrollLock?: boolean;
     handleClose?: () => unknown;
     placement?: "top" | "right" | "bottom" | "left";
     sxs?: {

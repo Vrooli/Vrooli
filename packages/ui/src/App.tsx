@@ -6,13 +6,12 @@ import { BannerChicken } from "components/BannerChicken/BannerChicken";
 import { Celebration } from "components/Celebration/Celebration";
 import { DiagonalWaveLoader } from "components/DiagonalWaveLoader/DiagonalWaveLoader";
 import { AlertDialog } from "components/dialogs/AlertDialog/AlertDialog";
-import { ChatSideMenu, chatSideMenuDisplayData } from "components/dialogs/ChatSideMenu/ChatSideMenu";
-import { SideMenu, sideMenuDisplayData } from "components/dialogs/SideMenu/SideMenu";
+import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
+import { SideMenu } from "components/dialogs/SideMenu/SideMenu";
 import { TutorialDialog } from "components/dialogs/TutorialDialog/TutorialDialog";
 import { BottomNav } from "components/navigation/BottomNav/BottomNav";
 import { CommandPalette } from "components/navigation/CommandPalette/CommandPalette";
 import { FindInPage } from "components/navigation/FindInPage/FindInPage";
-import { Footer } from "components/navigation/Footer/Footer";
 import { PullToRefresh } from "components/PullToRefresh/PullToRefresh";
 import { SnackStack } from "components/snacks";
 import { ActiveChatProvider, SessionContext, ZIndexProvider } from "contexts";
@@ -28,16 +27,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Routes } from "Routes";
 import { getCurrentUser, getSiteLanguage, guestSession } from "utils/authentication/session";
 import { LEFT_DRAWER_WIDTH, RIGHT_DRAWER_WIDTH } from "utils/consts";
-import { getCookie, getStorageItem, setCookie, ThemeType } from "utils/cookies";
 import { getDeviceInfo } from "utils/display/device";
 import { DEFAULT_THEME, themes } from "utils/display/theme";
-import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID, SideMenuPub } from "utils/pubsub";
+import { getCookie, getStorageItem, setCookie, ThemeType } from "utils/localStorage";
+import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID } from "utils/pubsub";
 import { CI_MODE } from "./i18n";
 
 function getGlobalStyles(theme: Theme) {
     return {
         html: {
             backgroundColor: theme.palette.background.default,
+            overflow: "hidden", //Force children to handle scrolling. This makes it easier to support persistent sidebars
         },
         // Custom scrollbar
         "*": {
@@ -130,10 +130,10 @@ function findThemeWithoutSession(): Theme {
 }
 
 const MainBox = styled(Box)(({ theme }) => ({
-    display: 'flex',
-    flexDirection: 'row',
-    minHeight: '100vh',
-    minWidth: '100vw',
+    display: "flex",
+    flexDirection: "row",
+    minHeight: "100vh",
+    minWidth: "100vw",
     background: theme.palette.background.default,
     color: theme.palette.background.textPrimary,
     // Style visited, active, and hovered links
@@ -169,19 +169,19 @@ const ContentWrap = styled(Box, {
     const rightDrawerWidth = isLeftHanded ? isLeftDrawerOpen ? LEFT_DRAWER_WIDTH : 0 : isRightDrawerOpen ? RIGHT_DRAWER_WIDTH : 0;
     return {
         position: "relative",
-        background: theme.palette.mode === "light" ? "#c2cadd" : theme.palette.background.default,
+        background: theme.palette.background.default,
         minHeight: "100vh",
         width: isMobile ? "100vw" : `calc(100vw - ${leftDrawerWidth}px - ${rightDrawerWidth}px)`,
         marginLeft: isMobile ? 0 : leftDrawerWidth,
         marginRight: isMobile ? 0 : rightDrawerWidth,
-        transition: theme.transitions.create(['margin', 'width'], {
+        transition: theme.transitions.create(["margin", "width"], {
             easing: theme.transitions.easing.easeOut,
             duration: theme.transitions.duration.enteringScreen,
         }),
         [theme.breakpoints.down("md")]: {
             minHeight: "calc(100vh - 56px - env(safe-area-inset-bottom))",
         },
-    } as const
+    } as const;
 });
 const LoaderBox = styled(Box)(() => ({
     position: "absolute",
@@ -190,11 +190,6 @@ const LoaderBox = styled(Box)(() => ({
     transform: "translate(-50%, -50%)",
     zIndex: 100000,
 }));
-
-const menusDisplayData: { [key in SideMenuPub["id"]]: { persistentOnDesktop: boolean, sideForRightHanded: "left" | "right" } } = {
-    [SIDE_MENU_ID]: sideMenuDisplayData,
-    [CHAT_SIDE_MENU_ID]: chatSideMenuDisplayData,
-};
 
 export function App() {
     // Session cookie should automatically expire in time determined by server,
@@ -500,37 +495,38 @@ export function App() {
                     <GlobalStyles styles={getGlobalStyles} />
                     <SessionContext.Provider value={session}>
                         <ZIndexProvider>
-                            <MainBox id="App" component="main">
-                                {/* Popups and other components that don't effect layout */}
-                                <PullToRefresh />
-                                <CommandPalette />
-                                <FindInPage />
-                                <Celebration />
-                                <AlertDialog />
-                                <SnackStack />
-                                <TutorialDialog isOpen={isTutorialOpen} onClose={closeTutorial} />
-                                {/* Main content*/}
-                                <ContentWrap
-                                    id="content-wrap"
-                                    isLeftDrawerOpen={isLeftDrawerOpen}
-                                    isLeftHanded={isLeftHanded}
-                                    isMobile={isMobile}
-                                    isRightDrawerOpen={isRightDrawerOpen}
-                                >
-                                    <ChatSideMenu />
-                                    {
-                                        isLoading && <LoaderBox>
-                                            <DiagonalWaveLoader size={100} />
-                                        </LoaderBox>
-                                    }
-                                    <Routes sessionChecked={session !== undefined} />
-                                    <SideMenu />
-                                </ContentWrap>
-                                {/* Below main content */}
-                                <BannerChicken />
-                                <BottomNav />
-                            </MainBox>
-                            <Footer />
+                            <ActiveChatProvider>
+                                <MainBox id="App" component="main">
+                                    {/* Popups and other components that don't effect layout */}
+                                    <PullToRefresh />
+                                    <CommandPalette />
+                                    <FindInPage />
+                                    <Celebration />
+                                    <AlertDialog />
+                                    <SnackStack />
+                                    <TutorialDialog isOpen={isTutorialOpen} onClose={closeTutorial} />
+                                    {/* Main content*/}
+                                    <ContentWrap
+                                        id="content-wrap"
+                                        isLeftDrawerOpen={isLeftDrawerOpen}
+                                        isLeftHanded={isLeftHanded}
+                                        isMobile={isMobile}
+                                        isRightDrawerOpen={isRightDrawerOpen}
+                                    >
+                                        <ChatSideMenu />
+                                        {
+                                            isLoading && <LoaderBox>
+                                                <DiagonalWaveLoader size={100} />
+                                            </LoaderBox>
+                                        }
+                                        <Routes sessionChecked={session !== undefined} />
+                                        <SideMenu />
+                                    </ContentWrap>
+                                    {/* Below main content */}
+                                    <BannerChicken />
+                                    <BottomNav />
+                                </MainBox>
+                            </ActiveChatProvider>
                         </ZIndexProvider>
                     </SessionContext.Provider>
                 </ThemeProvider>

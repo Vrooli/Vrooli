@@ -1,8 +1,8 @@
 /* eslint-disable no-magic-numbers */
-import { Avatar, AvatarProps, Box, IconButton, Palette, Stack, styled, SxProps, Theme, Typography } from "@mui/material";
+import { Avatar, AvatarProps, Box, BoxProps, IconButton, Palette, Stack, StackProps, styled, SxProps, Theme, Typography } from "@mui/material";
 
 export const bottomNavHeight = "56px";
-export const pagePaddingBottom = `calc(${bottomNavHeight} + env(safe-area-inset-bottom))`;
+export const pagePaddingBottom = "var(--page-padding-bottom)";
 
 export const centeredDiv = {
     display: "flex",
@@ -209,38 +209,38 @@ export const textPop = {
                 1px 1px 0 black`,
 } as const;
 
-export function baseSection(theme: Pick<Theme, "palette" | "spacing">) {
-    return {
-        background: theme.palette.mode === "dark" ?
+export function formSection(theme: Pick<Theme, "breakpoints" | "palette" | "spacing">, variant: "card" | "transparent" = "card") {
+    let background: string | undefined;
+    if (variant === "card") {
+        background = theme.palette.mode === "dark" ?
             theme.palette.background.paper :
-            theme.palette.background.default,
-        borderRadius: theme.spacing(1),
-        flexDirection: "column",
-        padding: theme.spacing(2),
-        "@media print": {
-            border: `1px solid ${theme.palette.divider}`,
-        },
-    } as const;
-}
-export const BaseSection = styled(Box)(({ theme }) => ({
-    ...baseSection(theme),
-}));
-
-export function formSection(theme: Pick<Theme, "breakpoints" | "palette" | "spacing">) {
+            theme.palette.background.default;
+    }
     return {
-        ...baseSection(theme),
         overflowX: "auto",
         gap: theme.spacing(2),
         padding: theme.spacing(2),
+        background,
+        borderRadius: theme.spacing(1),
+        flexDirection: "column",
+        "@media print": {
+            border: `1px solid ${theme.palette.divider}`,
+        },
         // Smaller padding on mobile
         [theme.breakpoints.down("sm")]: {
             padding: theme.spacing(1.5),
         },
+        width: "100%",
     } as const;
 }
-export const FormSection = styled(Stack)(({ theme }) => ({
+interface FormSectionProps extends StackProps {
+    variant?: "card" | "transparent";
+}
+export const FormSection = styled(Stack, {
+    shouldForwardProp: (prop) => prop !== "variant",
+})<FormSectionProps>(({ theme, variant }) => ({
     ...noSelect,
-    ...formSection(theme),
+    ...formSection(theme, variant),
 }));
 
 
@@ -248,6 +248,7 @@ export function formContainer(theme: Theme): SxProps {
     return {
         flexDirection: "column",
         gap: theme.spacing(3),
+        width: "100%",
         margin: theme.spacing(2),
         // Smaller margin on mobile
         [theme.breakpoints.down("sm")]: {
@@ -261,7 +262,7 @@ export const FormContainer = styled(Stack)(({ theme }) => ({
 
 export const BannerImageContainer = styled(Box)(({ theme }) => ({
     margin: "auto",
-    backgroundColor: theme.palette.mode === "light" ? "#c2cadd" : theme.palette.background.default,
+    backgroundColor: theme.palette.background.default,
     backgroundSize: "cover",
     backgroundPosition: "center",
     position: "relative",
@@ -330,6 +331,8 @@ export const ObjectListProfileAvatar = styled(ProfileAvatar, {
     width: isMobile ? "40px" : "50px",
     height: isMobile ? "40px" : "50px",
     pointerEvents: "none",
+    marginTop: "auto",
+    marginBottom: "auto",
 }));
 
 export function highlightStyle(background: string, disabled: boolean | undefined) {
@@ -380,3 +383,47 @@ export const ScrollBox = styled(Box)(() => ({
     overflowY: "auto",
 }));
 
+/**
+ * Page container for centering content 
+ * horizontally and vertically as the whole page 
+ * (e.g. LoginView)
+ */
+export const CenteredContentPage = styled(Box)(({ theme }) => ({
+    height: "100vh",
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
+}));
+
+/**
+ * Used within CenteredContentPage to center content 
+ * horizontally and vertically
+ */
+export const CenteredContentPageWrap = styled(Box)(({ theme }) => ({
+    flex: 1,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "auto",
+    padding: theme.spacing(2),
+}));
+
+interface CenteredContentPaperProps extends BoxProps {
+    maxWidth: number;
+}
+
+/**
+ * Used within CenteredContentPageWrap to display centered content
+ */
+export const CenteredContentPaper = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "maxWidth",
+})<CenteredContentPaperProps>(({ maxWidth, theme }) => ({
+    width: `min(${maxWidth}px, 100%)`,
+    maxHeight: "100%",
+    background: theme.palette.background.paper,
+    overflow: "auto",
+    borderRadius: theme.spacing(2),
+    [theme.breakpoints.down("sm")]: {
+        borderRadius: theme.spacing(1),
+    },
+}));

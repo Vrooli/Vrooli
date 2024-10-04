@@ -485,6 +485,7 @@ export function useMessageTree(chatId?: string | null) {
     useEffect(function clearData() {
         clearMessages();
         setBranches({});
+        console.log('getting tree data?', chatId, chatId !== DUMMY_ID);
         if (chatId && chatId !== DUMMY_ID) {
             getTreeData({ chatId });
         }
@@ -626,7 +627,6 @@ export function useMessageActions({
         fetchLazyWrapper<ChatMessageCreateWithTaskInfoInput, ChatMessage>({
             fetch: postMessageEndpoint,
             inputs: {
-                chatId: chat.id,
                 message,
                 task: activeTask.task as LlmTask,
                 taskContexts,
@@ -656,7 +656,6 @@ export function useMessageActions({
             fetchLazyWrapper<ChatMessageCreateWithTaskInfoInput, ChatMessage>({
                 fetch: postMessageEndpoint,
                 inputs: {
-                    chatId: chat.id,
                     message,
                     task: activeTask.task as LlmTask,
                     taskContexts,
@@ -678,7 +677,6 @@ export function useMessageActions({
             fetchLazyWrapper<ChatMessageUpdateWithTaskInfoInput, ChatMessage>({
                 fetch: putMessageEndpoint,
                 inputs: {
-                    chatId: chat.id,
                     message,
                     task: activeTask.task as LlmTask,
                     taskContexts,
@@ -723,7 +721,6 @@ export function useMessageActions({
         fetchLazyWrapper<ChatMessageCreateWithTaskInfoInput, ChatMessage>({
             fetch: postMessageEndpoint,
             inputs: {
-                chatId: chat.id,
                 message,
                 task: activeTask.task as LlmTask,
                 taskContexts,
@@ -763,7 +760,6 @@ export function useMessageActions({
         fetchLazyWrapper<ChatMessageCreateWithTaskInfoInput, ChatMessage>({
             fetch: postMessageEndpoint,
             inputs: {
-                chatId: chat.id,
                 message,
                 task: activeTask.task as LlmTask,
                 taskContexts,

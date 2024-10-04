@@ -67,7 +67,12 @@ export type ActiveChatContext = {
     /**
      * Creates a new active chat.
      */
-    resetChat: () => unknown;
+    resetActiveChat: () => unknown;
+    /**
+     * Sets the active chat.
+     * @param chat The new active chat
+     */
+    setActiveChat: (chat: ChatShape | null) => unknown;
     /**
      * Updates the latest message ID.
      * @param latestMessageId The new latest message ID
@@ -93,7 +98,8 @@ export const ActiveChatContext = createContext<ActiveChatContext>({
     isLoading: false,
     latestMessageId: null,
     participants: [],
-    resetChat: noop,
+    resetActiveChat: noop,
+    setActiveChat: noop,
     setLatestMessageId: noop,
     setParticipants: noop,
     setUsersTyping: noop,
@@ -130,7 +136,7 @@ export function ActiveChatProvider({ children }) {
     const hasTriedCreatingNewChat = useRef(false);
     const isFetchingChat = useRef(false);
 
-    const resetChat = useCallback(function resetChatCallback() {
+    const resetActiveChat = useCallback(function resetActiveChatCallback() {
         const chatToUse = chatInitialValues(session, t, userLanguages ? userLanguages[0] : "en", CHAT_DEFAULTS);
         fetchLazyWrapper<ChatCreateInput, Chat>({
             fetch: createChat,
@@ -144,7 +150,18 @@ export function ActiveChatProvider({ children }) {
         });
     }, [createChat, userLanguages, session, t]);
 
-    useEffect(() => {
+    const setActiveChat = useCallback((newChat: ChatShape | null) => {
+        setChat(newChat);
+        // Update the cache
+        if (!newChat) return
+        const userId = getCurrentUser(session).id;
+        const participantIds = newChat.participants?.map(p => p.user?.id) ?? [];
+        if (userId && participantIds.length > 1 && participantIds.includes(userId)) { // Must have more than yourself
+            setCookieMatchingChat(newChat.id, participantIds);
+        }
+    }, [session]);
+
+    useEffect(function initializeChatEffect() {
         if (!userId || isFetchingChat.current) return;
 
         // Check local storage for an existing chat
@@ -166,7 +183,7 @@ export function ActiveChatProvider({ children }) {
                         // If we get an error indicating that the stored chat doesn't exist, create a new chat
                         if (hasErrorCode(response, "NotFound") && !hasTriedCreatingNewChat.current) {
                             hasTriedCreatingNewChat.current = true;
-                            resetChat();
+                            resetActiveChat();
                         }
                     },
                     onCompleted: () => {
@@ -177,12 +194,12 @@ export function ActiveChatProvider({ children }) {
             // Otherwise, create a new chat
             else if (!hasTriedCreatingNewChat.current) {
                 hasTriedCreatingNewChat.current = true;
-                resetChat();
+                resetActiveChat();
             }
         }
 
         initializeChat();
-    }, [getChat, resetChat, userId]);
+    }, [getChat, resetActiveChat, userId]);
 
     const value = useMemo<ActiveChatContext>(() => ({
         chat,
@@ -190,12 +207,13 @@ export function ActiveChatProvider({ children }) {
         isLoading,
         latestMessageId,
         participants,
-        resetChat,
+        resetActiveChat,
+        setActiveChat,
         setLatestMessageId,
         setParticipants,
         setUsersTyping,
         usersTyping,
-    }), [chat, isBotOnlyChat, isLoading, latestMessageId, participants, resetChat, usersTyping]);
+    }), [chat, isBotOnlyChat, isLoading, latestMessageId, participants, resetActiveChat, setActiveChat, usersTyping]);
 
     return (
         <ActiveChatContext.Provider value={value}>

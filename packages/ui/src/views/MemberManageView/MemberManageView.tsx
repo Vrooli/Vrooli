@@ -46,7 +46,7 @@ export function MemberManageView({
         where,
     } = useTabs({ id: "member-manage-tabs", tabParams: memberTabParams, display });
     const toInviteNewMembersTab = useCallback(function toInviteNewMembersTabCallback() {
-        handleTabChange(undefined, tabs.find(tab => tab.key === "NonMembers"));
+        handleTabChange(undefined, tabs.find(tab => tab.key === "NonMembers")!);
     }, [handleTabChange, tabs]);
 
     const findManyData = useFindMany<ListObject>({
@@ -64,7 +64,7 @@ export function MemberManageView({
         selectedData,
         setIsSelecting,
         setSelectedData,
-    } = useSelectableList<ListObject>();
+    } = useSelectableList<ListObject>(findManyData.allData);
     // Remove selection when tab changes
     useEffect(() => {
         setSelectedData([]);
@@ -174,7 +174,7 @@ export function MemberManageView({
                                     onClick={toInviteNewMembersTab}
                                     variant="contained"
                                 >
-                                    {t("InviteNewMembers")}
+                                    {t("InviteMembers")}
                                 </Button>
                             </Box>
                         }
@@ -201,7 +201,7 @@ export function MemberManageView({
                                     onClick={toInviteNewMembersTab}
                                     variant="contained"
                                 >
-                                    {t("InviteNewMembers")}
+                                    {t("InviteMembers")}
                                 </Button>
                             </Box>
                         }

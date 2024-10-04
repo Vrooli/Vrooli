@@ -13,6 +13,7 @@ export type ChatMessageShape = Pick<ChatMessage, "id" | "versionIndex"> & {
     created_at: string; // Only used by the UI
     updated_at: string; // Only used by the UI
     chat?: CanConnect<ChatShape> | null;
+    sequence?: number; // Only used by the UI
     /** If not provided, we'll assume it's sent */
     status?: ChatMessageStatus;
     parent?: CanConnect<ChatMessageParent> | null;

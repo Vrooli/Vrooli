@@ -1,37 +1,146 @@
-import { ChatPageTabOption, InboxPageTabOption, LINKS, ListObject, MyStuffPageTabOption, SearchPageTabOption, funcTrue, getObjectUrlBase, noop } from "@local/shared";
-import { Box, Button, Divider, IconButton, SwipeableDrawer, Typography, styled, useTheme } from "@mui/material";
+import { Chat, ChatPageTabOption, InboxPageTabOption, LINKS, ListObject, MyStuffPageTabOption, SearchPageTabOption, funcFalse, getObjectUrl, getObjectUrlBase, noop } from "@local/shared";
+import { Box, BoxProps, Button, Divider, IconButton, SwipeableDrawer, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { ChatBubbleTree } from "components/ChatBubbleTree/ChatBubbleTree";
 import { PageTabs } from "components/PageTabs/PageTabs";
+import { ChatMessageInput } from "components/inputs/ChatMessageInput/ChatMessageInput";
 import { SiteSearchBar } from "components/inputs/search";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ObjectListActions } from "components/lists/types";
-import { SessionContext } from "contexts/SessionContext";
+import { ActiveChatContext, SessionContext } from "contexts";
+import { useMessageActions, useMessageInput, useMessageTree } from "hooks/messages";
+import { useIsLeftHanded } from "hooks/subscriptions";
+import { UseChatTaskReturn, useChatTasks } from "hooks/tasks";
 import { useFindMany } from "hooks/useFindMany";
-import { useIsLeftHanded } from "hooks/useIsLeftHanded";
+import { useHistoryState } from "hooks/useHistoryState";
 import { useSideMenu } from "hooks/useSideMenu";
-import { useTabs } from "hooks/useTabs";
+import { useSocketChat } from "hooks/useSocketChat";
+import { PageTab, useTabs } from "hooks/useTabs";
 import { useWindowSize } from "hooks/useWindowSize";
-import { AddIcon, ArrowRightIcon, CloseIcon, CommentIcon } from "icons";
+import { AddIcon, ArrowRightIcon, ChatNewIcon, CloseIcon, CommentIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ArgsType } from "types";
+import { getCurrentUser } from "utils/authentication/session";
 import { LEFT_DRAWER_WIDTH } from "utils/consts";
+import { getUserLanguages } from "utils/display/translationTools";
 import { CHAT_SIDE_MENU_ID, PubSub, SideMenuPayloads } from "utils/pubsub";
 import { ChatTabsInfo, TabParam, chatTabParams } from "utils/search/objectToSearch";
-
-export const chatSideMenuDisplayData = {
-    persistentOnDesktop: true,
-    sideForRightHanded: "left",
-} as const;
 
 const SHORT_TAKE = 10;
 const emptyArray: readonly [] = [];
 const drawerPaperProps = { id: CHAT_SIDE_MENU_ID } as const;
+const MESSAGE_LIST_ID = "chatSideMenuMessage";
 /** Routes where the main content is already a chat, so the side chat should not be shown */
 const CHAT_IS_MAIN_CONTENT_ROUTES = [
     LINKS.Chat,
     LINKS.Home,
 ] as string[];
+
+const NewChatIconButton = styled(IconButton)(({ theme }) => ({
+    position: "absolute",
+    bottom: theme.spacing(1),
+    right: theme.spacing(1),
+    background: theme.palette.secondary.main,
+    width: "36px",
+    height: "36px",
+}));
+
+type ChatTabProps = ActiveChatContext & {
+    taskInfo: UseChatTaskReturn;
+}
+
+function ChatTab({
+    chat,
+    isBotOnlyChat,
+    isLoading,
+    participants,
+    resetActiveChat,
+    setParticipants,
+    setUsersTyping,
+    taskInfo,
+    usersTyping,
+}: ChatTabProps) {
+    const session = useContext(SessionContext);
+    const { t } = useTranslation();
+    const languages = useMemo(() => getUserLanguages(session), [session]);
+
+    const [message, setMessage] = useHistoryState<string>(`${MESSAGE_LIST_ID}-message`, "");
+    const messageTree = useMessageTree(chat?.id);
+    const messageActions = useMessageActions({
+        activeTask: taskInfo.activeTask,
+        addMessages: messageTree.addMessages,
+        chat,
+        contexts: taskInfo.contexts[taskInfo.activeTask.taskId] || [],
+        editMessage: messageTree.editMessage,
+        isBotOnlyChat,
+        language: languages[0],
+        setMessage,
+    });
+    const messageInput = useMessageInput({
+        id: MESSAGE_LIST_ID,
+        languages,
+        message,
+        postMessage: messageActions.postMessage,
+        putMessage: messageActions.putMessage,
+        replyToMessage: messageActions.replyToMessage,
+        setMessage,
+    });
+    const { messageStream } = useSocketChat({
+        addMessages: messageTree.addMessages,
+        chat,
+        editMessage: messageTree.editMessage,
+        participants,
+        removeMessages: messageTree.removeMessages,
+        setParticipants,
+        setUsersTyping,
+        usersTyping,
+    });
+
+    return (
+        <>
+            <ChatBubbleTree
+                belowMessageList={<Tooltip title={t("NewChat")} placement="top">
+                    <NewChatIconButton
+                        aria-label="new chat"
+                        onClick={resetActiveChat}
+                    >
+                        <ChatNewIcon fill="white" height={20} width={20} />
+                    </NewChatIconButton>
+                </Tooltip>}
+                branches={messageTree.branches}
+                handleEdit={messageInput.startEditingMessage}
+                handleRegenerateResponse={messageActions.regenerateResponse}
+                handleReply={messageInput.startReplyingToMessage}
+                handleRetry={messageActions.retryPostMessage}
+                isBotOnlyChat={isBotOnlyChat}
+                isEditingMessage={Boolean(messageInput.messageBeingEdited)}
+                isReplyingToMessage={Boolean(messageInput.messageBeingRepliedTo)}
+                messageStream={messageStream}
+                removeMessages={messageTree.removeMessages}
+                setBranches={messageTree.setBranches}
+                tree={messageTree.tree}
+            />
+            <ChatMessageInput
+                disabled={!chat}
+                display={"partial"}
+                isLoading={isLoading}
+                message={message}
+                messageBeingEdited={messageInput.messageBeingEdited}
+                messageBeingRepliedTo={messageInput.messageBeingRepliedTo}
+                participantsAll={participants}
+                participantsTyping={usersTyping}
+                messagesCount={messageTree.messagesCount}
+                placeholder={t("MessagePlaceholder")}
+                setMessage={setMessage}
+                stopEditingMessage={messageInput.stopEditingMessage}
+                stopReplyingToMessage={messageInput.stopReplyingToMessage}
+                submitMessage={messageInput.submitMessage}
+                taskInfo={taskInfo}
+            />
+        </>
+    );
+}
 
 /**
  * Tab for chat view, which is not available on all pages 
@@ -69,6 +178,20 @@ const SizedDrawer = styled(SwipeableDrawer)(() => ({
     },
 }));
 
+interface TabContentBoxProps extends BoxProps {
+    currTabKey: PageTab<ChatTabsInfo>["key"];
+}
+
+const TabContentBox = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "currTabKey",
+})<TabContentBoxProps>(({ currTabKey, theme }) => ({
+    display: "flex",
+    flexDirection: "column",
+    height: "inherit",
+    overflow: "auto",
+    background: currTabKey === "Chat" ? theme.palette.background.default : theme.palette.background.paper,
+}));
+
 const searchBarStyle = {
     root: {
         width: "100%",
@@ -79,21 +202,25 @@ const searchBarStyle = {
 } as const;
 
 // TODO improve prompts so it searches for actual prompts, rather than just standards. Then update it so when pressed, it adds prompt to chat input
-// TODO change tabs based on page type. On DashboardView and ChatCrud, shouldn't have "Chat" tab (since the main page component is already a chat). Otherwise, should have "Chat" tab
-// TODO should be mayyybe disabled on some pages, like SignUpView, SettingsView, etc. On pages where it's not disabled, Navbar should have ListIcon startComponent automatically
-// TODO instead of using ChatCrud, should make a new component that takes out common logic between DashboardView and ChatCrud. This way, we can avoid displaying the chat title and other stuff (including the navbar which is overriding the actual navbar)
-// TODO when chat history item clicked, should open chat tab with that chat if no on a CHAT_IS_MAIN_CONTENT_ROUTES page. If we are, change the chat on the main page component to that chat
 export function ChatSideMenu() {
-    const session = useContext(SessionContext);
     const { t } = useTranslation();
     const [location, setLocation] = useLocation();
+    const session = useContext(SessionContext);
+    const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const isLeftHanded = useIsLeftHanded();
+    console.log('qqqq user', session, userId)
+
+    // Put here so that we can track tasks even when the chat tab is not open
+    const chatContext = useContext(ActiveChatContext);
+    const taskInfo = useChatTasks({ chatId: chatContext.chat?.id });
 
     const allTabParams = useMemo(() => {
         const baseTabs = [...chatTabParams];
-        const canShowChatTab = !CHAT_IS_MAIN_CONTENT_ROUTES.includes(location.pathname);
+        const canShowChatTab = !CHAT_IS_MAIN_CONTENT_ROUTES.some(route =>
+            location.pathname === route || location.pathname.startsWith(`${route}/`),
+        );
         if (canShowChatTab) {
             baseTabs.push(chatViewTab as TabParam<ChatTabsInfo>);
         }
@@ -107,7 +234,9 @@ export function ChatSideMenu() {
         where,
     } = useTabs({ id: "chat-side-tabs", tabParams: allTabParams, display: "dialog" });
     useEffect(function leaveChatTab() {
-        const canShowChatTab = !CHAT_IS_MAIN_CONTENT_ROUTES.includes(location.pathname);
+        const canShowChatTab = !CHAT_IS_MAIN_CONTENT_ROUTES.some(route =>
+            location.pathname === route || location.pathname.startsWith(`${route}/`),
+        );
         if (!canShowChatTab && currTab.key === "Chat") {
             // Switch to the first non-ChatView tab
             const firstNonChatViewTab = tabs.find(tab => tab.key !== "Chat");
@@ -120,9 +249,6 @@ export function ChatSideMenu() {
     // Handle opening and closing
     const onEvent = useCallback(function onEventCallback({ data }: SideMenuPayloads["chat-side-menu"]) {
         if (!data) return;
-        if (data.context) {
-            //TODO
-        }
         if (data.tab) {
             const matchingTab = tabs.find(tab => tab.key === data.tab);
             if (matchingTab) {
@@ -242,6 +368,24 @@ export function ChatSideMenu() {
         setSearchString2(newString);
     }, [setSearchString1, setSearchString2]);
 
+    const handleItemClick = useCallback((data: ListObject) => {
+        // Chats can often be opened in the side menu instead of navigated to
+        const chatTab = tabs.find(tab => tab.key === 'Chat');
+        const isActiveChat =
+            chatTab &&
+            data.__typename === "Chat" &&
+            // Every participant is either you or a bot
+            (data as Chat).participants?.every(p => p.user?.isBot === true || p.user?.id === userId);
+        if (chatTab && isActiveChat) {
+            chatContext.setActiveChat(data as Chat);
+            handleTabChange(undefined, chatTab)
+        }
+        // Otherwise, navigate to item's page
+        else {
+            setLocation(getObjectUrl(data));
+        }
+    }, [chatContext, tabs, handleTabChange, setLocation, userId]);
+
     return (
         <>
             <SizedDrawer
@@ -290,17 +434,19 @@ export function ChatSideMenu() {
                     />
                 </TabsBox>
                 <Divider />
-                <Box overflow="auto" display="flex" flexDirection="column">
+                <TabContentBox currTabKey={currTab.key}>
                     {currTab.key === "Chat" ? (
-                        // <ChatCrud display="partial" isCreate={false} />
-                        <Typography variant="body2" p={1}>TODO</Typography>
+                        <ChatTab
+                            {...chatContext}
+                            taskInfo={taskInfo}
+                        />
                     ) : (
                         <>
                             <Box>
                                 <Typography variant="h5" p={1}>{title1}</Typography>
                                 <Divider />
                                 <ObjectList
-                                    canNavigate={funcTrue}
+                                    canNavigate={funcFalse}
                                     dummyItems={new Array(SHORT_TAKE).fill(searchType)}
                                     handleToggleSelect={noop}
                                     hideUpdateButton={true}
@@ -309,6 +455,7 @@ export function ChatSideMenu() {
                                     keyPrefix={`chat-search-${currTab.key}-list-item`}
                                     loading={loading1}
                                     onAction={onAction1}
+                                    onClick={handleItemClick}
                                     selectedItems={emptyArray}
                                 />
                                 {allData1.length === 0 && <NoResultsText variant="body1">
@@ -336,7 +483,7 @@ export function ChatSideMenu() {
                                     <Typography variant="h5" p={1}>{title2}</Typography>
                                     <Divider />
                                     <ObjectList
-                                        canNavigate={funcTrue}
+                                        canNavigate={funcFalse}
                                         dummyItems={new Array(SHORT_TAKE).fill(searchType)}
                                         handleToggleSelect={noop}
                                         hideUpdateButton={true}
@@ -345,6 +492,7 @@ export function ChatSideMenu() {
                                         keyPrefix={`chat-search-${searchType}-list-item`}
                                         loading={loading2}
                                         onAction={onAction2}
+                                        onClick={handleItemClick}
                                         selectedItems={emptyArray}
                                     />
                                     {allData2.length === 0 && <NoResultsText variant="body1">
@@ -370,7 +518,7 @@ export function ChatSideMenu() {
                             </>}
                         </>
                     )}
-                </Box>
+                </TabContentBox>
             </SizedDrawer>
         </>
     );

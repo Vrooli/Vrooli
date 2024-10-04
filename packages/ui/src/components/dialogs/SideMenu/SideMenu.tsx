@@ -22,17 +22,12 @@ import { noSelect } from "styles";
 import { SvgComponent } from "types";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
 import { RIGHT_DRAWER_WIDTH } from "utils/consts";
-import { removeCookie } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
+import { removeCookie } from "utils/localStorage";
 import { openObject } from "utils/navigation/openObject";
 import { Actions, performAction, toActionOption } from "utils/navigation/quickActions";
 import { NAV_ACTION_TAGS, NavAction, getUserActions } from "utils/navigation/userActions";
-import { PubSub, SIDE_MENU_ID } from "utils/pubsub";
-
-export const sideMenuDisplayData = {
-    persistentOnDesktop: true,
-    sideForRightHanded: "right",
-} as const;
+import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID } from "utils/pubsub";
 
 // Maximum accounts to sign in with. 
 // Limited by cookie size (4kb)
@@ -181,6 +176,7 @@ export function SideMenu() {
                 localStorage.removeItem("isLoggedIn");
                 PubSub.get().publish("session", data);
                 PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: false });
+                PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen: false });
             },
             // If error, log out anyway
             onError: () => { PubSub.get().publish("session", guestSession); },
@@ -270,6 +266,7 @@ export function SideMenu() {
             <Box sx={{
                 overflow: "auto",
                 display: "grid",
+                overflowX: "hidden",
             }}>
                 {/* List of logged/in accounts and authentication-related actions */}
                 <List id="side-menu-account-list" sx={{ paddingTop: 0, paddingBottom: 0 }}>

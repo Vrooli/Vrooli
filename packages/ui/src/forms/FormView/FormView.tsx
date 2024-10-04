@@ -108,7 +108,6 @@ function filterCategory<T extends PopoverListInput | PopoverListStructure>(
 interface ElementBuildOuterBoxProps extends BoxProps {
     isSelected: boolean;
 }
-
 const ElementBuildOuterBox = styled(Box, {
     shouldForwardProp: (prop) => prop !== "isSelected",
 })<ElementBuildOuterBoxProps>(({ isSelected, theme }) => ({
