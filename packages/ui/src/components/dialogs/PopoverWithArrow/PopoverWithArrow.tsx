@@ -50,7 +50,6 @@ function getOffsetModifier(placement: string) {
 export function PopoverWithArrow({
     anchorEl,
     children,
-    disableScrollLock = false,
     handleClose,
     placement = "top",
     sxs,
@@ -74,13 +73,13 @@ export function PopoverWithArrow({
     // This is useful for mobile devices which can trigger multiple events on press.
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     useEffect(() => {
-        const stopTimeout = () => {
+        function stopTimeout() {
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
                 timeoutRef.current = null;
                 setCanTouch(false);
             }
-        };
+        }
         if (isOpen) {
             timeoutRef.current = setTimeout(() => {
                 timeoutRef.current = null;
@@ -120,7 +119,7 @@ export function PopoverWithArrow({
             zIndex: zIndex + 1000,
             ...sxs?.root,
         };
-    }, []);
+    }, [sxs?.root, zIndex]);
 
     return (
         <Popper

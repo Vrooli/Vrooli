@@ -10,26 +10,26 @@ import { SessionContext } from "contexts";
 import { usePress } from "hooks/gestures";
 import { MessageTree } from "hooks/messages";
 import { useDeleter } from "hooks/objectActions";
+import { useDimensions } from "hooks/useDimensions";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { usePopover } from "hooks/usePopover";
 import { ArrowDownIcon, BotIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, DeleteIcon, EditIcon, ErrorIcon, RefreshIcon, ReplyIcon, UserIcon } from "icons";
-import { Dispatch, RefObject, SetStateAction, useContext, useEffect, useMemo, useState } from "react";
+import { Dispatch, RefObject, SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { Link, useLocation } from "route";
 import { ProfileAvatar } from "styles";
-import { Dimensions } from "types";
 import { getCurrentUser } from "utils/authentication/session";
-import { BranchMap } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
 import { getDisplay, placeholderColor } from "utils/display/listTools";
 import { fontSizeToPixels } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
+import { BranchMap } from "utils/localStorage";
 import { PubSub } from "utils/pubsub";
 
 const PERCENTS = 100;
 const STILL_SENDING_MAX_PERCENT = 90;
 const SEND_STATUS_INTERVAL_MS = 50;
 const HIDE_SEND_SUCCESS_DELAY_MS = 1000;
+const TARGET_PROFILE_IMAGE_SIZE_PX = 50;
 
 interface ChatBubbleSendingSpinnerProps extends CircularProgressProps {
     status: ChatMessageStatus;
@@ -226,6 +226,7 @@ type ChatBubbleReactionsProps = {
     handleRegenerateResponse: () => unknown,
     isBot: boolean,
     isBotOnlyChat: boolean,
+    isMobile: boolean;
     isOwn: boolean,
     numSiblings: number,
     messageId: string,
@@ -247,16 +248,17 @@ const ReactionsOuterBox = styled(Box, {
 }));
 
 interface ReactionsMainStackProps extends BoxProps {
+    isMobile: boolean;
     isOwn: boolean;
 }
 
 const ReactionsMainStack = styled(Box, {
-    shouldForwardProp: (prop) => prop !== "isOwn",
-})<ReactionsMainStackProps>(({ isOwn, theme }) => ({
+    shouldForwardProp: (prop) => prop !== "isMobile" && prop !== "isOwn",
+})<ReactionsMainStackProps>(({ isMobile, isOwn, theme }) => ({
     display: "flex",
     flexDirection: "row",
     padding: 0,
-    marginLeft: isOwn ? 0 : theme.spacing(6),
+    marginLeft: (isOwn || isMobile) ? 0 : theme.spacing(6),
     marginRight: isOwn ? theme.spacing(6) : 0,
     paddingRight: isOwn ? theme.spacing(1) : 0,
     background: theme.palette.background.paper,
@@ -283,6 +285,7 @@ function ChatBubbleReactions({
     handleRegenerateResponse,
     isBot,
     isBotOnlyChat,
+    isMobile,
     isOwn,
     numSiblings,
     messageId,
@@ -292,16 +295,14 @@ function ChatBubbleReactions({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const [anchorEl, openReactionMenu, closeReactionMenu] = usePopover();
     function onReactionAdd(emoji: string) {
-        closeReactionMenu();
         handleReactionAdd(emoji);
     }
 
     if (status === "unsent") return null;
     return (
         <ReactionsOuterBox isOwn={isOwn}>
-            <ReactionsMainStack isOwn={isOwn}>
+            <ReactionsMainStack isMobile={isMobile} isOwn={isOwn}>
                 {reactions.map((reaction) => {
                     function handleClick() {
                         onReactionAdd(reaction.emoji);
@@ -323,9 +324,7 @@ function ChatBubbleReactions({
                         </Box>
                     );
                 })}
-                {!isOwn && <EmojiPicker
-                    onSelect={onReactionAdd}
-                />}
+                {!isOwn && <EmojiPicker onSelect={onReactionAdd} />}
             </ReactionsMainStack>
             <Stack direction="row">
                 <Tooltip title={t("Copy")}>
@@ -389,6 +388,20 @@ const ChatBubbleBox = styled(Box, {
     transition: "width 0.3s ease-in-out",
 }));
 
+const UserNameDisplay = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    spacing: theme.spacing(0.5),
+    marginBottom: theme.spacing(0.5),
+    cursor: "pointer",
+    "&:hover": { textDecoration: "underline" },
+}));
+const AdornmentBox = styled(Box)(() => ({
+    width: fontSizeToPixels("0.85rem") * Number("1.5"),
+    height: fontSizeToPixels("0.85rem") * Number("1.5"),
+}));
+
 const markdownDisplayStyle = {
     whiteSpace: "pre-wrap",
     wordWrap: "break-word",
@@ -419,7 +432,7 @@ export function ChatBubble({
     const [, setLocation] = useLocation();
     const { breakpoints } = useTheme();
     const isMobile = useMemo(() => chatWidth <= breakpoints.values.sm, [breakpoints, chatWidth]);
-    const profileColors = useMemo(() => placeholderColor(message.user?.id), []);
+    const profileColors = useMemo(() => placeholderColor(message.user?.id), [message.user?.id]);
 
     const [react] = useLazyFetch<ReactInput, Success>(endpointPostReact);
 
@@ -529,39 +542,44 @@ export function ChatBubble({
         };
     }, [bubblePressed, isMobile]);
 
+    const profileUrl = useMemo(function getProfileUrl() {
+        return getObjectUrl(message.user as NavigableObject);
+    }, [message.user]);
+    const openProfile = useCallback(function openProfileCallback() {
+        setLocation(profileUrl);
+    }, [profileUrl, setLocation]);
+
     return (
         <>
             {DeleteDialogComponent}
             <ChatBubbleOuterBox key={message.id}>
-                {/* User name display if it's not your message */}
                 {!isOwn && (
-                    <Stack direction="row" alignItems="center" spacing={0.5} mb={0.5}>
-                        <Typography variant="body2">
-                            {name}
-                        </Typography>
-                        {adornments.map(({ Adornment, key }, index) => (
-                            <Box key={key} sx={{
-                                width: fontSizeToPixels("0.85rem") * Number("1.5"),
-                                height: fontSizeToPixels("0.85rem") * Number("1.5"),
-                            }}>
-                                {Adornment}
-                            </Box>
-                        ))}
-                        {handle && (
-                            <Typography variant="body2" color="textSecondary">
-                                @{handle}
+                    <Link to={profileUrl}>
+                        <UserNameDisplay>
+                            <Typography variant="body2">
+                                {name}
                             </Typography>
-                        )}
-                    </Stack>
+                            {adornments.map(({ Adornment, key }) => (
+                                <AdornmentBox key={key}>
+                                    {Adornment}
+                                </AdornmentBox>
+                            ))}
+                            {handle && (
+                                <Typography variant="body2" color="textSecondary">
+                                    @{handle}
+                                </Typography>
+                            )}
+                        </UserNameDisplay>
+                    </Link>
                 )}
                 {/* Avatar, chat bubble, and status indicator */}
                 <Stack direction="row" justifyContent={isOwn ? "flex-end" : "flex-start"}>
-                    {!isOwn && (
+                    {!isOwn && !isMobile && (
                         <ProfileAvatar
-                            src={extractImageUrl(message.user?.profileImage, message.user?.updated_at, 50)}
+                            src={extractImageUrl(message.user?.profileImage, message.user?.updated_at, TARGET_PROFILE_IMAGE_SIZE_PX)}
                             alt={message.user?.name ?? message.user?.handle ?? message?.user?.isBot ? "Bot" : "User"}
                             isBot={message.user?.isBot === true}
-                            onClick={() => { setLocation(getObjectUrl(message.user as NavigableObject)); }}
+                            onClick={openProfile}
                             profileColors={profileColors}
                             sx={profileAvatarStyle}
                         >
@@ -601,6 +619,7 @@ export function ChatBubble({
                     handleRegenerateResponse={startRegenerateResponse}
                     isBot={message.user?.isBot ?? false}
                     isBotOnlyChat={isBotOnlyChat}
+                    isMobile={isMobile}
                     isOwn={isOwn}
                     numSiblings={numSiblings}
                     messageId={message.id}
@@ -696,9 +715,6 @@ type MessageRenderData = {
 type ChatBubbleTreeProps = {
     belowMessageList?: React.ReactNode,
     branches: BranchMap,
-    dimensions: Dimensions,
-    dimRef: RefObject<HTMLElement>,
-    // editMessage: (originalMessage: ChatMessageShape, text: string) => unknown,
     handleEdit: (originalMessage: ChatMessageShape) => unknown,
     handleRegenerateResponse: (message: ChatMessageShape) => unknown,
     handleReply: (message: ChatMessageShape) => unknown,
@@ -741,9 +757,6 @@ const BelowMessageListButtonsBox = styled(Box)(({ theme }) => ({
 export function ChatBubbleTree({
     belowMessageList,
     branches,
-    dimensions,
-    dimRef,
-    // editMessage,
     handleEdit,
     handleRegenerateResponse,
     handleReply,
@@ -758,6 +771,8 @@ export function ChatBubbleTree({
 }: ChatBubbleTreeProps) {
     const session = useContext(SessionContext);
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
+
+    const { dimensions, ref: dimRef } = useDimensions();
 
     const messageData = useMemo<MessageRenderData[]>(() => {
         function renderMessage(withSiblings: string[], activeIndex: number): MessageRenderData[] {

@@ -1,7 +1,8 @@
-import { BookmarkList, Chat, ChatInvite, ChatParticipant, CommonKey, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, NavigableObject, Notification, OrArray, Project, ProjectVersion, QuestionForType, Reminder, ReminderList, Role, Routine, RoutineVersion, RunProject, RunRoutine, SearchType, Tag, Team, TimeFrame, User } from "@local/shared";
+import { BookmarkList, Chat, ChatInvite, ChatParticipant, CommonKey, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, NavigableObject, Notification, OrArray, Project, ProjectVersion, QuestionForType, Reminder, ReminderList, Report, ReportResponse, Role, Routine, RoutineVersion, RunProject, RunRoutine, SearchType, Tag, Team, TimeFrame, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
-import { UseFindManyResult } from "hooks/useFindMany";
-import { UseObjectActionsReturn } from "hooks/useObjectActions";
+import { UsePressEvent } from "hooks/gestures";
+import { type UseObjectActionsReturn } from "hooks/objectActions";
+import { type UseFindManyResult } from "hooks/useFindMany";
 import { ReactNode } from "react";
 import { SvgComponent, SxType, ViewDisplayType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
@@ -31,7 +32,7 @@ type ObjectListItemBaseProps<T extends ListObject> = {
     belowSubtitle?: React.ReactNode;
     belowTags?: React.ReactNode;
     handleContextMenu: (target: EventTarget, object: ListObject | null) => unknown;
-    handleToggleSelect: (object: ListObject) => unknown;
+    handleToggleSelect: (item: ListObject, event?: UsePressEvent) => unknown;
     /** If update button should be hidden */
     hideUpdateButton?: boolean;
     isMobile: boolean;
@@ -64,6 +65,8 @@ export type MemberInviteListItemProps = ObjectListItemProps<MemberInvite>
 export type MemberListItemProps = ObjectListItemProps<Member>
 export type NotificationListItemProps = ObjectListItemProps<Notification>
 export type ReminderListItemProps = ObjectListItemProps<Reminder>
+export type ReportListItemProps = ObjectListItemProps<Report>
+export type ReportResponseListItemProps = ObjectListItemProps<ReportResponse>
 export type RunProjectListItemProps = ObjectListItemProps<RunProject>
 export type RunRoutineListItemProps = ObjectListItemProps<RunRoutine>
 
@@ -224,12 +227,13 @@ export interface LineGraphCardProps extends Omit<LineGraphProps, "dims"> {
 }
 
 export interface TIDCardProps {
-    buttonText: string;
+    below?: ReactNode;
+    buttonText?: string;
     description: string;
     key: string | number;
     Icon: SvgComponent | null | undefined;
     id?: string;
-    onClick: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => unknown;
+    onClick?: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => unknown;
     title: string;
     warning?: string;
 }

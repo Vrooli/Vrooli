@@ -27,7 +27,7 @@ export function IsPrivateButton({
             label: t(versionField?.value ? "Private" : "Public"),
             tooltip: t(`${!isPrivate ? "Private" : "Public"}TogglePress${isEditing ? "Editable" : ""}`),
         };
-    }, [versionField?.value, isEditing, t]);
+    }, [versionField?.value, isEditing, palette.primary.light, palette.secondary.contrastText, t]);
 
     const handleClick = useCallback(() => {
         if (!isEditing) return;

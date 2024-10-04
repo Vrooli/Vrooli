@@ -1,52 +1,38 @@
-import { calculateOccurrences, CalendarEvent, Chat, ChatCreateInput, ChatInviteStatus, ChatParticipantShape, ChatShape, ChatUpdateInput, DAYS_30_MS, deleteArrayIndex, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, MyStuffPageTabOption, Reminder, ResourceList as ResourceListType, Schedule, updateArray, uuid, VALYXA_ID } from "@local/shared";
-import { Box, Button, IconButton, styled, useTheme } from "@mui/material";
-import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse } from "api";
-import { ChatBubbleTree, ScrollToBottomButton, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
+import { calculateOccurrences, CalendarEvent, Chat, ChatCreateInput, ChatParticipantShape, ChatShape, ChatUpdateInput, DAYS_30_MS, deleteArrayIndex, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, MyStuffPageTabOption, Reminder, ResourceList as ResourceListType, Schedule, updateArray, uuid, VALYXA_ID } from "@local/shared";
+import { Box, Button, styled, useTheme } from "@mui/material";
+import { fetchLazyWrapper, hasErrorCode } from "api";
+import { ChatBubbleTree } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
-import { RichInputBase } from "components/inputs/RichInput/RichInput";
+import { ChatMessageInput } from "components/inputs/ChatMessageInput/ChatMessageInput";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ResourceList } from "components/lists/resource";
 import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SessionContext } from "contexts";
-import { useDimensions } from "hooks/useDimensions";
+import { useMessageActions, useMessageInput, useMessageTree } from "hooks/messages";
+import { useChatTasks } from "hooks/tasks";
 import { useHistoryState } from "hooks/useHistoryState";
-import { useKeyboardOpen } from "hooks/useKeyboardOpen";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { useMessageActions } from "hooks/useMessageActions";
-import { useMessageTree } from "hooks/useMessageTree";
 import { useSocketChat } from "hooks/useSocketChat";
 import { PageTab } from "hooks/useTabs";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { useWindowSize } from "hooks/useWindowSize";
-import { AddIcon, ChevronLeftIcon, ListIcon, MonthIcon, OpenInNewIcon, ReminderIcon, SendIcon } from "icons";
+import { AddIcon, ChevronLeftIcon, MonthIcon, OpenInNewIcon, ReminderIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { pagePaddingBottom } from "styles";
 import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
 import { DUMMY_LIST_LENGTH } from "utils/consts";
-import { getCookieMatchingChat, setCookieMatchingChat } from "utils/cookies";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
+import { getCookieMatchingChat, setCookieMatchingChat } from "utils/localStorage";
 import { PubSub } from "utils/pubsub";
-import { chatInitialValues, transformChatValues, VALYXA_INFO, withModifiableMessages, withYourMessages } from "views/objects/chat";
+import { CHAT_DEFAULTS, chatInitialValues, transformChatValues, withModifiableMessages, withYourMessages } from "views/objects/chat";
 import { DashboardViewProps } from "../types";
 
 const MAX_EVENTS_SHOWN = 10;
-
-const CHAT_DEFAULTS = {
-    __typename: "Chat" as const,
-    id: DUMMY_ID,
-    openToAnyoneWithInvite: false,
-    invites: [{
-        __typename: "ChatInvite" as const,
-        id: DUMMY_ID,
-        status: ChatInviteStatus.Pending,
-        user: VALYXA_INFO,
-    }],
-} as unknown as Chat;
+const MESSAGE_LIST_ID = "dashboardMessage";
 
 type DashboardTabsInfo = {
     IsSearchable: false;
@@ -75,13 +61,16 @@ const DashboardInnerBox = styled(Box)(() => ({
     width: "min(700px, 100%)",
 }));
 
-const sideMenuStyle = {
-    width: "48px",
-    height: "48px",
-    marginLeft: 1,
-    marginRight: 1,
-    cursor: "pointer",
-} as const;
+const ChatViewOptionsBox = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    maxWidth: "min(100vw, 1000px)",
+    margin: "auto",
+    background: theme.palette.primary.main,
+}));
+
 const pageTabsStyle = { width: "min(700px, 100%)", minWidth: undefined, margin: "auto" } as const;
 const exitChatButtonStyle = { margin: 1, borderRadius: 8, padding: "4px 8px" } as const;
 
@@ -97,9 +86,7 @@ export function DashboardView({
     const [, setLocation] = useLocation();
     const languages = useMemo(() => getUserLanguages(session), [session]);
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
-    const isKeyboardOpen = useKeyboardOpen();
 
-    const [message, setMessage] = useHistoryState<string>("dashboardMessage", "");
     const [participants, setParticipants] = useState<Omit<ChatParticipantShape, "chat">[]>([]);
     const [usersTyping, setUsersTyping] = useState<Omit<ChatParticipantShape, "chat">[]>([]);
     const [refetch, { data, loading: isFeedLoading }] = useLazyFetch<HomeInput, HomeResult>(endpointGetFeedHome);
@@ -117,7 +104,7 @@ export function DashboardView({
     });
 
     const [getChat, { data: loadedChat, loading: isChatLoading }] = useLazyFetch<FindByIdInput, Chat>(endpointGetChat);
-    const [chat, setChat] = useState<ChatShape>(chatInitialValues(session, undefined, t, languages[0], CHAT_DEFAULTS));
+    const [chat, setChat] = useState<ChatShape>(chatInitialValues(session, t, languages[0], CHAT_DEFAULTS));
     useEffect(() => {
         if (loadedChat?.participants) {
             setParticipants(loadedChat.participants);
@@ -133,7 +120,7 @@ export function DashboardView({
 
     const createChat = useCallback((resetChat = false) => {
         chatCreateStatus.current = "inProgress";
-        const chatToUse = resetChat ? chatInitialValues(session, undefined, t, languages[0], CHAT_DEFAULTS) : chat;
+        const chatToUse = resetChat ? chatInitialValues(session, t, languages[0], CHAT_DEFAULTS) : chat;
         fetchLazyWrapper<ChatCreateInput, Chat>({
             fetch: fetchCreate,
             inputs: transformChatValues(withModifiableMessages(chatToUse, session), withYourMessages(chatToUse, session), true),
@@ -347,78 +334,49 @@ export function DashboardView({
         }
     }, [upcomingEvents]);
 
-    const openSideMenu = useCallback(() => { PubSub.get().publish("sideMenu", { id: "chat-side-menu", isOpen: true }); }, []);
-
-    const [showChat, setShowChat] = useState(false);
-    const hideChat = useCallback(function hideChatCallback() {
-        setShowChat(false);
+    const [view, setView] = useState<"chat" | "home">("home");
+    const showChat = useCallback(function showChatCallback() {
+        setView("chat");
+    }, []);
+    const showHome = useCallback(function showHomeCallback() {
+        setView("home");
     }, []);
 
-    const showTabs = useMemo(() => !showChat && Boolean(getCurrentUser(session).id) && allFocusModes.length > 1 && currTab !== null, [showChat, session, allFocusModes.length, currTab]);
+    const showTabs = useMemo(() => view === "home" && Boolean(getCurrentUser(session).id) && allFocusModes.length > 1 && currTab !== null, [session, allFocusModes.length, currTab, view]);
 
+    const [message, setMessage] = useHistoryState<string>(`${MESSAGE_LIST_ID}-message`, "");
     const messageTree = useMessageTree(chat.id);
-    const { dimensions, ref: dimRef } = useDimensions();
-
-    const [inputFocused, setInputFocused] = useState(false);
-    const onBlur = useCallback(() => { setInputFocused(false); }, []);
-    const onFocus = useCallback(() => {
-        setInputFocused(true);
-        setShowChat(true);
-    }, []);
-
-    const onSubmit = useCallback((updatedChat?: ChatShape) => {
-        return new Promise<Chat>((resolve, reject) => {
-            // Clear typed message
-            let oldMessage: string | undefined;
-            setMessage((m) => {
-                oldMessage = m;
-                return "";
-            });
-            fetchLazyWrapper<ChatUpdateInput, Chat>({
-                fetch,
-                inputs: transformChatValues(withModifiableMessages(updatedChat ?? chat, session), withYourMessages(chat, session), false),
-                onSuccess: (data) => {
-                    setChat({ ...data, messages: [] });
-                    resolve(data);
-                },
-                onError: (data) => {
-                    // Put typed message back if there was a problem
-                    setMessage(oldMessage ?? "");
-                    PubSub.get().publish("snack", {
-                        message: errorToMessage(data as ServerResponse, getUserLanguages(session)),
-                        severity: "Error",
-                        data,
-                    });
-                    reject(data);
-                },
-                spinnerDelay: null,
-            });
-        });
-    }, [chat, fetch, session, setMessage]);
-
+    const taskInfo = useChatTasks({ chatId: chat.id });
+    const isBotOnlyChat = chat?.participants?.every(p => p.user?.isBot || p.user?.id === getCurrentUser(session).id) ?? false;
+    const messageActions = useMessageActions({
+        activeTask: taskInfo.activeTask,
+        addMessages: messageTree.addMessages,
+        chat,
+        contexts: taskInfo.contexts[taskInfo.activeTask.taskId] || [],
+        editMessage: messageTree.editMessage,
+        isBotOnlyChat,
+        language: languages[0],
+        setMessage,
+    });
+    const messageInput = useMessageInput({
+        id: MESSAGE_LIST_ID,
+        languages,
+        message,
+        postMessage: messageActions.postMessage,
+        putMessage: messageActions.putMessage,
+        replyToMessage: messageActions.replyToMessage,
+        setMessage,
+    });
     const { messageStream } = useSocketChat({
         addMessages: messageTree.addMessages,
         chat,
         editMessage: messageTree.editMessage,
-        messageTasks: messageTree.messageTasks,
         participants,
         removeMessages: messageTree.removeMessages,
         setParticipants,
         setUsersTyping,
-        updateTasksForMessage: messageTree.updateTasksForMessage,
         usersTyping,
     });
-
-    const messageActions = useMessageActions({
-        chat,
-        handleChatUpdate: onSubmit,
-        language: languages[0],
-        tasks: messageTree.messageTasks,
-        tree: messageTree.tree,
-        updateTasksForMessage: messageTree.updateTasksForMessage,
-    });
-
-    const isBotOnlyChat = chat?.participants?.every(p => p.user?.isBot || p.user?.id === getCurrentUser(session).id) ?? false;
 
     const scheduleContainerOptions = useMemo(function scheduleContainerOptionsMemo() {
         return [{
@@ -440,56 +398,12 @@ export function DashboardView({
         }];
     }, [setLocation, t]);
 
-    const inputActionButtons = useMemo(function inputActionButtonsMemo() {
-        return [{
-            disabled: isChatLoading || isCreateLoading || isUpdateLoading,
-            Icon: SendIcon,
-            onClick: () => {
-                const trimmed = message.trim();
-                if (trimmed.length === 0) return;
-                messageActions.postMessage(trimmed);
-            },
-        }];
-    }, [isChatLoading, isCreateLoading, isUpdateLoading, message, messageActions]);
-
-    const inputStyle = useMemo(function inputStyleMemo() {
-        return {
-            root: {
-                background: palette.primary.dark,
-                color: palette.primary.contrastText,
-                maxHeight: "min(75vh, 500px)",
-                width: "min(700px, 100%)",
-                margin: "auto",
-                marginBottom: { xs: (display === "page" && !isKeyboardOpen) ? pagePaddingBottom : "0", md: "0" },
-            },
-            topBar: { borderRadius: 0, paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
-            bottomBar: { paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
-            inputRoot: {
-                border: "none",
-                background: palette.background.paper,
-            },
-        };
-    }, [display, isKeyboardOpen, isMobile, palette.background.paper, palette.primary.contrastText, palette.primary.dark]);
-
-    const handleSubmit = useCallback(function handleSubmitCallback(m) {
-        const trimmed = m.trim();
-        if (trimmed.length === 0) return;
-        messageActions.postMessage(trimmed);
-    }, [messageActions]);
-
     return (
         <DashboardBox>
             {/* Main content */}
             <TopBar
                 display={display}
                 onClose={onClose}
-                startComponent={<IconButton
-                    aria-label="Open chat menu"
-                    onClick={openSideMenu}
-                    sx={sideMenuStyle}
-                >
-                    <ListIcon fill={palette.primary.contrastText} width="100%" height="100%" />
-                </IconButton>}
                 below={<>
                     {showTabs && currTab && <PageTabs
                         ariaLabel="home-tabs"
@@ -500,17 +414,10 @@ export function DashboardView({
                         tabs={tabs}
                         sx={pageTabsStyle}
                     />}
-                    {showChat && <Box
-                        display="flex"
-                        flexDirection="row"
-                        justifyContent="space-around"
-                        alignItems="center"
-                        maxWidth="min(100vw, 1000px)"
-                        margin="auto"
-                    >
+                    {view === "chat" && <ChatViewOptionsBox>
                         <Button
                             color="primary"
-                            onClick={hideChat}
+                            onClick={showHome}
                             variant="contained"
                             sx={exitChatButtonStyle}
                             startIcon={<ChevronLeftIcon />}
@@ -526,12 +433,12 @@ export function DashboardView({
                         >
                             {t("NewChat")}
                         </Button>
-                    </Box>}
+                    </ChatViewOptionsBox>}
                 </>}
             />
             <DashboardInnerBox>
                 {/* TODO for morning: work on changes needed for a chat to track active and inactive tasks. Might need to link them to their own reminder list */}
-                {!showChat && <>
+                {view === "home" && <>
                     <Box p={1}>
                         <ResourceList
                             id="main-resource-list"
@@ -590,43 +497,38 @@ export function DashboardView({
                         />
                     </ListTitleContainer>
                 </>}
-                {showChat && <ChatBubbleTree
+                {view === "chat" && <ChatBubbleTree
                     branches={messageTree.branches}
-                    dimensions={dimensions}
-                    dimRef={dimRef}
-                    editMessage={messageActions.putMessage}
-                    handleReply={messageTree.replyToMessage}
-                    handleRetry={messageActions.regenerateResponse}
-                    handleTaskClick={messageActions.respondToTask}
+                    handleEdit={messageInput.startEditingMessage}
+                    handleRegenerateResponse={messageActions.regenerateResponse}
+                    handleReply={messageInput.startReplyingToMessage}
+                    handleRetry={messageActions.retryPostMessage}
                     isBotOnlyChat={isBotOnlyChat}
+                    isEditingMessage={Boolean(messageInput.messageBeingEdited)}
+                    isReplyingToMessage={Boolean(messageInput.messageBeingRepliedTo)}
                     messageStream={messageStream}
-                    messageTasks={messageTree.messageTasks}
                     removeMessages={messageTree.removeMessages}
                     setBranches={messageTree.setBranches}
                     tree={messageTree.tree}
                 />}
-                {showChat && <ScrollToBottomButton containerRef={dimRef} />}
             </DashboardInnerBox>
-            <TypingIndicator participants={usersTyping} />
-            <RichInputBase
-                actionButtons={inputActionButtons}
-                disableAssistant={true}
-                fullWidth
-                getTaggableItems={async (message) => {
-                    // TODO should be able to tag any public or owned object (e.g. "Create routine like @some_existing_routine, but change a to b")
-                    return [];
-                }}
-                maxChars={1500}
-                maxRows={inputFocused ? 10 : 2}
-                minRows={1}
-                name="search"
-                onBlur={onBlur}
-                onChange={setMessage}
-                onFocus={onFocus}
-                onSubmit={handleSubmit}
+            <ChatMessageInput
+                disabled={!chat}
+                display={display}
+                isLoading={isCreateLoading || isUpdateLoading || isChatLoading}
+                message={message}
+                messageBeingEdited={messageInput.messageBeingEdited}
+                messageBeingRepliedTo={messageInput.messageBeingRepliedTo}
+                onFocused={showChat}
+                participantsAll={participants}
+                participantsTyping={usersTyping}
+                messagesCount={messageTree.messagesCount}
                 placeholder={t("WhatWouldYouLikeToDo")}
-                sxs={inputStyle}
-                value={message}
+                setMessage={setMessage}
+                stopEditingMessage={messageInput.stopEditingMessage}
+                stopReplyingToMessage={messageInput.stopReplyingToMessage}
+                submitMessage={messageInput.submitMessage}
+                taskInfo={taskInfo}
             />
         </DashboardBox>
     );

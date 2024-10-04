@@ -81,6 +81,7 @@ export function ParticipantsButton({
             <>
                 <ParticipantManageView
                     display="dialog"
+                    isEditing={isEditing}
                     isOpen={isDialogOpen}
                     onClose={closeDialog}
                     chat={formikContext.values as ParticipantManageViewProps["chat"]}

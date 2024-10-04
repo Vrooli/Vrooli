@@ -1,12 +1,46 @@
-import { Box, IconButton, DialogTitle as MuiDialogTitle, useTheme } from "@mui/material";
+import { Box, IconButtonProps, DialogTitle as MuiDialogTitle, DialogTitleProps as MuiDialogTitleProps, styled, useTheme } from "@mui/material";
 import { Title } from "components/text/Title/Title";
 import { useIsLeftHanded } from "hooks/subscriptions";
 import { CloseIcon } from "icons";
-import { forwardRef } from "react";
+import { forwardRef, useMemo } from "react";
 import { useLocation } from "route";
 import { noSelect } from "styles";
 import { tryOnClose } from "utils/navigation/urlTools";
 import { DialogTitleProps } from "../types";
+
+interface StyledTitleContainerProps extends MuiDialogTitleProps {
+    isLeftHanded: boolean;
+}
+
+const StyledTitleContainer = styled(MuiDialogTitle, {
+    shouldForwardProp: (prop) => prop !== "isLeftHanded",
+})<StyledTitleContainerProps>(({ isLeftHanded, theme }) => ({
+    ...noSelect,
+    display: "flex",
+    flexDirection: isLeftHanded ? "row-reverse" : "row",
+    alignItems: "center",
+    padding: theme.spacing(0.5),
+    paddingLeft: theme.spacing(2),
+    paddingRight: theme.spacing(2),
+    textAlign: "center",
+    fontSize: "2rem",
+    [theme.breakpoints.down("sm")]: {
+        fontSize: "1.5rem",
+    },
+}));
+
+interface CloseIconButtonProps extends IconButtonProps {
+    isLeftHanded: boolean;
+}
+
+const CloseIconButton = styled(MuiDialogTitle, {
+    shouldForwardProp: (prop) => prop !== "isLeftHanded",
+})<CloseIconButtonProps>(({ isLeftHanded, theme }) => ({
+    display: "flex",
+    marginLeft: isLeftHanded ? "0px" : "auto",
+    marginRight: isLeftHanded ? "auto" : "0px",
+    padding: theme.spacing(1),
+}));
 
 export const DialogTitle = forwardRef(({
     below,
@@ -19,47 +53,47 @@ export const DialogTitle = forwardRef(({
     const [, setLocation] = useLocation();
     const isLeftHanded = useIsLeftHanded();
 
-    return (
-        <Box ref={ref} sx={{
+    const outerBoxStyle = useMemo(function outerBoxStyleMemo() {
+        return {
             background: palette.primary.dark,
             color: palette.primary.contrastText,
             position: "sticky",
             top: 0,
             zIndex: 2,
             ...titleData.sxs?.root,
-        }}>
-            <MuiDialogTitle
+        } as const;
+    }, [palette.primary.contrastText, palette.primary.dark, titleData.sxs]);
+
+    const titleStyle = useMemo(function titleStyleMemo() {
+        return {
+            stack: {
+                ...(isLeftHanded ? { marginRight: "auto" } : { marginLeft: "auto" }),
+                padding: 0,
+            },
+        } as const;
+    }, [isLeftHanded]);
+
+    return (
+        <Box ref={ref} sx={outerBoxStyle}>
+            <StyledTitleContainer
                 id={id}
-                sx={{
-                    ...noSelect,
-                    display: "flex",
-                    flexDirection: isLeftHanded ? "row-reverse" : "row",
-                    alignItems: "center",
-                    padding: 2,
-                    textAlign: "center",
-                    fontSize: { xs: "1.5rem", sm: "2rem" },
-                }}
+                isLeftHanded={isLeftHanded}
             >
                 {startComponent}
                 <Title
                     variant="subheader"
                     {...titleData}
-                    sxs={{
-                        stack: {
-                            ...(isLeftHanded ? { marginRight: "auto" } : { marginLeft: "auto" }),
-                            padding: 0,
-                        },
-                    }}
+                    sxs={titleStyle}
                 />
-                <IconButton
+                <CloseIconButton
                     aria-label="close"
                     edge="end"
+                    isLeftHanded={isLeftHanded}
                     onClick={() => { tryOnClose(onClose, setLocation); }}
-                    sx={isLeftHanded ? { marginRight: "auto" } : { marginLeft: "auto" }}
                 >
                     <CloseIcon fill={palette.primary.contrastText} />
-                </IconButton>
-            </MuiDialogTitle>
+                </CloseIconButton>
+            </StyledTitleContainer>
             {below}
         </Box>
     );

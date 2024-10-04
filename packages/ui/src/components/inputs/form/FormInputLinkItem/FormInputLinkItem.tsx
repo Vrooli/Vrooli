@@ -74,7 +74,7 @@ const limitTypeOptions: LimitTypeOption[] = [
         Icon: UserIcon,
         label: t => t("common:User", { count: 1, defaultValue: "User" }),
         value: "User",
-    }
+    },
 ];
 const acceptedObjectTypes = limitTypeOptions.map(option => option.value);
 
