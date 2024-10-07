@@ -17,6 +17,7 @@
     "scripts": {
         "pretest": "sh ../../scripts/setSwc.sh \"test\" > .swcrc",
         "test": "jest --clearCache && jest --coverage --config jest.config.cjs",
+        "test-watch": "jest --watch --onlyChanged",
         "posttest": "sh ../../scripts/setSwc.sh \"development\" > .swcrc",
         "lint": "eslint src",
         "pre-build-development": "sh ../../scripts/setSwc.sh \"development\" > .swcrc",

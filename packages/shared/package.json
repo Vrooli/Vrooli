@@ -12,6 +12,7 @@
     "scripts": {
         "build": "yarn swc src -d dist && node src/ai/compileConfigs.cjs && node src/ai/compileServices.cjs",
         "test": "jest --clearCache && jest --coverage",
+        "test-watch": "jest --watch --onlyChanged",
         "lint": "eslint src",
         "type-check": "tsc --noEmit"
     },
