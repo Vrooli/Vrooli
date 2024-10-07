@@ -1,8 +1,7 @@
-import { AutoFillInput, AutoFillResult, CancelTaskInput, CheckTaskStatusesInput, CheckTaskStatusesResult, RunFrom, StartLlmTaskInput, StartRunTaskInput, Success, TaskType, uuid } from "@local/shared";
+import { CancelTaskInput, CheckTaskStatusesInput, CheckTaskStatusesResult, RunFrom, StartLlmTaskInput, StartRunTaskInput, Success, TaskType, uuid } from "@local/shared";
 import { assertRequestFrom } from "../../auth/request";
 import { rateLimit } from "../../middleware/rateLimit";
-import { llmProcessAutoFill } from "../../tasks/llm/process";
-import { requestStartLlmTask } from "../../tasks/llm/queue";
+import { requestBotResponse } from "../../tasks/llm/queue";
 import { changeLlmTaskStatus, getLlmTaskStatuses } from "../../tasks/llmTask";
 import { changeRunTaskStatus, getRunTaskStatuses, processRunProject, processRunRoutine } from "../../tasks/run/queue";
 import { changeSandboxTaskStatus, getSandboxTaskStatuses } from "../../tasks/sandbox/queue";
@@ -13,7 +12,6 @@ export type EndpointsTask = {
         checkTaskStatuses: GQLEndpoint<CheckTaskStatusesInput, CheckTaskStatusesResult>;
     },
     Mutation: {
-        autoFill: GQLEndpoint<AutoFillInput, AutoFillResult>;
         startLlmTask: GQLEndpoint<StartLlmTaskInput, Success>;
         startRunTask: GQLEndpoint<StartRunTaskInput, Success>;
         cancelTask: GQLEndpoint<CancelTaskInput, Success>;
@@ -43,17 +41,16 @@ export const TaskEndpoints: EndpointsTask = {
         },
     },
     Mutation: {
-        autoFill: async (_, { input }, { req }) => {
-            const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ maxUser: 1000, req });
-
-            return llmProcessAutoFill({ ...input, userData, __process: "AutoFill" });
-        },
         startLlmTask: async (_, { input }, { req }) => {
             const userData = assertRequestFrom(req, { isUser: true });
             await rateLimit({ maxUser: 1000, req });
 
-            return requestStartLlmTask({ ...input, userData });
+            return requestBotResponse({
+                ...input,
+                mode: "json",
+                parentMessage: null,
+                userData
+            });
         },
         startRunTask: async (_, { input }, { req }) => {
             const userData = assertRequestFrom(req, { isUser: true });

@@ -1,11 +1,8 @@
-import { task_autoFill, task_cancelTask, task_checkTaskStatuses, task_startLlmTask, task_startRunTask } from "../generated";
+import { task_cancelTask, task_checkTaskStatuses, task_startLlmTask, task_startRunTask } from "../generated";
 import { TaskEndpoints } from "../logic/task";
 import { setupRoutes } from "./base";
 
 export const TaskRest = setupRoutes({
-    "/autoFill": {
-        get: [TaskEndpoints.Mutation.autoFill, task_autoFill],
-    },
     "/startLlmTask": {
         post: [TaskEndpoints.Mutation.startLlmTask, task_startLlmTask],
     },
