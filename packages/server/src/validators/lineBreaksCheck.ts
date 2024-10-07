@@ -1,4 +1,4 @@
-import { ErrorKey } from "@local/shared";
+import { TranslationKeyError } from "@local/shared";
 import { CustomError } from "../events/error";
 
 /**
@@ -9,7 +9,7 @@ import { CustomError } from "../events/error";
  * @param languages The languages to use for error messages
  * @param k - The maximum number of line breaks allowed
  */
-export const lineBreaksCheck = (input: any, fields: string[], error: ErrorKey, languages: string[], k = 2): void => {
+export const lineBreaksCheck = (input: any, fields: string[], error: TranslationKeyError, languages: string[], k = 2): void => {
     // First, check translations
     const checkTranslations = (translations: any[], fields: string[]): void => {
         translations.forEach((x: any) => {

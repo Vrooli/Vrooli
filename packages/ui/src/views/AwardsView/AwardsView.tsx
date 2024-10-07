@@ -1,4 +1,4 @@
-import { Award, AwardCategory, AwardKey, AwardSearchInput, AwardSearchResult, endpointPostAwards } from "@local/shared";
+import { Award, AwardCategory, AwardSearchInput, AwardSearchResult, TranslationKeyAward, endpointPostAwards } from "@local/shared";
 import { Box, Typography } from "@mui/material";
 import { CompletionBar } from "components/CompletionBar/CompletionBar";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
@@ -115,8 +115,8 @@ export function AwardsView({
         // 0-progress awards may not be initialized in the backend, so we need to initialize them here
         const noProgressAwards = Object.values(AwardCategory).map((category) => ({
             category,
-            title: t(`${category}UnearnedTitle` as AwardKey, { ns: "award" }),
-            description: t(`${category}UnearnedBody` as AwardKey, { ns: "award" }),
+            title: t(`${category}UnearnedTitle` as TranslationKeyAward, { ns: "award" }),
+            description: t(`${category}UnearnedBody` as TranslationKeyAward, { ns: "award" }),
             progress: 0,
         })) as Award[];
         return noProgressAwards.map(a => awardToDisplay(a, t));

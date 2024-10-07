@@ -1,5 +1,5 @@
 import { AwardCategory } from "../api/generated/graphqlTypes";
-import { type AwardKey } from "../types";
+import { type TranslationKeyAward } from "../types";
 
 /**
  * Maps award categories to their tiers, if applicable. Special cases are handled
@@ -43,10 +43,10 @@ export const awardVariants: { [key in Exclude<`${AwardCategory}`, "AccountAnnive
  * @returns Highest count and name that's applicable
  */
 const awardTier = (
-    list: [number, AwardKey][],
+    list: [number, TranslationKeyAward][],
     count: number,
     findNext = false,
-): [number, AwardKey | null] => {
+): [number, TranslationKeyAward | null] => {
     for (let i = 0; i < list.length; i++) {
         const item = list[i];
         if (!item) continue;
@@ -66,9 +66,9 @@ const awardTier = (
  * Maps award category/level to the award's name and description. Names should be interesting and unique.
  */
 export const awardNames: { [key in AwardCategory]: (count: number, findNext?: boolean) => {
-    name: AwardKey | null,
+    name: TranslationKeyAward | null,
     nameVariables?: { count: number },
-    body: AwardKey | null,
+    body: TranslationKeyAward | null,
     bodyVariables?: { count: number },
     level: number,
 } } = {

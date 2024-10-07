@@ -1,4 +1,4 @@
-import { CalendarPageTabOption, ChatInviteStatus, ChatPageTabOption, CodeType, CommonKey, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, RunStatus, ScheduleFor, SearchPageTabOption, SearchType, SearchVersionPageTabOption, SignUpPageTabOption, StandardType, TeamPageTabOption, UserPageTabOption, VisibilityType, YouInflated } from "@local/shared";
+import { CalendarPageTabOption, ChatInviteStatus, ChatPageTabOption, CodeType, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, RunStatus, ScheduleFor, SearchPageTabOption, SearchType, SearchVersionPageTabOption, SignUpPageTabOption, StandardType, TeamPageTabOption, TranslationKeyCommon, UserPageTabOption, VisibilityType, YouInflated } from "@local/shared";
 import { Palette } from "@mui/material";
 import { PageTab } from "hooks/useTabs";
 import { AddIcon, ApiIcon, ArticleIcon, FocusModeIcon, HelpIcon, HistoryIcon, MonthIcon, NoteIcon, ObjectIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon, VisibleIcon } from "icons";
@@ -89,9 +89,9 @@ export type TabParam<TabList extends TabsInfo> = {
     href?: string;
     Icon?: SvgComponent,
     key: TabList["Key"] | `${TabList["Key"]}`;
-    titleKey: CommonKey;
+    titleKey: TranslationKeyCommon;
 } & (TabList["IsSearchable"] extends true ? {
-    searchPlaceholderKey?: CommonKey;
+    searchPlaceholderKey?: TranslationKeyCommon;
     searchType: SearchType | `${SearchType}`;
     where: TabList["WhereParams"] extends undefined ? () => { [x: string]: any } : (params: TabList["WhereParams"]) => { [x: string]: any };
 } : object) & (TabList["Payload"] extends undefined ? object : {

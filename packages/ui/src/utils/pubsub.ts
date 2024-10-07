@@ -1,20 +1,20 @@
-import { AITaskInfo, ActiveFocusMode, ChatPageTabOption, CommonKey, ErrorKey, LlmTask, Session, TaskContextInfo } from "@local/shared";
+import { AITaskInfo, ActiveFocusMode, ChatPageTabOption, TranslationKeyCommon, TranslationKeyError, LlmTask, Session, TaskContextInfo } from "@local/shared";
 import { AlertDialogSeverity } from "components/dialogs/AlertDialog/AlertDialog";
 import { SnackSeverity } from "components/snacks";
 import { ThemeType } from "./localStorage";
 
-export type TranslatedSnackMessage<KeyList = CommonKey | ErrorKey> = {
+export type TranslatedSnackMessage<KeyList = TranslationKeyCommon | TranslationKeyError> = {
     messageKey: KeyList;
     messageVariables?: { [key: string]: string | number };
 }
 export type UntranslatedSnackMessage = {
     message: string;
 }
-export type SnackMessage<KeyList = CommonKey | ErrorKey> = TranslatedSnackMessage<KeyList> | UntranslatedSnackMessage;
-export type SnackPub<KeyList = CommonKey | ErrorKey> = SnackMessage<KeyList> & {
+export type SnackMessage<KeyList = TranslationKeyCommon | TranslationKeyError> = TranslatedSnackMessage<KeyList> | UntranslatedSnackMessage;
+export type SnackPub<KeyList = TranslationKeyCommon | TranslationKeyError> = SnackMessage<KeyList> & {
     autoHideDuration?: number | "persist";
     buttonClicked?: (event?: any) => any;
-    buttonKey?: CommonKey;
+    buttonKey?: TranslationKeyCommon;
     buttonVariables?: { [key: string]: string | number };
     data?: any;
     /**
@@ -114,12 +114,12 @@ export type ChatTaskPub = {
 }
 
 export type AlertDialogPub = {
-    titleKey?: CommonKey;
+    titleKey?: TranslationKeyCommon;
     titleVariables?: { [key: string]: string | number };
-    messageKey?: ErrorKey | CommonKey;
+    messageKey?: TranslationKeyError | TranslationKeyCommon;
     messageVariables?: { [key: string]: string | number };
     buttons: {
-        labelKey: CommonKey;
+        labelKey: TranslationKeyCommon;
         labelVariables?: { [key: string]: string | number };
         onClick?: (() => unknown);
     }[];

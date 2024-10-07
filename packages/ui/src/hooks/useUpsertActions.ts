@@ -1,4 +1,4 @@
-import { CommonKey, DUMMY_ID, GqlModelType, LINKS, ListObject, NavigableObject, OrArray, getObjectUrl } from "@local/shared";
+import { DUMMY_ID, GqlModelType, LINKS, ListObject, NavigableObject, OrArray, TranslationKeyCommon, getObjectUrl } from "@local/shared";
 import { ObjectDialogAction } from "components/dialogs/types";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -88,7 +88,7 @@ export function useUpsertActions<T extends TType>({
         const objectTranslation = t(rootType, { count: 1, defaultValue: rootType });
 
         // Some actions have buttons
-        let buttonKey: CommonKey | undefined;
+        let buttonKey: TranslationKeyCommon | undefined;
         let buttonClicked: (() => unknown) | undefined;
         // Create ations typically have a button to create a new object
         if (actionType === "Created") {

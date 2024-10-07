@@ -1,5 +1,5 @@
 // Defines common props
-import { AwardCategory, CommonKey, ListObject, OrArray } from "@local/shared";
+import { AwardCategory, ListObject, OrArray, TranslationKeyCommon } from "@local/shared";
 import { Theme } from "@mui/material";
 import { SystemStyleObject } from "@mui/system";
 import { FormikProps } from "formik";
@@ -42,10 +42,10 @@ export type FormErrors = { [key: string]: string | string[] | null | undefined |
  */
 export type OptionalTranslation = {
     help?: string;
-    helpKey?: CommonKey;
+    helpKey?: TranslationKeyCommon;
     helpVariables?: { [x: string]: string | number };
     title?: string;
-    titleKey?: CommonKey;
+    titleKey?: TranslationKeyCommon;
     titleVariables?: { [x: string]: string | number };
 }
 

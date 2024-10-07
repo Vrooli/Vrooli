@@ -1,4 +1,4 @@
-import { CommonKey, LINKS } from "@local/shared";
+import { LINKS, TranslationKeyCommon } from "@local/shared";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -13,7 +13,7 @@ import { CreateViewProps } from "../types";
 
 type CreateInfo = {
     objectType: CreateType;
-    description: CommonKey,
+    description: TranslationKeyCommon,
     Icon: SvgComponent,
     id: string,
     incomplete?: boolean;

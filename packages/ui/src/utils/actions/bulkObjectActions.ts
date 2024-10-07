@@ -1,4 +1,4 @@
-import { BookmarkFor, CommonKey, CopyType, DeleteType, ListObject, ReportFor, Session } from "@local/shared";
+import { BookmarkFor, CopyType, DeleteType, ListObject, ReportFor, Session, TranslationKeyCommon } from "@local/shared";
 import { ListMenuItemData } from "components/dialogs/types";
 import { AddIcon, BookmarkFilledIcon, BookmarkOutlineIcon, CopyIcon, DeleteIcon, ReportIcon } from "icons";
 import { SvgComponent } from "types";
@@ -78,7 +78,7 @@ export const getAvailableBulkActions = (objects: ListObject[], session: Session 
 /**
  * Maps an BulkObjectAction to [labelKey, Icon, iconColor, preview]
  */
-const allBulkOptionsMap: { [key in BulkObjectAction]: [CommonKey, SvgComponent, string, boolean] } = ({
+const allBulkOptionsMap: { [key in BulkObjectAction]: [TranslationKeyCommon, SvgComponent, string, boolean] } = ({
     [BulkObjectAction.Bookmark]: ["Bookmark", BookmarkOutlineIcon, "#cbae30", false],
     [BulkObjectAction.BookmarkUndo]: ["BookmarkUndo", BookmarkFilledIcon, "#cbae30", false],
     [BulkObjectAction.Delete]: ["Delete", DeleteIcon, "default", false],

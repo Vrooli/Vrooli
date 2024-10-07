@@ -1,4 +1,4 @@
-import { CommentFor, CommonKey } from "@local/shared";
+import { CommentFor, TranslationKeyCommon } from "@local/shared";
 import { TypographyProps } from "@mui/material";
 import { RichInputProps, TextInputProps, TranslatedRichInputProps, TranslatedTextInputProps } from "components/inputs/types";
 import { ReactNode } from "react";
@@ -63,7 +63,7 @@ export interface ContentCollapseProps {
     title?: string | null;
     titleComponent?: TypographyProps["component"];
     titleVariant?: TypographyProps["variant"];
-    titleKey?: CommonKey;
+    titleKey?: TranslationKeyCommon;
     titleVariables?: { [x: string]: string | number };
     toTheRight?: JSX.Element;
 }

@@ -1,4 +1,4 @@
-import { CommonKey, LINKS, SOCIALS } from "@local/shared";
+import { LINKS, SOCIALS, TranslationKeyCommon } from "@local/shared";
 import { Box, List, ListItem, ListItemIcon, ListItemText, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { CopyrightBreadcrumbs } from "components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs";
 import { GitHubIcon, InfoIcon, StatsIcon, XIcon } from "icons";
@@ -9,7 +9,7 @@ import { SvgComponent } from "types";
 import { getDeviceInfo } from "utils/display/device";
 
 /** aria-label, tooltip, link, displayed text, icon */
-const contactLinks: [string, CommonKey, string, CommonKey, SvgComponent][] = [
+const contactLinks: [string, TranslationKeyCommon, string, TranslationKeyCommon, SvgComponent][] = [
     ["contact-x", "ContactHelpX", SOCIALS.X, "X", XIcon],
     // ["contact-discord", "ContactHelpDiscord", SOCIALS.Discord, "Discord", DiscordIcon],
     ["contact-github", "ContactHelpCode", SOCIALS.GitHub, "SourceCode", GitHubIcon],

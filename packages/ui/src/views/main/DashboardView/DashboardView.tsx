@@ -71,8 +71,15 @@ const ChatViewOptionsBox = styled(Box)(({ theme }) => ({
     background: theme.palette.primary.main,
 }));
 
+const NewChatButton = styled(Button)(({ theme }) => ({
+    margin: theme.spacing(1),
+    borderRadius: theme.spacing(8),
+    padding: "4px 8px",
+}));
+
 const pageTabsStyle = { width: "min(700px, 100%)", minWidth: undefined, margin: "auto" } as const;
 const exitChatButtonStyle = { margin: 1, borderRadius: 8, padding: "4px 8px" } as const;
+const resourceListStyle = { list: { justifyContent: "flex-start" } } as const;
 
 /** View displayed for Home page when logged in */
 export function DashboardView({
@@ -424,15 +431,14 @@ export function DashboardView({
                         >
                             {t("Dashboard")}
                         </Button>
-                        <Button
+                        <NewChatButton
                             color="primary"
                             onClick={resetChat}
                             variant="contained"
-                            sx={{ margin: 1, borderRadius: 8, padding: "4px 8px" }}
                             startIcon={<AddIcon />}
                         >
                             {t("NewChat")}
-                        </Button>
+                        </NewChatButton>
                     </ChatViewOptionsBox>}
                 </>}
             />
@@ -457,7 +463,7 @@ export function DashboardView({
                                 { __typename: "FocusMode", id: DUMMY_ID }
                             }
                             title={t("Resource", { count: 2 })}
-                            sxs={{ list: { justifyContent: "flex-start" } }}
+                            sxs={resourceListStyle}
                         />
                     </Box>
                     {/* Events */}

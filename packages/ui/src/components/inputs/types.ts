@@ -1,4 +1,4 @@
-import { ApiVersion, CodeLanguage, CodeVersion, JSONVariable, ListObject, NoteVersion, ProjectVersion, ResourceListFor, RoutineVersion, StandardVersion, Tag, TagShape } from "@local/shared";
+import { ApiVersion, CodeLanguage, CodeVersion, JSONVariable, ListObject, NoteVersion, ProjectVersion, ResourceListFor, RoutineVersion, StandardVersion, Tag, TagShape, TranslationFunc } from "@local/shared";
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
 import { FindObjectType } from "components/dialogs/types";
 import { ResourceListProps } from "components/lists/resource/types";
@@ -330,9 +330,9 @@ export interface SelectorProps<T extends string | number | { [x: string]: any }>
     disabled?: boolean;
     fullWidth?: boolean;
     getDisplayIcon?: (option: T) => SvgComponent | JSX.Element | undefined;
-    getOptionDescription?: (option: T) => string | null | undefined;
+    getOptionDescription?: (option: T, t: TranslationFunc) => string | null | undefined;
     getOptionIcon?: (option: T) => SvgComponent | JSX.Element | undefined;
-    getOptionLabel: (option: T) => string | null | undefined;
+    getOptionLabel: (option: T, t: TranslationFunc) => string | null | undefined;
     inputAriaLabel?: string;
     isRequired?: boolean,
     label?: string;

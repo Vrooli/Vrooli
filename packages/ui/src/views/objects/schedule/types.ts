@@ -1,4 +1,4 @@
-import { CommonKey, Schedule, ScheduleShape } from "@local/shared";
+import { Schedule, ScheduleShape, TranslationKeyCommon } from "@local/shared";
 import { SvgComponent } from "types";
 import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps } from "../../../types";
 
@@ -6,7 +6,7 @@ export type ScheduleForType = "FocusMode" | "Meeting" | "RunProject" | "RunRouti
 
 export type ScheduleForOption = {
     Icon: SvgComponent
-    labelKey: CommonKey;
+    labelKey: TranslationKeyCommon;
     objectType: ScheduleForType;
 }
 

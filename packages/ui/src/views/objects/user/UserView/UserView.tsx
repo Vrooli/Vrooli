@@ -1,5 +1,6 @@
-import { BookmarkFor, ChatShape, FindByIdOrHandleInput, LINKS, ListObject, User, UserPageTabOption, endpointGetProfile, endpointGetUser, findBotData, getObjectUrl, getTranslation, noop, uuid, uuidValidate } from "@local/shared";
+import { BookmarkFor, ChatShape, FindByIdOrHandleInput, LINKS, ListObject, User, UserPageTabOption, endpointGetProfile, endpointGetUser, findBotData, getAvailableModels, getObjectUrl, getTranslation, noop, uuid, uuidValidate } from "@local/shared";
 import { Box, IconButton, InputAdornment, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { getExistingAIConfig } from "api/ai";
 import BannerDefault from "assets/img/BannerDefault.png";
 import BannerDefaultBot from "assets/img/BannerDefaultBot.png";
 import { PageTabs } from "components/PageTabs/PageTabs";
@@ -141,7 +142,8 @@ export function UserView({
     }, [availableLanguages, setLanguage, session]);
 
     const { adornments, bannerImageUrl, bio, botData, name, handle } = useMemo(() => {
-        const { model, creativity, verbosity, translations } = findBotData(language, user);
+        const availableModels = getAvailableModels(getExistingAIConfig()?.service?.config);
+        const { model, creativity, verbosity, translations } = findBotData(language, availableModels, user);
         const { bio, ...botTranslations } = getTranslation({ translations }, [language], true);
         const { adornments } = getDisplay(user, [language], palette);
         let bannerImageUrl = extractImageUrl(user?.bannerImage, user?.updated_at, 1000);
@@ -239,7 +241,8 @@ export function UserView({
         // For bots, add a start message
         if (user.isBot) {
             const bestLanguage = getUserLanguages(session)[0];
-            const { translations } = findBotData(bestLanguage, user);
+            const availableModels = getAvailableModels(getExistingAIConfig()?.service?.config);
+            const { translations } = findBotData(bestLanguage, availableModels, user);
             const bestTranslation = getTranslation({ translations }, [bestLanguage]);
             const startingMessage = bestTranslation.startingMessage ?? "";
             if (startingMessage.length > 0) {

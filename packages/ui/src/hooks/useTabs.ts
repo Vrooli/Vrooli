@@ -1,4 +1,4 @@
-import { CommonKey, parseSearchParams } from "@local/shared";
+import { TranslationKeyCommon, parseSearchParams } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -42,7 +42,7 @@ export function useTabs<TabList extends TabsInfo>({
             color: typeof tab.color === "function" ? tab.color(palette) : tab.color,
             index: i,
             label: t(tab.titleKey, { count: 2, defaultValue: tab.titleKey }),
-            searchPlaceholder: t((tab as { searchPlaceholderKey?: CommonKey }).searchPlaceholderKey ?? "Search"),
+            searchPlaceholder: t((tab as { searchPlaceholderKey?: TranslationKeyCommon }).searchPlaceholderKey ?? "Search"),
         })) as PageTab<TabList>[];
     }, [palette, t, tabParams]);
 

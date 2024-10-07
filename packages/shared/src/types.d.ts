@@ -1,4 +1,4 @@
-import { TFuncKey } from "i18next";
+import { TFuncKey, TFunction } from "i18next";
 import award from "./translations/locales/en/award.json" assert { type: "json" };
 import common from "./translations/locales/en/common.json" assert { type: "json" };
 import error from "./translations/locales/en/error.json" assert { type: "json" };
@@ -38,12 +38,21 @@ declare module "yup" {
 }
 
 // Translations
-export type AwardKey = TFuncKey<"award", undefined>
-export type CommonKey = TFuncKey<"common", undefined>
-export type ErrorKey = TFuncKey<"error", undefined>
-export type LangsKey = TFuncKey<"langs", undefined>
-export type NotifyKey = TFuncKey<"notify", undefined>
-export type ServiceKey = TFuncKey<"service", undefined>
+export type TranslationKeyAward = TFuncKey<"award", undefined>
+export type TranslationKeyCommon = TFuncKey<"common", undefined>
+export type TranslationKeyError = TFuncKey<"error", undefined>
+export type TranslationKeyLangs = TFuncKey<"langs", undefined>
+export type TranslationKeyNotify = TFuncKey<"notify", undefined>
+export type TranslationKeyService = TFuncKey<"service", undefined>
 // export type ValidateKey = TFuncKey<'validate', undefined>
+
+export type TranslationFuncAward = TFunction<"award", undefined, "award">
+export type TranslationFuncCommon = TFunction<"common", undefined, "common">
+export type TranslationFuncError = TFunction<"error", undefined, "error">
+export type TranslationFuncLangs = TFunction<"langs", undefined, "langs">
+export type TranslationFuncNotify = TFunction<"notify", undefined, "notify">
+export type TranslationFuncService = TFunction<"service", undefined, "service">
+// export type TranslationFuncValidate = TFunction<'validate', undefined, 'validate'>
+export type TranslationFunc = TFunction<"award" | "common" | "error" | "langs" | "notify" | "service", undefined, "award" | "common" | "error" | "langs" | "notify" | "service">
 
 export type OrArray<T> = T | T[];

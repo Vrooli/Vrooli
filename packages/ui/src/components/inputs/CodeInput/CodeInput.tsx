@@ -1,4 +1,4 @@
-import { CodeLanguage, LangsKey, Status, isEqual } from "@local/shared";
+import { CodeLanguage, Status, TranslationKeyLangs, isEqual } from "@local/shared";
 import { Box, Grid, IconButton, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { StatusButton } from "components/buttons/StatusButton/StatusButton";
@@ -387,7 +387,7 @@ function getSeverityForLine(line: BlockInfo, errors: Diagnostic[], view: EditorV
 /**
  * Maps languages to their labels and help texts.
  */
-const languageDisplayMap: { [x in CodeLanguage]: [LangsKey, LangsKey] } = {
+const languageDisplayMap: { [x in CodeLanguage]: [TranslationKeyLangs, TranslationKeyLangs] } = {
     [CodeLanguage.Angular]: ["Angular", "AngularHelp"],
     [CodeLanguage.Cpp]: ["Cpp", "CppHelp"],
     [CodeLanguage.Css]: ["Css", "CssHelp"],
@@ -736,7 +736,7 @@ export function CodeInputBase({
         return actionsList;
     }, [credits, codeLanguage, content, openAssistantDialog, t, updateContent]);
 
-    const [, helpKey] = useMemo<[LangsKey, LangsKey]>(() => languageDisplayMap[codeLanguage] ?? ["Json", "JsonHelp"], [codeLanguage]);
+    const [, helpKey] = useMemo<[TranslationKeyLangs, TranslationKeyLangs]>(() => languageDisplayMap[codeLanguage] ?? ["Json", "JsonHelp"], [codeLanguage]);
 
     // Handle refreshing the editor (in case is fails to appear, which happens occasionally)
     const [editorKey, setEditorKey] = useState(0);

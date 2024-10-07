@@ -1,4 +1,4 @@
-import { ServiceKey } from "../types";
+import { TranslationKeyService } from "../types";
 
 export enum AIServiceName {
     OpenAI = "OpenAI",
@@ -25,9 +25,9 @@ export type ModelInfo = {
     /** True if the model can be selected */
     enabled: boolean;
     /** The models' name, which will be displayed to the user */
-    name: ServiceKey;
+    name: TranslationKeyService;
     /** A short description for the model */
-    descriptionShort: ServiceKey;
+    descriptionShort: TranslationKeyService;
     /** Cost in cents per API_CREDITS_MULTIPLIER (typically 1M) input tokens */
     inputCost: number;
     /** Cost in cents per API_CREDITS_MULTIPLIER (typically 1M) output tokens */

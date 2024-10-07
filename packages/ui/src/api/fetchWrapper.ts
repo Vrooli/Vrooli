@@ -1,4 +1,4 @@
-import { CommonKey, ErrorKey, exists } from "@local/shared";
+import { TranslationKeyCommon, TranslationKeyError, exists } from "@local/shared";
 import { Method, ServerResponse } from "api";
 import { useCallback } from "react";
 import { PubSub } from "utils/pubsub";
@@ -7,18 +7,18 @@ import { fetchData } from "./fetchData";
 import { LazyRequestWithResult } from "./types";
 
 // For some reason, these snack message types break when we omit "severity". So we must redefine them here
-type TranslatedSnackMessage<KeyList = CommonKey | ErrorKey> = {
+type TranslatedSnackMessage<KeyList = TranslationKeyCommon | TranslationKeyError> = {
     messageKey: KeyList;
     messageVariables?: { [key: string]: string | number };
 }
 type UntranslatedSnackMessage = {
     message: string;
 }
-type SnackMessage<KeyList = CommonKey | ErrorKey> = TranslatedSnackMessage<KeyList> | UntranslatedSnackMessage;
-type SnackPub<KeyList = CommonKey | ErrorKey> = SnackMessage<KeyList> & {
+type SnackMessage<KeyList = TranslationKeyCommon | TranslationKeyError> = TranslatedSnackMessage<KeyList> | UntranslatedSnackMessage;
+type SnackPub<KeyList = TranslationKeyCommon | TranslationKeyError> = SnackMessage<KeyList> & {
     autoHideDuration?: number | "persist";
     buttonClicked?: (event?: any) => any;
-    buttonKey?: CommonKey;
+    buttonKey?: TranslationKeyCommon;
     buttonVariables?: { [key: string]: string | number };
     data?: any;
     /**
@@ -67,11 +67,11 @@ interface FetchLazyWrapperProps<Input extends object | undefined, Output> {
     /** Callback to determine if mutation was a success, using mutation's return data */
     successCondition?: (data: Output) => boolean;
     /** Message displayed on success */
-    successMessage?: (data: Output) => SnackPub<CommonKey>;
+    successMessage?: (data: Output) => SnackPub<TranslationKeyCommon>;
     /** Callback triggered on success */
     onSuccess?: (data: Output) => any;
     /** Message displayed on error */
-    errorMessage?: (response?: ServerResponse) => SnackPub<ErrorKey | CommonKey>;
+    errorMessage?: (response?: ServerResponse) => SnackPub<TranslationKeyError | TranslationKeyCommon>;
     /** If true, display default error snack. Will not display if error message is set */
     showDefaultErrorSnack?: boolean;
     /** Callback triggered on error */

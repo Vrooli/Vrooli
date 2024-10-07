@@ -1,4 +1,4 @@
-import { CommonKey, DUMMY_ID, endpointGetResource, endpointPostResource, endpointPutResource, noopSubmit, orDefault, Resource, ResourceCreateInput, ResourceShape, ResourceUpdateInput, ResourceUsedFor, resourceValidation, Session, shapeResource, userTranslationValidation } from "@local/shared";
+import { DUMMY_ID, Resource, ResourceCreateInput, ResourceShape, ResourceUpdateInput, ResourceUsedFor, Session, TranslationKeyCommon, endpointGetResource, endpointPostResource, endpointPutResource, noopSubmit, orDefault, resourceValidation, shapeResource, userTranslationValidation } from "@local/shared";
 import { Button, Divider, Stack } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -169,7 +169,7 @@ function ResourceForm({
             // props.setFieldValue("link", shortcut.value);
             props.handleChange({ target: { name: "link", value: `${window.location.origin}${shortcut.value}` } });
             // Set name
-            handleTranslationChange(field, meta, helpers, { target: { name: "name", value: t(shortcut.label as CommonKey, { count: 1 }) } }, language);
+            handleTranslationChange(field, meta, helpers, { target: { name: "name", value: t(shortcut.label as TranslationKeyCommon, { count: 1 }) } }, language);
         }
     }, [field, meta, helpers, props, t, language]);
 
@@ -218,7 +218,7 @@ function ResourceForm({
                                 value={selectedShortcut}
                                 onChange={(newValue) => { handleShortcutChange(newValue); }}
                                 options={shortcuts}
-                                getOptionLabel={(shortcut) => t(shortcut.label as CommonKey, { count: 1 })}
+                                getOptionLabel={(shortcut) => t(shortcut.label as TranslationKeyCommon, { count: 1 })}
                                 fullWidth
                                 label={t("SelectShortcut")}
                             />
@@ -235,7 +235,7 @@ function ResourceForm({
                                 name="usedFor"
                                 options={Object.keys(ResourceUsedFor)}
                                 getOptionIcon={(i) => getResourceIcon(i as ResourceUsedFor)}
-                                getOptionLabel={(l) => t(l as CommonKey, { count: 2 })}
+                                getOptionLabel={(l) => t(l as TranslationKeyCommon, { count: 2 })}
                                 fullWidth
                                 label={t("Type")}
                             />

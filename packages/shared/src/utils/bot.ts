@@ -1,53 +1,47 @@
-import { AnthropicModel, OpenAIModel } from "../ai/services";
-import { User, UserTranslation } from "../api/generated/graphqlTypes";
-import { PassableLogger } from "../consts/commonTypes";
+import { OpenAIModel, type AIServiceName, type AIServicesInfo } from "../ai/services";
+import { type User, type UserTranslation } from "../api/generated/graphqlTypes";
+import { type PassableLogger } from "../consts/commonTypes";
 import { DUMMY_ID } from "../id/uuid";
-import { BotShape, BotTranslationShape } from "../shape/models/bot";
+import { type BotShape, type BotTranslationShape } from "../shape/models/bot";
+import { type TranslationFunc, type TranslationKeyService } from "../types";
 import { toPosDouble } from "../validation/utils/builders/toPosDouble";
 
 export type LlmModel = {
-    name: string,
-    description?: string,
+    name: TranslationKeyService,
+    description?: TranslationKeyService,
     value: string,
 };
-export const AVAILABLE_MODELS: LlmModel[] = [{
-    name: "Claude 3.5 Sonnet",
-    description: "Anthropic's fastest model (recommended)",
-    value: AnthropicModel.Sonnet3_5,
-}, {
-    name: "Claude 3 Opus",
-    description: "Anthropic's most advanced model",
-    value: AnthropicModel.Opus3,
-}, {
-    name: "GPT-4o Mini",
-    description: "OpenAI's most lightweight model",
-    value: OpenAIModel.Gpt4o_Mini,
-}, {
-    name: "GPT-4o",
-    description: "OpenAI's most advanced model",
-    value: OpenAIModel.Gpt4o,
-}, {
-    name: "GPT-4 Turbo",
-    description: "One of OpenAI's advanced models",
-    value: OpenAIModel.Gpt4_Turbo,
-    // }, {
-    //     name: "Mistral 7b",
-    //     description: "Mistral's fastest model",
-    //     value: "open-mistral-7b",
-    // }, {
-    //     name: "Mistral 8x7b",
-    //     description: "Mistral's most advanced model",
-    //     value: "open-mixtral-8x7b",
-    // }];
-}];
-export function getModelName(option: LlmModel) {
-    return option.name;
-}
-export function getModelDescription(option: LlmModel) {
-    return option.description;
+
+export function getAvailableModels(aiServicesInfo: AIServicesInfo | null | undefined): LlmModel[] {
+    const models: LlmModel[] = [];
+    if (!aiServicesInfo) return models;
+    const services = aiServicesInfo.services;
+    for (const serviceKey in services) {
+        const service = services[serviceKey as AIServiceName];
+        if (service.enabled) {
+            for (const modelKey of service.displayOrder) {
+                const modelInfo = service.models[modelKey];
+                if (modelInfo.enabled) {
+                    models.push({
+                        name: modelInfo.name, // This is a ServiceKey for i18next
+                        description: modelInfo.descriptionShort, // Also a ServiceKey
+                        value: modelKey,
+                    });
+                }
+            }
+        }
+    }
+    return models;
 }
 
-export const DEFAULT_MODEL = AnthropicModel.Sonnet3_5;
+export function getModelName(option: LlmModel | null, t: TranslationFunc) {
+    return option ? t(option.name, { ns: "service" }) : "";
+}
+export function getModelDescription(option: LlmModel, t: TranslationFunc) {
+    return option && option.description ? t(option.description, { ns: "service" }) : "";
+}
+
+export const DEFAULT_MODEL = OpenAIModel.Gpt4o_Mini;
 
 const DEFAULT_CREATIVITY = 0.5; // Must be between 0 and 1
 const DEFAULT_VERBOSITY = 0.5; // Must be between 0 and 1
@@ -129,6 +123,7 @@ export function toBotSettings(
 
 export function findBotData(
     language: string,
+    availableModels: LlmModel[],
     existing?: Partial<User> | BotShape | null | undefined,
 ): {
     creativity?: number | null,
@@ -197,7 +192,7 @@ export function findBotData(
     return {
         creativity: creativity >= 0 && creativity <= 1 ? creativity : DEFAULT_CREATIVITY,
         verbosity: verbosity >= 0 && verbosity <= 1 ? verbosity : DEFAULT_VERBOSITY,
-        model: typeof settings.model === "string" && AVAILABLE_MODELS.some((model) => model.value === settings.model) ? settings.model : OpenAIModel.Gpt4o_Mini,
+        model: typeof settings.model === "string" && availableModels.some((model) => model.value === settings.model) ? settings.model : DEFAULT_MODEL,
         translations,
     };
 }

@@ -1,4 +1,4 @@
-import { CommonKey } from "@local/shared";
+import { TranslationKeyCommon } from "@local/shared";
 import { Box, Menu, MenuItem, Tooltip, Typography, useTheme } from "@mui/material";
 import { usePopover } from "hooks/usePopover";
 import i18next from "i18next";
@@ -25,7 +25,7 @@ const SortMenu = ({
     const menuItems = useMemo(() => {
         const menuItems: JSX.Element[] = [];
         sortOptions.forEach(option => {
-            const optionLabel = t(`${option.value}` as CommonKey);
+            const optionLabel = t(`${option.value}` as TranslationKeyCommon);
             if (optionLabel) {
                 menuItems.push(
                     <MenuItem
@@ -73,13 +73,13 @@ export const SortButton = ({
     const sortOptionsLabelled = useMemo<LabelledSortOption<string>[]>(() => {
         if (!options) return [];
         return Object.keys(options).map((key) => ({
-            label: (i18next.t(key as CommonKey, key)) as unknown as string,
+            label: (i18next.t(key as TranslationKeyCommon, key)) as unknown as string,
             value: key,
         }));
     }, [options]);
 
     /** Find sort by label when sortBy changes */
-    const sortByLabel = useMemo(() => t(sortBy as CommonKey, sortBy), [sortBy, t]);
+    const sortByLabel = useMemo(() => t(sortBy as TranslationKeyCommon, sortBy), [sortBy, t]);
 
     return (
         <>

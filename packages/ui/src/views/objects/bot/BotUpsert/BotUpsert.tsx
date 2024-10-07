@@ -1,6 +1,7 @@
-import { AVAILABLE_MODELS, BotCreateInput, BotShape, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetUser, endpointPostBot, endpointPutBot, findBotData, LINKS, LlmModel, LlmTask, noopSubmit, SearchPageTabOption, Session, shapeBot, User, validateAndGetYupErrors } from "@local/shared";
+import { BotCreateInput, BotShape, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetUser, endpointPostBot, endpointPutBot, findBotData, getAvailableModels, getModelDescription, getModelName, LINKS, LlmModel, LlmTask, noopSubmit, SearchPageTabOption, Session, shapeBot, User, validateAndGetYupErrors } from "@local/shared";
 import { Divider, InputAdornment, Slider, Stack, Typography } from "@mui/material";
 import { useSubmitHelper } from "api";
+import { getExistingAIConfig } from "api/ai";
 import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
@@ -34,7 +35,8 @@ function botInitialValues(
     session: Session | undefined,
     existing?: Partial<User> | BotShape | null | undefined,
 ): BotShape {
-    const { creativity, verbosity, model, translations } = findBotData(getUserLanguages(session)[0], existing);
+    const availableModels = getAvailableModels(getExistingAIConfig()?.service?.config);
+    const { creativity, verbosity, model, translations } = findBotData(getUserLanguages(session)[0], availableModels, existing);
 
     return {
         __typename: "User" as const,
@@ -246,9 +248,14 @@ function BotForm({
     const [modelField, , modelHelpers] = useField<string>("model");
     const [model, setModel] = useState<LlmModel | null>(null);
     useEffect(() => {
-        const availableModel = AVAILABLE_MODELS.find(m => m.value === modelField.value);
+        const availableModels = getAvailableModels(getExistingAIConfig()?.service?.config);
+        const availableModel = availableModels.find(m => m.value === modelField.value);
         setModel(availableModel ?? null);
     }, [modelField.value]);
+
+    const handleModelChange = useCallback(function handleModelChangeCallback(newModel: LlmModel | null) {
+        modelHelpers.setValue(newModel?.value ?? "");
+    }, [modelHelpers]);
 
     const [creativityField, , creativityHelpers] = useField<number>("creativity");
     const [verbosityField, , verbosityHelpers] = useField<number>("verbosity");
@@ -509,15 +516,13 @@ function BotForm({
                     <ContentCollapse title={t("Model", { count: 1 })} titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
                         <SelectorBase
                             name="model"
-                            options={AVAILABLE_MODELS}
-                            getOptionLabel={(r) => r.name}
-                            getOptionDescription={(r) => r.description}
+                            options={getAvailableModels(getExistingAIConfig()?.service?.config)}
+                            getOptionLabel={getModelName}
+                            getOptionDescription={getModelDescription}
                             fullWidth={true}
-                            inputAriaLabel="Mode"
+                            inputAriaLabel="Model"
                             label={t("Model", { count: 1 })}
-                            onChange={(newModel) => {
-                                modelHelpers.setValue(newModel.value);
-                            }}
+                            onChange={handleModelChange}
                             value={model}
                         />
                     </ContentCollapse>

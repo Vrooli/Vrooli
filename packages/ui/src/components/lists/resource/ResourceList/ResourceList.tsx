@@ -1,6 +1,6 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { CommonKey, Count, DUMMY_ID, DeleteManyInput, DeleteType, ListObject, Resource, ResourceList as ResourceListType, ResourceUsedFor, endpointPostDeleteMany, updateArray } from "@local/shared";
+import { Count, DUMMY_ID, DeleteManyInput, DeleteType, ListObject, Resource, ResourceList as ResourceListType, ResourceUsedFor, TranslationKeyCommon, endpointPostDeleteMany, updateArray } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
@@ -51,7 +51,7 @@ const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
     const { title, subtitle } = useMemo(() => {
         const { title, subtitle } = getDisplay(data, getUserLanguages(session));
         return {
-            title: title ? title : t((data.usedFor ?? "Context") as CommonKey),
+            title: title ? title : t((data.usedFor ?? "Context") as TranslationKeyCommon),
             subtitle,
         };
     }, [data, session, t]);

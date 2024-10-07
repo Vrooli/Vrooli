@@ -1,11 +1,11 @@
-import { ErrorKey } from "@local/shared";
+import { TranslationKeyError } from "@local/shared";
 
 export type Method = "GET" | "POST" | "PUT" | "DELETE";
 
 export type ServerResponse<Output = any> = {
     errors?: {
         message: string;
-        code?: ErrorKey;
+        code?: TranslationKeyError;
     }[];
     data?: Output;
     version?: string;

@@ -1,4 +1,4 @@
-import { AwardKey, awardNames, AwardSortBy, MaxObjects } from "@local/shared";
+import { AwardSortBy, MaxObjects, TranslationKeyAward, awardNames } from "@local/shared";
 import i18next from "i18next";
 import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions } from "../../utils";
@@ -39,9 +39,9 @@ export const AwardModel: AwardModelLogic = ({
                 const descriptions: (string | null)[] = [];
                 for (const award of objects) {
                     const { name, nameVariables, body, bodyVariables } = awardNames[award.category](award.progress);
-                    if (userData && name) titles.push(i18next.t(`award:${name as AwardKey}`, { lng: userData!.languages[0], ...(nameVariables ?? {}) }) as any);
+                    if (userData && name) titles.push(i18next.t(`award:${name as TranslationKeyAward}`, { lng: userData!.languages[0], ...(nameVariables ?? {}) }) as any);
                     else titles.push(null);
-                    if (userData && body) descriptions.push(i18next.t(`award:${body as AwardKey}`, { lng: userData!.languages[0], ...(bodyVariables ?? {}) }) as any);
+                    if (userData && body) descriptions.push(i18next.t(`award:${body as TranslationKeyAward}`, { lng: userData!.languages[0], ...(bodyVariables ?? {}) }) as any);
                     else descriptions.push(null);
                 }
                 return {

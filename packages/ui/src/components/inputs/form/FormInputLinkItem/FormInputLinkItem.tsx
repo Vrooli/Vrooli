@@ -1,9 +1,8 @@
-import { LinkItemFormInput, LinkItemFormInputProps, LinkItemType, getFormikFieldName } from "@local/shared";
+import { LinkItemFormInput, LinkItemFormInputProps, LinkItemType, TranslationFuncCommon, getFormikFieldName } from "@local/shared";
 import { Autocomplete, Button, Chip, ListItemIcon, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
 import { LinkInputBase } from "components/inputs/LinkInput/LinkInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useField } from "formik";
-import { TFunction } from "i18next";
 import { ApiIcon, ArticleIcon, HelpIcon, NoteIcon, ObjectIcon, ProjectIcon, RoutineIcon, SmartContractIcon, TeamIcon, TerminalIcon, UserIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -15,7 +14,7 @@ import { FormInputProps } from "../types";
 
 type LimitTypeOption = {
     Icon: SvgComponent;
-    label: (t: TFunction<"common", undefined, "common">) => string;
+    label: (t: TranslationFuncCommon) => string;
     value: `${LinkItemType}`;
 }
 

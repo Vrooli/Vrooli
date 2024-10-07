@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkFor, CommonKey, ListObject, Node, NodeLinkShape, NodeRoutineList, NodeRoutineListItem, NodeRoutineListItemShape, NodeShape, RootStep, RoutineVersion } from "@local/shared";
+import { Bookmark, BookmarkFor, ListObject, Node, NodeLinkShape, NodeRoutineList, NodeRoutineListItem, NodeRoutineListItemShape, NodeShape, RootStep, RoutineVersion, TranslationKeyCommon } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
 import { TitleProps } from "components/text/types";
@@ -104,7 +104,7 @@ export interface ListMenuItemData<T> {
     /** Text to display */
     label?: string;
     /** Translation key for label, if label not provided */
-    labelKey?: CommonKey;
+    labelKey?: TranslationKeyCommon;
     /** Value to pass back when selected */
     value: T;
 }

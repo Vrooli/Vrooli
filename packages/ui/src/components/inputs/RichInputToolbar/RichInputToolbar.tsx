@@ -1,8 +1,8 @@
+import { TranslationFuncCommon } from "@local/shared";
 import { Box, BoxProps, Button, IconButton, List, ListItem, ListItemIcon, ListItemProps, ListItemText, Menu, MenuItem, Palette, Popover, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { SessionContext } from "contexts";
 import { useIsLeftHanded, useRichInputToolbarViewSize } from "hooks/subscriptions";
 import { usePopover } from "hooks/usePopover";
-import { TFunction } from "i18next";
 import { BoldIcon, CaseSensitiveIcon, Header1Icon, Header2Icon, Header3Icon, Header4Icon, Header5Icon, Header6Icon, HeaderIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, QuoteIcon, RedoIcon, StrikethroughIcon, TableIcon, TerminalIcon, UnderlineIcon, UndoIcon, WarningIcon } from "icons";
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -34,7 +34,7 @@ type TablePopoverProps = {
     isOpen: boolean;
     onClose: () => unknown;
     palette: any;//Theme["palette"];
-    t: TFunction<"common", undefined, "common">;
+    t: TranslationFuncCommon;
 }
 
 export const defaultActiveStates: Omit<RichInputActiveStates, "SetValue"> = {

@@ -1,10 +1,9 @@
-import { FormInputBase, FormSchema, generateInitialValues, generateYupSchema, parseSearchParams, ParseSearchParamsResult, SearchType } from "@local/shared";
+import { FormInputBase, FormSchema, generateInitialValues, generateYupSchema, parseSearchParams, ParseSearchParamsResult, SearchType, TranslationFuncCommon } from "@local/shared";
 import { Box, Button, Grid, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik } from "formik";
 import { FormRunView } from "forms/FormView/FormView";
-import { TFunction } from "i18next";
 import { BuildIcon, CancelIcon, RefreshIcon, SearchIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -17,7 +16,7 @@ import { AdvancedSearchButtonProps } from "../types";
 
 const titleId = "advanced-search-dialog-title";
 
-function createTopBarOptions(resetForm: (() => unknown), t: TFunction<"common", undefined, "common">) {
+function createTopBarOptions(resetForm: (() => unknown), t: TranslationFuncCommon) {
     return [
         {
             Icon: RefreshIcon,

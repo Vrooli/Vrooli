@@ -1,4 +1,4 @@
-import { BookmarkList, Chat, ChatInvite, ChatParticipant, CommonKey, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, NavigableObject, Notification, OrArray, Project, ProjectVersion, QuestionForType, Reminder, ReminderList, Report, ReportResponse, Role, Routine, RoutineVersion, RunProject, RunRoutine, SearchType, Tag, Team, TimeFrame, User } from "@local/shared";
+import { BookmarkList, Chat, ChatInvite, ChatParticipant, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, NavigableObject, Notification, OrArray, Project, ProjectVersion, QuestionForType, Reminder, ReminderList, Report, ReportResponse, Role, Routine, RoutineVersion, RunProject, RunRoutine, SearchType, Tag, Team, TimeFrame, TranslationKeyCommon, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { UsePressEvent } from "hooks/gestures";
 import { type UseObjectActionsReturn } from "hooks/objectActions";
@@ -145,7 +145,7 @@ export interface RoleListProps {
  */
 export interface SearchListGenerator {
     searchType: SearchType | `${SearchType}`;
-    placeholder: CommonKey;
+    placeholder: TranslationKeyCommon;
     where: any;
 }
 
@@ -172,7 +172,7 @@ export type SearchListProps<T extends OrArray<ListObject>> =
         /** If update button on list items should be hidden */
         hideUpdateButton?: boolean;
         scrollContainerId: string;
-        searchPlaceholder?: CommonKey;
+        searchPlaceholder?: TranslationKeyCommon;
         searchType: SearchType | `${SearchType}`;
         sxs?: {
             search?: SxType;

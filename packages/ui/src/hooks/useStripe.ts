@@ -1,4 +1,4 @@
-import { CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CommonKey, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, CreatePortalSessionParams, CreatePortalSessionResponse, LINKS, PaymentType, StripeEndpoint, SubscriptionPricesResponse, parseSearchParams } from "@local/shared";
+import { CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, CreatePortalSessionParams, CreatePortalSessionResponse, LINKS, PaymentType, StripeEndpoint, SubscriptionPricesResponse, TranslationKeyCommon, parseSearchParams } from "@local/shared";
 import { loadStripe } from "@stripe/stripe-js";
 import { fetchData } from "api";
 import { SessionContext } from "contexts";
@@ -10,7 +10,7 @@ import { useFetch } from "./useFetch";
 
 const stripePromise = loadStripe(process.env.VITE_STRIPE_PUBLISHABLE_KEY ?? "");
 
-const paymentTypeToSuccessMessage: Record<PaymentType, CommonKey> = {
+const paymentTypeToSuccessMessage: Record<PaymentType, TranslationKeyCommon> = {
     [PaymentType.Credits]: "CreditsPaymentSuccess",
     [PaymentType.Donation]: "DonationPaymentSuccess",
     [PaymentType.PremiumMonthly]: "ProPaymentSuccess",

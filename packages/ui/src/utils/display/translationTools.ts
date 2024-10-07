@@ -1,4 +1,4 @@
-import { CommonKey, ErrorKey, Session, uuid } from "@local/shared";
+import { Session, TranslationKeyCommon, TranslationKeyError, uuid } from "@local/shared";
 import { FieldHelperProps, FieldInputProps, FieldMetaProps } from "formik";
 import i18next from "i18next";
 import { FormErrors } from "types";
@@ -839,7 +839,7 @@ export function removeTranslation(
  * @returns Object with message and details
  */
 export function translateSnackMessage(
-    key: ErrorKey | CommonKey,
+    key: TranslationKeyError | TranslationKeyCommon,
     variables: { [x: string]: number | string } | undefined,
     namespace?: string,
 ): { message: string, details: string | undefined } {

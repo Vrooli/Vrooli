@@ -1,4 +1,4 @@
-import { CommonKey, TimeFrame } from "@local/shared";
+import { TimeFrame, TranslationKeyCommon } from "@local/shared";
 import { Box, Menu, MenuItem, Tooltip, Typography, useTheme } from "@mui/material";
 import { DateRangeMenu } from "components/lists/DateRangeMenu/DateRangeMenu";
 import { usePopover } from "hooks/usePopover";
@@ -23,7 +23,7 @@ const TimeMenu = ({
     onClose,
 }: {
     anchorEl: HTMLElement | null;
-    onClose: (labelKey?: CommonKey, timeFrame?: { after?: Date, before?: Date }) => unknown;
+    onClose: (labelKey?: TranslationKeyCommon, timeFrame?: { after?: Date, before?: Date }) => unknown;
 }) => {
     const { t } = useTranslation();
 
@@ -37,12 +37,12 @@ const TimeMenu = ({
             value={timeOptions[labelKey]}
             onClick={() => {
                 // If All is selected, pass undefined to onClose
-                if (!timeOptions[labelKey]) onClose(labelKey as CommonKey);
+                if (!timeOptions[labelKey]) onClose(labelKey as TranslationKeyCommon);
                 // Otherwise, pass the time as object with "after"
-                else onClose(labelKey as CommonKey, { after: new Date(Date.now() - timeOptions[labelKey]) });
+                else onClose(labelKey as TranslationKeyCommon, { after: new Date(Date.now() - timeOptions[labelKey]) });
             }}
         >
-            {t(labelKey as CommonKey)}
+            {t(labelKey as TranslationKeyCommon)}
         </MenuItem>
     )), [onClose, t]);
 
@@ -86,7 +86,7 @@ export const TimeButton = ({
     const [timeFrameLabel, setTimeFrameLabel] = useState<string>("");
 
     const [timeAnchorEl, openTime, closeTime] = usePopover();
-    const handleTimeClose = (labelKey?: CommonKey, frame?: TimeFrame) => {
+    const handleTimeClose = (labelKey?: TranslationKeyCommon, frame?: TimeFrame) => {
         closeTime();
         setTimeFrame(frame);
         if (labelKey) setTimeFrameLabel(t(labelKey));

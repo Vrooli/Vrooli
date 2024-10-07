@@ -1,5 +1,6 @@
-import { AVAILABLE_MODELS, BotShape, BotStyle, BotStyleOption, CodeLanguage, CodeVersionShape, CodeVersionTranslationShape, ConfigCallData, ConfigCallDataGenerate, DEFAULT_MODEL, DUMMY_ID, FormSchema, LlmModel, Node, NodeLink, NodeLinkShape, NodeShape, User, getModelDescription, getModelName, getTranslation, noop, uuidValidate } from "@local/shared";
+import { BotShape, BotStyle, BotStyleOption, CodeLanguage, CodeVersionShape, CodeVersionTranslationShape, ConfigCallData, ConfigCallDataGenerate, DEFAULT_MODEL, DUMMY_ID, FormSchema, LlmModel, Node, NodeLink, NodeLinkShape, NodeShape, User, getAvailableModels, getModelDescription, getModelName, getTranslation, noop, uuidValidate } from "@local/shared";
 import { Box, Button, Card, Divider, Grid, Typography, styled, useTheme } from "@mui/material";
+import { getExistingAIConfig } from "api/ai";
 import { LoadableButton } from "components/buttons/LoadableButton/LoadableButton";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
@@ -391,7 +392,7 @@ export const RoutineGenerateForm = memo(function RoutineGenerateFormMemo({
             />
             {display === "edit" && <SelectorBase
                 name="model"
-                options={AVAILABLE_MODELS}
+                options={getAvailableModels(getExistingAIConfig()?.service?.config)}
                 getOptionLabel={getModelName}
                 getOptionDescription={getModelDescription}
                 fullWidth={true}

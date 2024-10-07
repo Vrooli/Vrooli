@@ -69,29 +69,6 @@ function isExpired(timestamp: number, duration: number): boolean {
  * @param language The language to fetch the configuration for
  */
 export async function fetchAIConfig(language: string): Promise<AICacheData | null> {
-    // const configData = getExistingAIConfig();
-
-    // if (configData) {
-    //     const { config, timestamp, cachedLanguage } = configData;
-    //     const isExpired = Date.now() - timestamp > AI_TASK_CONFIG_CACHE_DURATION;
-    //     if (!isExpired && cachedLanguage === language && typeof config === "object" && Object.keys(config).length > 0) {
-    //         return config;
-    //     }
-    // }
-
-    // try {
-    //     const config = await importConfig(language, console, apiUrlBase.replace("/api", ""));
-    //     const cacheData = JSON.stringify({
-    //         config,
-    //         timestamp: Date.now(),
-    //         cachedLanguage: language,
-    //     });
-    //     localStorage.setItem(AI_TASK_CONFIG_CACHE_KEY, cacheData);
-    //     return config;
-    // } catch (error) {
-    //     console.error(`Error fetching configuration: ${Object.prototype.hasOwnProperty.call(error, "message") ? (error as { message: string }).message : error}`);
-    //     return null;
-    // }
     const configData = getExistingAIConfig();
 
     let shouldFetchTaskInfo = true;
