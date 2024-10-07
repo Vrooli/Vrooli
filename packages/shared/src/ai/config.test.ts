@@ -2,14 +2,14 @@
 import fs from "fs";
 import { LlmTask } from "../api/generated/graphqlTypes";
 import { DEFAULT_LANGUAGE } from "../consts/ui";
-import { getLlmConfigLocation, getStructuredTaskConfig, getUnstructuredTaskConfig, importBuilder, importCommandToTask, importConfig } from "./config";
+import { getAIConfigLocation, getStructuredTaskConfig, getUnstructuredTaskConfig, importAITaskBuilder, importAITaskConfig, importCommandToTask } from "./config";
 
 describe("llm config", () => {
     let LLM_CONFIG_LOCATION: string;
     let configFiles: string[];
 
     beforeAll(async () => {
-        LLM_CONFIG_LOCATION = (await getLlmConfigLocation()).location
+        LLM_CONFIG_LOCATION = (await getAIConfigLocation()).location;
         configFiles = fs.readdirSync(LLM_CONFIG_LOCATION).filter(file => file.endsWith(".ts"));
         console.error = jest.fn();
     });
@@ -36,7 +36,7 @@ describe("llm config", () => {
     describe("importConfig", () => {
         test("all tasks present", async () => {
             configFiles.forEach(async file => {
-                const config = await importConfig(file, console);
+                const config = await importAITaskConfig(file, console);
                 Object.keys(LlmTask).forEach(action => {
                     const actionConfig = config[action];
                     expect(actionConfig).toBeDefined();
@@ -69,16 +69,16 @@ describe("llm config", () => {
             });
         });
         test("falls back to default language when not found", async () => {
-            const config = await importConfig("nonexistent-language", console);
+            const config = await importAITaskConfig("nonexistent-language", console);
             expect(config).toBeDefined();
-            expect(config).toEqual(await importConfig(DEFAULT_LANGUAGE, console));
+            expect(config).toEqual(await importAITaskConfig(DEFAULT_LANGUAGE, console));
         });
-    })
+    });
 
     describe("importBuilder", () => {
         test("has __construct_* functions with correct behavior", async () => {
             configFiles.forEach(async file => {
-                const builder = await importBuilder(file, console);
+                const builder = await importAITaskBuilder(file, console);
 
                 // Check for the existence of the required functions
                 const expectedFunctions = ["__construct_context_text", "__construct_context_text_force", "__construct_context_json"];
@@ -109,11 +109,11 @@ describe("llm config", () => {
             });
         });
         test("falls back to default language when not found", async () => {
-            const builder = await importBuilder("nonexistent-language", console);
+            const builder = await importAITaskBuilder("nonexistent-language", console);
             expect(builder).toBeDefined();
-            expect(builder).toEqual(await importBuilder(DEFAULT_LANGUAGE, console));
+            expect(builder).toEqual(await importAITaskBuilder(DEFAULT_LANGUAGE, console));
         });
-    })
+    });
 
     test("importCommandToTask returns a valid function without logging any errors", async () => {
         configFiles.forEach(async file => {

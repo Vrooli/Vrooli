@@ -1,7 +1,7 @@
 import { ParseSearchParamsResult, stringifySearchParams } from "@local/shared";
 import { Method, ServerResponseWithTimestamp } from "api";
 import { apiUrlBase, restBase } from "utils/consts";
-import { invalidateLlmConfigCache } from "./llmConfig";
+import { invalidateAIConfigCache } from "./ai";
 
 const SERVER_VERSION_CACHE_KEY = "serverVersionCache";
 
@@ -93,7 +93,7 @@ export async function fetchData<Input extends object | undefined, Output>({
             const currentVersion = data.version;
             if (existingVersion !== currentVersion) {
                 localStorage.setItem(SERVER_VERSION_CACHE_KEY, currentVersion);
-                invalidateLlmConfigCache();
+                invalidateAIConfigCache();
             }
             return { ...data, __fetchTimestamp };
         });

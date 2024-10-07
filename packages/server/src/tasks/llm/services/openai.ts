@@ -1,42 +1,11 @@
-import { OpenAIModel } from "@local/shared";
+import { OpenAIModel, openAIServiceInfo } from "@local/shared";
 import OpenAI from "openai";
 import { CustomError } from "../../../events/error";
 import { logger } from "../../../events/logger";
 import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry } from "../registry";
 import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetOutputTokenLimitParams, GetOutputTokenLimitResult, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, generateDefaultContext, getDefaultConfigObject, getDefaultMaxOutputTokensRestrained, getDefaultResponseCost, tokenEstimationDefault } from "../service";
 
-const DEFAULT_MAX_TOKENS = 4096;
-
 type OpenAITokenModel = "default";
-
-/** Cost in cents per API_CREDITS_MULTIPLIER input tokens */
-const inputCosts: Record<OpenAIModel, number> = {
-    [OpenAIModel.Gpt4o_Mini]: 150, // $0.15
-    [OpenAIModel.Gpt4o]: 500, // $5.00
-    [OpenAIModel.Gpt4]: 3000, // $30.00
-    [OpenAIModel.Gpt4_Turbo]: 1000, // $10.00
-};
-/** Cost in cents per API_CREDITS_MULTIPLIER output tokens */
-const outputCosts: Record<OpenAIModel, number> = {
-    [OpenAIModel.Gpt4o_Mini]: 60, // $0.60
-    [OpenAIModel.Gpt4o]: 1500, // $15.00
-    [OpenAIModel.Gpt4]: 6000, // $60.00
-    [OpenAIModel.Gpt4_Turbo]: 3000, // $30.00
-};
-/** Max context window */
-const contextWindows: Record<OpenAIModel, number> = {
-    [OpenAIModel.Gpt4o_Mini]: 128_000,
-    [OpenAIModel.Gpt4o]: 128_000,
-    [OpenAIModel.Gpt4]: 8_192,
-    [OpenAIModel.Gpt4_Turbo]: 120_000,
-};
-/** Max output tokens */
-const maxOutputTokens: Record<OpenAIModel, number> = {
-    [OpenAIModel.Gpt4o_Mini]: 16_384,
-    [OpenAIModel.Gpt4o]: 4_096,
-    [OpenAIModel.Gpt4]: 8_192,
-    [OpenAIModel.Gpt4_Turbo]: 4_096,
-};
 
 export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITokenModel> {
     public __id = LlmServiceId.OpenAI;
@@ -80,7 +49,7 @@ export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITo
     }: GenerateResponseParams) {
         // Generate response
         const params: OpenAI.Chat.ChatCompletionCreateParams = {
-            max_tokens: maxTokens ?? DEFAULT_MAX_TOKENS,
+            max_tokens: maxTokens ?? openAIServiceInfo.fallbackMaxTokens,
             messages,
             model,
             response_format: { type: mode === "json" ? "json_object" : "text" },
@@ -114,7 +83,7 @@ export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITo
         userData,
     }: GenerateResponseParams) {
         const params: OpenAI.Chat.ChatCompletionCreateParams = {
-            max_tokens: maxTokens ?? DEFAULT_MAX_TOKENS,
+            max_tokens: maxTokens ?? openAIServiceInfo.fallbackMaxTokens,
             messages,
             model,
             response_format: { type: mode === "json" ? "json_object" : "text" },
@@ -171,16 +140,16 @@ export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITo
 
     getContextSize(requestedModel?: string | null) {
         const model = this.getModel(requestedModel);
-        return contextWindows[model];
+        return openAIServiceInfo.models[model].contextWindow;
     }
 
-    getCosts() {
-        return { inputCosts, outputCosts };
+    getModelInfo() {
+        return openAIServiceInfo.models;
     }
 
     getMaxOutputTokens(requestedModel?: string | null | undefined): number {
         const model = this.getModel(requestedModel);
-        return maxOutputTokens[model];
+        return openAIServiceInfo.models[model].maxOutputTokens;
     }
 
     getMaxOutputTokensRestrained(params: GetOutputTokenLimitParams): number {
@@ -206,6 +175,8 @@ export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITo
         if (model.startsWith("gpt-4o")) return OpenAIModel.Gpt4o;
         if (model.startsWith("gpt-4-turbo")) return OpenAIModel.Gpt4_Turbo;
         if (model.startsWith("gpt-4")) return OpenAIModel.Gpt4;
+        if (model.startsWith("o1-mini")) return OpenAIModel.o1_Mini;
+        if (model.startsWith("o1-preview")) return OpenAIModel.o1_Preview;
         return this.defaultModel;
     }
 

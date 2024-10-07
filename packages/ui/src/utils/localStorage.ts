@@ -1,4 +1,4 @@
-import { ActiveFocusMode, FocusMode, GqlModelType, LlmTaskInfo, NavigableObject, TaskContextInfo } from "@local/shared";
+import { AITaskInfo, ActiveFocusMode, FocusMode, GqlModelType, NavigableObject, TaskContextInfo } from "@local/shared";
 import { chatMatchHash } from "./codes";
 import { FONT_SIZE_MAX, FONT_SIZE_MIN } from "./consts";
 import { getDeviceInfo } from "./display/device";
@@ -511,9 +511,9 @@ export function removeCookieMatchingChat(userIds: string[]) {
 }
 
 type ChatTasks = {
-    activeTask: LlmTaskInfo | null;
+    activeTask: AITaskInfo | null;
     contexts: { [taskId: string]: TaskContextInfo[] };
-    inactiveTasks: LlmTaskInfo[];
+    inactiveTasks: AITaskInfo[];
 }
 const llmTasksCache = new LocalStorageLruCache<ChatTasks>("llmTasks", LLM_TASKS_CACHE_LIMIT, CACHE_LIMT_1MB);
 export function getCookieTasksForChat(chatId: string): ChatTasks | undefined {
@@ -541,7 +541,7 @@ export function setCookieTasksForChat(
         llmTasksCache.set(chatId, existing);
     });
 }
-export function updateCookiePartialTaskForChat(chatId: string, task: Partial<LlmTaskInfo>) {
+export function updateCookiePartialTaskForChat(chatId: string, task: Partial<AITaskInfo>) {
     return ifAllowed("functional", () => {
         const existing = getCookieTasksForChat(chatId) || { activeTask: null, contexts: {}, inactiveTasks: [] };
         // Task being updated can either be active or inactive
@@ -558,7 +558,7 @@ export function updateCookiePartialTaskForChat(chatId: string, task: Partial<Llm
         llmTasksCache.set(chatId, existing);
     });
 }
-export function upsertCookieTaskForChat(chatId: string, task: LlmTaskInfo) {
+export function upsertCookieTaskForChat(chatId: string, task: AITaskInfo) {
     return ifAllowed("functional", () => {
         const existing = getCookieTasksForChat(chatId) || { activeTask: null, contexts: {}, inactiveTasks: [] };
         // Task being updated can either be active or inactive

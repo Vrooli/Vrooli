@@ -1,7 +1,7 @@
-import { LlmTaskConfig, LlmTaskConfigBuilder, LlmTaskProperty, LlmTaskUnstructuredConfig } from "../types";
+import { AITaskConfig, AITaskConfigBuilder, AITaskProperty, AITaskUnstructuredConfig } from "../../types";
 
-export const builder: LlmTaskConfigBuilder = {
-    __pick_properties(selectedFields: [string, boolean | undefined][], __availableFields: Record<string, Omit<LlmTaskProperty, "name">>) {
+export const builder: AITaskConfigBuilder = {
+    __pick_properties(selectedFields: [string, boolean | undefined][], __availableFields: Record<string, Omit<AITaskProperty, "name">>) {
         return selectedFields.map(([fieldName, isRequired]) => ({
             name: fieldName,
             is_required: typeof isRequired === "boolean" ? isRequired : __availableFields[fieldName]?.is_required,
@@ -13,7 +13,7 @@ export const builder: LlmTaskConfigBuilder = {
         properties,
         commands,
         ...rest
-    }: LlmTaskUnstructuredConfig) => ({
+    }: AITaskUnstructuredConfig) => ({
         commands: {
             prefix: "/",
             list: Object.keys(commands),
@@ -36,18 +36,18 @@ export const builder: LlmTaskConfigBuilder = {
         // Label is for displaying the task to the user, and is not needed in the context
         label: undefined,
     }),
-    __construct_context_text: (props: LlmTaskUnstructuredConfig) => ({
+    __construct_context_text: (props: AITaskUnstructuredConfig) => ({
         ...builder.__construct_context_base(props),
         rules: Array.isArray(props.rules) ? [...(config.__rules_text as string[]), ...props.rules] : config.__rules_text,
 
     }),
-    __construct_context_text_force: (props: LlmTaskUnstructuredConfig) => ({
+    __construct_context_text_force: (props: AITaskUnstructuredConfig) => ({
         ...builder.__construct_context_base(props),
         response_formats: undefined,
         response_format: config.__finish_context_response_format,
         rules: Array.isArray(props.rules) ? [...(config.__rules_text_force as string[]), ...props.rules] : config.__rules_text,
     }),
-    __construct_context_json: (props: LlmTaskUnstructuredConfig) => {
+    __construct_context_json: (props: AITaskUnstructuredConfig) => {
         const base = builder.__construct_context_base(props);
         // Remove text-specific instructions
         delete base.commands.prefix;
@@ -62,9 +62,9 @@ export const builder: LlmTaskConfigBuilder = {
             rules: Array.isArray(props.rules) ? [...(config.__rules_json as string[]), ...props.rules] : (config.__rules_json as string[]),
         };
     },
-}
+};
 
-export const config: LlmTaskConfig = {
+export const config: AITaskConfig = {
     __suggested_prefix: "suggested",
     __response_formats_with_actions: {
         one_command: "/${command} ${Saction}",

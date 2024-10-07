@@ -251,7 +251,7 @@ export function base36ToUuid(base36: string): string {
  * @returns Search URL base for object type
  */
 export function getObjectUrlBase(object: Omit<NavigableObject, "id">): string {
-    if (typeof object !== "object" || object === null) return "";
+    if (typeof object !== "object" || object === null || !Object.prototype.hasOwnProperty.call(object, "__typename")) return "";
     // If object is a user, use 'Profile'
     if (isOfType(object, "User", "SessionUser")) return LINKS.Profile;
     // If object is a code, base URL on its type

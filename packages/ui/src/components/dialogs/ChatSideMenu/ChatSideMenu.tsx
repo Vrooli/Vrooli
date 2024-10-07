@@ -210,7 +210,7 @@ export function ChatSideMenu() {
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
     const isLeftHanded = useIsLeftHanded();
-    console.log('qqqq user', session, userId)
+    console.log("qqqq user", session, userId);
 
     // Put here so that we can track tasks even when the chat tab is not open
     const chatContext = useContext(ActiveChatContext);
@@ -370,7 +370,7 @@ export function ChatSideMenu() {
 
     const handleItemClick = useCallback((data: ListObject) => {
         // Chats can often be opened in the side menu instead of navigated to
-        const chatTab = tabs.find(tab => tab.key === 'Chat');
+        const chatTab = tabs.find(tab => tab.key === "Chat");
         const isActiveChat =
             chatTab &&
             data.__typename === "Chat" &&
@@ -378,9 +378,10 @@ export function ChatSideMenu() {
             (data as Chat).participants?.every(p => p.user?.isBot === true || p.user?.id === userId);
         if (chatTab && isActiveChat) {
             chatContext.setActiveChat(data as Chat);
-            handleTabChange(undefined, chatTab)
+            handleTabChange(undefined, chatTab);
         }
         // Otherwise, navigate to item's page
+        //TODO there will be cases for other objects. Routines can open as suggested tasks, and prompts as chat prompts
         else {
             setLocation(getObjectUrl(data));
         }

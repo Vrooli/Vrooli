@@ -1,38 +1,11 @@
-import { MistralModel } from "@local/shared";
+import { MistralModel, mistralServiceInfo } from "@local/shared";
 import MistralClient, { ChatCompletionResponse } from "@mistralai/mistralai";
 import { CustomError } from "../../../events/error";
 import { logger } from "../../../events/logger";
 import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry } from "../registry";
 import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetOutputTokenLimitParams, GetOutputTokenLimitResult, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, generateDefaultContext, getDefaultConfigObject, getDefaultMaxOutputTokensRestrained, getDefaultResponseCost, tokenEstimationDefault } from "../service";
 
-const DEFAULT_MAX_TOKENS = 1024;
-
 type MistralTokenModel = "default";
-
-/** Cost in cents per API_CREDITS_MULTIPLIER input tokens */
-const inputCosts: Record<MistralModel, number> = {
-    [MistralModel.Codestral]: 100, // $1.00
-    [MistralModel.Large2]: 300, // $3.00
-    [MistralModel.Nemo]: 30, // $0.30
-};
-/** Cost in cents per API_CREDITS_MULTIPLIER output tokens */
-const outputCosts: Record<MistralModel, number> = {
-    [MistralModel.Codestral]: 300, // $3.00
-    [MistralModel.Large2]: 900, // $9.00
-    [MistralModel.Nemo]: 30, // $0.30
-};
-/** Max context window */
-const contextWindows: Record<MistralModel, number> = {
-    [MistralModel.Codestral]: 32_000,
-    [MistralModel.Large2]: 128_000,
-    [MistralModel.Nemo]: 128_000,
-};
-/** Max output tokens */
-const maxOutputTokens: Record<MistralModel, number> = {
-    [MistralModel.Codestral]: 4_096, // Couldn't find the actual value
-    [MistralModel.Large2]: 4_096, // Couldn't find the actual value
-    [MistralModel.Nemo]: 4_096, // Couldn't find the actual value
-};
 
 export class MistralService implements LanguageModelService<MistralModel, MistralTokenModel> {
     public __id = LlmServiceId.Mistral;
@@ -103,7 +76,7 @@ export class MistralService implements LanguageModelService<MistralModel, Mistra
         const params = {
             messages,
             model,
-            max_tokens: maxTokens ?? DEFAULT_MAX_TOKENS,
+            max_tokens: maxTokens ?? mistralServiceInfo.fallbackMaxTokens,
         } as const;
         const completion: ChatCompletionResponse = await this.client
             .chat(params)
@@ -131,7 +104,7 @@ export class MistralService implements LanguageModelService<MistralModel, Mistra
         model,
     }: GenerateResponseParams) {
         const params = {
-            max_tokens: maxTokens ?? DEFAULT_MAX_TOKENS,
+            max_tokens: maxTokens ?? mistralServiceInfo.fallbackMaxTokens,
             model,
             messages,
         } as const;
@@ -186,16 +159,16 @@ export class MistralService implements LanguageModelService<MistralModel, Mistra
 
     getContextSize(requestedModel?: string | null) {
         const model = this.getModel(requestedModel);
-        return contextWindows[model];
+        return mistralServiceInfo.models[model].contextWindow;
     }
 
-    getCosts() {
-        return { inputCosts, outputCosts };
+    getModelInfo() {
+        return mistralServiceInfo.models;
     }
 
     getMaxOutputTokens(requestedModel?: string | null | undefined): number {
         const model = this.getModel(requestedModel);
-        return maxOutputTokens[model];
+        return mistralServiceInfo.models[model].maxOutputTokens;
     }
 
     getMaxOutputTokensRestrained(params: GetOutputTokenLimitParams): number {

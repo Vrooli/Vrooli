@@ -3,11 +3,15 @@ import { LlmTask } from "../api/generated/graphqlTypes";
 import { PassableLogger } from "../consts/commonTypes";
 import { DEFAULT_LANGUAGE } from "../consts/ui";
 import { pascalCase } from "../utils/casing";
-import { CommandToTask, LanguageModelResponseMode, LlmTaskConfig, LlmTaskConfigBuilder, LlmTaskStructuredConfig, LlmTaskUnstructuredConfig, TaskNameMap } from "./types";
+import { type AIServicesInfo } from "./services";
+import { AITaskConfig, AITaskConfigBuilder, AITaskUnstructuredConfig, CommandToTask, LanguageModelResponseMode, LlmTaskStructuredConfig, TaskNameMap } from "./types";
 
-const CONFIG_RELATIVE_PATH = "../../dist/llm/configs";
+const CONFIG_RELATIVE_PATH = "../../dist/ai/configs";
 
-export async function getLlmConfigLocation(urlBase?: string): Promise<{ location: string, shouldFetch: boolean }> {
+/**
+ * Determines the correct location to fetch the AI configuration from, depending on the environment.
+ */
+export async function getAIConfigLocation(urlBase?: string): Promise<{ location: string, shouldFetch: boolean }> {
     // Test environment - Use absolute path
     if (process.env.NODE_ENV === "test") {
         const path = await import("path");
@@ -21,10 +25,13 @@ export async function getLlmConfigLocation(urlBase?: string): Promise<{ location
     }
     // Browser environment - Fetch from server
     else {
-        return { location: `${urlBase || "http://localhost:5329"}/llm/configs`, shouldFetch: true };
+        return { location: `${urlBase || "http://localhost:5329"}/ai/configs`, shouldFetch: true };
     }
 }
 
+/**
+ * Helper function to import or fetch the configuration file.
+ */
 async function loadFile(path: string, shouldFetch: boolean) {
     if (shouldFetch) {
         const response = await fetch(path);
@@ -39,49 +46,61 @@ async function loadFile(path: string, shouldFetch: boolean) {
 }
 
 export async function importHelper(
-    language: string,
+    filename: string,
+    subdirectory: "services" | "tasks",
     logger: PassableLogger,
     urlBase?: string,
 ): Promise<{
     file: Record<string, unknown>,
     extension: string,
 }> {
-    const { location, shouldFetch } = await getLlmConfigLocation(urlBase);
+    const { location, shouldFetch } = await getAIConfigLocation(urlBase);
     const extension = shouldFetch ? "json" : "js";
     try {
-        const path = `${location}/${language}.${extension}`;
+        const path = `${location}/${subdirectory}/${filename}.${extension}`;
         const file = await loadFile(path, shouldFetch);
         return { file, extension };
     } catch (error) {
-        logger.error(`Configuration for language ${language} not found. Falling back to ${DEFAULT_LANGUAGE}.`, { trace: "0309", location, shouldFetch });
-        const path = `${location}/${DEFAULT_LANGUAGE}.${extension}`;
+        logger.error(`Configuration ${filename} not found. Falling back to ${DEFAULT_LANGUAGE}.`, { trace: "0309", location, shouldFetch });
+        const path = `${location}/${subdirectory}/${DEFAULT_LANGUAGE}.${extension}`;
         const file = await loadFile(path, shouldFetch);
         return { file, extension };
     }
 }
 
 /**
+ * Dynamically imports the AI services configuration
+ */
+export async function importAIServiceConfig(
+    logger: PassableLogger,
+    urlBase?: string,
+): Promise<AIServicesInfo> {
+    const { file, extension } = await importHelper("services", "services", logger, urlBase);
+    return extension === "json" ? file as AIServicesInfo : (file as { aiServicesInfo: AIServicesInfo }).aiServicesInfo;
+}
+
+/**
  * Dynamically imports the configuration for the specified language.
  */
-export async function importConfig(
+export async function importAITaskConfig(
     language: string,
     logger: PassableLogger,
     urlBase?: string,
-): Promise<LlmTaskConfig> {
-    const { file, extension } = await importHelper(language, logger, urlBase);
-    return extension === "json" ? file as LlmTaskConfig : (file as { config: LlmTaskConfig }).config;
+): Promise<AITaskConfig> {
+    const { file, extension } = await importHelper(language, "tasks", logger, urlBase);
+    return extension === "json" ? file as AITaskConfig : (file as { config: AITaskConfig }).config;
 }
 
 /**
  * Dynamically imports the configuration builder for the specified language.
  */
-export async function importBuilder(
+export async function importAITaskBuilder(
     language: string,
     logger: PassableLogger,
     urlBase?: string,
-): Promise<LlmTaskConfigBuilder> {
-    const { file, extension } = await importHelper(language, logger, urlBase);
-    return extension === "json" ? {} as LlmTaskConfigBuilder : (file as { builder: LlmTaskConfigBuilder }).builder;
+): Promise<AITaskConfigBuilder> {
+    const { file, extension } = await importHelper(language, "tasks", logger, urlBase);
+    return extension === "json" ? {} as AITaskConfigBuilder : (file as { builder: AITaskConfigBuilder }).builder;
 }
 
 /**
@@ -95,7 +114,7 @@ export async function importCommandToTask(
     // Fetch the task name map
     let map: TaskNameMap = { command: {}, action: {} };
     try {
-        const config = await importConfig(language, logger);
+        const config = await importAITaskConfig(language, logger);
         map = config.__task_name_map;
     } catch (error) {
         logger.error(`Unable to fetch task name map for language ${language}`, { trace: "0041" });
@@ -119,13 +138,13 @@ export async function getUnstructuredTaskConfig(
     task: LlmTask | `${LlmTask}`,
     language: string = DEFAULT_LANGUAGE,
     logger: PassableLogger,
-): Promise<LlmTaskUnstructuredConfig> {
-    const taskConfig = (await importConfig(language, logger))[task];
+): Promise<AITaskUnstructuredConfig> {
+    const taskConfig = (await importAITaskConfig(language, logger))[task];
 
     // Fallback to a default message if the task is not found in the config
     if (!taskConfig || typeof taskConfig !== "function") {
         logger.error(`Task ${task} was invalid or not found in the configuration for language ${language}`, { trace: "0305" });
-        return {} as LlmTaskUnstructuredConfig;
+        return {} as AITaskUnstructuredConfig;
     }
 
     return taskConfig();
@@ -156,8 +175,8 @@ export async function getStructuredTaskConfig({
     mode,
     task,
 }: GetStructuredTaskConfigProps): Promise<LlmTaskStructuredConfig> {
-    const taskConfig = (await importConfig(language, logger))[task];
-    const builder = await importBuilder(language, logger);
+    const taskConfig = (await importAITaskConfig(language, logger))[task];
+    const builder = await importAITaskBuilder(language, logger);
 
     // Fallback to a default message if the task is not found in the config
     if (!taskConfig || typeof taskConfig !== "function") {

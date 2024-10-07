@@ -135,7 +135,7 @@ async function main() {
     setupStripe(app);
 
     // Set static folders
-    app.use("/llm/configs", express.static(path.join(__dirname, "../../shared/dist/llm/configs")));
+    app.use("/ai/configs", express.static(path.join(__dirname, "../../shared/dist/ai/configs")));
 
     // Set up REST API
     Object.keys(restRoutes).forEach((key) => {

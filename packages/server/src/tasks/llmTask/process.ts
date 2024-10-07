@@ -1,4 +1,4 @@
-import { LlmTask, LlmTaskInfo, ServerLlmTaskInfo } from "@local/shared";
+import { AITaskInfo, LlmTask, ServerLlmTaskInfo } from "@local/shared";
 import { Job } from "bull";
 import { logger } from "../../events/logger";
 import { emitSocketEvent } from "../../sockets/events";
@@ -8,7 +8,7 @@ import { LlmTaskProcessPayload, changeLlmTaskStatus } from "./queue";
 type ExecuteLlmTaskParams = {
     data: Omit<LlmTaskProcessPayload, "status">;
 }
-export type ExecuteLlmTaskResult = ServerLlmTaskInfo & Pick<LlmTaskInfo, "resultLabel" | "resultLink"> & {
+export type ExecuteLlmTaskResult = ServerLlmTaskInfo & Pick<AITaskInfo, "resultLabel" | "resultLink"> & {
     status: "Completed" | "Failed"
 };
 

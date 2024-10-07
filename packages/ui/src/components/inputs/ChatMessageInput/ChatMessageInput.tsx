@@ -1,4 +1,4 @@
-import { ChatMessageShape, ChatParticipantShape, ListObject, LlmTask, LlmTaskInfo, getTranslation } from "@local/shared";
+import { AITaskInfo, ChatMessageShape, ChatParticipantShape, ListObject, LlmTask, getTranslation } from "@local/shared";
 import { Box, Button, Chip, ChipProps, CircularProgress, Divider, IconButton, ListItemText, Menu, MenuItem, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { RichInputBase } from "components/inputs/RichInput/RichInput";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
@@ -225,8 +225,8 @@ const StyledChip = styled(Chip, {
 
 type TaskChipProps = {
     isActive: boolean,
-    onTaskClick: (task: LlmTaskInfo) => unknown,
-    taskInfo: LlmTaskInfo,
+    onTaskClick: (task: AITaskInfo) => unknown,
+    taskInfo: AITaskInfo,
 }
 
 /** Displays a suggested, active, or finished task */
@@ -376,7 +376,7 @@ function TasksRow({
     const ref = useRef<HTMLDivElement>(null);
     const { onMouseDown } = useDraggableScroll({ ref, options: { direction: "horizontal" } });
 
-    const onTaskClick = useCallback(function onTaskClickCallback(task: LlmTaskInfo) {
+    const onTaskClick = useCallback(function onTaskClickCallback(task: AITaskInfo) {
         if (activeTask?.taskId === task.taskId) {
             unselectTask();
         } else {

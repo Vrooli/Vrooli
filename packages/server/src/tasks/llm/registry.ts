@@ -1,4 +1,4 @@
-import { AnthropicModel, MINUTES_15_MS, MistralModel, OpenAIModel } from "@local/shared";
+import { MINUTES_15_MS, aiServicesInfo } from "@local/shared";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
 
@@ -38,24 +38,6 @@ const COOLDOWN_TIMES: Partial<Record<LlmServiceErrorType, number>> = {
     [LlmServiceErrorType.Overloaded]: MINUTES_15_MS,
 };
 
-type LlmServiceModel = AnthropicModel | MistralModel | OpenAIModel;
-
-/**
- * Preferred fallback order for each service
- */
-export const fallbacks: Record<LlmServiceModel, LlmServiceModel[]> = {
-    [AnthropicModel.Haiku]: [OpenAIModel.Gpt4o_Mini, MistralModel.Nemo],
-    [AnthropicModel.Opus3]: [OpenAIModel.Gpt4_Turbo, MistralModel.Large2],
-    [AnthropicModel.Sonnet3_5]: [OpenAIModel.Gpt4o, MistralModel.Nemo],
-    [MistralModel.Codestral]: [OpenAIModel.Gpt4o, AnthropicModel.Sonnet3_5],
-    [MistralModel.Large2]: [OpenAIModel.Gpt4_Turbo, AnthropicModel.Opus3],
-    [MistralModel.Nemo]: [OpenAIModel.Gpt4o_Mini, AnthropicModel.Haiku],
-    [OpenAIModel.Gpt4o_Mini]: [AnthropicModel.Haiku, MistralModel.Nemo],
-    [OpenAIModel.Gpt4o]: [AnthropicModel.Sonnet3_5, MistralModel.Nemo],
-    [OpenAIModel.Gpt4]: [AnthropicModel.Opus3, MistralModel.Large2],
-    [OpenAIModel.Gpt4_Turbo]: [AnthropicModel.Opus3, MistralModel.Large2],
-};
-
 /**
  * All available services
  */
@@ -91,14 +73,46 @@ export class LlmServiceRegistry {
      * Initializes all service instances. This should be called at server startup.
      */
     static async init() {
-        const { AnthropicService } = await import("./services/anthropic");
-        serviceInstances[LlmServiceId.Anthropic] = new AnthropicService();
+        const registry = LlmServiceRegistry.get();
 
-        const { MistralService } = await import("./services/mistral");
-        serviceInstances[LlmServiceId.Mistral] = new MistralService();
+        for (const [serviceIdKey, serviceInfo] of Object.entries(aiServicesInfo.services)) {
+            const serviceId = serviceIdKey as LlmServiceId;
 
-        const { OpenAIService } = await import("./services/openai");
-        serviceInstances[LlmServiceId.OpenAI] = new OpenAIService();
+            if (!serviceInfo.enabled) {
+                // Set service state to Disabled
+                registry.registerService(serviceId, LlmServiceState.Disabled);
+                logger.info(`Service ${serviceId} is disabled in configuration.`);
+                continue;
+            }
+
+            // Initialize the service
+            switch (serviceId) {
+                case LlmServiceId.Anthropic:
+                    {
+                        const { AnthropicService } = await import("./services/anthropic");
+                        serviceInstances[LlmServiceId.Anthropic] = new AnthropicService();
+                    }
+                    break;
+                case LlmServiceId.Mistral:
+                    {
+                        const { MistralService } = await import("./services/mistral");
+                        serviceInstances[LlmServiceId.Mistral] = new MistralService();
+                    }
+                    break;
+                case LlmServiceId.OpenAI:
+                    {
+                        const { OpenAIService } = await import("./services/openai");
+                        serviceInstances[LlmServiceId.OpenAI] = new OpenAIService();
+                    }
+                    break;
+                default:
+                    logger.warning(`Unknown service ID: ${serviceId}`, { trace: "0656" });
+                    break;
+            }
+
+            // Set service state to Active
+            registry.registerService(serviceId, LlmServiceState.Active);
+        }
     }
 
     /**
@@ -116,6 +130,11 @@ export class LlmServiceRegistry {
      * Instantiates a new service, using the service's unique identifier
      */
     getService = (serviceId: LlmServiceId) => {
+        const state = this.getServiceState(serviceId);
+        if (state !== LlmServiceState.Active) {
+            throw new CustomError("0652", "ServiceDisabled", ["en"], { serviceId });
+        }
+
         const instance = serviceInstances[serviceId];
         if (!instance) {
             throw new CustomError("0251", "InternalError", ["en"], { serviceId });
@@ -136,7 +155,7 @@ export class LlmServiceRegistry {
         // Get fallbacks
         const service = this.getService(serviceId);
         const modelName = service.getModel(model);
-        const fallbacksForModel = fallbacks[modelName] || [];
+        const fallbacksForModel = aiServicesInfo.fallbacks[modelName] || [];
         // Try fallbacks
         for (const fallback of fallbacksForModel) {
             const fallbackServiceId = this.getServiceId(fallback);
@@ -148,8 +167,8 @@ export class LlmServiceRegistry {
         return null;
     };
 
-    registerService(serviceId: string) {
-        this.serviceStates.set(serviceId, { state: LlmServiceState.Active });
+    registerService(serviceId: string, state: LlmServiceState = LlmServiceState.Active) {
+        this.serviceStates.set(serviceId, { state });
     }
 
     /**

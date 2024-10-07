@@ -1,6 +1,6 @@
+import { AnthropicModel, OpenAIModel } from "../ai/services";
 import { User, UserTranslation } from "../api/generated/graphqlTypes";
 import { PassableLogger } from "../consts/commonTypes";
-import { AnthropicModel, OpenAIModel } from "../consts/llm";
 import { DUMMY_ID } from "../id/uuid";
 import { BotShape, BotTranslationShape } from "../shape/models/bot";
 import { toPosDouble } from "../validation/utils/builders/toPosDouble";

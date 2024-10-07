@@ -1,4 +1,4 @@
-import { ChatMessage, ChatMessageCreateInput, ChatMessageCreateWithTaskInfoInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageShape, ChatMessageUpdateInput, ChatMessageUpdateWithTaskInfoInput, ChatParticipant, ChatShape, DUMMY_ID, LlmTask, LlmTaskInfo, RegenerateResponseInput, Session, Success, TaskContextInfo, endpointGetChatMessageTree, endpointPostChatMessage, endpointPostRegenerateResponse, endpointPutChatMessage, getTranslation, noop, uuid } from "@local/shared";
+import { AITaskInfo, ChatMessage, ChatMessageCreateInput, ChatMessageCreateWithTaskInfoInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageShape, ChatMessageUpdateInput, ChatMessageUpdateWithTaskInfoInput, ChatParticipant, ChatShape, DUMMY_ID, LlmTask, RegenerateResponseInput, Session, Success, TaskContextInfo, endpointGetChatMessageTree, endpointPostChatMessage, endpointPostRegenerateResponse, endpointPutChatMessage, getTranslation, noop, uuid } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { SessionContext } from "contexts";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -485,7 +485,7 @@ export function useMessageTree(chatId?: string | null) {
     useEffect(function clearData() {
         clearMessages();
         setBranches({});
-        console.log('getting tree data?', chatId, chatId !== DUMMY_ID);
+        console.log("getting tree data?", chatId, chatId !== DUMMY_ID);
         if (chatId && chatId !== DUMMY_ID) {
             getTreeData({ chatId });
         }
@@ -553,7 +553,7 @@ export function useMessageActions({
     const [putMessageEndpoint] = useLazyFetch<ChatMessageUpdateWithTaskInfoInput, ChatMessage>(endpointPutChatMessage);
 
     /** Collects context data for the active task */
-    const collectTaskContext = useCallback((taskInfo: LlmTaskInfo | null) => new Promise<TaskContextInfo>((resolve, reject) => {
+    const collectTaskContext = useCallback((taskInfo: AITaskInfo | null) => new Promise<TaskContextInfo>((resolve, reject) => {
         if (!chat?.id) return;
         // Only try to collect data from `useAutoFill`, which provides the current form's data as context
         if (!PubSub.get().hasSubscribers("requestTaskContext", (metadata) => metadata?.source === "useAutoFill")) {

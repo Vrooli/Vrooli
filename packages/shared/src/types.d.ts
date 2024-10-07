@@ -4,6 +4,7 @@ import common from "./translations/locales/en/common.json" assert { type: "json"
 import error from "./translations/locales/en/error.json" assert { type: "json" };
 import langs from "./translations/locales/en/langs.json" assert { type: "json" };
 import notify from "./translations/locales/en/notify.json" assert { type: "json" };
+import service from "./translations/locales/en/service.json" assert { type: "json" };
 // import validate from "./translations/locales/en/validate.json" assert { type: "json" };
 import "yup";
 
@@ -20,6 +21,7 @@ declare module "i18next" {
             error: typeof error;
             langs: typeof langs;
             notify: typeof notify;
+            service: typeof service;
         };
     }
 }
@@ -41,6 +43,7 @@ export type CommonKey = TFuncKey<"common", undefined>
 export type ErrorKey = TFuncKey<"error", undefined>
 export type LangsKey = TFuncKey<"langs", undefined>
 export type NotifyKey = TFuncKey<"notify", undefined>
+export type ServiceKey = TFuncKey<"service", undefined>
 // export type ValidateKey = TFuncKey<'validate', undefined>
 
 export type OrArray<T> = T | T[];

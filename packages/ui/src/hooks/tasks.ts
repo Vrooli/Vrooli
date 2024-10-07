@@ -1,4 +1,4 @@
-import { CheckTaskStatusesInput, CheckTaskStatusesResult, DUMMY_ID, LlmTask, LlmTaskInfo, StartLlmTaskInput, TaskContextInfo, TaskType, VALYXA_ID, endpointGetCheckTaskStatuses, endpointPostStartLlmTask, getTranslation, uuid } from "@local/shared";
+import { AITaskInfo, CheckTaskStatusesInput, CheckTaskStatusesResult, DUMMY_ID, LlmTask, StartLlmTaskInput, TaskContextInfo, TaskType, VALYXA_ID, endpointGetCheckTaskStatuses, endpointPostStartLlmTask, getTranslation, uuid } from "@local/shared";
 import { fetchLazyWrapper } from "api";
 import { ActiveChatContext } from "contexts";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -304,8 +304,8 @@ export function generateContextLabel(value: unknown): string {
 
 function getTaskId(
     connect: ContextConnect,
-    activeTask: LlmTaskInfo,
-    inactiveTasks: LlmTaskInfo[],
+    activeTask: AITaskInfo,
+    inactiveTasks: AITaskInfo[],
     contexts: { [taskId: string]: TaskContextInfo[] },
 ): string | null {
     if (connect.__type === "taskId") {
@@ -332,11 +332,11 @@ type UseChatTasksProps = {
 }
 
 export type UseChatTaskReturn = {
-    activeTask: LlmTaskInfo;
+    activeTask: AITaskInfo;
     contexts: { [taskId: string]: TaskContextInfo[] };
-    inactiveTasks: LlmTaskInfo[];
+    inactiveTasks: AITaskInfo[];
     unselectTask: () => unknown;
-    selectTask: (task: LlmTaskInfo) => unknown;
+    selectTask: (task: AITaskInfo) => unknown;
 }
 
 export const DEFAULT_ACTIVE_TASK_ID = "task-00000000-0000-0000-0000-000000000000";
@@ -345,7 +345,7 @@ export const DEFAULT_ACTIVE_TASK = {
     taskId: DEFAULT_ACTIVE_TASK_ID,
 };
 export const DEFAULT_CONTEXTS = { [DEFAULT_ACTIVE_TASK_ID]: [] };
-export const DEFAULT_INACTIVE_TASKS: LlmTaskInfo[] = [];
+export const DEFAULT_INACTIVE_TASKS: AITaskInfo[] = [];
 
 function initializeActiveTask(chatId: string | null | undefined) {
     if (!chatId) return DEFAULT_ACTIVE_TASK;
@@ -376,9 +376,9 @@ export function useChatTasks({
     chatId,
 }: UseChatTasksProps): UseChatTaskReturn {
     // The current task. Determines the actions the bot can take
-    const [activeTask, setActiveTask] = useState<LlmTaskInfo>(() => initializeActiveTask(chatId));
-    const activeTaskRef = useRef<LlmTaskInfo>(activeTask);
-    const handleActiveTaskChange = useCallback((task: LlmTaskInfo) => {
+    const [activeTask, setActiveTask] = useState<AITaskInfo>(() => initializeActiveTask(chatId));
+    const activeTaskRef = useRef<AITaskInfo>(activeTask);
+    const handleActiveTaskChange = useCallback((task: AITaskInfo) => {
         if (!chatId) return;
         // Update cache
         setCookieTasksForChat(chatId, { activeTask: task });
@@ -400,9 +400,9 @@ export function useChatTasks({
     }, [chatId]);
 
     // Tasks that aren't active, but have been suggested, are running, or have run during the chat
-    const [inactiveTasks, setInactiveTasks] = useState<LlmTaskInfo[]>(() => initializeInactiveTasks(chatId));
-    const inactiveTasksRef = useRef<LlmTaskInfo[]>(inactiveTasks);
-    const handleInactiveTasksChange = useCallback((tasks: LlmTaskInfo[]) => {
+    const [inactiveTasks, setInactiveTasks] = useState<AITaskInfo[]>(() => initializeInactiveTasks(chatId));
+    const inactiveTasksRef = useRef<AITaskInfo[]>(inactiveTasks);
+    const handleInactiveTasksChange = useCallback((tasks: AITaskInfo[]) => {
         if (!chatId) return;
         // Update cache
         setCookieTasksForChat(chatId, { inactiveTasks: tasks });
@@ -598,7 +598,7 @@ export function useChatTasks({
         return () => unsubscribe();
     }, [chatId, handleActiveTaskChange, handleContextsChange, handleInactiveTasksChange]);
 
-    const selectTask = useCallback((task: LlmTaskInfo) => {
+    const selectTask = useCallback((task: AITaskInfo) => {
         // Move the current active task to inactive tasks if it's not the default task
         let updatedInactiveTasks = inactiveTasksRef.current;
         if (activeTaskRef.current && activeTaskRef.current.task !== DEFAULT_ACTIVE_TASK.task) {
@@ -625,7 +625,7 @@ export function useChatTasks({
     const hasCheckedRunningTasks = useRef(false);
     useEffect(function fetchTaskDataEffect() {
         if (hasCheckedRunningTasks.current || process.env.NODE_ENV === "test") return;
-        const taskIds = [activeTaskRef.current, ...inactiveTasks].filter(task => task && (task.status === "Running" || task.status === "Canceling")).map(task => (task as LlmTaskInfo).taskId);
+        const taskIds = [activeTaskRef.current, ...inactiveTasks].filter(task => task && (task.status === "Running" || task.status === "Canceling")).map(task => (task as AITaskInfo).taskId);
         if (taskIds.length === 0) return;
         hasCheckedRunningTasks.current = true;
         getTaskData({ taskIds, taskType: TaskType.Llm });

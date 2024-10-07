@@ -1,5 +1,5 @@
-import { LlmTask, LlmTaskInfo, MINUTES_10_MS, uuid } from "@local/shared";
-import { getExistingLlmConfig } from "api/llmConfig";
+import { AITaskInfo, LlmTask, MINUTES_10_MS, uuid } from "@local/shared";
+import { getExistingAIConfig } from "api/ai";
 import { SetLocation } from "route";
 
 /** How long a task can be running until it is considered stale */
@@ -11,7 +11,7 @@ export const STALE_TASK_THRESHOLD_MS = MINUTES_10_MS;
  * @param taskInfo The task info to check
  * @returns True if the task is stale, false otherwise
  */
-export function isTaskStale(taskInfo: LlmTaskInfo): boolean {
+export function isTaskStale(taskInfo: AITaskInfo): boolean {
     if (!["Running", "Canceling"].includes(taskInfo.status)) {
         return false;
     }
@@ -29,11 +29,11 @@ export function isTaskStale(taskInfo: LlmTaskInfo): boolean {
  * @param task The LlmTask to generate info for
  * @returns The task info
  */
-export function taskToTaskInfo(task: LlmTask): LlmTaskInfo {
-    const configData = getExistingLlmConfig();
+export function taskToTaskInfo(task: LlmTask): AITaskInfo {
+    const configData = getExistingAIConfig();
     let label: string = task;
-    if (configData) {
-        const config = configData.config;
+    if (configData && configData.task) {
+        const config = configData.task.config;
         if (config && config[task]) {
             label = config[task].label;
         }
@@ -61,7 +61,7 @@ export function taskToTaskInfo(task: LlmTask): LlmTaskInfo {
  * @param setLocation The function to set the location of the page
  */
 export function handleTaskClick(
-    task: LlmTaskInfo,
+    task: AITaskInfo,
     chatId: string,
     setLocation: SetLocation,
 ) {

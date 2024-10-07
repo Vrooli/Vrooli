@@ -1,8 +1,8 @@
 import { uuid } from "@local/shared";
 import { LlmTask } from "../api/generated/graphqlTypes";
 import { PassableLogger } from "../consts/commonTypes";
-import { getUnstructuredTaskConfig, importConfig } from "./config";
-import { CommandSection, CommandToTask, CommandTransitionTrack, ExistingTaskData, LanguageModelResponseMode, LlmTaskProperty, MaybeLlmTaskInfo, PartialTaskInfo, ServerLlmTaskInfo } from "./types";
+import { getUnstructuredTaskConfig, importAITaskConfig } from "./config";
+import { AITaskProperty, CommandSection, CommandToTask, CommandTransitionTrack, ExistingTaskData, LanguageModelResponseMode, MaybeLlmTaskInfo, PartialTaskInfo, ServerLlmTaskInfo } from "./types";
 
 /** Properties stored as an array of [key, value, key, value, ...] */
 type CurrentLlmTaskInfo = Omit<PartialTaskInfo, "lastUpdated" | "properties" | "task"> & {
@@ -856,7 +856,7 @@ export async function filterInvalidTasks(
             // Identify all required properties from the task configuration to ensure they are present
             const requiredProperties = taskConfig.properties
                 ?.filter(prop => typeof prop === "object" && prop.is_required && !existingKeys.includes(prop.name))
-                .map(prop => (prop as LlmTaskProperty).name) ?? [];
+                .map(prop => (prop as AITaskProperty).name) ?? [];
 
             // Check each property in the command and not already filled in
             Object.entries(task.properties).forEach(([key, value]) => {
@@ -1005,7 +1005,7 @@ export async function getValidTasksFromText({
     const validTasks = await filterInvalidTasks(maybeTasks, taskMode, existingData, commandToTask, language, logger);
 
     // Add additional information to the valid tasks
-    const config = await importConfig(language, logger);
+    const config = await importAITaskConfig(language, logger);
     const labelledTasks = validTasks.map(command => ({
         ...command,
         label: config[command.task]().label,
@@ -1067,7 +1067,7 @@ export async function getValidTasksFromJson({
     const validTasks = await filterInvalidTasks(maybeTasks, taskMode, existingData, commandToTask, language, logger);
 
     // Add additional information to the valid tasks
-    const config = await importConfig(language, logger);
+    const config = await importAITaskConfig(language, logger);
     const labelledTasks = validTasks.map(command => ({
         ...command,
         label: config[command.task]().label,

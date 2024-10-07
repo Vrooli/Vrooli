@@ -151,6 +151,7 @@
     "ScheduleNotFound": "Schedule not found.",
     "ServerDisconnected": "Disconnected from server. Attempting to reconnect...",
     "ServerReconnectAttempt": "Attempting to reconnect to server...",
+    "ServiceDisabled": "Service disabled.",
     "SessionExpired": "Session expired.",
     "SessionExpiredDetails": "Session has expired. Please sign in again.",
     "SoftLockout": "Too many attempts. Wait 15 minutes.",

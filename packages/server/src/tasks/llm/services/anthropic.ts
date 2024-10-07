@@ -1,38 +1,11 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { AnthropicModel } from "@local/shared";
+import { AnthropicModel, anthropicServiceInfo } from "@local/shared";
 import { CustomError } from "../../../events/error";
 import { logger } from "../../../events/logger";
 import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry } from "../registry";
 import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetOutputTokenLimitParams, GetOutputTokenLimitResult, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, generateDefaultContext, getDefaultConfigObject, getDefaultMaxOutputTokensRestrained, getDefaultResponseCost, tokenEstimationDefault } from "../service";
 
 type AnthropicTokenModel = "default";
-
-const DEFAULT_MAX_TOKENS = 4096;
-
-/** Cost in cents per API_CREDITS_MULTIPLIER input tokens */
-const inputCosts: Record<AnthropicModel, number> = {
-    [AnthropicModel.Haiku]: 25, // $0.25
-    [AnthropicModel.Opus3]: 1500, // $15.00
-    [AnthropicModel.Sonnet3_5]: 300, // $3.00
-};
-/** Cost in cents per API_CREDITS_MULTIPLIER output tokens */
-const outputCosts: Record<AnthropicModel, number> = {
-    [AnthropicModel.Haiku]: 125, // $1.25
-    [AnthropicModel.Opus3]: 7500, // $75.00
-    [AnthropicModel.Sonnet3_5]: 1500, // $15.00
-};
-/** Max context window */
-const contextWindows: Record<AnthropicModel, number> = {
-    [AnthropicModel.Haiku]: 200_000,
-    [AnthropicModel.Opus3]: 200_000,
-    [AnthropicModel.Sonnet3_5]: 200_000,
-};
-/** Max output tokens */
-const maxOutputTokens: Record<AnthropicModel, number> = {
-    [AnthropicModel.Haiku]: 4_096,
-    [AnthropicModel.Opus3]: 4_096,
-    [AnthropicModel.Sonnet3_5]: 8_192,
-};
 
 export class AnthropicService implements LanguageModelService<AnthropicModel, AnthropicTokenModel> {
     public __id = LlmServiceId.Anthropic;
@@ -96,7 +69,7 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
         const params: Anthropic.MessageCreateParams = {
             messages: messages.map(({ role, content }) => ({ role, content })),
             model,
-            max_tokens: maxTokens ?? DEFAULT_MAX_TOKENS,
+            max_tokens: maxTokens ?? anthropicServiceInfo.fallbackMaxTokens,
             system: systemMessage,
         } as const;
 
@@ -130,7 +103,7 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
         const params: Anthropic.MessageCreateParams = {
             messages: messages.map(({ role, content }) => ({ role, content })),
             model,
-            max_tokens: maxTokens ?? DEFAULT_MAX_TOKENS,
+            max_tokens: maxTokens ?? anthropicServiceInfo.fallbackMaxTokens,
             system: systemMessage,
         } as const;
 
@@ -196,16 +169,16 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
 
     getContextSize(requestedModel?: string | null) {
         const model = this.getModel(requestedModel);
-        return contextWindows[model];
+        return anthropicServiceInfo.models[model].contextWindow;
     }
 
-    getCosts() {
-        return { inputCosts, outputCosts };
+    getModelInfo() {
+        return anthropicServiceInfo.models;
     }
 
     getMaxOutputTokens(requestedModel?: string | null | undefined): number {
         const model = this.getModel(requestedModel);
-        return maxOutputTokens[model];
+        return anthropicServiceInfo.models[model].maxOutputTokens;
     }
 
     getMaxOutputTokensRestrained(params: GetOutputTokenLimitParams): number {
@@ -227,9 +200,10 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
 
     getModel(model?: string | null) {
         if (typeof model !== "string") return this.defaultModel;
-        if (model.includes("haiku")) return AnthropicModel.Haiku;
+        if (model.includes("haiku")) return AnthropicModel.Haiku3;
         if (model.includes("opus")) return AnthropicModel.Opus3;
-        if (model.includes("sonnet")) return AnthropicModel.Sonnet3_5;
+        if (model.includes("sonnet-3-5")) return AnthropicModel.Sonnet3_5;
+        if (model.includes("sonnet-3")) return AnthropicModel.Sonnet3;
         return this.defaultModel;
     }
 
@@ -263,7 +237,7 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
     
                 If the user's request refers to harmful, pornographic, or illegal activities, reply with (Y). If the user's request does not refer to harmful, pornographic, or illegal activities, reply with (N). Reply with nothing else other than (Y) or (N).
                 `;
-            const moderationModel = AnthropicModel.Haiku;
+            const moderationModel = AnthropicModel.Haiku3;
 
             const params: Anthropic.MessageCreateParams = {
                 messages: [{ role: "user", content: moderationPrompt }],

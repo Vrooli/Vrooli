@@ -1,4 +1,4 @@
-import { ActiveFocusMode, ChatPageTabOption, CommonKey, ErrorKey, LlmTask, LlmTaskInfo, Session, TaskContextInfo } from "@local/shared";
+import { AITaskInfo, ActiveFocusMode, ChatPageTabOption, CommonKey, ErrorKey, LlmTask, Session, TaskContextInfo } from "@local/shared";
 import { AlertDialogSeverity } from "components/dialogs/AlertDialog/AlertDialog";
 import { SnackSeverity } from "components/snacks";
 import { ThemeType } from "./localStorage";
@@ -94,7 +94,7 @@ export type ChatTaskPub = {
                 * NOTE: Removes the task from the inactive list if it was there.
                 */
                 behavior: "force" | "onlyReplaceStart" | "onlyReplaceDifferentTaskType";
-                value: LlmTaskInfo | null;
+                value: AITaskInfo | null;
             };
             inactive?: {
                 /**
@@ -105,10 +105,10 @@ export type ChatTaskPub = {
                  * - "replaceTaskId" to replace the task with the given ID. If task was active, it will become inactive.
                  */
                 behavior: "onlyIfNoTaskType" | "onlyIfNoTaskId" | "replaceAll" | "replaceTaskType" | "replaceTaskId";
-                value: LlmTaskInfo[];
+                value: AITaskInfo[];
             };
         };
-        update?: Partial<LlmTaskInfo>[];
+        update?: Partial<AITaskInfo>[];
         remove?: TaskConnect[];
     };
 }

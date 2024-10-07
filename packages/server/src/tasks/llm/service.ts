@@ -1,4 +1,4 @@
-import { API_CREDITS_MULTIPLIER, BotSettings, BotSettingsTranslation, ChatSocketEventPayloads, CommandToTask, ExistingTaskData, LanguageModelResponseMode, LlmTask, LlmTaskStructuredConfig, ServerLlmTaskInfo, getStructuredTaskConfig, getTranslation, getValidTasksFromMessage, toBotSettings } from "@local/shared";
+import { API_CREDITS_MULTIPLIER, BotSettings, BotSettingsTranslation, ChatSocketEventPayloads, CommandToTask, ExistingTaskData, LanguageModelResponseMode, LlmTask, LlmTaskStructuredConfig, ModelInfo, ServerLlmTaskInfo, getStructuredTaskConfig, getTranslation, getValidTasksFromMessage, toBotSettings } from "@local/shared";
 import { cudHelper } from "../../actions/cuds";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
@@ -150,8 +150,8 @@ export interface LanguageModelService<GenerateNameType extends string, TokenName
     generateResponseStreaming(params: GenerateResponseParams): AsyncIterable<GenerateResponseStreamingResult>;
     /** @returns the context size of the model */
     getContextSize(requestedModel?: string | null): number;
-    /** @returns the cost of input and output tokens for each supported model */
-    getCosts(): { inputCosts: Record<GenerateNameType, number>, outputCosts: Record<GenerateNameType, number> };
+    /** @returns Information about the available models */
+    getModelInfo(): Record<GenerateNameType, ModelInfo>;
     /** @returns the max output window for the model */
     getMaxOutputTokens(requestedModel?: string | null): number;
     /**
@@ -394,21 +394,21 @@ export function getDefaultMaxOutputTokensRestrained<GenerateNameType extends str
     { maxCredits, model, inputTokens }: GetOutputTokenLimitParams,
     service: LanguageModelService<GenerateNameType, TokenNameType>,
 ) {
-    const { inputCosts, outputCosts } = service.getCosts();
     const modelToUse = service.getModel(model);
+    const modelInfo = service.getModelInfo()[modelToUse];
 
-    if (!inputCosts[modelToUse] || !outputCosts[modelToUse]) {
+    if (!modelInfo || !modelInfo.inputCost || !modelInfo.outputCost) {
         throw new Error(`Model "${model}" (converted to ${modelToUse}) not found in cost records`);
     }
 
-    const inputCost = BigInt(inputCosts[modelToUse] * inputTokens);
+    const inputCost = BigInt(modelInfo.inputCost * inputTokens);
     const remainingCredits = BigInt(maxCredits) - BigInt(inputCost);
 
     if (remainingCredits <= 0) {
         return 0;
     }
 
-    const maxOutputTokensRestrained = remainingCredits / BigInt(Math.floor(outputCosts[modelToUse]));
+    const maxOutputTokensRestrained = remainingCredits / BigInt(Math.floor(modelInfo.outputCost));
     return Math.min(Math.max(0, Number(maxOutputTokensRestrained)), service.getMaxOutputTokens(model) - inputTokens);
 }
 
@@ -423,15 +423,15 @@ export function getDefaultResponseCost<GenerateNameType extends string, TokenNam
     { model, usage }: GetResponseCostParams,
     service: LanguageModelService<GenerateNameType, TokenNameType>,
 ) {
-    const { inputCosts, outputCosts } = service.getCosts();
     const { input, output } = usage;
     const modelToUse = service.getModel(model);
+    const modelInfo = service.getModelInfo()[modelToUse];
 
-    if (!inputCosts[modelToUse] || !outputCosts[modelToUse]) {
+    if (!modelInfo || !modelInfo.inputCost || !modelInfo.outputCost) {
         throw new Error(`Model "${model}" (converted to ${modelToUse}) not found in cost records`);
     }
 
-    return Math.max((inputCosts[modelToUse] * input), 0) + Math.max((outputCosts[modelToUse] * output), 0);
+    return Math.max((modelInfo.inputCost * input), 0) + Math.max((modelInfo.outputCost * output), 0);
 }
 
 /**
