@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { ModelMap } from ".";
 import { onlyValidIds } from "../../builders/onlyValidIds";
 import { permissionsSelectHelper } from "../../builders/permissionsSelectHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
+import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
@@ -31,7 +31,7 @@ const forMapper: { [key in ReactionFor]?: keyof Prisma.reactionUpsertArgs["creat
     Standard: "standard",
 };
 const reversedForMapper = Object.fromEntries(
-    Object.entries(forMapper).map(([key, value]) => [value, key])
+    Object.entries(forMapper).map(([key, value]) => [value, key]),
 );
 
 function reactionForToRelation(reactionFor: keyof typeof ReactionFor): string {
@@ -327,7 +327,7 @@ export const ReactionModel: ReactionModelLogic = ({
                     // Any non-public, non-owned objects should be filtered out
                     // Can use OR because only one relation will be present
                     OR: [
-                        ...Object.entries(forMapper).map(([key, value]) => ({ [value]: useVisibility(key as GqlModelType, "OwnOrPublic", data) })),
+                        ...useVisibilityMapper("OwnOrPublic", data, forMapper, false),
                     ],
                 };
             },
@@ -346,7 +346,7 @@ export const ReactionModel: ReactionModelLogic = ({
                 // If the search input has a relation ID, return that relation only
                 const forSearch = Object.keys(searchInput).find(searchKey =>
                     searchKey.endsWith("Id") &&
-                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)]
+                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)],
                 );
                 if (forSearch) {
                     const relation = forSearch.substring(0, forSearch.length - "Id".length);
@@ -355,7 +355,7 @@ export const ReactionModel: ReactionModelLogic = ({
                 // Otherwise, use an OR on all relations
                 return {
                     OR: [
-                        ...Object.entries(forMapper).map(([key, value]) => ({ [value]: useVisibility(key as GqlModelType, "Public", data) })),
+                        ...useVisibilityMapper("Public", data, forMapper, false),
                     ],
                 };
             },

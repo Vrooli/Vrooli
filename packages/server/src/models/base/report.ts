@@ -2,7 +2,7 @@ import { GqlModelType, MaxObjects, ReportFor, ReportSearchInput, ReportSortBy, R
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { ModelMap } from ".";
-import { useVisibility } from "../../builders/visibilityBuilder";
+import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { getSingleTypePermissions } from "../../validators";
@@ -26,7 +26,7 @@ const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs["create"] }
     User: "user",
 };
 const reversedForMapper = Object.fromEntries(
-    Object.entries(forMapper).map(([key, value]) => [value, key])
+    Object.entries(forMapper).map(([key, value]) => [value, key]),
 );
 
 const __typename = "Report" as const;
@@ -177,15 +177,15 @@ export const ReportModel: ReportModelLogic = ({
                 // If the search input has a relation ID, return that relation only
                 const forSearch = Object.keys(searchInput).find(searchKey =>
                     searchKey.endsWith("Id") &&
-                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)]
+                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)],
                 );
                 if (forSearch) {
                     const relation = forSearch.substring(0, forSearch.length - "Id".length);
                     return {
                         OR: [
                             useVisibility("Report", "Own", data),
-                            { [relation]: useVisibility(reversedForMapper[relation] as GqlModelType, "OwnOrPublic", data) }
-                        ]
+                            { [relation]: useVisibility(reversedForMapper[relation] as GqlModelType, "OwnOrPublic", data) },
+                        ],
                     };
                 }
                 // Otherwise, use an OR on all relations
@@ -193,9 +193,7 @@ export const ReportModel: ReportModelLogic = ({
                     // Can use OR because only one relation will be present
                     OR: [
                         useVisibility("Report", "Own", data),
-                        ...Object.entries(forMapper).map(([key, value]) => ({
-                            [value]: useVisibility(key as GqlModelType, "OwnOrPublic", data),
-                        })),
+                        ...useVisibilityMapper("OwnOrPublic", data, forMapper, false),
                     ],
                 };
             },
@@ -211,7 +209,7 @@ export const ReportModel: ReportModelLogic = ({
                 // If the search input has a relation ID, return that relation only
                 const forSearch = Object.keys(searchInput).find(searchKey =>
                     searchKey.endsWith("Id") &&
-                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)]
+                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)],
                 );
                 if (forSearch) {
                     const relation = forSearch.substring(0, forSearch.length - "Id".length);
@@ -221,9 +219,7 @@ export const ReportModel: ReportModelLogic = ({
                 return {
                     // Can use OR because only one relation will be present
                     OR: [
-                        ...Object.entries(forMapper).map(([key, value]) => ({
-                            [value]: useVisibility(key as GqlModelType, "Public", data),
-                        })),
+                        ...useVisibilityMapper("Public", data, forMapper, false),
                     ],
                 };
             },

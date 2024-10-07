@@ -9,7 +9,7 @@ import { modelToGql } from "../../builders/modelToGql";
 import { selectHelper } from "../../builders/selectHelper";
 import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { GraphQLInfo, PartialGraphQLInfo } from "../../builders/types";
-import { useVisibility, visibilityBuilderPrisma } from "../../builders/visibilityBuilder";
+import { useVisibility, useVisibilityMapper, visibilityBuilderPrisma } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { getSearchStringQuery } from "../../getters";
 import { SessionUserToken } from "../../types";
@@ -38,7 +38,7 @@ const forMapper: { [key in CommentFor]: keyof Prisma.commentUpsertArgs["create"]
     StandardVersion: "standardVersion",
 };
 const reversedForMapper: { [key in keyof Prisma.commentUpsertArgs["create"]]: CommentFor } = Object.fromEntries(
-    Object.entries(forMapper).map(([key, value]) => [value, key])
+    Object.entries(forMapper).map(([key, value]) => [value, key]),
 );
 
 const __typename = "Comment" as const;
@@ -167,7 +167,7 @@ export const CommentModel: CommentModelLogic = ({
                 objectType: __typename,
                 searchInput: input,
                 userData,
-                visibility: VisibilityType.Public
+                visibility: VisibilityType.Public,
             };
             // Loop through search fields and add each to the search query, 
             // if the field is specified in the input
@@ -365,7 +365,7 @@ export const CommentModel: CommentModelLogic = ({
                 // If the search input has a relation ID, return that relation only
                 const forSearch = Object.keys(searchInput).find(searchKey =>
                     searchKey.endsWith("Id") &&
-                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)]
+                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)],
                 );
                 if (forSearch) {
                     const relation = forSearch.substring(0, forSearch.length - "Id".length);
@@ -374,9 +374,7 @@ export const CommentModel: CommentModelLogic = ({
                 // Otherwise, use an OR on all relations
                 return {
                     OR: [
-                        ...Object.entries(forMapper).map(([key, value]) => ({
-                            [value]: useVisibility(key as GqlModelType, "Public", data),
-                        })),
+                        ...useVisibilityMapper("Public", data, forMapper, false),
                     ],
                 };
             },

@@ -321,6 +321,7 @@ export const FocusModeFormat: Formatter<FocusModeModelInfo> = {
         filters: "FocusModeFilter",
         labels: "Label",
         reminderList: "ReminderList",
+        resourceList: "ResourceList",
         schedule: "Schedule",
     },
     prismaRelMap: {

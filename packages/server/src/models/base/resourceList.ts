@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { ModelMap } from ".";
 import { findFirstRel } from "../../builders/findFirstRel";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
+import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { ResourceListFormat } from "../formats";
@@ -20,7 +20,7 @@ const forMapper: { [key in ResourceListFor]: keyof Prisma.resource_listUpsertArg
     Team: "team",
 };
 const reversedForMapper = Object.fromEntries(
-    Object.entries(forMapper).map(([key, value]) => [value, key])
+    Object.entries(forMapper).map(([key, value]) => [value, key]),
 );
 
 const __typename = "ResourceList" as const;
@@ -95,7 +95,7 @@ export const ResourceListModel: ResourceListModelLogic = ({
                 // If the search input has a relation ID, return that relation only
                 const forSearch = Object.keys(searchInput).find(searchKey =>
                     searchKey.endsWith("Id") &&
-                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)]
+                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)],
                 );
                 if (forSearch) {
                     const relation = forSearch.substring(0, forSearch.length - "Id".length);
@@ -104,7 +104,7 @@ export const ResourceListModel: ResourceListModelLogic = ({
                 // Otherwise, use an OR on all relations
                 return {
                     OR: [
-                        ...Object.entries(forMapper).map(([key, value]) => ({ [value]: useVisibility(key as GqlModelType, "Own", data) })),
+                        ...useVisibilityMapper("Own", data, forMapper, false),
                     ],
                 };
             },
@@ -121,7 +121,7 @@ export const ResourceListModel: ResourceListModelLogic = ({
                 // If the search input has a relation ID, return that relation only
                 const forSearch = Object.keys(searchInput).find(searchKey =>
                     searchKey.endsWith("Id") &&
-                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)]
+                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)],
                 );
                 if (forSearch) {
                     const relation = forSearch.substring(0, forSearch.length - "Id".length);
@@ -130,7 +130,7 @@ export const ResourceListModel: ResourceListModelLogic = ({
                 // Otherwise, use an OR on all relations
                 return {
                     OR: [
-                        ...Object.entries(forMapper).map(([key, value]) => ({ [value]: useVisibility(key as GqlModelType, "OwnPrivate", data) })),
+                        ...useVisibilityMapper("OwnPrivate", data, forMapper, false),
                     ],
                 };
             },
@@ -139,7 +139,7 @@ export const ResourceListModel: ResourceListModelLogic = ({
                 // If the search input has a relation ID, return that relation only
                 const forSearch = Object.keys(searchInput).find(searchKey =>
                     searchKey.endsWith("Id") &&
-                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)]
+                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)],
                 );
                 if (forSearch) {
                     const relation = forSearch.substring(0, forSearch.length - "Id".length);
@@ -148,7 +148,7 @@ export const ResourceListModel: ResourceListModelLogic = ({
                 // Otherwise, use an OR on all relations
                 return {
                     OR: [
-                        ...Object.entries(forMapper).map(([key, value]) => ({ [value]: useVisibility(key as GqlModelType, "OwnPublic", data) })),
+                        ...useVisibilityMapper("OwnPublic", data, forMapper, false),
                     ],
                 };
             },
@@ -157,7 +157,7 @@ export const ResourceListModel: ResourceListModelLogic = ({
                 // If the search input has a relation ID, return that relation only
                 const forSearch = Object.keys(searchInput).find(searchKey =>
                     searchKey.endsWith("Id") &&
-                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)]
+                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)],
                 );
                 if (forSearch) {
                     const relation = forSearch.substring(0, forSearch.length - "Id".length);
@@ -166,10 +166,10 @@ export const ResourceListModel: ResourceListModelLogic = ({
                 // Otherwise, use an OR on all relations
                 return {
                     OR: [
-                        ...Object.entries(forMapper).map(([key, value]) => ({ [value]: useVisibility(key as GqlModelType, "Public", data) })),
+                        ...useVisibilityMapper("Public", data, forMapper, false),
                     ],
                 };
-            }
+            },
         },
     }),
 });

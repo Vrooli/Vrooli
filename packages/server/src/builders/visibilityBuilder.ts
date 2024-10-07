@@ -27,7 +27,6 @@ export function getVisibilityFunc<
     const visibilityFunc = validator.visibility[funcName];
 
     if (visibilityFunc === null || visibilityFunc === undefined) {
-        // throw new CustomError("0680", "InternalError", ["en"], { objectType, funcName });
         if (throwIfNotFound) {
             throw new CustomError("0680", "InternalError", ["en"], { objectType, funcName });
         } else {
@@ -58,11 +57,38 @@ export function visibilityBuilderPrisma({
     return { query, visibilityUsed: chosenVisibility };
 }
 
-export function useVisibility<T extends GenericModelLogic>(
+export function useVisibility<T extends GenericModelLogic, Throw extends boolean = true>(
     objectType: GqlModelType | `${GqlModelType}`,
     which: VisibilityType | `${VisibilityType}`,
     data: VisibilityFuncInput,
+    throwIfNotFound: Throw = true as Throw,
 ) {
-    const visibilityFunc = getVisibilityFunc<T>(objectType, which);
+    const visibilityFunc = getVisibilityFunc<T, Throw>(objectType, which, throwIfNotFound);
+    if (!visibilityFunc) {
+        if (throwIfNotFound) {
+            throw new CustomError("0681", "InternalError", ["en"], { objectType, which });
+        } else {
+            return null;
+        }
+    }
     return visibilityFunc(data);
+}
+
+/**
+ * Loops over an object to generate a list of visibility functions. 
+ * Useful for objects that have a lot of relations, such as comments, 
+ * resource lists, etc.
+ */
+export function useVisibilityMapper<ForMapper extends Record<string, string>>(
+    which: VisibilityType | `${VisibilityType}`,
+    data: VisibilityFuncInput,
+    forMapper: ForMapper,
+    throwIfNotFound = true,
+) {
+    return Object.entries(forMapper)
+        .map(([key, value]) => { // Find visibility function for each key
+            return [value, useVisibility(key as GqlModelType, which, data, throwIfNotFound)];
+        })
+        .filter(([, visibility]) => visibility) // Remove entries with no visibility
+        .map(([key, visibility]) => ({ [key]: visibility })); // Convert to Prisma query format
 }

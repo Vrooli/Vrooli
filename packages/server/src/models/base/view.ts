@@ -4,7 +4,7 @@ import i18next from "i18next";
 import { ModelMap } from ".";
 import { onlyValidIds } from "../../builders/onlyValidIds";
 import { PrismaDelegate } from "../../builders/types";
-import { useVisibility } from "../../builders/visibilityBuilder";
+import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { getLabels } from "../../getters/getLabels";
@@ -235,7 +235,7 @@ export const ViewModel: ViewModelLogic = ({
                     // Any non-public, non-owned objects should be filtered out
                     // Can use OR because only one relation will be present
                     OR: [
-                        ...Object.entries(displayMapper).map(([key, value]) => ({ [value]: useVisibility(key as GqlModelType, "OwnOrPublic", data) })),
+                        ...useVisibilityMapper("OwnOrPublic", data, displayMapper, false),
                     ],
                 };
             },
@@ -253,7 +253,7 @@ export const ViewModel: ViewModelLogic = ({
                 return {
                     // Can use OR because only one relation will be present
                     OR: [
-                        ...Object.entries(displayMapper).map(([key, value]) => ({ [value]: useVisibility(key as GqlModelType, "Public", data) })),
+                        ...useVisibilityMapper("Public", data, displayMapper, false),
                     ],
                 };
             },
