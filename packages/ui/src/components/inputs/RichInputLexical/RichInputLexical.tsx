@@ -387,13 +387,37 @@ export function RichInputLexicalComponents({
         }, HISTORY_MERGE_OPTIONS);
     }, [editor, value]);
 
+    const lastValueFromEditorRef = useRef(value);
     useLayoutEffect(() => {
         if (!editor) return;
         return editor.registerListener("textcontent", function handleTextContentChanged(updatedMarkdown) {
-            console.log("textcontent listener triggered😽", updatedMarkdown);
+            lastValueFromEditorRef.current = updatedMarkdown;
             onChange(updatedMarkdown);
         });
     }, [editor, onChange]);
+    // NOTE: If there are performance issues, this could be the cause. We 
+    // need this to update the editor when the value prop is changed by the parent. 
+    // There might be a more efficient way to do this.
+    useEffect(() => {
+        if (!editor || value === lastValueFromEditorRef.current) return;
+
+        // Check if the editor is focused, to prevent updates while typing
+        const rootElement = editor.getRootElement();
+        if (rootElement && rootElement === document.activeElement) {
+            // The editor is focused, skip the update to avoid key loss
+            return;
+        }
+
+        // Debounced update to reduce frequent updates
+        const timeoutId = setTimeout(() => {
+            editor.update(() => {
+                $convertFromMarkdownString(value, ALL_TRANSFORMERS);
+            }, HISTORY_MERGE_OPTIONS);
+            lastValueFromEditorRef.current = value; // Update the ref to match the current value
+        }, 300); // Adjust delay as needed for performance
+
+        return () => clearTimeout(timeoutId); // Cleanup timeout
+    }, [value, editor]);
 
     // Toolbar actions
     const toggleHeading = useCallback((headingSize: Headers) => {
