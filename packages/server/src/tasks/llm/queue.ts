@@ -1,8 +1,8 @@
-import { LanguageModelResponseMode, LlmTask, MINUTES_1_MS, StartLlmTaskInput, Success } from "@local/shared";
+import { LanguageModelResponseMode, LlmTask, MINUTES_1_MS, RunContext, Success, TaskContextInfo } from "@local/shared";
 import Bull from "bull";
 import winston from "winston";
 import { SessionUserToken } from "../../types.js";
-import { PreMapMessageData, PreMapUserData } from "../../utils/chat.js";
+import { PreMapUserData } from "../../utils/chat.js";
 import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, getProcessPath } from "../queueHelper";
 
 /**
@@ -19,23 +19,47 @@ export type RequestBotMessagePayload = {
      */
     mode: LanguageModelResponseMode;
     /** 
-     * The message to respond to. If null, we 
-     * assume that there are no messages in the chat
-     * (and thus we are about to create the initial message).
+     * The ID of the message that triggered the bot response. 
+     * 
+     * NOTE: This should be stored in the database already. Otherwise, 
+     * we cannot use it to collect all previous messages for the LLM context.
      */
-    parent: PreMapMessageData | null;
+    parentId?: string | null;
+    /** 
+     * The text of the message you typed that triggered the bot response. 
+     * 
+     * If provided, we check for and process any commands in the message. 
+     * If the message was only commands, we skip generating a response.
+     * 
+     * NOTE: You should skip this if you don't want to process the commands 
+     * in the parent message, even if there is a parent.
+     */
+    parentMessage: string | null;
     /**
-     * Information about other participants in the chat
+     * Information about other participants in the chat, if already known
      */
-    participantsData: Record<string, PreMapUserData>;
+    participantsData?: Record<string, PreMapUserData>;
     /**
      * The ID of the bot that should generate the response
      */
     respondingBotId: string;
     /**
+     * The context for the current run, if any
+     */
+    runContext?: RunContext;
+    /**
+     * If true, we'll always suggest tasks instead of running them immediately. 
+     * This is useful for things like autofilling forms.
+     */
+    shouldNotRunTasks: boolean;
+    /**
      * The current task being performed
      */
     task: LlmTask | `${LlmTask}`;
+    /**
+     * Any context data for the task
+     */
+    taskContexts: TaskContextInfo[];
     /**
      * The user data of the user who triggered the bot response
      */
@@ -43,44 +67,11 @@ export type RequestBotMessagePayload = {
 }
 // TODO can provide state management to bot message payload by adding a routineId field and some field that describes our spot in the routine. This plus passing in data (for autofilling forms, etc.) and passing data to the next step in the routine will allow us to automate routines. Then we can build all of the routines needed to build/improve routines, and we should be good to go!
 
-/**
- * Payload for generating a bot response for autofill of a form
- */
-export type RequestAutoFillPayload = {
-    __process: "AutoFill";
-    /**
-     * The known form data
-     */
-    data: object;
-    /**
-     * The task being performed. For forms, this should be an "Add" 
-     * or "Update" task, but technically any task besides "Start" 
-     * could be used.
-     */
-    task: LlmTask | `${LlmTask}`;
-    /**
-    * The user data of the user who triggered the bot response
-    */
-    userData: SessionUserToken;
-}
-
-/**
- * Payload for starting a suggested task
- */
-export type StartLlmTaskPayload = StartLlmTaskInput & {
-    __process: "StartTask";
-    /**
-     * The user data of the user who triggered the task
-     */
-    userData: SessionUserToken;
-
-}
-
 export type LlmTestPayload = {
     __process: "Test";
 }
 
-export type LlmRequestPayload = RequestBotMessagePayload | RequestAutoFillPayload | StartLlmTaskPayload | LlmTestPayload;
+export type LlmRequestPayload = RequestBotMessagePayload | LlmTestPayload;
 
 let logger: winston.Logger;
 let llmProcess: (job: Bull.Job<LlmRequestPayload>) => Promise<unknown>;
@@ -121,29 +112,5 @@ export function requestBotResponse(
 ): Promise<Success> {
     return addJobToQueue(llmQueue,
         { ...props, __process: "BotMessage" as const },
-        { timeout: MINUTES_1_MS });
-}
-
-/**
- * Requests autofill for a form. Handles response generation and processing,
- * websocket events, and any other logic
- */
-export function requestAutoFill(
-    props: Omit<RequestAutoFillPayload, "__process">,
-): Promise<Success> {
-    return addJobToQueue(llmQueue,
-        { ...props, __process: "AutoFill" as const },
-        { timeout: MINUTES_1_MS });
-}
-
-/**
- * Requests a specific task to be started. Handles response generation and processing,
- * websocket events, and any other logic
- */
-export function requestStartLlmTask(
-    props: Omit<StartLlmTaskPayload, "__process">,
-): Promise<Success> {
-    return addJobToQueue(llmQueue,
-        { ...props, __process: "StartTask" as const },
         { timeout: MINUTES_1_MS });
 }
