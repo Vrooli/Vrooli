@@ -1,5 +1,5 @@
 import { logger, ModelMap, PrismaDelegate, prismaInstance, UI_URL_REMOTE } from "@local/server";
-import { generateSitemap, generateSitemapIndex, LINKS, SitemapEntryContent, uuidToBase36 } from "@local/shared";
+import { CodeType, generateSitemap, generateSitemapIndex, LINKS, SitemapEntryContent, StandardType, uuidToBase36 } from "@local/shared";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -17,19 +17,37 @@ const sitemapObjectTypes = [
     "User",
 ] as const;
 
+const MAX_ENTRIES_PER_SITEMAP = 50000;
+const MAX_SITEMAP_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50MB in bytes
+const ESTIMATED_ENTRY_OVERHEAD_BYTES = 100; // Estimated XML overhead per entry
+const BATCH_SIZE = 100; // How many objects to fetch at a time
+
 /**
  * Maps object types to their url base
  */
-const Links: Record<typeof sitemapObjectTypes[number], string> = {
-    ApiVersion: LINKS.Api,
-    CodeVersion: LINKS.Code,
-    NoteVersion: LINKS.Note,
-    ProjectVersion: LINKS.Project,
-    Question: LINKS.Question,
-    RoutineVersion: LINKS.Routine,
-    StandardVersion: LINKS.Standard,
-    Team: LINKS.Team,
-    User: LINKS.User,
+const getLink = (objectType: typeof sitemapObjectTypes[number], properties: any): string => {
+    switch (objectType) {
+        case "CodeVersion":
+            return properties.codeType === CodeType.DataConvert ? LINKS.DataConverter : LINKS.SmartContract;
+        case "StandardVersion":
+            return properties.variant === StandardType.Prompt ? LINKS.Prompt : LINKS.DataStructure;
+        case "ApiVersion":
+            return LINKS.Api;
+        case "NoteVersion":
+            return LINKS.Note;
+        case "ProjectVersion":
+            return LINKS.Project;
+        case "Question":
+            return LINKS.Question;
+        case "RoutineVersion":
+            return LINKS.Routine;
+        case "Team":
+            return LINKS.Team;
+        case "User":
+            return LINKS.User;
+        default:
+            return "";
+    }
 };
 
 // Where to save the sitemap index and files
@@ -56,7 +74,6 @@ const genSitemapForObject = async (
     // If object can be private (in which case we don't want to include it in the sitemap)
     const canBePrivate = !["Question"].includes(objectType);
     // Create do-while loop which breaks when the objects returned are less than the batch size
-    const batchSize = 100;
     let skip = 0;
     let currentBatchSize = 0;
     do {
@@ -90,31 +107,39 @@ const genSitemapForObject = async (
                             language: true,
                         },
                     },
+                    // Object type-specific fields for disambiguating urls
+                    ...(objectType === "CodeVersion" && { codeType: true }),
+                    ...(objectType === "StandardVersion" && { variant: true }),
                 },
                 skip,
-                take: batchSize,
+                take: BATCH_SIZE,
             });
             // Increment skip
-            skip += batchSize;
+            skip += BATCH_SIZE;
             // Update current batch size
             currentBatchSize = batch.length;
             const baseUrlSize = UI_URL_REMOTE.length + LINKS[objectType.replace("Version", "")].length;
             for (const entry of batch) {
                 // Convert batch to SiteMapEntryContent
+                const objectLink = getLink(objectType, entry);
                 const entryContent: SitemapEntryContent = {
                     handle: entry.handle,
                     id: uuidToBase36(entry.id),
                     languages: entry.translations.map(translation => translation.language),
-                    objectLink: Links[objectType],
+                    objectLink,
                     rootHandle: entry.root?.handle,
                     rootId: entry.root?.id ? uuidToBase36(entry.root.id) : undefined,
                 };
                 // Add entry to collected entries
                 collectedEntries.push(entryContent);
                 // Estimate bytes for entry, based on how many languages it has
-                estimatedFileSize += (baseUrlSize + entry.id.length) * entry.translations.length + 100;
+                estimatedFileSize += (baseUrlSize + objectLink.length + entry.id.length) * entry.translations.length + ESTIMATED_ENTRY_OVERHEAD_BYTES;
             }
-        } while (collectedEntries.length < 50000 && estimatedFileSize < 50000000 && currentBatchSize === batchSize);
+        } while (
+            collectedEntries.length < MAX_ENTRIES_PER_SITEMAP &&
+            estimatedFileSize < MAX_SITEMAP_FILE_SIZE_BYTES &&
+            currentBatchSize === BATCH_SIZE
+        );
         // If no entries were collected, return an empty array. 
         // This is to prevent an empty sitemap file from being generated, which gives an error in Google Search Console
         if (collectedEntries.length === 0) {
@@ -134,7 +159,7 @@ const genSitemapForObject = async (
         //fs.writeFileSync(`${sitemapDir}/${sitemapFileName}`, sitemap);
         // Add sitemap file name to array
         sitemapFileNames.push(sitemapFileName);
-    } while (currentBatchSize === batchSize);
+    } while (currentBatchSize === BATCH_SIZE);
     // Return sitemap file names
     return sitemapFileNames;
 };
