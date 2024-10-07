@@ -228,6 +228,7 @@ model chat_message {
     id                String                     @id @default(uuid()) @db.Uuid
     created_at        DateTime                   @default(now()) @db.Timestamptz(6)
     updated_at        DateTime                   @default(now()) @db.Timestamptz(6)
+    metadata          String?                    @db.VarChar(4096)
     score             Int                        @default(0)
     sequence          Int                        @default(autoincrement())
     versionIndex      Int                        @default(0)
