@@ -1,4 +1,4 @@
-import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CheckoutSessionMetadata, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, CreatePortalSessionParams, DAYS_180_MS, HttpStatus, LINKS, PaymentStatus, PaymentType, SECONDS_1_MS, StripeEndpoint, SubscriptionPricesResponse } from "@local/shared";
+import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CheckoutSessionMetadata, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, CreatePortalSessionParams, DAYS_180_MS, DAYS_1_S, HttpStatus, LINKS, PaymentStatus, PaymentType, SECONDS_1_MS, StripeEndpoint, SubscriptionPricesResponse } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
 import express, { Express, Request, Response } from "express";
 import Stripe from "stripe";
@@ -8,6 +8,8 @@ import { withRedis } from "../redisConn";
 import { UI_URL } from "../server";
 import { emitSocketEvent } from "../sockets/events";
 import { sendCreditCardExpiringSoon, sendPaymentFailed, sendPaymentThankYou, sendSubscriptionCanceled, sendTrialEndingSoon } from "../tasks/email/queue";
+
+const STORED_PRICE_EXPIRATION = DAYS_1_S;
 
 type EventHandlerArgs = {
     event: Stripe.Event,
@@ -115,7 +117,7 @@ export async function storePrice(paymentType: PaymentType, price: number): Promi
             if (!redisClient) return;
             const key = `stripe-payment-${process.env.NODE_ENV}-${paymentType}`;
             await redisClient.set(key, price);
-            await redisClient.expire(key, 60 * 60 * 24); // expire after 24 hours
+            await redisClient.expire(key, STORED_PRICE_EXPIRATION);
         },
         trace: "0517",
     });
@@ -947,12 +949,12 @@ export async function checkSubscriptionPrices(stripe: Stripe, res: Response): Pr
         if (!Number.isInteger(data.monthly)) {
             const monthlyPrice = await stripe.prices.retrieve(getPriceIds().PremiumMonthly);
             data.monthly = monthlyPrice?.unit_amount ?? NaN;
-            storePrice(PaymentType.PremiumMonthly, data.monthly);
+            await storePrice(PaymentType.PremiumMonthly, data.monthly);
         }
         if (!Number.isInteger(data.yearly)) {
             const yearlyPrice = await stripe.prices.retrieve(getPriceIds().PremiumYearly);
             data.yearly = yearlyPrice?.unit_amount ?? NaN;
-            storePrice(PaymentType.PremiumYearly, data.yearly);
+            await storePrice(PaymentType.PremiumYearly, data.yearly);
         }
         // Send result
         res.status(HttpStatus.Ok).json({ data });

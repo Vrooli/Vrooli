@@ -12,11 +12,13 @@ const { PrismaClient } = pkg;
 
 const environments = ["development", "production"];
 
-const createRes = () => ({
-    json: jest.fn(),
-    send: jest.fn(),
-    status: jest.fn().mockReturnThis(), // To allow for chaining .status().send()
-});
+function createRes() {
+    return {
+        json: jest.fn(),
+        send: jest.fn(),
+        status: jest.fn().mockReturnThis(), // To allow for chaining .status().send()
+    };
+}
 
 describe("getPaymentType", () => {
     const originalEnv = process.env.NODE_ENV;
@@ -30,7 +32,7 @@ describe("getPaymentType", () => {
     });
 
     // Helper function to generate test cases for both environments
-    const runTestsForEnvironment = (env: string) => {
+    function runTestsForEnvironment(env: string) {
         describe(`when NODE_ENV is ${env}`, () => {
             beforeEach(() => {
                 process.env.NODE_ENV = env;
@@ -67,7 +69,7 @@ describe("getPaymentType", () => {
                 });
             });
         });
-    };
+    }
 
     // Run tests for both development and production environments
     environments.forEach(runTestsForEnvironment);
@@ -185,7 +187,7 @@ describe("Redis Price Operations", () => {
         process.env.NODE_ENV = originalEnv; // Restore the original NODE_ENV
     });
 
-    const runTestsForEnvironment = (env) => {
+    function runTestsForEnvironment(env) {
         describe(`when NODE_ENV is ${env}`, () => {
             beforeEach(() => {
                 process.env.NODE_ENV = env;
@@ -257,7 +259,7 @@ describe("Redis Price Operations", () => {
                 expect(fetchedPrice).toBeNull();
             });
         });
-    };
+    }
 
     // Run tests for both development and production environments
     environments.forEach(runTestsForEnvironment);
@@ -268,7 +270,7 @@ describe("isInCorrectEnvironment Tests", () => {
     const originalEnv = process.env.NODE_ENV;
 
     // Helper function to run tests in both environments
-    const runTestsForEnvironment = (env) => {
+    function runTestsForEnvironment(env) {
         describe(`when NODE_ENV is ${env}`, () => {
             beforeAll(() => {
                 process.env.NODE_ENV = env;
@@ -289,7 +291,7 @@ describe("isInCorrectEnvironment Tests", () => {
                 expect(isInCorrectEnvironment(stripeObject)).toBe(false);
             });
         });
-    };
+    }
 
     // Iterate over each environment and run the tests
     environments.forEach(runTestsForEnvironment);
@@ -301,7 +303,7 @@ describe("isValidSubscriptionSession", () => {
     const userId = "testUserId";
 
     // Helper function to run tests in both environments
-    const runTestsForEnvironment = (env) => {
+    function runTestsForEnvironment(env) {
         describe(`when NODE_ENV is ${env}`, () => {
             beforeAll(() => {
                 process.env.NODE_ENV = env;
@@ -312,15 +314,17 @@ describe("isValidSubscriptionSession", () => {
                 process.env.NODE_ENV = originalEnv;
             });
 
-            const createMockSession = (overrides) => ({
-                livemode: process.env.NODE_ENV === "production",
-                metadata: {
-                    paymentType: PaymentType.PremiumMonthly,
-                    userId,
-                },
-                status: "complete",
-                ...overrides,
-            });
+            function createMockSession(overrides) {
+                return {
+                    livemode: process.env.NODE_ENV === "production",
+                    metadata: {
+                        paymentType: PaymentType.PremiumMonthly,
+                        userId,
+                    },
+                    status: "complete",
+                    ...overrides,
+                };
+            }
 
             it("returns true for a valid session", () => {
                 const session = createMockSession({});
@@ -354,7 +358,7 @@ describe("isValidSubscriptionSession", () => {
                 expect(isValidSubscriptionSession(session, userId)).toBe(false);
             });
         });
-    };
+    }
 
     // Iterate over each environment and run the tests
     environments.forEach(runTestsForEnvironment);
@@ -366,7 +370,7 @@ describe("isValidCreditsPurchaseSession", () => {
     const userId = "testUserId";
 
     // Helper function to run tests in both environments
-    const runTestsForEnvironment = (env) => {
+    function runTestsForEnvironment(env) {
         describe(`when NODE_ENV is ${env}`, () => {
             beforeAll(() => {
                 process.env.NODE_ENV = env;
@@ -377,15 +381,17 @@ describe("isValidCreditsPurchaseSession", () => {
                 process.env.NODE_ENV = originalEnv;
             });
 
-            const createMockSession = (overrides) => ({
-                livemode: process.env.NODE_ENV === "production",
-                metadata: {
-                    paymentType: PaymentType.Credits,
-                    userId,
-                },
-                status: "complete",
-                ...overrides,
-            });
+            function createMockSession(overrides) {
+                return {
+                    livemode: process.env.NODE_ENV === "production",
+                    metadata: {
+                        paymentType: PaymentType.Credits,
+                        userId,
+                    },
+                    status: "complete",
+                    ...overrides,
+                };
+            }
 
             it("returns true for a valid session", () => {
                 const session = createMockSession({});
@@ -419,7 +425,7 @@ describe("isValidCreditsPurchaseSession", () => {
                 expect(isValidCreditsPurchaseSession(session, userId)).toBe(false);
             });
         });
-    };
+    }
 
     // Define the environments to test, typically just 'production' and 'development'
     const environments = ["production", "development"];
@@ -1026,7 +1032,7 @@ describe("handleCustomerSourceExpiring", () => {
     });
 });
 
-const expectEmailQueue = (mockQueue, expectedData) => {
+function expectEmailQueue(mockQueue, expectedData) {
     // Check if the add function was called
     expect(mockQueue.add).toHaveBeenCalled();
 
@@ -1037,7 +1043,7 @@ const expectEmailQueue = (mockQueue, expectedData) => {
     if (expectedData) {
         expect(actualData).toMatchObject(expectedData);
     }
-};
+}
 
 describe("handleCustomerSubscriptionDeleted", () => {
     let res;
@@ -1650,6 +1656,7 @@ describe("handleInvoicePaymentSucceeded", () => {
     });
 });
 
+// TODO this test and handleSubscriptionUpdated are causing jest to hang. storePrice is the problem, but I don't know why
 describe("handlePriceUpdated", () => {
     let res;
 
