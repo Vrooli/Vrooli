@@ -2,7 +2,7 @@
     "name": "@local/jobs",
     "author": "Vrooli",
     "license": "AGPL-3.0-only",
-    "version": "1.9.9",
+    "version": "1.9.10",
     "private": true,
     "main": "dist/index.js",
     "type": "module",
