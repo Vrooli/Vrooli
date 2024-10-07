@@ -91,28 +91,28 @@ export const typeDef = gql`
         Sandbox
     }
 
-    input AutoFillInput {
-        task: LlmTask!
-        data: JSON!
+    input TaskContextInfoTemplateVariablesInput {
+        data: String
+        task: String
     }
 
-    type AutoFillResult {
+    input TaskContextInfoInput {
+        id: ID!
+        # Data can be of any type, so we use JSON
         data: JSON!
-    }
-
-    input StartLlmTaskInput {
-        # The ID of the bot the task will be performed by
-        botId: String!
-        # Label for the task, to provide in notifications
         label: String!
-        # The ID of the message the task was suggested in. Used to grab the relevant chat context
-        messageId: ID!
-        # Any properties provided with the task
-        properties: JSON!
-        # The task to start
+        template: String
+        templateVariables: TaskContextInfoTemplateVariablesInput
+    }
+
+    # See RequestBotMessagePayload for property descriptions
+    input StartLlmTaskInput {
+        chatId: ID!
+        parentId: ID
+        respondingBotId: ID!
+        shouldNotRunTasks: Boolean!
         task: LlmTask!
-        # The ID of the task, so we can update its status in the UI
-        taskId: ID!
+        taskContexts: [TaskContextInfoInput!]!
     }
 
     input StartRunTaskInput {
@@ -146,7 +146,6 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        autoFill(input: AutoFillInput!): AutoFillResult!
         startLlmTask(input: StartLlmTaskInput!): Success!
         startRunTask(input: StartRunTaskInput!): Success!
         cancelTask(input: CancelTaskInput!): Success!

@@ -11,15 +11,30 @@ export const typeDef = gql`
     input ChatMessageCreateInput {
         id: ID!
         chatConnect: ID!
+        parentConnect: ID
         userConnect: ID!
         versionIndex: Int!
         translationsCreate: [ChatMessageTranslationCreateInput!]
+    }
+    input ChatMessageCreateWithTaskInfoInput {
+        message: ChatMessageCreateInput!
+        # Used for generating responses. Not stored in the database.
+        task: LlmTask!
+        # Used for generating responses. Not stored in the database.
+        taskContexts: [TaskContextInfoInput!]!
     }
     input ChatMessageUpdateInput {
         id: ID!
         translationsDelete: [ID!]
         translationsCreate: [ChatMessageTranslationCreateInput!]
         translationsUpdate: [ChatMessageTranslationUpdateInput!]
+    }
+    input ChatMessageUpdateWithTaskInfoInput {
+        message: ChatMessageUpdateInput!
+        # Used for generating responses. Not stored in the database.
+        task: LlmTask!
+        # Used for generating responses. Not stored in the database.
+        taskContexts: [TaskContextInfoInput!]!
     }
 
     union ChatMessageedOn = ApiVersion | CodeVersion | Issue | NoteVersion | Post | ProjectVersion | PullRequest | Question | QuestionAnswer | RoutineVersion | StandardVersion
@@ -116,7 +131,10 @@ export const typeDef = gql`
     }
 
     input RegenerateResponseInput {
+        # ID of message being regenerated, and not the parent message
         messageId: ID!
+        task: LlmTask!
+        taskContexts: [TaskContextInfoInput!]!
     }
 
     extend type Query {
@@ -126,8 +144,8 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        chatMessageCreate(input: ChatMessageCreateInput!): ChatMessage!
-        chatMessageUpdate(input: ChatMessageUpdateInput!): ChatMessage!
+        chatMessageCreate(input: ChatMessageCreateWithTaskInfoInput!): ChatMessage!
+        chatMessageUpdate(input: ChatMessageUpdateWithTaskInfoInput!): ChatMessage!
         regenerateResponse(input: RegenerateResponseInput!): Success!
     }
 `;
