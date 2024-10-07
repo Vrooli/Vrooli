@@ -1,4 +1,4 @@
-import { Dialog, useTheme } from "@mui/material";
+import { Box, Dialog, useTheme } from "@mui/material";
 import { useZIndex } from "hooks/useZIndex";
 import { useMemo } from "react";
 import { UpTransition } from "../../transitions";
@@ -28,21 +28,23 @@ export function LargeDialog({
                     margin: { xs: 0, sm: 2, md: 4 },
                     minWidth: { xs: "100vw", sm: "unset" },
                     maxWidth: { xs: "100vw", sm: "calc(100vw - 64px)" },
+                    height: "100%",
+                    overflow: "hidden",
                     bottom: { xs: 0, sm: "auto" },
                     paddingBottom: "env(safe-area-inset-bottom)",
                     top: { xs: "auto", sm: undefined },
                     position: { xs: "absolute", sm: "relative" },
                     display: { xs: "block", sm: "inline-block" },
                     borderRadius: { xs: `${spacing(1)} ${spacing(1)} 0 0`, sm: 2 },
-                    background: palette.mode === "light" ? "#c2cadd" : palette.background.default,
+                    background: palette.background.default,
                     color: palette.background.textPrimary,
                     "& > .MuiDialogContent-root": {
                         position: "relative",
                     },
                     "& > .MuiBox-root": {
                         "& > .MuiDialogTitle-root": {
-                            paddingTop: 1,
-                            paddingBottom: 1,
+                            paddingTop: 0,
+                            paddingBottom: 0,
                         },
                     },
                     ...sxs?.paper,
@@ -71,6 +73,12 @@ function fallbackOnClose() {
     console.warn("onClose not passed to MaybeLargeDialog");
 }
 
+const notDialogBoxprops = {
+    height: "100vh",
+    overflowY: "auto",
+    overflowX: "hidden",
+} as const;
+
 /** Wraps children in a dialog is display is dialog */
 export function MaybeLargeDialog({
     children,
@@ -88,6 +96,8 @@ export function MaybeLargeDialog({
             {children}
         </LargeDialog>
     ) : (
-        <>{children}</>
+        <Box sx={notDialogBoxprops}>
+            {children}
+        </Box>
     );
 }

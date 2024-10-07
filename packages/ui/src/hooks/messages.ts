@@ -553,10 +553,14 @@ export function useMessageActions({
     const [putMessageEndpoint] = useLazyFetch<ChatMessageUpdateWithTaskInfoInput, ChatMessage>(endpointPutChatMessage);
 
     /** Collects context data for the active task */
-    const collectTaskContext = useCallback((taskInfo: AITaskInfo | null) => new Promise<TaskContextInfo>((resolve, reject) => {
-        if (!chat?.id) return;
+    const collectTaskContext = useCallback((taskInfo: AITaskInfo | null) => new Promise<TaskContextInfo | null>((resolve, reject) => {
+        if (!chat?.id) {
+            reject(new Error("Chat ID not found"));
+            return;
+        }
         // Only try to collect data from `useAutoFill`, which provides the current form's data as context
         if (!PubSub.get().hasSubscribers("requestTaskContext", (metadata) => metadata?.source === "useAutoFill")) {
+            resolve(null);
             return;
         }
 
@@ -583,6 +587,9 @@ export function useMessageActions({
             try {
                 // Try to collect context data for the active task
                 const context = await collectTaskContext(activeTask);
+                if (!context) {
+                    return [...contexts];
+                }
                 // If found, it'll either replace an existing context or be added to the list
                 const contextIndex = contexts.findIndex((c) => c.id === context.id);
                 const updatedContexts = [...contexts];
@@ -593,8 +600,7 @@ export function useMessageActions({
                 }
                 return updatedContexts;
             } catch (error) {
-                console.error("Failed to collect task context:", error);
-                return { ...contexts };
+                return [...contexts];
             }
         } else {
             return [...contexts];

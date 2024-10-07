@@ -453,7 +453,6 @@ export function RunView({
             setRun(data);
         }
 
-        console.log('qqqq calling saveRunProgress', run);
         saveRunProgress({
             contextSwitches: Math.max(getContextSwitches(), currentStepRunData?.contextSwitches ?? 0),
             currentStep,

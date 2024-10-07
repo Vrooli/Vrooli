@@ -125,7 +125,6 @@ export function useManagedObject<
 
     useEffect(function handleFetchData() {
         if (shouldFetchData({ disabled, overrideObject })) {
-            console.log('going to fetch data', urlParams);
             const fetched = fetchDataUsingUrl(urlParams, fetchData, onErrorRef.current, displayError);
 
             if (!fetched) {
@@ -250,7 +249,7 @@ export function initializeObjectState<
  * Determines whether data fetching should occur.
  */
 export function shouldFetchData({ disabled, overrideObject }: { disabled: boolean; overrideObject?: any }): boolean {
-    console.log('in shouldFetchData', disabled, overrideObject, disabled !== true && (typeof overrideObject !== "object" || overrideObject === null));
+    console.log("in shouldFetchData", disabled, overrideObject, disabled !== true && (typeof overrideObject !== "object" || overrideObject === null));
     // Fetch data only if not disabled and no overrideObject is provided.
     return disabled !== true && (typeof overrideObject !== "object" || overrideObject === null);
 }
@@ -303,7 +302,7 @@ export function fetchDataUsingUrl(
     displayError?: boolean,
 ): boolean {
     const options = { onError, displayError };
-    console.log('might fetch data', params);
+    console.log("might fetch data", params);
     if (exists(params.handle)) {
         fetchData({ handle: params.handle }, options);
         return true;

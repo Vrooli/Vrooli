@@ -129,7 +129,7 @@ export function ProfilePictureInput({
     }, [profile]);
 
     return (
-        <Box position="relative" sx={{ marginBottom: "56px" }}>
+        <Box position="relative" sx={{ marginBottom: "56px", marginTop: 2, width: "100%" }}>
             {/* Banner image */}
             <Box {...getBannerRootProps()}>
                 <input name={name ?? "banner"} {...getBannerInputProps()} />
