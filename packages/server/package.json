@@ -49,7 +49,7 @@
         "bull": "^4.11.4",
         "cookie": "^0.7.2",
         "cors": "^2.8.5",
-        "express": "^4.17.1",
+        "express": "^5.0.1",
         "file-type": "^18.5.0",
         "graphql": "^15.5.1",
         "graphql-upload": "^12.0.0",
