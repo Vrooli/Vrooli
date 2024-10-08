@@ -152,9 +152,11 @@ export class LlmServiceRegistry {
         if (this.getServiceState(serviceId) === LlmServiceState.Active) {
             return serviceId;
         }
+
+        // The model name is the model string itself
+        const modelName = serviceInstances[serviceId].getModel(model);
+
         // Get fallbacks
-        const service = this.getService(serviceId);
-        const modelName = service.getModel(model);
         const fallbacksForModel = aiServicesInfo.fallbacks[modelName] || [];
         // Try fallbacks
         for (const fallback of fallbacksForModel) {
@@ -163,6 +165,7 @@ export class LlmServiceRegistry {
                 return fallbackServiceId;
             }
         }
+
         // If no active services are available, return null
         return null;
     };
