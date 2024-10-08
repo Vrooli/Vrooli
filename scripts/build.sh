@@ -225,10 +225,10 @@ if [ $? -ne 0 ]; then
 fi
 
 # Replace placeholder url in public files
-sed -i'' "s|<UI_URL>|${UI_URL}|g" "${HERE}/../packages/ui/dist/manifest.dark.json"
-sed -i'' "s|\*.<DOMAIN>|*.${DOMAIN}|g" "${HERE}/../packages/ui/dist/manifest.dark.json"
-sed -i'' "s|<UI_URL>|${UI_URL}|g" "${HERE}/../packages/ui/dist/manifest.light.json"
-sed -i'' "s|\*.<DOMAIN>|*.${DOMAIN}|g" "${HERE}/../packages/ui/dist/manifest.light.json"
+sed -i'' "s|<UI_URL>|${UI_URL}|g" "${HERE}/../packages/ui/dist/manifest.dark.manifest"
+sed -i'' "s|\*.<DOMAIN>|*.${DOMAIN}|g" "${HERE}/../packages/ui/dist/manifest.dark.manifest"
+sed -i'' "s|<UI_URL>|${UI_URL}|g" "${HERE}/../packages/ui/dist/manifest.light.manifest"
+sed -i'' "s|\*.<DOMAIN>|*.${DOMAIN}|g" "${HERE}/../packages/ui/dist/manifest.light.manifest"
 sed -i'' "s|<UI_URL>|${UI_URL}|g" "${HERE}/../packages/ui/dist/robots.txt"
 sed -i'' "s|<UI_URL>|${UI_URL}|g" "${HERE}/../packages/ui/dist/search.xml"
 
@@ -353,7 +353,7 @@ fi
 # since this is generated dynamically by the production server.
 info "Removing sitemap information from dist folder..."
 cd ${HERE}/../packages/ui/dist
-rm -f sitemap.xml sitemaps/*.xml.gz
+rm -f sitemap.xml sitemaps/*.xml.gz sitemaps/*.xml
 rmdir sitemaps
 cd ../..
 
