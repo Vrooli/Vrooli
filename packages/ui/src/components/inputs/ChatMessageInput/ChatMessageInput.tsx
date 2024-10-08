@@ -359,6 +359,8 @@ const TasksRowOuter = styled(Box)(({ theme }) => ({
     gap: theme.spacing(1),
     height: "50px",
     width: "min(700px, 100%)",
+    marginLeft: "auto",
+    marginRight: "auto",
     overflowX: "auto",
     "&::-webkit-scrollbar": {
         display: "none",

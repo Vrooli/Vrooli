@@ -74,7 +74,7 @@ export function generateYupSchema(
             if (formInput.yup.required) {
                 validator = validator.required(`${field.label} is required`);
             } else {
-                validator = validator.nullable(true);
+                validator = validator.nullable();
             }
 
             // Apply additional checks
