@@ -19,15 +19,15 @@ import { TextNode } from "./TextNode";
  *
  */
 
-const mapToPrismLanguage = (
+function mapToPrismLanguage(
     language: string | null | undefined,
-): string | null | undefined => {
+): string | null | undefined {
     //TODO
     // return language !== null && window.Prism.languages.hasOwnProperty(language)
     //     ? language
     //     : undefined;
     return undefined;
-};
+}
 
 function hasChildDOMNodeTag(node: Node, tagName: string) {
     for (const child of node.childNodes) {

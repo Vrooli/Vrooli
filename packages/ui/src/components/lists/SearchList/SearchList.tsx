@@ -6,7 +6,8 @@ import { Box } from "@mui/material";
 import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { SiteSearchBar } from "components/inputs/search";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useInfiniteScroll } from "hooks/gestures";
+import { ReactNode, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ArgsType } from "types";
@@ -20,18 +21,18 @@ export function SearchList<DataType extends ListObject>({
     advancedSearchSchema,
     allData,
     autocompleteOptions,
+    borderRadius,
     canNavigate = funcTrue,
-    defaultSortBy,
     display,
     dummyLength,
     handleToggleSelect,
     hideUpdateButton,
-    id,
     isSelecting,
     loading,
     loadMore,
     onItemClick,
     removeItem,
+    scrollContainerId,
     searchPlaceholder,
     searchString,
     searchType,
@@ -45,6 +46,7 @@ export function SearchList<DataType extends ListObject>({
     sxs,
     timeFrame,
     updateItem,
+    variant,
 }: SearchListProps<DataType>) {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
@@ -66,55 +68,11 @@ export function SearchList<DataType extends ListObject>({
         }
     }, [removeItem, updateItem]);
 
-    // Handle infinite scroll
-    const containerRef = useRef<HTMLDivElement>(null);
-    const getScrollingContainer = useCallback((element: HTMLElement | null): HTMLElement | Document | null => {
-        // If display is "page", use document instead
-        if (display === "page") return document;
-        // Traverse up the DOM
-        while (element) {
-            // If a dialog, find the first component with a role of "dialog", 
-            if (display === "dialog" && element.getAttribute("role") === "dialog") {
-                return element;
-            }
-            // If inline, find the first component with overflowY set to "scroll" or "auto"
-            const overflowY = window.getComputedStyle(element).overflowY; //TODO need to fix this to get ChatSideMenu infinite scroll to work, but in a way that doesn't break FindObjectDialog
-            if (display === "partial" && (overflowY === "scroll" || overflowY === "auto")) {
-                return element;
-            }
-            element = element.parentElement;
-        }
-        return null;
-    }, [display]);
-    const handleScroll = useCallback(() => {
-        const container = getScrollingContainer(containerRef.current) ?? window;
-        if (!container) return;
-        let scrolledY: number;
-        let scrollableHeight: number;
-        if (container === document) {
-            // When container is document, you should use document.documentElement or document.body based on browser compatibility
-            scrolledY = window.scrollY || window.pageYOffset;
-            scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
-        } else if (container instanceof HTMLElement) {
-            scrolledY = container.scrollTop;
-            scrollableHeight = container.scrollHeight - container.clientHeight;
-        } else {
-            return;
-        }
-        if (!loading && scrolledY > scrollableHeight - 500) {
-            loadMore();
-        }
-    }, [getScrollingContainer, loading, loadMore]);
-    useEffect(function listenToScrollingContainerEffect() {
-        const scrollingContainer = getScrollingContainer(containerRef.current);
-        if (scrollingContainer) {
-            scrollingContainer.addEventListener("scroll", handleScroll);
-            return () => scrollingContainer.removeEventListener("scroll", handleScroll);
-        } else {
-            console.error("Could not find scrolling container - infinite scroll disabled");
-            return;
-        }
-    }, [getScrollingContainer, handleScroll]);
+    useInfiniteScroll({
+        loading,
+        loadMore,
+        scrollContainerId,
+    });
 
     const handleSearch = useCallback(function handleSearchCallback(newString: string) {
         setSearchString(newString);
@@ -147,28 +105,48 @@ export function SearchList<DataType extends ListObject>({
         openObject(selectedItem as NavigableObject, setLocation);
     }, [allData, canNavigate, handleToggleSelect, isSelecting, onItemClick, setLocation]);
 
+    const searchBarStyle = useMemo(function searchBarStyleMemo() {
+        return {
+            root: {
+                margin: "auto",
+                marginTop: 1,
+                marginBottom: 1,
+                width: "min(100%, 600px)",
+                paddingLeft: 2,
+                paddingRight: 2,
+                ...sxs?.search,
+                ...(variant === "minimal" ? { display: "none" } : {}),
+            },
+        } as const;
+    }, [sxs?.search, variant]);
+
+    const searchButtonsStyle = useMemo(function searchButtonsStyleMemo() {
+        return {
+            marginBottom: 2,
+            ...sxs?.buttons,
+            ...(variant === "minimal" ? { display: "none" } : {}),
+        } as const;
+    }, [sxs?.buttons, variant]);
+
+    const listContainerStyle = useMemo(function listContainerStyleMemo() {
+        return {
+            overflow: "auto",
+            ...sxs?.listContainer,
+        } as const;
+    }, [sxs?.listContainer]);
+
     return (
         <>
-            <Box
-                sx={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    marginBottom: 1,
-                    ...(sxs?.search ?? {}),
-                }}
-            >
-                <SiteSearchBar
-                    id={`search-bar-${id}`}
-                    placeholder={searchPlaceholder}
-                    options={autocompleteOptions}
-                    loading={loading}
-                    value={searchString}
-                    onChange={handleSearch}
-                    onInputChange={onInputSelect}
-                    sxs={{ root: { width: "min(100%, 600px)", paddingLeft: 2, paddingRight: 2 } }}
-                />
-            </Box>
+            <SiteSearchBar
+                id={`${scrollContainerId}-search-bar`}
+                placeholder={searchPlaceholder}
+                options={autocompleteOptions}
+                loading={loading}
+                value={searchString}
+                onChange={handleSearch}
+                onInputChange={onInputSelect}
+                sxs={searchBarStyle}
+            />
             <SearchButtons
                 advancedSearchParams={advancedSearchParams}
                 advancedSearchSchema={advancedSearchSchema}
@@ -179,17 +157,15 @@ export function SearchList<DataType extends ListObject>({
                 setTimeFrame={setTimeFrame}
                 sortBy={sortBy}
                 sortByOptions={sortByOptions}
-                sx={{
-                    marginBottom: 2,
-                    ...sxs?.buttons,
-                }}
+                sx={searchButtonsStyle}
                 timeFrame={timeFrame}
             />
             <ListContainer
-                ref={containerRef}
+                id={`${scrollContainerId}-list`}
+                borderRadius={borderRadius}
                 emptyText={t("NoResults", { ns: "error" })}
                 isEmpty={allData.length === 0 && selectedItemsNotInSearch.length === 0 && !loading}
-                sx={{ ...sxs?.listContainer }}
+                sx={listContainerStyle}
             >
                 <ObjectList
                     canNavigate={canNavigate}
@@ -206,5 +182,24 @@ export function SearchList<DataType extends ListObject>({
                 />
             </ListContainer>
         </>
+    );
+}
+
+const searchListScrollContainerStyle = {
+    height: "100%",
+    overflowY: "auto",
+} as const;
+
+export function SearchListScrollContainer({
+    children,
+    id,
+}: {
+    children: ReactNode;
+    id: string;
+}) {
+    return (
+        <Box id={id} sx={searchListScrollContainerStyle}>
+            {children}
+        </Box>
     );
 }

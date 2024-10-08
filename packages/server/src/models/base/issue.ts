@@ -1,7 +1,8 @@
-import { IssueFor, IssueSortBy, issueValidation, MaxObjects } from "@local/shared";
+import { getTranslation, GqlModelType, IssueFor, IssueSearchInput, IssueSortBy, IssueStatus, issueValidation, MaxObjects } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { ModelMap } from ".";
-import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
+import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder";
+import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { labelShapeHelper, preShapeEmbeddableTranslatable, PreShapeEmbeddableTranslatableResult, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
 import { IssueFormat } from "../formats";
@@ -19,6 +20,9 @@ const forMapper: { [key in IssueFor]: keyof Prisma.issueUpsertArgs["create"] } =
     Standard: "standard",
     Team: "team",
 };
+const reversedForMapper: { [key in keyof Prisma.issueUpsertArgs["create"]]: IssueFor } = Object.fromEntries(
+    Object.entries(forMapper).map(([key, value]) => [value, key]),
+);
 
 const __typename = "Issue" as const;
 export const IssueModel: IssueModelLogic = ({
@@ -28,15 +32,15 @@ export const IssueModel: IssueModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+            get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
         embed: {
             select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } }),
             get: ({ translations }, languages) => {
-                const trans = bestTranslation(translations, languages);
+                const trans = getTranslation({ translations }, languages);
                 return getEmbeddableString({
-                    description: trans?.description,
-                    name: trans?.name,
+                    description: trans.description,
+                    name: trans.name,
                 }, languages[0]);
             },
         },
@@ -58,6 +62,10 @@ export const IssueModel: IssueModelLogic = ({
                     translations: await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest }),
                 };
             },
+            // NOTE: Pull request creator can only set status to 'Canceled'. 
+            // Owner of object that pull request is on can set status to anything but 'Canceled'.
+            // Once out of 'Draft' status, status cannot be set back to 'Draft'.
+            // TODO need to update params for shape to account for this (probably). Then need to update this function
             update: async ({ data, ...rest }) => {
                 const preData = rest.preMap[__typename] as IssuePre;
                 return {
@@ -96,7 +104,7 @@ export const IssueModel: IssueModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<IssueModelInfo["GqlPermission"]>(__typename, ids, userData)),
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
@@ -133,13 +141,57 @@ export const IssueModel: IssueModelLogic = ({
             team: "Team",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return {
+                    createdBy: { id: data.userId },
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    OR: [
+                        useVisibility("Issue", "Own", data),
+                        useVisibility("Issue", "Public", data),
+                    ],
+                };
             },
-            owner: (userId) => ({ createdBy: { id: userId } }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    ...useVisibility("Issue", "Own", data),
+                    status: IssueStatus.Draft,
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    ...useVisibility("Issue", "Own", data),
+                    status: { not: IssueStatus.Draft },
+                };
+            },
+            public: function getPublic(data) {
+                const common = {
+                    status: { not: IssueStatus.Draft },
+                } as const;
+                const searchInput = data.searchInput as IssueSearchInput;
+                // If the search input has a relation ID, return that relation only
+                const forSearch = Object.keys(searchInput).find(searchKey =>
+                    searchKey.endsWith("Id") &&
+                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)],
+                );
+                if (forSearch) {
+                    const relation = forSearch.substring(0, forSearch.length - "Id".length);
+                    return {
+                        ...common,
+                        [relation]: useVisibility(reversedForMapper[relation] as GqlModelType, "Public", data),
+                    };
+                }
+                // Otherwise, use an OR on all relations
+                return {
+                    ...common,
+                    // Can use OR because only one relation will be present
+                    OR: [
+                        ...useVisibilityMapper("Public", data, forMapper, false),
+                    ],
+                };
+            },
         },
     }),
 });

@@ -1,6 +1,7 @@
-import { DUMMY_ID, endpointGetQuestion, endpointPostQuestion, endpointPutQuestion, noopSubmit, orDefault, Question, QuestionCreateInput, questionTranslationValidation, QuestionUpdateInput, questionValidation, Session } from "@local/shared";
+import { DUMMY_ID, endpointGetQuestion, endpointPostQuestion, endpointPutQuestion, LlmTask, noopSubmit, orDefault, Question, QuestionCreateInput, QuestionShape, questionTranslationValidation, QuestionUpdateInput, questionValidation, Session, shapeQuestion } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
+import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
@@ -9,46 +10,51 @@ import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedTextInput } from "components/inputs/TextInput/TextInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "hooks/tasks";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { useContext, useMemo } from "react";
+import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { QuestionShape, shapeQuestion } from "utils/shape/models/question";
 import { validateFormValues } from "utils/validateFormValues";
 import { QuestionFormProps, QuestionUpsertProps } from "../types";
 
-export const questionInitialValues = (
+export function questionInitialValues(
     session: Session | undefined,
     existing?: Partial<Question> | null | undefined,
-): QuestionShape => ({
-    __typename: "Question" as const,
-    id: DUMMY_ID,
-    isPrivate: false,
-    referencing: undefined,
-    forObject: null,
-    tags: [],
-    ...existing,
-    translations: orDefault(existing?.translations, [{
-        __typename: "QuestionTranslation" as const,
+): QuestionShape {
+    return {
+        __typename: "Question" as const,
         id: DUMMY_ID,
-        language: getUserLanguages(session)[0],
-        description: "",
-        name: "",
-    }]),
-});
+        isPrivate: false,
+        referencing: undefined,
+        forObject: null,
+        tags: [],
+        ...existing,
+        translations: orDefault(existing?.translations, [{
+            __typename: "QuestionTranslation" as const,
+            id: DUMMY_ID,
+            language: getUserLanguages(session)[0],
+            description: "",
+            name: "",
+        }]),
+    };
+}
 
-const transformQuestionValues = (values: QuestionShape, existing: QuestionShape, isCreate: boolean) =>
-    isCreate ? shapeQuestion.create(values) : shapeQuestion.update(existing, values);
+function transformQuestionValues(values: QuestionShape, existing: QuestionShape, isCreate: boolean) {
+    return isCreate ? shapeQuestion.create(values) : shapeQuestion.update(existing, values);
+}
 
-const QuestionForm = ({
+const relationshipListStyle = { marginBottom: 4 } as const;
+
+function QuestionForm({
     disabled,
     dirty,
     display,
@@ -63,7 +69,7 @@ const QuestionForm = ({
     onDeleted,
     values,
     ...props
-}: QuestionFormProps) => {
+}: QuestionFormProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -100,7 +106,31 @@ const QuestionForm = ({
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Question" });
 
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+    const getAutoFillInput = useCallback(function getAutoFillInput() {
+        return {
+            ...getAutoFillTranslationData(values, language),
+        };
+    }, [language, values]);
+
+    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback(data: Parameters<UseAutoFillProps["shapeAutoFillResult"]>[0]) {
+        const originalValues = { ...values };
+        const { updatedTranslations, rest } = createUpdatedTranslations(values, data, language, ["name", "description"]);
+        delete rest.id;
+        const updatedValues = {
+            ...values,
+            translations: updatedTranslations,
+        };
+        return { originalValues, updatedValues };
+    }, [language, values]);
+
+    const { autoFill, isAutoFillLoading } = useAutoFill({
+        getAutoFillInput,
+        shapeAutoFillResult,
+        handleUpdate,
+        task: isCreate ? LlmTask.QuestionAdd : LlmTask.QuestionUpdate,
+    });
+
+    const isLoading = useMemo(() => isAutoFillLoading || isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isAutoFillLoading, isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
     const onSubmit = useSubmitHelper<QuestionCreateInput | QuestionUpdateInput, Question>({
         disabled,
@@ -133,7 +163,7 @@ const QuestionForm = ({
                     <RelationshipList
                         isEditing={true}
                         objectType={"Question"}
-                        sx={{ marginBottom: 4 }}
+                        sx={relationshipListStyle}
                     />
                     <FormSection>
                         <LanguageInput
@@ -144,7 +174,6 @@ const QuestionForm = ({
                             languages={languages}
                         />
                         <TranslatedTextInput
-                            autoFocus
                             fullWidth
                             label={t("Name")}
                             language={language}
@@ -183,26 +212,36 @@ const QuestionForm = ({
                 onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
+                sideActionButtons={<AutoFillButton
+                    handleAutoFill={autoFill}
+                    isAutoFillLoading={isAutoFillLoading}
+                />}
             />
         </MaybeLargeDialog>
     );
-};
+}
 
-export const QuestionUpsert = ({
+export function QuestionUpsert({
+    display,
     isCreate,
     isOpen,
     overrideObject,
     ...props
-}: QuestionUpsertProps) => {
+}: QuestionUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Question, QuestionShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Question, QuestionShape>({
         ...endpointGetQuestion,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "Question",
         overrideObject,
         transform: (existing) => questionInitialValues(session, existing),
     });
+
+    async function validateValues(values: QuestionShape) {
+        return await validateFormValues(values, existing, isCreate, transformQuestionValues, questionValidation);
+    }
 
     return (
         <Formik
@@ -212,10 +251,11 @@ export const QuestionUpsert = ({
                 forObject: null,
             } as QuestionShape}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformQuestionValues, questionValidation)}
+            validate={validateValues}
         >
             {(formik) => <QuestionForm
                 disabled={!(isCreate || permissions.canUpdate)}
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}
@@ -226,4 +266,4 @@ export const QuestionUpsert = ({
             />}
         </Formik>
     );
-};
+}

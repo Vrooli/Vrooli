@@ -295,6 +295,7 @@ export function LandingView({
                     <StarryBackground />
                     {/* Earth at bottom of page. Changes position depending on the slide  */}
                     <EarthBox
+                        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                         // @ts-ignore
                         alt="Earth illustration"
                         component="img"

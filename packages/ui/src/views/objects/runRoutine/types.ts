@@ -1,8 +1,5 @@
-import { RunRoutine } from "@local/shared";
-import { FormProps } from "forms/types";
-import { RunRoutineShape } from "utils/shape/models/runRoutine";
-import { ObjectViewProps } from "views/types";
-import { CrudPropsDialog, CrudPropsPage } from "../types";
+import { RunRoutine, RunRoutineShape } from "@local/shared";
+import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps } from "../../../types";
 
 type RunRoutineUpsertPropsPage = CrudPropsPage;
 type RunRoutineUpsertPropsDialog = CrudPropsDialog<RunRoutine>;

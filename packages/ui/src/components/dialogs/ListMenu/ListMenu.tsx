@@ -1,12 +1,26 @@
 import { IconButton, List, ListItem, ListItemIcon, ListItemText, Menu, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { useZIndex } from "hooks/useZIndex";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { MenuTitle } from "../MenuTitle/MenuTitle";
 import { ListMenuProps } from "../types";
 
 const titleId = "list-menu-title";
+
+function stopPropagation(event: React.MouseEvent) {
+    event.stopPropagation();
+}
+
+const anchorOrigin = {
+    vertical: "bottom",
+    horizontal: "center",
+} as const;
+const transformOrigin = {
+    vertical: "top",
+    horizontal: "center",
+} as const;
+const zIndexOffset = 1000;
 
 export function ListMenu<T>({
     id,
@@ -20,7 +34,7 @@ export function ListMenu<T>({
     const { t } = useTranslation();
 
     const open = Boolean(anchorEl);
-    const zIndex = useZIndex(open, false, 1000);
+    const zIndex = useZIndex(open, false, zIndexOffset);
 
     const items = useMemo(() => data?.map(({
         label,
@@ -30,7 +44,7 @@ export function ListMenu<T>({
         iconColor,
         helpData,
     }, index) => {
-        const itemText = <ListItemText primary={labelKey ? t(labelKey) : label} />;
+        const itemText = <ListItemText primary={labelKey ? t(labelKey, { count: 1 }) : label} />;
         const fill = !iconColor || ["default", "unset"].includes(iconColor) ? palette.background.textSecondary : iconColor;
         const itemIcon = Icon ? (
             <ListItemIcon>
@@ -38,25 +52,30 @@ export function ListMenu<T>({
             </ListItemIcon>
         ) : null;
         const helpIcon = helpData ? (
-            <IconButton edge="end" onClick={(e) => e.stopPropagation()} >
+            <IconButton edge="end" onClick={stopPropagation} >
                 <HelpButton {...helpData} />
             </IconButton>
         ) : null;
 
         // Handle Tab and Shift+Tab manually
-        const handleKeyDown = (event) => {
+        function handleKeyDown(event) {
             if (event.key === "Tab") {
                 event.preventDefault(); // Stop the default behavior
                 const direction = event.shiftKey ? -1 : 1;
                 const nextElement = document.getElementById(`${id}-list-item-${index + direction}`);
                 nextElement && nextElement.focus();
             }
-        };
+        }
+
+        function handleClick() {
+            onSelect(value);
+            onClose();
+        }
 
         return (
             <ListItem
                 button
-                onClick={() => { onSelect(value); onClose(); }}
+                onClick={handleClick}
                 onKeyDown={handleKeyDown}
                 key={`list-item-${index}`}
                 id={`${id}-list-item-${index}`}
@@ -69,25 +88,21 @@ export function ListMenu<T>({
         );
     }), [data, id, onClose, onSelect, palette.background.textSecondary, t]);
 
+    const handleClose = useCallback(function handleCloseCallback(_event: unknown, reason: "backdropClick" | "escapeKeyDown" | "tabKeyDown") {
+        if (reason !== "tabKeyDown") {
+            onClose();
+        }
+    }, [onClose]);
+
     return (
         <Menu
             id={id}
             disableScrollLock={true}
             open={open}
             anchorEl={anchorEl}
-            anchorOrigin={{
-                vertical: "bottom",
-                horizontal: "center",
-            }}
-            transformOrigin={{
-                vertical: "top",
-                horizontal: "center",
-            }}
-            onClose={(_e, reason: "backdropClick" | "escapeKeyDown" | "tabKeyDown") => {
-                if (reason !== "tabKeyDown") {
-                    onClose();
-                }
-            }}
+            anchorOrigin={anchorOrigin}
+            transformOrigin={transformOrigin}
+            onClose={handleClose}
             tabIndex={-1}
             sx={{
                 zIndex,

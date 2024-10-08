@@ -1,13 +1,13 @@
-import { endpointGetApi, nodeTranslationValidation, nodeValidation, noopSubmit } from "@local/shared";
+import { endpointGetApi, nodeTranslationValidation, nodeValidation, noopSubmit, shapeNode } from "@local/shared";
 import { Checkbox, FormControlLabel } from "@mui/material";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
@@ -18,32 +18,31 @@ import { FormContainer } from "styles";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { shapeNode } from "utils/shape/models/node";
 import { validateFormValues } from "utils/validateFormValues";
 import { NodeWithRoutineList, NodeWithRoutineListCrudProps, NodeWithRoutineListFormProps, NodeWithRoutineListShape } from "../types";
 
-export const nodeWithRoutineListInitialValues = (existing: NodeWithRoutineListShape): NodeWithRoutineListShape => ({ ...existing });
+export function nodeWithRoutineListInitialValues(existing: NodeWithRoutineListShape): NodeWithRoutineListShape {
+    return { ...existing };
+}
 
-export const transformNodeWithRoutineListValues = (values: NodeWithRoutineListShape, existing: NodeWithRoutineListShape, isCreate: boolean) =>
-    isCreate ? shapeNode.create(values) : shapeNode.update(existing, values);
+export function transformNodeWithRoutineListValues(values: NodeWithRoutineListShape, existing: NodeWithRoutineListShape, isCreate: boolean) {
+    return isCreate ? shapeNode.create(values) : shapeNode.update(existing, values);
+}
 
-const NodeWithRoutineListForm = ({
+function NodeWithRoutineListForm({
     disabled,
-    dirty,
     display,
     existing,
-    handleUpdate,
     isCreate,
     isEditing,
     isOpen,
     isReadLoading,
-    onCancel,
-    onClose,
     onCompleted,
+    onClose,
     onDeleted,
     values,
     ...props
-}: NodeWithRoutineListFormProps) => {
+}: NodeWithRoutineListFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
 
@@ -59,11 +58,19 @@ const NodeWithRoutineListForm = ({
     const [isOrderedField] = useField<boolean>("routineList.isOrdered");
     const [isOptionalField, , isOptionalHelpers] = useField<boolean>("routineList.isOptional");
 
+    const toggleIsOptional = useCallback(function toggleIsOptionalCallback() {
+        isOptionalHelpers.setValue(!isOptionalField.value);
+    }, [isOptionalField, isOptionalHelpers]);
+
     const { handleCancel, handleCompleted } = useUpsertActions<NodeWithRoutineListShape>({
         display,
         isCreate,
         objectId: values.id,
         objectType: "Node",
+        onAction: onClose,
+        onCompleted: onCompleted as (data: NodeWithRoutineListShape) => unknown,
+        onDeleted: onDeleted as (data: NodeWithRoutineListShape) => unknown,
+        suppressSnack: true,
         ...props,
     });
     useSaveToCache({ isCacheOn: false, isCreate, values, objectId: values.id, objectType: "Node" });
@@ -73,6 +80,31 @@ const NodeWithRoutineListForm = ({
     }, [handleCompleted, values]);
 
     const isLoading = useMemo(() => isReadLoading || props.isSubmitting, [isReadLoading, props.isSubmitting]);
+
+    const topBarOptions = useMemo(function topBarOptionsMemo() {
+        return isCreate ? [] : [{
+            Icon: DeleteIcon,
+            label: t("Delete"),
+            onClick: () => { onDeleted?.(existing as NodeWithRoutineList); },
+        }];
+    }, [existing, isCreate, onDeleted, t]);
+
+    const nameInputProps = useMemo(function nameInputPropsMemo() {
+        return {
+            language,
+            fullWidth: true,
+            multiline: false,
+        } as const;
+    }, [language]);
+
+    const descriptionInputProps = useMemo(function descriptionInputPropsMemo() {
+        return {
+            language,
+            maxChars: 2048,
+            minRows: 4,
+            maxRows: 8,
+        } as const;
+    }, [language]);
 
     return (
         <MaybeLargeDialog
@@ -85,11 +117,7 @@ const NodeWithRoutineListForm = ({
                 display="dialog"
                 onClose={onClose}
                 title={firstString(getDisplay(values).title, t(isCreate ? "CreateNodeRoutineList" : "UpdateNodeRoutineList"))}
-                options={!isCreate ? [{
-                    Icon: DeleteIcon,
-                    label: t("Delete"),
-                    onClick: () => { onDeleted?.(existing as NodeWithRoutineList); },
-                }] : []}
+                options={topBarOptions}
             />
             <BaseForm
                 display={display}
@@ -101,23 +129,14 @@ const NodeWithRoutineListForm = ({
                         component="TranslatedTextInput"
                         isEditing={isEditing}
                         name="name"
-                        props={{
-                            language,
-                            fullWidth: true,
-                            multiline: true,
-                        }}
+                        props={nameInputProps}
                         title={t("Label")}
                     />
                     <EditableTextCollapse
                         component='TranslatedMarkdown'
                         isEditing={isEditing}
                         name="description"
-                        props={{
-                            language,
-                            maxChars: 2048,
-                            minRows: 4,
-                            maxRows: 8,
-                        }}
+                        props={descriptionInputProps}
                         title={t("Description")}
                     />
                     <FormControlLabel
@@ -142,7 +161,7 @@ const NodeWithRoutineListForm = ({
                                 name='routineList.isOptional'
                                 color='secondary'
                                 checked={!isOptionalField.value}
-                                onChange={(e) => isOptionalHelpers.setValue(!e.target.checked)}
+                                onChange={toggleIsOptional}
                             />
                         }
                     />
@@ -160,29 +179,33 @@ const NodeWithRoutineListForm = ({
             />
         </MaybeLargeDialog>
     );
-};
+}
 
-export const NodeWithRoutineListCrud = ({
+export function NodeWithRoutineListCrud({
     isEditing,
     isOpen,
     overrideObject,
     ...props
-}: NodeWithRoutineListCrudProps) => {
+}: NodeWithRoutineListCrudProps) {
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<NodeWithRoutineListShape, NodeWithRoutineListShape>({
-        ...endpointGetApi, // Won't be used. Need to pass an endpoint to useObjectFromUrl
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<NodeWithRoutineListShape, NodeWithRoutineListShape>({
+        ...endpointGetApi, // Won't be used. Need to pass an endpoint to useManagedObject
         isCreate: false,
         objectType: "Node",
         overrideObject: overrideObject as NodeWithRoutineListShape,
         transform: (existing) => nodeWithRoutineListInitialValues(existing as NodeWithRoutineListShape),
     });
 
+    async function validateValues(values: NodeWithRoutineListShape) {
+        return await validateFormValues(values, existing, false, transformNodeWithRoutineListValues, nodeValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, false, transformNodeWithRoutineListValues, nodeValidation)}
+            validate={validateValues}
         >
             {(formik) =>
                 <>
@@ -200,4 +223,4 @@ export const NodeWithRoutineListCrud = ({
             }
         </Formik>
     );
-};
+}

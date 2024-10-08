@@ -46,11 +46,13 @@ export function parseSingleItemUrl({ href, pathname }: { href?: string, pathname
     // Get the list of versioned object names
     const objectsWithVersions = [
         LINKS.Api,
-        LINKS.Code,
+        LINKS.DataConverter,
+        LINKS.DataStructure,
         LINKS.Note,
         LINKS.Project,
+        LINKS.Prompt,
         LINKS.Routine,
-        LINKS.Standard,
+        LINKS.SmartContract,
     ].map(link => link.split("/").pop());
     // Check if any part of the URL contains the name of a versioned object
     const allUrlParts = window.location.pathname.split("/");
@@ -91,10 +93,10 @@ export function parseSingleItemUrl({ href, pathname }: { href?: string, pathname
  * try to navigate back if previous url is this site. 
  * Otherwise, navigate to the home page.
  */
-export const tryOnClose = (
+export function tryOnClose(
     onClose: (() => unknown) | null | undefined,
     setLocation: SetLocation,
-) => {
+) {
     if (typeof onClose === "function") {
         onClose();
         return;
@@ -102,4 +104,4 @@ export const tryOnClose = (
     const hasPreviousPage = Boolean(sessionStorage.getItem("lastPath"));
     if (hasPreviousPage) window.history.back();
     else setLocation(LINKS.Home);
-};
+}

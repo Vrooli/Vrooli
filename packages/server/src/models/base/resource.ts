@@ -1,8 +1,9 @@
-import { MaxObjects, ResourceSortBy, resourceValidation } from "@local/shared";
+import { MaxObjects, ResourceSortBy, getTranslation, resourceValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { bestTranslation, oneIsPublic } from "../../utils";
+import { useVisibility } from "../../builders/visibilityBuilder";
+import { oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { ResourceFormat } from "../formats";
 import { ResourceListModelInfo, ResourceListModelLogic, ResourceModelInfo, ResourceModelLogic } from "./types";
@@ -15,7 +16,7 @@ export const ResourceModel: ResourceModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+            get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
     }),
     format: ResourceFormat,
@@ -68,13 +69,31 @@ export const ResourceModel: ResourceModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<ResourceModelInfo["PrismaSelect"]>([["list", "ResourceList"]], ...rest),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return {
+                    list: useVisibility("ResourceList", "Own", data),
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    list: useVisibility("ResourceList", "OwnOrPublic", data),
+                };
             },
-            owner: (userId) => ({ list: ModelMap.get<ResourceListModelLogic>("ResourceList").validate().visibility.owner(userId) }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    list: useVisibility("ResourceList", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    list: useVisibility("ResourceList", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    list: useVisibility("ResourceList", "Public", data),
+                };
+            },
         },
     }),
 });

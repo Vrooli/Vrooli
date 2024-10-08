@@ -1,20 +1,23 @@
 import { StyledEngineProvider, Theme, ThemeProvider, createTheme } from "@mui/material";
 import { render as rtlRender } from "@testing-library/react";
-import { SessionContext } from "../contexts/SessionContext";
-import { ZIndexProvider } from "../contexts/ZIndexContext";
+import { SessionContext, ZIndexProvider } from "../contexts";
 import { DEFAULT_THEME, themes } from "../utils/display/theme";
 
-const withFontSize = (theme: Theme, fontSize: number): Theme => createTheme({
-    ...theme,
-    typography: {
-        fontSize,
-    },
-});
+function withFontSize(theme: Theme, fontSize: number): Theme {
+    return createTheme({
+        ...theme,
+        typography: {
+            fontSize,
+        },
+    });
+}
 
-const withIsLeftHanded = (theme: Theme, isLeftHanded: boolean): Theme => createTheme({
-    ...theme,
-    isLeftHanded,
-});
+function withIsLeftHanded(theme: Theme, isLeftHanded: boolean): Theme {
+    return createTheme({
+        ...theme,
+        isLeftHanded,
+    });
+}
 
 // Mock values or functions to simulate theme and session context
 const defaultFontSize = 14;

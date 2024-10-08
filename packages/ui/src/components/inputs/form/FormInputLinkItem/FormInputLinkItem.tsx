@@ -1,10 +1,9 @@
+import { LinkItemFormInput, LinkItemFormInputProps, LinkItemType, TranslationFuncCommon, getFormikFieldName } from "@local/shared";
 import { Autocomplete, Button, Chip, ListItemIcon, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
 import { LinkInputBase } from "components/inputs/LinkInput/LinkInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useField } from "formik";
-import { LinkItemFormInput, LinkItemFormInputProps, LinkItemType } from "forms/types";
-import { TFunction } from "i18next";
-import { ApiIcon, HelpIcon, NoteIcon, ProjectIcon, RoutineIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon } from "icons";
+import { ApiIcon, ArticleIcon, HelpIcon, NoteIcon, ObjectIcon, ProjectIcon, RoutineIcon, SmartContractIcon, TeamIcon, TerminalIcon, UserIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SvgComponent } from "types";
@@ -15,47 +14,67 @@ import { FormInputProps } from "../types";
 
 type LimitTypeOption = {
     Icon: SvgComponent;
-    label: (t: TFunction<"common", undefined, "common">) => string;
+    label: (t: TranslationFuncCommon) => string;
     value: `${LinkItemType}`;
 }
 
-const limitTypeOptions: LimitTypeOption[] = [{
-    Icon: ApiIcon,
-    label: t => t("common:Api", { count: 1, defaultValue: "Api" }),
-    value: "Api",
-}, {
-    Icon: TerminalIcon,
-    label: t => t("common:Code", { count: 1, defaultValue: "Code" }),
-    value: "Code",
-}, {
-    Icon: NoteIcon,
-    label: t => t("common:Note", { count: 1, defaultValue: "Note" }),
-    value: "Note",
-}, {
-    Icon: ProjectIcon,
-    label: t => t("common:Project", { count: 1, defaultValue: "Project" }),
-    value: "Project",
-}, {
-    Icon: HelpIcon,
-    label: t => t("common:Question", { count: 1, defaultValue: "Question" }),
-    value: "Question",
-}, {
-    Icon: RoutineIcon,
-    label: t => t("common:Routine", { count: 1, defaultValue: "Routine" }),
-    value: "Routine",
-}, {
-    Icon: StandardIcon,
-    label: t => t("common:Standard", { count: 1, defaultValue: "Standard" }),
-    value: "Standard",
-}, {
-    Icon: TeamIcon,
-    label: t => t("common:Team", { count: 1, defaultValue: "Team" }),
-    value: "Team",
-}, {
-    Icon: UserIcon,
-    label: t => t("common:User", { count: 1, defaultValue: "User" }),
-    value: "User",
-}];
+const limitTypeOptions: LimitTypeOption[] = [
+    {
+        Icon: ApiIcon,
+        label: t => t("common:Api", { count: 1, defaultValue: "Api" }),
+        value: "Api",
+    },
+    {
+        Icon: TerminalIcon,
+        label: t => t("common:DataConverter", { count: 1, defaultValue: "Data Converter" }),
+        value: "DataConverter",
+    },
+    {
+        Icon: ObjectIcon,
+        label: t => t("common:DataStructure", { count: 1, defaultValue: "Data Structure" }),
+        value: "DataStructure",
+    },
+    {
+        Icon: NoteIcon,
+        label: t => t("common:Note", { count: 1, defaultValue: "Note" }),
+        value: "Note",
+    },
+    {
+        Icon: ProjectIcon,
+        label: t => t("common:Project", { count: 1, defaultValue: "Project" }),
+        value: "Project",
+    },
+    {
+        Icon: ArticleIcon,
+        label: t => t("common:Prompt", { count: 1, defaultValue: "Prompt" }),
+        value: "Prompt",
+    },
+    {
+        Icon: HelpIcon,
+        label: t => t("common:Question", { count: 1, defaultValue: "Question" }),
+        value: "Question",
+    },
+    {
+        Icon: RoutineIcon,
+        label: t => t("common:Routine", { count: 1, defaultValue: "Routine" }),
+        value: "Routine",
+    },
+    {
+        Icon: SmartContractIcon,
+        label: t => t("common:SmartContract", { count: 1, defaultValue: "Smart Contract" }),
+        value: "SmartContract",
+    },
+    {
+        Icon: TeamIcon,
+        label: t => t("common:Team", { count: 1, defaultValue: "Team" }),
+        value: "Team",
+    },
+    {
+        Icon: UserIcon,
+        label: t => t("common:User", { count: 1, defaultValue: "User" }),
+        value: "User",
+    },
+];
 const acceptedObjectTypes = limitTypeOptions.map(option => option.value);
 
 /** Only accept A-z */
@@ -68,6 +87,7 @@ function withoutInvalidChars(str: string): string {
 export function FormInputLinkItem({
     disabled,
     fieldData,
+    fieldNamePrefix,
     isEditing,
     onConfigUpdate,
 }: FormInputProps<LinkItemFormInput>) {
@@ -76,7 +96,7 @@ export function FormInputLinkItem({
 
     const props = useMemo(() => fieldData.props, [fieldData.props]);
 
-    const [field, meta, helpers] = useField(fieldData.fieldName);
+    const [field, meta, helpers] = useField(getFormikFieldName(fieldData.fieldName, fieldNamePrefix));
     const handleChange = useCallback(function handleChangeCallback(value: string) {
         // When editing the config, we're changing the default value
         if (isEditing) {

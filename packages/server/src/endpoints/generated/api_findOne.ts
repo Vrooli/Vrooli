@@ -207,18 +207,10 @@ export const api_findOne = {
       "name": true,
       "summary": true
     },
+    "schemaLanguage": true,
     "schemaText": true,
     "versionNotes": true,
     "__typename": "ApiVersion"
-  },
-  "stats": {
-    "id": true,
-    "periodStart": true,
-    "periodEnd": true,
-    "periodType": true,
-    "calls": true,
-    "routineVersions": true,
-    "__typename": "StatsApi"
   },
   "__typename": "Api"
 } as const;

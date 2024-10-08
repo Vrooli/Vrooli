@@ -1,5 +1,6 @@
-import { Chip, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { useMemo } from "react";
+import { ListItemChip } from "../ObjectListItemBase/ObjectListItemBase";
 import { TagListProps } from "../types";
 
 export const TagList = ({
@@ -18,15 +19,11 @@ export const TagList = ({
             if (tag?.tag && tag.tag.length < charactersBeforeCutoff) {
                 charactersBeforeCutoff -= tag.tag.length;
                 chipResult.push(
-                    <Chip
+                    <ListItemChip
+                        color="Purple"
                         key={tag.tag}
                         label={tag.tag}
-                        size="small"
-                        sx={{
-                            backgroundColor: palette.mode === "light" ? "#8148b0" : "#8148b0", //'#a068ce',
-                            color: "white",
-                            width: "fit-content",
-                        }} />,
+                    />,
                 );
             }
         }

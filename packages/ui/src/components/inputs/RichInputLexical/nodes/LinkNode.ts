@@ -300,6 +300,6 @@ export class AutoLinkNode extends LinkNode { //TODO might need to set this.__typ
  * @param attributes - Optional HTML a tag attributes. { target, rel, title }
  * @returns The LinkNode.
  */
-export const $createAutoLinkNode = (attributes: LinkAttributes): AutoLinkNode => {
+export function $createAutoLinkNode(attributes: LinkAttributes): AutoLinkNode {
     return $applyNodeReplacement(new AutoLinkNode(attributes));
-};
+}

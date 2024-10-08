@@ -1,9 +1,8 @@
-import { LlmTaskInfo } from "@local/shared";
+import { ChatMessageShape } from "@local/shared";
 import { LinearProgressProps } from "@mui/material";
 import { PageTab } from "hooks/useTabs";
 import { SxType } from "types";
 import { TabsInfo } from "utils/search/objectToSearch";
-import { ChatMessageShape } from "utils/shape/models/chatMessage";
 
 export interface ChatBubbleProps {
     /** Which sibling (version) is currently being displayed */
@@ -14,8 +13,6 @@ export interface ChatBubbleProps {
     numSiblings: number;
     /** If the chat is only between you and other bots */
     isBotOnlyChat: boolean;
-    /** Is the most recent message (or one of the versions of the most recent message) */
-    isLastMessage: boolean;
     /** Is a message you created */
     isOwn: boolean;
     /** 
@@ -25,11 +22,12 @@ export interface ChatBubbleProps {
      */
     onActiveIndexChange: (index: number) => unknown;
     onDeleted: (message: ChatMessageShape) => unknown;
+    onEdit: (originalMessage: ChatMessageShape) => unknown;
     onReply: (message: ChatMessageShape) => unknown;
+    /** Regenerate a bot response */
+    onRegenerateResponse: (message: ChatMessageShape) => unknown;
+    /** Try to send a failed message */
     onRetry: (message: ChatMessageShape) => unknown;
-    onTaskClick: (task: LlmTaskInfo) => unknown;
-    onUpdated: (message: ChatMessageShape) => unknown;
-    tasks: LlmTaskInfo[];
 }
 
 export interface ChatBubbleTreeProps {

@@ -1,5 +1,5 @@
+import { FormHeaderType, HeaderTag } from "@local/shared";
 import { Box, Button, IconButton, List, ListItem, ListItemIcon, ListItemText, Popover, TextField, Tooltip, Typography, useTheme } from "@mui/material";
-import { FormHeaderType, HeaderTag } from "forms/types";
 import { useEditableLabel } from "hooks/useEditableLabel";
 import { usePopover } from "hooks/usePopover";
 import { DeleteIcon, Header1Icon, Header2Icon, Header3Icon, Header4Icon } from "icons";

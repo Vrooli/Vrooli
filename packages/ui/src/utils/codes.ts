@@ -12,11 +12,9 @@ export function weakHash(str: string) {
     return hash.toString();
 }
 
-export function chatMatchHash(userIds: string[], task?: string): string {
+export function chatMatchHash(userIds: string[]): string {
     // Sort for consistent ordering
-    let toHash = userIds.sort().join("|");
-    // Append the task if it exists
-    if (task) { toHash += `|${task}`; }
+    const toHash = userIds.sort().join("|");
     // Create a  hash of the sortedIDs
     return weakHash(toHash);
 }

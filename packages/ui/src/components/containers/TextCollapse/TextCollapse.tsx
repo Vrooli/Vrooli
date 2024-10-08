@@ -1,8 +1,22 @@
-import { LinearProgress } from "@mui/material";
+import { LinearProgress, styled } from "@mui/material";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { useMemo } from "react";
 import { ContentCollapse } from "../ContentCollapse/ContentCollapse";
 import { TextCollapseProps } from "../types";
+
+const DEFAULT_LOADING_LINES = 1;
+
+const LoadingLine = styled(LinearProgress)(({ theme }) => ({
+    borderRadius: theme.spacing(2),
+    width: "100%",
+    // eslint-disable-next-line no-magic-numbers
+    height: theme.spacing(1.5),
+    marginTop: theme.spacing(1),
+    marginBottom: theme.spacing(2),
+    opacity: 0.5,
+}));
+
+const markdownDisplayStyle = { marginTop: 0 } as const;
 
 export function TextCollapse({
     helpText,
@@ -13,20 +27,12 @@ export function TextCollapse({
     title,
     text,
 }: TextCollapseProps) {
-    const lines = useMemo(() => {
-        if (!loading) return null;
-        return Array.from({ length: loadingLines ?? 1 }, (_, i) => (
-            <LinearProgress
+    const lines = useMemo(function generateLoadingLines() {
+        if (loading !== true) return null;
+        return Array.from({ length: loadingLines ?? DEFAULT_LOADING_LINES }, (_, i) => (
+            <LoadingLine
                 key={`loading-line-${i}`} // Fine to use index as key here
                 color="inherit"
-                sx={{
-                    borderRadius: 2,
-                    width: "100%",
-                    height: 12,
-                    marginTop: 1,
-                    marginBottom: 2,
-                    opacity: 0.5,
-                }}
             />
         ));
     }, [loading, loadingLines]);
@@ -39,7 +45,7 @@ export function TextCollapse({
             onOpenChange={onOpenChange}
             title={title}
         >
-            {text ? <MarkdownDisplay sx={{ marginTop: 0 }} content={text} /> : lines}
+            {text ? <MarkdownDisplay sx={markdownDisplayStyle} content={text} /> : lines}
         </ContentCollapse>
     );
 }

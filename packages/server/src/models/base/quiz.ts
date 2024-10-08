@@ -1,14 +1,15 @@
-import { MaxObjects, QuizSortBy, quizValidation } from "@local/shared";
+import { MaxObjects, QuizSortBy, getTranslation, quizValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
+import { useVisibility } from "../../builders/visibilityBuilder";
+import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { QuizFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, ProjectModelLogic, QuizModelInfo, QuizModelLogic, ReactionModelLogic, RoutineModelLogic } from "./types";
+import { BookmarkModelLogic, QuizModelInfo, QuizModelLogic, ReactionModelLogic } from "./types";
 
 type QuizPre = PreShapeEmbeddableTranslatableResult;
 
@@ -20,15 +21,15 @@ export const QuizModel: QuizModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+            get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
         embed: {
             select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } }),
             get: ({ translations }, languages) => {
-                const trans = bestTranslation(translations, languages);
+                const trans = getTranslation({ translations }, languages);
                 return getEmbeddableString({
-                    description: trans?.description,
-                    name: trans?.name,
+                    description: trans.description,
+                    name: trans.name,
                 }, languages[0]);
             },
         },
@@ -112,7 +113,7 @@ export const QuizModel: QuizModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<QuizModelInfo["GqlPermission"]>(__typename, ids, userData)),
                         hasCompleted: new Array(ids.length).fill(false), // TODO: Implement
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
@@ -141,25 +142,66 @@ export const QuizModel: QuizModelLogic = ({
             routine: "Routine",
         }),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
+                return {
+                    createdBy: useVisibility("User", "Own", data),
+                };
+            },
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
                     OR: [
-                        { isPrivate: true },
-                        { project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.private(...params) },
-                        { routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.private(...params) },
+                        useVisibility("Quiz", "Own", data),
+                        useVisibility("Quiz", "Public", data),
                     ],
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownPrivate: function getOwnPrivate(data) {
                 return {
-                    AND: [
-                        { isPrivate: false },
-                        { project: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.public(...params) },
-                        { routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.public(...params) },
+                    createdBy: useVisibility("User", "Own", data),
+                    OR: [ // Either the quiz or the connected object is private
+                        { isPrivate: true },
+                        {
+                            project: {
+                                OR: [
+                                    { isPrivate: true },
+                                    { ownedByTeam: { isPrivate: true } },
+                                    { ownedByUser: { isPrivate: true } },
+                                    { ownedByUser: { isPrivateProjects: true } },
+                                ],
+                            },
+                        },
+                        {
+                            routine: {
+                                OR: [
+                                    { isPrivate: true },
+                                    { ownedByTeam: { isPrivate: true } },
+                                    { ownedByUser: { isPrivate: true } },
+                                    { ownedByUser: { isPrivateRoutines: true } },
+                                ],
+                            },
+                        },
                     ],
                 };
             },
-            owner: (userId) => ({ createdBy: { id: userId } }),
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    isPrivate: false,
+                    createdBy: useVisibility("User", "Own", data),
+                    OR: [ // Connected object must also be public
+                        { project: useVisibility("Project", "Public", data) },
+                        { routine: useVisibility("Routine", "Public", data) },
+                    ],
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    isPrivate: false,
+                    OR: [ // Connected object must also be public
+                        { project: useVisibility("Project", "Public", data) },
+                        { routine: useVisibility("Routine", "Public", data) },
+                    ],
+                };
+            },
         },
     }),
 });

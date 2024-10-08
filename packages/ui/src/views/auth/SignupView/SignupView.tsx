@@ -1,14 +1,16 @@
-import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, endpointPostAuthEmailSignup, LINKS, Session } from "@local/shared";
-import { Box, BoxProps, Button, Checkbox, FormControl, FormControlLabel, FormHelperText, Grid, IconButton, InputAdornment, Link, Modal, styled, Typography, useTheme } from "@mui/material";
+import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, endpointPostAuthEmailSignup, LINKS, Session, SignUpPageTabOption } from "@local/shared";
+import { Box, BoxProps, Button, Checkbox, FormControl, FormControlLabel, FormHelperText, IconButton, InputAdornment, Link, Modal, styled, useTheme } from "@mui/material";
 import { fetchLazyWrapper, hasErrorCode } from "api";
+import { BreadcrumbsBase } from "components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase";
 import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";
+import { Footer } from "components/navigation/Footer/Footer";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { Field, Formik, FormikHelpers } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { formNavLink, formPaper, formSubmit } from "forms/styles";
-import { useIsLeftHanded } from "hooks/useIsLeftHanded";
+import { formSubmit } from "forms/styles";
+import { useIsLeftHanded } from "hooks/subscriptions";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useTabs } from "hooks/useTabs";
 import { useWindowSize } from "hooks/useWindowSize";
@@ -16,11 +18,11 @@ import { CloseIcon, EmailIcon, UserIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { clickSize } from "styles";
-import { removeCookie } from "utils/cookies";
-import { PubSub } from "utils/pubsub";
+import { FormContainer, FormSection } from "styles";
+import { removeCookie } from "utils/localStorage";
+import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID } from "utils/pubsub";
 import { setupPush } from "utils/push";
-import { SignUpPageTabOption, signUpTabParams } from "utils/search/objectToSearch";
+import { signUpTabParams } from "utils/search/objectToSearch";
 import { SignupViewProps } from "views/types";
 
 type FormInput = EmailSignUpInput & {
@@ -37,22 +39,18 @@ const initialValues: FormInput = {
     theme: "",
 };
 
+const outerFormStyle = {
+    height: "100vh",
+    overflowY: "auto",
+    overflowX: "hidden",
+} as const;
 const baseFormStyle = {
-    ...formPaper,
     paddingBottom: "unset",
     position: "sticky",
-    top: "80px",
+    margin: 0,
 } as const;
-
-const logInLinkStyle = {
-    ...clickSize,
-    ...formNavLink,
-} as const;
-
-const forgotPasswordLinkStyle = {
-    ...clickSize,
-    ...formNavLink,
-    flexDirection: "row-reverse",
+const breadcrumbsStyle = {
+    margin: "auto",
 } as const;
 
 const nameInputProps = {
@@ -70,8 +68,6 @@ const emailInputProps = {
         </InputAdornment>
     ),
 } as const;
-
-const checkboxGridStyle = { display: "flex", justifyContent: "left" } as const;
 
 function SignupForm() {
     const { palette } = useTheme();
@@ -126,8 +122,19 @@ function SignupForm() {
         });
     }, [emailSignUp, palette.mode, setLocation]);
 
+    const breadcrumbPaths = [
+        {
+            text: t("LogIn"),
+            link: LINKS.Login,
+        },
+        {
+            text: t("ForgotPassword"),
+            link: LINKS.ForgotPassword,
+        },
+    ] as const;
+
     return (
-        <>
+        <Box sx={outerFormStyle}>
             <Formik
                 initialValues={initialValues}
                 onSubmit={handleSubmit}
@@ -138,20 +145,17 @@ function SignupForm() {
                     isLoading={loading}
                     style={baseFormStyle}
                 >
-                    <Grid container spacing={2}>
-                        <Grid item xs={12}>
+                    <FormContainer>
+                        <FormSection variant="transparent">
                             <Field
                                 fullWidth
                                 autoComplete="name"
-                                autoFocus
                                 name="name"
                                 label={t("Name")}
                                 placeholder={t("NamePlaceholder")}
                                 as={TextInput}
                                 InputProps={nameInputProps}
                             />
-                        </Grid>
-                        <Grid item xs={12}>
                             <Field
                                 fullWidth
                                 autoComplete="email"
@@ -163,24 +167,22 @@ function SignupForm() {
                                 helperText={formik.touched.email && formik.errors.email}
                                 error={formik.touched.email && Boolean(formik.errors.email)}
                             />
-                        </Grid>
-                        <Grid item xs={12}>
+                        </FormSection>
+                        <FormSection variant="transparent">
                             <PasswordTextInput
                                 fullWidth
                                 name="password"
                                 autoComplete="new-password"
                                 label={t("Password")}
                             />
-                        </Grid>
-                        <Grid item xs={12}>
                             <PasswordTextInput
                                 fullWidth
                                 name="confirmPassword"
                                 autoComplete="new-password"
                                 label={t("PasswordConfirm")}
                             />
-                        </Grid>
-                        <Grid item xs={12} sx={checkboxGridStyle}>
+                        </FormSection>
+                        <FormSection variant="transparent">
                             <FormControlLabel
                                 control={
                                     <Checkbox
@@ -194,8 +196,6 @@ function SignupForm() {
                                 }
                                 label="I agree to receive marketing promotions and updates via email."
                             />
-                        </Grid>
-                        <Grid item xs={12} sx={checkboxGridStyle}>
                             <FormControl required error={!formik.values.agreeToTerms && formik.touched.agreeToTerms}>
                                 <FormControlLabel
                                     control={
@@ -227,43 +227,29 @@ function SignupForm() {
                                     {formik.touched.agreeToTerms !== true && "You must agree to the terms and conditions"}
                                 </FormHelperText>
                             </FormControl>
-                        </Grid>
-                    </Grid>
-                    <Button
-                        id="sign-up-button"
-                        fullWidth
-                        disabled={loading}
-                        type="submit"
-                        color="secondary"
-                        variant="contained"
-                        sx={{ ...formSubmit }}
-                    >
-                        {t("SignUp")}
-                    </Button>
-                    <Box sx={{
-                        display: "flex",
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                    }}>
-                        <Link href={LINKS.Login}>
-                            <Typography
-                                sx={logInLinkStyle}
+                        </FormSection>
+                        <Box width="100%" display="flex" flexDirection="column" p={2}>
+                            <Button
+                                id="sign-up-button"
+                                fullWidth
+                                disabled={loading}
+                                type="submit"
+                                color="secondary"
+                                variant="contained"
+                                sx={formSubmit}
                             >
-                                {t("LogIn")}
-                            </Typography>
-                        </Link>
-                        <Link href={LINKS.ForgotPassword}>
-                            <Typography
-                                sx={forgotPasswordLinkStyle}
-                            >
-                                {t("ForgotPassword")}
-                            </Typography>
-                        </Link>
-                    </Box>
+                                {t("SignUp")}
+                            </Button>
+                            <BreadcrumbsBase
+                                paths={breadcrumbPaths}
+                                separator={"•"}
+                                sx={breadcrumbsStyle}
+                            />
+                        </Box>
+                    </FormContainer>
                 </BaseForm>}
             </Formik>
-        </>
+        </Box>
     );
 }
 
@@ -317,11 +303,7 @@ function Promo({
 
     return (
         <>
-            <Box sx={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-            }}>
+            <Box display="flex" flexDirection="column" gap={8} p={2}>
                 {screenshots.map(({ src, alt }, index) => {
                     const fullSrc = getFullSrc(src, isMobile);
 
@@ -387,6 +369,7 @@ function Promo({
                     </Box>
                 </Modal>
             </Box>
+            <Footer />
         </>
     );
 }
@@ -411,6 +394,12 @@ export function SignupView({
         tabs,
     } = useTabs({ id: "sign-up-tabs", tabParams: signUpTabParams, disableHistory: true, display });
 
+    // Side menus are not supported in this page due to the way it's styled
+    useMemo(function hideSideMenusMemo() {
+        PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: false });
+        PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen: false });
+    }, []);
+
     const innerBoxStyle = useMemo(function innerBoxStyleMemo() {
         if (isMobile) {
             return {
@@ -423,8 +412,9 @@ export function SignupView({
             return {
                 display: "flex",
                 flexDirection: isLeftHanded ? "row-reverse" : "row",
-                height: "100%",
+                height: "100vh",
                 width: "100vw",
+                overflow: "hidden",
             } as const;
         }
     }, [isLeftHanded, isMobile]);
@@ -445,15 +435,15 @@ export function SignupView({
 
     const promoBoxStyle = useMemo(function promoBoxStyleMemo() {
         return {
-            padding: 2,
             background: palette.background.default,
-            backgroundAttachment: "fixed",
             color: "white",
             display: isMobile && currTab.key !== SignUpPageTabOption.MoreInfo
                 ? "none"
                 : "block",
-            overflow: "auto",
+            overflowY: "auto",
+            height: "100vh",
             width: "100%",
+            position: "sticky",
         } as const;
     }, [currTab.key, isMobile, palette.background.default]);
 

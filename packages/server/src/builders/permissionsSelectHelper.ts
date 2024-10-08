@@ -4,12 +4,16 @@ import { ModelMap } from "../models/base";
 import { PermissionsMap } from "../models/types";
 import { isRelationshipObject } from "./isOfType";
 
+const MAX_RECURSION_DEPTH = 50;
+
 /**
  * Helper function to remove the first layer of dot values form an array of
  * dot values. For example, if the array is ['a', 'b.c', 'd.e.f'], the result
  * will be ['c', 'e.f']
  */
-const removeFirstDotLayer = (arr: string[]): string[] => arr.map(x => x.split(".").slice(1).join(".")).filter(x => x !== "");
+function removeFirstDotLayer(arr: string[]): string[] {
+    return arr.map(x => x.split(".").slice(1).join(".")).filter(x => x !== "");
+}
 
 /**
  * Recursively converts a PermissionsMap object into a real Prisma select query
@@ -20,15 +24,15 @@ const removeFirstDotLayer = (arr: string[]): string[] => arr.map(x => x.split(".
  * @param omitFields Fields to omit from the selection. Supports dot notation.
  * @returns A Prisma select query
  */
-export const permissionsSelectHelper = <Select extends { [x: string]: any }>(
+export function permissionsSelectHelper<Select extends { [x: string]: any }>(
     mapResolver: PermissionsMap<Select> | ((userId: string | null, languages: string[]) => PermissionsMap<Select>),
     userId: string | null,
     languages: string[],
     recursionDepth = 0,
     omitFields: string[] = [],
-): Select => {
+): Select {
     // If recursion depth is too high, throw an error
-    if (recursionDepth > 100) {
+    if (recursionDepth > MAX_RECURSION_DEPTH) {
         throw new CustomError("0386", "InternalError", languages ?? ["en"], { userId, recursionDepth });
     }
     const map = typeof mapResolver === "function" ? mapResolver(userId, languages) : mapResolver;
@@ -101,4 +105,4 @@ export const permissionsSelectHelper = <Select extends { [x: string]: any }>(
     }
     // Return the result
     return result as Select;
-};
+}

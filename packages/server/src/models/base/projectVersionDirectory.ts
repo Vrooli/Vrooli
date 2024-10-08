@@ -1,8 +1,9 @@
-import { MaxObjects, projectVersionDirectoryValidation } from "@local/shared";
+import { MaxObjects, getTranslation, projectVersionDirectoryValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
+import { useVisibility } from "../../builders/visibilityBuilder";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { ProjectVersionDirectoryFormat } from "../formats";
 import { ProjectVersionDirectoryModelInfo, ProjectVersionDirectoryModelLogic, ProjectVersionModelInfo, ProjectVersionModelLogic } from "./types";
@@ -15,7 +16,7 @@ export const ProjectVersionDirectoryModel: ProjectVersionDirectoryModelLogic = (
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+            get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
     }),
     format: ProjectVersionDirectoryFormat,
@@ -67,15 +68,31 @@ export const ProjectVersionDirectoryModel: ProjectVersionDirectoryModelLogic = (
             projectVersion: "ProjectVersion",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return {
+                    projectVersion: useVisibility("ProjectVersion", "Own", data),
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    projectVersion: useVisibility("ProjectVersion", "OwnOrPublic", data),
+                };
             },
-            owner: (userId) => ({
-                projectVersion: ModelMap.get<ProjectVersionModelLogic>("ProjectVersion").validate().visibility.owner(userId),
-            }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    projectVersion: useVisibility("ProjectVersion", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    projectVersion: useVisibility("ProjectVersion", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    projectVersion: useVisibility("ProjectVersion", "Public", data),
+                };
+            },
         },
     }),
 });

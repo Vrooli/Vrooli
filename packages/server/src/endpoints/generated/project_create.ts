@@ -158,6 +158,15 @@ export const project_create = {
     "simplicity": true,
     "versionIndex": true,
     "versionLabel": true,
+    "you": {
+      "canComment": true,
+      "canCopy": true,
+      "canDelete": true,
+      "canReport": true,
+      "canUpdate": true,
+      "canUse": true,
+      "canRead": true
+    },
     "directories": {
       "id": true,
       "created_at": true,
@@ -234,6 +243,7 @@ export const project_create = {
           "canUse": true,
           "canRead": true
         },
+        "schemaLanguage": true,
         "root": {
           "id": true,
           "created_at": true,
@@ -709,6 +719,15 @@ export const project_create = {
         "simplicity": true,
         "versionIndex": true,
         "versionLabel": true,
+        "you": {
+          "canComment": true,
+          "canCopy": true,
+          "canDelete": true,
+          "canReport": true,
+          "canUpdate": true,
+          "canUse": true,
+          "canRead": true
+        },
         "root": {
           "id": true,
           "created_at": true,
@@ -870,6 +889,17 @@ export const project_create = {
         "nodeLinksCount": true,
         "outputsCount": true,
         "reportsCount": true,
+        "you": {
+          "canComment": true,
+          "canCopy": true,
+          "canDelete": true,
+          "canBookmark": true,
+          "canReport": true,
+          "canRun": true,
+          "canUpdate": true,
+          "canRead": true,
+          "canReact": true
+        },
         "root": {
           "id": true,
           "created_at": true,
@@ -1013,16 +1043,17 @@ export const project_create = {
         "id": true,
         "created_at": true,
         "updated_at": true,
+        "codeLanguage": true,
+        "default": true,
         "isComplete": true,
         "isFile": true,
         "isLatest": true,
         "isPrivate": true,
-        "default": true,
-        "standardType": true,
         "props": true,
-        "yup": true,
+        "variant": true,
         "versionIndex": true,
         "versionLabel": true,
+        "yup": true,
         "commentsCount": true,
         "directoryListingsCount": true,
         "forksCount": true,
@@ -1304,24 +1335,6 @@ export const project_create = {
     },
     "versionNotes": true,
     "__typename": "ProjectVersion"
-  },
-  "stats": {
-    "id": true,
-    "periodStart": true,
-    "periodEnd": true,
-    "periodType": true,
-    "directories": true,
-    "apis": true,
-    "codes": true,
-    "notes": true,
-    "projects": true,
-    "routines": true,
-    "standards": true,
-    "runsStarted": true,
-    "runsCompleted": true,
-    "runCompletionTimeAverage": true,
-    "runContextSwitchesAverage": true,
-    "teams": true
   },
   "__typename": "Project"
 } as const;

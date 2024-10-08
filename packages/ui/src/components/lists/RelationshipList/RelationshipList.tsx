@@ -1,4 +1,4 @@
-import { GqlModelType, Session } from "@local/shared";
+import { GqlModelType, OwnerShape, Session } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { FocusModeButton, IsCompleteButton, IsPrivateButton, MembersButton, OwnerButton, QuestionForButton } from "components/buttons/relationships";
 import { ParticipantsButton } from "components/buttons/relationships/ParticipantsButton/ParticipantsButton";
@@ -6,7 +6,6 @@ import { useMemo } from "react";
 import { formSection, noSelect } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { RelationshipButtonType } from "utils/consts";
-import { OwnerShape } from "utils/shape/models/types";
 import { RelationshipListProps } from "../types";
 
 /**
@@ -34,8 +33,6 @@ const buttonTypeMap: Record<RelationshipButtonType, (GqlModelType | `${GqlModelT
     Members: ["Team"],
     Participants: ["Chat"],
 };
-
-//TODO chain: persistent snack when downloading new site update.
 
 /**
  * Horizontal button list for assigning owner, project, and parent 

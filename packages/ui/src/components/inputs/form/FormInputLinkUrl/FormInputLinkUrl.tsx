@@ -1,8 +1,8 @@
+import { LinkUrlFormInput, LinkUrlFormInputProps, getFormikFieldName } from "@local/shared";
 import { Autocomplete, Button, Chip, TextField, useTheme } from "@mui/material";
 import { LinkInputBase } from "components/inputs/LinkInput/LinkInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useField } from "formik";
-import { LinkUrlFormInput, LinkUrlFormInputProps } from "forms/types";
 import { useCallback, useMemo, useState } from "react";
 import { CHIP_LIST_LIMIT } from "utils/consts";
 import { PubSub } from "utils/pubsub";
@@ -35,6 +35,7 @@ function standardizeUrl(url: string): string {
 export function FormInputLinkUrl({
     disabled,
     fieldData,
+    fieldNamePrefix,
     isEditing,
     onConfigUpdate,
 }: FormInputProps<LinkUrlFormInput>) {
@@ -42,7 +43,7 @@ export function FormInputLinkUrl({
 
     const props = useMemo(() => fieldData.props, [fieldData.props]);
 
-    const [field, meta, helpers] = useField(fieldData.fieldName);
+    const [field, meta, helpers] = useField(getFormikFieldName(fieldData.fieldName, fieldNamePrefix));
     const handleChange = useCallback(function handleChangeCallback(value: string) {
         // When editing the config, we're changing the default value
         if (isEditing) {

@@ -134,6 +134,15 @@ export const project_findMany = {
         "simplicity": true,
         "versionIndex": true,
         "versionLabel": true,
+        "you": {
+          "canComment": true,
+          "canCopy": true,
+          "canDelete": true,
+          "canReport": true,
+          "canUpdate": true,
+          "canUse": true,
+          "canRead": true
+        },
         "translations": {
           "id": true,
           "language": true,

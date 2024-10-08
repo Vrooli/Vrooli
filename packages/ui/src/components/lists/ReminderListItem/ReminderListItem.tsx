@@ -1,16 +1,15 @@
 // Used to display popular/search results of a particular object type
-import { endpointPutReminder, Reminder, ReminderUpdateInput } from "@local/shared";
+import { endpointPutReminder, Reminder, ReminderUpdateInput, shapeReminder } from "@local/shared";
 import { Checkbox, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { CompletionBar } from "components/CompletionBar/CompletionBar";
 import { ObjectListItemBase } from "components/lists/ObjectListItemBase/ObjectListItemBase";
 import { ReminderListItemProps } from "components/lists/types";
+import { useObjectActions } from "hooks/objectActions";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { useObjectActions } from "hooks/useObjectActions";
 import { DeleteIcon, ScheduleIcon } from "icons";
 import { useCallback, useMemo } from "react";
 import { useLocation } from "route";
-import { shapeReminder } from "utils/shape/models/reminder";
 
 //  // Internal state
 //  const [allReminders, setAllReminders] = useState<Reminder[]>(reminders);
@@ -50,6 +49,8 @@ import { shapeReminder } from "utils/shape/models/reminder";
 //      setAllReminders(newList);
 //      handleUpdate && handleUpdate(newList);
 //  }, [allReminders, handleUpdate]);
+
+const scheduleIconStyle = { margin: "auto", pointerEvents: "none" } as const;
 
 /**
  * A list item for a reminder, which can contain sub-items 
@@ -132,7 +133,7 @@ export function ReminderListItem({
             dueDate.getFullYear() === today.getFullYear();
         const isPast = dueDate < today;
         const color = isToday ? palette.warning.main : isPast ? palette.error.main : palette.background.textPrimary;
-        return <ScheduleIcon fill={color} style={{ margin: "auto", pointerEvents: "none" }} />;
+        return <ScheduleIcon fill={color} style={scheduleIconStyle} />;
     }, [palette.background.textPrimary, palette.error.main, palette.warning.main, data?.dueDate]);
 
     return (

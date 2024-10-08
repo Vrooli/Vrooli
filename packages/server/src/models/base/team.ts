@@ -1,17 +1,18 @@
-import { MaxObjects, TeamSortBy, exists, teamValidation, uuid } from "@local/shared";
+import { MaxObjects, TeamSortBy, exists, getTranslation, teamValidation, uuid } from "@local/shared";
 import { role } from "@prisma/client";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { onlyValidIds } from "../../builders/onlyValidIds";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { getLabels } from "../../getters";
-import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { defaultPermissions, getEmbeddableString } from "../../utils";
 import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, handlesCheck, lineBreaksCheck } from "../../validators";
 import { TeamFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, TeamModelLogic, ViewModelLogic } from "./types";
+import { BookmarkModelLogic, TeamModelInfo, TeamModelLogic, ViewModelLogic } from "./types";
 
 type TeamPre = PreShapeEmbeddableTranslatableResult;
 
@@ -23,15 +24,15 @@ export const TeamModel: TeamModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+            get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
         embed: {
             select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, bio: true } } }),
             get: ({ translations }, languages) => {
-                const trans = bestTranslation(translations, languages);
+                const trans = getTranslation({ translations }, languages);
                 return getEmbeddableString({
-                    bio: trans?.bio,
-                    name: trans?.name,
+                    bio: trans.bio,
+                    name: trans.name,
                 }, languages[0]);
             },
         },
@@ -166,7 +167,7 @@ export const TeamModel: TeamModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<TeamModelInfo["GqlPermission"]>(__typename, ids, userData)),
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
                     },
@@ -299,17 +300,36 @@ export const TeamModel: TeamModelLogic = ({
             } : {}),
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
+            own: function getOwn(data) {
+                return ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId)
+            },
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
+                    OR: [
+                        // Owned objects
+                        ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId),
+                        // Public objects
+                        useVisibility("Team", "Public", data),
+                    ],
+                };
+            },
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    ...ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId),
                     isPrivate: true,
                 };
             },
-            public: function getVisibilityPublic() {
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    ...ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId),
+                    isPrivate: false,
+                };
+            },
+            public: function getPublic() {
                 return {
                     isPrivate: false,
                 };
             },
-            owner: (userId) => ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId),
         },
     }),
 });

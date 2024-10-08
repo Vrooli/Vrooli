@@ -26,6 +26,7 @@ export const typeDef = gql`
         documentationLink: String
         isPrivate: Boolean!
         isComplete: Boolean
+        schemaLanguage: String
         schemaText: String
         versionLabel: String!
         versionNotes: String
@@ -41,6 +42,7 @@ export const typeDef = gql`
         documentationLink: String
         isPrivate: Boolean
         isComplete: Boolean
+        schemaLanguage: String
         schemaText: String
         versionLabel: String
         versionNotes: String
@@ -63,6 +65,7 @@ export const typeDef = gql`
         isPrivate: Boolean!
         isComplete: Boolean!
         resourceList: ResourceList
+        schemaLanguage: String
         schemaText: String
         versionIndex: Int!
         versionLabel: String!

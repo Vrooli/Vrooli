@@ -93,19 +93,15 @@ export const endpoints = {
         };
     },
     chatMessage: async () => {
-        const { chatMessage, chatMessageSearchTreeResult, autoFillResult, checkTaskStatusesResult } = await import("./partial/chatMessage");
+        const { chatMessage, chatMessageSearchTreeResult } = await import("./partial/chatMessage");
         const { success } = await import("./partial/success");
         return {
             findOne: toQuery("chatMessage", "FindByIdInput", chatMessage, "full"),
             findMany: toQuery("chatMessages", "ChatMessageSearchInput", ...(await toSearch(chatMessage))),
-            findTree: toQuery("chatMessageTree", "ChatMessageSearchTreeInput", chatMessageSearchTreeResult, "full"),
-            create: toMutation("chatMessageCreate", "ChatMessageCreateInput", chatMessage, "full"),
-            update: toMutation("chatMessageUpdate", "ChatMessageUpdateInput", chatMessage, "full"),
+            findTree: toQuery("chatMessageTree", "ChatMessageSearchTreeInput", chatMessageSearchTreeResult, "common"),
+            create: toMutation("chatMessageCreate", "ChatMessageCreateWithTaskInfoInput", chatMessage, "full"),
+            update: toMutation("chatMessageUpdate", "ChatMessageUpdateWithTaskInfoInput", chatMessage, "full"),
             regenerateResponse: toMutation("regenerateResponse", "RegenerateResponseInput", success, "full"),
-            autoFill: toMutation("autoFill", "AutoFillInput", autoFillResult, "full"),
-            startTask: toMutation("startTask", "StartTaskInput", success, "full"),
-            cancelTask: toMutation("cancelTask", "CancelTaskInput", success, "full"),
-            checkTaskStatuses: toMutation("checkTaskStatuses", "CheckTaskStatusesInput", checkTaskStatusesResult, "full"),
         };
     },
     chatParticipant: async () => {
@@ -559,8 +555,6 @@ export const endpoints = {
             create: toMutation("runProjectCreate", "RunProjectCreateInput", runProject, "full"),
             update: toMutation("runProjectUpdate", "RunProjectUpdateInput", runProject, "full"),
             deleteAll: toMutation("runProjectDeleteAll", null, count, "full"),
-            complete: toMutation("runProjectComplete", "RunProjectCompleteInput", runProject, "full"),
-            cancel: toMutation("runProjectCancel", "RunProjectCancelInput", runProject, "full"),
         };
     },
     runProjectOrRunRoutine: async () => {
@@ -584,14 +578,18 @@ export const endpoints = {
             create: toMutation("runRoutineCreate", "RunRoutineCreateInput", runRoutine, "full"),
             update: toMutation("runRoutineUpdate", "RunRoutineUpdateInput", runRoutine, "full"),
             deleteAll: toMutation("runRoutineDeleteAll", null, count, "full"),
-            complete: toMutation("runRoutineComplete", "RunRoutineCompleteInput", runRoutine, "full"),
-            cancel: toMutation("runRoutineCancel", "RunRoutineCancelInput", runRoutine, "full"),
         };
     },
     runRoutineInput: async () => {
         const { runRoutineInput } = await import("./partial/runRoutineInput");
         return {
             findMany: toQuery("runRoutineInputs", "RunRoutineInputSearchInput", ...(await toSearch(runRoutineInput))),
+        };
+    },
+    runRoutineOutput: async () => {
+        const { runRoutineOutput } = await import("./partial/runRoutineOutput");
+        return {
+            findMany: toQuery("runRoutineOutputs", "RunRoutineOutputSearchInput", ...(await toSearch(runRoutineOutput))),
         };
     },
     schedule: async () => {
@@ -700,6 +698,16 @@ export const endpoints = {
             findMany: toQuery("tags", "TagSearchInput", ...(await toSearch(tag))),
             create: toMutation("tagCreate", "TagCreateInput", tag, "full"),
             update: toMutation("tagUpdate", "TagUpdateInput", tag, "full"),
+        };
+    },
+    task: async () => {
+        const { checkTaskStatusesResult } = await import("./partial/task");
+        const { success } = await import("./partial/success");
+        return {
+            startLlmTask: toMutation("startLlmTask", "StartLlmTaskInput", success, "full"),
+            startRunTask: toMutation("startRunTask", "StartRunTaskInput", success, "full"),
+            cancelTask: toMutation("cancelTask", "CancelTaskInput", success, "full"),
+            checkTaskStatuses: toMutation("checkTaskStatuses", "CheckTaskStatusesInput", checkTaskStatusesResult, "full"),
         };
     },
     team: async () => {

@@ -63,11 +63,11 @@ export class LineBreakNode extends LexicalNode {
     }
 }
 
-const convertLineBreakElement = (): DOMConversionOutput => {
+function convertLineBreakElement(): DOMConversionOutput {
     return { node: $createNode("LineBreak", {}) };
-};
+}
 
-const isOnlyChild = (node: Node): boolean => {
+function isOnlyChild(node: Node): boolean {
     const parentElement = node.parentElement;
     if (!parentElement) return false;
     const firstChild = parentElement.firstChild;
@@ -87,11 +87,11 @@ const isOnlyChild = (node: Node): boolean => {
         }
     }
     return false;
-};
+}
 
-const isWhitespaceDomTextNode = (node: Node): boolean => {
+function isWhitespaceDomTextNode(node: Node): boolean {
     return (
         node.nodeType === DOM_TEXT_TYPE &&
         /^( |\t|\r?\n)+$/.test(node.textContent || "")
     );
-};
+}

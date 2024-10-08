@@ -1,4 +1,4 @@
-import { ErrorKey, Session } from "@local/shared";
+import { Session, TranslationKeyError } from "@local/shared";
 import { AccountStatus } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { Request } from "express";
@@ -33,7 +33,7 @@ export const hashPassword = (password: string): string => {
     return bcrypt.hashSync(password, HASHING_ROUNDS);
 };
 
-const statusToError = (status: AccountStatus): ErrorKey | null => {
+const statusToError = (status: AccountStatus): TranslationKeyError | null => {
     if (status === "HardLocked") return "HardLockout";
     if (status === "SoftLocked") return "SoftLockout";
     if (status === "Deleted") return "AccountDeleted";

@@ -1,10 +1,8 @@
-import { BUSINESS_NAME, HOURS_1_S, Success } from "@local/shared";
+import { BUSINESS_NAME, Success } from "@local/shared";
 import Bull from "bull";
-import path from "path";
-import { fileURLToPath } from "url";
 import winston from "winston";
 import { CustomError } from "../../events/error";
-import { addJobToQueue } from "../queueHelper";
+import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, getProcessPath } from "../queueHelper";
 
 export type SmsProcessPayload = {
     to: string[];
@@ -14,37 +12,19 @@ export type SmsProcessPayload = {
 let logger: winston.Logger;
 let smsProcess: (job: Bull.Job<SmsProcessPayload>) => Promise<unknown>;
 let smsQueue: Bull.Queue<SmsProcessPayload>;
-const dirname = path.dirname(fileURLToPath(import.meta.url));
-const importExtension = process.env.NODE_ENV === "test" ? ".ts" : ".js";
+const FOLDER = "sms";
 
 // Call this on server startup
 export async function setupSmsQueue() {
     try {
-        const loggerPath = path.join(dirname, "../../events/logger" + importExtension);
-        const loggerModule = await import(loggerPath);
-        logger = loggerModule.logger;
-
-        const redisConnPath = path.join(dirname, "../../redisConn" + importExtension);
-        const redisConnModule = await import(redisConnPath);
-        const REDIS_URL = redisConnModule.REDIS_URL;
-
-        const processPath = path.join(dirname, "./process" + importExtension);
-        const processModule = await import(processPath);
-        smsProcess = processModule.smsProcess;
+        logger = (await import(LOGGER_PATH)).logger;
+        const REDIS_URL = (await import(REDIS_CONN_PATH)).REDIS_URL;
+        smsProcess = (await import(getProcessPath(FOLDER))).smsProcess;
 
         // Initialize the Bull queue
-        smsQueue = new Bull<SmsProcessPayload>("sms", {
+        smsQueue = new Bull<SmsProcessPayload>(FOLDER, {
             redis: REDIS_URL,
-            defaultJobOptions: {
-                removeOnComplete: {
-                    age: HOURS_1_S,
-                    count: 10_000,
-                },
-                removeOnFail: {
-                    age: HOURS_1_S,
-                    count: 10_000,
-                },
-            },
+            defaultJobOptions: DEFAULT_JOB_OPTIONS,
         });
         smsQueue.process(smsProcess);
     } catch (error) {

@@ -1,6 +1,7 @@
-import { DUMMY_ID, DeleteOneInput, DeleteType, ListObject, ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput, Session, Success, endpointGetProjectVersion, endpointPostDeleteOne, endpointPostProjectVersion, endpointPutProjectVersion, noopSubmit, orDefault, projectVersionTranslationValidation, projectVersionValidation } from "@local/shared";
+import { DUMMY_ID, DeleteOneInput, DeleteType, ListObject, LlmTask, ProjectShape, ProjectVersion, ProjectVersionCreateInput, ProjectVersionDirectoryShape, ProjectVersionShape, ProjectVersionUpdateInput, Session, Success, endpointGetProjectVersion, endpointPostDeleteOne, endpointPostProjectVersion, endpointPutProjectVersion, noopSubmit, orDefault, projectVersionTranslationValidation, projectVersionValidation, shapeProjectVersion } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { fetchLazyWrapper, useSubmitHelper } from "api";
+import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
@@ -11,11 +12,12 @@ import { RelationshipList } from "components/lists/RelationshipList/Relationship
 import { DirectoryList } from "components/lists/directory";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { EditableTitle } from "components/text/EditableTitle/EditableTitle";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
+import { UseAutoFillProps, getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
@@ -28,9 +30,6 @@ import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
-import { ProjectShape } from "utils/shape/models/project";
-import { ProjectVersionShape, shapeProjectVersion } from "utils/shape/models/projectVersion";
-import { ProjectVersionDirectoryShape } from "utils/shape/models/projectVersionDirectory";
 import { validateFormValues } from "utils/validateFormValues";
 import { ProjectCrudProps, ProjectFormProps } from "../types";
 
@@ -84,9 +83,10 @@ function transformProjectVersionValues(values: ProjectVersionShape, existing: Pr
     return isCreate ? shapeProjectVersion.create(values) : shapeProjectVersion.update(existing, values);
 }
 
+const formSectionStyle = { overflowX: "hidden" } as const;
+
 function ProjectForm({
     disabled,
-    dirty,
     display,
     existing,
     handleUpdate,
@@ -144,8 +144,8 @@ function ProjectForm({
 
     // Handle delete
     const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
-    const handleDelete = useCallback(() => {
-        const performDelete = () => {
+    const handleDelete = useCallback(function handleDeleteCallback() {
+        function performDelete() {
             fetchLazyWrapper<DeleteOneInput, Success>({
                 fetch: deleteMutation,
                 inputs: { id: values.id, objectType: DeleteType.Project },
@@ -154,7 +154,7 @@ function ProjectForm({
                 onSuccess: () => { handleDeleted(values as ProjectVersion); },
                 errorMessage: () => ({ messageKey: "FailedToDelete" }),
             });
-        };
+        }
         PubSub.get().publish("alertDialog", {
             messageKey: "DeleteConfirm",
             buttons: [{
@@ -166,8 +166,28 @@ function ProjectForm({
         });
     }, [deleteMutation, values, t, handleDeleted]);
 
-    const isLoading = useMemo(() => isCreateLoading || isDeleteLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isDeleteLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
-    console.log("project values", values, transformProjectVersionValues(values, existing, isCreate));
+    const getAutoFillInput = useCallback(function getAutoFillInput() {
+        return {
+            ...getAutoFillTranslationData(values, language),
+            //TODO
+        };
+    }, [language, values]);
+
+    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback(data: Parameters<UseAutoFillProps["shapeAutoFillResult"]>[0]) {
+        const originalValues = { ...values };
+        const updatedValues = {} as any; //TODO
+        console.log("in shapeAutoFillResult", language, data, originalValues, updatedValues);
+        return { originalValues, updatedValues };
+    }, [language, values]);
+
+    const { autoFill, isAutoFillLoading } = useAutoFill({
+        getAutoFillInput,
+        shapeAutoFillResult,
+        handleUpdate,
+        task: isCreate ? LlmTask.ProjectAdd : LlmTask.ProjectUpdate,
+    });
+
+    const isLoading = useMemo(() => isAutoFillLoading || isCreateLoading || isDeleteLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isAutoFillLoading, isCreateLoading, isDeleteLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
     const onSubmit = useSubmitHelper<ProjectVersionCreateInput | ProjectVersionUpdateInput, ProjectVersion>({
         disabled,
@@ -179,6 +199,67 @@ function ProjectForm({
         onCompleted: () => { props.setSubmitting(false); },
     });
 
+    const topBarStyle = useMemo(function topBarStyleMemo() {
+        return {
+            stack: {
+                padding: 0,
+                ...(display === "page" && !isMobile ? {
+                    margin: "auto",
+                    maxWidth: "700px",
+                    paddingTop: 1,
+                    paddingBottom: 1,
+                } : {}),
+            },
+        } as const;
+    }, [display, isMobile]);
+
+    const titleDialogContentForm = useCallback(function titleDialogContentFormCallback() {
+        return (
+            <BaseForm
+                display="dialog"
+                style={{
+                    width: "min(700px, 100vw)",
+                    paddingBottom: "16px",
+                }}
+            >
+                <FormContainer>
+                    <RelationshipList
+                        isEditing={!disabled}
+                        objectType={"Project"}
+                        sx={{ marginBottom: 4 }}
+                    />
+                    <FormSection sx={formSectionStyle}>
+                        <LanguageInput
+                            currentLanguage={language}
+                            handleAdd={handleAddLanguage}
+                            handleDelete={handleDeleteLanguage}
+                            handleCurrent={setLanguage}
+                            languages={languages}
+                        />
+                        <TranslatedTextInput
+                            fullWidth
+                            label={t("Name")}
+                            language={language}
+                            name="name"
+                        />
+                        <TranslatedRichInput
+                            language={language}
+                            maxChars={2048}
+                            minRows={4}
+                            name="description"
+                            placeholder={t("DescriptionPlaceholder")}
+                        />
+                    </FormSection>
+                    <VersionInput
+                        fullWidth
+                        versions={versions}
+                    />
+                </FormContainer>
+            </BaseForm>
+        );
+    }, [disabled, handleAddLanguage, handleDeleteLanguage, language, languages, setLanguage, t, versions]);
+
+
     return (
         <MaybeLargeDialog
             display={display}
@@ -186,11 +267,7 @@ function ProjectForm({
             isOpen={isOpen}
             onClose={onClose}
         >
-            <Box sx={{
-                display: "flex",
-                flexDirection: "column",
-                minHeight: "100vh",
-            }}>
+            <Box display="flex" flexDirection="column" minHeight="100vh">
                 <TopBar
                     display={display}
                     onClose={onClose}
@@ -202,62 +279,8 @@ function ProjectForm({
                         titleField="name"
                         subtitleField="description"
                         variant="subheader"
-                        sxs={{
-                            stack: {
-                                padding: 0,
-                                ...(display === "page" && !isMobile ? {
-                                    margin: "auto",
-                                    maxWidth: "700px",
-                                    paddingTop: 1,
-                                    paddingBottom: 1,
-                                } : {}),
-                            },
-                        }}
-                        DialogContentForm={() => (
-                            <>
-                                <BaseForm
-                                    display="dialog"
-                                    style={{
-                                        width: "min(700px, 100vw)",
-                                        paddingBottom: "16px",
-                                    }}
-                                >
-                                    <FormContainer>
-                                        <RelationshipList
-                                            isEditing={!disabled}
-                                            objectType={"Project"}
-                                            sx={{ marginBottom: 4 }}
-                                        />
-                                        <FormSection sx={{ overflowX: "hidden" }}>
-                                            <LanguageInput
-                                                currentLanguage={language}
-                                                handleAdd={handleAddLanguage}
-                                                handleDelete={handleDeleteLanguage}
-                                                handleCurrent={setLanguage}
-                                                languages={languages}
-                                            />
-                                            <TranslatedTextInput
-                                                fullWidth
-                                                label={t("Name")}
-                                                language={language}
-                                                name="name"
-                                            />
-                                            <TranslatedRichInput
-                                                language={language}
-                                                maxChars={2048}
-                                                minRows={4}
-                                                name="description"
-                                                placeholder={t("DescriptionPlaceholder")}
-                                            />
-                                        </FormSection>
-                                        <VersionInput
-                                            fullWidth
-                                            versions={versions}
-                                        />
-                                    </FormContainer>
-                                </BaseForm>
-                            </>
-                        )}
+                        sxs={topBarStyle}
+                        DialogContentForm={titleDialogContentForm}
                     />}
                 />
                 <BaseForm
@@ -288,6 +311,10 @@ function ProjectForm({
                     onCancel={handleCancel}
                     onSetSubmitting={props.setSubmitting}
                     onSubmit={onSubmit}
+                    sideActionButtons={<AutoFillButton
+                        handleAutoFill={autoFill}
+                        isAutoFillLoading={isAutoFillLoading}
+                    />}
                 />
             </Box>
         </MaybeLargeDialog>
@@ -295,6 +322,7 @@ function ProjectForm({
 }
 
 export function ProjectCrud({
+    display,
     isCreate,
     isOpen,
     overrideObject,
@@ -302,8 +330,9 @@ export function ProjectCrud({
 }: ProjectCrudProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<ProjectVersion, ProjectVersionShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<ProjectVersion, ProjectVersionShape>({
         ...endpointGetProjectVersion,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "ProjectVersion",
         overrideObject,
@@ -314,6 +343,10 @@ export function ProjectCrud({
         return await validateFormValues(values, existing, isCreate, transformProjectVersionValues, projectVersionValidation);
     }
 
+    const versions = useMemo(function versionsMemo() {
+        return (existing?.root as ProjectShape)?.versions?.map(v => v.versionLabel) ?? [];
+    }, [existing]);
+
     return (
         <Formik
             enableReinitialize={true}
@@ -323,12 +356,13 @@ export function ProjectCrud({
         >
             {(formik) => <ProjectForm
                 disabled={!(isCreate || permissions.canUpdate)}
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}
                 isReadLoading={isReadLoading}
                 isOpen={isOpen}
-                versions={(existing?.root as ProjectShape)?.versions?.map(v => v.versionLabel) ?? []}
+                versions={versions}
                 {...props}
                 {...formik}
             />}

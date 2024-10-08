@@ -34,7 +34,7 @@ const ArrowStyles: Record<Direction, (palette: Palette) => React.CSSProperties> 
     }),
 };
 
-const getOffsetModifier = (placement: string) => {
+function getOffsetModifier(placement: string) {
     switch (placement) {
         case "top":
         case "bottom":
@@ -45,17 +45,16 @@ const getOffsetModifier = (placement: string) => {
         default:
             return { offset: [0, 0] };
     }
-};
+}
 
-export const PopoverWithArrow = ({
+export function PopoverWithArrow({
     anchorEl,
     children,
-    disableScrollLock = false,
     handleClose,
     placement = "top",
     sxs,
     ...props
-}: PopoverWithArrowProps) => {
+}: PopoverWithArrowProps) {
     const { palette } = useTheme();
     const isOpen = Boolean(anchorEl);
     const zIndex = useZIndex(isOpen, false, 1000);
@@ -74,13 +73,13 @@ export const PopoverWithArrow = ({
     // This is useful for mobile devices which can trigger multiple events on press.
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     useEffect(() => {
-        const stopTimeout = () => {
+        function stopTimeout() {
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
                 timeoutRef.current = null;
                 setCanTouch(false);
             }
-        };
+        }
         if (isOpen) {
             timeoutRef.current = setTimeout(() => {
                 timeoutRef.current = null;
@@ -103,25 +102,33 @@ export const PopoverWithArrow = ({
     const arrowStyle = useMemo(() => ArrowStyles[actualPlacement](palette), [actualPlacement, palette]);
     const offsetModifier = getOffsetModifier(actualPlacement);
 
+    const popoverOptions = useMemo(function popoverOptionsMemo() {
+        return {
+            modifiers: [
+                { name: "flip", options: { altBoundary: true, fallbackPlacements: ["top", "right", "bottom", "left"] } },
+                { name: "preventOverflow", options: { altAxis: true, tether: false, padding: 10, boundary: "viewport" } },
+                { name: "onUpdate", enabled: true, phase: "write", fn: ({ state }) => handlePopperState(state) },
+                { name: "offset", options: offsetModifier },
+                { name: "arrow", options: { element: "[data-popper-arrow]" } },
+            ],
+        };
+    }, [handlePopperState, offsetModifier]);
+
+    const popoverStyle = useMemo(function popoverStyleMemo() {
+        return {
+            zIndex: zIndex + 1000,
+            ...sxs?.root,
+        };
+    }, [sxs?.root, zIndex]);
+
     return (
         <Popper
             {...props}
             open={isOpen}
             anchorEl={anchorEl}
             placement={placement}
-            popperOptions={{
-                modifiers: [
-                    { name: "flip", options: { altBoundary: true, fallbackPlacements: ["top", "right", "bottom", "left"] } },
-                    { name: "preventOverflow", options: { altAxis: true, tether: false, padding: 10, boundary: "viewport" } },
-                    { name: "onUpdate", enabled: true, phase: "write", fn: ({ state }) => handlePopperState(state) },
-                    { name: "offset", options: offsetModifier },
-                    { name: "arrow", options: { element: "[data-popper-arrow]" } },
-                ],
-            }}
-            style={{
-                zIndex: zIndex + 1000,
-                ...sxs?.root,
-            }}
+            popperOptions={popoverOptions}
+            style={popoverStyle}
         >
             <ClickAwayListener onClickAway={onClose}>
                 <Box sx={{
@@ -139,6 +146,7 @@ export const PopoverWithArrow = ({
                         // Disable touch while timeout is active
                         pointerEvents: canTouch ? "auto" : "none",
                         background: palette.background.paper,
+                        color: palette.background.textPrimary,
                         boxShadow: 12,
                         borderRadius: 2,
                         ...(sxs?.content ?? {}),
@@ -158,4 +166,4 @@ export const PopoverWithArrow = ({
             </ClickAwayListener>
         </Popper>
     );
-};
+}

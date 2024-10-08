@@ -1,8 +1,8 @@
+import { IntegerFormInput, IntegerFormInputProps, getFormikFieldName } from "@local/shared";
 import { Button, Typography, useTheme } from "@mui/material";
 import { IntegerInputBase } from "components/inputs/IntegerInput/IntegerInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useField } from "formik";
-import { IntegerFormInput, IntegerFormInputProps } from "forms/types";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles";
@@ -11,6 +11,7 @@ import { FormInputProps } from "../types";
 export function FormInputInteger({
     disabled,
     fieldData,
+    fieldNamePrefix,
     isEditing,
     onConfigUpdate,
 }: FormInputProps<IntegerFormInput>) {
@@ -19,7 +20,7 @@ export function FormInputInteger({
 
     const props = useMemo(() => fieldData.props, [fieldData.props]);
 
-    const [field, meta, helpers] = useField(fieldData.fieldName);
+    const [field, meta, helpers] = useField(getFormikFieldName(fieldData.fieldName, fieldNamePrefix));
     const handleChange = useCallback((value: number) => {
         if (isEditing) {
             const newProps = { ...props, defaultValue: value };

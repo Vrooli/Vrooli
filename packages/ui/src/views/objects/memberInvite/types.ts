@@ -1,7 +1,5 @@
-import { MemberInvite } from "@local/shared";
-import { FormProps } from "forms/types";
-import { MemberInviteShape } from "utils/shape/models/memberInvite";
-import { CrudPropsDialog } from "../types";
+import { MemberInvite, MemberInviteShape } from "@local/shared";
+import { CrudPropsDialog, FormProps } from "../../../types";
 
 type MemberInvitesUpsertPropsDialog = Omit<CrudPropsDialog<MemberInvite[]>, "overrideObject"> & {
     invites: MemberInviteShape[];

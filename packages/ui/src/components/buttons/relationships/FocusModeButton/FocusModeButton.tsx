@@ -1,9 +1,8 @@
 import { LINKS } from "@local/shared";
 import { Tooltip } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
-import { SelectOrCreateObject, SelectOrCreateObjectType } from "components/dialogs/types";
 import { RelationshipItemFocusMode } from "components/lists/types";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useField } from "formik";
 import { AddIcon, FocusModeIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
@@ -13,7 +12,7 @@ import { getFocusModeInfo } from "utils/authentication/session";
 import { RelationshipButton, RelationshipChip } from "../styles";
 import { FocusModeButtonProps } from "../types";
 
-const limitTo = ["FocusMode"] as SelectOrCreateObjectType[];
+const limitTo = ["FocusMode"] as const;
 
 export function FocusModeButton({
     isEditing,
@@ -90,7 +89,7 @@ export function FocusModeButton({
                     find="List"
                     isOpen={isDialogOpen}
                     handleCancel={closeDialog}
-                    handleComplete={handleSelect as (object: SelectOrCreateObject) => unknown}
+                    handleComplete={handleSelect as (data: object) => unknown}
                     limitTo={limitTo}
                 />}
                 <Tooltip title={tooltip}>

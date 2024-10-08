@@ -1,5 +1,5 @@
 import { FocusMode, FocusModeStopCondition, LINKS, MaxObjects } from "@local/shared";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { FocusModeIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";

@@ -1,14 +1,15 @@
+import { LanguageFormInput, getFormikFieldName } from "@local/shared";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
 import { useField } from "formik";
-import { LanguageFormInput } from "forms/types";
 import { FormInputProps } from "../types";
 
 export function FormInputLanguage({
     disabled,
     fieldData,
+    fieldNamePrefix,
     index,
 }: FormInputProps<LanguageFormInput>) {
-    const [field, , helpers] = useField(fieldData.fieldName);
+    const [field, , helpers] = useField(getFormikFieldName(fieldData.fieldName, fieldNamePrefix));
 
     function addLanguage(lang: string) {
         helpers.setValue([...field.value, lang]);

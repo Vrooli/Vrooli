@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkList, BookmarkListCreateInput, BookmarkListUpdateInput, bookmarkListValidation, DeleteOneInput, DeleteType, DUMMY_ID, endpointGetBookmarkList, endpointPostBookmarkList, endpointPostDeleteOne, endpointPutBookmarkList, ListObject, noopSubmit, Session, Success, uuid } from "@local/shared";
+import { Bookmark, BookmarkList, BookmarkListCreateInput, BookmarkListShape, BookmarkListUpdateInput, bookmarkListValidation, BookmarkShape, DeleteOneInput, DeleteType, DUMMY_ID, endpointGetBookmarkList, endpointPostBookmarkList, endpointPostDeleteOne, endpointPutBookmarkList, ListObject, noopSubmit, Session, shapeBookmarkList, Success, uuid } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper, useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -10,13 +10,12 @@ import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { EditableTitle } from "components/text/EditableTitle/EditableTitle";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useBulkObjectActions } from "hooks/useBulkObjectActions";
+import { useBulkObjectActions, useObjectActions } from "hooks/objectActions";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { useObjectActions } from "hooks/useObjectActions";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useSelectableList } from "hooks/useSelectableList";
 import { useUpsertActions } from "hooks/useUpsertActions";
@@ -32,8 +31,6 @@ import { BulkObjectAction } from "utils/actions/bulkObjectActions";
 import { DUMMY_LIST_LENGTH } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
 import { PubSub } from "utils/pubsub";
-import { BookmarkShape } from "utils/shape/models/bookmark";
-import { BookmarkListShape, shapeBookmarkList } from "utils/shape/models/bookmarkList";
 import { validateFormValues } from "utils/validateFormValues";
 import { BookmarkListFormProps, BookmarkListUpsertProps } from "../types";
 
@@ -165,7 +162,7 @@ function BookmarkListForm({
         selectedData,
         setIsSelecting,
         setSelectedData,
-    } = useSelectableList<BookmarkShape>();
+    } = useSelectableList<BookmarkShape>(bookmarksField.value);
     const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions<BookmarkShape>({
         allData: bookmarksField.value,
         selectedData,
@@ -195,7 +192,7 @@ function BookmarkListForm({
                 break;
             }
         }
-    }, []);
+    }, [bookmarksField.value, bookmarksHelpers]);
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || isDeleteLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, isDeleteLoading, props.isSubmitting]);
 
@@ -232,7 +229,7 @@ function BookmarkListForm({
             return null;
         }
         return buttons;
-    }, [actionData]);
+    }, [actionIconProps, handleToggleSelecting, isSelecting, onBulkActionStart, openSearch, palette.secondary.main, selectedData.length, t]);
 
 
     return (
@@ -264,24 +261,21 @@ function BookmarkListForm({
                         },
                     }}
                     DialogContentForm={() => (
-                        <>
-                            <BaseForm
-                                display="dialog"
-                                style={{
-                                    width: "min(700px, 100vw)",
-                                    paddingBottom: "16px",
-                                }}
-                            >
-                                <FormContainer>
-                                    <Field
-                                        fullWidth
-                                        name="label"
-                                        label={t("Label")}
-                                        as={TextInput}
-                                    />
-                                </FormContainer>
-                            </BaseForm>
-                        </>
+                        <BaseForm
+                            display="dialog"
+                            style={{
+                                paddingBottom: "16px",
+                            }}
+                        >
+                            <FormContainer>
+                                <Field
+                                    fullWidth
+                                    name="label"
+                                    label={t("Label")}
+                                    as={TextInput}
+                                />
+                            </FormContainer>
+                        </BaseForm>
                     )}
                 />}
             />
@@ -341,6 +335,7 @@ function BookmarkListForm({
 }
 
 export function BookmarkListUpsert({
+    display,
     isCreate,
     isOpen,
     overrideObject,
@@ -348,8 +343,9 @@ export function BookmarkListUpsert({
 }: BookmarkListUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<BookmarkList, BookmarkListShape>({
+    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useManagedObject<BookmarkList, BookmarkListShape>({
         ...endpointGetBookmarkList,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "BookmarkList",
         overrideObject,
@@ -369,6 +365,7 @@ export function BookmarkListUpsert({
         >
             {(formik) => <BookmarkListForm
                 disabled={false}
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

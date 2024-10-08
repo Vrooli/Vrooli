@@ -73,6 +73,7 @@ export * from "./statsStandard";
 export * from "./statsTeam";
 export * from "./statsUser";
 export * from "./tag";
+export * from "./task";
 export * from "./team";
 export * from "./transfer";
 export * from "./translate";

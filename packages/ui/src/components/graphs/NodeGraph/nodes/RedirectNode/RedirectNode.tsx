@@ -1,21 +1,21 @@
 import { IconButton, Tooltip, Typography } from "@mui/material";
-import usePress from "hooks/usePress";
+import { UsePressEvent, usePress } from "hooks/gestures";
 import { RedirectIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";
-import { calculateNodeSize, DraggableNode } from "../";
+import { DraggableNode, calculateNodeSize } from "../";
 import { NodeWidth } from "../..";
 import { nodeLabel } from "../styles";
 import { RedirectNodeProps } from "../types";
 
-export const RedirectNode = ({
+export function RedirectNode({
     canDrag,
     isLinked = true,
     node,
     scale = 1,
     label = "Redirect",
     labelVisible = true,
-}: RedirectNodeProps) => {
+}: RedirectNodeProps) {
     const labelObject = useMemo(() => labelVisible && scale >= 0.5 ? (
         <Typography
             variant="h6"
@@ -36,7 +36,7 @@ export const RedirectNode = ({
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
-    const openContext = useCallback((target: EventTarget) => {
+    const openContext = useCallback(({ target }: UsePressEvent) => {
         // Ignore if not linked or editing
         if (!canDrag || !isLinked) return;
         setContextAnchor(target);
@@ -88,4 +88,4 @@ export const RedirectNode = ({
             </Tooltip>
         </DraggableNode>
     );
-};
+}

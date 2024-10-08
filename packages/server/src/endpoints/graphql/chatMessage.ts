@@ -8,76 +8,33 @@ export const typeDef = gql`
         DateCreatedDesc
     }
 
-    enum LlmTask {
-        ApiAdd
-        ApiDelete
-        ApiFind
-        ApiUpdate
-        BotAdd
-        BotDelete
-        BotFind
-        BotUpdate
-        DataConverterAdd
-        DataConverterDelete
-        DataConverterFind
-        DataConverterUpdate
-        MembersAdd
-        MembersDelete
-        MembersFind
-        MembersUpdate
-        NoteAdd
-        NoteDelete
-        NoteFind
-        NoteUpdate
-        ProjectAdd
-        ProjectDelete
-        ProjectFind
-        ProjectUpdate
-        ReminderAdd
-        ReminderDelete
-        ReminderFind
-        ReminderUpdate
-        RoleAdd
-        RoleDelete
-        RoleFind
-        RoleUpdate
-        RoutineAdd
-        RoutineDelete
-        RoutineFind
-        RoutineUpdate
-        RunProjectStart
-        RunRoutineStart
-        ScheduleAdd
-        ScheduleDelete
-        ScheduleFind
-        ScheduleUpdate
-        SmartContractAdd
-        SmartContractDelete
-        SmartContractFind
-        SmartContractUpdate
-        StandardAdd
-        StandardDelete
-        StandardFind
-        StandardUpdate
-        Start
-        TeamAdd
-        TeamDelete
-        TeamFind
-        TeamUpdate
-    }
-
     input ChatMessageCreateInput {
         id: ID!
         chatConnect: ID!
+        parentConnect: ID
         userConnect: ID!
         versionIndex: Int!
         translationsCreate: [ChatMessageTranslationCreateInput!]
+    }
+    input ChatMessageCreateWithTaskInfoInput {
+        message: ChatMessageCreateInput!
+        # Used for generating responses. Not stored in the database.
+        task: LlmTask!
+        # Used for generating responses. Not stored in the database.
+        taskContexts: [TaskContextInfoInput!]!
     }
     input ChatMessageUpdateInput {
         id: ID!
         translationsDelete: [ID!]
         translationsCreate: [ChatMessageTranslationCreateInput!]
         translationsUpdate: [ChatMessageTranslationUpdateInput!]
+    }
+    input ChatMessageUpdateWithTaskInfoInput {
+        message: ChatMessageUpdateInput!
+        # Used for generating responses. Not stored in the database.
+        task: LlmTask!
+        # Used for generating responses. Not stored in the database.
+        taskContexts: [TaskContextInfoInput!]!
     }
 
     union ChatMessageedOn = ApiVersion | CodeVersion | Issue | NoteVersion | Post | ProjectVersion | PullRequest | Question | QuestionAnswer | RoutineVersion | StandardVersion
@@ -174,51 +131,10 @@ export const typeDef = gql`
     }
 
     input RegenerateResponseInput {
+        # ID of message being regenerated, and not the parent message
         messageId: ID!
-    }
-
-    input AutoFillInput {
         task: LlmTask!
-        data: JSON!
-    }
-
-    type AutoFillResult {
-        data: JSON!
-    }
-
-    input StartTaskInput {
-        botId: String!
-        label: String!
-        messageId: ID!
-        properties: JSON!
-        task: LlmTask!
-        taskId: ID!
-    }
-
-    input CancelTaskInput {
-        taskId: ID!
-    }
-
-    input CheckTaskStatusesInput {
-        taskIds: [ID!]!
-    }
-
-    enum LlmTaskStatus {
-        Canceling
-        Completed
-        Failed
-        Running
-        Scheduled
-        Suggested
-    }
-
-    type LlmTaskStatusInfo {
-        id: ID!
-        status: LlmTaskStatus
-    }
-
-    type CheckTaskStatusesResult {
-        statuses: [LlmTaskStatusInfo!]!
+        taskContexts: [TaskContextInfoInput!]!
     }
 
     extend type Query {
@@ -228,13 +144,9 @@ export const typeDef = gql`
     }
 
     extend type Mutation {
-        chatMessageCreate(input: ChatMessageCreateInput!): ChatMessage!
-        chatMessageUpdate(input: ChatMessageUpdateInput!): ChatMessage!
+        chatMessageCreate(input: ChatMessageCreateWithTaskInfoInput!): ChatMessage!
+        chatMessageUpdate(input: ChatMessageUpdateWithTaskInfoInput!): ChatMessage!
         regenerateResponse(input: RegenerateResponseInput!): Success!
-        autoFill(input: AutoFillInput!): AutoFillResult!
-        startTask(input: StartTaskInput!): Success!
-        cancelTask(input: CancelTaskInput!): Success!
-        checkTaskStatuses(input: CheckTaskStatusesInput!): CheckTaskStatusesResult!
     }
 `;
 

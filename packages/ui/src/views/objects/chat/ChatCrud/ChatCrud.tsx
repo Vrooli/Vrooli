@@ -1,44 +1,37 @@
-import { Chat, ChatCreateInput, ChatParticipant, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPutChat, exists, getObjectUrl, LINKS, noopSubmit, orDefault, parseSearchParams, Session, uuid, uuidToBase36, VALYXA_ID } from "@local/shared";
-import { Box, Button, Checkbox, IconButton, InputAdornment, Stack, Typography, useTheme } from "@mui/material";
+import { Chat, ChatCreateInput, ChatInviteShape, ChatInviteStatus, ChatMessageShape, ChatParticipantShape, ChatShape, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPutChat, exists, getObjectUrl, LINKS, noopSubmit, orDefault, parseSearchParams, Session, shapeChat, uuid, uuidToBase36, VALYXA_ID } from "@local/shared";
+import { Box, Button, Checkbox, IconButton, InputAdornment, Stack, styled, Typography } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, hasErrorCode, ServerResponse } from "api";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
-import { ChatBubbleTree, ScrollToBottomButton, TypingIndicator } from "components/ChatBubbleTree/ChatBubbleTree";
-import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
+import { ChatBubbleTree } from "components/ChatBubbleTree/ChatBubbleTree";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { ChatMessageInput } from "components/inputs/ChatMessageInput/ChatMessageInput";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { RichInputBase, TranslatedRichInput } from "components/inputs/RichInput/RichInput";
+import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
 import { TextInput, TranslatedTextInput } from "components/inputs/TextInput/TextInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { EditableTitle } from "components/text/EditableTitle/EditableTitle";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Field, Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useDeleter } from "hooks/useDeleter";
-import { useDimensions } from "hooks/useDimensions";
+import { useMessageActions, useMessageInput, useMessageTree } from "hooks/messages";
+import { useDeleter, useObjectActions } from "hooks/objectActions";
+import { useChatTasks } from "hooks/tasks";
 import { useHistoryState } from "hooks/useHistoryState";
-import { useKeyboardOpen } from "hooks/useKeyboardOpen";
-import { useMessageActions } from "hooks/useMessageActions";
-import { useMessageTree } from "hooks/useMessageTree";
-import { useObjectActions } from "hooks/useObjectActions";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSocketChat } from "hooks/useSocketChat";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { useWindowSize } from "hooks/useWindowSize";
 import { TFunction } from "i18next";
-import { AddIcon, CopyIcon, ListIcon, SendIcon } from "icons";
+import { AddIcon, CopyIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { FormContainer, pagePaddingBottom } from "styles";
+import { FormContainer, FormSection, ScrollBox } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
-import { getCookiePartialData, setCookieMatchingChat } from "utils/cookies";
 import { getUserLanguages } from "utils/display/translationTools";
+import { getCookiePartialData, setCookieMatchingChat } from "utils/localStorage";
 import { PubSub } from "utils/pubsub";
-import { ChatShape, shapeChat } from "utils/shape/models/chat";
-import { ChatInviteShape } from "utils/shape/models/chatInvite";
-import { ChatMessageShape } from "utils/shape/models/chatMessage";
 import { validateFormValues } from "utils/validateFormValues";
 import { ChatCrudProps, ChatFormProps } from "../types";
 
@@ -50,9 +43,22 @@ export const VALYXA_INFO = {
     name: "Valyxa" as const,
 } as const;
 
+export const CHAT_DEFAULTS = {
+    __typename: "Chat" as const,
+    id: DUMMY_ID,
+    openToAnyoneWithInvite: false,
+    invites: [{
+        __typename: "ChatInvite" as const,
+        id: DUMMY_ID,
+        status: ChatInviteStatus.Pending,
+        user: VALYXA_INFO,
+    }],
+} as unknown as Chat;
+
+const MESSAGE_LIST_ID = "chatMessage";
+
 export function chatInitialValues(
     session: Session | undefined,
-    task: string | undefined,
     t: TFunction<"common", undefined, "common">,
     language: string,
     existing?: Partial<Chat> | null | undefined,
@@ -61,7 +67,7 @@ export function chatInitialValues(
     // If chatting with Valyxa, add start message so that the user 
     // sees something while the chat is loading
     if (exists(existing) && messages.length === 0 && existing.invites?.length === 1 && existing.invites?.some((invite: ChatInviteShape) => invite.user.id === VALYXA_ID)) {
-        const startText = t(task ?? "start", { lng: language, ns: "tasks", defaultValue: "Hello👋, I'm Valyxa! How can I assist you?" });
+        const startText = t("start", { lng: language, ns: "tasks", defaultValue: "Hello👋 How can I assist you?" });
         messages.push({
             __typename: "ChatMessage" as const,
             id: uuid(),
@@ -111,11 +117,12 @@ export function chatInitialValues(
             id: uuid(),
             user: {
                 ...getCookiePartialData({ __typename: "User", id: currentUser.id }),
+                __typename: "User" as const,
                 id: currentUser.id,
                 isBot: false,
                 name: currentUser.id,
             },
-        }] : []) as ChatParticipant[],
+        }] : []) as ChatParticipantShape[],
         participantsDelete: [],
         ...existing,
         messages,
@@ -129,53 +136,72 @@ export function chatInitialValues(
     };
 }
 
-export const transformChatValues = (values: ChatShape, existing: ChatShape, isCreate: boolean) =>
-    isCreate ? shapeChat.create(values) : shapeChat.update(existing, values);
+export function transformChatValues(values: ChatShape, existing: ChatShape, isCreate: boolean) {
+    return isCreate ? shapeChat.create(values) : shapeChat.update(existing, values);
+}
 
 /**
  * Finds messages that are yours or are unsent (i.e. bot's initial message), 
  * to make sure you don't attempt to modify other people's messages
  */
-export const withModifiableMessages = (chat: ChatShape, session?: Session) => ({
-    ...chat,
-    messages: chat.messages?.filter(m => m.user?.id === getCurrentUser(session).id || m.status === "unsent") ?? [],
-});
+export function withModifiableMessages(chat: ChatShape, session?: Session) {
+    return {
+        ...chat,
+        messages: chat.messages?.filter(m => m.user?.id === getCurrentUser(session).id || m.status === "unsent") ?? [],
+    };
+}
 
 /**
  * Finds messages that are only yours
  */
-export const withYourMessages = (chat: ChatShape, session?: Session) => ({
-    ...chat,
-    messages: chat.messages?.filter(m => m.user?.id === getCurrentUser(session).id) ?? [],
-});
+export function withYourMessages(chat: ChatShape, session?: Session) {
+    return {
+        ...chat,
+        messages: chat.messages?.filter(m => m.user?.id === getCurrentUser(session).id) ?? [],
+    };
+}
+
+const InviteCheckboxField = styled(Field)(({ theme }) => ({
+    "&.MuiCheckbox-root": {
+        color: theme.palette.secondary.main,
+    },
+}));
+
+const ChatTreeContainer = styled(Box)(() => ({
+    position: "relative",
+    display: "flex",
+    flexDirection: "column",
+    flexGrow: 1,
+    margin: "auto",
+    overflowY: "auto",
+    width: "min(700px, 100%)",
+}));
+
+const dialogStyle = {
+    paper: { minWidth: "100vw" },
+} as const;
+const editableTitleStyle = { stack: { padding: 0 } } as const;
+const addChatButtonStyle = { margin: 1, borderRadius: 8, padding: "4px 8px" } as const;
+const relationshipListStyle = { marginBottom: 4 } as const;
+const titleDialogFormStyle = {
+    padding: "16px",
+    width: "600px",
+} as const;
 
 function ChatForm({
-    context,
     disabled,
-    dirty,
     display,
     existing,
     handleUpdate,
     isOpen,
     isReadLoading,
-    onCancel,
     onClose,
-    onCompleted,
-    onDeleted,
-    task,
     values,
     ...props
 }: ChatFormProps) {
     const session = useContext(SessionContext);
-    const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
-    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
-    const isKeyboardOpen = useKeyboardOpen();
-
-    const [message, setMessage] = useHistoryState<string>("chatMessage", context ?? "");
-    const [participants, setParticipants] = useState<Omit<ChatParticipant, "chat">[]>([]);
-    const [usersTyping, setUsersTyping] = useState<Omit<ChatParticipant, "chat">[]>([]);
 
     const {
         fetch,
@@ -191,8 +217,8 @@ function ChatForm({
 
     // Create chats automatically
     const chatCreateStatus = useRef<"notStarted" | "inProgress" | "complete">("notStarted");
-    useEffect(() => {
-        if (isOpen === false || values.id !== DUMMY_ID || chatCreateStatus.current !== "notStarted") return;
+    useEffect(function createNewChatEffecct() {
+        if (isOpen !== true || values.id !== DUMMY_ID || chatCreateStatus.current !== "notStarted") return;
         chatCreateStatus.current = "inProgress";
         // Search params are often used to set chat name, but might not include some fields we need to make the yup validation happy
         const withSearchParams = { ...values, ...parseSearchParams() };
@@ -217,28 +243,75 @@ function ChatForm({
     }, [isOpen]);
 
     useEffect(() => {
-        setParticipants(existing.participants);
+        setParticipants(existing.participants ?? []);
     }, [existing.participants]);
     // When a chat is loaded, store chat ID by participants and task
     useEffect(() => {
-        const userIds = existing.participants?.map(p => p.user?.id);
+        const userIds = existing.participants?.map(p => p.user?.id) ?? [];
         if (existing.id === DUMMY_ID || userIds.length === 0) return;
-        setCookieMatchingChat(existing.id, userIds, task);
-    }, [existing.id, existing.participants, session, task]);
+        setCookieMatchingChat(existing.id, userIds);
+    }, [existing.id, existing.participants, session]);
 
     const messageTree = useMessageTree(existing.id);
-    const { dimensions, ref: dimRef } = useDimensions();
 
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || messageTree.isTreeLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, messageTree.isTreeLoading, isUpdateLoading, props.isSubmitting]);
 
-    const newChat = useCallback(() => {
+    // Handle translations
+    const {
+        handleAddLanguage,
+        handleDeleteLanguage,
+        language,
+        languages,
+        setLanguage,
+    } = useTranslatedFields({
+        defaultLanguage: getUserLanguages(session)[0],
+        validationSchema: chatTranslationValidation["update"]({ env: process.env.NODE_ENV }),
+    });
+
+    const [participants, setParticipants] = useState<Omit<ChatParticipantShape, "chat">[]>([]);
+    const [usersTyping, setUsersTyping] = useState<Omit<ChatParticipantShape, "chat">[]>([]);
+
+    const [message, setMessage] = useHistoryState<string>(`${MESSAGE_LIST_ID}-message`, "");
+    const taskInfo = useChatTasks({ chatId: existing.id });
+    const isBotOnlyChat = participants?.every(p => p.user?.isBot || p.user?.id === getCurrentUser(session).id) ?? false;
+    const messageActions = useMessageActions({
+        activeTask: taskInfo.activeTask,
+        addMessages: messageTree.addMessages,
+        chat: values,
+        contexts: taskInfo.contexts[taskInfo.activeTask.taskId] || [],
+        editMessage: messageTree.editMessage,
+        isBotOnlyChat,
+        language,
+        setMessage,
+    });
+    const messageInput = useMessageInput({
+        id: MESSAGE_LIST_ID,
+        languages,
+        message,
+        postMessage: messageActions.postMessage,
+        putMessage: messageActions.putMessage,
+        replyToMessage: messageActions.replyToMessage,
+        setMessage,
+    });
+    const { messageStream } = useSocketChat({
+        addMessages: messageTree.addMessages,
+        chat: existing,
+        editMessage: messageTree.editMessage,
+        participants,
+        removeMessages: messageTree.removeMessages,
+        setParticipants,
+        setUsersTyping,
+        usersTyping,
+    });
+
+    const newChat = useCallback(function newChatCallback() {
         if (isLoading || existing.id === DUMMY_ID) return;
         // Create a new chat with the same participants
         fetchLazyWrapper<ChatCreateInput, Chat>({
             fetch: fetchCreate,
             inputs: {
                 id: uuid(),
-                invitesCreate: existing.participants.map(p => ({
+                invitesCreate: existing.participants?.map(p => ({
                     id: uuid(),
                     chatConnect: existing.id,
                     userConnect: p.user.id,
@@ -259,7 +332,7 @@ function ChatForm({
         });
     }, [display, existing.id, existing.participants, existing.translations, fetchCreate, handleUpdate, isLoading, props, setLocation]);
 
-    const onSubmit = useCallback((updatedChat?: ChatShape) => {
+    const onSubmit = useCallback(function onSubmitCallback(updatedChat?: ChatShape) {
         return new Promise<Chat>((resolve, reject) => {
             if (disabled) {
                 PubSub.get().publish("snack", { messageKey: "Unauthorized", severity: "Error" });
@@ -295,54 +368,11 @@ function ChatForm({
         });
     }, [disabled, existing, fetch, handleUpdate, props, session, setMessage, values]);
 
-    const { messageStream } = useSocketChat({
-        addMessages: messageTree.addMessages,
-        chat: existing,
-        editMessage: messageTree.editMessage,
-        messageTasks: messageTree.messageTasks,
-        participants,
-        removeMessages: messageTree.removeMessages,
-        setParticipants,
-        setUsersTyping,
-        task,
-        updateTasksForMessage: messageTree.updateTasksForMessage,
-        usersTyping,
-    });
-
-    // Handle translations
-    const {
-        handleAddLanguage,
-        handleDeleteLanguage,
-        language,
-        languages,
-        setLanguage,
-    } = useTranslatedFields({
-        defaultLanguage: getUserLanguages(session)[0],
-        validationSchema: chatTranslationValidation["update"]({ env: process.env.NODE_ENV }),
-    });
-
-    const messageActions = useMessageActions({
-        chat: values,
-        handleChatUpdate: onSubmit,
-        language,
-        tasks: messageTree.messageTasks,
-        tree: messageTree.tree,
-        updateTasksForMessage: messageTree.updateTasksForMessage,
-    });
-
     const url = useMemo(() => `${window.location.origin}/chat/${uuidToBase36(values.id)}`, [values.id]);
     const copyLink = useCallback(() => {
         navigator.clipboard.writeText(url);
         PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
     }, [url]);
-
-    const openSideMenu = useCallback(() => { PubSub.get().publish("sideMenu", { id: "chat-side-menu", idPrefix: task, isOpen: true }); }, [task]);
-    const closeSideMenu = useCallback(() => { PubSub.get().publish("sideMenu", { id: "chat-side-menu", idPrefix: task, isOpen: false }); }, [task]);
-    useEffect(() => {
-        return () => {
-            closeSideMenu();
-        };
-    }, [closeSideMenu]);
 
     const actionData = useObjectActions({
         object: existing,
@@ -360,18 +390,99 @@ function ChatForm({
         onActionComplete: actionData.onActionComplete,
     });
 
-    const [inputFocused, setInputFocused] = useState(false);
-    const onFocus = useCallback(() => { setInputFocused(true); }, []);
-    const onBlur = useCallback(() => { setInputFocused(false); }, []);
+    const outerBoxStyle = useMemo(function outerBoxStyleMemo() {
+        return {
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+            ...(display === "page" && {
+                maxHeight: "calc(100vh - env(safe-area-inset-bottom))",
+                height: "calc(100vh - env(safe-area-inset-bottom))",
+            }),
+        } as const;
+    }, [display]);
 
-    const hasBotParticipant = existing?.participants?.some(p => p.user?.isBot) ?? false;
-    const isBotOnlyChat = existing?.participants?.every(p => p.user?.isBot || p.user?.id === getCurrentUser(session).id) ?? false;
-    const showBotWarning = useMemo(() =>
-        !disabled &&
-        usersTyping.length === 0 &&
-        messageTree.messagesCount <= 2 &&
-        hasBotParticipant
-        , [disabled, usersTyping, messageTree.messagesCount, hasBotParticipant]);
+    const copyInviteLinkInputProps = useMemo(function copyInviteLinkInputPropsMemo() {
+        return {
+            endAdornment: (
+                <InputAdornment position="end">
+                    <IconButton
+                        aria-label={t("Copy")}
+                        onClick={copyLink}
+                        size="small"
+                    >
+                        <CopyIcon />
+                    </IconButton>
+                </InputAdornment>
+            ),
+        };
+    }, [copyLink, t]);
+
+    const titleDialogContentForm = useCallback(function titleDialogContentFormCallback() {
+        return (
+            <ScrollBox>
+                <BaseForm
+                    display="dialog"
+                    isNested={display === "dialog"}
+                    maxWidth={600}
+                    style={titleDialogFormStyle}
+                >
+                    <FormContainer>
+                        {/* TODO relationshiplist should be for connecting team and inviting users. Can invite non-members even if team specified, but the search should show members first */}
+                        <RelationshipList
+                            isEditing={true}
+                            objectType={"Chat"}
+                            sx={relationshipListStyle}
+                        />
+                        <FormSection>
+                            <TranslatedTextInput
+                                fullWidth
+                                label={t("Name")}
+                                language={language}
+                                name="name"
+                            />
+                            <TranslatedRichInput
+                                language={language}
+                                maxChars={2048}
+                                minRows={4}
+                                name="description"
+                                placeholder={t("Description")}
+                            />
+                            <LanguageInput
+                                currentLanguage={language}
+                                handleAdd={handleAddLanguage}
+                                handleDelete={handleDeleteLanguage}
+                                handleCurrent={setLanguage}
+                                languages={languages}
+                            />
+                        </FormSection>
+                        <FormSection variant="transparent">
+                            <Stack direction="row" alignItems="center">
+                                <Typography variant="h6">{t(`OpenToAnyoneWithLink${values.openToAnyoneWithInvite ? "True" : "False"}`)}</Typography>
+                                <HelpButton markdown={t("OpenToAnyoneWithLinkDescription")} />
+                            </Stack>
+                            <Stack direction="row" spacing={0}>
+                                <InviteCheckboxField
+                                    name="openToAnyoneWithInvite"
+                                    type="checkbox"
+                                    as={Checkbox}
+                                />
+                                <TextInput
+                                    disabled
+                                    fullWidth
+                                    id="invite-link"
+                                    label={t("InviteLink")}
+                                    variant="outlined"
+                                    value={url}
+                                    InputProps={copyInviteLinkInputProps}
+                                />
+                            </Stack>
+                        </FormSection>
+                    </FormContainer>
+                </BaseForm>
+            </ScrollBox>
+        );
+    }, [display, t, language, handleAddLanguage, handleDeleteLanguage, setLanguage, languages, values.openToAnyoneWithInvite, url, copyInviteLinkInputProps]);
 
     return (
         <>
@@ -381,35 +492,12 @@ function ChatForm({
                 id="chat-dialog"
                 isOpen={isOpen}
                 onClose={onClose}
-                sxs={{
-                    paper: { minWidth: "100vw" },
-                }}
+                sxs={dialogStyle}
             >
-                <Box sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    overflow: "hidden",
-                    ...(display === "page" && {
-                        maxHeight: "calc(100vh - env(safe-area-inset-bottom))",
-                        height: "calc(100vh - env(safe-area-inset-bottom))",
-                    }),
-                }}>
+                <Box sx={outerBoxStyle}>
                     <TopBar
                         display={display}
                         onClose={onClose}
-                        startComponent={<IconButton
-                            aria-label="Open chat menu"
-                            onClick={openSideMenu}
-                            sx={{
-                                width: "48px",
-                                height: "48px",
-                                marginLeft: 1,
-                                marginRight: 1,
-                                cursor: "pointer",
-                            }}
-                        >
-                            <ListIcon fill={palette.primary.contrastText} width="100%" height="100%" />
-                        </IconButton>}
                         titleComponent={<EditableTitle
                             handleDelete={handleDelete}
                             isDeletable={!(values.id === DUMMY_ID || disabled)}
@@ -420,89 +508,8 @@ function ChatForm({
                             titleField="name"
                             subtitleField="description"
                             variant="header"
-                            sxs={{ stack: { padding: 0 } }}
-                            DialogContentForm={() => (
-                                <>
-                                    <BaseForm
-                                        display="dialog"
-                                        maxWidth={600}
-                                        style={{
-                                            paddingBottom: "16px",
-                                            width: "600px",
-                                        }}
-                                    >
-                                        <FormContainer>
-                                            {/* TODO relationshiplist should be for connecting team and inviting users. Can invite non-members even if team specified, but the search should show members first */}
-                                            <RelationshipList
-                                                isEditing={true}
-                                                objectType={"Chat"}
-                                                sx={{ marginBottom: 4 }}
-                                            />
-                                            <TranslatedTextInput
-                                                fullWidth
-                                                label={t("Name")}
-                                                language={language}
-                                                name="name"
-                                            />
-                                            <TranslatedRichInput
-                                                language={language}
-                                                maxChars={2048}
-                                                minRows={4}
-                                                name="description"
-                                                placeholder={t("Description")}
-                                            />
-                                            <LanguageInput
-                                                currentLanguage={language}
-                                                handleAdd={handleAddLanguage}
-                                                handleDelete={handleDeleteLanguage}
-                                                handleCurrent={setLanguage}
-                                                languages={languages}
-                                            />
-                                            {/* Invite link */}
-                                            <Stack direction="column" spacing={1}>
-                                                <Stack direction="row" sx={{ alignItems: "center" }}>
-                                                    <Typography variant="h6">{t(`OpenToAnyoneWithLink${values.openToAnyoneWithInvite ? "True" : "False"}`)}</Typography>
-                                                    <HelpButton markdown={t("OpenToAnyoneWithLinkDescription")} />
-                                                </Stack>
-                                                <Stack direction="row" spacing={0}>
-                                                    <Field
-                                                        name="openToAnyoneWithInvite"
-                                                        type="checkbox"
-                                                        as={Checkbox}
-                                                        sx={{
-                                                            "&.MuiCheckbox-root": {
-                                                                color: palette.secondary.main,
-                                                            },
-                                                        }}
-                                                    />
-                                                    {/* Show link with copy adornment*/}
-                                                    <TextInput
-                                                        disabled
-                                                        fullWidth
-                                                        id="invite-link"
-                                                        label={t("InviteLink")}
-                                                        variant="outlined"
-                                                        value={url}
-                                                        InputProps={{
-                                                            endAdornment: (
-                                                                <InputAdornment position="end">
-                                                                    <IconButton
-                                                                        aria-label={t("Copy")}
-                                                                        onClick={copyLink}
-                                                                        size="small"
-                                                                    >
-                                                                        <CopyIcon />
-                                                                    </IconButton>
-                                                                </InputAdornment>
-                                                            ),
-                                                        }}
-                                                    />
-                                                </Stack>
-                                            </Stack>
-                                        </FormContainer>
-                                    </BaseForm>
-                                </>
-                            )}
+                            sxs={editableTitleStyle}
+                            DialogContentForm={titleDialogContentForm}
                         />}
                         below={existing.id !== DUMMY_ID && isBotOnlyChat && !isLoading && <Box
                             display="flex"
@@ -514,117 +521,50 @@ function ChatForm({
                         >
                             <Button
                                 color="primary"
-                                onClick={() => { newChat(); }}
+                                onClick={newChat}
                                 variant="contained"
-                                sx={{ margin: 1, borderRadius: 8, padding: "4px 8px" }}
+                                sx={addChatButtonStyle}
                                 startIcon={<AddIcon />}
                             >
                                 {t("NewChat")}
                             </Button>
                         </Box>}
                     />
-                    <Box sx={{
-                        position: "relative",
-                        display: "flex",
-                        flexDirection: "column",
-                        flexGrow: 1,
-                        margin: "auto",
-                        overflowY: "auto",
-                        width: "min(700px, 100%)",
-                    }}>
+                    <ChatTreeContainer>
                         <ChatBubbleTree
                             branches={messageTree.branches}
-                            dimensions={dimensions}
-                            dimRef={dimRef}
-                            editMessage={messageActions.putMessage}
-                            handleReply={messageTree.replyToMessage}
-                            handleRetry={messageActions.regenerateResponse}
-                            handleTaskClick={messageActions.respondToTask}
+                            handleEdit={messageInput.startEditingMessage}
+                            handleRegenerateResponse={messageActions.regenerateResponse}
+                            handleReply={messageInput.startReplyingToMessage}
+                            handleRetry={messageActions.retryPostMessage}
                             isBotOnlyChat={isBotOnlyChat}
+                            isEditingMessage={Boolean(messageInput.messageBeingEdited)}
+                            isReplyingToMessage={Boolean(messageInput.messageBeingRepliedTo)}
                             messageStream={messageStream}
-                            messageTasks={messageTree.messageTasks}
                             removeMessages={messageTree.removeMessages}
                             setBranches={messageTree.setBranches}
                             tree={messageTree.tree}
                         />
-                        <ScrollToBottomButton containerRef={dimRef} />
-                    </Box>
-                    {!showBotWarning && <TypingIndicator participants={usersTyping} />}
-                    {/* Warning that you are talking to a bot */}
-                    {showBotWarning &&
-                        <Box display="flex" flexDirection="row" justifyContent="center" margin="auto" gap={0} p={1}>
-                            <Typography variant="body2" sx={{ margin: "auto", maxWidth: "min(700px, 100%)" }}>{t("BotChatWarning")}</Typography>
-                            <Button variant="text" sx={{ margin: "auto", textTransform: "none" }} onClick={() => {
-                                PubSub.get().publish("alertDialog", {
-                                    messageKey: "BotChatWarningDetails",
-                                    buttons: [
-                                        { labelKey: "Ok" },
-                                    ],
-                                });
-                            }}>{t("LearnMore")}</Button>
-                        </Box>
-                    }
-                    <RichInputBase
-                        actionButtons={[{
-                            Icon: SendIcon,
-                            disabled: !existing || isLoading,
-                            onClick: () => {
-                                const trimmed = message.trim();
-                                if (trimmed.length === 0) return;
-                                messageActions.postMessage(trimmed);
-                            },
-                        }]}
+                    </ChatTreeContainer>
+                    <ChatMessageInput
                         disabled={!existing}
-                        disableAssistant={true}
-                        fullWidth
-                        getTaggableItems={async (searchString) => {
-                            // Find all users in the chat, plus @Everyone
-                            let users = [
-                                //TODO handle @Everyone
-                                ...(existing?.participants?.map(p => p.user) ?? []),
-                            ];
-                            // Filter out current user
-                            users = users.filter(p => p.id !== getCurrentUser(session).id);
-                            // Filter out users that don't match the search string
-                            users = users.filter(p => p.name.toLowerCase().includes(searchString.toLowerCase()));
-                            console.log("got taggable items", users, searchString);
-                            return users;
-                        }}
-                        maxChars={1500}
-                        maxRows={inputFocused ? 10 : 2}
-                        minRows={1}
-                        onBlur={onBlur}
-                        onChange={setMessage}
-                        onFocus={onFocus}
-                        onSubmit={(m) => {
-                            if (!existing || isLoading) return;
-                            const trimmed = m.trim();
-                            if (trimmed.length === 0) return;
-                            messageActions.postMessage(trimmed);
-                        }}
-                        name="newMessage"
+                        display={display}
+                        isLoading={isLoading}
+                        message={message}
+                        messageBeingEdited={messageInput.messageBeingEdited}
+                        messageBeingRepliedTo={messageInput.messageBeingRepliedTo}
+                        participantsAll={participants}
+                        participantsTyping={usersTyping}
+                        messagesCount={messageTree.messagesCount}
                         placeholder={t("MessagePlaceholder")}
-                        sxs={{
-                            root: {
-                                background: palette.primary.dark,
-                                color: palette.primary.contrastText,
-                                maxHeight: "min(75vh, 500px)",
-                                width: "min(700px, 100%)",
-                                margin: "auto",
-                                marginBottom: { xs: (display === "page" && !isKeyboardOpen) ? pagePaddingBottom : "0", md: "0" },
-                            },
-                            topBar: { borderRadius: 0, paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
-                            bottomBar: { paddingLeft: isMobile ? "20px" : 0, paddingRight: isMobile ? "20px" : 0 },
-                            inputRoot: {
-                                border: "none",
-                                background: palette.background.paper,
-                            },
-                        }}
-                        value={message}
+                        setMessage={setMessage}
+                        stopEditingMessage={messageInput.stopEditingMessage}
+                        stopReplyingToMessage={messageInput.stopReplyingToMessage}
+                        submitMessage={messageInput.submitMessage}
+                        taskInfo={taskInfo}
                     />
                 </Box>
             </MaybeLargeDialog>
-            <ChatSideMenu idPrefix={task} />
         </>
     );
 }
@@ -634,36 +574,39 @@ export function ChatCrud({
     isCreate,
     isOpen,
     overrideObject,
-    task,
     ...props
 }: ChatCrudProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Chat, ChatShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Chat, ChatShape>({
         ...endpointGetChat,
-        onError: (errors) => {
+        onError: function onLoadError(errors) {
             // If the chat doesn't exist, switch to create mode
             if (hasErrorCode({ errors }, "NotFound")) {
                 if (display === "page") setLocation(`${LINKS.Chat}/add`, { replace: true, searchParams: parseSearchParams() });
-                setExisting(chatInitialValues(session, task, t, getUserLanguages(session)[0]));
+                setExisting(chatInitialValues(session, t, getUserLanguages(session)[0]));
             }
         },
-        disabled: display !== "page",
-        displayError: display === "page" || isOpen === true, // Suppress errors from closed dialogs
+        disabled: display === "dialog" && isOpen !== true,
+        displayError: display === "page" || isOpen === true,
         isCreate,
         objectType: "Chat",
         overrideObject: overrideObject as unknown as Chat,
-        transform: (data) => chatInitialValues(session, task, t, getUserLanguages(session)[0], data),
+        transform: (data) => chatInitialValues(session, t, getUserLanguages(session)[0], data),
     });
+
+    async function validateValues(values: ChatShape) {
+        return await validateFormValues(values, existing, isCreate, transformChatValues, chatValidation);
+    }
 
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformChatValues, chatValidation)}
+            validate={validateValues}
         >
             {(formik) =>
                 <>
@@ -675,7 +618,6 @@ export function ChatCrud({
                         isCreate={isCreate}
                         isReadLoading={isReadLoading}
                         isOpen={isOpen}
-                        task={task}
                         {...props}
                         {...formik}
                     />

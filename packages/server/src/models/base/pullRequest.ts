@@ -1,13 +1,14 @@
-import { GqlModelType, PullRequestFromObjectType, PullRequestSortBy, PullRequestStatus, PullRequestToObjectType, pullRequestValidation } from "@local/shared";
+import { GqlModelType, MaxObjects, PullRequestFromObjectType, PullRequestSortBy, PullRequestStatus, PullRequestToObjectType, pullRequestValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { ModelMap } from ".";
 import { findFirstRel } from "../../builders/findFirstRel";
 import { noNull } from "../../builders/noNull";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
 import { PullRequestFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { PullRequestModelLogic } from "./types";
+import { PullRequestModelInfo, PullRequestModelLogic } from "./types";
 
 const fromMapper: { [key in PullRequestFromObjectType]: keyof Prisma.pull_requestUpsertArgs["create"] } = {
     ApiVersion: "fromApiVersion",
@@ -71,7 +72,8 @@ export const PullRequestModel: PullRequestModelLogic = ({
                 translations: await translationShapeHelper({ relTypes: ["Create"], data, ...rest }),
             }),
             // NOTE: Pull request creator can only set status to 'Canceled'. 
-            // Owner of object that pull request is on can set status to anything but 'Canceled'
+            // Owner of object that pull request is on can set status to anything but 'Canceled'.
+            // Once out of 'Draft' status, status cannot be set back to 'Draft'.
             // TODO need to update params for shape to account for this (probably). Then need to update this function
             update: async ({ data, ...rest }) => ({
                 status: noNull(data.status),
@@ -103,7 +105,7 @@ export const PullRequestModel: PullRequestModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<PullRequestModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -115,7 +117,7 @@ export const PullRequestModel: PullRequestModelLogic = ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
-        maxObjects: 1000000,
+        maxObjects: MaxObjects[__typename],
         owner: (data, userId) => {
             if (!data) return {};
             // If you are the creator, return that
@@ -146,15 +148,58 @@ export const PullRequestModel: PullRequestModelLogic = ({
             ...Object.fromEntries(Object.entries(toMapper).map(([key, value]) => [value, key as GqlModelType])),
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return {
+                    OR: [ // Either you created it or you are the owner of the object that has the pull request
+                        {
+                            OR: [
+                                { fromApiVersion: useVisibility("ApiVersion", "Own", data) },
+                                { fromCodeVersion: useVisibility("CodeVersion", "Own", data) },
+                                { fromNoteVersion: useVisibility("NoteVersion", "Own", data) },
+                                { fromProjectVersion: useVisibility("ProjectVersion", "Own", data) },
+                                { fromRoutineVersion: useVisibility("RoutineVersion", "Own", data) },
+                                { fromStandardVersion: useVisibility("StandardVersion", "Own", data) },
+                            ]
+                        },
+                        {
+                            status: { not: PullRequestStatus.Draft }, // If you didn't create it, is cannot be a draft
+                            OR: [
+                                { toApi: useVisibility("Api", "Own", data) },
+                                { toCode: useVisibility("Code", "Own", data) },
+                                { toNote: useVisibility("Note", "Own", data) },
+                                { toProject: useVisibility("Project", "Own", data) },
+                                { toRoutine: useVisibility("Routine", "Own", data) },
+                                { toStandard: useVisibility("Standard", "Own", data) },
+                            ]
+                        }
+                    ]
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    OR: [
+                        useVisibility("PullRequest", "Own", data),
+                        useVisibility("PullRequest", "Public", data),
+                    ],
+                };
             },
-            owner: (userId) => ({
-                createdBy: { id: userId },
-            }),
+            ownPrivate: null,
+            ownPublic: function getOwnPublic(data) {
+                return useVisibility("PullRequest", "Own", data);
+            },
+            public: function getPublic(data) {
+                return {
+                    status: { not: PullRequestStatus.Draft },
+                    OR: [
+                        { toApi: useVisibility("Api", "Public", data) },
+                        { toCode: useVisibility("Code", "Public", data) },
+                        { toNote: useVisibility("Note", "Public", data) },
+                        { toProject: useVisibility("Project", "Public", data) },
+                        { toRoutine: useVisibility("Routine", "Public", data) },
+                        { toStandard: useVisibility("Standard", "Public", data) },
+                    ]
+                };
+            },
         },
     }),
 });

@@ -7,7 +7,7 @@ export const bookmark: GqlPartial<Bookmark> = {
     common: {
         __define: {
             0: async () => rel((await import("./api")).api, "list"),
-            1: async () => rel((await import("./comment")).comment, "nav"),
+            1: async () => rel((await import("./comment")).comment, "common"),
             2: async () => rel((await import("./issue")).issue, "nav"),
             3: async () => rel((await import("./note")).note, "list"),
             4: async () => rel((await import("./team")).team, "list"),
@@ -21,7 +21,7 @@ export const bookmark: GqlPartial<Bookmark> = {
             12: async () => rel((await import("./standard")).standard, "list"),
             13: async () => rel((await import("./tag")).tag, "list"),
             14: async () => rel((await import("./user")).user, "list"),
-            15: async () => rel((await import("./bookmarkList")).bookmarkList, "nav"),
+            15: async () => rel((await import("./bookmarkList")).bookmarkList, "common"),
         },
         id: true,
         list: { __use: 15 },

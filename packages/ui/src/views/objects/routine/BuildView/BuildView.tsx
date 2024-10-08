@@ -1,5 +1,5 @@
-import { DUMMY_ID, exists, isEqual, Node, NodeLink, NodeRoutineList, NodeRoutineListItem, NodeType, RoutineVersion, uuid, uuidValidate } from "@local/shared";
-import { Box, IconButton, styled, TextField, Typography, useTheme } from "@mui/material";
+import { DUMMY_ID, Node, NodeLink, NodeLinkShape, NodeRoutineList, NodeRoutineListItem, NodeRoutineListItemShape, NodeRoutineListShape, NodeShape, NodeType, RoutineVersion, Status, deleteArrayIndex, exists, getTranslation, isEqual, routineVersionStatusMultiStep, updateArray, uuid, uuidValidate } from "@local/shared";
+import { Box, IconButton, TextField, Typography, styled, useTheme } from "@mui/material";
 import { BuildEditButtons } from "components/buttons/BuildEditButtons/BuildEditButtons";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { StatusButton } from "components/buttons/StatusButton/StatusButton";
@@ -13,7 +13,7 @@ import { SubroutineInfoDialogProps } from "components/dialogs/types";
 import { AddAfterLinkDialog, AddBeforeLinkDialog, GraphActions, NodeGraph } from "components/graphs/NodeGraph";
 import { MoveNodeMenu as MoveNodeDialog } from "components/graphs/NodeGraph/MoveNodeDialog/MoveNodeDialog";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useEditableLabel } from "hooks/useEditableLabel";
 import { useHotkeys } from "hooks/useHotkeys";
 import { useSaveToCache } from "hooks/useSaveToCache";
@@ -23,17 +23,11 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { keepSearchParams, useLocation } from "route";
 import { multiLineEllipsis } from "styles";
-import { BuildAction, Status } from "utils/consts";
-import { setCookieAllowFormCache } from "utils/cookies";
-import { getTranslation, getUserLanguages, updateTranslationFields } from "utils/display/translationTools";
+import { BuildAction } from "utils/consts";
+import { getUserLanguages, updateTranslationFields } from "utils/display/translationTools";
+import { setCookieAllowFormCache } from "utils/localStorage";
 import { tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
-import { getRoutineVersionStatus } from "utils/runUtils";
-import { deleteArrayIndex, updateArray } from "utils/shape/general";
-import { NodeShape } from "utils/shape/models/node";
-import { NodeLinkShape } from "utils/shape/models/nodeLink";
-import { NodeRoutineListShape } from "utils/shape/models/nodeRoutineList";
-import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
 import { NodeWithRoutineListShape } from "views/objects/node/types";
 import { BuildRoutineVersion, BuildViewProps } from "../types";
 
@@ -201,7 +195,7 @@ export function BuildView({
      */
     const { columns, nodesOffGraph, nodesById } = useMemo(() => {
         if (!changedRoutineVersion) return { columns: [], nodesOffGraph: [], nodesById: {} };
-        const { messages, nodesById, nodesOnGraph, nodesOffGraph, status } = getRoutineVersionStatus(changedRoutineVersion);
+        const { messages, nodesById, nodesOnGraph, nodesOffGraph, status } = routineVersionStatusMultiStep(changedRoutineVersion);
         // Check for critical errors
         if (messages.includes("No node or link data found")) {
             return { columns: [], nodesOffGraph: [], nodesById: {} };
@@ -715,15 +709,29 @@ export function BuildView({
         // Find the node with changes
         const nodeIndex = changedRoutineVersion.nodes.findIndex(n => n.id === nodeId);
         console.log("handleSubroutineAdd", nodeId, routineVersion, nodeIndex, changedRoutineVersion.nodes);
-        if (nodeIndex === -1) return;
+        if (nodeIndex === -1) {
+            console.error("Node not found");
+            return;
+        }
         // Find the subroutine info in the node
-        const routineList: NodeRoutineList = changedRoutineVersion.nodes[nodeIndex].routineList!;
+        const routineList: NodeRoutineList | null | undefined = changedRoutineVersion.nodes[nodeIndex].routineList;
+        if (!routineList) {
+            console.error("Routine list not found");
+            return;
+        }
+        const routineTranslation = getTranslation(routineVersion, translationData.languages);
         // Create a routine list item, which wraps the added routine version with some extra info
         const routineItem: NodeRoutineListItem = {
             id: uuid(),
             index: routineList.items.length,
             isOptional: true,
             routineVersion,
+            translations: [{
+                id: uuid(),
+                language: translationData.language,
+                description: routineTranslation.description,
+                name: routineTranslation.name,
+            }],
         } as NodeRoutineListItem;
         if (routineList.isOrdered) routineItem.index = routineList.items.length;
         // Add the new data to the change stack
@@ -739,7 +747,7 @@ export function BuildView({
         });
         // Close dialog
         closeAddSubroutineDialog();
-    }, [addToChangeStack, changedRoutineVersion, closeAddSubroutineDialog]);
+    }, [addToChangeStack, changedRoutineVersion, closeAddSubroutineDialog, translationData.language, translationData.languages]);
 
     /**
      * Reoders a subroutine in a routine list item
@@ -1005,7 +1013,13 @@ export function BuildView({
                             suggestedNextRoutineVersions: [],
                             wasSuccessful: false,
                         },
-                        translations: [],
+                        translations: [{
+                            __typename: "NodeTranslation" as const,
+                            id: DUMMY_ID,
+                            language: getUserLanguages(session)[0],
+                            name: "End",
+                            description: "",
+                        }],
                     };
                     // Add link and end node to resultRoutine
                     resultRoutine.nodeLinks.push(newLink);
@@ -1021,7 +1035,7 @@ export function BuildView({
         });
         // Update changedRoutine with resultRoutine
         addToChangeStack(resultRoutine);
-    }, [addToChangeStack, changedRoutineVersion, columns]);
+    }, [addToChangeStack, changedRoutineVersion, columns, session]);
 
     const languageComponent = useMemo(() => {
         if (isEditing) return (

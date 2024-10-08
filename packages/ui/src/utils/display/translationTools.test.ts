@@ -4,21 +4,21 @@ import { FieldInputProps, FieldMetaProps } from "formik";
 import i18next from "i18next";
 import * as yup from "yup";
 import { i18nextTMock } from "../../__mocks__/i18next";
-import { TranslationObject, addEmptyTranslation, combineErrorsWithTranslations, getFormikErrorsWithTranslations, getLanguageSubtag, getPreferredLanguage, getShortenedLabel, getTranslation, getTranslationData, getUserLanguages, getUserLocale, handleTranslationChange, loadLocale, removeTranslation, translateSnackMessage, updateTranslation, updateTranslationFields } from "./translationTools";
+import { TranslationObject, addEmptyTranslation, combineErrorsWithTranslations, getFormikErrorsWithTranslations, getLanguageSubtag, getPreferredLanguage, getShortenedLabel, getTranslationData, getUserLanguages, getUserLocale, handleTranslationChange, loadLocale, removeTranslation, translateSnackMessage, updateTranslation, updateTranslationFields } from "./translationTools";
 
 // Mocks for navigator.language and navigator.languages
-const mockNavigatorLanguage = (language) => {
+function mockNavigatorLanguage(language) {
     Object.defineProperty(global.navigator, "language", {
         value: language,
         writable: true,
     });
-};
-const mockNavigatorLanguages = (languages) => {
+}
+function mockNavigatorLanguages(languages) {
     Object.defineProperty(global.navigator, "languages", {
         value: languages,
         writable: true,
     });
-};
+}
 
 jest.mock("i18next");
 jest.mock("react-i18next");
@@ -26,15 +26,17 @@ jest.mock("react-i18next");
 // const mockedTranslate = i18next.t as unknown as jest.Mock;
 
 // Utility function for creating a session object
-const createSession = (languages: string[] | null | undefined) => ({
-    __typename: "Session",
-    isLoggedIn: true,
-    users: [{
-        __typename: "SessionUser",
-        id: uuid(),
-        languages,
-    }],
-} as unknown as Session);
+function createSession(languages: string[] | null | undefined) {
+    return {
+        __typename: "Session",
+        isLoggedIn: true,
+        users: [{
+            __typename: "SessionUser",
+            id: uuid(),
+            languages,
+        }],
+    } as unknown as Session;
+}
 
 describe("loadLocale", () => {
     it("should load the specified valid locale", async () => {
@@ -61,69 +63,6 @@ describe("loadLocale", () => {
     it("should pick default region code when requested one doesn't exist", async () => {
         const locale = await loadLocale("en-ZZ");
         expect(locale.code).toEqual("en-US"); // See the "en" entry in localeLoaders. Note how it points to "en-US"
-    });
-});
-
-describe("getTranslation", () => {
-    const mockTranslations = [
-        { language: "en", content: "Hello" },
-        { language: "es", content: "Hola" },
-        { language: "fr", content: "Bonjour" },
-    ];
-
-    it("should return the correct translation based on user language preference", () => {
-        const obj = { translations: mockTranslations };
-        const languages = ["es", "en"];
-        expect(getTranslation(obj, languages)).toEqual({ language: "es", content: "Hola" });
-    });
-
-    it("should return the first translation if preferred language is not available and showAny is true", () => {
-        const obj = { translations: mockTranslations };
-        const languages = ["de"];
-        expect(getTranslation(obj, languages)).toEqual({ language: "en", content: "Hello" });
-    });
-
-    it("should return an empty object if preferred language is not available and showAny is false", () => {
-        const obj = { translations: mockTranslations };
-        const languages = ["de"];
-        expect(getTranslation(obj, languages, false)).toEqual({});
-    });
-
-    it("should handle null or undefined object input", () => {
-        const languages = ["en"];
-        expect(getTranslation(null, languages)).toEqual({});
-        expect(getTranslation(undefined, languages)).toEqual({});
-    });
-
-    it("should handle null or undefined translations property", () => {
-        const obj = { translations: null };
-        const languages = ["en"];
-        expect(getTranslation(obj, languages)).toEqual({});
-    });
-
-    it("should return an empty object for empty translations array", () => {
-        const obj = { translations: [] };
-        const languages = ["en"];
-        expect(getTranslation(obj, languages)).toEqual({});
-    });
-
-    it("should handle case sensitivity in language codes", () => {
-        const obj = { translations: mockTranslations };
-        const languages = ["EN"];
-        expect(getTranslation(obj, languages)).toEqual({ language: "en", content: "Hello" });
-    });
-
-    it("should handle empty languages array by returning first translation", () => {
-        const obj = { translations: mockTranslations };
-        const languages = [];
-        expect(getTranslation(obj, languages)).toEqual({ language: "en", content: "Hello" });
-    });
-
-    it("should handle non-array translations", () => {
-        const obj = { translations: "not an array" };
-        const languages = ["en"];
-        // @ts-ignore: Testing runtime scenario
-        expect(getTranslation(obj, languages)).toEqual({});
     });
 });
 
@@ -637,31 +576,48 @@ describe("handleTranslationChange", () => {
         expect(secondTranslation).toEqual(mockField.value[1]);
     });
 
-    it("should handle cases where the specified language is not found", () => {
+    it("should add translation when specified language is not found", () => {
         const event = { target: { name: "content", value: "Bonjour" } };
         const language = "fr";
         // @ts-ignore: Testing runtime scenario
         handleTranslationChange(mockField, mockMeta, mockHelpers, event, language);
-        expect(mockHelpers.setValue).toHaveBeenCalledWith(mockField.value);
+        expect(mockHelpers.setValue).toHaveBeenCalledWith([
+            ...mockField.value,
+            { id: expect.any(String), language: "fr", content: "Bonjour" },
+        ]);
     });
 
-    it("should handle null or undefined field values", () => {
+    it("should add field when it's missing from the translation object", () => {
+        const event = { target: { name: "note", value: "Note" } };
+        const language = "en";
+        // @ts-ignore: Testing runtime scenario
+        handleTranslationChange(mockField, mockMeta, mockHelpers, event, language);
+        const expectedTranslation = { language: "en", content: "Hello", note: "Note" };
+        expect(mockHelpers.setValue).toHaveBeenCalledWith([expectedTranslation, mockField.value[1]]);
+    });
+
+    it("should recover from null values", () => {
         const event = { target: { name: "content", value: "Hi" } };
         const language = "en";
         // @ts-ignore: Testing runtime scenario
         handleTranslationChange({ ...mockField, value: null }, mockMeta, mockHelpers, event, language);
-        // @ts-ignore: Testing runtime scenario
-        handleTranslationChange({ ...mockField, value: undefined }, mockMeta, mockHelpers, event, language);
-        expect(mockHelpers.setValue).toHaveBeenCalledTimes(2);
-        expect(mockHelpers.setValue).toHaveBeenCalledWith([]);
+        expect(mockHelpers.setValue).toHaveBeenCalledWith([{ id: expect.any(String), language: "en", content: "Hi" }]);
     });
 
-    it("should handle non-array field values", () => {
+    it("should recover from undefined values", () => {
+        const event = { target: { name: "content", value: "Hi" } };
+        const language = "en";
+        // @ts-ignore: Testing runtime scenario
+        handleTranslationChange({ ...mockField, value: undefined }, mockMeta, mockHelpers, event, language);
+        expect(mockHelpers.setValue).toHaveBeenCalledWith([{ id: expect.any(String), language: "en", content: "Hi" }]);
+    });
+
+    it("should recover from non-array field values", () => {
         const event = { target: { name: "content", value: "Hi" } };
         const language = "en";
         // @ts-ignore: Testing runtime scenario
         handleTranslationChange({ ...mockField, value: "not an array" }, mockMeta, mockHelpers, event, language);
-        expect(mockHelpers.setValue).toHaveBeenCalledWith([]);
+        expect(mockHelpers.setValue).toHaveBeenCalledWith([{ id: expect.any(String), language: "en", content: "Hi" }]);
     });
 });
 

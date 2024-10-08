@@ -1,6 +1,6 @@
 import { RangeSelection } from "../selection";
 import { BaseSelection, DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, NodeConstructorPayloads, NodeKey, NodeType, SerializedListItemNode } from "../types";
-import { $createNode, $isNode, $isRangeSelection, addClassNamesToElement, append, getNextSibling, getNextSiblings, getParent, getPreviousSibling, getPreviousSiblings, isHTMLElement, isNestedListNode, normalizeClassNames, removeClassNamesFromElement } from "../utils";
+import { $createNode, $isNode, $isRangeSelection, append, getNextSibling, getNextSiblings, getParent, getPreviousSibling, getPreviousSiblings, isHTMLElement, isNestedListNode } from "../utils";
 import { ElementNode } from "./ElementNode";
 import { type LexicalNode } from "./LexicalNode";
 import { mergeLists, type ListNode } from "./ListNode";
@@ -349,64 +349,6 @@ export class ListItemNode extends ElementNode {
     }
 }
 
-const $setListItemThemeClassNames = (
-    dom: HTMLElement,
-    node: ListItemNode,
-): void => {
-    const classesToAdd: (string | undefined)[] = [];
-    const classesToRemove: (string | undefined)[] = [];
-    const listTheme: any = {};
-    const listItemClassName = listTheme ? listTheme.listitem : undefined;
-    let nestedListItemClassName;
-
-    if (listTheme && listTheme.nested) {
-        nestedListItemClassName = listTheme.nested.listitem;
-    }
-
-    if (listItemClassName !== undefined) {
-        classesToAdd.push(...normalizeClassNames(listItemClassName));
-    }
-
-    if (listTheme) {
-        const parentNode = getParent(node);
-        const isCheckList =
-            $isNode("List", parentNode) && parentNode.getListType() === "check";
-        const checked = node.getChecked();
-
-        if (!isCheckList || checked) {
-            classesToRemove.push(listTheme.listitemUnchecked);
-        }
-
-        if (!isCheckList || !checked) {
-            classesToRemove.push(listTheme.listitemChecked);
-        }
-
-        if (isCheckList) {
-            classesToAdd.push(
-                checked ? listTheme.listitemChecked : listTheme.listitemUnchecked,
-            );
-        }
-    }
-
-    if (nestedListItemClassName !== undefined) {
-        const nestedListItemClasses = normalizeClassNames(nestedListItemClassName);
-
-        if (node.getChildren().some((child) => $isNode("List", child))) {
-            classesToAdd.push(...nestedListItemClasses);
-        } else {
-            classesToRemove.push(...nestedListItemClasses);
-        }
-    }
-
-    if (classesToRemove.length > 0) {
-        removeClassNamesFromElement(dom, ...classesToRemove);
-    }
-
-    if (classesToAdd.length > 0) {
-        addClassNamesToElement(dom, ...classesToAdd);
-    }
-};
-
 function updateListItemChecked(
     dom: HTMLElement,
     listItemNode: ListItemNode,
@@ -434,11 +376,11 @@ function updateListItemChecked(
     }
 }
 
-const convertListItemElement = (domNode: Node): DOMConversionOutput => {
+function convertListItemElement(domNode: Node): DOMConversionOutput {
     const checked = isHTMLElement(domNode) && domNode.getAttribute("aria-checked") === "true";
     const value = isHTMLElement(domNode) && domNode.getAttribute("value") ? parseInt(domNode.getAttribute("value") || "1", 10) : 1;
     return { node: $createNode("ListItem", { checked, value }) };
-};
+}
 
 /**
  * Adds an empty ListNode/ListItemNode chain at listItemNode, so as to
@@ -446,7 +388,7 @@ const convertListItemElement = (domNode: Node): DOMConversionOutput => {
  * a child, but does merge sibling ListItemNodes if one has a nested ListNode.
  * @param listItemNode - The ListItemNode to be indented.
  */
-export const $handleIndent = (listItemNode: ListItemNode): void => {
+export function $handleIndent(listItemNode: ListItemNode): void {
     // go through each node and decide where to move it.
     const removed = new Set<NodeKey>();
 
@@ -512,7 +454,7 @@ export const $handleIndent = (listItemNode: ListItemNode): void => {
             }
         }
     }
-};
+}
 
 /**
  * Removes an indent by removing an empty ListNode/ListItemNode chain. An indented ListItemNode

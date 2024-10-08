@@ -4,6 +4,7 @@ import { RichInput, TranslatedRichInput } from "components/inputs/RichInput/Rich
 import { TextInput, TranslatedTextInput } from "components/inputs/TextInput/TextInput";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Field, useField } from "formik";
+import { useMemo } from "react";
 import { linkColors } from "styles";
 import { ContentCollapse } from "../ContentCollapse/ContentCollapse";
 import { EditTextComponent, EditableTextCollapseProps, PropsByComponentType } from "../types";
@@ -27,6 +28,12 @@ export function EditableTextCollapse<T extends EditTextComponent>({
     const { palette } = useTheme();
     const [field] = useField(name);
 
+    const collapseStyle = useMemo(function collapseStyleMemo() {
+        return {
+            root: { ...linkColors(palette) },
+        } as const;
+    }, [palette]);
+
     if (!isEditing && (!field.value || field.value.trim().length === 0) && !showOnNoText) return null; //TODO won't work with translations
     return (
         <ContentCollapse
@@ -34,9 +41,7 @@ export function EditableTextCollapse<T extends EditTextComponent>({
             isOpen={isOpen}
             onOpenChange={onOpenChange}
             title={title}
-            sxs={{
-                root: { ...linkColors(palette) },
-            }}
+            sxs={collapseStyle}
         >
             {/* Editing components */}
             {isEditing && component === "Markdown" && <RichInput name={name} {...(props as PropsByComponentType["Markdown"])} />}

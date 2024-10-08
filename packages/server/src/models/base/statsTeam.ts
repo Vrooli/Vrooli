@@ -1,6 +1,7 @@
-import { StatsTeamSortBy } from "@local/shared";
+import { MaxObjects, StatsTeamSortBy } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsTeamFormat } from "../formats";
 import { StatsTeamModelInfo, StatsTeamModelLogic, TeamModelInfo, TeamModelLogic } from "./types";
@@ -30,7 +31,7 @@ export const StatsTeamModel: StatsTeamModelLogic = ({
     },
     validate: () => ({
         isTransferable: false,
-        maxObjects: 0,
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
             team: "Team",
@@ -40,17 +41,31 @@ export const StatsTeamModel: StatsTeamModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<StatsTeamModelInfo["PrismaSelect"]>([["team", "Team"]], ...rest),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private(...params),
+                    team: useVisibility("Team", "Own", data),
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public(...params),
+                    team: useVisibility("Team", "OwnOrPublic", data),
                 };
             },
-            owner: (userId) => ({ team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.owner(userId) }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    team: useVisibility("Team", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    team: useVisibility("Team", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    team: useVisibility("Team", "Public", data),
+                };
+            },
         },
     }),
 });

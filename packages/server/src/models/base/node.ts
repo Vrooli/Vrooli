@@ -1,10 +1,11 @@
-import { MaxObjects, nodeValidation } from "@local/shared";
+import { MaxObjects, getTranslation, nodeValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
-import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { NodeFormat } from "../formats";
 import { NodeModelInfo, NodeModelLogic, RoutineVersionModelInfo, RoutineVersionModelLogic } from "./types";
@@ -18,7 +19,7 @@ export const NodeModel: NodeModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+            get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
     }),
     format: NodeFormat,
@@ -74,17 +75,31 @@ export const NodeModel: NodeModelLogic = ({
         isDeleted: (data, languages) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().isDeleted(data.routineVersion as RoutineVersionModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<NodeModelInfo["PrismaSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().visibility.private(...params),
+                    routineVersion: useVisibility("RoutineVersion", "Own", data),
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().visibility.public(...params),
+                    routineVersion: useVisibility("RoutineVersion", "OwnOrPublic", data),
                 };
             },
-            owner: (userId) => ({ routineVersion: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().visibility.owner(userId) }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    routineVersion: useVisibility("RoutineVersion", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    routineVersion: useVisibility("RoutineVersion", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    routineVersion: useVisibility("RoutineVersion", "Public", data),
+                };
+            },
         },
     }),
 });

@@ -63,6 +63,7 @@ export * from "./runProject";
 export * from "./runProjectStep";
 export * from "./runRoutine";
 export * from "./runRoutineInput";
+export * from "./runRoutineOutput";
 export * from "./runRoutineStep";
 export * from "./schedule";
 export * from "./scheduleException";

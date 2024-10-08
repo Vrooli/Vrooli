@@ -1,5 +1,4 @@
-import { endpointGetFocusMode, endpointGetFocusModes, FocusModeSortBy } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetFocusMode, endpointGetFocusModes, FocusModeSortBy, FormSchema } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

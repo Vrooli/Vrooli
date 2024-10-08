@@ -1,5 +1,6 @@
 import { MaxObjects, phoneValidation } from "@local/shared";
 import { ModelMap } from ".";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { Trigger } from "../../events/trigger";
@@ -17,8 +18,9 @@ export const PhoneModel: PhoneModelLogic = ({
             // Only display last 4 digits of phone number
             get: (select) => {
                 // Make sure number is at least 4 digits long
-                if (select.phoneNumber.length < 4) return select.phoneNumber;
-                return `...${select.phoneNumber.slice(-4)}`;
+                const DIGITS_TO_SHOW = 4;
+                if (select.phoneNumber.length < DIGITS_TO_SHOW) return select.phoneNumber;
+                return `...${select.phoneNumber.slice(-DIGITS_TO_SHOW)}`;
             },
         },
     }),
@@ -92,18 +94,24 @@ export const PhoneModel: PhoneModelLogic = ({
             user: "User",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return {
+                    OR: [
+                        { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                        { user: { id: data.userId } },
+                    ],
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            // Always private, so it's the same as "own"
+            ownOrPublic: function getOwnOrPublic(data) {
+                return useVisibility("Phone", "Own", data);
             },
-            owner: (userId) => ({
-                OR: [
-                    { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
-                    { user: { id: userId } },
-                ],
-            }),
+            // Always private, so it's the same as "own"
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("Phone", "Own", data);
+            },
+            ownPublic: null, // Search method disabled
+            public: null, // Search method disabled
         },
     }),
 });

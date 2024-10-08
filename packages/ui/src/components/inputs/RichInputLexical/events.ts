@@ -6,7 +6,7 @@ import { flushRootMutations } from "./mutations";
 import { $getPreviousSelection, RangeSelection, internalCreateRangeSelection } from "./selection";
 import { CustomDomElement, CustomLexicalEvent, NodeKey, RootElementEvents, RootElementRemoveHandles } from "./types";
 import { dispatchCommand, errorOnReadOnly, getActiveEditor, updateEditor } from "./updates";
-import { $getNodeByKey, $getRoot, $getSelection, $isNode, $isNodeSelection, $isRangeSelection, $isSelectionCapturedInDecorator, $isTokenOrSegmented, $setCompositionKey, $setSelection, $shouldInsertTextAfterOrBeforeTextNode, $updateSelectedTextFromDOM, $updateTextNodeFromDOMContent, doesContainGrapheme, getAnchorTextFromDOM, getDOMSelection, getDOMTextNode, getNearestEditorFromDOMNode, getParent, getTopLevelElementOrThrow, getWindow, isBackspace, isBold, isCopy, isCut, isDelete, isDeleteBackward, isDeleteForward, isDeleteLineBackward, isDeleteLineForward, isDeleteWordBackward, isDeleteWordForward, isEscape, isItalic, isLineBreak, isModifier, isMoveBackward, isMoveDown, isMoveForward, isMoveToEnd, isMoveToStart, isMoveUp, isOpenLineBreak, isParagraph, isRedo, isSelectAll, isSelectionWithinEditor, isSpace, isTab, isUnderline, isUndo } from "./utils";
+import { $getNodeByKey, $getRoot, $getSelection, $isNode, $isNodeSelection, $isRangeSelection, $isSelectionCapturedInDecorator, $isTokenOrSegmented, $setCompositionKey, $setSelection, $shouldInsertTextAfterOrBeforeTextNode, $updateSelectedTextFromDOM, $updateTextNodeFromDOMContent, IS_KEY, doesContainGrapheme, getAnchorTextFromDOM, getDOMSelection, getDOMTextNode, getNearestEditorFromDOMNode, getParent, getTopLevelElementOrThrow, getWindow, isSelectionWithinEditor } from "./utils";
 
 let lastKeyDownTimeStamp = 0;
 const lastBeforeInputInsertTextTimeStamp = 0;
@@ -33,94 +33,93 @@ function onKeyDown(event: KeyboardEvent, editor: LexicalEditor): void {
 
     const { key } = event;
 
-    if (isMoveForward(event)) {
+    if (IS_KEY.moveForward(event)) {
         dispatchCommand(editor, KEY_ARROW_RIGHT_COMMAND, event);
-    } else if (isMoveToEnd(event)) {
+    } else if (IS_KEY.moveToEnd(event)) {
         dispatchCommand(editor, MOVE_TO_END, event);
-    } else if (isMoveBackward(event)) {
+    } else if (IS_KEY.moveBackward(event)) {
         dispatchCommand(editor, KEY_ARROW_LEFT_COMMAND, event);
-    } else if (isMoveToStart(event)) {
+    } else if (IS_KEY.moveToStart(event)) {
         dispatchCommand(editor, MOVE_TO_START, event);
-    } else if (isMoveUp(event)) {
+    } else if (IS_KEY.moveUp(event)) {
         dispatchCommand(editor, KEY_ARROW_UP_COMMAND, event);
-    } else if (isMoveDown(event)) {
+    } else if (IS_KEY.moveDown(event)) {
         dispatchCommand(editor, KEY_ARROW_DOWN_COMMAND, event);
-    } else if (isLineBreak(event)) {
+    } else if (IS_KEY.lineBreak(event)) {
         dispatchCommand(editor, KEY_ENTER_COMMAND, event);
-    } else if (isSpace(key)) {
+    } else if (IS_KEY.space(event)) {
         dispatchCommand(editor, KEY_SPACE_COMMAND, event);
-    } else if (isOpenLineBreak(event)) {
+    } else if (IS_KEY.openLineBreak(event)) {
         event.preventDefault();
         dispatchCommand(editor, INSERT_LINE_BREAK_COMMAND, true);
-    } else if (isParagraph(event)) {
+    } else if (IS_KEY.paragraph(event)) {
         dispatchCommand(editor, KEY_ENTER_COMMAND, event);
-    } else if (isDeleteBackward(event)) {
-        if (isBackspace(key)) {
+    } else if (IS_KEY.deleteBackward(event)) {
+        if (IS_KEY.backspace(event)) {
             dispatchCommand(editor, KEY_BACKSPACE_COMMAND, event);
         } else {
             event.preventDefault();
             dispatchCommand(editor, DELETE_CHARACTER_COMMAND, true);
         }
-    } else if (isEscape(key)) {
+    } else if (IS_KEY.escape(event)) {
         dispatchCommand(editor, KEY_ESCAPE_COMMAND, event);
-    } else if (isDeleteForward(event)) {
-        if (isDelete(key)) {
+    } else if (IS_KEY.deleteForward(event)) {
+        if (IS_KEY.delete(event)) {
             dispatchCommand(editor, KEY_DELETE_COMMAND, event);
         } else {
             event.preventDefault();
             dispatchCommand(editor, DELETE_CHARACTER_COMMAND, false);
         }
-    } else if (isDeleteWordBackward(event)) {
+    } else if (IS_KEY.deleteWordBackward(event)) {
         event.preventDefault();
         dispatchCommand(editor, DELETE_WORD_COMMAND, true);
-    } else if (isDeleteWordForward(event)) {
+    } else if (IS_KEY.deleteWordForward(event)) {
         event.preventDefault();
         dispatchCommand(editor, DELETE_WORD_COMMAND, false);
-    } else if (isDeleteLineBackward(event)) {
+    } else if (IS_KEY.deleteLineBackward(event)) {
         event.preventDefault();
         dispatchCommand(editor, DELETE_LINE_COMMAND, true);
-    } else if (isDeleteLineForward(event)) {
+    } else if (IS_KEY.deleteLineForward(event)) {
         event.preventDefault();
         dispatchCommand(editor, DELETE_LINE_COMMAND, false);
-    } else if (isBold(event)) {
-        console.log("is bold!");
+    } else if (IS_KEY.bold(event)) {
         event.preventDefault();
         dispatchCommand(editor, FORMAT_TEXT_COMMAND, "BOLD");
-    } else if (isUnderline(event)) {
+    } else if (IS_KEY.underline(event)) {
         event.preventDefault();
         dispatchCommand(editor, FORMAT_TEXT_COMMAND, "UNDERLINE_TAGS");
-    } else if (isItalic(event)) {
+    } else if (IS_KEY.italic(event)) {
         event.preventDefault();
         dispatchCommand(editor, FORMAT_TEXT_COMMAND, "ITALIC");
-    } else if (isTab(event)) {
+    } else if (IS_KEY.tab(event)) {
         dispatchCommand(editor, KEY_TAB_COMMAND, event);
-    } else if (isUndo(event)) {
+    } else if (IS_KEY.undo(event)) {
         event.preventDefault();
         dispatchCommand(editor, UNDO_COMMAND, undefined);
-    } else if (isRedo(event)) {
+    } else if (IS_KEY.redo(event)) {
         event.preventDefault();
         dispatchCommand(editor, REDO_COMMAND, undefined);
     } else {
         const prevSelection = editor._editorState?._selection;
         if ($isNodeSelection(prevSelection)) {
-            if (isCopy(event)) {
+            if (IS_KEY.copy(event)) {
                 event.preventDefault();
                 dispatchCommand(editor, COPY_COMMAND, event);
-            } else if (isCut(event)) {
+            } else if (IS_KEY.cut(event)) {
                 event.preventDefault();
                 dispatchCommand(editor, CUT_COMMAND, event);
-            } else if (isSelectAll(event)) {
+            } else if (IS_KEY.selectAll(event)) {
                 event.preventDefault();
                 dispatchCommand(editor, SELECT_ALL_COMMAND, event);
             }
             // FF does it well (no need to override behavior)
-        } else if (!IS_FIREFOX && isSelectAll(event)) {
+        } else if (!IS_FIREFOX && IS_KEY.selectAll(event)) {
             event.preventDefault();
             dispatchCommand(editor, SELECT_ALL_COMMAND, event);
         }
     }
 
-    if (isModifier(event)) {
+    if (IS_KEY.modifier(event)) {
         dispatchCommand(editor, KEY_MODIFIER_COMMAND, event);
     }
 }

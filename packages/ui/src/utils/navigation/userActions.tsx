@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { CommonKey, LINKS, Session } from "@local/shared";
+import { LINKS, Session, TranslationKeyCommon } from "@local/shared";
 import { Badge, BottomNavigationAction, Button, IconButton, SxProps, Theme } from "@mui/material";
 import i18next from "i18next";
 import { CreateAccountIcon, CreateIcon, GridIcon, HelpIcon, HomeIcon, NotificationsAllIcon, PremiumIcon, SearchIcon } from "icons";
@@ -20,7 +20,7 @@ export enum NAV_ACTION_TAGS {
 
 export type NavActionArray = [string, NAV_ACTION_TAGS, LINKS, SvgComponent, number];
 export interface NavAction {
-    label: CommonKey;
+    label: TranslationKeyCommon;
     value: NAV_ACTION_TAGS;
     link: string;
     Icon: SvgComponent;

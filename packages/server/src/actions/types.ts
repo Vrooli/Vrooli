@@ -4,6 +4,8 @@ import { CountInputBase, GraphQLInfo, PartialGraphQLInfo } from "../builders/typ
 import { SessionData, SessionUserToken } from "../types";
 import { EmbeddableType } from "../utils/embeddings/types";
 
+export type CudAdditionalData = Record<string, any>;
+
 export type CountHelperProps<CountInput extends CountInputBase> = {
     input: CountInput;
     objectType: `${GqlModelType}`;
@@ -13,6 +15,7 @@ export type CountHelperProps<CountInput extends CountInputBase> = {
 }
 
 export type CreateOneHelperProps = {
+    additionalData?: CudAdditionalData;
     info: GraphQLInfo | PartialGraphQLInfo;
     input: any;
     objectType: `${GqlModelType}`;
@@ -100,6 +103,7 @@ export type RelBuilderHelperProps<
 }
 
 export type UpdateOneHelperProps = {
+    additionalData?: CudAdditionalData;
     info: GraphQLInfo | PartialGraphQLInfo;
     input: any;
     objectType: GqlModelType | `${GqlModelType}`;

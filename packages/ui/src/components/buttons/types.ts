@@ -1,11 +1,12 @@
-import { BookmarkFor, NavigableObject, OrArray, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, RunProject, RunRoutine } from "@local/shared";
+import { BookmarkFor, FormSchema, NavigableObject, OrArray, ReactionFor, ReportFor, RunnableProjectVersion, RunnableRoutineVersion, SearchType, Status } from "@local/shared";
 import { ButtonProps } from "@mui/material";
-import { FormSchema } from "forms/types";
 import React from "react";
-import { FormErrors, PartialWithType, SvgProps, SxType } from "types";
-import { Status } from "utils/consts";
-import { SearchType } from "utils/search/objectToSearch";
-import { ViewDisplayType } from "views/types";
+import { FormErrors, SvgProps, SxType, ViewDisplayType } from "types";
+
+export type AutoFillButtonProps = {
+    handleAutoFill: () => unknown;
+    isAutoFillLoading: boolean;
+}
 
 export interface AdvancedSearchButtonProps {
     advancedSearchParams: object | null;
@@ -105,12 +106,9 @@ export interface ReportsLinkProps {
 }
 
 export interface RunButtonProps {
-    canUpdate: boolean;
-    handleRunAdd: (run: RunProject | RunRoutine) => unknown;
-    handleRunDelete: (run: RunProject | RunRoutine) => unknown;
-    isBuildGraphOpen: boolean;
     isEditing: boolean;
-    runnableObject: PartialWithType<ProjectVersion | RoutineVersion> | null;
+    objectType: "ProjectVersion" | "RoutineVersion";
+    runnableObject: RunnableProjectVersion | RunnableRoutineVersion | null;
 }
 
 export type SearchButtonsProps = {

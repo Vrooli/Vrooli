@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { SessionUserToken } from "@local/server";
 import { LlmTask } from "@local/shared";
 import pkg from "../../__mocks__/@prisma/client";
 import { ModelMap } from "../../models";
+import { SessionUserToken } from "../../types";
 import { PreMapUserData } from "../../utils/chat";
 import { ChatContextCollector } from "./context";
-import { GenerateResponseParams, LanguageModelService, fetchMessagesFromDatabase, tokenEstimationDefault } from "./service";
+import { CreditValue, GenerateResponseParams, LanguageModelService, calculateMaxCredits, fetchMessagesFromDatabase, tokenEstimationDefault } from "./service";
 import { AnthropicService } from "./services/anthropic";
 import { MistralService } from "./services/mistral";
 import { OpenAIService } from "./services/openai";
@@ -144,6 +144,93 @@ describe("fetchMessagesFromDatabase", () => {
     });
 });
 
+describe("calculateMaxCredits", () => {
+    // Normal cases
+    test("should return the correct value when considering credits spent", () => {
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500_000, 1_000_000, 200_000)).toBeBigInt(500_000); // Limited by remaining credits
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(1_500_000, 1_000_000, 300_000)).toBeBigInt(700_000); // Not limited by remaining credits
+    });
+
+    test("should work with different input types for creditsSpent", () => {
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500_000, 1_000_000, "200000")).toBeBigInt(500_000); // Limited by remaining credits
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits("1500000", "1000000", BigInt(300_000))).toBeBigInt(700_000); // Not limited by remaining credits
+    });
+
+    test("should return remaining credits when they are less than effective task max", () => {
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(300_000, 1_000_000, 200_000)).toBeBigInt(300_000);
+    });
+
+    // Edge cases
+    test("should return 0 when credits spent equals or exceeds task max credits", () => {
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500_000, 1_000_000, 1_000_000)).toBeBigInt(0);
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500_000, 1_000_000, 1_200_000)).toBeBigInt(0);
+    });
+
+    test("should handle zero values correctly", () => {
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(0, 1_000_000, 200_000)).toBeBigInt(0);
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500_000, 0, 0)).toBeBigInt(0);
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500_000, 1_000_000, 0)).toBeBigInt(500_000);
+    });
+
+    test("should handle very large numbers correctly", () => {
+        const largeNumber = "1234567890123456789012345678901234567890";
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(largeNumber, 1000000000n, "500000")).toBeBigInt(999500000); // Not limited by remaining credits
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(BigInt("1000000000"), largeNumber, "500000")).toBeBigInt(1000000000); // Limited by remaining credits
+    });
+
+    // Bad input handling
+    test("should return 0 for negative numbers", () => {
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(-500000, 1000000, 200000)).toBeBigInt(0);
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500000, -1000000, 200000)).toBeBigInt(0);
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500000, 1000000, -200000)).toBeBigInt(0);
+    });
+
+    test("should throw an error for invalid string inputs", () => {
+        expect(() => calculateMaxCredits("not a number", 1000000, 200000)).toThrow();
+        expect(() => calculateMaxCredits(500000, "invalid", 200000)).toThrow();
+        expect(() => calculateMaxCredits(500000, 1000000, "invalid")).toThrow();
+    });
+
+    test("should throw an error for non-integer inputs", () => {
+        expect(() => calculateMaxCredits(3.14, 1000000, 200000)).toThrow();
+        expect(() => calculateMaxCredits(500000, 2.718, 200000)).toThrow();
+        expect(() => calculateMaxCredits(500000, 1000000, 3.14)).toThrow();
+    });
+
+    test("should treat empty string inputs as 0", () => {
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits("", 1000000, 200000)).toBeBigInt(0);
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500000, "", 200000)).toBeBigInt(0);
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500000, 1000000, "")).toBeBigInt(500000); // Limited by remaining credits
+    });
+
+    test("should treat null or undefined inputs as 0", () => {
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(null as unknown as CreditValue, 1000000, 200000)).toBeBigInt(0);
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500000, undefined as unknown as CreditValue, 200000)).toBeBigInt(0);
+        // @ts-ignore Custom matcher
+        expect(calculateMaxCredits(500000, 1000000, null as unknown as CreditValue)).toBeBigInt(500000); // Limited by remaining credits
+    });
+});
+
 // Test each implementation of LanguageModelService to ensure they comply with the interface
 describe("LanguageModelService lmServices", () => {
     beforeEach(async () => {
@@ -226,7 +313,7 @@ describe("LanguageModelService lmServices", () => {
             })).resolves.toBeDefined();
         });
 
-        const getResponseParams = async (
+        async function getResponseParams(
             latestMessage: string | null,
             taskMessage: string | null,
             chatId: string,
@@ -234,7 +321,7 @@ describe("LanguageModelService lmServices", () => {
             task: LlmTask | `${LlmTask}`,
             userData: SessionUserToken,
             lmService: LanguageModelService<string, string>,
-        ) => {
+        ) {
             const model = lmService.getModel();
             const contextInfo = await (new ChatContextCollector(lmService)).collectMessageContextInfo({
                 chatId,
@@ -246,6 +333,7 @@ describe("LanguageModelService lmServices", () => {
             const { messages, systemMessage } = await lmService.generateContext({
                 contextInfo,
                 force: true,
+                mode: "text",
                 model,
                 participantsData,
                 respondingBotId: respondingBotId1,
@@ -254,8 +342,8 @@ describe("LanguageModelService lmServices", () => {
                 taskMessage,
                 userData,
             });
-            return { messages, model, systemMessage, userData } as GenerateResponseParams;
-        };
+            return { maxTokens: null, messages, mode: "text", model, systemMessage, userData } as GenerateResponseParams;
+        }
 
         // Generate response
         it(`${lmServiceName}: generateResponse returns a valid object - message provided`, async () => {
@@ -320,6 +408,7 @@ describe("LanguageModelService lmServices", () => {
                 userData,
                 task: "Start",
                 force: false,
+                mode: "text",
             });
 
             // Verify that the 'personality' field contains the English translation from botSettings1, 
@@ -337,6 +426,7 @@ describe("LanguageModelService lmServices", () => {
                 userData,
                 task: "RoutineAdd",
                 force: false,
+                mode: "text",
             });
 
             // Verify that the 'personality' field is the first available translation from botSettings1,
@@ -354,6 +444,7 @@ describe("LanguageModelService lmServices", () => {
                 userData,
                 task: "ReminderAdd",
                 force: false,
+                mode: "text",
             }); // botSettings3 lacks a 'name'
 
             // Verify that the 'metadata.name' field is a non-empty string
@@ -367,6 +458,7 @@ describe("LanguageModelService lmServices", () => {
                 userData,
                 task: "ScheduleFind",
                 force: false,
+                mode: "text",
             });
 
             // Verify that the 'personality' field contains the Spanish translation from botSettings5,
@@ -384,6 +476,7 @@ describe("LanguageModelService lmServices", () => {
                 userData,
                 task: "Start",
                 force: false,
+                mode: "text",
             });
 
             expect(yamlConfig.ai_assistant).not.toHaveProperty("init_message");
@@ -396,6 +489,7 @@ describe("LanguageModelService lmServices", () => {
                 userData,
                 task: "Start",
                 force: false,
+                mode: "text",
             });
 
             expect(yamlConfig.ai_assistant).toHaveProperty("init_message");
@@ -424,6 +518,100 @@ describe("LanguageModelService lmServices", () => {
         it(`${lmServiceName}: getModel returns a GenerateNameType`, () => {
             const model = lmService.getModel();
             expect(model).toBeDefined(); // Add more specific checks as needed
+        });
+
+        // Cost
+        it(`${lmServiceName}: getResponseCost returns a number`, () => {
+            const cost = lmService.getResponseCost({
+                model: "default",
+                usage: { input: 10, output: 10 },
+            });
+            expect(typeof cost).toBe("number");
+        });
+        it(`${lmServiceName}: getResponseCost handles large numbers`, () => {
+            const cost = lmService.getResponseCost({
+                model: "default",
+                usage: { input: Number.MAX_SAFE_INTEGER, output: Number.MAX_SAFE_INTEGER },
+            });
+            expect(cost).toBeGreaterThanOrEqual(0);
+            expect(cost).not.toBeNaN();
+        });
+        it(`${lmServiceName}: getResponseCost isn't tricked by negative numbers`, () => {
+            const cost = lmService.getResponseCost({
+                model: "default",
+                usage: { input: -1, output: -1 },
+            });
+            expect(cost).toBe(0);
+        });
+        it(`${lmServiceName}: getMaxOutputTokensRestrained returns a whole number`, () => {
+            const params = {
+                maxCredits: BigInt(100),
+                model: "default",
+                inputTokens: 10,
+            };
+            const limit = lmService.getMaxOutputTokensRestrained(params);
+            expect(typeof limit).toBe("number");
+            expect(limit).toBeGreaterThanOrEqual(0);
+            expect(limit).toBeLessThan(Number.MAX_SAFE_INTEGER);
+        });
+        it(`${lmServiceName}: getMaxOutputTokensRestrained returns 0 if input cost is greater than max credits`, () => {
+            const params = {
+                maxCredits: BigInt(1),
+                model: "default",
+                inputTokens: 999999,
+            };
+            const limit = lmService.getMaxOutputTokensRestrained(params);
+            expect(limit).toBe(0);
+        });
+        it(`${lmServiceName}: getMaxOutputTokensRestrained returns a number less than or equal to the context size`, () => {
+            const params = {
+                maxCredits: BigInt(100),
+                model: "default",
+                inputTokens: 10,
+            };
+            const limit = lmService.getMaxOutputTokensRestrained(params);
+            expect(limit).toBeLessThanOrEqual(lmService.getContextSize());
+        });
+        it(`${lmServiceName}: getMaxOutputTokensRestrained handles large numbers`, () => {
+            const params = {
+                maxCredits: BigInt(Number.MAX_SAFE_INTEGER),
+                model: "default",
+                inputTokens: Number.MAX_SAFE_INTEGER,
+            };
+            const limit = lmService.getMaxOutputTokensRestrained(params);
+            expect(limit).toBeGreaterThanOrEqual(0);
+            expect(limit).not.toBeNaN();
+        });
+        it(`${lmServiceName}: getMaxOutputTokensRestrained isn't tricked by negative numbers`, () => {
+            let params = {
+                maxCredits: BigInt(100),
+                model: "default",
+                inputTokens: -1,
+            };
+            let limit = lmService.getMaxOutputTokensRestrained(params);
+            expect(limit).toBeGreaterThanOrEqual(0);
+            params = {
+                maxCredits: BigInt(-1),
+                model: "default",
+                inputTokens: 100,
+            };
+            limit = lmService.getMaxOutputTokensRestrained(params);
+            expect(limit).toBe(0);
+        });
+        it(`${lmServiceName}: passing getResponseCost's result as 'maxCredits' in 'getMaxOutputTokensRestrained' results in an output token number equal to what was passed into getResponseCost`, () => {
+            const INPUT_TOKENS = 69;
+            const OUTPUT_TOKENS = 420;
+            const expectedMaxTokens = lmService.getResponseCost({
+                model: "default",
+                usage: { input: INPUT_TOKENS, output: OUTPUT_TOKENS },
+            });
+            const params = {
+                maxCredits: expectedMaxTokens,
+                model: "default",
+                inputTokens: INPUT_TOKENS,
+            };
+            const limit = lmService.getMaxOutputTokensRestrained(params);
+            expect(limit).toBe(OUTPUT_TOKENS);
         });
     });
 });

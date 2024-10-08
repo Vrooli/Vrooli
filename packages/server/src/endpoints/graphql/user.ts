@@ -227,6 +227,8 @@ export const typeDef = gql`
         minBookmarks: Int
         minViews: Int
         notInChatId: ID
+        notInvitedToTeamId: ID
+        notMemberInTeamId: ID
         ids: [ID!]
         isBot: Boolean
         isBotDepictingPerson: Boolean

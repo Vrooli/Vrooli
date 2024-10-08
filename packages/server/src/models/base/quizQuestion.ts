@@ -1,8 +1,9 @@
-import { MaxObjects, QuizQuestionSortBy, quizQuestionValidation } from "@local/shared";
+import { MaxObjects, QuizQuestionSortBy, getTranslation, quizQuestionValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
+import { useVisibility } from "../../builders/visibilityBuilder";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
 import { QuizQuestionFormat } from "../formats";
@@ -17,7 +18,7 @@ export const QuizQuestionModel: QuizQuestionModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, questionText: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.questionText ?? "",
+            get: (select, languages) => getTranslation(select, languages).questionText ?? "",
         },
     }),
     format: QuizQuestionFormat,
@@ -62,7 +63,7 @@ export const QuizQuestionModel: QuizQuestionModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<QuizQuestionModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -80,15 +81,31 @@ export const QuizQuestionModel: QuizQuestionModelLogic = ({
             quiz: "Quiz",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return {
+                    quiz: useVisibility("Quiz", "Own", data),
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    quiz: useVisibility("Quiz", "OwnOrPublic", data),
+                };
             },
-            owner: (userId) => ({
-                quiz: ModelMap.get<QuizModelLogic>("Quiz").validate().visibility.owner(userId),
-            }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    quiz: useVisibility("Quiz", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    quiz: useVisibility("Quiz", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    quiz: useVisibility("Quiz", "Public", data),
+                };
+            },
         },
     }),
 });

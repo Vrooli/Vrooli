@@ -2,6 +2,7 @@ import { MaxObjects, NoteSortBy, noteValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
 import { PreShapeRootResult, labelShapeHelper, ownerFields, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
@@ -9,7 +10,7 @@ import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { NoteFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, NoteModelInfo, NoteModelLogic, NoteVersionModelLogic, ReactionModelLogic, TeamModelLogic, UserModelLogic, ViewModelLogic } from "./types";
+import { BookmarkModelLogic, NoteModelInfo, NoteModelLogic, NoteVersionModelLogic, ReactionModelLogic, TeamModelLogic, ViewModelLogic } from "./types";
 
 type NotePre = PreShapeRootResult;
 
@@ -90,7 +91,7 @@ export const NoteModel: NoteModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<NoteModelInfo["GqlPermission"]>(__typename, ids, userData)),
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
                         reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
@@ -131,33 +132,56 @@ export const NoteModel: NoteModelLogic = ({
             versions: ["NoteVersion", ["root"]],
         }),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    isDeleted: false,
+                    isDeleted: false, // Can't be deleted
                     OR: [
-                        { isPrivate: true },
-                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private(...params) },
-                        { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.private(...params) },
+                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                        { ownedByUser: { id: data.userId } },
                     ],
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    isDeleted: false,
-                    isPrivate: false,
+                    isDeleted: false, // Can't be deleted
+                    OR: [
+                        // Owned objects
+                        {
+                            OR: (useVisibility("Note", "Own", data) as { OR: object[] }).OR,
+                        },
+                        // Public objects
+                        {
+                            isPrivate: false, // Can't be private
+                            OR: (useVisibility("Note", "Public", data) as { OR: object[] }).OR,
+                        },
+                    ],
+                };
+            },
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: true,  // Must be private
+                    OR: (useVisibility("Note", "Own", data) as { OR: object[] }).OR,
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false,  // Must be public
+                    OR: (useVisibility("Note", "Own", data) as { OR: object[] }).OR,
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false, // Can't be private
                     OR: [
                         { ownedByTeam: null, ownedByUser: null },
-                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public(...params) },
-                        { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.public(...params) },
+                        { ownedByTeam: useVisibility("Team", "Public", data) },
+                        { ownedByUser: { isPrivate: false, isPrivateNotes: false } },
                     ],
                 };
             },
-            owner: (userId) => ({
-                OR: [
-                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
-                    { ownedByUser: { id: userId } },
-                ],
-            }),
         },
     }),
 });

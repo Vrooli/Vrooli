@@ -1,4 +1,4 @@
-import { GqlModelType, PageInfo, TimeFrame, ViewFor, VisibilityType, camelCase } from "@local/shared";
+import { GqlModelType, PageInfo, TimeFrame, ViewFor, camelCase } from "@local/shared";
 import { getUser } from "../auth/request";
 import { addSupplementalFields } from "../builders/addSupplementalFields";
 import { combineQueries } from "../builders/combineQueries";
@@ -114,7 +114,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     input,
     objectType,
     req,
-    visibility = VisibilityType.Public,
+    visibility,
 }: ReadManyHelperProps<Input>): Promise<PaginatedSearchResult> {
     const userData = getUser(req.session);
     const model = ModelMap.get(objectType);
@@ -123,6 +123,12 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     // Make sure ID is in partialInfo, since this is required for cursor-based search
     partialInfo.id = true;
     const searcher: Searcher<any, any> | undefined = model.search;
+    const searchData = {
+        objectType: model.__typename,
+        searchInput: input,
+        userData,
+        visibility: input.visibility ?? visibility
+    };
     // Determine text search query
     const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchStringQuery({ objectType: model.__typename, searchString: input.searchString }) : undefined;
     // Loop through search fields and add each to the search query, 
@@ -133,16 +139,12 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
             const fieldInput = input[field];
             const searchMapper = SearchMap[field];
             if (fieldInput !== undefined && searchMapper !== undefined) {
-                const searchData = { objectType: model.__typename, userData, visibility: input.visibility ?? visibility };
                 customQueries.push(searchMapper(fieldInput, searchData));
             }
         }
     }
-    if (searcher?.customQueryData) {
-        customQueries.push(searcher.customQueryData(input, userData));
-    }
     // Create query for visibility, if supported
-    const visibilityQuery = visibilityBuilderPrisma({ objectType, userData, visibility: input.visibility ?? visibility });
+    const { query: visibilityQuery } = visibilityBuilderPrisma(searchData);
     // Combine queries
     const where = combineQueries([additionalQueries, searchQuery, visibilityQuery, ...customQueries]);
     // Determine sortBy, orderBy, and take
@@ -246,7 +248,7 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
     input,
     objectType,
     req,
-    visibility = VisibilityType.Public,
+    visibility,
 }: ReadManyWithEmbeddingsHelperProps<Input>): Promise<PaginatedSearchResult> {
     const userData = getUser(req.session);
     const model = ModelMap.get(objectType);
@@ -273,8 +275,17 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
     let idsNeeded = take;
     let finalResults: Record<string, any>[] = [];
 
+    // Get visibility query
+    const searchData = {
+        objectType,
+        searchInput: input,
+        userData,
+        visibility: input.visibility ?? visibility,
+    }
+    const { query: visibilityQuery, visibilityUsed } = visibilityBuilderPrisma(searchData);
+
     // Check cache for previously fetched IDs for this specific situation
-    const cacheKey = SearchEmbeddingsCache.createKey({ objectType, searchString: searchStringTrimmed, sortOption, userId: userData?.id, visibility });
+    const cacheKey = SearchEmbeddingsCache.createKey({ objectType, searchString: searchStringTrimmed, sortOption, userId: userData?.id, visibility: visibilityUsed });
     const cachedResults = await SearchEmbeddingsCache.check({ cacheKey, offset, take });
 
     // Add all cached results to the final results
@@ -314,8 +325,6 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
             builder.addSelect(objectType, "updated_at");
             builder.addWhere(updatedAtDateLimit);
         }
-        // Get visibility query
-        const visibilityQuery = visibilityBuilderPrisma({ objectType, userData, visibility });
         builder.buildQueryFromPrisma(visibilityQuery); //TODO
         // Set order by, limit, and offset
         builder.addOrderByRaw("points " + (sortOption.endsWith("Desc") ? "DESC" : "ASC"));

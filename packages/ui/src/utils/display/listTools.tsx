@@ -1,10 +1,9 @@
-import { Api, ApiVersion, AutocompleteOption, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, Code, CodeVersion, CommentFor, CopyType, DUMMY_ID, DeleteType, DotNotation, ListObject, Meeting, Member, MemberInvite, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Resource, ResourceList, Routine, RoutineVersion, RunProject, RunRoutine, Standard, StandardVersion, User, View, YouInflated, exists, isOfType } from "@local/shared";
+import { Api, ApiVersion, AutocompleteOption, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, Code, CodeVersion, CommentFor, CopyType, DUMMY_ID, DeleteType, DotNotation, ListObject, Meeting, Member, MemberInvite, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Resource, ResourceList, Routine, RoutineVersion, RunProject, RunRoutine, Standard, StandardVersion, User, View, YouInflated, exists, getTranslation, isOfType, valueFromDot } from "@local/shared";
 import { Chip, Palette } from "@mui/material";
 import { BotIcon } from "icons";
 import { routineTypes } from "utils/search/schemas/routine";
-import { valueFromDot } from "utils/shape/general";
 import { displayDate, firstString } from "./stringTools";
-import { getTranslation, getUserLanguages } from "./translationTools";
+import { getUserLanguages } from "./translationTools";
 
 /**
  * Most possible counts (including score) any object can have
@@ -74,21 +73,27 @@ export function getYou(
 ): YouInflated {
     // Initialize fields to false (except reaction, since that's an emoji or null instead of a boolean)
     const objectPermissions = { ...defaultYou };
-    if (!object) return objectPermissions;
+    if (!object || !Object.prototype.hasOwnProperty.call(object, "__typename")) return objectPermissions;
     // Shortcut: If ID is DUMMY_ID, then it's a new object and you only delete it
     if (object.id === DUMMY_ID) return {
         ...Object.keys(defaultYou).reduce((acc, key) => ({ ...acc, [key]: typeof defaultYou[key] === "boolean" ? false : defaultYou[key] }), {}),
         canDelete: true,
     } as YouInflated;
+    // Helper function to determine if a field is valid
+    function isYouPropertyValid(key: keyof YouInflated, value: unknown): boolean {
+        if (key === "reaction") return value === null || typeof value === "string";
+        return typeof value === "boolean";
+    }
     // Helper function to get permissions
-    function getPermission(key: keyof YouInflated): boolean {
+    function getPermission<Key extends keyof YouInflated>(key: Key): Key extends "reaction" ? (null | string) : boolean {
         // Check if the field is in the object
         const field = valueFromDot(object, `you.${key}`);
-        if (field === true || field === false || typeof field === "boolean") return field;
+        if (isYouPropertyValid(key, field)) return field as Key extends "reaction" ? (null | string) : boolean;
         // If not, check if the field is in the root.you object
         const rootField = valueFromDot(object, `root.you.${key}`);
-        if (rootField === true || rootField === false || typeof rootField === "boolean") return rootField;
-        return false; // Default to false if no field found
+        if (isYouPropertyValid(key, rootField)) return rootField as Key extends "reaction" ? (null | string) : boolean;
+        // Default to false if no field found, or null if it's the reaction field
+        return (key === "reaction" ? null : false) as Key extends "reaction" ? (null | string) : boolean;
     }
     // Some permissions are based on a relation (e.g. bookmarking a View's "to" relation), 
     // while others are always based on the current object (e.g. deleting a member instead of the user it's associated with).
@@ -99,10 +104,18 @@ export function getYou(
     };
     if (isOfType(object, "RunRoutine")) return {
         ...getYou((object as Partial<RunRoutine>).routineVersion),
+        canBookmark: false,
+        canComment: false,
+        canReact: false,
+        canShare: false,
         canDelete: getPermission("canDelete"),
     };
     if (isOfType(object, "RunProject")) return {
         ...getYou((object as Partial<RunProject>).projectVersion),
+        canBookmark: false,
+        canComment: false,
+        canReact: false,
+        canShare: false,
         canDelete: getPermission("canDelete"),
     };
     if (isOfType(object, "Member", "MemberInvite", "ChatParticipant", "ChatInvite")) return {
@@ -467,7 +480,7 @@ export function simpleHash(str: string): number {
         hash |= 0; // Convert to 32bit integer
     }
     return hash;
-};
+}
 
 /**
  * Finds a random color for a placeholder icon
@@ -476,10 +489,10 @@ export function simpleHash(str: string): number {
  */
 export function placeholderColor(seed?: unknown): [string, string] {
     let random = Math.random();
-    if (typeof seed === 'string' || typeof seed === 'number') {
+    if (typeof seed === "string" || typeof seed === "number") {
         const seedStr = seed.toString();
         const hash = simpleHash(seedStr);
         random = (Math.sin(hash) + 1) / 2; // Generate a pseudo-random number from [-1, 1] to [0, 1]
     }
     return placeholderColors[Math.floor(random * placeholderColors.length)];
-};
+}

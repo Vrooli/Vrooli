@@ -292,30 +292,6 @@ export const endpointPostRegenerateResponse = {
     tag: "chatMessage",
 } as const;
 
-export const endpointGetAutoFill = {
-    endpoint: "/autoFill",
-    method: "GET",
-    tag: "chatMessage",
-} as const;
-
-export const endpointPostStartTask = {
-    endpoint: "/startTask",
-    method: "POST",
-    tag: "chatMessage",
-} as const;
-
-export const endpointPostCancelTask = {
-    endpoint: "/cancelTask",
-    method: "POST",
-    tag: "chatMessage",
-} as const;
-
-export const endpointGetCheckTaskStatuses = {
-    endpoint: "/checkTaskStatuses",
-    method: "GET",
-    tag: "chatMessage",
-} as const;
-
 export const endpointGetChatParticipant = {
     endpoint: "/chatParticipant/:id",
     method: "GET",
@@ -1342,18 +1318,6 @@ export const endpointDeleteRunProjectDeleteAll = {
     tag: "runProject",
 } as const;
 
-export const endpointPutRunProjectComplete = {
-    endpoint: "/runProject/:id/complete",
-    method: "PUT",
-    tag: "runProject",
-} as const;
-
-export const endpointPutRunProjectCancel = {
-    endpoint: "/runProject/:id/cancel",
-    method: "PUT",
-    tag: "runProject",
-} as const;
-
 export const endpointGetRunRoutine = {
     endpoint: "/runRoutine/:id",
     method: "GET",
@@ -1384,22 +1348,16 @@ export const endpointDeleteRunRoutineDeleteAll = {
     tag: "runRoutine",
 } as const;
 
-export const endpointPutRunRoutineComplete = {
-    endpoint: "/runRoutine/:id/complete",
-    method: "PUT",
-    tag: "runRoutine",
-} as const;
-
-export const endpointPutRunRoutineCancel = {
-    endpoint: "/runRoutine/:id/cancel",
-    method: "PUT",
-    tag: "runRoutine",
-} as const;
-
 export const endpointGetRunRoutineInputs = {
     endpoint: "/runRoutineInputs",
     method: "GET",
     tag: "runRoutineInput",
+} as const;
+
+export const endpointGetRunRoutineOutputs = {
+    endpoint: "/runRoutineOutputs",
+    method: "GET",
+    tag: "runRoutineOutput",
 } as const;
 
 export const endpointGetSchedule = {
@@ -1598,6 +1556,30 @@ export const endpointPostTag = {
     endpoint: "/tag",
     method: "POST",
     tag: "tag",
+} as const;
+
+export const endpointPostStartLlmTask = {
+    endpoint: "/startLlmTask",
+    method: "POST",
+    tag: "task",
+} as const;
+
+export const endpointPostStartRunTask = {
+    endpoint: "/startRunTask",
+    method: "POST",
+    tag: "task",
+} as const;
+
+export const endpointPostCancelTask = {
+    endpoint: "/cancelTask",
+    method: "POST",
+    tag: "task",
+} as const;
+
+export const endpointGetCheckTaskStatuses = {
+    endpoint: "/checkTaskStatuses",
+    method: "GET",
+    tag: "task",
 } as const;
 
 export const endpointGetTeam = {

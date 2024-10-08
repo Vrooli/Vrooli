@@ -5,7 +5,7 @@
 import { NavigableObject, getObjectSearchParams, getObjectSlug, getObjectUrl, getObjectUrlBase, handleRegex, isOfType, urlRegex, urlRegexDev, walletAddressRegex } from "@local/shared";
 import { SetLocation } from "route";
 import { ResourceType } from "utils/consts";
-import { setCookiePartialData } from "utils/cookies";
+import { setCookiePartialData } from "utils/localStorage";
 
 export type ObjectType = "Api" |
     "Bookmark" |

@@ -5,6 +5,8 @@ import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
 import { ModelMap } from "../models/base";
 
+const MAX_LABEL_LENGTH = 50;
+
 /**
  * Finds translated labels for a list of objects
  * @param objects A list of object ids, optionally with preferred languages to find labels for. Can be useful 
@@ -13,6 +15,7 @@ import { ModelMap } from "../models/base";
  * @param objectType Type of object to find labels for
  * @param languages Preferred languages to display errors in
  * @param errorTrace Error trace to display
+ * @returns A list of labels for the objects, truncated if too long
  */
 export async function getLabels(
     objects: { id: string, languages: string[] }[] | string[],
@@ -44,7 +47,8 @@ export async function getLabels(
     const labels = objectsWithLanguages.map(object => {
         const data = labelsData.find(x => x.id === object.id);
         if (!data) return "";
-        return model.display().label.get(data, object.languages);
+        const label = model.display().label.get(data, object.languages);
+        return label.length > MAX_LABEL_LENGTH ? `${label.slice(0, MAX_LABEL_LENGTH)}...` : label;
     });
     return labels;
 }

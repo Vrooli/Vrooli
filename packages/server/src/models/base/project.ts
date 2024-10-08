@@ -2,6 +2,7 @@ import { MaxObjects, ProjectSortBy, projectValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { getLabels } from "../../getters";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
@@ -10,7 +11,7 @@ import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions, handlesCheck } from "../../validators";
 import { ProjectFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, ProjectModelInfo, ProjectModelLogic, ProjectVersionModelLogic, ReactionModelLogic, TeamModelLogic, UserModelLogic, ViewModelLogic } from "./types";
+import { BookmarkModelLogic, ProjectModelInfo, ProjectModelLogic, ProjectVersionModelLogic, ReactionModelLogic, TeamModelLogic, ViewModelLogic } from "./types";
 
 type ProjectPre = PreShapeRootResult;
 
@@ -101,7 +102,7 @@ export const ProjectModel: ProjectModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ProjectModelInfo["GqlPermission"]>(__typename, ids, userData)),
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
                         reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
@@ -144,33 +145,56 @@ export const ProjectModel: ProjectModelLogic = ({
             versions: ["ProjectVersion", ["root"]],
         }),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    isDeleted: false,
+                    isDeleted: false, // Can't be deleted
                     OR: [
-                        { isPrivate: true },
-                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private(...params) },
-                        { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.private(...params) },
+                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                        { ownedByUser: { id: data.userId } },
                     ],
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    isDeleted: false,
-                    isPrivate: false,
+                    isDeleted: false, // Can't be deleted
+                    OR: [
+                        // Owned objects
+                        {
+                            OR: (useVisibility("Project", "Own", data) as { OR: object[] }).OR,
+                        },
+                        // Public objects
+                        {
+                            isPrivate: false, // Can't be private
+                            OR: (useVisibility("Project", "Public", data) as { OR: object[] }).OR,
+                        },
+                    ],
+                };
+            },
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: true,  // Must be private
+                    OR: (useVisibility("Project", "Own", data) as { OR: object[] }).OR,
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false,  // Must be public
+                    OR: (useVisibility("Project", "Own", data) as { OR: object[] }).OR,
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false, // Can't be private
                     OR: [
                         { ownedByTeam: null, ownedByUser: null },
-                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public(...params) },
-                        { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.public(...params) },
+                        { ownedByTeam: useVisibility("Team", "Public", data) },
+                        { ownedByUser: { isPrivate: false, isPrivateProjects: false } },
                     ],
                 };
             },
-            owner: (userId) => ({
-                OR: [
-                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
-                    { ownedByUser: { id: userId } },
-                ],
-            }),
         },
     }),
 });

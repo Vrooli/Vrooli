@@ -1,5 +1,6 @@
 import { ChatParticipantSortBy, chatParticipantValidation, MaxObjects } from "@local/shared";
 import { ModelMap } from ".";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions } from "../../utils";
 import { ChatParticipantFormat } from "../formats";
 import { ChatModelInfo, ChatModelLogic, ChatParticipantModelLogic, UserModelInfo, UserModelLogic } from "./types";
@@ -54,15 +55,20 @@ export const ChatParticipantModel: ChatParticipantModelLogic = ({
             user: "User",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return { // If you created the chat or you are the participant
+                    OR: [
+                        { chat: useVisibility("Chat", "Own", data) },
+                        { user: { id: data.userId } },
+                    ],
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            ownOrPublic: null, // Search method disabled
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("ChatParticipant", "Own", data);
             },
-            owner: (userId) => ({
-                chat: ModelMap.get<ChatModelLogic>("Chat").validate().visibility.owner(userId),
-            }),
+            ownPublic: null, // Search method disabled
+            public: null, // Search method disabled
         },
     }),
 });

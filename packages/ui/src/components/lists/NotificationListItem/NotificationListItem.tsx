@@ -1,12 +1,12 @@
 import { endpointPutNotification, FindByIdInput, Success } from "@local/shared";
-import { Chip, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
+import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { VisibleIcon } from "icons";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { PubSub } from "utils/pubsub";
-import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
+import { ListItemChip, ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
 import { NotificationListItemProps } from "../types";
 
 export function NotificationListItem({
@@ -38,15 +38,9 @@ export function NotificationListItem({
             {...props}
             belowTags={
                 data?.category && (
-                    <Chip
+                    <ListItemChip
+                        color="Purple"
                         label={data.category}
-                        variant="outlined"
-                        size="small"
-                        sx={{
-                            backgroundColor: palette.mode === "light" ? "#8148b0" : "#8148b0",
-                            color: "white",
-                            width: "fit-content",
-                        }}
                     />
                 )
             }

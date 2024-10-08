@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { act, renderHook } from "@testing-library/react";
+import { renderHook } from "@testing-library/react";
+import { act } from "react";
 import { usePopover } from "./usePopover";
 
 describe("usePopover", () => {

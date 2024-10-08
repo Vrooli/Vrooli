@@ -17,7 +17,7 @@ const cache = new LRUCache<string, PartialGraphQLInfo>(1000, 250_000);
  * @param throwIfNotPartial - Throw error if info is not partial
  * @returns Partial Prisma select. This can be passed into the function again without changing the result.
  */
-export const toPartialGqlInfo = <
+export function toPartialGqlInfo<
     Typename extends `${GqlModelType}`,
     GqlModel extends ModelLogicType["GqlModel"],
     PrismaModel extends ModelLogicType["PrismaModel"],
@@ -27,7 +27,7 @@ export const toPartialGqlInfo = <
     gqlRelMap: GqlRelMap<Typename, GqlModel, PrismaModel>,
     languages: string[],
     throwIfNotPartial: ThrowErrorIfNotPartial = false as ThrowErrorIfNotPartial,
-): ThrowErrorIfNotPartial extends true ? PartialGraphQLInfo : (PartialGraphQLInfo | undefined) => {
+): ThrowErrorIfNotPartial extends true ? PartialGraphQLInfo : (PartialGraphQLInfo | undefined) {
     // Return undefined if info not set
     if (!info) {
         if (throwIfNotPartial)
@@ -63,4 +63,4 @@ export const toPartialGqlInfo = <
     // Cache result
     cache.set(cacheKey, select);
     return select;
-};
+}

@@ -11,24 +11,6 @@ export const Forms = {
 export type Forms = ValueOf<typeof Forms>;
 
 /**
- * A general status state for an object
- */
-export enum Status {
-    /**
-     * Routine would be valid, except there are unlinked nodes
-     */
-    Incomplete = "Incomplete",
-    /**
-     * Something is wrong with the routine (e.g. no end node)
-     */
-    Invalid = "Invalid",
-    /**
-     * The routine is valid, and all nodes are linked
-     */
-    Valid = "Valid",
-}
-
-/**
  * Prompts Build page to open a specific dialog
  */
 export enum BuildAction {
@@ -47,30 +29,12 @@ export enum BuildAction {
 }
 
 /**
- * Non-input form elements
- */
-export enum FormStructureType {
-    Divider = "Divider",
-    Header = "Header",
-}
-
-/**
  * State of build page's routine run simulation
  */
 export enum BuildRunState {
     Paused,
     Running,
     Stopped,
-}
-
-export enum RoutineStepType {
-    RoutineList = "RoutineList",
-    Decision = "Decision",
-    Subroutine = "Subroutine",
-}
-
-export enum ProjectStepType {
-    Directory = "Directory",
 }
 
 /**
@@ -152,3 +116,43 @@ export const CHIP_LIST_LIMIT = 3;
 
 /** Default minimum rows for rich inputs */
 export const DEFAULT_MIN_ROWS = 4;
+
+export const FONT_SIZE_MIN = 8;
+export const FONT_SIZE_MAX = 24;
+
+export const LEFT_DRAWER_WIDTH = 280;
+export const RIGHT_DRAWER_WIDTH = 280;
+
+export const BUSINESS_DATA = {
+    BUSINESS_NAME: "Vrooli",
+    EMAIL: {
+        Label: "info@vrooli.com",
+        Link: "mailto:info@vrooli.com",
+    },
+    SUPPORT_EMAIL: {
+        Label: "support@vrooli.com",
+        Link: "mailto:support@vrooli.com",
+    },
+    SOCIALS: {
+        Discord: "https://discord.gg/VyrDFzbmmF",
+        GitHub: "https://github.com/MattHalloran/Vrooli",
+        X: "https://x.com/VrooliOfficial",
+    },
+    APP_URL: "https://vrooli.com",
+};
+
+// Determine origin of API server
+const isLocalhost: boolean = window.location.host.includes("localhost") || window.location.host.includes("192.168.") || window.location.host.includes("127.0.0.1");
+const serverUrlProvided = Boolean(process.env.VITE_SERVER_URL && process.env.VITE_SERVER_URL.length > 0);
+const portServer: string = process.env.VITE_PORT_SERVER ?? "5329";
+export const apiUrlBase: string = isLocalhost ?
+    `http://${window.location.hostname}:${portServer}/api` :
+    serverUrlProvided ?
+        `${process.env.VITE_SERVER_URL}` :
+        `http://${process.env.VITE_SITE_IP}:${portServer}/api`;
+export const restBase = "/v2/rest";
+export const webSocketUrlBase: string = isLocalhost ?
+    `http://${window.location.hostname}:${portServer}` :
+    serverUrlProvided ?
+        `${process.env.VITE_SERVER_URL}` :
+        `http://${process.env.VITE_SITE_IP}:${portServer}`;

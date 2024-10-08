@@ -7,11 +7,13 @@ const defaultLocation = {
 
 let location = { ...defaultLocation };
 
-const setLocation = (newLocation) => {
+function setLocation(newLocation) {
     location = { ...location, ...newLocation };
     // Update window location properties as needed
     window.history.pushState({}, "", location.pathname + location.search + location.hash);
-};
+}
 
-export const useLocation = () => [location, setLocation];
+export function useLocation() {
+    return [location, setLocation];
+}
 

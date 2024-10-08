@@ -1,12 +1,12 @@
 import { LINKS } from "@local/shared";
-import { Box, useTheme } from "@mui/material";
+import { Box } from "@mui/material";
 import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
 import { ScrollToTop } from "components/ScrollToTop";
 import { NavbarProps } from "components/navigation/types";
 import { lazily } from "react-lazily";
 import { Route, RouteProps, Switch } from "route";
+import { PageProps } from "types";
 import { BotUpsert } from "views/objects/bot";
-import { PageProps } from "views/types";
 import { Page } from "./components/Page/Page";
 
 // Lazy loading in the Routes component is a recommended way to improve performance. See https://reactjs.org/docs/code-splitting.html#route-based-code-splitting
@@ -38,12 +38,13 @@ const {
 const {
     PrivacyPolicyView,
     TermsView,
-} = lazily(() => import("./views/legal"));
+} = lazily(() => import("./views/PolicyView/PolicyView"));
 const { AboutView } = lazily(() => import("./views/AboutView/AboutView"));
 const { AwardsView } = lazily(() => import("./views/AwardsView/AwardsView"));
 const { CalendarView } = lazily(() => import("./views/CalendarView/CalendarView"));
 const { ChatCrud } = lazily(() => import("./views/objects/chat"));
-const { CodeUpsert, CodeView } = lazily(() => import("./views/objects/code"));
+const { DataConverterUpsert, DataConverterView } = lazily(() => import("./views/objects/dataConverter"));
+const { DataStructureUpsert, DataStructureView } = lazily(() => import("./views/objects/dataStructure"));
 const { NotFoundView } = lazily(() => import("./views/NotFoundView/NotFoundView"));
 const { PremiumView } = lazily(() => import("./views/PremiumView/PremiumView"));
 const { SearchView } = lazily(() => import("./views/SearchView/SearchView"));
@@ -54,27 +55,31 @@ const { BookmarkListUpsert, BookmarkListView } = lazily(() => import("./views/ob
 const { NoteCrud } = lazily(() => import("./views/objects/note"));
 const { TeamUpsert, TeamView } = lazily(() => import("./views/objects/team"));
 const { ProjectCrud } = lazily(() => import("./views/objects/project"));
+const { PromptUpsert, PromptView } = lazily(() => import("./views/objects/prompt"));
 const { QuestionUpsert, QuestionView } = lazily(() => import("./views/objects/question"));
 const { ReminderCrud } = lazily(() => import("./views/objects/reminder"));
 const { RoutineUpsert, RoutineView } = lazily(() => import("./views/objects/routine"));
 const { SmartContractUpsert, SmartContractView } = lazily(() => import("./views/objects/smartContract"));
-const { StandardUpsert, StandardView } = lazily(() => import("./views/objects/standard"));
 const { UserView } = lazily(() => import("./views/objects/user"));
+const { RunView } = lazily(() => import("./views/runs/RunView/RunView"));
+const { ReportsView } = lazily(() => import("./views/ReportsView/ReportsView"));
+
+const fallbackNavbarStyle = {
+    background: (t) => t.palette.primary.dark,
+    height: "64px!important",
+    zIndex: 1000,
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+} as const;
 
 /**
  * Fallback displayed while route is being loaded.
  */
 const Fallback = <Box>
     {/* A blank Navbar to display before the actual one (which is dynamic depending on the page) is rendered. */}
-    <Box sx={{
-        background: (t) => t.palette.primary.dark,
-        height: "64px!important",
-        zIndex: 1000,
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-    }} />
+    <Box sx={fallbackNavbarStyle} />
     {/* Loading spinner */}
     <FullPageSpinner />
 </Box>;
@@ -101,8 +106,6 @@ const noSidePadding = {
 };
 
 export function Routes(props: { sessionChecked: boolean }) {
-    const { palette } = useTheme();
-
     return (
         <>
             <ScrollToTop />
@@ -112,7 +115,7 @@ export function Routes(props: { sessionChecked: boolean }) {
                     sitemapIndex
                     priority={0.5}
                     changeFreq="monthly"
-                    sx={{ background: palette.background.paper }}
+                    excludePageContainer
                     {...props}
                 >
                     <AboutView display="page" />
@@ -225,6 +228,7 @@ export function Routes(props: { sessionChecked: boolean }) {
                     sitemapIndex
                     priority={0.2}
                     changeFreq="yearly"
+                    excludePageContainer
                     {...props}
                 >
                     <PrivacyPolicyView display="page" />
@@ -238,14 +242,23 @@ export function Routes(props: { sessionChecked: boolean }) {
                 <NavRoute path={`${LINKS.Profile}/:id?`} sx={noSidePadding} {...props}>
                     <UserView display="page" />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Code}/add`} mustBeLoggedIn={true} {...props}>
-                    <CodeUpsert display="page" isCreate={true} />
+                <NavRoute path={`${LINKS.DataConverter}/add`} mustBeLoggedIn={true} {...props}>
+                    <DataConverterUpsert display="page" isCreate={true} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Code}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
-                    <CodeUpsert display="page" isCreate={false} />
+                <NavRoute path={`${LINKS.DataConverter}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
+                    <DataConverterUpsert display="page" isCreate={false} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Code}/:rootId/:versionId?`} {...props}>
-                    <CodeView display="page" />
+                <NavRoute path={`${LINKS.DataConverter}/:rootId/:versionId?`} {...props}>
+                    <DataConverterView display="page" />
+                </NavRoute>
+                <NavRoute path={`${LINKS.DataStructure}/add`} mustBeLoggedIn={true} {...props}>
+                    <DataStructureUpsert display="page" isCreate={true} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.DataStructure}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
+                    <DataStructureUpsert display="page" isCreate={false} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.DataStructure}/:rootId/:versionId?`} {...props}>
+                    <DataStructureView display="page" />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Project}/add`} mustBeLoggedIn={true} {...props}>
                     <ProjectCrud display="page" isCreate={true} />
@@ -255,6 +268,15 @@ export function Routes(props: { sessionChecked: boolean }) {
                 </NavRoute>
                 <NavRoute path={`${LINKS.Project}/:rootId/:versionId?`} {...props}>
                     <ProjectCrud display="page" isCreate={false} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Prompt}/add`} mustBeLoggedIn={true} {...props}>
+                    <PromptUpsert display="page" isCreate={true} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Prompt}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
+                    <PromptUpsert display="page" isCreate={false} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.Prompt}/:rootId/:versionId?`} {...props}>
+                    <PromptView display="page" />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Question}/add`} mustBeLoggedIn={true} {...props}>
                     <QuestionUpsert display="page" isCreate={true} />
@@ -274,6 +296,9 @@ export function Routes(props: { sessionChecked: boolean }) {
                 <NavRoute path={`${LINKS.Reminder}/:id`} {...props}>
                     <ReminderCrud display="page" isCreate={false} />
                 </NavRoute>
+                <NavRoute path={`${LINKS.Reports}/:objectType/:objectOrRootId/:versionId?`} {...props}>
+                    <ReportsView />
+                </NavRoute>
                 <NavRoute
                     path={`${LINKS.ResetPassword}/:params*`}
                     sitemapIndex
@@ -292,6 +317,9 @@ export function Routes(props: { sessionChecked: boolean }) {
                 <NavRoute path={`${LINKS.Routine}/:rootId/:versionId?`} {...props}>
                     <RoutineView display="page" />
                 </NavRoute>
+                {/* <NavRoute path={`${LINKS.Run}/:objectType/:id`} {...props}>
+                    <RunView display="page" />
+                </NavRoute> */}
                 <NavRoute
                     path={`${LINKS.Search}/:params*`}
                     sitemapIndex
@@ -359,15 +387,6 @@ export function Routes(props: { sessionChecked: boolean }) {
                 <NavRoute path={`${LINKS.SmartContract}/:rootId/:versionId?`} {...props}>
                     <SmartContractView display="page" />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Standard}/add`} mustBeLoggedIn={true} {...props}>
-                    <StandardUpsert display="page" isCreate={true} />
-                </NavRoute>
-                <NavRoute path={`${LINKS.Standard}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
-                    <StandardUpsert display="page" isCreate={false} />
-                </NavRoute>
-                <NavRoute path={`${LINKS.Standard}/:rootId/:versionId?`} {...props}>
-                    <StandardView display="page" />
-                </NavRoute>
                 <NavRoute
                     path={LINKS.Stats}
                     sitemapIndex
@@ -391,6 +410,7 @@ export function Routes(props: { sessionChecked: boolean }) {
                     sitemapIndex
                     priority={0.2}
                     changeFreq="yearly"
+                    excludePageContainer
                     {...props}
                 >
                     <TermsView display="page" />

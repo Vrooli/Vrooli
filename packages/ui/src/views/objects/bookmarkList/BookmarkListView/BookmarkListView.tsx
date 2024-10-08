@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkCreateInput, BookmarkList, endpointGetBookmarkList, endpointPostBookmark, LINKS, uuid } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkList, deleteArrayIndex, endpointGetBookmarkList, endpointPostBookmark, HistoryPageTabOption, LINKS, shapeBookmark, updateArray, uuid } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -8,11 +8,10 @@ import { SiteSearchBar } from "components/inputs/search";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts/SessionContext";
-import { useDeleter } from "hooks/useDeleter";
+import { SessionContext } from "contexts";
+import { useDeleter, useObjectActions } from "hooks/objectActions";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { useObjectActions } from "hooks/useObjectActions";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -23,9 +22,6 @@ import { DUMMY_LIST_LENGTH } from "utils/consts";
 import { listToAutocomplete } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { HistoryPageTabOption } from "utils/search/objectToSearch";
-import { deleteArrayIndex, updateArray } from "utils/shape/general";
-import { shapeBookmark } from "utils/shape/models/bookmark";
 import { BookmarkListViewProps } from "../types";
 
 export function BookmarkListView({
@@ -38,7 +34,7 @@ export function BookmarkListView({
     const session = useContext(SessionContext);
     const [, setLocation] = useLocation();
 
-    const { object: existing, isLoading, setObject: setBookmarkList } = useObjectFromUrl<BookmarkList>({
+    const { object: existing, isLoading, setObject: setBookmarkList } = useManagedObject<BookmarkList>({
         ...endpointGetBookmarkList,
         objectType: "BookmarkList",
     });

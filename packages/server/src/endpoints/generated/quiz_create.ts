@@ -159,17 +159,6 @@ export const quiz_create = {
     },
     "__typename": "QuizQuestion"
   },
-  "stats": {
-    "id": true,
-    "periodStart": true,
-    "periodEnd": true,
-    "periodType": true,
-    "timesStarted": true,
-    "timesPassed": true,
-    "timesFailed": true,
-    "scoreAverage": true,
-    "completionTimeAverage": true
-  },
   "translations": {
     "id": true,
     "language": true,

@@ -1,8 +1,5 @@
-import { RoutineVersion } from "@local/shared";
-import { FormProps } from "forms/types";
-import { RoutineVersionShape } from "utils/shape/models/routineVersion";
-import { ObjectViewProps, ViewProps } from "views/types";
-import { CrudPropsDialog, CrudPropsPage } from "../types";
+import { RoutineVersion, RoutineVersionShape } from "@local/shared";
+import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps, ViewProps } from "../../../types";
 
 /** RoutineVersion with fields required for the build view */
 export type BuildRoutineVersion = Pick<RoutineVersion, "id" | "nodes" | "nodeLinks" | "translations">

@@ -1,4 +1,4 @@
-import { LlmTask, LlmTaskInfo, ServerLlmTaskInfo } from "@local/shared";
+import { AITaskInfo, LlmTask, ServerLlmTaskInfo } from "@local/shared";
 import { Job } from "bull";
 import { logger } from "../../events/logger";
 import { emitSocketEvent } from "../../sockets/events";
@@ -8,13 +8,13 @@ import { LlmTaskProcessPayload, changeLlmTaskStatus } from "./queue";
 type ExecuteLlmTaskParams = {
     data: Omit<LlmTaskProcessPayload, "status">;
 }
-export type ExecuteLlmTaskResult = ServerLlmTaskInfo & Pick<LlmTaskInfo, "resultLabel" | "resultLink"> & {
+export type ExecuteLlmTaskResult = ServerLlmTaskInfo & Pick<AITaskInfo, "resultLabel" | "resultLink"> & {
     status: "Completed" | "Failed"
 };
 
-export const executeLlmTask = async ({
+export async function executeLlmTask({
     data,
-}: ExecuteLlmTaskParams): Promise<ExecuteLlmTaskResult> => {
+}: ExecuteLlmTaskParams): Promise<ExecuteLlmTaskResult> {
     const { chatId, language, taskInfo, userData } = data;
     let success = false;
     let resultLabel: string | undefined;
@@ -22,7 +22,7 @@ export const executeLlmTask = async ({
     try {
         // Notify UI that command is being processed
         if (chatId) {
-            emitSocketEvent("llmTasks", chatId, { updates: [{ id: taskInfo.id, status: "Running" }] });
+            emitSocketEvent("llmTasks", chatId, { updates: [{ taskId: taskInfo.taskId, status: "Running" }] });
         }
 
         // Disallow "Start" task
@@ -38,7 +38,7 @@ export const executeLlmTask = async ({
         success = true;
     } catch (error) {
         logger.error("Caught error in executeLlmTask", { trace: "0498", error, taskInfo, language, userId: (userData as unknown as LlmTaskProcessPayload["userData"])?.id });
-        await changeLlmTaskStatus(taskInfo.id, "Failed", userData.id);
+        await changeLlmTaskStatus(taskInfo.taskId, "Failed", userData.id);
     }
     const result = {
         ...(taskInfo as LlmTaskProcessPayload["taskInfo"]),
@@ -50,11 +50,11 @@ export const executeLlmTask = async ({
     if (chatId && taskInfo !== null) {
         emitSocketEvent("llmTasks", chatId, { tasks: [result] });
     }
-    await changeLlmTaskStatus(taskInfo.id, result.status, userData.id);
+    await changeLlmTaskStatus(taskInfo.taskId, result.status, userData.id);
     return result;
-};
+}
 
-export const llmTaskProcess = async ({ data }: Job<LlmTaskProcessPayload>) => {
-    await changeLlmTaskStatus(data.taskInfo.id, "Running", data.userData.id);
+export async function llmTaskProcess({ data }: Job<LlmTaskProcessPayload>) {
+    await changeLlmTaskStatus(data.taskInfo.taskId, "Running", data.userData.id);
     await executeLlmTask({ data });
-};
+}

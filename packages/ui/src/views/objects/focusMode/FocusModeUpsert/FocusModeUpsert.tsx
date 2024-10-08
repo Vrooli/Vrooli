@@ -1,4 +1,4 @@
-import { DUMMY_ID, endpointGetFocusMode, endpointPostFocusMode, endpointPutFocusMode, FocusMode, FocusModeCreateInput, FocusModeUpdateInput, focusModeValidation, noopSubmit, Schedule, Session } from "@local/shared";
+import { DUMMY_ID, endpointGetFocusMode, endpointPostFocusMode, endpointPutFocusMode, FocusMode, FocusModeCreateInput, FocusModeShape, FocusModeUpdateInput, focusModeValidation, noopSubmit, Schedule, Session, shapeFocusMode } from "@local/shared";
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -10,17 +10,16 @@ import { TextInput } from "components/inputs/TextInput/TextInput";
 import { ResourceListInput } from "components/lists/resource/ResourceList/ResourceList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Title } from "components/text/Title/Title";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { AddIcon, DeleteIcon, EditIcon, HeartFilledIcon, InvisibleIcon } from "icons";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FocusModeShape, shapeFocusMode } from "utils/shape/models/focusMode";
 import { validateFormValues } from "utils/validateFormValues";
 import { ScheduleUpsert } from "views/objects/schedule";
 import { FocusModeFormProps, FocusModeUpsertProps } from "../types";
@@ -95,6 +94,10 @@ function FocusModeForm({
         scheduleHelpers.setValue(null);
         setIsScheduleDialogOpen(false);
     };
+
+    const resourceListParent = useMemo(function resourceListParentMemo() {
+        return { __typename: "FocusMode", id: values.id } as const;
+    }, [values]);
 
     const { handleCancel, handleCompleted } = useUpsertActions<FocusMode>({
         display,
@@ -245,7 +248,7 @@ function FocusModeForm({
                     <ResourceListInput
                         horizontal
                         isCreate={true}
-                        parent={{ __typename: "FocusMode", id: values.id }}
+                        parent={resourceListParent}
                     />
                     <ContentCollapse
                         isOpen={false}
@@ -282,6 +285,7 @@ function FocusModeForm({
 }
 
 export function FocusModeUpsert({
+    display,
     isCreate,
     isOpen,
     overrideObject,
@@ -289,8 +293,9 @@ export function FocusModeUpsert({
 }: FocusModeUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<FocusMode, FocusModeShape>({
+    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useManagedObject<FocusMode, FocusModeShape>({
         ...endpointGetFocusMode,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "FocusMode",
         overrideObject,
@@ -310,6 +315,7 @@ export function FocusModeUpsert({
         >
             {(formik) => <FocusModeForm
                 disabled={false} // Can always update focus mode
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

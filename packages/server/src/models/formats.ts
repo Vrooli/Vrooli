@@ -1,5 +1,5 @@
 import { GqlModelType } from "@local/shared";
-import { ApiKeyModelInfo, ApiModelInfo, ApiVersionModelInfo, AwardModelInfo, BookmarkListModelInfo, BookmarkModelInfo, ChatInviteModelInfo, ChatMessageModelInfo, ChatModelInfo, ChatParticipantModelInfo, CodeModelInfo, CodeVersionModelInfo, CommentModelInfo, EmailModelInfo, FocusModeFilterModelInfo, FocusModeModelInfo, IssueModelInfo, LabelModelInfo, MeetingInviteModelInfo, MeetingModelInfo, MemberInviteModelInfo, MemberModelInfo, NodeEndModelInfo, NodeLinkModelInfo, NodeLinkWhenModelInfo, NodeLoopModelInfo, NodeLoopWhileModelInfo, NodeModelInfo, NodeRoutineListItemModelInfo, NodeRoutineListModelInfo, NoteModelInfo, NoteVersionModelInfo, NotificationModelInfo, NotificationSubscriptionModelInfo, PaymentModelInfo, PhoneModelInfo, PostModelInfo, PremiumModelInfo, ProjectModelInfo, ProjectVersionDirectoryModelInfo, ProjectVersionModelInfo, PullRequestModelInfo, PushDeviceModelInfo, QuestionAnswerModelInfo, QuestionModelInfo, QuizAttemptModelInfo, QuizModelInfo, QuizQuestionModelInfo, QuizQuestionResponseModelInfo, ReactionModelInfo, ReactionSummaryModelInfo, ReminderItemModelInfo, ReminderListModelInfo, ReminderModelInfo, ReportModelInfo, ReportResponseModelInfo, ResourceListModelInfo, ResourceModelInfo, RoleModelInfo, RoutineModelInfo, RoutineVersionInputModelInfo, RoutineVersionModelInfo, RoutineVersionOutputModelInfo, RunProjectModelInfo, RunProjectStepModelInfo, RunRoutineInputModelInfo, RunRoutineModelInfo, RunRoutineStepModelInfo, ScheduleExceptionModelInfo, ScheduleModelInfo, ScheduleRecurrenceModelInfo, StandardModelInfo, StandardVersionModelInfo, StatsApiModelInfo, StatsCodeModelInfo, StatsProjectModelInfo, StatsQuizModelInfo, StatsRoutineModelInfo, StatsSiteModelInfo, StatsStandardModelInfo, StatsTeamModelInfo, StatsUserModelInfo, TagModelInfo, TeamModelInfo, TransferModelInfo, UserModelInfo, ViewModelInfo, WalletModelInfo } from "./base/types";
+import { ApiKeyModelInfo, ApiModelInfo, ApiVersionModelInfo, AwardModelInfo, BookmarkListModelInfo, BookmarkModelInfo, ChatInviteModelInfo, ChatMessageModelInfo, ChatModelInfo, ChatParticipantModelInfo, CodeModelInfo, CodeVersionModelInfo, CommentModelInfo, EmailModelInfo, FocusModeFilterModelInfo, FocusModeModelInfo, IssueModelInfo, LabelModelInfo, MeetingInviteModelInfo, MeetingModelInfo, MemberInviteModelInfo, MemberModelInfo, NodeEndModelInfo, NodeLinkModelInfo, NodeLinkWhenModelInfo, NodeLoopModelInfo, NodeLoopWhileModelInfo, NodeModelInfo, NodeRoutineListItemModelInfo, NodeRoutineListModelInfo, NoteModelInfo, NoteVersionModelInfo, NotificationModelInfo, NotificationSubscriptionModelInfo, PaymentModelInfo, PhoneModelInfo, PostModelInfo, PremiumModelInfo, ProjectModelInfo, ProjectVersionDirectoryModelInfo, ProjectVersionModelInfo, PullRequestModelInfo, PushDeviceModelInfo, QuestionAnswerModelInfo, QuestionModelInfo, QuizAttemptModelInfo, QuizModelInfo, QuizQuestionModelInfo, QuizQuestionResponseModelInfo, ReactionModelInfo, ReactionSummaryModelInfo, ReminderItemModelInfo, ReminderListModelInfo, ReminderModelInfo, ReportModelInfo, ReportResponseModelInfo, ResourceListModelInfo, ResourceModelInfo, RoleModelInfo, RoutineModelInfo, RoutineVersionInputModelInfo, RoutineVersionModelInfo, RoutineVersionOutputModelInfo, RunProjectModelInfo, RunProjectStepModelInfo, RunRoutineInputModelInfo, RunRoutineModelInfo, RunRoutineOutputModelInfo, RunRoutineStepModelInfo, ScheduleExceptionModelInfo, ScheduleModelInfo, ScheduleRecurrenceModelInfo, StandardModelInfo, StandardVersionModelInfo, StatsApiModelInfo, StatsCodeModelInfo, StatsProjectModelInfo, StatsQuizModelInfo, StatsRoutineModelInfo, StatsSiteModelInfo, StatsStandardModelInfo, StatsTeamModelInfo, StatsUserModelInfo, TagModelInfo, TeamModelInfo, TransferModelInfo, UserModelInfo, ViewModelInfo, WalletModelInfo } from "./base/types";
 import { Formatter } from "./types";
 
 export const ApiFormat: Formatter<ApiModelInfo> = {
@@ -321,6 +321,7 @@ export const FocusModeFormat: Formatter<FocusModeModelInfo> = {
         filters: "FocusModeFilter",
         labels: "Label",
         reminderList: "ReminderList",
+        resourceList: "ResourceList",
         schedule: "Schedule",
     },
     prismaRelMap: {
@@ -1359,10 +1360,43 @@ export const ReportFormat: Formatter<ReportModelInfo> = {
     gqlRelMap: {
         __typename: "Report",
         responses: "ReportResponse",
+        createdFor: {
+            apiVersion: "ApiVersion",
+            chatMessage: "ChatMessage",
+            codeVersion: "CodeVersion",
+            comment: "Comment",
+            issue: "Issue",
+            noteVersion: "NoteVersion",
+            post: "Post",
+            projectVersion: "ProjectVersion",
+            question: "Question",
+            routineVersion: "RoutineVersion",
+            standardVersion: "StandardVersion",
+            tag: "Tag",
+            team: "Team",
+            user: "User",
+        },
+    },
+    unionFields: {
+        createdFor: { connectField: "createdForConnect", typeField: "createdForType" },
     },
     prismaRelMap: {
         __typename: "Report",
         responses: "ReportResponse",
+        apiVersion: "ApiVersion",
+        chatMessage: "ChatMessage",
+        codeVersion: "CodeVersion",
+        comment: "Comment",
+        issue: "Issue",
+        noteVersion: "NoteVersion",
+        post: "Post",
+        projectVersion: "ProjectVersion",
+        question: "Question",
+        routineVersion: "RoutineVersion",
+        standardVersion: "StandardVersion",
+        tag: "Tag",
+        team: "Team",
+        user: "User",
     },
     hiddenFields: ["createdById"], // Always hide report creator,
     countFields: {
@@ -1513,7 +1547,6 @@ export const RoutineVersionFormat: Formatter<RoutineVersionModelInfo> = {
         reports: "Report",
         root: "Routine",
         suggestedNextByRoutineVersion: "RoutineVersion",
-        // you.runs: 'RunRoutine', //TODO
     },
     prismaRelMap: {
         __typename: "RoutineVersion",
@@ -1606,7 +1639,7 @@ export const RunProjectStepFormat: Formatter<RunProjectStepModelInfo> = {
     gqlRelMap: {
         __typename: "RunProjectStep",
         directory: "ProjectVersionDirectory",
-        run: "RunProject",
+        runProject: "RunProject",
     },
     prismaRelMap: {
         __typename: "RunProjectStep",
@@ -1620,6 +1653,7 @@ export const RunRoutineFormat: Formatter<RunRoutineModelInfo> = {
     gqlRelMap: {
         __typename: "RunRoutine",
         inputs: "RunRoutineInput",
+        outputs: "RunRoutineOutput",
         team: "Team",
         routineVersion: "RoutineVersion",
         runProject: "RunProject",
@@ -1630,6 +1664,7 @@ export const RunRoutineFormat: Formatter<RunRoutineModelInfo> = {
     prismaRelMap: {
         __typename: "RunRoutine",
         inputs: "RunRoutineInput",
+        outputs: "RunRoutineOutput",
         team: "Team",
         routineVersion: "RoutineVersion",
         runProject: "RunProject",
@@ -1639,6 +1674,7 @@ export const RunRoutineFormat: Formatter<RunRoutineModelInfo> = {
     },
     countFields: {
         inputsCount: true,
+        outputsCount: true,
         stepsCount: true,
     },
 };
@@ -1657,12 +1693,26 @@ export const RunRoutineInputFormat: Formatter<RunRoutineInputModelInfo> = {
     countFields: {},
 };
 
+export const RunRoutineOutputFormat: Formatter<RunRoutineOutputModelInfo> = {
+    gqlRelMap: {
+        __typename: "RunRoutineOutput",
+        output: "RoutineVersionOutput",
+        runRoutine: "RunRoutine",
+    },
+    prismaRelMap: {
+        __typename: "RunRoutineOutput",
+        output: "RunRoutineOutput",
+        runRoutine: "RunRoutine",
+    },
+    countFields: {},
+};
+
 export const RunRoutineStepFormat: Formatter<RunRoutineStepModelInfo> = {
     gqlRelMap: {
         __typename: "RunRoutineStep",
-        run: "RunRoutine",
         node: "Node",
-        subroutine: "Routine",
+        runRoutine: "RunRoutine",
+        subroutine: "RoutineVersion",
     },
     prismaRelMap: {
         __typename: "RunRoutineStep",
@@ -2259,6 +2309,7 @@ export const FormatMap: { [key in GqlModelType]?: Formatter<any> } = {
     RunProjectStep: RunProjectStepFormat,
     RunRoutine: RunRoutineFormat,
     RunRoutineInput: RunRoutineInputFormat,
+    RunRoutineOutput: RunRoutineOutputFormat,
     RunRoutineStep: RunRoutineStepFormat,
     Schedule: ScheduleFormat,
     ScheduleException: ScheduleExceptionFormat,

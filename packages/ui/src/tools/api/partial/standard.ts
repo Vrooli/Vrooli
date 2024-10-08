@@ -53,7 +53,6 @@ export const standard: GqlPartial<Standard> = {
         versionsCount: true,
         parent: async () => rel((await import("./standardVersion")).standardVersion, "nav"),
         versions: async () => rel((await import("./standardVersion")).standardVersion, "full", { omit: "root" }),
-        stats: async () => rel((await import("./statsStandard")).statsStandard, "full"),
     },
     list: {
         versions: async () => rel((await import("./standardVersion")).standardVersion, "list", { omit: "root" }),

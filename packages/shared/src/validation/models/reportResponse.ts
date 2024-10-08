@@ -1,4 +1,4 @@
-import { ReportSuggestedAction } from "@local/shared";
+import { ReportSuggestedAction } from "../../api/generated/graphqlTypes";
 import { details, enumToYup, id, language, opt, req, YupModel, yupObj } from "../utils";
 
 const actionSuggested = enumToYup(ReportSuggestedAction);

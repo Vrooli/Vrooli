@@ -47,7 +47,7 @@ export const meeting: GqlPartial<Meeting> = {
         attendees: async () => rel((await import("./user")).user, "nav"),
         invites: async () => rel((await import("./meetingInvite")).meetingInvite, "list", { omit: "meeting" }),
         labels: { __use: 0 },
-        schedule: async () => rel((await import("./schedule")).schedule, "full", { omit: "meetings" }),
+        schedule: async () => rel((await import("./schedule")).schedule, "list", { omit: "meetings" }),
         translations: () => rel(meetingTranslation, "full"),
     },
     list: {

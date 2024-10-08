@@ -1,12 +1,13 @@
 import { FocusModeSortBy, focusModeValidation, MaxObjects } from "@local/shared";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions } from "../../utils";
 import { labelShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
 import { FocusModeFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { FocusModeModelLogic } from "./types";
+import { FocusModeModelInfo, FocusModeModelLogic } from "./types";
 
 const __typename = "FocusMode" as const;
 export const FocusModeModel: FocusModeModelLogic = ({
@@ -62,7 +63,7 @@ export const FocusModeModel: FocusModeModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<FocusModeModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -82,15 +83,21 @@ export const FocusModeModel: FocusModeModelLogic = ({
             user: "User",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return {
+                    user: { id: data.userId },
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            // Always private, so it's the same as "own"
+            ownOrPublic: function getOwnOrPublic(data) {
+                return useVisibility("FocusMode", "Own", data);
             },
-            owner: (userId) => ({
-                user: { id: userId },
-            }),
+            // Always private, so it's the same as "own"
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("FocusMode", "Own", data);
+            },
+            ownPublic: null, // Search method disabled
+            public: null, // Search method disabled
         },
     }),
 });

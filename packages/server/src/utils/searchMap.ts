@@ -7,30 +7,38 @@ import { SessionUserToken } from "../types";
 /**
  * Creates a partial query for the ID of a one-to-one relation.
  */
-const oneToOneId = <RelField extends string>(id: string, relField: RelField) => ({
-    [relField]: { id },
-});
+function oneToOneId<RelField extends string>(id: string, relField: RelField) {
+    return {
+        [relField]: { id },
+    } as const;
+}
 
 /**
  * Creates a partial query for multiple IDs of a one-to-one relation.
  */
-const oneToOneIds = <RelField extends string>(ids: string[], relField: RelField) => ({
-    [relField]: { id: { in: ids } },
-});
+function oneToOneIds<RelField extends string>(ids: string[], relField: RelField) {
+    return {
+        [relField]: { id: { in: ids } },
+    } as const;
+}
 
 /**
  * Creates a partial query for the ID of a one-to-many relation.
  */
-const oneToManyId = <RelField extends string>(id: string, relField: RelField) => ({
-    [relField]: { some: { id } },
-});
+function oneToManyId<RelField extends string>(id: string, relField: RelField) {
+    return {
+        [relField]: { some: { id } },
+    } as const;
+}
 
 /**
  * Creates a partial query for multiple IDs of a one-to-many relation.
  */
-const oneToManyIds = <RelField extends string>(ids: string[], relField: RelField) => ({
-    [relField]: { some: { id: { in: ids } } },
-});
+function oneToManyIds<RelField extends string>(ids: string[], relField: RelField) {
+    return {
+        [relField]: { some: { id: { in: ids } } },
+    } as const;
+}
 
 /**
  * Supplemental data passed into SearchMap. Useful for building queries that need 
@@ -39,6 +47,8 @@ const oneToManyIds = <RelField extends string>(ids: string[], relField: RelField
 type RequestData = {
     /** The object type being queried */
     objectType: GqlModelType | `${GqlModelType}`;
+    /** Full search input query */
+    searchInput: { [x: string]: any };
     /** The current user's session token */
     userData: SessionUserToken | null;
     /** The visibility of the query */
@@ -94,7 +104,24 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
     chatMessageId: (id: string) => oneToOneId(id, "chatMessage"),
     codeId: (id: string) => oneToOneId(id, "code"),
     codesId: (id: string) => oneToManyId(id, "codes"),
+    codeLanguage: (codeLanguage: string) => codeLanguage ? ({ codeLanguage: { contains: codeLanguage.trim(), mode: "insensitive" } }) : {},
+    codeLanguageLatestVersion: (language: string) => language ? ({
+        versions: {
+            some: {
+                isLatest: true,
+                codeLanguage: { contains: language.trim(), mode: "insensitive" },
+            },
+        },
+    }) : {},
     codeType: (codeType: string) => codeType ? ({ codeType: { contains: codeType.trim(), mode: "insensitive" } }) : {},
+    codeTypeLatestVersion: (type: string) => type ? ({
+        versions: {
+            some: {
+                isLatest: true,
+                codeType: { contains: type.trim(), mode: "insensitive" },
+            },
+        },
+    }) : {},
     codeVersionId: (id: string) => oneToOneId(id, "codeVersion"),
     codeVersionsId: (id: string) => oneToManyId(id, "codeVersions"),
     commentId: (id: string) => oneToOneId(id, "comment"),
@@ -241,6 +268,8 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
     minViewsRoot: (views: number) => ({ root: { views: { gte: views } } }),
     nodeType: (nodeType: string) => nodeType ? ({ nodeType: { contains: nodeType.trim(), mode: "insensitive" } }) : {},
     notInChatId: (id: string) => id ? ({ NOT: { chats: { some: { id } } } }) : {}, // TODO should probably validate that you can read the participants in this chat, so that you can't figure out who's in a chat by finding out everyone who's not
+    notInvitedToTeamId: (id: string) => ({ membershipsInvited: { none: { team: { id } } } }),
+    notMemberInTeamId: (id: string) => ({ memberships: { none: { team: { id } } } }),
     noteId: (id: string) => oneToOneId(id, "note"),
     notesId: (id: string) => oneToManyId(id, "notes"),
     noteVersionId: (id: string) => oneToOneId(id, "noteVersion"),
@@ -397,5 +426,14 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
     updatedTimeFrame: (time: TimeFrame) => timeFrameToPrisma("updated_at", time),
     userId: (id: string) => oneToOneId(id, "user"),
     usersId: (id: string) => oneToManyId(id, "users"),
-    visibility: (visibility: VisibilityType | null | undefined, { objectType, userData }) => visibilityBuilderPrisma({ objectType, userData, visibility }),
+    variant: (variant: string) => variant ? ({ variant: { contains: variant.trim(), mode: "insensitive" } }) : {},
+    variantLatestVersion: (type: string) => type ? ({
+        versions: {
+            some: {
+                isLatest: true,
+                variant: { contains: type.trim(), mode: "insensitive" },
+            },
+        },
+    }) : {},
+    visibility: (visibility: VisibilityType | null | undefined, { objectType, searchInput, userData }) => visibilityBuilderPrisma({ objectType, searchInput, userData, visibility }).query,
 } as SearchMapType<typeof SearchMap>;

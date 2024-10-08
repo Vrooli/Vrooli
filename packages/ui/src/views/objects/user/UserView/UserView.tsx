@@ -1,5 +1,6 @@
-import { BookmarkFor, FindByIdOrHandleInput, LINKS, ListObject, User, endpointGetProfile, endpointGetUser, getObjectUrl, noop, uuid, uuidValidate } from "@local/shared";
+import { BookmarkFor, ChatShape, FindByIdOrHandleInput, LINKS, ListObject, User, UserPageTabOption, endpointGetProfile, endpointGetUser, findBotData, getAvailableModels, getObjectUrl, getTranslation, noop, uuid, uuidValidate } from "@local/shared";
 import { Box, IconButton, InputAdornment, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { getExistingAIConfig } from "api/ai";
 import BannerDefault from "assets/img/BannerDefault.png";
 import BannerDefaultBot from "assets/img/BannerDefaultBot.png";
 import { PageTabs } from "components/PageTabs/PageTabs";
@@ -15,29 +16,79 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Title } from "components/text/Title/Title";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
+import { useObjectActions } from "hooks/objectActions";
 import { useFindMany } from "hooks/useFindMany";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { useObjectActions } from "hooks/useObjectActions";
 import { useTabs } from "hooks/useTabs";
 import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, ExportIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, PersonaIcon, RoutineValidIcon, SearchIcon, TeamIcon, UserIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
-import { BannerImageContainer, FormSection, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack, SideActionsButton } from "styles";
+import { BannerImageContainer, FormSection, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack, ScrollBox, SideActionsButton } from "styles";
 import { PartialWithType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
-import { findBotData } from "utils/botUtils";
-import { getCookieMatchingChat, getCookiePartialData, setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
 import { defaultYou, getDisplay, getYou, placeholderColor } from "utils/display/listTools";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
+import { getCookieMatchingChat, getCookiePartialData, setCookiePartialData } from "utils/localStorage";
 import { UrlInfo, parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
-import { UserPageTabOption, userTabParams } from "utils/search/objectToSearch";
-import { ChatShape } from "utils/shape/models/chat";
+import { userTabParams } from "utils/search/objectToSearch";
 import { FeatureSlider } from "views/objects/bot";
 import { UserViewProps } from "../types";
+
+const scrollContainerId = "user-search-scroll";
+
+const occupationInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <TeamIcon />
+        </InputAdornment>
+    ),
+} as const;
+const personaInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <PersonaIcon />
+        </InputAdornment>
+    ),
+} as const;
+const startMessageInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <CommentIcon />
+        </InputAdornment>
+    ),
+} as const;
+const toneInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <RoutineValidIcon />
+        </InputAdornment>
+    ),
+} as const;
+const keyPhrasesInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <KeyPhrasesIcon />
+        </InputAdornment>
+    ),
+} as const;
+const domainKnowledgeInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <LearnIcon />
+        </InputAdornment>
+    ),
+} as const;
+const biasInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <HeartFilledIcon />
+        </InputAdornment>
+    ),
+} as const;
 
 export function UserView({
     display,
@@ -91,7 +142,8 @@ export function UserView({
     }, [availableLanguages, setLanguage, session]);
 
     const { adornments, bannerImageUrl, bio, botData, name, handle } = useMemo(() => {
-        const { model, creativity, verbosity, translations } = findBotData(language, user);
+        const availableModels = getAvailableModels(getExistingAIConfig()?.service?.config);
+        const { model, creativity, verbosity, translations } = findBotData(language, availableModels, user);
         const { bio, ...botTranslations } = getTranslation({ translations }, [language], true);
         const { adornments } = getDisplay(user, [language], palette);
         let bannerImageUrl = extractImageUrl(user?.bannerImage, user?.updated_at, 1000);
@@ -189,11 +241,10 @@ export function UserView({
         // For bots, add a start message
         if (user.isBot) {
             const bestLanguage = getUserLanguages(session)[0];
-            const { translations } = findBotData(bestLanguage, user);
-            const bestTranslation = translations.length > 0
-                ? translations.find(t => t.language === bestLanguage) ?? translations[0]
-                : undefined;
-            const startingMessage = bestTranslation?.startingMessage ?? "";
+            const availableModels = getAvailableModels(getExistingAIConfig()?.service?.config);
+            const { translations } = findBotData(bestLanguage, availableModels, user);
+            const bestTranslation = getTranslation({ translations }, [bestLanguage]);
+            const startingMessage = bestTranslation.startingMessage ?? "";
             if (startingMessage.length > 0) {
                 (initialChatData as unknown as { messages: Partial<ChatShape["messages"]> }).messages = [{
                     id: uuid(),
@@ -215,7 +266,7 @@ export function UserView({
     }, [language, session, setLocation, user]);
 
     return (
-        <>
+        <ScrollBox id={scrollContainerId}>
             <TopBar
                 display={display}
                 onClose={onClose}
@@ -368,91 +419,49 @@ export function UserView({
                             fullWidth
                             label={t("Occupation")}
                             value={botData.occupation}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <TeamIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
+                            InputProps={occupationInputProps}
                         />}
                         {botData.persona && <TextInput
                             disabled
                             fullWidth
                             label={t("Persona")}
                             value={botData.persona}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <PersonaIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
+                            InputProps={personaInputProps}
                         />}
                         {botData.startingMessage && <TextInput
                             disabled
                             fullWidth
                             label={t("StartMessage")}
                             value={botData.startingMessage}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <CommentIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
+                            InputProps={startMessageInputProps}
                         />}
                         {botData.tone && <TextInput
                             disabled
                             fullWidth
                             label={t("Tone")}
                             value={botData.tone}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <RoutineValidIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
+                            InputProps={toneInputProps}
                         />}
                         {botData.keyPhrases && <TextInput
                             disabled
                             fullWidth
                             label={t("KeyPhrases")}
                             value={botData.keyPhrases}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <KeyPhrasesIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
+                            InputProps={keyPhrasesInputProps}
                         />}
                         {botData.domainKnowledge && <TextInput
                             disabled
                             fullWidth
                             label={t("DomainKnowledge")}
                             value={botData.domainKnowledge}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <LearnIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
+                            InputProps={domainKnowledgeInputProps}
                         />}
                         {botData.bias && <TextInput
                             disabled
                             fullWidth
                             label={t("Bias")}
                             value={botData.bias}
-                            InputProps={{
-                                startAdornment: (
-                                    <InputAdornment position="start">
-                                        <HeartFilledIcon />
-                                    </InputAdornment>
-                                ),
-                            }}
+                            InputProps={biasInputProps}
                         />}
                         <FeatureSlider
                             id="creativity-slider"
@@ -477,18 +486,12 @@ export function UserView({
                 {currTab.key !== UserPageTabOption.Details && <Box>
                     <SearchList
                         {...findManyData}
+                        borderRadius={0}
                         display={display}
                         hideUpdateButton={true}
-                        id="user-view-list"
                         searchPlaceholder={searchPlaceholderKey}
-                        sxs={showSearchFilters ? {
-                            search: { marginTop: 2 },
-                            listContainer: { borderRadius: 0 },
-                        } : {
-                            search: { display: "none" },
-                            buttons: { display: "none" },
-                            listContainer: { borderRadius: 0 },
-                        }}
+                        scrollContainerId={scrollContainerId}
+                        variant={showSearchFilters ? "normal" : "minimal"}
                     />
                 </Box>}
             </Box>
@@ -509,6 +512,6 @@ export function UserView({
                     <CommentIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </SideActionsButton>
             </SideActionsButtons>
-        </>
+        </ScrollBox>
     );
 }

@@ -1,6 +1,5 @@
-import { YupModel } from "@local/shared";
+import { YupModel, validateAndGetYupErrors } from "@local/shared";
 import { FormErrors } from "types";
-import { validateAndGetYupErrors } from "./shape/general";
 
 type TransformFunction<T, U, IsCreate extends boolean> = (values: T, existing: U, isCreate: IsCreate) =>
     IsCreate extends true ? object : (object | undefined);

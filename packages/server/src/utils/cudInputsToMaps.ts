@@ -5,10 +5,10 @@ import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
 import { ModelMap } from "../models/base";
-import { Formatter, ModelLogicType } from "../models/types";
+import { Formatter, ModelLogicType, PreMap } from "../models/types";
 import { getActionFromFieldName } from "./getActionFromFieldName";
 import { InputNode } from "./inputNode";
-import { CudInputData, IdsByAction, IdsByPlaceholder, IdsByType, IdsCreateToConnect, InputsById, InputsByType, QueryAction } from "./types";
+import { CudInputData, IdsByAction, IdsByPlaceholder, IdsByType, IdsCreateToConnect, InputsById, InputsByType, QueryAction, ResultsById } from "./types";
 
 /** Information about the closest known object with a valid, **existing** ID (i.e. not a new object) in a mutation */
 type ClosestWithId = { __typename: string, id: string, path: string };
@@ -44,10 +44,10 @@ type MinimumFormatter<
  * // 'Email' is the relation type for 'email'.
  * const userId = await fetchAndMapPlaceholder('User|123.Email|emails', placeholderToIdMap);
  */
-export const fetchAndMapPlaceholder = async (
+export async function fetchAndMapPlaceholder(
     placeholder: string,
     placeholderToIdMap: IdsByPlaceholder,
-): Promise<void> => {
+): Promise<void> {
     if (placeholder in placeholderToIdMap) {
         return;  // Already processed this placeholder
     }
@@ -96,17 +96,17 @@ export const fetchAndMapPlaceholder = async (
 
     const resultId = currentObject && currentObject.id ? currentObject.id : null;
     placeholderToIdMap[placeholder] = resultId;
-};
+}
 
 /**
  * Iterates over a given map of IDs, replacing any placeholder IDs with actual IDs fetched from the database.
  * This function is primarily used for converting placeholder IDs in the `idsByType` and `idsByAction` maps
  * into their corresponding actual IDs. It mutates the input `idsMap` by updating the placeholder IDs in-place.
  */
-export const replacePlaceholdersInMap = async (
+export async function replacePlaceholdersInMap(
     idsMap: Record<string, (string | null)[]>,
     placeholderToIdMap: IdsByPlaceholder,
-): Promise<void> => {
+): Promise<void> {
     for (const [key, ids] of Object.entries(idsMap)) {
         const updatedIds: (string | null)[] = [];
         for (const id of ids) {
@@ -123,7 +123,7 @@ export const replacePlaceholdersInMap = async (
         }
         idsMap[key] = updatedIds;
     }
-};
+}
 
 /**
  * Replaces placeholder IDs with actual IDs in the `inputsById` map.
@@ -131,10 +131,10 @@ export const replacePlaceholdersInMap = async (
  * and this function will replace them with actual IDs fetched through some mechanism,
  * updating both the keys in the `inputsById` map and the `id` property of the `node` within each value.
  */
-export const replacePlaceholdersInInputsById = async (
+export async function replacePlaceholdersInInputsById(
     inputsById: InputsById,
     placeholderToIdMap: IdsByPlaceholder,
-): Promise<void> => {
+): Promise<void> {
     for (const [maybePlaceholder, value] of Object.entries(inputsById)) {
         if (!maybePlaceholder.includes("|")) continue;
         let id: string | null = maybePlaceholder;
@@ -163,17 +163,17 @@ export const replacePlaceholdersInInputsById = async (
         };
         delete inputsById[maybePlaceholder];
     }
-};
+}
 
 /**
  * Replaces placeholder IDs with actual IDs in the `inputsByType` structure.
  * This function iterates over each type, action, and their corresponding inputs,
  * updating placeholder IDs in both node.id and input fields.
  */
-export const replacePlaceholdersInInputsByType = async (
+export async function replacePlaceholdersInInputsByType(
     inputsByType: InputsByType,
     placeholderToIdMap: IdsByPlaceholder,
-): Promise<void> => {
+): Promise<void> {
     for (const objectType in inputsByType) {
         for (const action in inputsByType[objectType]) {
             const inputs = inputsByType[objectType][action];
@@ -199,13 +199,13 @@ export const replacePlaceholdersInInputsByType = async (
             }
         }
     }
-};
+}
 
 /**
  * Converts placeholder ids to actual IDs, or null if actual ID not found. 
  * This is only needed for idsByAction and idsByType
  */
-export const convertPlaceholders = async ({
+export async function convertPlaceholders({
     idsByAction,
     idsByType,
     inputsById,
@@ -215,14 +215,14 @@ export const convertPlaceholders = async ({
     idsByType: IdsByType,
     inputsById: InputsById,
     inputsByType: InputsByType,
-}): Promise<void> => {
+}): Promise<void> {
     const placeholderToIdMap: IdsByPlaceholder = {};
 
     await replacePlaceholdersInMap(idsByAction, placeholderToIdMap);
     await replacePlaceholdersInMap(idsByType, placeholderToIdMap);
     await replacePlaceholdersInInputsById(inputsById, placeholderToIdMap);
     await replacePlaceholdersInInputsByType(inputsByType, placeholderToIdMap);
-};
+}
 
 /**
  * Initializes and populates maps for tracking IDs and inputs by action type and object type.
@@ -233,13 +233,13 @@ export const convertPlaceholders = async ({
  * @param idsByType - A map of object types to arrays of IDs.
  * @param inputsByType - A map of object types to arrays of mutation inputs.
  */
-export const initializeInputMaps = (
+export function initializeInputMaps(
     action: QueryAction,
     objectType: `${GqlModelType}`,
     idsByAction: IdsByAction,
     idsByType: IdsByType,
     inputsByType: InputsByType,
-): void => {
+): void {
     // Initialize idsByAction for the given action if it doesn't exist
     if (!idsByAction[action]) {
         idsByAction[action] = [];
@@ -259,7 +259,7 @@ export const initializeInputMaps = (
             Update: [],
         };
     }
-};
+}
 
 /**
  * Updates the closest known object ID for generating input map placeholders.
@@ -274,14 +274,14 @@ export const initializeInputMaps = (
  * @param relation - The relation name, if not the root object (so we can update the path if no ID is found at this level).
  * @returns The updated closestWithId object or null.
  */
-export const updateClosestWithId = <T extends { [key: string]: any }>(
+export function updateClosestWithId<T extends { [key: string]: any }>(
     action: QueryAction,
     input: string | boolean | T,
     idField: string,
     inputType: GqlModelType | `${GqlModelType}`,
     closestWithId: ClosestWithId | null,
     relation?: string,
-): ClosestWithId | null => {
+): ClosestWithId | null {
     // Placeholders are only used for implicit connects/disconnects on one-to-one and many-to-one relations. 
     // Since create mutations don't have any implicit connects/disconnects (since that implies existing relations),
     // we can safely ignore the ID.
@@ -306,7 +306,7 @@ export const updateClosestWithId = <T extends { [key: string]: any }>(
     }
     // If there is an ID, return with ID, inputType, and empty path
     return { __typename: inputType, id: inputId, path: "" };
-};
+}
 
 /**
  * Determines the GraphQL model type (`__typename`) for a given field within an input object.
@@ -317,14 +317,14 @@ export const updateClosestWithId = <T extends { [key: string]: any }>(
  * and skip further processing.
  * @throws {CustomError} If the field is not found in the relMap, or if the field is a union and the union type cannot be determined.
  */
-export const determineModelType = <
+export function determineModelType<
     GqlModel extends ModelLogicType["GqlModel"],
 >(
     field: string,
     fieldName: string,
     input: GqlModel,
     format: MinimumFormatter<any>,
-): `${GqlModelType}` | null => {
+): `${GqlModelType}` | null {
     // Check if the field exists in the relMap (the standard case)
     const __typename: `${GqlModelType}` = format.gqlRelMap[fieldName] as `${GqlModelType}`;
     if (typeof __typename === "string") {
@@ -377,14 +377,14 @@ export const determineModelType = <
     }
     // If we get here, we couldn't find the union type. Throw an error.
     throw new CustomError("0228", "InternalError", ["en"], { field, fieldName });
-};
+}
 
 
 /**
  * Recursively builds child nodes for "Create" and "Update" actions within the input tree.
  * @returns The newly created child node, which has been integrated into the input tree.
  */
-export const processCreateOrUpdate = <
+export function processCreateOrUpdate<
     Typename extends `${GqlModelType}`,
     GqlCreate extends ModelLogicType["GqlCreate"],
     GqlModel extends ModelLogicType["GqlModel"],
@@ -401,7 +401,7 @@ export const processCreateOrUpdate = <
     idsByType: IdsByType,
     inputsById: InputsById,
     inputsByType: InputsByType,
-): void => {
+): void {
     // Recursively build child nodes for Create and Update actions
     if (action === "Create" || action === "Update") {
         // Disallow Update if we're in a create mutation
@@ -425,13 +425,13 @@ export const processCreateOrUpdate = <
         // If other functions are set up correctly, this should never happen
         throw new CustomError("0110", "InternalError", ["en"], { action });
     }
-};
+}
 
 /**
  * Processes "Connect", "Disconnect", and "Delete" actions by managing IDs in tracking maps
  * and handling placeholders for implicit "Disconnects".
  */
-export const processConnectDisconnectOrDelete = (
+export function processConnectDisconnectOrDelete(
     id: string,
     isToOne: boolean,
     action: QueryAction,
@@ -443,7 +443,7 @@ export const processConnectDisconnectOrDelete = (
     idsByType: IdsByType,
     inputsById: InputsById,
     inputsByType: InputsByType,
-): void => {
+): void {
     initializeInputMaps(action, __typename, idsByAction, idsByType, inputsByType);
     // Check if closestWithId is null. If so, this means this action takes place within a create mutation, 
     // so we can skip some steps.
@@ -500,13 +500,13 @@ export const processConnectDisconnectOrDelete = (
             inputsByType[__typename]?.[action]?.push(inputInfo);
         }
     }
-};
+}
 
 /**
  * Processes a field in an input object, handling action determination,
  * union fields, and initiating the processing of child objects or connections.
  */
-export const processInputObjectField = <
+export function processInputObjectField<
     Typename extends `${GqlModelType}`,
     GqlCreate extends ModelLogicType["GqlCreate"],
     GqlModel extends ModelLogicType["GqlModel"],
@@ -522,7 +522,7 @@ export const processInputObjectField = <
     inputsById: InputsById,
     inputsByType: InputsByType,
     inputInfo: { node: InputNode, input: string | Record<string, any> },
-): void => {
+): void {
     const action = getActionFromFieldName(field);
     const isToOne = !(input[field] instanceof Array);
     // If it's not a relation, add it to the inputInfo object and return
@@ -568,7 +568,7 @@ export const processInputObjectField = <
         }
     }
     // TODO not handling Read
-};
+}
 
 /**
  * Populates various maps, using a mutation input, to optimize the performance of operations
@@ -592,7 +592,7 @@ export const processInputObjectField = <
  * @param inputsByType - A map of object types to input objects. Used to keep track of all inputs in the input.
  * @returns rootNode - The root of the hierarchical tree representation of the input.
  */
-export const inputToMaps = <
+export function inputToMaps<
     Typename extends `${GqlModelType}`,
     GqlCreate extends ModelLogicType["GqlCreate"],
     GqlModel extends ModelLogicType["GqlModel"],
@@ -607,7 +607,7 @@ export const inputToMaps = <
     idsByType: IdsByType,
     inputsById: InputsById,
     inputsByType: InputsByType,
-): InputNode => {
+): InputNode {
     // Initialize data
     const id = typeof input === "string" ? input : input[idField];
     const rootNode = new InputNode(format.gqlRelMap.__typename, id, action);
@@ -644,20 +644,33 @@ export const inputToMaps = <
     inputsByType[format.gqlRelMap.__typename]?.[action]?.push(inputInfo);
     // Return the root node
     return rootNode;
-};
+}
 
-// TODO Try adding `readMany` so we can use this for reads. I believe the current way we do reads doesn't properly check relation permissions, so this would solve that.
-export const cudInputsToMaps = async ({
-    inputData,
-}: {
+export type CudInputsToMapsParams = {
     inputData: CudInputData[],
-}): Promise<{
+}
+
+export type CudInputsToMapsResult = {
     idsByAction: IdsByAction,
     idsByType: IdsByType,
     idsCreateToConnect: IdsCreateToConnect,
     inputsById: InputsById,
     inputsByType: InputsByType,
-}> => {
+    // Populated later
+    preMap: PreMap
+    // Populated later
+    resultsById: ResultsById,
+}
+
+// TODO Try adding `readMany` so we can use this for reads. I believe the current way we do reads doesn't properly check relation permissions, so this would solve that.
+/**
+ * Groups all input data into various maps for validation and data shaping.
+ * @param inputData The array of input data to group.
+ * @returns An object containing maps grouped by action, type, etc.
+ */
+export async function cudInputsToMaps({
+    inputData,
+}: CudInputsToMapsParams): Promise<CudInputsToMapsResult> {
     const idsByAction: IdsByAction = {};
     const idsByType: IdsByType = {};
     const idsCreateToConnect: IdsCreateToConnect = {};
@@ -728,5 +741,7 @@ export const cudInputsToMaps = async ({
         idsCreateToConnect,
         inputsById,
         inputsByType,
+        preMap: {},
+        resultsById: {},
     };
-};
+}

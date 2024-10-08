@@ -1,14 +1,14 @@
-import { DUMMY_ID, endpointGetRunRoutine, endpointPostRunRoutine, endpointPutRunRoutine, noopSubmit, RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput, runRoutineValidation, RunStatus, Schedule, Session } from "@local/shared";
+import { DUMMY_ID, endpointGetRunRoutine, endpointPostRunRoutine, endpointPutRunRoutine, noopSubmit, RunRoutine, RunRoutineCreateInput, RunRoutineShape, RunRoutineUpdateInput, runRoutineValidation, RunStatus, Schedule, Session, shapeRunRoutine } from "@local/shared";
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
@@ -17,7 +17,6 @@ import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { RunRoutineShape, shapeRunRoutine } from "utils/shape/models/runRoutine";
 import { validateFormValues } from "utils/validateFormValues";
 import { ScheduleUpsert } from "views/objects/schedule";
 import { RunRoutineFormProps, RunRoutineUpsertProps } from "../types";
@@ -234,6 +233,7 @@ function RunRoutineForm({
 }
 
 export function RunRoutineUpsert({
+    display,
     isCreate,
     isOpen,
     overrideObject,
@@ -241,8 +241,9 @@ export function RunRoutineUpsert({
 }: RunRoutineUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<RunRoutine, RunRoutineShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<RunRoutine, RunRoutineShape>({
         ...endpointGetRunRoutine,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "RunRoutine",
         overrideObject,
@@ -262,6 +263,7 @@ export function RunRoutineUpsert({
         >
             {(formik) => <RunRoutineForm
                 disabled={!(isCreate || permissions.canUpdate)}
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

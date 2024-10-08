@@ -1,6 +1,6 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { CommonKey, Count, DUMMY_ID, DeleteManyInput, DeleteType, ListObject, Resource, ResourceList as ResourceListType, ResourceUsedFor, endpointPostDeleteMany } from "@local/shared";
+import { Count, DUMMY_ID, DeleteManyInput, DeleteType, ListObject, Resource, ResourceList as ResourceListType, ResourceUsedFor, TranslationKeyCommon, endpointPostDeleteMany, updateArray } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
@@ -8,14 +8,13 @@ import { ResourceListInputProps } from "components/inputs/types";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { ObjectListActions } from "components/lists/types";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useField } from "formik";
-import { useBulkObjectActions } from "hooks/useBulkObjectActions";
+import { UsePressEvent, usePress } from "hooks/gestures";
+import { useBulkObjectActions, useObjectActions } from "hooks/objectActions";
 import { useDebounce } from "hooks/useDebounce";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectContextMenu } from "hooks/useObjectContextMenu";
-import usePress from "hooks/usePress";
 import { useSelectableList } from "hooks/useSelectableList";
 import { AddIcon, CloseIcon, DeleteIcon, EditIcon, LinkIcon } from "icons";
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -32,7 +31,6 @@ import { firstString } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { getResourceType, getResourceUrl } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
-import { updateArray } from "utils/shape/general";
 import { ResourceUpsert, resourceInitialValues } from "views/objects/resource";
 import { ResourceCardProps, ResourceListHorizontalProps, ResourceListProps, ResourceListVerticalProps } from "../types";
 
@@ -53,7 +51,7 @@ const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
     const { title, subtitle } = useMemo(() => {
         const { title, subtitle } = getDisplay(data, getUserLanguages(session));
         return {
-            title: title ? title : t((data.usedFor ?? "Context") as CommonKey),
+            title: title ? title : t((data.usedFor ?? "Context") as TranslationKeyCommon),
             subtitle,
         };
     }, [data, session, t]);
@@ -63,7 +61,7 @@ const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
     }, [data.link, data.usedFor]);
 
     const href = useMemo(() => getResourceUrl(data.link), [data]);
-    const handleClick = useCallback((target: EventTarget) => {
+    const handleClick = useCallback(({ target }: UsePressEvent) => {
         // Check if edit or delete button was clicked
         const targetId: string | undefined = target.id;
         if (targetId && targetId.startsWith("edit-")) {
@@ -84,7 +82,7 @@ const ResourceCard = forwardRef<unknown, ResourceCardProps>(({
         }
     }, [data, href, onDelete, onEdit, setLocation]);
     const [handleClickDebounce] = useDebounce(handleClick, 100);
-    const handleContextMenu = useCallback((target: EventTarget) => {
+    const handleContextMenu = useCallback(({ target }: UsePressEvent) => {
         onContextMenu(target, data);
     }, [data, onContextMenu]);
 
@@ -490,7 +488,7 @@ export function ResourceList(props: ResourceListProps) {
         selectedData,
         setIsSelecting,
         setSelectedData,
-    } = useSelectableList<Resource>();
+    } = useSelectableList<Resource>(list?.resources ?? []);
     const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions<Resource>({
         allData: list?.resources ?? [],
         selectedData,

@@ -1,4 +1,4 @@
-import { DUMMY_ID, DeleteOneInput, DeleteType, Phone, PhoneCreateInput, SendVerificationTextInput, Success, ValidateVerificationTextInput, endpointPostDeleteOne, endpointPostPhone, endpointPostPhoneValidateText, endpointPostPhoneVerificationText, phoneValidation, uuid } from "@local/shared";
+import { DUMMY_ID, DeleteOneInput, DeleteType, Phone, PhoneCreateInput, SendVerificationTextInput, Success, ValidateVerificationTextInput, endpointPostDeleteOne, endpointPostPhone, endpointPostPhoneValidateText, endpointPostPhoneVerificationText, phoneValidation, updateArray, uuid } from "@local/shared";
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -11,7 +11,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { multiLineEllipsis } from "styles";
 import { PubSub } from "utils/pubsub";
-import { updateArray } from "utils/shape/general";
 import { PhoneListItemProps, PhoneListProps } from "../types";
 
 /**

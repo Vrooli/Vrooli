@@ -1,27 +1,22 @@
-import { ChatInviteStatus, DUMMY_ID, LangsKey, isEqual, uuid } from "@local/shared";
-import { Box, Grid, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { CodeLanguage, Status, TranslationKeyLangs, isEqual } from "@local/shared";
+import { Box, Grid, IconButton, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { StatusButton } from "components/buttons/StatusButton/StatusButton";
 import { SelectorBase } from "components/inputs/Selector/Selector";
 import { useField } from "formik";
 import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Status } from "utils/consts";
-import { CodeInputProps } from "../types";
-// import { isJson } from "utils/shape/general"; // Update this so that we can lint JSON standard input type (different from normal JSON)
-import { SessionContext } from "contexts/SessionContext";
+// import { isJson } from "@local/shared"; // Update this so that we can lint JSON standard input type (different from normal JSON)
+import { ActiveChatContext, SessionContext } from "contexts";
+import { generateContextLabel } from "hooks/tasks";
 import { useDebounce } from "hooks/useDebounce";
-import { MagicIcon, OpenThreadIcon, RedoIcon, RefreshIcon, UndoIcon } from "icons";
+import { CopyIcon, MagicIcon, OpenThreadIcon, RedoIcon, RefreshIcon, UndoIcon } from "icons";
 import React from "react";
 import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
-import { getCookieMatchingChat } from "utils/cookies";
 import { generateContext } from "utils/display/stringTools";
-import { PubSub } from "utils/pubsub";
-import { ChatShape } from "utils/shape/models/chat";
-import { ChatCrud, VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
-import { ChatCrudProps } from "views/objects/chat/types";
-import { CodeInputBaseProps } from "../types";
+import { CHAT_SIDE_MENU_ID, PubSub } from "utils/pubsub";
+import { CodeInputBaseProps, CodeInputProps } from "../types";
 
 // Stub types for code splitting
 type Extension = {
@@ -72,48 +67,6 @@ type ReactCodeMirrorRef = {
 }
 
 const LazyCodeMirror = React.lazy(() => import("@uiw/react-codemirror"));
-
-export enum CodeLanguage {
-    Angular = "angular",
-    Cpp = "cpp",
-    Css = "css",
-    Dockerfile = "dockerfile",
-    Go = "go",
-    Graphql = "graphql",
-    Groovy = "groovy",
-    Haskell = "haskell",
-    Html = "html",
-    Java = "java",
-    Javascript = "javascript",
-    Json = "json", // JSON which may or may not conform to a standard
-    JsonStandard = "jsonStandard", // JSON which defines a standard for some data (could be JSON, a file, etc.)
-    Nginx = "nginx",
-    Nix = "nix",
-    Php = "php",
-    Powershell = "powershell",
-    Protobuf = "protobuf",
-    Puppet = "puppet",
-    Python = "python",
-    R = "r",
-    Ruby = "ruby",
-    Rust = "rust",
-    Sass = "sass",
-    Shell = "shell",
-    Solidity = "solidity",
-    Spreadsheet = "spreadsheet",
-    Sql = "sql",
-    Svelte = "svelte",
-    Swift = "swift",
-    Typescript = "typescript",
-    Vb = "vb",
-    Vbscript = "vbscript",
-    Verilog = "verilog",
-    Vhdl = "vhdl",
-    Vue = "vue",
-    Xml = "xml",
-    Yacas = "yacas",
-    Yaml = "yaml",
-}
 
 async function loadDecorations() {
     const { Decoration, EditorView, showTooltip } = await import("@codemirror/view");
@@ -434,7 +387,7 @@ function getSeverityForLine(line: BlockInfo, errors: Diagnostic[], view: EditorV
 /**
  * Maps languages to their labels and help texts.
  */
-const languageDisplayMap: { [x in CodeLanguage]: [LangsKey, LangsKey] } = {
+const languageDisplayMap: { [x in CodeLanguage]: [TranslationKeyLangs, TranslationKeyLangs] } = {
     [CodeLanguage.Angular]: ["Angular", "AngularHelp"],
     [CodeLanguage.Cpp]: ["Cpp", "CppHelp"],
     [CodeLanguage.Css]: ["Css", "CssHelp"],
@@ -476,6 +429,50 @@ const languageDisplayMap: { [x in CodeLanguage]: [LangsKey, LangsKey] } = {
     [CodeLanguage.Yaml]: ["Yaml", "YamlHelp"],
 };
 
+const InfoBar = styled(Box)(({ theme }) => ({
+    display: "flex",
+    width: "100%",
+    padding: "0.5rem",
+    borderBottom: "1px solid #e0e0e0",
+    background: theme.palette.primary.light,
+    color: theme.palette.primary.contrastText,
+    alignItems: "center",
+    flexDirection: "row",
+    [theme.breakpoints.down("sm")]: {
+        flexDirection: "column",
+    },
+}));
+
+const outerStackStyle = {
+    borderRadius: 1.5,
+    overflow: "hidden",
+} as const;
+const lazyCodeMirrorStyle = {
+    position: "relative",
+    zIndex: 2,
+} as const;
+const refreshIconStyle = {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    zIndex: 1,
+} as const;
+const statusButtonStyle = {
+    marginRight: "auto",
+    height: "fit-content",
+} as const;
+const languageSelectorStyle = {
+    root: {
+        width: "fit-content",
+        minWidth: "200px",
+    },
+} as const;
+const copyButtonStyle = { marginLeft: "auto" } as const;
+
+const CHANGE_DEBOUNCE_MS = 250;
+const REFRESH_ICON_SHOW_AFTER_MS = 3000;
+
 // TODO May be able to combine CodeInputBase and JsonInput into one component. To do this, make "JSON Standard" a 
 // new language option. Also need to add support for format (which is JSON Standard) which, if provided, limits the language to JSON 
 // and only makes input valid if it matches the format. Doing this will make this component stand out from the other 
@@ -496,6 +493,7 @@ export function CodeInputBase({
     const { t } = useTranslation();
     const session = useContext(SessionContext);
     const { credits } = useMemo(() => getCurrentUser(session), [session]);
+    const { chat } = useContext(ActiveChatContext);
 
     const availableLanguages = Array.isArray(limitTo) && limitTo.length > 0 ? limitTo : Object.values(CodeLanguage);
 
@@ -513,7 +511,7 @@ export function CodeInputBase({
     // // Last valid schema format
     // const [internalValue, setInternalValue] = useState<string>(jsonToString(format) ?? "");
     const debounceContentHandler = useCallback((content: string) => { handleContentChange(content); }, [handleContentChange]);
-    const [debounceContent] = useDebounce(debounceContentHandler, 250);
+    const [debounceContent] = useDebounce(debounceContentHandler, CHANGE_DEBOUNCE_MS);
     const updateContent = useCallback((newContent: string) => {
         if (disabled) return;
         // setInternalValue(newContent);
@@ -636,26 +634,12 @@ export function CodeInputBase({
 
     const id = useMemo(() => `code-container-${name}`, [name]);
 
-    // Handle assistant dialog
-    const closeAssistantDialog = useCallback(() => {
-        setAssistantDialogProps(props => ({ ...props, context: undefined, isOpen: false, overrideObject: undefined } as ChatCrudProps));
-        PubSub.get().publish("sideMenu", { id: "chat-side-menu", idPrefix: "standard", isOpen: false });
-    }, []);
-    const [assistantDialogProps, setAssistantDialogProps] = useState<ChatCrudProps>({
-        context: undefined,
-        display: "dialog",
-        isCreate: true,
-        isOpen: false,
-        task: "standard",
-        onCancel: closeAssistantDialog,
-        onCompleted: closeAssistantDialog,
-        onClose: closeAssistantDialog,
-        onDeleted: closeAssistantDialog,
-    });
     const openAssistantDialog = useCallback(() => {
         if (disabled) return;
         const userId = getCurrentUser(session)?.id;
         if (!userId) return;
+        const chatId = chat?.id;
+        if (!chatId) return;
 
         if (!codeMirrorRef.current || !codeMirrorRef.current.view) {
             console.error("CodeMirror not found");
@@ -666,25 +650,31 @@ export function CodeInputBase({
         // Only use the first selection range, if it exists
         const selection = selectionRanges.length > 0 ? codeDoc.sliceString(selectionRanges[0].from, selectionRanges[0].to) : "";
         const fullText = codeDoc.sliceString(0, Number.MAX_SAFE_INTEGER);
-        const context = generateContext(selection, fullText);
+        const contextValue = generateContext(selection, fullText);
 
-        // Now we'll try to find an existing chat with Valyxa for this task
-        const existingChatId = getCookieMatchingChat([userId, VALYXA_INFO.id], "standard");
-        const overrideObject = {
-            __typename: "Chat" as const,
-            id: existingChatId ?? DUMMY_ID,
-            openToAnyoneWithInvite: false,
-            invites: [{
-                __typename: "ChatInvite" as const,
-                id: uuid(),
-                status: ChatInviteStatus.Pending,
-                user: VALYXA_INFO,
-            }],
-        } as unknown as ChatShape;
-
-        // Open the assistant dialog
-        setAssistantDialogProps(props => ({ ...props, isCreate: !existingChatId, isOpen: true, context, overrideObject } as ChatCrudProps));
-    }, [disabled, session]);
+        // Open the side chat and provide it context
+        PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen: true, data: { tab: "Chat" } });
+        const context = {
+            id: `code-${name}`,
+            data: contextValue,
+            label: generateContextLabel(contextValue),
+            template: `Code:\n\`\`\`${codeLanguage}\n<DATA>\n\`\`\``,
+            templateVariables: { data: "<DATA>" },
+        };
+        PubSub.get().publish("chatTask", {
+            chatId,
+            contexts: {
+                add: {
+                    behavior: "replace",
+                    connect: {
+                        __type: "contextId",
+                        data: context.id,
+                    },
+                    value: [context],
+                },
+            },
+        });
+    }, [chat?.id, codeLanguage, disabled, name, session]);
 
     // Handle action buttons
     type Action = {
@@ -746,7 +736,7 @@ export function CodeInputBase({
         return actionsList;
     }, [credits, codeLanguage, content, openAssistantDialog, t, updateContent]);
 
-    const [, helpKey] = useMemo<[LangsKey, LangsKey]>(() => languageDisplayMap[codeLanguage] ?? ["Json", "JsonHelp"], [codeLanguage]);
+    const [, helpKey] = useMemo<[TranslationKeyLangs, TranslationKeyLangs]>(() => languageDisplayMap[codeLanguage] ?? ["Json", "JsonHelp"], [codeLanguage]);
 
     // Handle refreshing the editor (in case is fails to appear, which happens occasionally)
     const [editorKey, setEditorKey] = useState(0);
@@ -757,29 +747,25 @@ export function CodeInputBase({
     }
     // Show the refresh icon after a short delay
     useEffect(function clearCodeTimeoutEffect() {
-        const timer = setTimeout(() => { setShowRefresh(true); }, 3000);
+        const timer = setTimeout(() => { setShowRefresh(true); }, REFRESH_ICON_SHOW_AFTER_MS);
         return () => clearTimeout(timer);
     }, [editorKey]);
 
+    const handleCopy = useCallback(function handleCopyCallback() {
+        if (!content) return;
+        navigator.clipboard.writeText(content);
+        PubSub.get().publish("snack", { message: "Copied to clipboard", severity: "Success" });
+    }, [content]);
+
+    const getOptionLabel = useCallback(function getOptionLabelMemo(option: CodeLanguage) {
+        const [labelKey] = languageDisplayMap[option] ?? ["Unknown"];
+        return t(labelKey, { ns: "langs" });
+    }, [t]);
+
     return (
         <>
-            {/* Assistant dialog for generating text */}
-            <ChatCrud {...assistantDialogProps} />
-            <Stack direction="column" spacing={0} sx={{
-                borderRadius: 1.5,
-                overflow: "hidden",
-            }}>
-                {/* Bar above main input */}
-                <Box sx={{
-                    display: "flex",
-                    width: "100%",
-                    padding: "0.5rem",
-                    borderBottom: "1px solid #e0e0e0",
-                    background: palette.primary.light,
-                    color: palette.primary.contrastText,
-                    alignItems: "center",
-                    flexDirection: { xs: "column", sm: "row" }, // switch to column on xs screens, row on sm and larger
-                }}>
+            <Stack direction="column" spacing={0} sx={outerStackStyle}>
+                <InfoBar>
                     {/* Select or display language */}
                     {availableLanguages.length > 1 ?
                         <Grid item xs={12} sm={6}>
@@ -789,19 +775,11 @@ export function CodeInputBase({
                                 onChange={changeCodeLanguage}
                                 disabled={disabled}
                                 options={availableLanguages}
-                                getOptionLabel={(r) => {
-                                    const [labelKey] = languageDisplayMap[r as CodeLanguage] ?? ["Unknown"];
-                                    return t(labelKey, { ns: "langs" });
-                                }}
+                                getOptionLabel={getOptionLabel}
                                 fullWidth
                                 inputAriaLabel="select language"
                                 label={"Language"}
-                                sxs={{
-                                    root: {
-                                        width: "fit-content",
-                                        minWidth: "200px",
-                                    },
-                                }}
+                                sxs={languageSelectorStyle}
                             />
                         </Grid> :
                         disabled ?
@@ -812,15 +790,15 @@ export function CodeInputBase({
                             </Tooltip> :
                             null
                     }
-                    {/* Actions, Help button, Status */}
-                    {!disabled && <Grid item xs={12} sm={availableLanguages.length > 1 ? 6 : 12} sx={{
+                    <Grid item xs={12} sm={availableLanguages.length > 1 ? 6 : 12} sx={{
                         marginLeft: { xs: 0, sm: "auto" },
                         ...(availableLanguages.length <= 1 && {
                             display: "flex",
                             justifyContent: "flex-end",
                         }),
                     }}>
-                        <Box sx={{
+                        {/* Actions, Help button, Status */}
+                        {!disabled && <Box sx={{
                             display: "flex",
                             flexDirection: "row",
                             justifyContent: "flex-start",
@@ -842,14 +820,18 @@ export function CodeInputBase({
                             {supportsValidation && <StatusButton
                                 status={errors.length === 0 ? Status.Valid : Status.Invalid}
                                 messages={errors.map(e => e.message)}
-                                sx={{
-                                    marginRight: "auto",
-                                    height: "fit-content",
-                                }}
+                                sx={statusButtonStyle}
                             />}
-                        </Box>
-                    </Grid>}
-                </Box>
+                        </Box>}
+                        {/* Copy button */}
+                        {disabled && Boolean(content) && <IconButton
+                            onClick={handleCopy}
+                            sx={copyButtonStyle}
+                        >
+                            <CopyIcon fill={palette.primary.contrastText} />
+                        </IconButton>}
+                    </Grid>
+                </InfoBar>
                 <Box sx={{
                     position: "relative",
                     height: "400px",
@@ -873,18 +855,12 @@ export function CodeInputBase({
                             extensions={extensions}
                             onChange={updateContent}
                             height={"400px"}
-                            style={{ position: "relative", zIndex: 2 }}
+                            style={lazyCodeMirrorStyle}
                         />
                     </Suspense>
                     {showRefresh && <IconButton
                         onClick={refreshEditor}
-                        sx={{
-                            position: "absolute",
-                            top: "50%",
-                            left: "50%",
-                            transform: "translate(-50%, -50%)",
-                            zIndex: 1,
-                        }}
+                        sx={refreshIconStyle}
                     >
                         <RefreshIcon fill={palette.background.textPrimary} width={48} height={48} />
                     </IconButton>}
@@ -905,25 +881,27 @@ export function CodeInputBase({
 }
 
 const DEFAULT_CODE_LANGUAGE = CodeLanguage.Javascript;
+const DEFAULT_CODE_LANGUAGE_FIELD = "codeLanguage";
 const DEFAULT_CONTENT = "";
 const DEFAULT_NAME = "content";
 
 export function CodeInput({
+    codeLanguageField,
     name,
     ...props
 }: CodeInputProps) {
-    const [codeLanguageField, , codeLanguageHelpers] = useField<CodeInputBaseProps["codeLanguage"]>("codeLanguage");
+    const [languageField, , codeLanguageHelpers] = useField<CodeInputBaseProps["codeLanguage"]>(codeLanguageField ?? DEFAULT_CODE_LANGUAGE_FIELD);
     const [contentField, , contentHelpers] = useField<CodeInputBaseProps["content"]>(name ?? DEFAULT_NAME);
     const [defaultValueField] = useField<CodeInputBaseProps["defaultValue"]>("defaultValue");
     const [formatField] = useField<CodeInputBaseProps["format"]>("format");
     const [variablesField] = useField<CodeInputBaseProps["variables"]>("variables");
 
-    console.log("in CodeInput", codeLanguageField.value, contentField.value);
+    console.log("in CodeInput", languageField.value, contentField.value);
 
     return (
         <CodeInputBase
             {...props}
-            codeLanguage={codeLanguageField.value ?? DEFAULT_CODE_LANGUAGE}
+            codeLanguage={languageField.value ?? DEFAULT_CODE_LANGUAGE}
             content={contentField.value ?? DEFAULT_CONTENT}
             defaultValue={defaultValueField.value}
             format={formatField.value}

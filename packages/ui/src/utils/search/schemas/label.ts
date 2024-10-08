@@ -1,5 +1,4 @@
-import { endpointGetLabel, endpointGetLabels, LabelSortBy } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetLabel, endpointGetLabels, FormSchema, LabelSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { languagesContainer, languagesFields, searchFormLayout } from "./common";
 

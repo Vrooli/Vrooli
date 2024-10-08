@@ -1,8 +1,9 @@
-import { MaxObjects, RoleSortBy, roleValidation } from "@local/shared";
+import { MaxObjects, RoleSortBy, getTranslation, roleValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
+import { useVisibility } from "../../builders/visibilityBuilder";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { RoleFormat } from "../formats";
 import { RoleModelInfo, RoleModelLogic, TeamModelInfo, TeamModelLogic } from "./types";
@@ -21,7 +22,7 @@ export const RoleModel: RoleModelLogic = ({
             }),
             get: (select, languages) => {
                 // Prefer translated name over default name
-                const translated = bestTranslation(select.translations, languages)?.name ?? "";
+                const translated = getTranslation(select, languages).name ?? "";
                 if (translated.length > 0) return translated;
                 return select.name;
             },
@@ -73,17 +74,31 @@ export const RoleModel: RoleModelLogic = ({
         isDeleted: (data, languages) => ModelMap.get<TeamModelLogic>("Team").validate().isDeleted(data.team as TeamModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<RoleModelInfo["PrismaSelect"]>([["team", "Team"]], ...rest),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private(...params),
+                    team: useVisibility("Team", "Own", data),
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public(...params),
+                    team: useVisibility("RoutineVersion", "OwnOrPublic", data),
                 };
             },
-            owner: (userId) => ({ team: ModelMap.get<TeamModelLogic>("Team").validate().visibility.owner(userId) }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    team: useVisibility("RoutineVersion", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    team: useVisibility("RoutineVersion", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    team: useVisibility("RoutineVersion", "Public", data),
+                };
+            },
         },
     }),
 });

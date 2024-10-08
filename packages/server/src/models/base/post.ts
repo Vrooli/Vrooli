@@ -1,8 +1,9 @@
-import { MaxObjects, PostSortBy, postValidation } from "@local/shared";
+import { MaxObjects, PostSortBy, getTranslation, postValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { useVisibility } from "../../builders/visibilityBuilder";
+import { defaultPermissions, getEmbeddableString } from "../../utils";
 import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
 import { afterMutationsPlain } from "../../utils/triggers";
 import { PostFormat } from "../formats";
@@ -18,15 +19,15 @@ export const PostModel: PostModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+            get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
         embed: {
             select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } }),
             get: ({ translations }, languages) => {
-                const trans = bestTranslation(translations, languages);
+                const trans = getTranslation({ translations }, languages);
                 return getEmbeddableString({
-                    description: trans?.description,
-                    name: trans?.name,
+                    description: trans.description,
+                    name: trans.name,
                 }, languages[0]);
             },
         },
@@ -118,24 +119,55 @@ export const PostModel: PostModelLogic = ({
             user: "User",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
+            own: function getOwn(data) {
                 return {
-                    isDeleted: false,
-                    isPrivate: true,
+                    isDeleted: false, // Can't be deleted
+                    OR: [
+                        { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                        { user: useVisibility("User", "Own", data) },
+                    ],
                 };
             },
-            public: function getVisibilityPublic() {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    isDeleted: false,
-                    isPrivate: false,
+                    isDeleted: false, // Can't be deleted
+                    OR: [
+                        // Owned objects
+                        {
+                            OR: (useVisibility("Post", "Own", data) as { OR: object[] }).OR,
+                        },
+                        // Public objects
+                        {
+                            OR: (useVisibility("Post", "Public", data) as { OR: object[] }).OR,
+                        },
+                    ],
                 };
             },
-            owner: (userId) => ({
-                OR: [
-                    { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
-                    { user: { id: userId } },
-                ],
-            }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: true,  // Must be private
+                    OR: (useVisibility("Post", "Own", data) as { OR: object[] }).OR,
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false, // Must be public
+                    OR: (useVisibility("Post", "Own", data) as { OR: object[] }).OR,
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false, // Can't be private
+                    OR: [
+                        { team: null, user: null },
+                        { team: useVisibility("Team", "Public", data) },
+                        { user: { isPrivate: false } },
+                    ],
+                };
+            },
         },
     }),
 });

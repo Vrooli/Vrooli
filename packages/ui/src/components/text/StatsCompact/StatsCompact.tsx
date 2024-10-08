@@ -1,38 +1,45 @@
 import { ListObject, ReactionFor } from "@local/shared";
-import { Box, Stack, Typography, useTheme } from "@mui/material";
+import { Box, Typography, styled } from "@mui/material";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { VoteButton } from "components/buttons/VoteButton/VoteButton";
 import { VisibleIcon } from "icons";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { getCounts, getYou } from "utils/display/listTools";
 import { StatsCompactProps } from "../types";
+
+const OuterBox = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "row",
+    gap: theme.spacing(1),
+    marginTop: theme.spacing(1),
+    marginBottom: theme.spacing(1),
+    alignItems: "center",
+    color: theme.palette.background.textSecondary,
+}));
 
 /**
  * Displays basic stats about an object, in a short format.
  * Displays votes, views, date created, and reports
  */
-export const StatsCompact = <T extends ListObject>({
+export function StatsCompact<T extends ListObject>({
     handleObjectUpdate,
     object,
-}: StatsCompactProps<T>) => {
-    const { palette } = useTheme();
+}: StatsCompactProps<T>) {
 
     const you = useMemo(() => getYou(object), [object]);
     const counts = useMemo(() => getCounts(object), [object]);
-    console.log("stats you", you, object);
+
+    const handleChange = useCallback(function handleChangeCallback(newEmoji: string | null, newScore: number) {
+        if (!object) return;
+        handleObjectUpdate({
+            ...object,
+            reaction: newEmoji, // TODO
+            score: newScore, //TODO
+        });
+    }, [object, handleObjectUpdate]);
 
     return (
-        <Stack
-            direction="row"
-            spacing={1}
-            sx={{
-                marginTop: 1,
-                marginBottom: 1,
-                display: "flex",
-                alignItems: "center",
-                color: palette.background.textSecondary,
-            }}
-        >
+        <OuterBox>
             {/* Votes. Show even if you can't vote */}
             {object && object.__typename.replace("Version", "") in ReactionFor && <VoteButton
                 disabled={!you.canReact}
@@ -40,13 +47,7 @@ export const StatsCompact = <T extends ListObject>({
                 objectId={object.id ?? ""}
                 voteFor={object.__typename as ReactionFor}
                 score={counts.score}
-                onChange={(newEmoji, newScore) => {
-                    object && handleObjectUpdate({
-                        ...object,
-                        reaction: newEmoji, //TODO
-                        score: newScore, //TODO
-                    });
-                }}
+                onChange={handleChange}
             />}
             {/* Views */}
             <Box display="flex" alignItems="center">
@@ -57,6 +58,6 @@ export const StatsCompact = <T extends ListObject>({
             </Box>
             {/* Reports */}
             {object?.id && <ReportsLink object={object as any} />}
-        </Stack>
+        </OuterBox>
     );
-};
+}

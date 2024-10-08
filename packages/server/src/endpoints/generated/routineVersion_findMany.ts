@@ -25,6 +25,17 @@ export const routineVersion_findMany = {
       "nodeLinksCount": true,
       "outputsCount": true,
       "reportsCount": true,
+      "you": {
+        "canComment": true,
+        "canCopy": true,
+        "canDelete": true,
+        "canBookmark": true,
+        "canReport": true,
+        "canRun": true,
+        "canUpdate": true,
+        "canRead": true,
+        "canReact": true
+      },
       "root": {
         "id": true,
         "created_at": true,

@@ -1,11 +1,11 @@
-import { CommonKey, parseSearchParams } from "@local/shared";
+import { TranslationKeyCommon, parseSearchParams } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { addSearchParams, useLocation } from "route";
-import { getCookie, setCookie } from "utils/cookies";
+import { ViewDisplayType } from "types";
+import { getCookie, setCookie } from "utils/localStorage";
 import { TabParam, TabsInfo } from "utils/search/objectToSearch";
-import { ViewDisplayType } from "views/types";
 
 export type PageTab<TabList extends TabsInfo> = Omit<TabParam<TabList>, "color" | "searchPlaceholderKey" | "titleKey"> & {
     color: string,
@@ -25,13 +25,13 @@ type UseTabsProps<TabList extends TabsInfo = TabsInfo> = {
 /**
  * Contains logic for displaying tabs and handling tab changes.
  */
-export const useTabs = <TabList extends TabsInfo>({
+export function useTabs<TabList extends TabsInfo>({
     defaultTab,
     disableHistory,
     display,
     id,
     tabParams,
-}: UseTabsProps<TabList>) => {
+}: UseTabsProps<TabList>) {
     const [location, setLocation] = useLocation();
     const { t } = useTranslation();
     const { palette } = useTheme();
@@ -42,7 +42,7 @@ export const useTabs = <TabList extends TabsInfo>({
             color: typeof tab.color === "function" ? tab.color(palette) : tab.color,
             index: i,
             label: t(tab.titleKey, { count: 2, defaultValue: tab.titleKey }),
-            searchPlaceholder: t((tab as { searchPlaceholderKey?: CommonKey }).searchPlaceholderKey ?? "Search"),
+            searchPlaceholder: t((tab as { searchPlaceholderKey?: TranslationKeyCommon }).searchPlaceholderKey ?? "Search"),
         })) as PageTab<TabList>[];
     }, [palette, t, tabParams]);
 
@@ -74,7 +74,7 @@ export const useTabs = <TabList extends TabsInfo>({
             setCookie("LastTab", tab.key, id);
         }
         setCurrTab(tab);
-    }, [display, setLocation, id]);
+    }, [display, setLocation, disableHistory, id]);
 
     const changeTab = useCallback((key: TabList["Key"]) => {
         const tab = tabs.find(tab => tab.key === key);
@@ -84,4 +84,4 @@ export const useTabs = <TabList extends TabsInfo>({
     const currTabParams = useMemo(() => tabParams[currTab.index] as TabParam<TabList>, [currTab, tabParams]);
 
     return { tabs, currTab, setCurrTab, handleTabChange, changeTab, ...currTabParams };
-};
+}

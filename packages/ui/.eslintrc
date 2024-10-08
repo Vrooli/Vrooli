@@ -7,12 +7,25 @@
         "plugin:react-perf/recommended",
         "plugin:jsx-a11y/recommended"
     ],
+    "parserOptions": {
+        "ecmaVersion": 2018,
+        "sourceType": "module",
+        "project": [
+            "./tsconfig.json",
+            "./tsconfig.test.json",
+            "./tsconfig.tools.json"
+        ]
+    },
     "plugins": [
         "@typescript-eslint",
         "react",
         "react-hooks",
         "react-perf",
         "jsx-a11y"
+    ],
+    "ignorePatterns": [
+        "public/pkg/",
+        "vite.config.ts"
     ],
     "settings": {
         "react": {
@@ -36,6 +49,6 @@
         "react/react-in-jsx-scope": "off",
         "react-hooks/rules-of-hooks": "error",
         "react-hooks/exhaustive-deps": "warn",
-        "react/prop-types": "off"
+        "react/prop-types": "off",
     }
 }

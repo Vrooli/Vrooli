@@ -1,7 +1,7 @@
 import { BookmarkFor, ReportFor } from "@local/shared";
 import { ObjectAction } from "utils/actions/objectActions";
-import { ReportUpsert } from "views/objects/report";
 import { StatsObjectView } from "views/StatsObjectView/StatsObjectView";
+import { ReportUpsert } from "views/objects/report";
 import { SelectBookmarkListDialog } from "../SelectBookmarkListDialog/SelectBookmarkListDialog";
 import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
 import { ObjectActionDialogsProps } from "../types";
@@ -40,6 +40,7 @@ export const ObjectActionDialogs = ({
             />}
             {object?.id && DeleteDialogComponent}
             {object?.id && availableActions.includes(ObjectAction.Delete) && <ReportUpsert
+                createdFor={{ __typename: objectType as unknown as ReportFor, id: object.id }}
                 display="dialog"
                 isCreate={true}
                 isOpen={isReportDialogOpen}
@@ -47,7 +48,6 @@ export const ObjectActionDialogs = ({
                 onClose={closeReportDialog}
                 onCompleted={closeReportDialog}
                 onDeleted={closeReportDialog}
-                overrideObject={{ createdFor: { __typename: objectType as unknown as ReportFor, id: object.id } }}
             />}
             {availableActions.includes(ObjectAction.Share) && <ShareObjectDialog
                 object={object}

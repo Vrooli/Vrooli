@@ -1,9 +1,10 @@
+import { TaskContextInfo } from "@local/shared";
 import { RedisClientType } from "redis";
 import { prismaInstance } from "../../db/instance";
 import { logger } from "../../events/logger";
 import { withRedis } from "../../redisConn";
 import { UI_URL } from "../../server";
-import { PreMapMessageData, PreMapUserData } from "../../utils/chat";
+import { PreMapMessageDataCreate, PreMapMessageDataDelete, PreMapMessageDataUpdate, PreMapUserData } from "../../utils/chat";
 import { LanguageModelService } from "./service";
 import { OpenAIService } from "./services/openai";
 
@@ -66,56 +67,56 @@ export class ChatContextManager {
         this.languageModelService = languageModelService ?? new OpenAIService();
     }
 
-    async addMessage(chatId: string, message: PreMapMessageData): Promise<void> {
+    async addMessage(data: PreMapMessageDataCreate): Promise<void> {
+        const { chatId, messageId, parentId, translations, userId } = data;
         await withRedis({
             process: async (redisClient) => {
                 if (!redisClient) return;
-                // Make sure the message is actually new
-                if (!message.isNew) {
-                    logger.error("Tried to add an message not marked as new", { trace: "0071", message });
-                    return;
-                }
 
                 const messageData: CachedChatMessage = {
-                    id: message.id,
-                    translatedTokenCounts: JSON.stringify(this.calculateTokenCounts(message.translations, ...this.languageModelService.getEstimationTypes())),
+                    id: messageId,
+                    translatedTokenCounts: JSON.stringify(this.calculateTokenCounts(translations, ...this.languageModelService.getEstimationTypes())),
                 };
-                if (message.parentId) {
-                    messageData.parentId = message.parentId;
+                if (parentId) {
+                    messageData.parentId = parentId;
                 }
-                if (message.userId) {
-                    messageData.userId = message.userId;
+                if (userId) {
+                    messageData.userId = userId;
                 }
 
-                await redisClient.hSet(`message:${message.id}`, messageData);
-                await redisClient.zAdd(`chat:${chatId}`, { score: Date.now(), value: message.id });
-                if (message.parentId) {
-                    await redisClient.sAdd(`children:${message.parentId}`, message.id);
+                await redisClient.hSet(`message:${messageId}`, messageData);
+                await redisClient.zAdd(`chat:${chatId}`, { score: Date.now(), value: messageId });
+                if (parentId) {
+                    await redisClient.sAdd(`children:${parentId}`, messageId);
                 }
             },
             trace: "0076",
         });
     }
 
-    async editMessage(message: PreMapMessageData): Promise<void> {
+    async editMessage(data: PreMapMessageDataUpdate): Promise<void> {
+        const { chatId, messageId, parentId, translations, userId } = data;
         await withRedis({
             process: async (redisClient) => {
                 if (!redisClient) return;
-                // Make sure the message is actually existing
-                if (message.isNew) {
-                    logger.error("Tried to edit a message marked as new", { trace: "0070", message });
-                    return;
-                }
 
                 // Find existing message data
-                let existingData = await redisClient.hGetAll(`message:${message.id}`);
+                let existingData = await redisClient.hGetAll(`message:${messageId}`);
                 let shouldDeleteOldData = false;
                 if (typeof existingData !== "object" || Object.keys(existingData).length === 0) {
-                    logger.error("Failed to find existing message data", { trace: "0068", message });
+                    logger.error("Failed to find existing message data", { trace: "0068", messageId });
                     existingData = {};
                     shouldDeleteOldData = true;
                 }
                 const existingMessageData = { ...existingData };
+                // Delete invalid data if necessary
+                if (shouldDeleteOldData) {
+                    await redisClient.del(`message:${messageId}`);
+                }
+                // If we don't have any data and we weren't provided sufficient data to create a full message, return
+                if (Object.keys(existingMessageData).length === 0 && (!translations || translations.length === 0 || !userId)) {
+                    return;
+                }
                 let existingTranslations: Record<string, Record<string, number>> = {};
                 try {
                     if (existingMessageData?.translatedTokenCounts) {
@@ -125,24 +126,21 @@ export class ChatContextManager {
                     logger.error("Failed to parse existing translations", { trace: "0069", error, existingMessageData });
                 }
                 const messageData: CachedChatMessage = {
-                    id: message.id,
+                    id: messageId,
                     translatedTokenCounts: JSON.stringify({
                         ...existingTranslations,
-                        ...this.calculateTokenCounts(message.translations, ...this.languageModelService.getEstimationTypes()),
+                        ...this.calculateTokenCounts(translations || [], ...this.languageModelService.getEstimationTypes()),
                     }),
                 };
                 // hSet keeps existing fields if not provided, so we only need to update the fields that have changed
-                if (message.parentId && message.parentId !== existingMessageData.parentId) {
-                    messageData.parentId = message.parentId;
+                if (parentId && parentId !== existingMessageData.parentId) {
+                    messageData.parentId = parentId;
                 }
-                if (message.userId && message.userId !== existingMessageData.userId) {
-                    messageData.userId = message.userId;
+                if (userId && userId !== existingMessageData.userId) {
+                    messageData.userId = userId;
                 }
-                // Delete invalid data if necessary and update the message data
-                if (shouldDeleteOldData) {
-                    await redisClient.del(`message:${message.id}`);
-                }
-                await redisClient.hSet(`message:${message.id}`, messageData);
+                // Add/Update the message data
+                await redisClient.hSet(`message:${messageId}`, messageData);
                 // Check if parentId has changed and handle accordingly
                 if (messageData.parentId) {
                     if (existingMessageData.parentId) {
@@ -155,7 +153,8 @@ export class ChatContextManager {
         });
     }
 
-    async deleteMessage(chatId: string, messageId: string): Promise<void> {
+    async deleteMessage(data: PreMapMessageDataDelete): Promise<void> {
+        const { chatId, messageId } = data;
         await withRedis({
             process: async (redisClient) => {
                 if (!redisClient) return;
@@ -220,7 +219,7 @@ export class ChatContextManager {
      * @param estimationMethods Each token estimation method to use
      * @returns An object with languages as keys and token counts for each estimation method as values
      */
-    public calculateTokenCounts(translations: { language: string, text: string }[], ...estimationMethods: string[]): TokenCounts {
+    public calculateTokenCounts(translations: readonly { language: string, text: string }[], ...estimationMethods: string[]): TokenCounts {
         const translatedTokenCounts = {};
 
         translations.forEach(translation => {
@@ -264,6 +263,14 @@ export class ChatContextCollector {
         this.languageModelService = languageModelService;
     }
 
+    /**
+     * Collects messages to include in the context info for generating a response. 
+     * Messages are collected starting from the latest message and going back, 
+     * until the context size is reached or no more messages are found.
+     * 
+     * NOTE: This also adds the taskMessage to the context info if provided, which 
+     * basically simulates a message in the chat history to tell the bot how to respond.
+     */
     async collectMessageContextInfo({
         chatId,
         languages,
@@ -617,23 +624,25 @@ export function processMentions(
  * 5. Otherwise, check the message to see if any bots were mentioned.
  * 
  * @param message - The message that might trigger bot responses.
+ * @param messageFromUserId - The ID of the user who sent the message.
  * @param chat - Information about the chat where the message was sent.
  * @param bots - Information about the bots in the chat.
  * @param userId - The ID of the user sending the message.
  * @returns An array of botIds that should respond to the message.
  */
 export function determineRespondingBots(
-    message: { userId: string | null, content: string },
+    message: string | null,
+    messageFromUserId: string,
     chat: { botParticipants?: string[], participantsCount?: number },
     bots: Pick<PreMapUserData, "id" | "name">[],
     userId: string,
 ): string[] {
     if (
         !chat ||
-        !message.content ||
-        message.content.trim() === "" ||
-        !message.userId ||
-        message.userId !== userId ||
+        !message ||
+        message.trim() === "" ||
+        !messageFromUserId ||
+        messageFromUserId !== userId ||
         bots.length === 0
     ) {
         return [];
@@ -642,6 +651,64 @@ export function determineRespondingBots(
     if (bots.length === 1 && chat.participantsCount === 2) {
         return [bots[0].id];
     } else {
-        return processMentions(message.content, chat, bots);
+        return processMentions(message, chat, bots);
     }
+}
+
+/**
+ * Stringifies a list of task context objects. These are used to provide context to the LLM,
+ * typically when referencing a form or other client-side data.
+ * @param taskLabel The label for the current task type, which may be used in the template 
+ * @param taskContexts The list of task context objects to stringify
+ * @param contextTemplateDefault The default template to use for stringifying the data
+ * @returns A stringified list of task context objects
+ */
+export function stringifyTaskContexts(
+    taskLabel: string,
+    taskContexts: TaskContextInfo[],
+    contextTemplateDefault?: string,
+): string {
+    let result = "";
+
+    for (let i = 0; i < taskContexts.length; i++) {
+        const { template, templateVariables, data } = taskContexts[i];
+
+        let contextString = "";
+        const stringifiedData = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+
+        // If the template is defined, replace template variables with actual data
+        if (template || contextTemplateDefault) {
+            contextString = template || contextTemplateDefault || "";
+
+            // Define template variables
+            const variables = {
+                [templateVariables?.task || '<TASK>']: taskLabel,
+                [templateVariables?.data || '<DATA>']: stringifiedData,
+            };
+            // Sort variables from longest to shortest, to avoid issues with overlapping variable names
+            const sortedVariables = Object.entries(variables).sort(
+                ([varNameA], [varNameB]) => varNameB.length - varNameA.length
+            );
+            // Replace each variable in the template
+            for (const [varName, value] of sortedVariables) {
+                // Escape regex special characters in variable names
+                const escapedVarName = varName.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                const regex = new RegExp(escapedVarName, 'g');
+                contextString = contextString.replace(regex, value);
+            }
+        }
+        // Otherwise, default to displaying the data
+        else {
+            contextString = stringifiedData;
+        }
+
+        result += contextString;
+
+        // Add spacing between contexts
+        if (i < taskContexts.length - 1) {
+            result += "\n\n";
+        }
+    }
+
+    return result;
 }

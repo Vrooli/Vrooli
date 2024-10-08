@@ -1,13 +1,14 @@
-import { GqlModelType, MaxObjects, ReportFor, ReportSortBy, ReportStatus, reportValidation } from "@local/shared";
+import { GqlModelType, MaxObjects, ReportFor, ReportSearchInput, ReportSortBy, ReportStatus, reportValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { ModelMap } from ".";
+import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { getSingleTypePermissions } from "../../validators";
 import { ReportFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { ReportModelLogic } from "./types";
+import { ReportModelInfo, ReportModelLogic } from "./types";
 
 const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs["create"] } = {
     ApiVersion: "apiVersion",
@@ -24,6 +25,9 @@ const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs["create"] }
     Team: "team",
     User: "user",
 };
+const reversedForMapper = Object.fromEntries(
+    Object.entries(forMapper).map(([key, value]) => [value, key]),
+);
 
 const __typename = "Report" as const;
 export const ReportModel: ReportModelLogic = ({
@@ -50,15 +54,24 @@ export const ReportModel: ReportModelLogic = ({
             pre: async ({ Create, userData }) => {
                 // Make sure user does not have any open reports on these objects
                 if (Create.length) {
+                    const where = {
+                        status: "Open",
+                        user: { id: userData.id },
+                        OR: Create.map((x) => ({
+                            [forMapper[x.input.createdForType]]: { id: x.input.createdForConnect },
+                        })),
+                    };
+                    console.log("report pre where", JSON.stringify(where));
                     const existing = await prismaInstance.report.findMany({
                         where: {
                             status: "Open",
                             user: { id: userData.id },
                             OR: Create.map((x) => ({
-                                [forMapper[x.input.createdFor]]: { id: x.input.createdForConnect },
+                                [forMapper[x.input.createdForType]]: { id: x.input.createdForConnect },
                             })),
                         },
                     });
+                    console.log("existing", existing);
                     if (existing.length > 0)
                         throw new CustomError("0337", "MaxReportsReached", userData.languages);
                 }
@@ -71,7 +84,7 @@ export const ReportModel: ReportModelLogic = ({
                     details: data.details,
                     status: ReportStatus.Open,
                     createdBy: { connect: { id: userData.id } },
-                    [forMapper[data.createdFor]]: { connect: { id: data.createdForConnect } },
+                    [forMapper[data.createdForType]]: { connect: { id: data.createdForConnect } },
                 };
             },
             update: async ({ data }) => {
@@ -125,7 +138,7 @@ export const ReportModel: ReportModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ReportModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -138,13 +151,14 @@ export const ReportModel: ReportModelLogic = ({
             id: true,
             createdBy: "User",
         }),
-        permissionResolvers: ({ data, isAdmin, isLoggedIn }) => ({
+        permissionResolvers: ({ data, isAdmin, isLoggedIn, isPublic }) => ({
             canConnect: () => isLoggedIn && data.status !== "Open",
             canDisconnect: () => isLoggedIn,
             canDelete: () => isLoggedIn && isAdmin && data.status !== "Open",
-            canRead: () => true,
+            canRead: () => isPublic,
             canRespond: () => isLoggedIn && data.status === "Open",
             canUpdate: () => isLoggedIn && isAdmin && data.status !== "Open",
+            isOwn: () => isAdmin,
         }),
         owner: (data) => ({
             User: data?.createdBy,
@@ -153,13 +167,62 @@ export const ReportModel: ReportModelLogic = ({
         isPublic: () => true,
         profanityFields: ["reason", "details"],
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return {
+                    createdBy: { id: data.userId },
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            ownOrPublic: function getOwnOrPublic(data) {
+                const searchInput = data.searchInput as ReportSearchInput;
+                // If the search input has a relation ID, return that relation only
+                const forSearch = Object.keys(searchInput).find(searchKey =>
+                    searchKey.endsWith("Id") &&
+                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)],
+                );
+                if (forSearch) {
+                    const relation = forSearch.substring(0, forSearch.length - "Id".length);
+                    return {
+                        OR: [
+                            useVisibility("Report", "Own", data),
+                            { [relation]: useVisibility(reversedForMapper[relation] as GqlModelType, "OwnOrPublic", data) },
+                        ],
+                    };
+                }
+                // Otherwise, use an OR on all relations
+                return {
+                    // Can use OR because only one relation will be present
+                    OR: [
+                        useVisibility("Report", "Own", data),
+                        ...useVisibilityMapper("OwnOrPublic", data, forMapper, false),
+                    ],
+                };
             },
-            owner: (userId) => ({ createdBy: { id: userId } }),
+            // Search method not useful for this object because reports are not explicitly set as private, so we'll return "Own"
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("Report", "Own", data);
+            },
+            ownPublic: function getOwnPublic(data) {
+                return useVisibility("Report", "Own", data);
+            },
+            public: function getPublic(data) {
+                const searchInput = data.searchInput as ReportSearchInput;
+                // If the search input has a relation ID, return that relation only
+                const forSearch = Object.keys(searchInput).find(searchKey =>
+                    searchKey.endsWith("Id") &&
+                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)],
+                );
+                if (forSearch) {
+                    const relation = forSearch.substring(0, forSearch.length - "Id".length);
+                    return { [relation]: useVisibility(reversedForMapper[relation] as GqlModelType, "Public", data) };
+                }
+                // Otherwise, use an OR on all relations
+                return {
+                    // Can use OR because only one relation will be present
+                    OR: [
+                        ...useVisibilityMapper("Public", data, forMapper, false),
+                    ],
+                };
+            },
         },
     }),
 });

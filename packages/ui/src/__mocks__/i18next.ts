@@ -1,4 +1,4 @@
-export const i18nextTMock = (key, _options) => {
+export function i18nextTMock(key, _options) {
     // Error key with details
     if (key === "CannotConnectToServer")
         return "Cannot connect to server";

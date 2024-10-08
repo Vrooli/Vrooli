@@ -383,6 +383,7 @@ export const meetingInvite_findMany = {
               "canUpdate": true,
               "canRead": true
             },
+            "lastStep": true,
             "projectVersion": {
               "id": true,
               "complexity": true,
@@ -412,8 +413,9 @@ export const meetingInvite_findMany = {
             "completedAt": true,
             "name": true,
             "status": true,
-            "stepsCount": true,
             "inputsCount": true,
+            "outputsCount": true,
+            "stepsCount": true,
             "wasRunAutomatically": true,
             "team": {
               "id": true,
@@ -454,6 +456,7 @@ export const meetingInvite_findMany = {
               "canUpdate": true,
               "canRead": true
             },
+            "lastStep": true,
             "routineVersion": {
               "id": true,
               "complexity": true,
@@ -467,6 +470,7 @@ export const meetingInvite_findMany = {
                 "isInternal": true,
                 "isPrivate": true
               },
+              "routineType": true,
               "translations": {
                 "id": true,
                 "language": true,

@@ -14,14 +14,14 @@ import { BaseSelection, ElementPointType, NodeKey, PointType, TableDOMRows, Tabl
 import { getActiveEditor, getActiveEditorState, isCurrentlyReadOnlyMode } from "./updates";
 import { $createNode, $getAdjacentNode, $getAncestor, $getCompositionKey, $getNearestRootOrShadowRoot, $getNodeByKey, $getRoot, $getSelection, $hasAncestor, $isNode, $isNodeSelection, $isRangeSelection, $isRootOrShadowRoot, $isTokenOrSegmented, $setCompositionKey, $setSelection, doesContainGrapheme, getDOMSelection, getDOMTextNode, getElementByKeyOrThrow, getIndexWithinParent, getNextSibling, getNextSiblings, getNodeFromDOM, getParent, getParentKeys, getPreviousSibling, getTextNodeOffset, isAttachedToRoot, isSelected, isSelectionCapturedInDecoratorInput, isSelectionWithinEditor, removeDOMBlockCursorElement, scrollIntoViewIfNeeded } from "./utils";
 
-export const $createPoint = (
+export function $createPoint(
     key: NodeKey,
     offset: number,
     type: "text" | "element",
-): PointType => {
+): PointType {
     // @ts-expect-error: intentionally cast as we use a class for perf reasons
     return new Point(key, offset, type);
-};
+}
 
 export class Point {
     key: NodeKey;
@@ -91,11 +91,11 @@ export class Point {
     }
 }
 
-const shouldResolveAncestor = (
+function shouldResolveAncestor(
     resolvedElement: ElementNode,
     resolvedOffset: number,
     lastPoint: null | PointType,
-): boolean => {
+): boolean {
     const parent = getParent(resolvedElement);
     return (
         lastPoint === null ||
@@ -103,21 +103,21 @@ const shouldResolveAncestor = (
         !parent.canBeEmpty() ||
         parent !== lastPoint.getNode()
     );
-};
+}
 
 /**
  * Creates a selection when the existing selection is null 
  * (i.e. forcing selection on the editor when it currently
  * exists outside the editor).
  */
-export const internalMakeRangeSelection = (
+export function internalMakeRangeSelection(
     anchorKey: NodeKey,
     anchorOffset: number,
     focusKey: NodeKey,
     focusOffset: number,
     anchorType: "text" | "element",
     focusType: "text" | "element",
-): RangeSelection => {
+): RangeSelection {
     const editorState = getActiveEditorState();
     const selection = new RangeSelection(
         $createPoint(anchorKey, anchorOffset, anchorType),
@@ -128,13 +128,13 @@ export const internalMakeRangeSelection = (
     selection.dirty = true;
     editorState._selection = selection;
     return selection;
-};
+}
 
 /**
  * This function is for internal use of the library.
  * Please do not use it as it may change in the future.
  */
-export const INTERNAL_$isBlock = (node: LexicalNode): node is ElementNode => {
+export function INTERNAL_$isBlock(node: LexicalNode): node is ElementNode {
     if ($isNode("Decorator", node)) {
         return false;
     }
@@ -150,14 +150,14 @@ export const INTERNAL_$isBlock = (node: LexicalNode): node is ElementNode => {
         firstChild.isInline();
 
     return !node.isInline() && node.canBeEmpty() !== false && isLeafElement;
-};
+}
 
-const internalResolveSelectionPoint = (
+function internalResolveSelectionPoint(
     dom: Node,
     offset: number,
     lastPoint: null | PointType,
     editor: LexicalEditor,
-): null | PointType => {
+): null | PointType {
     let resolvedOffset = offset;
     let resolvedNode: TextNode | LexicalNode | null;
     // If we have selection on an element, we will
@@ -257,13 +257,13 @@ const internalResolveSelectionPoint = (
         return null;
     }
     return $createPoint(resolvedNode.__key, resolvedOffset, "text");
-};
+}
 
-const resolveSelectionPointOnBoundary = (
+function resolveSelectionPointOnBoundary(
     point: TextPointType,
     isBackward: boolean,
     isCollapsed: boolean,
-) => {
+) {
     const offset = point.offset;
     const node = point.getNode();
 
@@ -320,13 +320,13 @@ const resolveSelectionPointOnBoundary = (
             }
         }
     }
-};
+}
 
-const normalizeSelectionPointsForBoundaries = (
+function normalizeSelectionPointsForBoundaries(
     anchor: PointType,
     focus: PointType,
     lastSelection: BaseSelection | null | undefined,
-) => {
+) {
     if (anchor.type === "text" && focus.type === "text") {
         const isBackward = anchor.isBefore(focus);
         const isCollapsed = anchor.is(focus);
@@ -359,16 +359,16 @@ const normalizeSelectionPointsForBoundaries = (
             $setPointValues(focus, lastFocus.key, lastFocus.offset, lastFocus.type);
         }
     }
-};
+}
 
-const internalResolveSelectionPoints = (
+function internalResolveSelectionPoints(
     anchorDOM: Node | null,
     anchorOffset: number,
     focusDOM: Node | null,
     focusOffset: number,
     editor: LexicalEditor,
     lastSelection: BaseSelection | null | undefined,
-): [PointType, PointType] | null => {
+): [PointType, PointType] | null {
     if (
         anchorDOM === null ||
         focusDOM === null ||
@@ -416,14 +416,14 @@ const internalResolveSelectionPoints = (
     );
 
     return [resolvedAnchorPoint, resolvedFocusPoint];
-};
+}
 
-export const internalCreateRangeSelection = (
+export function internalCreateRangeSelection(
     lastSelection: BaseSelection | null | undefined,
     domSelection: Selection | null,
     editor: LexicalEditor,
     event: UIEvent | Event | null,
-): RangeSelection | null => {
+): RangeSelection | null {
     const windowObj = editor._window;
     if (windowObj === null) {
         return null;
@@ -496,11 +496,11 @@ export const internalCreateRangeSelection = (
         !$isRangeSelection(lastSelection) ? 0 : lastSelection.format,
         !$isRangeSelection(lastSelection) ? "" : lastSelection.style,
     );
-};
+}
 
-export const internalCreateSelection = (
+export function internalCreateSelection(
     editor: LexicalEditor,
-): null | BaseSelection => {
+): null | BaseSelection {
     const currentEditorState = editor.getEditorState();
     const lastSelection = currentEditorState?._selection;
     const domSelection = getDOMSelection(editor._window);
@@ -514,9 +514,9 @@ export const internalCreateSelection = (
         );
     }
     return lastSelection.clone();
-};
+}
 
-export const updateDOMSelection = (
+export function updateDOMSelection(
     prevSelection: BaseSelection | null | undefined,
     nextSelection: BaseSelection | null | undefined,
     editor: LexicalEditor,
@@ -524,13 +524,12 @@ export const updateDOMSelection = (
     tags: Set<string>,
     rootElement: HTMLElement,
     nodeCount: number,
-) => {
+) {
     const anchorDOMNode = domSelection.anchorNode;
     const focusDOMNode = domSelection.focusNode;
     const anchorOffset = domSelection.anchorOffset;
     const focusOffset = domSelection.focusOffset;
     const activeElement = document.activeElement;
-    console.log("active element in updateDOMSelection", activeElement, tags);
 
     if (activeElement !== null && isSelectionCapturedInDecoratorInput(activeElement)) {
         return;
@@ -670,17 +669,17 @@ export const updateDOMSelection = (
     }
 
     markSelectionChangeFromDOMUpdate();
-};
+}
 
-export const $getPreviousSelection = (): BaseSelection | null => {
+export function $getPreviousSelection(): BaseSelection | null {
     const editor = getActiveEditor();
     return editor._editorState?._selection ?? null;
-};
+}
 
-export const applySelectionTransforms = (
+export function applySelectionTransforms(
     nextEditorState: EditorState,
     editor: LexicalEditor,
-) => {
+) {
     const prevEditorState = editor.getEditorState();
     const prevSelection = prevEditorState?._selection;
     const nextSelection = nextEditorState._selection;
@@ -700,14 +699,14 @@ export const applySelectionTransforms = (
             }
         }
     }
-};
+}
 
-const $transferStartingElementPointToTextPoint = (
+function $transferStartingElementPointToTextPoint(
     start: ElementPointType,
     end: PointType,
     format: number,
     style: string,
-) => {
+) {
     const element = start.getNode();
     const placementNode = element.getChildAtIndex(start.offset);
     const textNode = $createNode("Text", { text: "" });
@@ -726,20 +725,20 @@ const $transferStartingElementPointToTextPoint = (
         end.set(textNode.__key, 0, "text");
     }
     start.set(textNode.__key, 0, "text");
-};
+}
 
-const $setPointValues = (
+function $setPointValues(
     point: PointType,
     key: NodeKey,
     offset: number,
     type: "text" | "element",
-) => {
+) {
     point.key = key;
     point.offset = offset;
     point.type = type;
-};
+}
 
-const getCharacterOffset = (point: PointType): number => {
+function getCharacterOffset(point: PointType): number {
     const offset = point.offset;
     if (point.type === "text") {
         return offset;
@@ -749,11 +748,11 @@ const getCharacterOffset = (point: PointType): number => {
     return offset === parent.getChildrenSize()
         ? parent.getTextContent().length
         : 0;
-};
+}
 
-export const $getCharacterOffsets = (
+export function $getCharacterOffsets(
     selection: BaseSelection,
-): [number, number] => {
+): [number, number] {
     const anchorAndFocus = selection.getStartEndPoints();
     if (anchorAndFocus === null) {
         return [0, 0];
@@ -768,7 +767,7 @@ export const $getCharacterOffsets = (
         return [0, 0];
     }
     return [getCharacterOffset(anchor), getCharacterOffset(focus)];
-};
+}
 
 export class RangeSelection implements BaseSelection {
     format: number;
@@ -1595,8 +1594,9 @@ export class RangeSelection implements BaseSelection {
         }
 
         // CASE 2: All elements of the array are inline
-        const notInline = (node: LexicalNode) =>
-            ($isNode("Element", node) || $isNode("Decorator", node)) && !node.isInline();
+        function notInline(node: LexicalNode) {
+            return ($isNode("Element", node) || $isNode("Decorator", node)) && !node.isInline();
+        }
 
         if (!nodes.some(notInline)) {
             if (!$isNode("Element", firstBlock)) {
@@ -1612,14 +1612,16 @@ export class RangeSelection implements BaseSelection {
         const blocksParent = $wrapInlineNodes(nodes);
         const nodeToSelect = blocksParent.getLastDescendant()!;
         const blocks = blocksParent.getChildren();
-        const isLI = (node: LexicalNode) =>
-            "__value" in node && "__checked" in node;
-        const isMergeable = (node: LexicalNode): node is ElementNode =>
-            $isNode("Element", node) &&
-            INTERNAL_$isBlock(node) &&
-            !node.isEmpty() &&
-            $isNode("Element", firstBlock) &&
-            (!firstBlock.isEmpty() || isLI(firstBlock));
+        function isLI(node: LexicalNode) {
+            return "__value" in node && "__checked" in node;
+        }
+        function isMergeable(node: LexicalNode): node is ElementNode {
+            return $isNode("Element", node) &&
+                INTERNAL_$isBlock(node) &&
+                !node.isEmpty() &&
+                $isNode("Element", firstBlock) &&
+                (!firstBlock.isEmpty() || isLI(firstBlock));
+        }
 
         const shouldInsert = !$isNode("Element", firstBlock) || !firstBlock.isEmpty();
         const insertedParagraph = shouldInsert ? this.insertParagraph() : null;
@@ -2106,9 +2108,9 @@ export class RangeSelection implements BaseSelection {
     }
 }
 
-export const $createNodeSelection = (): NodeSelection => {
+export function $createNodeSelection(): NodeSelection {
     return new NodeSelection(new Set());
-};
+}
 
 export class NodeSelection implements BaseSelection {
     _nodes: Set<NodeKey>;
@@ -2236,22 +2238,22 @@ export class NodeSelection implements BaseSelection {
     }
 }
 
-const moveNativeSelection = (
+function moveNativeSelection(
     domSelection: Selection,
     alter: "move" | "extend",
     direction: "backward" | "forward" | "left" | "right",
     granularity: "character" | "word" | "lineboundary",
-): void => {
+): void {
     // Selection.modify() method applies a change to the current selection or cursor position,
     // but is still non-standard in some browsers.
     domSelection.modify(alter, direction, granularity);
-};
+}
 
-const $removeSegment = (
+function $removeSegment(
     node: TextNode,
     isBackward: boolean,
     offset: number,
-): void => {
+): void {
     const textNode = node;
     const textContent = textNode.getTextContent();
     const split = textContent.split(/(?=\s)/g);
@@ -2285,12 +2287,12 @@ const $removeSegment = (
         textNode.setTextContent(nextTextContent);
         textNode.select(restoreOffset, restoreOffset);
     }
-};
+}
 
-const $updateCaretSelectionForUnicodeCharacter = (
+function $updateCaretSelectionForUnicodeCharacter(
     selection: RangeSelection,
     isBackward: boolean,
-): void => {
+): void {
     const anchor = selection.anchor;
     const focus = selection.focus;
     const anchorNode = anchor.getNode();
@@ -2322,9 +2324,9 @@ const $updateCaretSelectionForUnicodeCharacter = (
     } else {
         // TODO Handling of multibyte characters
     }
-};
+}
 
-const $swapPoints = (selection: RangeSelection): void => {
+function $swapPoints(selection: RangeSelection): void {
     const focus = selection.focus;
     const anchor = selection.anchor;
     const anchorKey = anchor.key;
@@ -2334,15 +2336,15 @@ const $swapPoints = (selection: RangeSelection): void => {
     $setPointValues(anchor, focus.key, focus.offset, focus.type);
     $setPointValues(focus, anchorKey, anchorOffset, anchorType);
     selection._cachedNodes = null;
-};
+}
 
-export const moveSelectionPointToSibling = (
+export function moveSelectionPointToSibling(
     point: PointType,
     node: LexicalNode,
     parent: ElementNode,
     prevSibling: LexicalNode | null,
     nextSibling: LexicalNode | null,
-) => {
+) {
     let siblingKey: string | null = null;
     let offset = 0;
     let type: "text" | "element" | null = null;
@@ -2375,17 +2377,17 @@ export const moveSelectionPointToSibling = (
         }
         point.set(parent.__key, offset, "element");
     }
-};
+}
 
 /**
  * Converts all nodes in the selection that are of one block type to another.
  * @param selection - The selected blocks to be converted.
  * @param createElement - The function that creates the node. eg. $createParagraphNode.
  */
-export const $setBlocksType = (
+export function $setBlocksType(
     selection: BaseSelection | null,
     createElement: () => ElementNode,
-) => {
+) {
     if (!selection) {
         return;
     }
@@ -2428,9 +2430,9 @@ export const $setBlocksType = (
         targetElement.setIndent(node.getIndent());
         node.replace(targetElement, true);
     }
-};
+}
 
-const removeTextAndSplitBlock = (selection: RangeSelection): number => {
+function removeTextAndSplitBlock(selection: RangeSelection): number {
     if (!selection.isCollapsed()) {
         selection.removeText();
     }
@@ -2444,12 +2446,12 @@ const removeTextAndSplitBlock = (selection: RangeSelection): number => {
     }
 
     return offset;
-};
+}
 
-const splitNodeAtPoint = (
+function splitNodeAtPoint(
     node: LexicalNode,
     offset: number,
-): [parent: ElementNode, offset: number] => {
+): [parent: ElementNode, offset: number] {
     const parent = getParent(node);
     if (!parent) {
         const paragraph = $createNode("Paragraph", {});
@@ -2487,9 +2489,9 @@ const splitNodeAtPoint = (
         }
     }
     return [parent, getIndexWithinParent(node) + 1];
-};
+}
 
-const $wrapInlineNodes = (nodes: LexicalNode[]) => {
+function $wrapInlineNodes(nodes: LexicalNode[]) {
     // We temporarily insert the topLevelNodes into an arbitrary ElementNode,
     // since insertAfter does not work on nodes that have no parent (TO-DO: fix that).
     const virtualRoot = $createNode("Paragraph", {});
@@ -2527,9 +2529,9 @@ const $wrapInlineNodes = (nodes: LexicalNode[]) => {
     }
 
     return virtualRoot;
-};
+}
 
-const $updateSelectionResolveTextNodes = (selection: RangeSelection): void => {
+function $updateSelectionResolveTextNodes(selection: RangeSelection): void {
     const anchor = selection.anchor;
     const anchorOffset = anchor.offset;
     const focus = selection.focus;
@@ -2583,14 +2585,14 @@ const $updateSelectionResolveTextNodes = (selection: RangeSelection): void => {
             focus.set(child.__key, newOffset, "text");
         }
     }
-};
+}
 
-export const $updateElementSelectionOnCreateDeleteNode = (
+export function $updateElementSelectionOnCreateDeleteNode(
     selection: RangeSelection,
     parentNode: LexicalNode,
     nodeOffset: number,
     times = 1,
-): void => {
+): void {
     const anchor = selection.anchor;
     const focus = selection.focus;
     const anchorNode = anchor.getNode();
@@ -2648,15 +2650,15 @@ export const $updateElementSelectionOnCreateDeleteNode = (
     }
     // The new selection might point to text nodes, try to resolve them
     $updateSelectionResolveTextNodes(selection);
-};
+}
 
-export const adjustPointOffsetForMergedSibling = (
+export function adjustPointOffsetForMergedSibling(
     point: PointType,
     isBefore: boolean,
     key: NodeKey,
     target: TextNode,
     textLength: number,
-): void => {
+): void {
     if (point.type === "text") {
         point.key = key;
         if (!isBefore) {
@@ -2665,9 +2667,9 @@ export const adjustPointOffsetForMergedSibling = (
     } else if (point.offset > getIndexWithinParent(target)) {
         point.offset -= 1;
     }
-};
+}
 
-const selectPointOnNode = (point: PointType, node: LexicalNode): void => {
+function selectPointOnNode(point: PointType, node: LexicalNode): void {
     let key = node.__key;
     let offset = point.offset;
     let type: "element" | "text" = "element";
@@ -2692,12 +2694,12 @@ const selectPointOnNode = (point: PointType, node: LexicalNode): void => {
         }
     }
     point.set(key, offset, type);
-};
+}
 
-export const $moveSelectionPointToEnd = (
+export function $moveSelectionPointToEnd(
     point: PointType,
     node: LexicalNode,
-): void => {
+): void {
     if ($isNode("Element", node)) {
         const lastNode = node.getLastDescendant();
         if ($isNode("Element", lastNode) || $isNode("Text", lastNode)) {
@@ -2708,36 +2710,36 @@ export const $moveSelectionPointToEnd = (
     } else {
         selectPointOnNode(point, node);
     }
-};
+}
 
-export const $createRangeSelection = (): RangeSelection => {
+export function $createRangeSelection(): RangeSelection {
     const anchor = $createPoint("root", 0, "element");
     const focus = $createPoint("root", 0, "element");
     return new RangeSelection(anchor, focus, 0, "");
-};
+}
 
-export const $insertNodes = (nodes: LexicalNode[]) => {
+export function $insertNodes(nodes: LexicalNode[]) {
     let selection = $getSelection() || $getPreviousSelection();
 
     if (selection === null) {
         selection = $getRoot().selectEnd();
     }
     selection.insertNodes(nodes);
-};
+}
 
 /**
  * Tests a parent element for right to left direction.
  * @param selection - The selection whose parent is to be tested.
  * @returns true if the selections' parent element has a direction of 'rtl' (right to left), false otherwise.
  */
-export const $isParentElementRTL = (selection: RangeSelection): boolean => {
+export function $isParentElementRTL(selection: RangeSelection): boolean {
     const anchorNode = selection.anchor.getNode();
     const parent = $isNode("Root", anchorNode)
         ? anchorNode
         : getParent(anchorNode, { throwIfNull: true });
 
     return parent.getDirection() === "rtl";
-};
+}
 
 /**
  * Moves selection by character according to arguments.
@@ -2745,11 +2747,11 @@ export const $isParentElementRTL = (selection: RangeSelection): boolean => {
  * @param isHoldingShift - Is the shift key being held down during the operation.
  * @param isBackward - Is the selection backward (the focus comes before the anchor)?
  */
-export const $moveCharacter = (
+export function $moveCharacter(
     selection: RangeSelection,
     isHoldingShift: boolean,
     isBackward: boolean,
-): void => {
+): void {
     const isRTL = $isParentElementRTL(selection);
     // Move the caret selection by character
     selection.modify(
@@ -2757,7 +2759,7 @@ export const $moveCharacter = (
         isBackward ? !isRTL : isRTL,
         "character", // Granularity
     );
-};
+}
 
 /**
  * Determines if the default character selection should be overridden. Used with DecoratorNodes
@@ -2765,10 +2767,10 @@ export const $moveCharacter = (
  * @param isBackward - Is the selection backwards (the focus comes before the anchor)?
  * @returns true if it should be overridden, false if not.
  */
-export const $shouldOverrideDefaultCharacterSelection = (
+export function $shouldOverrideDefaultCharacterSelection(
     selection: RangeSelection,
     isBackward: boolean,
-): boolean => {
+): boolean {
     const possibleNode = $getAdjacentNode(selection.focus, isBackward);
 
     return (
@@ -2777,9 +2779,9 @@ export const $shouldOverrideDefaultCharacterSelection = (
             !possibleNode.isInline() &&
             !possibleNode.canBeEmpty())
     );
-};
+}
 
-export const getTable = (tableElement: HTMLElement): TableDOMTable => {
+export function getTable(tableElement: HTMLElement): TableDOMTable {
     const domRows: TableDOMRows = [];
     const grid = {
         columns: 0,
@@ -2849,15 +2851,15 @@ export const getTable = (tableElement: HTMLElement): TableDOMTable => {
     grid.rows = y + 1;
 
     return grid;
-};
+}
 
-export const caretFromPoint = (
+export function caretFromPoint(
     x: number,
     y: number,
 ): null | {
     offset: number;
     node: Node;
-} => {
+} {
     if (typeof document.caretRangeFromPoint !== "undefined") {
         const range = document.caretRangeFromPoint(x, y);
         if (range === null) {
@@ -2882,9 +2884,9 @@ export const caretFromPoint = (
         // Gracefully handle IE
         return null;
     }
-};
+}
 
-const isNodeSelected = (editor: LexicalEditor, key: NodeKey): boolean => {
+function isNodeSelected(editor: LexicalEditor, key: NodeKey): boolean {
     return editor.getEditorState()?.read(() => {
         const node = $getNodeByKey(key);
 
@@ -2894,11 +2896,11 @@ const isNodeSelected = (editor: LexicalEditor, key: NodeKey): boolean => {
 
         return isSelected(node);
     }) ?? false;
-};
+}
 
-export const useLexicalNodeSelection = (
+export function useLexicalNodeSelection(
     key: NodeKey,
-): [boolean, (arg0: boolean) => void, () => void] => {
+): [boolean, (arg0: boolean) => void, () => void] {
     const editor = useLexicalComposerContext();
 
     const [isSelected, setIsSelected] = useState(() => Boolean(editor && isNodeSelected(editor, key)));
@@ -2950,7 +2952,7 @@ export const useLexicalNodeSelection = (
     }, [editor]);
 
     return [isSelected, setSelected, clearSelected];
-};
+}
 
 export function $createRangeSelectionFromDom(
     domSelection: Selection | null,

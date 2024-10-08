@@ -1,4 +1,4 @@
-import { BookmarkFor, DUMMY_ID, endpointGetTags, exists, Tag, TagSearchInput, TagSearchResult, TagSortBy } from "@local/shared";
+import { BookmarkFor, DUMMY_ID, endpointGetTags, exists, Tag, TagSearchInput, TagSearchResult, TagShape, TagSortBy } from "@local/shared";
 import { Autocomplete, AutocompleteRenderGetTagProps, AutocompleteRenderInputParams, Chip, CircularProgress, InputAdornment, ListItemText, MenuItem, Popper, PopperProps, styled } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { useField } from "formik";
@@ -8,7 +8,6 @@ import { HTMLAttributes, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useTranslation } from "react-i18next";
 import { CHIP_LIST_LIMIT } from "utils/consts";
 import { PubSub } from "utils/pubsub";
-import { TagShape } from "utils/shape/models/tag";
 import { TextInput } from "../TextInput/TextInput";
 import { TagSelectorBaseProps, TagSelectorProps } from "../types";
 

@@ -1,13 +1,12 @@
-import { CommonKey, LINKS, NotificationSettingsUpdateInput, ProfileUpdateInput } from "@local/shared";
+import { LINKS, NotificationSettingsUpdateInput, ProfileUpdateInput, TranslationKeyCommon } from "@local/shared";
 import { FormikProps } from "formik";
-import { SvgComponent } from "types";
-import { ViewDisplayType, ViewProps } from "views/types";
+import { SvgComponent, ViewDisplayType, ViewProps } from "types";
 
 export type SettingsPageType = "Data" | "Profile" | "Privacy" | "Authentication" | "Payment" | "Api" | "Display" | "Notification" | "FocusMode";
 export type SettingsData = {
     title: SettingsPageType,
     titleVariables?: Record<string, string | number>,
-    description: CommonKey,
+    description: TranslationKeyCommon,
     link: LINKS,
     Icon: SvgComponent,
 };

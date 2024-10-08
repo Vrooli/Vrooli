@@ -1,6 +1,7 @@
-import { StatsCodeSortBy } from "@local/shared";
+import { MaxObjects, StatsCodeSortBy } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsCodeFormat } from "../formats";
 import { CodeModelInfo, CodeModelLogic, StatsCodeModelInfo, StatsCodeModelLogic } from "./types";
@@ -30,7 +31,7 @@ export const StatsCodeModel: StatsCodeModelLogic = ({
     },
     validate: () => ({
         isTransferable: false,
-        maxObjects: 0,
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
             code: "Code",
@@ -40,17 +41,31 @@ export const StatsCodeModel: StatsCodeModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<StatsCodeModelInfo["PrismaSelect"]>([["code", "Code"]], ...rest),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    code: ModelMap.get<CodeModelLogic>("Code").validate().visibility.private(...params),
+                    code: useVisibility("Code", "Own", data),
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    code: ModelMap.get<CodeModelLogic>("Code").validate().visibility.public(...params),
+                    code: useVisibility("Code", "OwnOrPublic", data),
                 };
             },
-            owner: (userId) => ({ code: ModelMap.get<CodeModelLogic>("Code").validate().visibility.owner(userId) }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    code: useVisibility("Code", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    code: useVisibility("Code", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    code: useVisibility("Code", "Public", data),
+                };
+            },
         },
     }),
 });

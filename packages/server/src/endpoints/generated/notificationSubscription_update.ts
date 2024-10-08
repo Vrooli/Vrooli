@@ -152,6 +152,7 @@ export const notificationSubscription_update = {
           "canUse": true,
           "canRead": true
         },
+        "schemaLanguage": true,
         "translations": {
           "id": true,
           "language": true,
@@ -922,6 +923,7 @@ export const notificationSubscription_update = {
             "canUpdate": true,
             "canRead": true
           },
+          "lastStep": true,
           "projectVersion": {
             "id": true,
             "complexity": true,
@@ -954,8 +956,9 @@ export const notificationSubscription_update = {
           "completedAt": true,
           "name": true,
           "status": true,
-          "stepsCount": true,
           "inputsCount": true,
+          "outputsCount": true,
+          "stepsCount": true,
           "wasRunAutomatically": true,
           "team": {
             "id": true,
@@ -998,6 +1001,7 @@ export const notificationSubscription_update = {
             "canUpdate": true,
             "canRead": true
           },
+          "lastStep": true,
           "routineVersion": {
             "id": true,
             "complexity": true,
@@ -1012,6 +1016,7 @@ export const notificationSubscription_update = {
               "isPrivate": true,
               "__typename": "Routine"
             },
+            "routineType": true,
             "translations": {
               "id": true,
               "language": true,
@@ -1541,10 +1546,12 @@ export const notificationSubscription_update = {
       "language": true,
       "reason": true,
       "responsesCount": true,
+      "status": true,
       "you": {
         "canDelete": true,
         "canRespond": true,
-        "canUpdate": true
+        "canUpdate": true,
+        "isOwn": true
       },
       "__typename": "Report"
     },
@@ -1842,16 +1849,17 @@ export const notificationSubscription_update = {
         "id": true,
         "created_at": true,
         "updated_at": true,
+        "codeLanguage": true,
+        "default": true,
         "isComplete": true,
         "isFile": true,
         "isLatest": true,
         "isPrivate": true,
-        "default": true,
-        "standardType": true,
         "props": true,
-        "yup": true,
+        "variant": true,
         "versionIndex": true,
         "versionLabel": true,
+        "yup": true,
         "commentsCount": true,
         "directoryListingsCount": true,
         "forksCount": true,

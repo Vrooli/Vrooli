@@ -107,6 +107,7 @@ export const typeDef = gql`
 
     input StandardSearchInput {
         after: String
+        codeLanguageLatestVersion: String
         createdById: ID
         createdTimeFrame: TimeFrame
         excludeIds: [ID!]
@@ -131,6 +132,7 @@ export const typeDef = gql`
         take: Int
         translationLanguagesLatestVersion: [String!]
         updatedTimeFrame: TimeFrame
+        variantLatestVersion: StandardType
         visibility: VisibilityType
     }
     type StandardSearchResult {

@@ -1,5 +1,4 @@
-import { endpointGetTransfer, endpointGetTransfers, TransferSortBy } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetTransfer, endpointGetTransfers, FormSchema, TransferSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

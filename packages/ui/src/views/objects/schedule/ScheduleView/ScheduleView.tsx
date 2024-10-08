@@ -2,8 +2,8 @@ import { endpointGetSchedule, Schedule } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { useObjectActions } from "hooks/useObjectActions";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useObjectActions } from "hooks/objectActions";
+import { useManagedObject } from "hooks/useManagedObject";
 import { EllipsisIcon } from "icons";
 import { MouseEvent, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -11,15 +11,15 @@ import { useLocation } from "route";
 import { OverviewContainer } from "styles";
 import { ScheduleViewProps } from "../types";
 
-export const ScheduleView = ({
+export function ScheduleView({
     display,
     onClose,
-}: ScheduleViewProps) => {
+}: ScheduleViewProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const { id, isLoading, object: schedule, permissions, setObject: setSchedule } = useObjectFromUrl<Schedule>({
+    const { id, isLoading, object: schedule, permissions, setObject: setSchedule } = useManagedObject<Schedule>({
         ...endpointGetSchedule,
         objectType: "Schedule",
     });
@@ -87,4 +87,4 @@ export const ScheduleView = ({
             {/* TODO */}
         </>
     );
-};
+}

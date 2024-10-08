@@ -1,4 +1,4 @@
-import { CommentFor, endpointGetQuestion, exists, Question, Tag } from "@local/shared";
+import { CommentFor, endpointGetQuestion, exists, Question, Tag, TagShape } from "@local/shared";
 import { Stack, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
@@ -9,10 +9,10 @@ import { TagList } from "components/lists/TagList/TagList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Formik } from "formik";
-import { useObjectActions } from "hooks/useObjectActions";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useObjectActions } from "hooks/objectActions";
+import { useManagedObject } from "hooks/useManagedObject";
 import { EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -22,7 +22,6 @@ import { ObjectAction } from "utils/actions/objectActions";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
-import { TagShape } from "utils/shape/models/tag";
 import { questionInitialValues } from "../QuestionUpsert/QuestionUpsert";
 import { QuestionViewProps } from "../types";
 
@@ -35,7 +34,7 @@ export function QuestionView({
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const { isLoading, object: existing, permissions, setObject: setQuestion } = useObjectFromUrl<Question>({
+    const { isLoading, object: existing, permissions, setObject: setQuestion } = useManagedObject<Question>({
         ...endpointGetQuestion,
         objectType: "Question",
     });
@@ -74,7 +73,7 @@ export function QuestionView({
                 onAddCommentClose={closeAddCommentDialog}
             />
         </FormSection>
-    ), [closeAddCommentDialog, existing?.id, isAddCommentOpen, language, palette]);
+    ), [closeAddCommentDialog, existing?.id, isAddCommentOpen, language]);
 
     return (
         <>

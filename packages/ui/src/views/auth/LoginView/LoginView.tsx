@@ -1,22 +1,23 @@
 import { emailLogInFormValidation, EmailLogInInput, endpointPostAuthEmailLogin, LINKS, Session } from "@local/shared";
-import { Box, Button, Grid, InputAdornment, Link, Typography, useTheme } from "@mui/material";
+import { Box, Button, InputAdornment } from "@mui/material";
 import { errorToMessage, fetchLazyWrapper, hasErrorCode } from "api";
+import { BreadcrumbsBase } from "components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase";
 import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Field, Formik, FormikHelpers } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { formNavLink, formPaper, formSubmit } from "forms/styles";
+import { InnerForm } from "forms/BaseForm/BaseForm";
+import { formPaper, formSubmit } from "forms/styles";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useReactSearch } from "hooks/useReactSearch";
 import { EmailIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { clickSize } from "styles";
+import { CenteredContentPage, CenteredContentPageWrap, CenteredContentPaper, FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
-import { removeCookie } from "utils/cookies";
+import { removeCookie } from "utils/localStorage";
 import { PubSub } from "utils/pubsub";
 import { LoginViewProps } from "views/types";
 
@@ -33,17 +34,10 @@ const initialValues = {
 const baseFormStyle = {
     ...formPaper,
     paddingBottom: "unset",
+    margin: "0px",
 } as const;
-
-const forgotPasswordLinkStyle = {
-    ...clickSize,
-    ...formNavLink,
-} as const;
-
-const signUpLinkStyle = {
-    ...clickSize,
-    ...formNavLink,
-    flexDirection: "row-reverse",
+const breadcrumbsStyle = {
+    margin: "auto",
 } as const;
 
 const emailStartAdornment = {
@@ -139,8 +133,19 @@ function LoginForm({
         });
     }, [emailLogIn, redirect, setLocation, verificationCode]);
 
+    const breadcrumbPaths = [
+        {
+            text: t("ForgotPassword"),
+            link: LINKS.ForgotPassword,
+        },
+        {
+            text: t("SignUp"),
+            link: LINKS.Signup,
+        },
+    ] as const;
+
     return (
-        <>
+        <Box>
             <TopBar
                 display="dialog"
                 onClose={onClose}
@@ -151,13 +156,13 @@ function LoginForm({
                 onSubmit={onSubmit}
                 validationSchema={emailLogInFormValidation}
             >
-                {(formik) => <BaseForm
+                {(formik) => <InnerForm
                     display={"dialog"}
                     isLoading={loading}
                     style={baseFormStyle}
                 >
-                    <Grid container spacing={2}>
-                        <Grid item xs={12}>
+                    <FormContainer width="unset" maxWidth="unset">
+                        <FormSection variant="transparent">
                             <Field
                                 fullWidth
                                 autoComplete="email"
@@ -170,49 +175,33 @@ function LoginForm({
                                 helperText={formik.touched.email && formik.errors.email}
                                 error={formik.touched.email && Boolean(formik.errors.email)}
                             />
-                        </Grid>
-                        <Grid item xs={12}>
                             <PasswordTextInput
                                 fullWidth
                                 name="password"
                                 autoComplete="current-password"
                             />
-                        </Grid>
-                    </Grid>
-                    <Button
-                        fullWidth
-                        disabled={loading}
-                        type="submit"
-                        color="secondary"
-                        variant='contained'
-                        sx={formSubmit}
-                    >
-                        {t("LogIn")}
-                    </Button>
-                    <Box
-                        display="flex"
-                        flexDirection="row"
-                        justifyContent="space-between"
-                        alignItems="center"
-                    >
-                        <Link href={LINKS.ForgotPassword}>
-                            <Typography
-                                sx={forgotPasswordLinkStyle}
-                            >
-                                {t("ForgotPassword")}
-                            </Typography>
-                        </Link>
-                        <Link href={LINKS.Signup}>
-                            <Typography
-                                sx={signUpLinkStyle}
-                            >
-                                {t("SignUp")}
-                            </Typography>
-                        </Link>
+                        </FormSection>
+                    </FormContainer>
+                    <Box width="100%" display="flex" flexDirection="column" p={2}>
+                        <Button
+                            fullWidth
+                            disabled={loading}
+                            type="submit"
+                            color="secondary"
+                            variant='contained'
+                            sx={formSubmit}
+                        >
+                            {t("LogIn")}
+                        </Button>
+                        <BreadcrumbsBase
+                            paths={breadcrumbPaths}
+                            separator={"•"}
+                            sx={breadcrumbsStyle}
+                        />
                     </Box>
-                </BaseForm>}
+                </InnerForm>}
             </Formik>
-        </>
+        </Box>
     );
 }
 
@@ -220,29 +209,18 @@ export function LoginView({
     display,
     onClose,
 }: LoginViewProps) {
-    const { palette } = useTheme();
-
     return (
-        <Box sx={{ maxHeight: "100vh", overflow: "hidden" }}>
+        <CenteredContentPage>
             <TopBar
                 display={display}
                 onClose={onClose}
                 titleBehaviorDesktop="ShowBelow"
             />
-            <Box
-                sx={{
-                    position: "absolute",
-                    top: "50%",
-                    left: "50%",
-                    transform: "translateX(-50%) translateY(-50%)",
-                    width: "min(700px, 100%)",
-                    background: palette.background.paper,
-                    borderRadius: { xs: 0, sm: 2 },
-                    overflow: "overlay",
-                }}
-            >
-                <LoginForm onClose={onClose} />
-            </Box>
-        </Box>
+            <CenteredContentPageWrap>
+                <CenteredContentPaper maxWidth={600}>
+                    <LoginForm onClose={onClose} />
+                </CenteredContentPaper>
+            </CenteredContentPageWrap>
+        </CenteredContentPage>
     );
 }

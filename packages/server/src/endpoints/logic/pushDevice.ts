@@ -3,6 +3,7 @@ import { updateOneHelper } from "../../actions/updates";
 import { assertRequestFrom } from "../../auth/request";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
+import { logger } from "../../events/logger";
 import { rateLimit } from "../../middleware/rateLimit";
 import { Notify } from "../../notify";
 import { CreateOneResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
@@ -38,22 +39,23 @@ export const PushDeviceEndpoints: EndpointsPushDevice = {
                 expires: input.expires,
                 auth: input.keys.auth,
                 p256dh: input.keys.p256dh,
-                // name: input.name,
+                name: input.name ?? undefined,
                 userData,
                 info,
             });
         },
         pushDeviceTest: async (_, { input }, { req }) => {
             const userData = assertRequestFrom(req, { isUser: true });
-            const pushIds = await prismaInstance.push_device.findMany({
+            const pushDevices = await prismaInstance.push_device.findMany({
                 where: { userId: userData.id },
             });
             const requestedId = input.id;
-            const pushDevice = pushIds.find(({ id }) => id === requestedId);
-            if (!pushDevice) {
+            const requestedDevice = pushDevices.find(({ id }) => id === requestedId);
+            if (!requestedDevice) {
+                logger.info(`devices: ${requestedId}, ${JSON.stringify(pushDevices)}`);
                 throw new CustomError("0588", "Unauthorized", userData.languages);
             }
-            const success = await Notify(userData.languages).testPushDevice(pushDevice);
+            const success = await Notify(userData.languages).testPushDevice(requestedDevice);
             return success;
         },
         pushDeviceUpdate: async (_, { input }, { req }, info) => {

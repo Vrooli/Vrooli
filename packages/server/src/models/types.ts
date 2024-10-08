@@ -264,10 +264,6 @@ export type Searcher<
      */
     searchStringQuery: () => SearchStringQuery<Model["PrismaWhere"]>;
     /**
-     * Any additional data to add to the Prisma query. Not usually needed
-     */
-    customQueryData?: (input: Model["GqlSearch"], userData: SessionUserToken | null) => Model["PrismaWhere"];
-    /**
      * Data for adding supplemental fields to the GraphQL object
      */
     supplemental?: SupplementalConverter<SuppFields>;
@@ -291,6 +287,16 @@ export type Searcher<
 export type PermissionsMap<ModelSelect extends GqlObject> = {
     [x in keyof ModelSelect]: ModelSelect[x] | `${GqlModelType}` | [`${GqlModelType}`, string[]]
 }
+
+export type VisibilityFuncInput = {
+    searchInput: { [x: string]: any },
+    userId: string,
+}
+/**
+ * Function for building partial Prisma select queries. 
+ * Used to safely query only the objects you are allowed to see.
+ */
+export type VisibilityFunc<PrismaWhere extends Exclude<ModelLogicType["PrismaWhere"], undefined>> = ((data: VisibilityFuncInput) => PrismaWhere);
 
 /**
  * Describes shape of component that has validation rules 
@@ -336,13 +342,44 @@ export type Validator<
      * Partial queries for various visibility checks
      */
     visibility: {
-        /** For private objects (i.e. only the owner can see them) */
-        private: (userId: string) => Model["PrismaWhere"];
-        /** For public objects (i.e. anyone can see them) */
-        public: (userId: string) => Model["PrismaWhere"];
-        /** For both private and public objects that you own */
-        owner: (userId: string) => Model["PrismaWhere"];
-    }
+        /** 
+         * For objects you own (both private and public).
+         * 
+         * Set to null if this query type is not supported. This will throw an error 
+         * if the query is attempted.
+         */
+        own: VisibilityFunc<Model["PrismaWhere"]> | null;
+        /** 
+         * Union of objects you own and public objects (so it should include public objects
+         * you don't own).
+         * 
+         * Set to null if this query type is not supported. This will throw an error
+         * if the query is attempted.
+         */
+        ownOrPublic: VisibilityFunc<Model["PrismaWhere"]> | null;
+        /** 
+        * For public objects you own (i.e. intersection of objects you own and private objects).
+        * 
+        * Set to null if this query type is not supported. This will throw an error
+        * if the query is attempted.
+        */
+        ownPublic: VisibilityFunc<Model["PrismaWhere"]> | null;
+        /** 
+         * For private objects you own.
+         * 
+         * Set to null if this query type is not supported. This will throw an error
+         * if the query is attempted.
+         */
+        ownPrivate: VisibilityFunc<Model["PrismaWhere"]> | null;
+        /**
+         * For public objects.
+         * 
+         * Set to null if this query type is not supported. This will throw an error
+         * if the query is attempted.
+         */
+        public: VisibilityFunc<Model["PrismaWhere"]> | null;
+        // Allow additional visibility queries
+    } & { [x: string]: VisibilityFunc<Model["PrismaWhere"]> | null };
     /**
      * Uses query result to determine if the object is soft-deleted
      */
@@ -506,10 +543,12 @@ export type Mutater<Model extends {
          * on versions not specified in the mutation)
          */
         afterMutations?: ({ createdIds, deletedIds, updatedIds, updateInputs, userData }: {
+            additionalData: Record<string, any>,
             beforeDeletedData: { [key in `${GqlModelType}`]?: object },
             createdIds: string[],
             createInputs: Model["GqlCreate"][],
             deletedIds: string[],
+            resultsById: { [key: string]: unknown },
             updatedIds: string[],
             updateInputs: Model["GqlUpdate"][],
             preMap: PreMap,

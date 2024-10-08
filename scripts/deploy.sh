@@ -2,6 +2,7 @@
 # NOTE 1: Run outside of Docker container, on production server
 # NOTE 2: First run build.sh on development server
 # NOTE 3: If docker-compose file was changed since the last build, you should prune the containers and images before running this script.
+# NOTE 4: If environment variables were added since the last build, you should make sure that the vault has been updated with the new secrets.
 # Finishes up the deployment process, which was started by build.sh:
 # 1. Checks if Nginx containers are running
 # 2. Copies current database and build to a safe location, under a temporary directory.
@@ -131,9 +132,22 @@ else
     exit 1
 fi
 
+# Copy the .env-prod file to the correct location
+if [ -f "${BUILD_ZIP}/.env-prod" ]; then
+    info "Moving .env-prod file to ${HERE}/../.env-prod"
+    cp "${BUILD_ZIP}/.env-prod" "${HERE}/../.env-prod"
+    if [ $? -ne 0 ]; then
+        error "Failed to move .env-prod file to ${HERE}/../.env-prod"
+        exit 1
+    fi
+else
+    error "Could not find .env-prod file at ${BUILD_ZIP}/.env-prod"
+    exit 1
+fi
+
 # Stop docker containers
 info "Stopping docker containers..."
-docker-compose --env-file ${BUILD_ZIP}/.env-prod down
+docker-compose --env-file .env-prod down
 
 info "Getting production secrets..."
 readarray -t secrets <"${HERE}/secrets_list.txt"
@@ -160,7 +174,7 @@ fi
 
 # Restart docker containers.
 info "Restarting docker containers..."
-docker-compose --env-file ${BUILD_ZIP}/.env-prod -f ${HERE}/../docker-compose-prod.yml up -d
+docker-compose --env-file .env-prod -f docker-compose-prod.yml up -d
 
 success "Done! You may need to wait a few minutes for the Docker containers to finish starting up."
 info "Now that you've deployed, here are some next steps:"

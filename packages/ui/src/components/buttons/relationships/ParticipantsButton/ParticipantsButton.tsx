@@ -1,3 +1,4 @@
+import { ChatParticipantShape } from "@local/shared";
 import { AvatarGroup, Tooltip } from "@mui/material";
 import { useField, useFormikContext } from "formik";
 import { SettingsIcon, UserIcon } from "icons";
@@ -5,7 +6,6 @@ import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { extractImageUrl } from "utils/display/imageTools";
 import { placeholderColor } from "utils/display/listTools";
-import { ChatParticipantShape } from "utils/shape/models/chatParticipant";
 import { ParticipantManageView } from "views/ParticipantManageView/ParticipantManageView";
 import { ParticipantManageViewProps } from "views/types";
 import { RelationshipAvatar, RelationshipButton, RelationshipChip } from "../styles";
@@ -81,6 +81,7 @@ export function ParticipantsButton({
             <>
                 <ParticipantManageView
                     display="dialog"
+                    isEditing={isEditing}
                     isOpen={isDialogOpen}
                     onClose={closeDialog}
                     chat={formikContext.values as ParticipantManageViewProps["chat"]}

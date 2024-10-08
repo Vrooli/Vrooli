@@ -13,7 +13,7 @@ import { PubSub } from "utils/pubsub";
  *    - stopListening: a function to stop recording speech
  *    - resetTranscript: a function to reset the transcript to an empty string
  */
-export const useSpeech = () => {
+export function useSpeech() {
     // Check if speech recognition is supported in the browser
     const [isSpeechSupported, setIsSpeechSupported] = useState(false);
     useEffect(() => {
@@ -33,7 +33,7 @@ export const useSpeech = () => {
     const [isListening, setIsListening] = useState(false);
 
     // Function to start listening to speech
-    const startListening = () => {
+    function startListening() {
         if (isSpeechSupported) {
             // Create a new instance of SpeechRecognition
             const sr: any = new ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)();
@@ -65,20 +65,20 @@ export const useSpeech = () => {
             setIsListening(true);
             setSpeechRecognition(sr);
         }
-    };
+    }
 
     // Function to stop listening to speech
-    const stopListening = () => {
+    function stopListening() {
         if (isSpeechSupported) {
             speechRecognition.stop();
             setIsListening(false);
         }
-    };
+    }
 
     // Function to reset the transcript
-    const resetTranscript = () => {
+    function resetTranscript() {
         setTranscript("");
-    };
+    }
 
     return {
         transcript,
@@ -88,4 +88,4 @@ export const useSpeech = () => {
         stopListening,
         resetTranscript,
     };
-};
+}

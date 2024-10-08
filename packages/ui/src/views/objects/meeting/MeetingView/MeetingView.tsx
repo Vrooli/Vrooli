@@ -1,9 +1,9 @@
 import { endpointGetMeeting, Meeting } from "@local/shared";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts/SessionContext";
-import { useObjectActions } from "hooks/useObjectActions";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { SessionContext } from "contexts";
+import { useObjectActions } from "hooks/objectActions";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -12,16 +12,16 @@ import { firstString } from "utils/display/stringTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
 import { MeetingViewProps } from "../types";
 
-export const MeetingView = ({
+export function MeetingView({
     display,
     onClose,
-}: MeetingViewProps) => {
+}: MeetingViewProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    const { object: existing, isLoading, setObject: setMeeting } = useObjectFromUrl<Meeting>({
+    const { object: existing, isLoading, setObject: setMeeting } = useManagedObject<Meeting>({
         ...endpointGetMeeting,
         objectType: "Meeting",
     });
@@ -58,4 +58,4 @@ export const MeetingView = ({
             </>
         </>
     );
-};
+}

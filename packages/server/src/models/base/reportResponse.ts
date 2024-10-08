@@ -1,10 +1,11 @@
 // TODO make sure that the report creator and object owner(s) cannot repond to reports 
 // they created or own the object of
-import { ReportResponseSortBy, reportResponseValidation } from "@local/shared";
+import { MaxObjects, ReportResponseSortBy, reportResponseValidation } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { ReportResponseFormat } from "../formats";
@@ -65,7 +66,7 @@ export const ReportResponseModel: ReportResponseModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ReportResponseModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -73,24 +74,38 @@ export const ReportResponseModel: ReportResponseModelLogic = ({
     },
     validate: () => ({
         isTransferable: false,
-        maxObjects: 100000,
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, report: "Report" }),
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => ModelMap.get<ReportModelLogic>("Report").validate().owner(data?.report as ReportModelInfo["PrismaModel"], userId),
         isDeleted: (data, languages) => ModelMap.get<ReportModelLogic>("Report").validate().isDeleted(data.report as ReportModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<ReportResponseModelInfo["PrismaSelect"]>([["report", "Report"]], ...rest),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    report: ModelMap.get<ReportModelLogic>("Report").validate().visibility.private(...params),
+                    report: useVisibility("Report", "Own", data),
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    report: ModelMap.get<ReportModelLogic>("Report").validate().visibility.public(...params),
+                    report: useVisibility("Report", "OwnOrPublic", data),
                 };
             },
-            owner: (userId) => ({ report: ModelMap.get<ReportModelLogic>("Report").validate().visibility.owner(userId) }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    report: useVisibility("Report", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    report: useVisibility("Report", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    report: useVisibility("Report", "Public", data),
+                };
+            },
         },
     }),
 });

@@ -1,6 +1,7 @@
-import { StatsRoutineSortBy } from "@local/shared";
+import { MaxObjects, StatsRoutineSortBy } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsRoutineFormat } from "../formats";
 import { RoutineModelInfo, RoutineModelLogic, StatsRoutineModelInfo, StatsRoutineModelLogic } from "./types";
@@ -30,7 +31,7 @@ export const StatsRoutineModel: StatsRoutineModelLogic = ({
     },
     validate: () => ({
         isTransferable: false,
-        maxObjects: 0,
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
             routine: "Routine",
@@ -40,17 +41,31 @@ export const StatsRoutineModel: StatsRoutineModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<StatsRoutineModelInfo["PrismaSelect"]>([["routine", "Routine"]], ...rest),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.private(...params),
+                    routine: useVisibility("Routine", "Own", data),
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.public(...params),
+                    routine: useVisibility("Routine", "OwnOrPublic", data),
                 };
             },
-            owner: (userId) => ({ routine: ModelMap.get<RoutineModelLogic>("Routine").validate().visibility.owner(userId) }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    routine: useVisibility("Routine", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    routine: useVisibility("Routine", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    routine: useVisibility("Routine", "Public", data),
+                };
+            },
         },
     }),
 });

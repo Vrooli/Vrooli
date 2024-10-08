@@ -1,11 +1,81 @@
-import { Box, Button, Typography, useTheme } from "@mui/material";
+import { Box, BoxProps, Button, Typography, styled, useTheme } from "@mui/material";
 import { WarningIcon } from "icons";
 import { TIDCardProps } from "../types";
+
+interface OuterCardProps extends BoxProps {
+    isClickable: boolean;
+}
+
+const OuterCard = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "isClickable",
+})<OuterCardProps>(({ isClickable, theme }) => ({
+    width: "100%",
+    padding: 1,
+    cursor: isClickable ? "pointer" : "default",
+    background: theme.palette.background.paper,
+    "&:hover": {
+        filter: "brightness(1.05)",
+    },
+    display: "flex",
+    boxShadow: theme.shadows[4],
+    borderRadius: theme.spacing(1),
+    [theme.breakpoints.down("sm")]: {
+        borderBottom: `1px solid ${theme.palette.divider}`,
+        boxShadow: "none",
+        borderRadius: 0,
+    },
+}));
+
+const IconBox = styled(Box)(({ theme }) => ({
+    width: "75px",
+    height: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: theme.spacing(2),
+    [theme.breakpoints.down("sm")]: {
+        padding: theme.spacing(1),
+        paddingRight: theme.spacing(2),
+    },
+}));
+
+const TextBox = styled(Box)(({ theme }) => ({
+    flexGrow: 1,
+    height: "100%",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
+    padding: theme.spacing(2),
+    [theme.breakpoints.down("sm")]: {
+        padding: theme.spacing(1),
+    },
+}));
+
+const WarningBox = styled(Box)(({ theme }) => ({
+    display: "flex",
+    alignItems: "center",
+    color: theme.palette.warning.main,
+    marginTop: 1,
+}));
+
+const SelectButton = styled(Button)(({ theme }) => ({
+    marginLeft: "auto",
+    alignSelf: "flex-end",
+    marginTop: theme.spacing(2),
+    [theme.breakpoints.down("sm")]: {
+        marginTop: theme.spacing(1),
+    },
+}));
+
+const titleTextStyle = { overflowWrap: "anywhere" } as const;
+const descriptionTextStyle = { overflowWrap: "anywhere" } as const;
+const warningIconStyle = { fontSize: 20, marginRight: "8px" } as const;
 
 /**
  * A card with a title, description, and icon
  */
 export function TIDCard({
+    below,
     buttonText,
     description,
     Icon,
@@ -15,73 +85,39 @@ export function TIDCard({
     warning,
     ...props
 }: TIDCardProps) {
-    const { breakpoints, palette } = useTheme();
+    const { palette } = useTheme();
 
     return (
-        <Box
+        <OuterCard
             {...props}
             id={id}
+            isClickable={typeof onClick === "function"}
             onClick={onClick}
-            sx={{
-                width: "100%",
-                boxShadow: { xs: 0, sm: 4 },
-                padding: 1,
-                borderRadius: { xs: 0, sm: 2 },
-                cursor: "pointer",
-                background: palette.background.paper,
-                "&:hover": {
-                    filter: "brightness(1.05)",
-                },
-                display: "flex",
-                [breakpoints.down("sm")]: {
-                    borderBottom: `1px solid ${palette.divider}`,
-                },
-            }}>
-            {/* Left of card is icon */}
-            {Icon && <Box sx={{
-                width: "75px",
-                height: "100%",
-                padding: 2,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-            }}>
+        >
+            {Icon && <IconBox>
                 <Icon width={"50px"} height={"50px"} fill={palette.background.textPrimary} />
-            </Box>}
-            {/* Right of card is title and description */}
-            <Box sx={{
-                flexGrow: 1,
-                height: "100%",
-                padding: "1rem",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-            }}>
+            </IconBox>}
+            <TextBox>
                 <Box>
-                    <Typography variant='h6' component='div' sx={{ overflowWrap: "anywhere" }}>
+                    <Typography variant='h6' component='div' sx={titleTextStyle}>
                         {title}
                     </Typography>
-                    <Typography variant='body2' color={palette.background.textSecondary} sx={{ overflowWrap: "anywhere" }}>
+                    <Typography variant='body2' color={palette.background.textSecondary} sx={descriptionTextStyle}>
                         {description}
                     </Typography>
                     {warning && (
-                        <Box sx={{ display: "flex", alignItems: "center", color: palette.warning.main, marginTop: 1 }}>
-                            <WarningIcon style={{ fontSize: 20, marginRight: "8px" }} />
+                        <WarningBox>
+                            <WarningIcon style={warningIconStyle} />
                             <Typography variant="body2">{warning}</Typography>
-                        </Box>
+                        </WarningBox>
                     )}
                 </Box>
-                {/* Bottom of card is button */}
-                <Button
+                {below}
+                {buttonText && <SelectButton
                     size='small'
-                    sx={{
-                        marginTop: 2,
-                        marginLeft: "auto",
-                        alignSelf: "flex-end",
-                    }}
                     variant="text"
-                >{buttonText}</Button>
-            </Box>
-        </Box >
+                >{buttonText}</SelectButton>}
+            </TextBox>
+        </OuterCard>
     );
 }

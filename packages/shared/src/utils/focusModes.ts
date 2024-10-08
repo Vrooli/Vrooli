@@ -1,4 +1,4 @@
-import { ActiveFocusMode, FocusMode, FocusModeStopCondition, Schedule } from "@local/shared";
+import { ActiveFocusMode, FocusMode, FocusModeStopCondition, Schedule } from "../api/generated/graphqlTypes";
 import { calculateOccurrences } from "./schedules";
 
 /**

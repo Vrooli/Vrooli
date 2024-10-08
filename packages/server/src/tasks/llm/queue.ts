@@ -1,11 +1,9 @@
-import { HOURS_1_S, LlmTask, MINUTES_1_MS, Success } from "@local/shared";
+import { LanguageModelResponseMode, LlmTask, MINUTES_1_MS, RunContext, Success, TaskContextInfo } from "@local/shared";
 import Bull from "bull";
-import path from "path";
-import { fileURLToPath } from "url";
 import winston from "winston";
 import { SessionUserToken } from "../../types.js";
-import { PreMapMessageData, PreMapUserData } from "../../utils/chat.js";
-import { addJobToQueue } from "../queueHelper.js";
+import { PreMapUserData } from "../../utils/chat.js";
+import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, getProcessPath } from "../queueHelper";
 
 /**
  * Payload for generating a bot response in a chat
@@ -16,24 +14,52 @@ export type RequestBotMessagePayload = {
      * The chat we're responding in
      */
     chatId: string;
-    /** 
-     * The message to respond to. If null, we 
-     * assume that there are no messages in the chat
-     * (and thus we are about to create the initial message).
-     */
-    parent: PreMapMessageData | null;
     /**
-     * Information about other participants in the chat
+     * The mode to use when generating the response
      */
-    participantsData: Record<string, PreMapUserData>;
+    mode: LanguageModelResponseMode;
+    /** 
+     * The ID of the message that triggered the bot response. 
+     * 
+     * NOTE: This should be stored in the database already. Otherwise, 
+     * we cannot use it to collect all previous messages for the LLM context.
+     */
+    parentId?: string | null;
+    /** 
+     * The text of the message you typed that triggered the bot response. 
+     * 
+     * If provided, we check for and process any commands in the message. 
+     * If the message was only commands, we skip generating a response.
+     * 
+     * NOTE: You should skip this if you don't want to process the commands 
+     * in the parent message, even if there is a parent.
+     */
+    parentMessage: string | null;
+    /**
+     * Information about other participants in the chat, if already known
+     */
+    participantsData?: Record<string, PreMapUserData>;
     /**
      * The ID of the bot that should generate the response
      */
     respondingBotId: string;
     /**
+     * The context for the current run, if any
+     */
+    runContext?: RunContext;
+    /**
+     * If true, we'll always suggest tasks instead of running them immediately. 
+     * This is useful for things like autofilling forms.
+     */
+    shouldNotRunTasks: boolean;
+    /**
      * The current task being performed
      */
     task: LlmTask | `${LlmTask}`;
+    /**
+     * Any context data for the task
+     */
+    taskContexts: TaskContextInfo[];
     /**
      * The user data of the user who triggered the bot response
      */
@@ -41,102 +67,32 @@ export type RequestBotMessagePayload = {
 }
 // TODO can provide state management to bot message payload by adding a routineId field and some field that describes our spot in the routine. This plus passing in data (for autofilling forms, etc.) and passing data to the next step in the routine will allow us to automate routines. Then we can build all of the routines needed to build/improve routines, and we should be good to go!
 
-/**
- * Payload for generating a bot response for autofill of a form
- */
-export type RequestAutoFillPayload = {
-    __process: "AutoFill";
-    /**
-     * The known form data
-     */
-    data: object;
-    /**
-     * The task being performed. For forms, this should be an "Add" 
-     * or "Update" task, but technically any task besides "Start" 
-     * could be used.
-     */
-    task: LlmTask | `${LlmTask}`;
-    /**
-    * The user data of the user who triggered the bot response
-    */
-    userData: SessionUserToken;
+export type LlmTestPayload = {
+    __process: "Test";
 }
 
-/**
- * Payload for starting a suggested task
- */
-export type StartTaskPayload = {
-    __process: "StartTask";
-    /**
-     * The ID of the bot the task will be performed by
-     */
-    botId: string;
-    /**
-     * Label for the task, to provide in notifications
-     */
-    label: string;
-    /**
-     * The ID of the message the task was suggested in. 
-     * Used to grab the relevant chat context
-     */
-    messageId: string;
-    /**
-     * Any properties provided with the task
-     */
-    properties: object;
-    /**
-     * The task to start
-     */
-    task: LlmTask | `${LlmTask}`;
-    /**
-     * The ID of the task, so we can update its status in the UI
-     */
-    taskId: string;
-    /**
-     * The user data of the user who triggered the task
-     */
-    userData: SessionUserToken;
-
-}
-
-export type LlmRequestPayload = RequestBotMessagePayload | RequestAutoFillPayload | StartTaskPayload;
+export type LlmRequestPayload = RequestBotMessagePayload | LlmTestPayload;
 
 let logger: winston.Logger;
 let llmProcess: (job: Bull.Job<LlmRequestPayload>) => Promise<unknown>;
 let llmQueue: Bull.Queue<LlmRequestPayload>;
-const dirname = path.dirname(fileURLToPath(import.meta.url));
-const importExtension = process.env.NODE_ENV === "test" ? ".ts" : ".js";
+const FOLDER = "llm";
 
 // Call this on server startup
 export async function setupLlmQueue() {
     try {
-        const loggerPath = path.join(dirname, "../../events/logger" + importExtension);
-        const loggerModule = await import(loggerPath);
-        logger = loggerModule.logger;
-
-        const redisConnPath = path.join(dirname, "../../redisConn" + importExtension);
-        const redisConnModule = await import(redisConnPath);
-        const REDIS_URL = redisConnModule.REDIS_URL;
-
-        const processPath = path.join(dirname, "./process" + importExtension);
-        const processModule = await import(processPath);
-        llmProcess = processModule.llmProcess;
+        logger = (await import(LOGGER_PATH)).logger;
+        const REDIS_URL = (await import(REDIS_CONN_PATH)).REDIS_URL;
+        llmProcess = (await import(getProcessPath(FOLDER))).llmProcess;
 
         // Initialize the Bull queue
-        llmQueue = new Bull<LlmRequestPayload>("llm", {
+        llmQueue = new Bull<LlmRequestPayload>(FOLDER, {
             redis: REDIS_URL,
-            defaultJobOptions: {
-                removeOnComplete: {
-                    age: HOURS_1_S,
-                    count: 10_000,
-                },
-                removeOnFail: {
-                    age: HOURS_1_S,
-                    count: 10_000,
-                },
-            },
+            defaultJobOptions: DEFAULT_JOB_OPTIONS,
         });
         llmQueue.process(llmProcess);
+        // Verify that the queue is working
+        addJobToQueue(llmQueue, { __process: "Test" }, { timeout: MINUTES_1_MS });
     } catch (error) {
         const errorMessage = "Failed to setup sms queue";
         if (logger) {
@@ -156,29 +112,5 @@ export function requestBotResponse(
 ): Promise<Success> {
     return addJobToQueue(llmQueue,
         { ...props, __process: "BotMessage" as const },
-        { timeout: MINUTES_1_MS });
-}
-
-/**
- * Requests autofill for a form. Handles response generation and processing,
- * websocket events, and any other logic
- */
-export function requestAutoFill(
-    props: Omit<RequestAutoFillPayload, "__process">,
-): Promise<Success> {
-    return addJobToQueue(llmQueue,
-        { ...props, __process: "AutoFill" as const },
-        { timeout: MINUTES_1_MS });
-}
-
-/**
- * Requests a specific task to be started. Handles response generation and processing,
- * websocket events, and any other logic
- */
-export function requestStartTask(
-    props: Omit<StartTaskPayload, "__process">,
-): Promise<Success> {
-    return addJobToQueue(llmQueue,
-        { ...props, __process: "StartTask" as const },
         { timeout: MINUTES_1_MS });
 }

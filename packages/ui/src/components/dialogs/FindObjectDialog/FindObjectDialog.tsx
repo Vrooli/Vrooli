@@ -1,12 +1,11 @@
-import { AutocompleteOption, FindByIdInput, FindVersionInput, ListObject, getObjectUrl } from "@local/shared";
-import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
+import { AutocompleteOption, FindByIdInput, FindVersionInput, FormInputBase, ListObject, SearchType, funcFalse, getObjectUrl } from "@local/shared";
+import { Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { SearchList } from "components/lists/SearchList/SearchList";
+import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { FormInputBase } from "forms/types";
 import { useFindMany } from "hooks/useFindMany";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useTabs } from "hooks/useTabs";
@@ -18,41 +17,27 @@ import { removeSearchParams, useLocation } from "route";
 import { SideActionsButton } from "styles";
 import { getDisplay } from "utils/display/listTools";
 import { scrollIntoFocusedView } from "utils/display/scroll";
-import { CalendarPageTabOption, SearchPageTabOption, SearchType, findObjectTabParams, searchTypeToParams } from "utils/search/objectToSearch";
+import { findObjectTabParams, searchTypeToParams } from "utils/search/objectToSearch";
 import { SearchParams } from "utils/search/schemas/base";
-import { CrudProps } from "views/objects/types";
-import { FindObjectDialogProps, FindObjectDialogType, SelectOrCreateObject, SelectOrCreateObjectType } from "../types";
+import { CrudProps } from "../../../types";
+import { FindObjectDialogProps, FindObjectDialogType, FindObjectType } from "../types";
 
 const { ApiUpsert } = lazily(() => import("../../../views/objects/api/ApiUpsert/ApiUpsert"));
 const { BotUpsert } = lazily(() => import("../../../views/objects/bot/BotUpsert/BotUpsert"));
-const { CodeUpsert } = lazily(() => import("../../../views/objects/code/CodeUpsert/CodeUpsert"));
+const { DataConverterUpsert } = lazily(() => import("../../../views/objects/dataConverter/DataConverterUpsert/DataConverterUpsert"));
+const { DataStructureUpsert } = lazily(() => import("../../../views/objects/dataStructure/DataStructureUpsert/DataStructureUpsert"));
 const { FocusModeUpsert } = lazily(() => import("../../../views/objects/focusMode/FocusModeUpsert/FocusModeUpsert"));
 const { MeetingUpsert } = lazily(() => import("../../../views/objects/meeting/MeetingUpsert/MeetingUpsert"));
 const { NoteCrud } = lazily(() => import("../../../views/objects/note/NoteCrud/NoteCrud"));
 const { ProjectCrud } = lazily(() => import("../../../views/objects/project/ProjectCrud/ProjectCrud"));
+const { PromptUpsert } = lazily(() => import("../../../views/objects/prompt/PromptUpsert/PromptUpsert"));
 const { QuestionUpsert } = lazily(() => import("../../../views/objects/question/QuestionUpsert/QuestionUpsert"));
+const { ReminderCrud } = lazily(() => import("../../../views/objects/reminder/ReminderCrud/ReminderCrud"));
 const { RoutineUpsert } = lazily(() => import("../../../views/objects/routine/RoutineUpsert/RoutineUpsert"));
 const { RunProjectUpsert } = lazily(() => import("../../../views/objects/runProject/RunProjectUpsert/RunProjectUpsert"));
 const { RunRoutineUpsert } = lazily(() => import("../../../views/objects/runRoutine/RunRoutineUpsert/RunRoutineUpsert"));
-const { StandardUpsert } = lazily(() => import("../../../views/objects/standard/StandardUpsert/StandardUpsert"));
+const { SmartContractUpsert } = lazily(() => import("../../../views/objects/smartContract/SmartContractUpsert/SmartContractUpsert"));
 const { TeamUpsert } = lazily(() => import("../../../views/objects/team/TeamUpsert/TeamUpsert"));
-
-type RemoveVersion<T extends string> = T extends `${infer U}Version` ? U : T;
-type CreateViewTypes = RemoveVersion<SelectOrCreateObjectType>;
-
-/** 
- * All valid search types for the FindObjectDialog.  
- * Note: The 'Version' types are converted to their non-versioned type.
- */
-export type FindObjectTabOption = "All" |
-    SearchPageTabOption | `${SearchPageTabOption}` |
-    CalendarPageTabOption | `${CalendarPageTabOption}` |
-    "ApiVersion" |
-    "CodeVersion" |
-    "NoteVersion" |
-    "ProjectVersion" |
-    "RoutineVersion" |
-    "StandardVersion";
 
 type UpsertView = (props: CrudProps<ListObject>) => JSX.Element;
 
@@ -65,21 +50,30 @@ type RootObject = {
     [key: string]: any;
 }
 
+type ObjectBase = {
+    __typename: string;
+    id: string;
+}
+
 /**
- * Maps SelectOrCreateObject types to create components (excluding "User" and types that end with 'Version')
+ * Maps object types to create components (excluding "User" and types that end with 'Version')
  */
-const createMap: { [K in CreateViewTypes]: UpsertView } = {
+const createMap: { [K in FindObjectType]: UpsertView } = {
     Api: ApiUpsert as UpsertView,
-    Code: CodeUpsert as UpsertView,
+    Bot: BotUpsert as UpsertView,
+    DataConverter: DataConverterUpsert as UpsertView,
+    DataStructure: DataStructureUpsert as UpsertView,
     FocusMode: FocusModeUpsert as UpsertView,
     Meeting: MeetingUpsert as UpsertView,
     Note: NoteCrud as UpsertView,
     Project: ProjectCrud as UpsertView,
+    Prompt: PromptUpsert as UpsertView,
     Question: QuestionUpsert as UpsertView,
+    Reminder: ReminderCrud as UpsertView,
     Routine: RoutineUpsert as UpsertView,
     RunProject: RunProjectUpsert as UpsertView,
     RunRoutine: RunRoutineUpsert as UpsertView,
-    Standard: StandardUpsert as UpsertView,
+    SmartContract: SmartContractUpsert as UpsertView,
     Team: TeamUpsert as UpsertView,
     User: BotUpsert as UpsertView,
 };
@@ -91,14 +85,15 @@ const createMap: { [K in CreateViewTypes]: UpsertView } = {
  * @returns The filtered tabs
  */
 export function getFilteredTabs(
-    limitTo: readonly FindObjectTabOption[] | undefined,
+    limitTo: readonly FindObjectType[] | undefined,
     onlyVersioned: boolean | undefined,
 ) {
     let filtered = findObjectTabParams;
     // Apply limitTo filter if it's a non-empty array
-    if (Array.isArray(limitTo) && limitTo.length > 0) filtered = filtered.filter(tab => limitTo.includes(tab.key) || limitTo.includes(`${tab.key}Version` as FindObjectTabOption));
+    if (Array.isArray(limitTo) && limitTo.length > 0) filtered = filtered.filter(tab => limitTo.includes(tab.key) || limitTo.includes(`${tab.key}Version`));
     // If onlyVersioned is true, filter out non-versioned tabs
-    if (onlyVersioned) filtered = filtered.filter(tab => `${tab.key}Version` in SearchType);
+    const typesWithVersions = ["Api", "DataConverter", "DataStructure", "Note", "Project", "Prompt", "Routine", "SmartContract", "Standard"];
+    if (onlyVersioned) filtered = filtered.filter(tab => typesWithVersions.includes(tab.key) || typesWithVersions.includes(tab.key.replace("Version", "")));
     return filtered;
 }
 
@@ -126,12 +121,14 @@ export function convertRootObjectToVersion(item: RootObject, versionId: string):
 }
 
 
+const scrollContainerId = "find-object-search-scroll";
 const searchTitleId = "search-vrooli-for-link-title";
+const dialogStyle = { paper: { maxWidth: "min(100%, 600px)" } } as const;
 
 /**
  * Dialog for selecting or creating an object
  */
-export function FindObjectDialog<Find extends FindObjectDialogType, ObjectType extends SelectOrCreateObject>({
+export function FindObjectDialog<Find extends FindObjectDialogType>({
     find,
     handleCancel,
     handleComplete,
@@ -139,7 +136,7 @@ export function FindObjectDialog<Find extends FindObjectDialogType, ObjectType e
     limitTo,
     onlyVersioned,
     where,
-}: FindObjectDialogProps<Find, ObjectType>) {
+}: FindObjectDialogProps<Find>) {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -153,7 +150,7 @@ export function FindObjectDialog<Find extends FindObjectDialogType, ObjectType e
     } = useTabs({ id: "find-object-tabs", tabParams: filteredTabs, display: "dialog" });
 
     // Dialog for creating new object
-    const [createObjectType, setCreateObjectType] = useState<CreateViewTypes | null>(null);
+    const [createObjectType, setCreateObjectType] = useState<FindObjectType | null>(null);
 
     // Menu for selection object type to create
     const [selectCreateTypeAnchorEl, setSelectCreateTypeAnchorEl] = useState<null | HTMLElement>(null);
@@ -176,7 +173,7 @@ export function FindObjectDialog<Find extends FindObjectDialogType, ObjectType e
     /**
      * Before closing, remove all URL search params for advanced search
      */
-    const onClose = useCallback((item?: ObjectType, versionId?: string) => {
+    const onClose = useCallback((item?: object, versionId?: string) => {
         // Clear search params
         const advancedSearchFields = advancedSearchSchemaRef.current?.elements?.filter(f => Object.prototype.hasOwnProperty.call(f, "fieldName")).map(f => (f as FormInputBase).fieldName) ?? [];
         const basicSearchFields = ["advanced", "sort", "time"];
@@ -215,15 +212,15 @@ export function FindObjectDialog<Find extends FindObjectDialogType, ObjectType e
         // If tab is 'All', open menu to select type
         if (searchType === SearchType.Popular) setSelectCreateTypeAnchorEl(e.currentTarget);
         // Otherwise, open create dialog for current tab
-        else setCreateObjectType(currTab.searchType.replace("Version", "") as CreateViewTypes ?? null);
+        else setCreateObjectType(currTab.searchType.replace("Version", "") as FindObjectType ?? null); //TODO prob breaks for Code and Standard
     }, [currTab, searchType]);
-    const onSelectCreateTypeClose = useCallback((type?: SearchType | `${SearchType}`) => {
-        if (type) setCreateObjectType(type.replace("Version", "") as CreateViewTypes);
+    const onSelectCreateTypeClose = useCallback((type?: FindObjectType) => {
+        if (type) setCreateObjectType(type);
         else setSelectCreateTypeAnchorEl(null);
     }, []);
 
-    const handleCreated = useCallback((item: SelectOrCreateObject) => {
-        onClose(item as ObjectType);
+    const handleCreated = useCallback((item: object) => {
+        onClose(item);
         setCreateObjectType(null);
     }, [onClose]);
     const handleCreateClose = useCallback(() => {
@@ -231,9 +228,9 @@ export function FindObjectDialog<Find extends FindObjectDialogType, ObjectType e
     }, []);
 
     // If item selected from search AND find is 'Object', query for full data
-    const [getItem, { data: itemData }] = useLazyFetch<FindByIdInput | FindVersionInput, ObjectType>({});
+    const [getItem, { data: itemData }] = useLazyFetch<FindByIdInput | FindVersionInput, ObjectBase>({});
     const queryingRef = useRef(false);
-    const fetchFullData = useCallback((item: ObjectType, versionId?: string) => {
+    const fetchFullData = useCallback((item: ObjectBase, versionId?: string) => {
         const appendVersion = typeof versionId === "string" && !item.__typename.endsWith("Version");
         const { findOneEndpoint } = searchTypeToParams[`${item.__typename}${appendVersion ? "Version" : ""}` as SearchType]!();
         if (!findOneEndpoint || find !== "Full") return false;
@@ -310,9 +307,9 @@ export function FindObjectDialog<Find extends FindObjectDialogType, ObjectType e
         }
     }, [fetchFullData, find, onClose]);
 
-    const CreateView = useMemo<((props: CrudProps<any>) => JSX.Element) | null>(() => {
+    const CreateView = useMemo<((props: CrudProps<any>) => JSX.Element) | null>(function createViewMemo() {
         if (!createObjectType) return null;
-        return (createMap as any)[createObjectType.replace("Version", "")];
+        return createMap[createObjectType] as ((props: CrudProps<any>) => JSX.Element);
     }, [createObjectType]);
     useEffect(() => {
         setSelectCreateTypeAnchorEl(null);
@@ -328,7 +325,14 @@ export function FindObjectDialog<Find extends FindObjectDialogType, ObjectType e
     });
 
     const createViewOverrideObject = useMemo(function createViewOverrideObjectMemo() {
-        return createObjectType ? { __typename: createObjectType } : undefined;
+        if (!createObjectType) return undefined;
+        let __typename: string = createObjectType;
+        if (__typename === "DataConverter" || __typename === "SmartContract") {
+            __typename = "Code";
+        } else if (__typename === "DataStructure" || __typename === "Prompt") {
+            __typename = "Standard";
+        }
+        return createObjectType ? { __typename } : undefined;
     }, [createObjectType]);
 
     return (
@@ -354,15 +358,15 @@ export function FindObjectDialog<Find extends FindObjectDialogType, ObjectType e
                 {/* Never show 'All' */}
                 {findObjectTabParams.filter((t) => ![SearchType.Popular]
                     .includes(t.searchType as SearchType))
-                    .map(({ Icon, key, searchType }) => (
+                    .map(({ Icon, key, searchType, titleKey }) => (
                         <MenuItem
                             key={key}
-                            onClick={() => onSelectCreateTypeClose(searchType)}
+                            onClick={() => onSelectCreateTypeClose(key as FindObjectType)}
                         >
                             {Icon && <ListItemIcon>
                                 <Icon fill={palette.background.textPrimary} />
                             </ListItemIcon>}
-                            <ListItemText primary={t(searchType, { count: 1, defaultValue: searchType })} />
+                            <ListItemText primary={t(titleKey, { count: 1, defaultValue: titleKey })} />
                         </MenuItem>
                     ))}
             </Menu>}
@@ -370,37 +374,33 @@ export function FindObjectDialog<Find extends FindObjectDialogType, ObjectType e
             <LargeDialog
                 id="resource-find-object-dialog"
                 isOpen={isOpen}
-                onClose={() => { handleCancel(); }}
+                onClose={handleCancel}
                 titleId={searchTitleId}
-                sxs={{ paper: { maxWidth: "min(100%, 600px)" } }}
+                sxs={dialogStyle}
             >
-                <TopBar
-                    display="dialog"
-                    onClose={() => { handleCancel(); }}
-                    title={t("SearchVrooli")}
-                    titleBehaviorDesktop="ShowIn"
-                    below={tabs.length > 1 && Boolean(currTab) && <PageTabs
-                        ariaLabel="search-tabs"
-                        currTab={currTab}
-                        fullWidth
-                        ignoreIcons={true}
-                        onChange={handleTabChange}
-                        tabs={tabs}
-                    />}
-                />
-                <Box sx={{
-                    minHeight: "500px",
-                    margin: { xs: 0, sm: 2 },
-                    paddingTop: 4,
-                    overflow: "auto",
-                }}>
+                <SearchListScrollContainer id={scrollContainerId}>
+                    <TopBar
+                        display="dialog"
+                        onClose={handleCancel}
+                        title={t("SearchVrooli")}
+                        titleBehaviorDesktop="ShowIn"
+                        below={tabs.length > 1 && Boolean(currTab) && <PageTabs
+                            ariaLabel="search-tabs"
+                            currTab={currTab}
+                            fullWidth
+                            ignoreIcons={true}
+                            onChange={handleTabChange}
+                            tabs={tabs}
+                        />}
+                    />
+
                     {/* Search list to find object */}
                     {!selectedObject && <SearchList
                         {...findManyData}
-                        id="find-object-search-list"
-                        canNavigate={() => false}
+                        canNavigate={funcFalse}
                         display="dialog"
                         onItemClick={onInputSelect}
+                        scrollContainerId={scrollContainerId}
                     />}
                     {/* If object selected (and supports versioning), display buttons to select version */}
                     {selectedObject && (
@@ -429,15 +429,15 @@ export function FindObjectDialog<Find extends FindObjectDialogType, ObjectType e
                             </Button>
                         </Stack>
                     )}
-                </Box>
-                <SideActionsButtons display="dialog">
-                    <SideActionsButton aria-label="filter-list" onClick={focusSearch}>
-                        <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </SideActionsButton>
-                    <SideActionsButton aria-label="create-new" onClick={onCreateStart}>
-                        <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                    </SideActionsButton>
-                </SideActionsButtons>
+                    <SideActionsButtons display="dialog">
+                        <SideActionsButton aria-label="filter-list" onClick={focusSearch}>
+                            <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                        </SideActionsButton>
+                        <SideActionsButton aria-label="create-new" onClick={onCreateStart}>
+                            <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                        </SideActionsButton>
+                    </SideActionsButtons>
+                </SearchListScrollContainer>
             </LargeDialog>
         </>
     );

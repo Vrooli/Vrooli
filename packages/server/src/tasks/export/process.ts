@@ -1,7 +1,7 @@
 //TODO!!!!
-import { SessionUserToken } from "@local/server";
 import { Job } from "bull";
 import { logger } from "../../events/logger";
+import { SessionUserToken } from "../../types.js";
 import { ExportProcessPayload } from "./queue";
 
 const exportAccountData = async (userData: SessionUserToken) => {

@@ -2,6 +2,7 @@ import { MaxObjects, MemberInviteSortBy, memberInviteValidation } from "@local/s
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { MemberInviteFormat } from "../formats";
@@ -61,7 +62,7 @@ export const MemberInviteModel: MemberInviteModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<MemberInviteModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -85,16 +86,20 @@ export const MemberInviteModel: MemberInviteModelLogic = ({
         }),
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<MemberInviteModelInfo["PrismaSelect"]>([["team", "Team"]], ...rest),
+        // Not sure which search methods are needed, so we'll add them as needed
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return {
+                    OR: [
+                        { team: useVisibility("Team", "OwnOrPublic", data) },
+                        { user: { id: data.userId } },
+                    ]
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
-            },
-            owner: (userId) => ({
-                team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId),
-            }),
+            ownOrPublic: null,
+            ownPrivate: null,
+            ownPublic: null,
+            public: null,
         },
     }),
 });

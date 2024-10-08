@@ -1,4 +1,5 @@
-import { Comment, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, commentValidation, lowercaseFirstLetter, MaxObjects, VisibilityType } from "@local/shared";
+import { Comment, CommentFor, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, commentValidation, getTranslation, GqlModelType, lowercaseFirstLetter, MaxObjects, VisibilityType } from "@local/shared";
+import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { ModelMap } from ".";
 import { getUser } from "../../auth/request";
@@ -8,18 +9,37 @@ import { modelToGql } from "../../builders/modelToGql";
 import { selectHelper } from "../../builders/selectHelper";
 import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { GraphQLInfo, PartialGraphQLInfo } from "../../builders/types";
-import { visibilityBuilderPrisma } from "../../builders/visibilityBuilder";
+import { useVisibility, useVisibilityMapper, visibilityBuilderPrisma } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { getSearchStringQuery } from "../../getters";
 import { SessionUserToken } from "../../types";
-import { bestTranslation, defaultPermissions, oneIsPublic, SearchMap } from "../../utils";
+import { defaultPermissions, oneIsPublic, SearchMap } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { SortMap } from "../../utils/sortMap";
 import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { CommentFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, CommentModelInfo, CommentModelLogic, ReactionModelLogic } from "./types";
+import { BookmarkModelLogic, CommentModelInfo, CommentModelLogic, ReactionModelLogic, TeamModelLogic } from "./types";
+
+const DEFAULT_TAKE = 10;
+
+const forMapper: { [key in CommentFor]: keyof Prisma.commentUpsertArgs["create"] } = {
+    ApiVersion: "apiVersion",
+    CodeVersion: "codeVersion",
+    Issue: "issue",
+    NoteVersion: "noteVersion",
+    Post: "post",
+    ProjectVersion: "projectVersion",
+    PullRequest: "pullRequest",
+    Question: "question",
+    QuestionAnswer: "questionAnswer",
+    RoutineVersion: "routineVersion",
+    StandardVersion: "standardVersion",
+};
+const reversedForMapper: { [key in keyof Prisma.commentUpsertArgs["create"]]: CommentFor } = Object.fromEntries(
+    Object.entries(forMapper).map(([key, value]) => [value, key]),
+);
 
 const __typename = "Comment" as const;
 export const CommentModel: CommentModelLogic = ({
@@ -29,7 +49,7 @@ export const CommentModel: CommentModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.text ?? "",
+            get: (select, languages) => getTranslation(select, languages).text ?? "",
         },
     }),
     format: CommentFormat,
@@ -81,7 +101,7 @@ export const CommentModel: CommentModelLogic = ({
             const searchResults = await prismaInstance.comment.findMany({
                 where,
                 orderBy,
-                take: input.take ?? 10,
+                take: input.take ?? DEFAULT_TAKE,
                 ...selectHelper(partialInfo),
             });
             // If there are no results
@@ -103,7 +123,7 @@ export const CommentModel: CommentModelLogic = ({
                         ...where,
                         parentId: result.id,
                     },
-                    take: input.take ?? 10,
+                    take: input.take ?? DEFAULT_TAKE,
                     ...selectHelper(partialInfo),
                 }) : [];
                 // Find end cursor of nested threads
@@ -111,7 +131,7 @@ export const CommentModel: CommentModelLogic = ({
                 // For nested threads, recursively call this function
                 const childThreads = nestLimit > 0 ? await this.searchThreads(userData, {
                     ids: nestedThreads.map(n => n.id),
-                    take: input.take ?? 10,
+                    take: input.take ?? DEFAULT_TAKE,
                     sortBy: input.sortBy,
                 }, info, nestLimit - 1) : [];
                 // Add thread to result
@@ -143,6 +163,12 @@ export const CommentModel: CommentModelLogic = ({
             const partialInfo = toPartialGqlInfo(info, ModelMap.get<CommentModelLogic>("Comment").format.gqlRelMap, req.session.languages, true);
             // Determine text search query
             const searchQuery = input.searchString ? getSearchStringQuery({ objectType: "Comment", searchString: input.searchString }) : undefined;
+            const searchData = {
+                objectType: __typename,
+                searchInput: input,
+                userData,
+                visibility: VisibilityType.Public,
+            };
             // Loop through search fields and add each to the search query, 
             // if the field is specified in the input
             const customQueries: { [x: string]: any }[] = [];
@@ -150,12 +176,11 @@ export const CommentModel: CommentModelLogic = ({
                 const fieldInput = input[field];
                 const searchMapper = SearchMap[field];
                 if (fieldInput !== undefined && searchMapper !== undefined) {
-                    const searchData = { objectType: __typename, userData, visibility: VisibilityType.Public };
                     customQueries.push(searchMapper(fieldInput, searchData));
                 }
             }
             // Create query for visibility
-            const visibilityQuery = visibilityBuilderPrisma({ objectType: "Comment", userData, visibility: VisibilityType.Public });
+            const { query: visibilityQuery } = visibilityBuilderPrisma(searchData);
             // Combine queries
             const where = combineQueries([searchQuery, visibilityQuery, ...customQueries]);
             // Determine sort order
@@ -166,7 +191,7 @@ export const CommentModel: CommentModelLogic = ({
             const searchResults = await prismaInstance.comment.findMany({
                 where,
                 orderBy,
-                take: input.take ?? 10,
+                take: input.take ?? DEFAULT_TAKE,
                 skip: input.after ? 1 : undefined, // First result on cursored requests is the cursor, so skip it
                 cursor: input.after ? {
                     id: input.after,
@@ -188,7 +213,7 @@ export const CommentModel: CommentModelLogic = ({
             // If not as nestLimit, recurse with all result IDs
             const childThreads = nestLimit > 0 ? await this.searchThreads(userData, {
                 ids: searchResults.map(r => r.id),
-                take: input.take ?? 10,
+                take: input.take ?? DEFAULT_TAKE,
                 sortBy: input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort,
             }, info, nestLimit) : [];
             // Find every comment in "childThreads", and put into 1D array. This uses a helper function to handle recursion
@@ -263,7 +288,7 @@ export const CommentModel: CommentModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<CommentModelInfo["GqlPermission"]>(__typename, ids, userData)),
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
@@ -311,13 +336,48 @@ export const CommentModel: CommentModelLogic = ({
             ["standardVersion", "StandardVersion"],
         ], ...rest),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return {
+                    OR: [
+                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                        { ownedByUser: { id: data.userId } },
+                    ],
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    OR: [
+                        useVisibility("Comment", "Own", data),
+                        useVisibility("Comment", "Public", data),
+                    ],
+                };
             },
-            owner: (userId) => ({ ownedByUser: { id: userId } }),
+            // Search method not useful for this object because comments are not explicitly set as private, so we'll return "Own"
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("Comment", "Own", data);
+            },
+            // Search method not useful for this object because comments are not explicitly set as private, so we'll return "Own"
+            ownPublic: function getPrivate(data) {
+                return useVisibility("Comment", "Own", data);
+            },
+            public: function getVisibilityPublic(data) {
+                const searchInput = data.searchInput as CommentSearchInput;
+                // If the search input has a relation ID, return that relation only
+                const forSearch = Object.keys(searchInput).find(searchKey =>
+                    searchKey.endsWith("Id") &&
+                    reversedForMapper[searchKey.substring(0, searchKey.length - "Id".length)],
+                );
+                if (forSearch) {
+                    const relation = forSearch.substring(0, forSearch.length - "Id".length);
+                    return { [relation]: useVisibility(reversedForMapper[relation] as GqlModelType, "Public", data) };
+                }
+                // Otherwise, use an OR on all relations
+                return {
+                    OR: [
+                        ...useVisibilityMapper("Public", data, forMapper, false),
+                    ],
+                };
+            },
         },
     }),
 });

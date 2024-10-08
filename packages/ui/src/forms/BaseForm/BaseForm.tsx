@@ -1,9 +1,15 @@
 import { Box, styled } from "@mui/material";
 import { useFormikContext } from "formik";
 import { ReactNode, useMemo } from "react";
-import { ViewDisplayType } from "views/types";
+import { ViewDisplayType } from "types";
 
-type BaseFormProps = {
+type OuterFormProps = {
+    children: ReactNode;
+    display: ViewDisplayType;
+    maxWidth?: number;
+};
+
+type InnerFormProps = {
     display: ViewDisplayType;
     children: ReactNode;
     isLoading?: boolean;
@@ -12,6 +18,10 @@ type BaseFormProps = {
     maxWidth?: number;
     style?: { [x: string]: string | number | null };
 };
+
+type BaseFormProps = InnerFormProps;
+
+const DEFAULT_MAX_WIDTH_PX = 600;
 
 const LoadingOverlay = styled(Box)(() => ({
     position: "absolute",
@@ -23,25 +33,50 @@ const LoadingOverlay = styled(Box)(() => ({
     zIndex: 1,
 }));
 
-export function BaseForm({
+export function OuterForm({
+    children,
+    display,
+    maxWidth = DEFAULT_MAX_WIDTH_PX,
+}: OuterFormProps) {
+    const innerStyle = useMemo(function innerStyleMemo() {
+        return {
+            height: display === "dialog" ? "100%" : "unset",
+            overflowY: display === "dialog" ? "auto" : "unset",
+            maxWidth: `${maxWidth}px`,
+            margin: "auto",
+            paddingLeft: 1,
+            paddingRight: 1,
+            paddingBottom: "56px",
+        } as const;
+    }, [display, maxWidth]);
+
+    return (
+        <Box flex={1} style={innerStyle}>
+            {children}
+        </Box>
+    );
+}
+
+export function InnerForm({
     children,
     display,
     isLoading = false,
     isNested,
-    maxWidth,
+    maxWidth = DEFAULT_MAX_WIDTH_PX,
     style,
-}: BaseFormProps) {
+}: InnerFormProps) {
     const { handleReset, handleSubmit } = useFormikContext();
 
-    const outerStyle = useMemo(function outerStyleMemo() {
+    const innerStyle = useMemo(function innerStyleMemo() {
         return {
-            display: "block",
-            margin: "auto",
+            display: "flex",
+            flexDirection: "column",
             alignItems: "center",
-            justifyContent: "center",
-            width: maxWidth ? `min(${maxWidth}px, 100vw)` : "-webkit-fill-available",
-            maxWidth: "100%",
-            paddingBottom: display === "dialog" ? "16px" : "64px", // Make room for the submit buttons
+            justifyContent: "flex-start",
+            width: "100%",
+            maxWidth: `${maxWidth}px`,
+            margin: "auto",
+            paddingBottom: "64px",
             paddingLeft: display === "dialog" ? "env(safe-area-inset-left)" : undefined,
             paddingRight: display === "dialog" ? "env(safe-area-inset-right)" : undefined,
             ...style,
@@ -56,10 +91,22 @@ export function BaseForm({
             component={isNested ? "div" : "form"}
             onSubmit={handleSubmit as (ev: React.FormEvent<HTMLFormElement | HTMLDivElement>) => void}
             onReset={handleReset}
-            sx={outerStyle}
+            sx={innerStyle}
         >
             {isLoading && <LoadingOverlay />}
             {children}
         </Box>
     );
 }
+
+export function BaseForm({
+    display,
+    maxWidth,
+    ...rest
+}: BaseFormProps) {
+    return (
+        <OuterForm display={display} maxWidth={maxWidth}>
+            <InnerForm display={display} maxWidth={maxWidth} {...rest} />
+        </OuterForm>
+    );
+} 

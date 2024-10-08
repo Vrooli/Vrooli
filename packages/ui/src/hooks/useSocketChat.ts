@@ -1,57 +1,50 @@
-import { ChatSocketEventPayloads, DUMMY_ID, JOIN_CHAT_ROOM_ERRORS, LlmTask, LlmTaskInfo, Session } from "@local/shared";
+import { ChatMessageShape, ChatParticipantShape, ChatShape, ChatSocketEventPayloads, DUMMY_ID, JOIN_CHAT_ROOM_ERRORS, Session } from "@local/shared";
 import { emitSocketEvent, onSocketEvent } from "api";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
-import { getCookieTasksForMessage, removeCookieMatchingChat, removeCookiesWithChatId, setCookieMatchingChat, setCookieTaskForMessage } from "utils/cookies";
+import { removeCookieMatchingChat, removeCookiesWithChatId, setCookieMatchingChat, updateCookiePartialTaskForChat, upsertCookieTaskForChat } from "utils/localStorage";
 import { PubSub } from "utils/pubsub";
-import { ChatShape } from "utils/shape/models/chat";
-import { ChatMessageShape } from "utils/shape/models/chatMessage";
-import { ChatParticipantShape } from "utils/shape/models/chatParticipant";
 import { useThrottle } from "./useThrottle";
 
 type ParticipantWithoutChat = Omit<ChatParticipantShape, "chat">;
 
-type UseWebSocketEventsProps = {
+type UseSocketChatProps = {
     addMessages: (newMessages: ChatMessageShape[]) => unknown;
-    chat: ChatShape;
-    editMessage: (editedMessage: ChatMessageShape) => unknown;
-    messageTasks: Record<string, LlmTaskInfo[]>;
+    chat?: ChatShape | null;
+    editMessage: (editedMessage: (Partial<ChatMessageShape> & { id: string })) => unknown;
     participants: ParticipantWithoutChat[];
     removeMessages: (deletedIds: string[]) => unknown;
     setParticipants: (participants: ParticipantWithoutChat[]) => unknown;
     setUsersTyping: (updatedParticipants: ParticipantWithoutChat[]) => unknown;
-    /** The active task being performed, if any */
-    task?: LlmTask | `${LlmTask}` | string;
-    updateTasksForMessage: (messageId: string, tasks: LlmTaskInfo[]) => unknown;
     usersTyping: ParticipantWithoutChat[];
 }
 
 export function processMessages(
-    { added, deleted, edited }: ChatSocketEventPayloads["messages"],
-    addMessages: UseWebSocketEventsProps["addMessages"],
-    removeMessages: UseWebSocketEventsProps["removeMessages"],
-    editMessage: UseWebSocketEventsProps["editMessage"],
+    { added, updated, removed }: ChatSocketEventPayloads["messages"],
+    addMessages: UseSocketChatProps["addMessages"],
+    editMessage: UseSocketChatProps["editMessage"],
+    removeMessages: UseSocketChatProps["removeMessages"],
 ) {
     if (Array.isArray(added) && added.length > 0) {
         addMessages(added.map(m => ({ ...m, status: "sent" })));
     }
-    if (Array.isArray(deleted) && deleted.length > 0) {
-        removeMessages(deleted);
-    }
-    if (Array.isArray(edited) && edited.length > 0) {
-        edited.forEach(message => {
+    if (Array.isArray(updated) && updated.length > 0) {
+        updated.forEach(message => {
             editMessage({ ...message, status: "sent" });
         });
+    }
+    if (Array.isArray(removed) && removed.length > 0) {
+        removeMessages(removed);
     }
 }
 
 export function processTypingUpdates(
     { starting, stopping }: ChatSocketEventPayloads["typing"],
-    usersTyping: UseWebSocketEventsProps["usersTyping"],
-    participants: UseWebSocketEventsProps["participants"],
+    usersTyping: UseSocketChatProps["usersTyping"],
+    participants: UseSocketChatProps["participants"],
     session: Session | undefined,
-    setUsersTyping: UseWebSocketEventsProps["setUsersTyping"],
+    setUsersTyping: UseSocketChatProps["setUsersTyping"],
 ) {
     // Add every user that's typing
     const newTyping = JSON.parse(JSON.stringify(usersTyping)) as ParticipantWithoutChat[];
@@ -80,14 +73,15 @@ export function processTypingUpdates(
 
 export function processParticipantsUpdates(
     { joining, leaving }: ChatSocketEventPayloads["participants"],
-    participants: UseWebSocketEventsProps["participants"],
-    chat: UseWebSocketEventsProps["chat"],
-    task: UseWebSocketEventsProps["task"],
-    setParticipants: UseWebSocketEventsProps["setParticipants"],
+    participants: UseSocketChatProps["participants"],
+    chat: UseSocketChatProps["chat"],
+    setParticipants: UseSocketChatProps["setParticipants"],
 ) {
+    if (!chat) return;
+
     // Remove cache data for old participants group
     const existingUserIds = participants.map(p => p.user.id);
-    removeCookieMatchingChat(existingUserIds, task);
+    removeCookieMatchingChat(existingUserIds);
 
     // Create updated participants list
     let updatedParticipants = [...participants];
@@ -101,7 +95,7 @@ export function processParticipantsUpdates(
     }
 
     const updatedUserIds = updatedParticipants.map(p => p.user.id);
-    setCookieMatchingChat(chat.id, updatedUserIds, task);
+    setCookieMatchingChat(chat.id, updatedUserIds);
 
     // Don't update if the participants are the same
     if (updatedParticipants.length === participants.length && updatedParticipants.every((p, i) => p.user.id === participants[i].user.id)) {
@@ -110,76 +104,50 @@ export function processParticipantsUpdates(
     setParticipants(updatedParticipants);
 }
 
+/**
+ * Processes incoming LLM tasks from the server, and sends them through 
+ * a pubsub event.
+ * @param payload The incoming LLM task data. Contains an array of full tasks and partial updates.
+ * @param chatId The chat ID to which the tasks belong.
+ */
 export function processLlmTasks(
-    { tasks, updates }: ChatSocketEventPayloads["llmTasks"],
-    messageTasks: UseWebSocketEventsProps["messageTasks"],
-    updateTasksForMessage: UseWebSocketEventsProps["updateTasksForMessage"],
+    payload: ChatSocketEventPayloads["llmTasks"],
+    chatId: string | null | undefined,
 ) {
-    console.log("yeeeet processing new llm tasks", messageTasks, updates);
-    // Combine full tasks and updates into a single operation per messageId
-    const combinedTasksByMessageId: Record<string, LlmTaskInfo[]> = {};
+    if (!chatId) return;
 
-    // Initialize tasks
-    (tasks ?? []).forEach(task => {
-        if (!task.messageId || !task.id) return;
-        if (!combinedTasksByMessageId[task.messageId]) combinedTasksByMessageId[task.messageId] = [];
-        // Make sure we don't have duplicate tasks
-        const tasksWithoutCurrent = combinedTasksByMessageId[task.messageId].filter(t => t.id !== task.id);
-        combinedTasksByMessageId[task.messageId] = [...tasksWithoutCurrent, task];
-    });
-
-    // Apply updates
-    (updates ?? []).forEach(update => {
-        if (!update.id) return;
-        let messageId = update.messageId;
-        // If messageId not provided, look for it in known tasks
-        if (!messageId) {
-            for (const currTasks of Object.values(messageTasks)) {
-                const matchingTask = currTasks.find(task => task.id === update.id);
-                if (matchingTask) {
-                    messageId = matchingTask.messageId;
-                    break;
-                }
-            }
-        }
-        // If we still don't have a messageId, skip this update
-        if (!messageId) return;
-        console.log("processing llm update", update);
-        if (!combinedTasksByMessageId[messageId]) {
-            // If no tasks were initially found for this messageId, initialize the array
-            combinedTasksByMessageId[messageId] = [];
-        }
-        const existingTaskIndex = combinedTasksByMessageId[messageId].findIndex(task => task.id === update.id);
-        if (existingTaskIndex > -1) {
-            // Merge the update into the existing task
-            combinedTasksByMessageId[messageId][existingTaskIndex] = {
-                ...combinedTasksByMessageId[messageId][existingTaskIndex],
-                ...update,
-                messageId,
-                lastUpdated: new Date().toISOString(),
-            };
-        } else {
-            // Handle case where update is for a new task not yet in tasks
-            combinedTasksByMessageId[messageId].push({
-                ...update,
-                messageId,
-                lastUpdated: new Date().toISOString(),
-            } as LlmTaskInfo);
-        }
-        console.log("yeeeet combined tasks", combinedTasksByMessageId);
-    });
-
-    // Update cache and invoke callback for each messageId using helper functions
-    Object.entries(combinedTasksByMessageId).forEach(([messageId, tasksForMessage]) => {
-        console.log("yeeeet applying llm task update for message message", messageId, tasksForMessage);
-        tasksForMessage.forEach(task => {
-            setCookieTaskForMessage(messageId, task); // Set or update task using helper
+    if (Array.isArray(payload.tasks) && payload.tasks.length > 0) {
+        // Filter out tasks with no ID
+        payload.tasks = payload.tasks.filter(task => !!task.taskId);
+        PubSub.get().publish("chatTask", {
+            chatId,
+            tasks: {
+                add: {
+                    inactive: {
+                        behavior: "onlyIfNoTaskType",
+                        value: payload.tasks,
+                    },
+                },
+            },
         });
-        const updatedTasks = getCookieTasksForMessage(messageId);
-        if (updatedTasks) {
-            updateTasksForMessage(messageId, JSON.parse(JSON.stringify(updatedTasks.tasks)));
+        for (const task of payload.tasks) {
+            upsertCookieTaskForChat(chatId, task);
         }
-    });
+    }
+    if (Array.isArray(payload.updates) && payload.updates.length > 0) {
+        PubSub.get().publish("chatTask", {
+            chatId,
+            tasks: {
+                update: payload.updates,
+            },
+        });
+        for (const update of payload.updates) {
+            updateCookiePartialTaskForChat(chatId, {
+                ...update,
+                lastUpdated: new Date().toISOString(),
+            });
+        }
+    }
 }
 
 export function processResponseStream(
@@ -221,6 +189,8 @@ export function processResponseStream(
     }
 }
 
+const MESSAGE_STREAM_UPDATE_THROTTLE_MS = 100;
+
 /** 
  * Handles the modification of a chat through web socket events, 
  * as well as the relevant localStorage caching.
@@ -229,15 +199,12 @@ export function useSocketChat({
     addMessages,
     chat,
     editMessage,
-    messageTasks,
     participants,
     removeMessages,
     setParticipants,
     setUsersTyping,
-    task,
-    updateTasksForMessage,
     usersTyping,
-}: UseWebSocketEventsProps) {
+}: UseSocketChatProps) {
     const session = useContext(SessionContext);
 
     // Handle connection/disconnection
@@ -271,26 +238,22 @@ export function useSocketChat({
         const messageStreamCopy = messageStream ? { ...messageStream } : null;
         setMessageStream(messageStreamCopy);
     }, []);
-    const throttledSetMessageStream = useThrottle(throttledSetMessageStreamHander, 100);
+    const throttledSetMessageStream = useThrottle(throttledSetMessageStreamHander, MESSAGE_STREAM_UPDATE_THROTTLE_MS);
 
     // Store refs for parameters to reduce the number of dependencies of socket event handlers. 
     // This reduces the number of times the socket events are connected/disconnected.
     const chatRef = useRef(chat);
     chatRef.current = chat;
-    const messageTasksRef = useRef(messageTasks);
-    messageTasksRef.current = messageTasks;
     const participantsRef = useRef(participants);
     participantsRef.current = participants;
-    const taskRef = useRef(task);
-    taskRef.current = task;
     const usersTypingRef = useRef(usersTyping);
     usersTypingRef.current = usersTyping;
 
     // Handle incoming data
-    useEffect(() => onSocketEvent("messages", (payload) => processMessages(payload, addMessages, removeMessages, editMessage)), [addMessages, editMessage, removeMessages]);
+    useEffect(() => onSocketEvent("messages", (payload) => processMessages(payload, addMessages, editMessage, removeMessages)), [addMessages, editMessage, removeMessages]);
     useEffect(() => onSocketEvent("typing", (payload) => processTypingUpdates(payload, usersTypingRef.current, participantsRef.current, session, setUsersTyping)), [session, setUsersTyping]);
-    useEffect(() => onSocketEvent("llmTasks", (payload) => processLlmTasks(payload, messageTasksRef.current, updateTasksForMessage)), [updateTasksForMessage]);
-    useEffect(() => onSocketEvent("participants", (payload) => processParticipantsUpdates(payload, participantsRef.current, chatRef.current, taskRef.current, setParticipants)), [setParticipants]);
+    useEffect(() => onSocketEvent("llmTasks", (payload) => processLlmTasks(payload, chat?.id)), [chat?.id]);
+    useEffect(() => onSocketEvent("participants", (payload) => processParticipantsUpdates(payload, participantsRef.current, chatRef.current, setParticipants)), [setParticipants]);
     useEffect(() => onSocketEvent("responseStream", (payload) => processResponseStream(payload, messageStreamRef, setMessageStream, throttledSetMessageStream)), [throttledSetMessageStream]);
 
     return { messageStream };

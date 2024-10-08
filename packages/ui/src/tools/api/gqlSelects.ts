@@ -236,7 +236,7 @@ async function main() {
             const pairFilePath = `${sharedOutputFolder}/pairs.ts`;
 
             // Find the name of every file in the pairs folder
-            const excludedFiles = ["base", "index", "types"];
+            const excludedFiles = ["base", "index", "payment", "root", "types"];
             const restFiles = fs.readdirSync(pairsSrcFolder).map(file => file.replace(".ts", "")).filter(file => !excludedFiles.includes(file));
 
             // Create backup of pairs file

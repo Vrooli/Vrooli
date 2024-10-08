@@ -150,7 +150,7 @@ export class HeadingNode extends ElementNode {
     }
 }
 
-const convertHeadingElement = (element: HTMLElement): DOMConversionOutput => {
+function convertHeadingElement(element: HTMLElement): DOMConversionOutput {
     const nodeName = element.nodeName.toLowerCase();
     let node: HeadingNode | null = null;
     if (nodeName in Headers) {
@@ -160,4 +160,4 @@ const convertHeadingElement = (element: HTMLElement): DOMConversionOutput => {
         }
     }
     return { node };
-};
+}

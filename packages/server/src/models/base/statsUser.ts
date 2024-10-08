@@ -1,6 +1,7 @@
-import { StatsUserSortBy } from "@local/shared";
+import { MaxObjects, StatsUserSortBy } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { StatsUserFormat } from "../formats";
 import { StatsUserModelInfo, StatsUserModelLogic, UserModelInfo, UserModelLogic } from "./types";
@@ -30,7 +31,7 @@ export const StatsUserModel: StatsUserModelLogic = ({
     },
     validate: () => ({
         isTransferable: false,
-        maxObjects: 0,
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
             user: "User",
@@ -40,17 +41,31 @@ export const StatsUserModel: StatsUserModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<StatsUserModelInfo["PrismaSelect"]>([["user", "User"]], ...rest),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    user: ModelMap.get<UserModelLogic>("User").validate().visibility.private(...params),
+                    user: useVisibility("User", "Own", data),
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    user: ModelMap.get<UserModelLogic>("User").validate().visibility.public(...params),
+                    user: useVisibility("User", "OwnOrPublic", data),
                 };
             },
-            owner: (userId) => ({ user: ModelMap.get<UserModelLogic>("User").validate().visibility.owner(userId) }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    user: useVisibility("User", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    user: useVisibility("User", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    user: useVisibility("User", "Public", data),
+                };
+            },
         },
     }),
 });

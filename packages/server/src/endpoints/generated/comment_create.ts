@@ -303,6 +303,7 @@ export const comment_create = {
         "isPrivate": true,
         "__typename": "Routine"
       },
+      "routineType": true,
       "translations": {
         "id": true,
         "language": true,

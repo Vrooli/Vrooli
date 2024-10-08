@@ -2,6 +2,7 @@ import { MaxObjects, nodeEndValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { nodeEndNextShapeHelper } from "../../utils/shapes";
 import { NodeEndFormat } from "../formats";
@@ -47,17 +48,31 @@ export const NodeEndModel: NodeEndModelLogic = ({
         isDeleted: (data, languages) => ModelMap.get<NodeModelLogic>("Node").validate().isDeleted(data.node as NodeModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<NodeEndModelInfo["PrismaSelect"]>([["node", "Node"]], ...rest),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    node: ModelMap.get<NodeModelLogic>("Node").validate().visibility.private(...params),
+                    node: useVisibility("Node", "Own", data),
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    node: ModelMap.get<NodeModelLogic>("Node").validate().visibility.public(...params),
+                    node: useVisibility("Node", "OwnOrPublic", data),
                 };
             },
-            owner: (userId) => ({ node: ModelMap.get<NodeModelLogic>("Node").validate().visibility.owner(userId) }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    node: useVisibility("Node", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    node: useVisibility("Node", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    node: useVisibility("Node", "Public", data),
+                };
+            },
         },
     }),
 });

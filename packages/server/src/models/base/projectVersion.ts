@@ -1,19 +1,14 @@
-import { MaxObjects, ProjectVersionSortBy, projectVersionValidation } from "@local/shared";
+import { MaxObjects, ProjectVersionSortBy, getTranslation, projectVersionValidation } from "@local/shared";
 import { ModelMap } from ".";
-import { addSupplementalFields } from "../../builders/addSupplementalFields";
-import { modelToGql } from "../../builders/modelToGql";
 import { noNull } from "../../builders/noNull";
-import { selectHelper } from "../../builders/selectHelper";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
-import { PartialGraphQLInfo } from "../../builders/types";
-import { prismaInstance } from "../../db/instance";
-import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
+import { useVisibility } from "../../builders/visibilityBuilder";
+import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { PreShapeVersionResult, afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { ProjectVersionFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { ProjectModelInfo, ProjectModelLogic, ProjectVersionModelInfo, ProjectVersionModelLogic, RunProjectModelLogic } from "./types";
+import { ProjectModelInfo, ProjectModelLogic, ProjectVersionModelInfo, ProjectVersionModelLogic } from "./types";
 
 type ProjectVersionPre = PreShapeVersionResult;
 
@@ -25,7 +20,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+            get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
         embed: {
             select: () => ({
@@ -34,11 +29,11 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
                 translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } },
             }),
             get: ({ root, translations }, languages) => {
-                const trans = bestTranslation(translations, languages);
+                const trans = getTranslation({ translations }, languages);
                 return getEmbeddableString({
-                    name: trans?.name,
+                    name: trans.name,
                     tags: (root as any).tags.map(({ tag }) => tag),
-                    description: trans?.description,
+                    description: trans.description,
                 }, languages[0]);
             },
         },
@@ -244,37 +239,10 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
         }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, objects, partial, userData }) => {
-                const runs = async () => {
-                    if (!userData || !partial.runs) return new Array(objects.length).fill([]);
-                    // Find requested fields of runs. Also add projectVersionId, so we 
-                    // can associate runs with their project
-                    const runPartial: PartialGraphQLInfo = {
-                        ...toPartialGqlInfo(partial.runs as PartialGraphQLInfo, ModelMap.get<RunProjectModelLogic>("RunProject").format.gqlRelMap, userData.languages, true),
-                        projectVersionId: true,
-                    };
-                    // Query runs made by user
-                    let runs: any[] = await prismaInstance.run_project.findMany({
-                        where: {
-                            AND: [
-                                { projectVersion: { root: { id: { in: ids } } } },
-                                { user: { id: userData.id } },
-                            ],
-                        },
-                        ...selectHelper(runPartial),
-                    });
-                    // Format runs to GraphQL
-                    runs = runs.map(r => modelToGql(r, runPartial));
-                    // Add supplemental fields
-                    runs = await addSupplementalFields(userData, runs, runPartial);
-                    // Split runs by id
-                    const projectRuns = ids.map((id) => runs.filter(r => r.projectVersionId === id));
-                    return projectRuns;
-                };
+            toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
-                        runs: await runs(),
+                        ...(await getSingleTypePermissions<ProjectVersionModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -296,29 +264,84 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
         }),
         permissionResolvers: defaultPermissions,
         visibility: {
-            private: function getVisibilityPrivate() {
+            own: function getOwn(data) {
                 return {
-                    isDeleted: false,
-                    root: { isDeleted: false },
+                    isDeleted: false, // Can't be deleted
+                    root: useVisibility("Project", "Own", data),
+                };
+            },
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
                     OR: [
-                        { isPrivate: true },
-                        { root: { isPrivate: true } },
+                        // Objects you own
+                        {
+                            root: useVisibility("Project", "Own", data),
+                        },
+                        // Public objects
+                        {
+                            isPrivate: false, // Can't be private
+                            root: (useVisibility("ProjectVersion", "Public", data) as { root: object }).root,
+                        },
                     ],
                 };
             },
-            public: function getVisibilityPublic() {
+            ownPrivate: function getOwnPrivate(data) {
                 return {
-                    isDeleted: false,
-                    root: { isDeleted: false },
-                    AND: [
-                        { isPrivate: false },
-                        { root: { isPrivate: false } },
+                    isDeleted: false, // Can't be deleted
+                    OR: [
+                        // Private versions you own
+                        {
+                            isPrivate: true, // Version is private
+                            root: useVisibility("Project", "Own", data),
+                        },
+                        // Private roots you own
+                        {
+                            root: {
+                                isPrivate: true, // Root is private
+                                ...useVisibility("Project", "Own", data),
+                            },
+                        },
                     ],
                 };
             },
-            owner: (userId) => ({
-                root: ModelMap.get<ProjectModelLogic>("Project").validate().visibility.owner(userId),
-            }),
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    OR: [
+                        // Public versions you own
+                        {
+                            isPrivate: false, // Version is public
+                            root: useVisibility("Project", "Own", data),
+                        },
+                        // Public roots you own
+                        {
+                            root: {
+                                isPrivate: false, // Root is public
+                                ...useVisibility("Project", "Own", data),
+                            },
+                        },
+                    ],
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false, // Version can't be private
+                    root: {
+                        isDeleted: false, // Root can't be deleted
+                        isPrivate: false, // Root can't be private
+                        OR: [
+                            // Unowned
+                            { ownedByTeam: null, ownedByUser: null },
+                            // Owned by public teams
+                            { ownedByTeam: useVisibility("Team", "Public", data) },
+                            // Owned by public users
+                            { ownedByUser: { isPrivate: false, isPrivateProjects: false } },
+                        ],
+                    },
+                };
+            },
         },
     }),
 });

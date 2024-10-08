@@ -13,6 +13,7 @@
  */
 import { GqlModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, ObjectLimitPrivacy } from "@local/shared";
 import { PrismaDelegate } from "../builders/types";
+import { getVisibilityFunc } from "../builders/visibilityBuilder";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
@@ -131,7 +132,7 @@ function checkObjectLimit({
  * @param authDataById Map of all queried data required to validate permissions, keyed by ID.
  * @param idsByAction Map of object IDs to validate permissions for, keyed by action. We store actions this way (instead of keyed by ID) 
  * in case one ID is used for multiple actions.
- * @parma userId ID of user requesting permissions
+ * @param userId ID of user requesting permissions
  */
 export async function maxObjectsCheck(
     inputsById: InputsById,
@@ -194,8 +195,14 @@ export async function maxObjectsCheck(
         // Loop through every owner in the counts object
         for (const ownerId in counts[objectType]!) {
             // Query the database for the current counts of objects owned by the owner
-            let currCountPrivate = await delegator.count({ where: { AND: [validator.visibility.owner(ownerId), validator.visibility.private(ownerId)] } });
-            let currCountPublic = await delegator.count({ where: { AND: [validator.visibility.owner(ownerId), validator.visibility.public(ownerId)] } });
+            const searchData = { searchInput: {}, userId: ownerId };
+            let currCountPrivate = 0;
+            let currCountPublic = 0;
+            // Some objects don't support private/public, so may have null visibility functions. We can ignore these.
+            const privateVisibility = getVisibilityFunc(objectType as GqlModelType, "OwnPrivate", false);
+            const publicVisibility = getVisibilityFunc(objectType as GqlModelType, "OwnPublic", false);
+            if (privateVisibility) currCountPrivate = await delegator.count({ where: privateVisibility(searchData) });
+            if (publicVisibility) currCountPublic = await delegator.count({ where: publicVisibility(searchData) });
             // Add count obtained from add and deletes to the current counts
             currCountPrivate += counts[objectType]![ownerId].private;
             currCountPublic += counts[objectType]![ownerId].public;

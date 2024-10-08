@@ -12,6 +12,12 @@ type PasswordStrengthProps = {
     score: number;
 };
 
+const passwordStartAdornment = (
+    <InputAdornment position="start">
+        <LockIcon />
+    </InputAdornment>
+);
+
 export const PasswordTextInput = ({
     autoComplete = "current-password",
     autoFocus = false,
@@ -71,11 +77,7 @@ export const PasswordTextInput = ({
                 autoComplete={autoComplete}
                 autoFocus={autoFocus}
                 error={meta.touched && !!meta.error}
-                startAdornment={
-                    <InputAdornment position="start">
-                        <LockIcon />
-                    </InputAdornment>
-                }
+                startAdornment={passwordStartAdornment}
                 endAdornment={
                     <InputAdornment position="end">
                         <IconButton

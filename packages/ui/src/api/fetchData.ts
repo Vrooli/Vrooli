@@ -1,21 +1,9 @@
 import { ParseSearchParamsResult, stringifySearchParams } from "@local/shared";
 import { Method, ServerResponseWithTimestamp } from "api";
+import { apiUrlBase, restBase } from "utils/consts";
+import { invalidateAIConfigCache } from "./ai";
 
-// Determine origin of API server
-const isLocalhost: boolean = window.location.host.includes("localhost") || window.location.host.includes("192.168.") || window.location.host.includes("127.0.0.1");
-const serverUrlProvided = Boolean(process.env.VITE_SERVER_URL && process.env.VITE_SERVER_URL.length > 0);
-const portServer: string = process.env.VITE_PORT_SERVER ?? "5329";
-export const urlBase: string = isLocalhost ?
-    `http://${window.location.hostname}:${portServer}/api` :
-    serverUrlProvided ?
-        `${process.env.VITE_SERVER_URL}` :
-        `http://${process.env.VITE_SITE_IP}:${portServer}/api`;
-export const restBase = "/v2/rest";
-export const webSocketUrlBase: string = isLocalhost ?
-    `http://${window.location.hostname}:${portServer}` :
-    serverUrlProvided ?
-        `${process.env.VITE_SERVER_URL}` :
-        `http://${process.env.VITE_SITE_IP}:${portServer}`;
+const SERVER_VERSION_CACHE_KEY = "serverVersionCache";
 
 type FetchDataProps<Input extends object | undefined> = {
     endpoint: string;
@@ -61,7 +49,7 @@ export async function fetchData<Input extends object | undefined, Output>({
         });
     }
 
-    let url = `${urlBase}${omitRestBase ? "" : restBase}${endpoint}`;
+    let url = `${apiUrlBase}${omitRestBase ? "" : restBase}${endpoint}`;
     let body: string | FormData | null = null;
 
     // GET requests should have their inputs converted to query parameters.
@@ -98,5 +86,16 @@ export async function fetchData<Input extends object | undefined, Output>({
 
     return fetch(url, finalOptions)
         .then(response => response.json())
-        .then(data => ({ ...data, __fetchTimestamp }));
+        .then(data => {
+            // Before returning the data, we'll check if the server version has changed and 
+            // invalidate things accordingly.
+            const existingVersion = localStorage.getItem(SERVER_VERSION_CACHE_KEY);
+            const currentVersion = data.version;
+            if (existingVersion !== currentVersion) {
+                localStorage.setItem(SERVER_VERSION_CACHE_KEY, currentVersion);
+                invalidateAIConfigCache();
+            }
+            return { ...data, __fetchTimestamp };
+        });
 }
+

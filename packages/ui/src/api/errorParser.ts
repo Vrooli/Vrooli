@@ -1,4 +1,4 @@
-import { ErrorKey, exists } from "@local/shared";
+import { TranslationKeyError, exists } from "@local/shared";
 import { ServerResponse } from "api";
 import i18next from "i18next";
 import { PubSub } from "utils/pubsub";
@@ -8,7 +8,7 @@ import { PubSub } from "utils/pubsub";
  * @param response A response from the server
  * @returns The first error code, which should be a translation key
  */
-export function errorToCode(response: ServerResponse): ErrorKey {
+export function errorToCode(response: ServerResponse): TranslationKeyError {
     // If there is an errors array
     if (response.errors) {
         // Loop through array and return first error code
@@ -50,7 +50,7 @@ export function errorToMessage(response: ServerResponse, languages: string[]): s
  * @param codes The error code or codes to check for
  * @returns True if one of the error codes is in the error, false otherwise
  */
-export function hasErrorCode(error: ServerResponse, ...codes: ErrorKey[]): boolean {
+export function hasErrorCode(error: ServerResponse, ...codes: TranslationKeyError[]): boolean {
     return exists(error) && exists(error.errors) && error.errors.some((e) => exists(e.code) && codes.includes(e.code));
 }
 

@@ -1,5 +1,4 @@
-import { endpointGetStatsSite, StatsSiteSortBy } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetStatsSite, FormSchema, StatsSiteSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

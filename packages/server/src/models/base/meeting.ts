@@ -1,14 +1,15 @@
-import { MaxObjects, MeetingSortBy, meetingValidation } from "@local/shared";
+import { MaxObjects, MeetingSortBy, getTranslation, meetingValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { useVisibility } from "../../builders/visibilityBuilder";
+import { defaultPermissions, getEmbeddableString } from "../../utils";
 import { PreShapeEmbeddableTranslatableResult, labelShapeHelper, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { afterMutationsPlain } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { MeetingFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { MeetingModelLogic, TeamModelLogic } from "./types";
+import { MeetingModelInfo, MeetingModelLogic, TeamModelLogic } from "./types";
 
 type MeetingPre = PreShapeEmbeddableTranslatableResult;
 
@@ -20,15 +21,15 @@ export const MeetingModel: MeetingModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+            get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
         embed: {
             select: () => ({ id: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } } }),
             get: ({ translations }, languages) => {
-                const trans = bestTranslation(translations, languages);
+                const trans = getTranslation({ translations }, languages);
                 return getEmbeddableString({
-                    description: trans?.description,
-                    name: trans?.name,
+                    description: trans.description,
+                    name: trans.name,
                 }, languages[0]);
             },
         },
@@ -121,7 +122,7 @@ export const MeetingModel: MeetingModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<MeetingModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -145,13 +146,25 @@ export const MeetingModel: MeetingModelLogic = ({
         isDeleted: () => false,
         isPublic: (data) => data.showOnTeamProfile === true,
         visibility: {
-            private: function getVisibilityPrivate() {
+            own: function getOwn(data) {
+                return {
+                    team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId),
+                };
+            },
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
                     OR: [
-                        { showOnTeamProfile: false },
-                        { team: { isPrivate: true } },
+                        useVisibility("Meeting", "Own", data),
+                        useVisibility("Meeting", "Public", data),
                     ],
                 };
+            },
+            // Search method not useful for this object because meetings are not explicitly set as private, so we'll return "Own"
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("Meeting", "Own", data);
+            },
+            ownPublic: function getOwnPublic(data) {
+                return useVisibility("Meeting", "Own", data);
             },
             public: function getVisibilityPublic() {
                 return {
@@ -159,15 +172,14 @@ export const MeetingModel: MeetingModelLogic = ({
                     team: { isPrivate: false },
                 };
             },
-            owner: (userId) => ({
-                team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId),
-            }),
-            attendingOrInvited: (userId) => ({
-                OR: [
-                    { attendees: { some: { user: { id: userId } } } },
-                    { invites: { some: { userId } } },
-                ],
-            }),
+            attendingOrInvited: function getAttendingOrInvited(data) {
+                return {
+                    OR: [
+                        { attendees: { some: { user: { id: data.userId } } } },
+                        { invites: { some: { user: { id: data.userId } } } },
+                    ],
+                };
+            },
         },
     }),
 });

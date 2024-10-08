@@ -5,15 +5,17 @@ const validateRegex = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-
 /**
  * Generates a v4 UUID
  */
-export const uuid = () => uuidv4();
+export function uuid() {
+    return uuidv4();
+}
 
 /**
  * Validates a v4 UUID
  */
-export const uuidValidate = (uuid: unknown) => {
+export function uuidValidate(uuid: unknown) {
     if (!uuid || typeof uuid !== "string") return false;
     return validateRegex.test(uuid);
-};
+}
 
 /**
  * Temporary ID to avoid infinite loops. Useful 

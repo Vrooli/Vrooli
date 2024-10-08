@@ -155,7 +155,6 @@ export const typeDef = gql`
         canRun: Boolean!
         canRead: Boolean!
         canReact: Boolean!
-        runs: [RunRoutine!]!
     }
 
     input RoutineVersionTranslationCreateInput {

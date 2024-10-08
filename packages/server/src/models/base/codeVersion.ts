@@ -1,8 +1,10 @@
-import { CodeVersionSortBy, MaxObjects, codeVersionValidation } from "@local/shared";
+import { CodeVersionSortBy, MaxObjects, codeVersionValidation, getTranslation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
+import { useVisibility } from "../../builders/visibilityBuilder";
+import { withRedis } from "../../redisConn";
+import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { PreShapeVersionResult, afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { CodeVersionFormat } from "../formats";
@@ -19,7 +21,7 @@ export const CodeVersionModel: CodeVersionModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+            get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
         embed: {
             select: () => ({
@@ -28,11 +30,11 @@ export const CodeVersionModel: CodeVersionModelLogic = ({
                 translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } },
             }),
             get: ({ root, translations }, languages) => {
-                const trans = bestTranslation(translations, languages);
+                const trans = getTranslation({ translations }, languages);
                 return getEmbeddableString({
-                    name: trans?.name,
+                    name: trans.name,
                     tags: (root as any).tags.map(({ tag }) => tag),
-                    description: trans?.description,
+                    description: trans.description,
                 }, languages[0]);
             },
         },
@@ -88,8 +90,20 @@ export const CodeVersionModel: CodeVersionModelLogic = ({
             },
         },
         trigger: {
-            afterMutations: async (params) => {
-                await afterMutationsVersion({ ...params, objectType: __typename });
+            afterMutations: async ({ deletedIds, updatedIds, ...rest }) => {
+                // We store the code contents in Redis for sandbox caching. Remove them
+                const codeVersionIds = [...deletedIds, ...updatedIds];
+                if (codeVersionIds.length > 0) {
+                    await withRedis({
+                        process: async (redisClient) => {
+                            if (!redisClient) return;
+                            await redisClient.del(codeVersionIds.map(id => `codeVersion:${id}`));
+                        },
+                        trace: "0646",
+                    });
+                }
+
+                await afterMutationsVersion({ ...rest, deletedIds, updatedIds, objectType: __typename });
             },
         },
         yup: codeVersionValidation,
@@ -99,6 +113,8 @@ export const CodeVersionModel: CodeVersionModelLogic = ({
         sortBy: CodeVersionSortBy,
         searchFields: {
             calledByRoutineVersionId: true,
+            codeLanguage: true,
+            codeType: true,
             completedTimeFrame: true,
             createdByIdRoot: true,
             createdTimeFrame: true,
@@ -132,7 +148,7 @@ export const CodeVersionModel: CodeVersionModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<CodeVersionModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -154,29 +170,84 @@ export const CodeVersionModel: CodeVersionModelLogic = ({
         }),
         permissionResolvers: defaultPermissions,
         visibility: {
-            private: function getVisibilityPrivate() {
+            own: function getOwn(data) {
                 return {
-                    isDeleted: false,
-                    root: { isDeleted: false },
+                    isDeleted: false, // Can't be deleted
+                    root: useVisibility("Code", "Own", data),
+                };
+            },
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
                     OR: [
-                        { isPrivate: true },
-                        { root: { isPrivate: true } },
+                        // Objects you own
+                        {
+                            root: useVisibility("Code", "Own", data),
+                        },
+                        // Public objects
+                        {
+                            isPrivate: false, // Can't be private
+                            root: (useVisibility("CodeVersion", "Public", data) as { root: object }).root,
+                        },
                     ],
                 };
             },
-            public: function getVisibilityPublic() {
+            ownPrivate: function getOwnPrivate(data) {
                 return {
-                    isDeleted: false,
-                    root: { isDeleted: false },
-                    AND: [
-                        { isPrivate: false },
-                        { root: { isPrivate: false } },
+                    isDeleted: false, // Can't be deleted
+                    OR: [
+                        // Private versions you own
+                        {
+                            isPrivate: true, // Version is private
+                            root: useVisibility("Code", "Own", data),
+                        },
+                        // Private roots you own
+                        {
+                            root: {
+                                isPrivate: true, // Root is private
+                                ...useVisibility("Code", "Own", data),
+                            },
+                        },
                     ],
                 };
             },
-            owner: (userId) => ({
-                root: ModelMap.get<CodeModelLogic>("Code").validate().visibility.owner(userId),
-            }),
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    OR: [
+                        // Public versions you own
+                        {
+                            isPrivate: false, // Version is public
+                            root: useVisibility("Code", "Own", data),
+                        },
+                        // Public roots you own
+                        {
+                            root: {
+                                isPrivate: false, // Root is public
+                                ...useVisibility("Code", "Own", data),
+                            },
+                        },
+                    ],
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false, // Version can't be private
+                    root: {
+                        isDeleted: false, // Root can't be deleted
+                        isPrivate: false, // Root can't be private
+                        OR: [
+                            // Unowned
+                            { ownedByTeam: null, ownedByUser: null },
+                            // Owned by public teams
+                            { ownedByTeam: useVisibility("Team", "Public", data) },
+                            // Owned by public users
+                            { ownedByUser: { isPrivate: false, isPrivateCodes: false } },
+                        ],
+                    },
+                };
+            },
         },
     }),
 });

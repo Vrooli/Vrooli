@@ -1,19 +1,19 @@
-import { CommonKey, LINKS } from "@local/shared";
-import { PageContainer } from "components/containers/PageContainer/PageContainer";
+import { LINKS, TranslationKeyCommon } from "@local/shared";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { ApiIcon, BotIcon, CommentIcon, HelpIcon, NoteIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, TeamIcon, TerminalIcon } from "icons";
+import { ApiIcon, ArticleIcon, BotIcon, CommentIcon, HelpIcon, NoteIcon, ObjectIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, TeamIcon, TerminalIcon } from "icons";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
+import { ScrollBox } from "styles";
 import { SvgComponent } from "types";
-import { CreateType, getCookie, setCookie } from "utils/cookies";
+import { CreateType, getCookie, setCookie } from "utils/localStorage";
 import { CreateViewProps } from "../types";
 
 type CreateInfo = {
     objectType: CreateType;
-    description: CommonKey,
+    description: TranslationKeyCommon,
     Icon: SvgComponent,
     id: string,
     incomplete?: boolean;
@@ -70,14 +70,20 @@ export const createCards: CreateInfo[] = [
         incomplete: true,
     },
     {
-        objectType: "Standard",
-        description: "CreateStandardDescription",
-        Icon: StandardIcon,
-        id: "create-standard-card",
+        objectType: "Prompt",
+        description: "CreatePromptDescription",
+        Icon: ArticleIcon,
+        id: "create-prompt-card",
     },
     {
-        objectType: "Code",
-        description: "CreateCodeDescription",
+        objectType: "DataStructure",
+        description: "CreateDataStructureDescription",
+        Icon: ObjectIcon,
+        id: "create-data-structure-card",
+    },
+    {
+        objectType: "DataConverter",
+        description: "CreateDataConverterDescription",
         Icon: TerminalIcon,
         id: "create-code-card",
     },
@@ -137,7 +143,7 @@ export function CreateView({
     }, [setLocation]);
 
     return (
-        <PageContainer>
+        <ScrollBox>
             <TopBar
                 display={display}
                 onClose={onClose}
@@ -158,6 +164,6 @@ export function CreateView({
                     />
                 ))}
             </CardGrid>
-        </PageContainer>
+        </ScrollBox>
     );
 }

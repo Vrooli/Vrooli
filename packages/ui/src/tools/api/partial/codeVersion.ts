@@ -42,7 +42,7 @@ export const codeVersion: GqlPartial<CodeVersion> = {
         content: true,
         versionNotes: true,
         pullRequest: async () => rel((await import("./pullRequest")).pullRequest, "full", { omit: ["from", "to"] }),
-        resourceList: async () => rel((await import("./resourceList")).resourceList, "full"),
+        resourceList: async () => rel((await import("./resourceList")).resourceList, "common"),
         root: async () => rel((await import("./code")).code, "full", { omit: "versions" }),
         translations: () => rel(codeVersionTranslation, "full"),
     },

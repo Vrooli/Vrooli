@@ -1,6 +1,6 @@
-import { Box, Button, Checkbox, Divider, FormControlLabel, FormHelperText, Grid, Stack } from "@mui/material";
+import { Box, Button, Checkbox, Divider, FormControlLabel, FormHelperText, Grid } from "@mui/material";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
-import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
+import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Title } from "components/text/Title/Title";
 import { Field, Formik, useField } from "formik";
@@ -8,10 +8,9 @@ import { BaseForm } from "forms/BaseForm/BaseForm";
 import { HeartFilledIcon, RoutineIcon, TeamIcon, UserIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { pagePaddingBottom } from "styles";
 import { SettingsDataFormProps, SettingsDataViewProps } from "../types";
 
-const DataOption = ({
+function DataOption({
     disabled,
     help,
     label,
@@ -21,7 +20,7 @@ const DataOption = ({
     help?: string,
     label: string,
     name: string,
-}) => {
+}) {
     return (
         <Box>
             <FormControlLabel
@@ -40,16 +39,16 @@ const DataOption = ({
             </FormHelperText>
         </Box>
     );
-};
+}
 
-const SettingsDataForm = ({
+function SettingsDataForm({
     display,
     dirty,
     isLoading,
     onCancel,
     values,
     ...props
-}: SettingsDataFormProps) => {
+}: SettingsDataFormProps) {
     const { t } = useTranslation();
 
     const [allField] = useField<boolean>("all");
@@ -326,12 +325,12 @@ const SettingsDataForm = ({
             </Grid>
         </>
     );
-};
+}
 
-export const SettingsDataView = ({
+export function SettingsDataView({
     display,
     onClose,
-}: SettingsDataViewProps) => {
+}: SettingsDataViewProps) {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
@@ -342,7 +341,7 @@ export const SettingsDataView = ({
                 onClose={onClose}
                 title={t("Data")}
             />
-            <Stack direction="row" mt={2} sx={{ paddingBottom: pagePaddingBottom }}>
+            <SettingsContent>
                 <SettingsList />
                 <Box m="auto" p={1}>
                     <Box
@@ -403,7 +402,7 @@ export const SettingsDataView = ({
                         />}
                     </Formik>
                 </Box>
-            </Stack>
+            </SettingsContent>
         </>
     );
-};
+}

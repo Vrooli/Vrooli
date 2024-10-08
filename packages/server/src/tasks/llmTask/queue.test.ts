@@ -1,4 +1,4 @@
-import { MINUTES_1_MS } from "@local/shared";
+import { MINUTES_1_MS, TaskStatus } from "@local/shared";
 import Bull from "../../__mocks__/bull";
 import { LlmTaskProcessPayload, changeLlmTaskStatus, processLlmTask, setupLlmTaskQueue } from "./queue";
 
@@ -16,17 +16,19 @@ describe("processLlmTask", () => {
 
     it("enqueues an llm task", async () => {
         const testTask = {
+            __process: "LlmTask",
             chatId: "chatId123",
             language: "en",
+            status: TaskStatus.Scheduled,
             taskInfo: {
-                id: "task123",
                 task: "test",
+                taskId: "task123",
                 properties: {},
-            },
+            } as any,
             userData: {
                 id: "user123",
             },
-        };
+        } as const;
 
         processLlmTask(testTask as LlmTaskProcessPayload);
 
@@ -42,7 +44,7 @@ describe("processLlmTask", () => {
 
         // Additionally, check if the jobId and timeout options are set correctly
         const options = llmTaskQueue.add.mock.calls[0][1];
-        expect(options).toEqual({ jobId: testTask.taskInfo.id, timeout: MINUTES_1_MS });
+        expect(options).toEqual({ jobId: testTask.taskInfo.taskId, timeout: MINUTES_1_MS });
     });
 });
 

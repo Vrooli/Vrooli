@@ -1,4 +1,4 @@
-import { ApiVersion, BookmarkFor, endpointGetApiVersion, ResourceList as ResourceListType } from "@local/shared";
+import { ApiVersion, BookmarkFor, ResourceList as ResourceListType, endpointGetApiVersion, getTranslation } from "@local/shared";
 import { Avatar, Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
@@ -9,9 +9,9 @@ import { ResourceList } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { Title } from "components/text/Title/Title";
-import { SessionContext } from "contexts/SessionContext";
-import { useObjectActions } from "hooks/useObjectActions";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { SessionContext } from "contexts";
+import { useObjectActions } from "hooks/objectActions";
+import { useManagedObject } from "hooks/useManagedObject";
 import { ApiIcon, EditIcon, EllipsisIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -19,13 +19,13 @@ import { useLocation } from "route";
 import { OverviewContainer } from "styles";
 import { placeholderColor } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
 import { ApiViewProps } from "../types";
 
-export const ApiView = ({
+export function ApiView({
     display,
     onClose,
-}: ApiViewProps) => {
+}: ApiViewProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -33,7 +33,7 @@ export const ApiView = ({
     const profileColors = useMemo(() => placeholderColor(), []);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    const { id, isLoading, object: apiVersion, permissions, setObject: setApiVersion } = useObjectFromUrl<ApiVersion>({
+    const { id, isLoading, object: apiVersion, permissions, setObject: setApiVersion } = useManagedObject<ApiVersion>({
         ...endpointGetApiVersion,
         objectType: "ApiVersion",
     });
@@ -215,4 +215,4 @@ export const ApiView = ({
             </Box>
         </>
     );
-};
+}

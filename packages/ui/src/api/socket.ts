@@ -1,6 +1,6 @@
 import { ReservedSocketEvents, RoomSocketEvents, SocketEvent, SocketEventCallbackPayloads, SocketEventPayloads } from "@local/shared";
 import { io } from "socket.io-client";
-import { webSocketUrlBase } from "./fetchData";
+import { webSocketUrlBase } from "utils/consts";
 
 export const socket = io(webSocketUrlBase, { withCredentials: true });
 

@@ -1,18 +1,13 @@
-import { ApiVersion, Bookmark, BookmarkFor, CodeVersion, CommonKey, FocusMode, ListObject, Meeting, Node, NodeRoutineList, NodeRoutineListItem, NoteVersion, ProjectVersion, Question, RoutineVersion, RunProject, RunRoutine, StandardVersion, Team, User } from "@local/shared";
+import { Bookmark, BookmarkFor, ListObject, Node, NodeLinkShape, NodeRoutineList, NodeRoutineListItem, NodeRoutineListItemShape, NodeShape, RootStep, RoutineVersion, TranslationKeyCommon } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
 import { HelpButtonProps } from "components/buttons/types";
 import { TitleProps } from "components/text/types";
-import { FormProps } from "forms/types";
-import { UseObjectActionsReturn } from "hooks/useObjectActions";
+import { type UseObjectActionsReturn } from "hooks/objectActions";
 import { ReactNode } from "react";
-import { DirectoryStep, RoutineListStep, SvgComponent, SxType } from "types";
+import { SvgComponent, SxType, ViewDisplayType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
-import { CookiePreferences } from "utils/cookies";
-import { NodeShape } from "utils/shape/models/node";
-import { NodeLinkShape } from "utils/shape/models/nodeLink";
-import { NodeRoutineListItemShape } from "utils/shape/models/nodeRoutineListItem";
-import { ViewDisplayType } from "views/types";
-import { FindObjectTabOption } from "./FindObjectDialog/FindObjectDialog";
+import { CookiePreferences } from "utils/localStorage";
+import { FormProps } from "../../types";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface SideMenuProps { }
@@ -48,30 +43,30 @@ export interface DialogTitleProps extends Omit<TitleProps, "sxs"> {
     sxs?: TitleProps["sxs"] & { root?: SxType; };
 }
 
-export type SelectOrCreateObjectType = "ApiVersion" |
-    "CodeVersion" |
+/**
+ * Object type names which can be selected or created in the FindObjectDialog. 
+ * 
+ * NOTE: This does not specify object versions. That is handled by another prop.
+ */
+export type FindObjectType = |
+    "Api" |
+    "Bot" |
+    "DataConverter" |
+    "DataStructure" |
     "FocusMode" |
     "Meeting" |
-    "NoteVersion" |
-    "ProjectVersion" |
+    "Note" |
+    "Project" |
+    "Prompt" |
     "Question" |
-    "RoutineVersion" |
+    "Reminder" |
+    "Routine" |
     "RunProject" |
     "RunRoutine" |
-    "StandardVersion" |
+    "SmartContract" |
     "Team" |
     "User";
-export type SelectOrCreateObject = ApiVersion |
-    CodeVersion |
-    FocusMode |
-    Meeting |
-    NoteVersion |
-    ProjectVersion |
-    Question |
-    RoutineVersion |
-    StandardVersion |
-    Team |
-    User;
+
 /**
  * Determines what type of data is returned when an object is selected. 
  * "Full" uses an additional request to get the full object. 
@@ -79,13 +74,13 @@ export type SelectOrCreateObject = ApiVersion |
  * "Url" returns the url of the object.
  */
 export type FindObjectDialogType = "Full" | "List" | "Url";
-export interface FindObjectDialogProps<Find extends FindObjectDialogType, ObjectType extends SelectOrCreateObject> {
+export interface FindObjectDialogProps<Find extends FindObjectDialogType> {
     /** The type of data returned when an object is selected */
     find: Find;
     handleCancel: () => unknown;
-    handleComplete: (data: Find extends "Url" ? string : ObjectType) => unknown;
+    handleComplete: (data: Find extends "Url" ? string : object) => unknown;
     isOpen: boolean;
-    limitTo?: readonly FindObjectTabOption[];
+    limitTo?: readonly FindObjectType[];
     /** Forces selection to be a version, and removes unversioned items from limitTo */
     onlyVersioned?: boolean;
     where?: Record<string, any>;
@@ -109,7 +104,7 @@ export interface ListMenuItemData<T> {
     /** Text to display */
     label?: string;
     /** Translation key for label, if label not provided */
-    labelKey?: CommonKey;
+    labelKey?: TranslationKeyCommon;
     /** Value to pass back when selected */
     value: T;
 }
@@ -198,7 +193,6 @@ export type SubroutineFormProps = Omit<FormProps<Node, NodeRoutineListItemShape>
     isOpen: boolean;
     /** Number of subroutines in parent routine list */
     numSubroutines: number;
-    versions: string[];
 };
 
 export interface SubroutineInfoDialogProps {
@@ -228,7 +222,7 @@ export interface RunStepsDialogProps {
     history: number[][];
     /** Out of 100 */
     percentComplete: number;
-    rootStep: RoutineListStep | DirectoryStep | null;
+    rootStep: RootStep | null;
 }
 
 export interface DeleteBookmarkListDialogProps {
@@ -258,15 +252,6 @@ export interface SelectLanguageMenuProps {
     /** Languages that currently have a translation */
     languages: string[];
     sxs?: { root: SxType; };
-}
-
-export interface RunPickerMenuProps {
-    anchorEl: HTMLElement | null;
-    handleClose: () => unknown;
-    onAdd: (run: RunProject | RunRoutine) => unknown;
-    onDelete: (run: RunProject | RunRoutine) => unknown;
-    onSelect: (run: RunProject | RunRoutine | null) => unknown;
-    runnableObject?: Partial<RoutineVersion | ProjectVersion> | null;
 }
 
 export interface LargeDialogProps {
@@ -302,7 +287,6 @@ export interface WalletSelectDialogProps {
 export interface PopoverWithArrowProps extends Omit<PopoverProps, "open" | "sx"> {
     anchorEl: HTMLElement | null;
     children: ReactNode;
-    disableScrollLock?: boolean;
     handleClose?: () => unknown;
     placement?: "top" | "right" | "bottom" | "left";
     sxs?: {

@@ -1,5 +1,5 @@
 import { exists } from "@local/shared";
-import { Box, BoxProps, Button, CircularProgress, Grid, styled, useTheme } from "@mui/material";
+import { Box, BoxProps, Button, Grid, styled, useTheme } from "@mui/material";
 import { useErrorPopover } from "hooks/useErrorPopover";
 import { useKeyboardOpen } from "hooks/useKeyboardOpen";
 import { useWindowSize } from "hooks/useWindowSize";
@@ -8,6 +8,7 @@ import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SxType } from "types";
 import { BottomActionsGrid } from "../BottomActionsGrid/BottomActionsGrid";
+import { LoadableButton } from "../LoadableButton/LoadableButton";
 import { BottomActionsButtonsProps } from "../types";
 
 interface SideActionsBoxProps extends BoxProps {
@@ -54,7 +55,11 @@ export function BottomActionsButtons({
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
     const isKeyboardOpen = useKeyboardOpen();
-    const iconStyle = useMemo<SxType>(() => (hideTextOnMobile && isMobile ? { marginLeft: 0, marginRight: 0 } : {}) as SxType, [hideTextOnMobile, isMobile]);
+    const buttonStyle = useMemo<SxType>(function buttonStyleMemo() {
+        // Removing padding when the button doesn't display text
+        const spanStyle = hideTextOnMobile && isMobile ? { marginLeft: 0, marginRight: 0 } : {};
+        return { "& span": spanStyle } as SxType;
+    }, [hideTextOnMobile, isMobile]);
 
     const { openPopover, Popover } = useErrorPopover({ errors, onSetSubmitting });
 
@@ -62,11 +67,17 @@ export function BottomActionsButtons({
     const isSubmitDisabled = useMemo(() => loading || hasErrors || (disabledSubmit === true), [disabledSubmit, hasErrors, loading]);
 
 
-    const handleSubmit = useCallback((ev: React.MouseEvent | React.TouchEvent) => {
+    const handleSubmit = useCallback(function handleSubmitCallback(ev: React.MouseEvent | React.TouchEvent) {
         // If formik invalid, display errors in popup
         if (hasErrors) openPopover(ev);
         else if (!disabledSubmit && typeof onSubmit === "function") onSubmit();
     }, [hasErrors, openPopover, disabledSubmit, onSubmit]);
+
+    const handleCancel = useCallback(function handleCancelCallback(event: React.MouseEvent | React.TouchEvent) {
+        event.preventDefault();
+        event.stopPropagation();
+        onCancel();
+    }, [onCancel]);
 
     return (
         <BottomActionsGrid display={display}>
@@ -81,16 +92,14 @@ export function BottomActionsButtons({
             {/* Create/Save button. On hover or press, displays formik errors if disabled */}
             {!hideButtons ? <Grid item xs={6}>
                 <Box onClick={handleSubmit}>
-                    <Button
+                    <LoadableButton
                         aria-label={t(isCreate ? "Create" : "Save")}
                         disabled={isSubmitDisabled}
-                        fullWidth
-                        startIcon={loading ?
-                            <CircularProgress size={24} sx={{ color: "white" }} /> :
-                            (isCreate ? <CreateIcon /> : <SaveIcon />)}
+                        isLoading={loading}
+                        startIcon={isCreate ? <CreateIcon /> : <SaveIcon />}
+                        sx={buttonStyle}
                         variant="contained"
-                        sx={{ "& span": iconStyle }}
-                    >{hideTextOnMobile && isMobile ? "" : t(isCreate ? "Create" : "Save")}</Button>
+                    >{hideTextOnMobile && isMobile ? "" : t(isCreate ? "Create" : "Save")}</LoadableButton>
                 </Box>
             </Grid> : null}
             {/* Cancel button */}
@@ -99,14 +108,10 @@ export function BottomActionsButtons({
                     aria-label={t("Cancel")}
                     disabled={loading || (disabledCancel !== undefined ? disabledCancel : false)}
                     fullWidth
-                    onClick={(event: React.MouseEvent | React.TouchEvent) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onCancel();
-                    }}
+                    onClick={handleCancel}
                     startIcon={<CancelIcon />}
                     variant="outlined"
-                    sx={{ "& span": iconStyle }}
+                    sx={buttonStyle}
                 >{hideTextOnMobile && isMobile ? "" : t("Cancel")}</Button>
             </Grid> : null}
         </BottomActionsGrid>

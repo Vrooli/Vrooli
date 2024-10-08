@@ -1,15 +1,13 @@
 /**
  * Used to create/update a link between two routine nodes
  */
-import { NodeType, uuid } from "@local/shared";
+import { getTranslation, NodeShape, NodeType, uuid } from "@local/shared";
 import { Autocomplete, Box, DialogContent, Stack, Typography, useTheme } from "@mui/material";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getTranslation } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
-import { NodeShape } from "utils/shape/models/node";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { LinkDialogProps } from "../types";

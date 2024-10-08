@@ -73,6 +73,7 @@ import * as RunProject from "./runProject";
 import * as RunProjectStep from "./runProjectStep";
 import * as RunRoutine from "./runRoutine";
 import * as RunRoutineInput from "./runRoutineInput";
+import * as RunRoutineOutput from "./runRoutineOutput";
 import * as RunRoutineStep from "./runRoutineStep";
 import * as Schedule from "./schedule";
 import * as ScheduleException from "./scheduleException";
@@ -89,6 +90,7 @@ import * as StatsStandard from "./statsStandard";
 import * as StatsTeam from "./statsTeam";
 import * as StatsUser from "./statsUser";
 import * as Tag from "./tag";
+import * as Task from "./task";
 import * as Team from "./team";
 import * as Transfer from "./transfer";
 import * as Translate from "./translate";
@@ -177,6 +179,7 @@ const schemas: SchemaType[] = [
     RunProjectStep,
     RunRoutine,
     RunRoutineInput,
+    RunRoutineOutput,
     RunRoutineStep,
     Schedule,
     ScheduleException,
@@ -193,6 +196,7 @@ const schemas: SchemaType[] = [
     StatsTeam,
     StatsUser,
     Tag,
+    Task,
     Team,
     Transfer,
     Translate,

@@ -1,6 +1,9 @@
-import { resourceListValidation, ResourceUsedFor, urlRegexDev, YupMutateParams } from "@local/shared";
 import * as yup from "yup";
+import { ResourceUsedFor } from "../../api/generated/graphqlTypes";
 import { addHttps, description, enumToYup, handleRegex, id, index, maxStrErr, name, opt, req, transRel, urlRegex, walletAddressRegex, YupModel, yupObj } from "../utils";
+import { urlRegexDev } from "../utils/regex";
+import { YupMutateParams } from "../utils/types";
+import { resourceListValidation } from "./resourceList";
 
 // Link must match one of the regex above
 const link = ({ env = "production" }: { env?: YupMutateParams["env"] }) =>

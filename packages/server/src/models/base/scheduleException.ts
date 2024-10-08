@@ -1,7 +1,8 @@
-import { scheduleExceptionValidation } from "@local/shared";
+import { MaxObjects, scheduleExceptionValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { ScheduleExceptionFormat } from "../formats";
 import { ScheduleExceptionModelInfo, ScheduleExceptionModelLogic, ScheduleModelInfo, ScheduleModelLogic } from "./types";
@@ -41,24 +42,38 @@ export const ScheduleExceptionModel: ScheduleExceptionModelLogic = ({
     search: {} as any,
     validate: () => ({
         isTransferable: false,
-        maxObjects: 100000,
+        maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ schedule: "Schedule" }),
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => ModelMap.get<ScheduleModelLogic>("Schedule").validate().owner(data?.schedule as ScheduleModelInfo["PrismaModel"], userId),
         isDeleted: (data, languages) => ModelMap.get<ScheduleModelLogic>("Schedule").validate().isDeleted(data.schedule as ScheduleModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<ScheduleExceptionModelInfo["PrismaSelect"]>([["schedule", "Schedule"]], ...rest),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    schedule: ModelMap.get<ScheduleModelLogic>("Schedule").validate().visibility.private(...params),
+                    schedule: useVisibility("Schedule", "Own", data),
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    schedule: ModelMap.get<ScheduleModelLogic>("Schedule").validate().visibility.public(...params),
+                    schedule: useVisibility("Schedule", "OwnOrPublic", data),
                 };
             },
-            owner: (userId) => ({ schedule: ModelMap.get<ScheduleModelLogic>("Schedule").validate().visibility.owner(userId) }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    schedule: useVisibility("Schedule", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    schedule: useVisibility("Schedule", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    schedule: useVisibility("Schedule", "Public", data),
+                };
+            },
         },
     }),
 });

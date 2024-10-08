@@ -1,10 +1,11 @@
-import { MaxObjects, StandardCreateInput, StandardVersionCreateInput, StandardVersionSortBy, StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput, standardVersionValidation } from "@local/shared";
+import { MaxObjects, StandardCreateInput, StandardVersionCreateInput, StandardVersionSortBy, StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput, getTranslation, standardVersionValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { randomString } from "../../auth/codes";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { SessionUserToken } from "../../types";
-import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
+import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { sortify } from "../../utils/objectTools";
 import { PreShapeVersionResult, afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
@@ -30,63 +31,65 @@ type StandardVersionPre = PreShapeVersionResult;
 //     // })
 // })
 
-const querier = () => ({
-    /**
-     * Checks for existing standards with the same shape. Useful to avoid duplicates
-     * @param data StandardCreateData to check
-     * @param userData The ID of the user creating the standard
-     * @param uniqueToCreator Whether to check if the standard is unique to the user/team 
-     * @param isInternal Used to determine if the standard should show up in search results
-     * @returns data of matching standard, or null if no match
-     */
-    async findMatchingStandardVersion(
-        data: StandardCreateInput,
-        userData: SessionUserToken,
-        uniqueToCreator: boolean,
-        isInternal: boolean,
-    ): Promise<{ [x: string]: any } | null> {
-        return null;
-        // // Sort all JSON properties that are part of the comparison
-        // const props = sortify(data.props, userData.languages);
-        // const yup = data.yup ? sortify(data.yup, userData.languages) : null;
-        // // Find all standards that match the given standard
-        // const standards = await prismaInstance.standard_version.findMany({
-        //     where: {
-        //         root: {
-        //             isInternal: (isInternal === true || isInternal === false) ? isInternal : undefined,
-        //             isDeleted: false,
-        //             isPrivate: false,
-        //             createdByUserId: (uniqueToCreator && !data.createdByTeamId) ? userData.id : undefined,
-        //             createdByTeamId: (uniqueToCreator && data.createdByTeamId) ? data.createdByTeamId : undefined,
-        //         },
-        //         default: data.default ?? null,
-        //         props: props,
-        //         yup: yup,
-        //     }
-        // });
-        // // If any standards match (should only ever be 0 or 1, but you never know) return the first one
-        // if (standards.length > 0) {
-        //     return standards[0];
-        // }
-        // // If no standards match, then data is unique. Return null
-        // return null;
-    },
-    /**
-     * Generates a name for a standard.
-     * @param userId The user's ID
-     * @param languages The user's preferred languages
-     * @param data The standard create data
-     * @returns A valid name for the standard
-     */
-    async generateName(userId: string, languages: string[], data: StandardVersionCreateInput): Promise<string> {
-        // First, check if name was already provided
-        const translatedName = "";//bestTranslation(data.translationsCreate ?? [], 'name', languages)?.name ?? "";
-        if (translatedName.length > 0) return translatedName;
-        // Otherwise, generate name based on type and random string
-        const name = `${data.standardType} ${randomString(5)}`;
-        return name;
-    },
-});
+function querier() {
+    return {
+        /**
+         * Checks for existing standards with the same shape. Useful to avoid duplicates
+         * @param data StandardCreateData to check
+         * @param userData The ID of the user creating the standard
+         * @param uniqueToCreator Whether to check if the standard is unique to the user/team 
+         * @param isInternal Used to determine if the standard should show up in search results
+         * @returns data of matching standard, or null if no match
+         */
+        async findMatchingStandardVersion(
+            data: StandardCreateInput,
+            userData: SessionUserToken,
+            uniqueToCreator: boolean,
+            isInternal: boolean,
+        ): Promise<{ [x: string]: any } | null> {
+            return null;
+            // // Sort all JSON properties that are part of the comparison
+            // const props = sortify(data.props, userData.languages);
+            // const yup = data.yup ? sortify(data.yup, userData.languages) : null;
+            // // Find all standards that match the given standard
+            // const standards = await prismaInstance.standard_version.findMany({
+            //     where: {
+            //         root: {
+            //             isInternal: (isInternal === true || isInternal === false) ? isInternal : undefined,
+            //             isDeleted: false,
+            //             isPrivate: false,
+            //             createdByUserId: (uniqueToCreator && !data.createdByTeamId) ? userData.id : undefined,
+            //             createdByTeamId: (uniqueToCreator && data.createdByTeamId) ? data.createdByTeamId : undefined,
+            //         },
+            //         default: data.default ?? null,
+            //         props: props,
+            //         yup: yup,
+            //     }
+            // });
+            // // If any standards match (should only ever be 0 or 1, but you never know) return the first one
+            // if (standards.length > 0) {
+            //     return standards[0];
+            // }
+            // // If no standards match, then data is unique. Return null
+            // return null;
+        },
+        /**
+         * Generates a name for a standard.
+         * @param userId The user's ID
+         * @param languages The user's preferred languages
+         * @param data The standard create data
+         * @returns A valid name for the standard
+         */
+        async generateName(userId: string, languages: string[], data: StandardVersionCreateInput): Promise<string> {
+            // First, check if name was already provided
+            const translatedName = "";//getTranslation(data, 'name', languages).name ?? "";
+            if (translatedName.length > 0) return translatedName;
+            // Otherwise, generate name based on type and random string
+            const name = `${data.variant} ${randomString(5)}`;
+            return name;
+        },
+    };
+}
 
 const __typename = "StandardVersion" as const;
 export const StandardVersionModel: StandardVersionModelLogic = ({
@@ -96,7 +99,7 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, name: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.name ?? "",
+            get: (select, languages) => getTranslation(select, languages).name ?? "",
         },
         embed: {
             select: () => ({
@@ -105,11 +108,11 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
                 translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, description: true } },
             }),
             get: ({ root, translations }, languages) => {
-                const trans = bestTranslation(translations, languages);
+                const trans = getTranslation({ translations }, languages);
                 return getEmbeddableString({
-                    name: trans?.name,
+                    name: trans.name,
                     tags: (root as any).tags.map(({ tag }) => tag),
-                    description: trans?.description,
+                    description: trans.description,
                 }, languages[0]);
             },
         },
@@ -143,12 +146,13 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
                 }
                 return {
                     id: data.id,
+                    codeLanguage: data.codeLanguage,
                     default: noNull(data.default),
                     isPrivate: data.isPrivate,
                     isComplete: noNull(data.isComplete),
                     isFile: noNull(data.isFile),
                     props: sortify(data.props, rest.userData.languages),
-                    standardType: data.standardType,
+                    variant: data.variant,
                     versionLabel: data.versionLabel,
                     versionNotes: noNull(data.versionNotes),
                     yup: data.yup ? sortify(data.yup, rest.userData.languages) : undefined,
@@ -175,12 +179,13 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
                     });
                 }
                 return {
+                    codeLanguage: noNull(data.codeLanguage),
                     default: noNull(data.default),
                     isPrivate: noNull(data.isPrivate),
                     isComplete: noNull(data.isComplete),
                     isFile: noNull(data.isFile),
                     props: data.props ? sortify(data.props, rest.userData.languages) : undefined,
-                    standardType: noNull(data.standardType),
+                    variant: noNull(data.variant),
                     versionLabel: noNull(data.versionLabel),
                     versionNotes: noNull(data.versionNotes),
                     yup: data.yup ? sortify(data.yup, rest.userData.languages) : undefined,
@@ -203,6 +208,7 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
         defaultSort: StandardVersionSortBy.DateCompletedDesc,
         sortBy: StandardVersionSortBy,
         searchFields: {
+            codeLanguage: true,
             completedTimeFrame: true,
             createdByIdRoot: true,
             createdTimeFrame: true,
@@ -219,11 +225,11 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
             ownedByUserIdRoot: true,
             reportId: true,
             rootId: true,
-            standardType: true,
             tagsRoot: true,
             translationLanguages: true,
             updatedTimeFrame: true,
             userId: true,
+            variant: true,
         },
         searchStringQuery: () => ({
             OR: [
@@ -233,17 +239,12 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
                 { root: "nameWrapped" },
             ],
         }),
-        /**
-         * Internal standards should never appear in the query, since they are 
-         * only meant for a single input/output
-         */
-        customQueryData: () => ({ root: { isInternal: false } }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<StandardVersionModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -265,29 +266,85 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
         }),
         permissionResolvers: defaultPermissions,
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    isDeleted: false,
-                    root: { isDeleted: false },
+                    isDeleted: false, // Can't be deleted
+                    root: useVisibility("Standard", "Own", data),
+                };
+            },
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
                     OR: [
-                        { isPrivate: true },
-                        { root: { isPrivate: true } },
+                        // Objects you own
+                        {
+                            root: useVisibility("Standard", "Own", data),
+                        },
+                        // Public objects
+                        {
+                            isPrivate: false, // Can't be private
+                            root: (useVisibility("StandardVersion", "Public", data) as { root: object }).root,
+                        },
                     ],
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownPrivate: function getOwnPrivate(data) {
                 return {
-                    isDeleted: false,
-                    root: { isDeleted: false },
-                    AND: [
-                        { isPrivate: false },
-                        { root: { isPrivate: false } },
+                    isDeleted: false, // Can't be deleted
+                    OR: [
+                        // Private versions you own
+                        {
+                            isPrivate: true, // Version is private
+                            root: useVisibility("Standard", "Own", data),
+                        },
+                        // Private roots you own
+                        {
+                            root: {
+                                isPrivate: true, // Root is private
+                                ...useVisibility("Standard", "Own", data),
+                            },
+                        },
                     ],
                 };
             },
-            owner: (userId) => ({
-                root: ModelMap.get<StandardModelLogic>("Standard").validate().visibility.owner(userId),
-            }),
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    OR: [
+                        // Public versions you own
+                        {
+                            isPrivate: false, // Version is public
+                            root: useVisibility("Standard", "Own", data),
+                        },
+                        // Public roots you own
+                        {
+                            root: {
+                                isPrivate: false, // Root is public
+                                ...useVisibility("Standard", "Own", data),
+                            },
+                        },
+                    ],
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false, // Version can't be private
+                    root: {
+                        isDeleted: false, // Root can't be deleted
+                        isInternal: false, // Internal standards should never be in search results
+                        isPrivate: false, // Root can't be private
+                        OR: [
+                            // Unowned
+                            { ownedByTeam: null, ownedByUser: null },
+                            // Owned by public teams
+                            { ownedByTeam: useVisibility("Team", "Public", data) },
+                            // Owned by public users
+                            { ownedByUser: { isPrivate: false, isPrivateStandards: false } },
+                        ],
+                    },
+                };
+            },
         },
     }),
 });

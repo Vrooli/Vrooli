@@ -1,8 +1,8 @@
 import { endpointGetApi, endpointGetChat, endpointGetCode, endpointGetComment, endpointGetNote, endpointGetProject, endpointGetQuestion, endpointGetQuiz, endpointGetReport, endpointGetRoutine, endpointGetStandard, endpointGetTag, endpointGetTeam, endpointGetUser, exists, LINKS, uuid } from "@local/shared";
 import { Box, Checkbox, CircularProgress, IconButton, Link, Typography, TypographyProps, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
+import { usePress, UsePressEvent } from "hooks/gestures";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import usePress from "hooks/usePress";
 import { CopyIcon } from "icons";
 import Markdown from "markdown-to-jsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -15,6 +15,7 @@ type HeadingLevel = "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
 
 type HeadingProps = {
     children: string;
+    // eslint-disable-next-line no-magic-numbers
     level: 1 | 2 | 3 | 4 | 5 | 6;
 };
 
@@ -54,13 +55,13 @@ function CodeBlock({ children }) {
         };
     }, []);
 
-    const copyCode = () => {
+    function copyCode() {
         if (textRef && textRef.current) {
             // Copy the text content of the code block
             navigator.clipboard.writeText(textRef.current.textContent ?? "");
             PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
         }
-    };
+    }
 
     return (
         <div style={{ position: "relative" }}>
@@ -160,15 +161,17 @@ const specialRoutes = [
 const routeToEndpoint = {
     [LINKS.Api]: endpointGetApi,
     [LINKS.Chat]: endpointGetChat,
-    [LINKS.Code]: endpointGetCode,
+    [LINKS.DataConverter]: endpointGetCode,
+    [LINKS.DataStructure]: endpointGetStandard,
     [LINKS.Comment]: endpointGetComment,
     [LINKS.Note]: endpointGetNote,
     [LINKS.Project]: endpointGetProject,
+    [LINKS.Prompt]: endpointGetStandard,
     [LINKS.Question]: endpointGetQuestion,
     [LINKS.Quiz]: endpointGetQuiz,
     [LINKS.Report]: endpointGetReport,
     [LINKS.Routine]: endpointGetRoutine,
-    [LINKS.Standard]: endpointGetStandard,
+    [LINKS.SmartContract]: endpointGetCode,
     [LINKS.Tag]: endpointGetTag,
     [LINKS.Team]: endpointGetTeam,
     [LINKS.User]: endpointGetUser,
@@ -197,7 +200,7 @@ function CustomLink({ children, href }) {
 
     // Popover to display more info
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-    const open = useCallback((target: EventTarget) => {
+    const open = useCallback(({ target }: UsePressEvent) => {
         setAnchorEl(target as HTMLElement);
         const urlParams = parseSingleItemUrl({ href });
         if (exists(urlParams.handle)) getData({ handle: urlParams.handle });

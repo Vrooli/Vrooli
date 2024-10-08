@@ -2,6 +2,7 @@ import { MaxObjects, nodeLoopWhileValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { NodeLoopWhileFormat } from "../formats";
@@ -46,17 +47,31 @@ export const NodeLoopWhileModel: NodeLoopWhileModelLogic = ({
         isDeleted: (data, languages) => ModelMap.get<NodeLoopModelLogic>("NodeLoop").validate().isDeleted(data.loop as NodeLoopModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<NodeLoopWhileModelInfo["PrismaSelect"]>([["loop", "NodeLoop"]], ...rest),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    loop: ModelMap.get<NodeLoopModelLogic>("NodeLoop").validate().visibility.private(...params),
+                    loop: useVisibility("NodeLoop", "Own", data),
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    loop: ModelMap.get<NodeLoopModelLogic>("NodeLoop").validate().visibility.public(...params),
+                    loop: useVisibility("NodeLoop", "OwnOrPublic", data),
                 };
             },
-            owner: (userId) => ({ loop: ModelMap.get<NodeLoopModelLogic>("NodeLoop").validate().visibility.owner(userId) }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    loop: useVisibility("NodeLoop", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    loop: useVisibility("NodeLoop", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    loop: useVisibility("NodeLoop", "Public", data),
+                };
+            },
         },
     }),
 });

@@ -87,10 +87,10 @@ export class QuoteNode extends ElementNode {
     }
 }
 
-const convertBlockquoteElement = (element: HTMLElement): DOMConversionOutput => {
+function convertBlockquoteElement(element: HTMLElement): DOMConversionOutput {
     const node = $createNode("Quote", {});
     if (element.style !== null) {
         node.setFormat(element.style.textAlign as ElementFormatType);
     }
     return { node };
-};
+}

@@ -1,5 +1,5 @@
 import { BottomNavigation, useTheme } from "@mui/material";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useKeyboardOpen } from "hooks/useKeyboardOpen";
 import { useContext, useMemo } from "react";
 import { useLocation } from "route";

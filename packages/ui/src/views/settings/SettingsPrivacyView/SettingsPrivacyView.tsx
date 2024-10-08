@@ -1,41 +1,50 @@
 import { endpointPutProfile, ProfileUpdateInput, profileValidation, User } from "@local/shared";
-import { Box, Stack, Typography, useTheme } from "@mui/material";
+import { Box, styled, Typography } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsToggleListItem } from "components/lists/SettingsToggleListItem/SettingsToggleListItem";
-import { SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
-import { Formik, useField } from "formik";
+import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
+import { Formik, FormikHelpers, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useProfileQuery } from "hooks/useProfileQuery";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { pagePaddingBottom } from "styles";
+import { ScrollBox } from "styles";
 import { PubSub } from "utils/pubsub";
 import { SettingsPrivacyFormProps, SettingsPrivacyViewProps } from "../types";
 
-const SettingsPrivacyForm = ({
+const PrivateWarningText = styled(Typography)(({ theme }) => ({
+    // eslint-disable-next-line no-magic-numbers
+    marginBottom: theme.spacing(4),
+    color: theme.palette.warning.main,
+    fontStyle: "italic",
+}));
+
+const mainListContainerStyle = { marginBottom: 2 } as const;
+const categoriesListContainerStyle = { marginBottom: 4 } as const;
+const outerFormStyle = { width: "100%" } as const;
+
+function SettingsPrivacyForm({
     display,
-    dirty,
     isLoading,
     onCancel,
-    values,
     ...props
-}: SettingsPrivacyFormProps) => {
-    const { palette } = useTheme();
+}: SettingsPrivacyFormProps) {
     const { t } = useTranslation();
 
     const [isPrivateField] = useField<boolean>("isPrivate");
 
     return (
-        <>
+        <Box sx={outerFormStyle}>
             <BaseForm
                 display={display}
                 isLoading={isLoading}
             >
                 {/* Overall notifications toggle */}
-                <ListContainer sx={{ marginBottom: 2 }}>
+                <ListContainer sx={mainListContainerStyle}>
                     <SettingsToggleListItem
                         title={t("PrivateAccount")}
                         description={t("PushNotificationToggleDescription")}
@@ -44,15 +53,11 @@ const SettingsPrivacyForm = ({
                 </ListContainer>
                 {/* By object type */}
                 {isPrivateField.value && (
-                    <Typography variant="body2" sx={{
-                        marginTop: 4,
-                        marginBottom: 1,
-                        color: palette.warning.main,
-                    }}>
+                    <PrivateWarningText variant="body2">
                         All of your content is private. Turn off private mode to change specific settings.
-                    </Typography>
+                    </PrivateWarningText>
                 )}
-                <ListContainer sx={{ marginBottom: 4 }}>
+                <ListContainer sx={categoriesListContainerStyle}>
                     <SettingsToggleListItem
                         disabled={isPrivateField.value}
                         title={t("PrivateApis")}
@@ -94,65 +99,69 @@ const SettingsPrivacyForm = ({
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={props.handleSubmit}
             />
-        </>
+        </Box>
     );
-};
+}
 
 
-export const SettingsPrivacyView = ({
+export function SettingsPrivacyView({
     display,
     onClose,
-}: SettingsPrivacyViewProps) => {
+}: SettingsPrivacyViewProps) {
     const { t } = useTranslation();
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
     const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);
 
+    const initialValues = useMemo<ProfileUpdateInput>(function initialValuesMemo() {
+        return {
+            isPrivate: profile?.isPrivate ?? false,
+            isPrivateApis: profile?.isPrivateApis ?? false,
+            isPrivateBookmarks: profile?.isPrivateBookmarks ?? false,
+            isPrivateCodes: profile?.isPrivateCodes ?? false,
+            isPrivateProjects: profile?.isPrivateProjects ?? false,
+            isPrivateRoutines: profile?.isPrivateRoutines ?? false,
+            isPrivateStandards: profile?.isPrivateStandards ?? false,
+        };
+    }, [profile?.isPrivate, profile?.isPrivateApis, profile?.isPrivateBookmarks, profile?.isPrivateCodes, profile?.isPrivateProjects, profile?.isPrivateRoutines, profile?.isPrivateStandards]);
+
+    const handleSubmit = useCallback(function handleSubmitCallback(values: ProfileUpdateInput, helpers: FormikHelpers<ProfileUpdateInput>) {
+        if (!profile) {
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
+            return;
+        }
+        fetchLazyWrapper<ProfileUpdateInput, User>({
+            fetch,
+            inputs: values,
+            successMessage: () => ({ messageKey: "SettingsUpdated" }),
+            onSuccess: (data) => { onProfileUpdate(data); },
+            onCompleted: () => { helpers.setSubmitting(false); },
+        });
+    }, [fetch, onProfileUpdate, profile]);
+
     return (
-        <>
+        <ScrollBox>
             <SettingsTopBar
                 display={display}
                 onClose={onClose}
                 title={t("Privacy")}
             />
-            <Stack direction="row" sx={{ paddingBottom: pagePaddingBottom }}>
+            <SettingsContent>
                 <SettingsList />
-                <Box m="auto" mt={2}>
-                    <Formik
-                        enableReinitialize={true}
-                        initialValues={{
-                            isPrivate: profile?.isPrivate ?? false,
-                            isPrivateApis: profile?.isPrivateApis ?? false,
-                            isPrivateBookmarks: profile?.isPrivateBookmarks ?? false,
-                            isPrivateCodes: profile?.isPrivateCodes ?? false,
-                            isPrivateProjects: profile?.isPrivateProjects ?? false,
-                            isPrivateRoutines: profile?.isPrivateRoutines ?? false,
-                            isPrivateStandards: profile?.isPrivateStandards ?? false,
-                        } as ProfileUpdateInput}
-                        onSubmit={(values, helpers) => {
-                            if (!profile) {
-                                PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
-                                return;
-                            }
-                            fetchLazyWrapper<ProfileUpdateInput, User>({
-                                fetch,
-                                inputs: values,
-                                successMessage: () => ({ messageKey: "SettingsUpdated" }),
-                                onSuccess: (data) => { onProfileUpdate(data); },
-                                onCompleted: () => { helpers.setSubmitting(false); },
-                            });
-                        }}
-                        validationSchema={profileValidation.update({ env: process.env.NODE_ENV })}
-                    >
-                        {(formik) => <SettingsPrivacyForm
-                            display={display}
-                            isLoading={isProfileLoading || isUpdating}
-                            onCancel={formik.resetForm}
-                            {...formik}
-                        />}
-                    </Formik>
-                </Box>
-            </Stack>
-        </>
+                <Formik
+                    enableReinitialize={true}
+                    initialValues={initialValues}
+                    onSubmit={handleSubmit}
+                    validationSchema={profileValidation.update({ env: process.env.NODE_ENV })}
+                >
+                    {(formik) => <SettingsPrivacyForm
+                        display={display}
+                        isLoading={isProfileLoading || isUpdating}
+                        onCancel={formik.resetForm}
+                        {...formik}
+                    />}
+                </Formik>
+            </SettingsContent>
+        </ScrollBox>
     );
-};
+}

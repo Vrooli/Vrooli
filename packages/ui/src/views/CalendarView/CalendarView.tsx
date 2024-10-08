@@ -4,7 +4,7 @@ import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideAc
 import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { add, endOfMonth, format, getDay, startOfMonth, startOfWeek } from "date-fns";
 import { useFindMany } from "hooks/useFindMany";
 import { useTabs } from "hooks/useTabs";

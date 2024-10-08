@@ -74,6 +74,7 @@ export const projectVersionDirectory_findOne = {
       "canUse": true,
       "canRead": true
     },
+    "schemaLanguage": true,
     "root": {
       "id": true,
       "created_at": true,
@@ -549,6 +550,15 @@ export const projectVersionDirectory_findOne = {
     "simplicity": true,
     "versionIndex": true,
     "versionLabel": true,
+    "you": {
+      "canComment": true,
+      "canCopy": true,
+      "canDelete": true,
+      "canReport": true,
+      "canUpdate": true,
+      "canUse": true,
+      "canRead": true
+    },
     "root": {
       "id": true,
       "created_at": true,
@@ -710,6 +720,17 @@ export const projectVersionDirectory_findOne = {
     "nodeLinksCount": true,
     "outputsCount": true,
     "reportsCount": true,
+    "you": {
+      "canComment": true,
+      "canCopy": true,
+      "canDelete": true,
+      "canBookmark": true,
+      "canReport": true,
+      "canRun": true,
+      "canUpdate": true,
+      "canRead": true,
+      "canReact": true
+    },
     "root": {
       "id": true,
       "created_at": true,
@@ -853,16 +874,17 @@ export const projectVersionDirectory_findOne = {
     "id": true,
     "created_at": true,
     "updated_at": true,
+    "codeLanguage": true,
+    "default": true,
     "isComplete": true,
     "isFile": true,
     "isLatest": true,
     "isPrivate": true,
-    "default": true,
-    "standardType": true,
     "props": true,
-    "yup": true,
+    "variant": true,
     "versionIndex": true,
     "versionLabel": true,
+    "yup": true,
     "commentsCount": true,
     "directoryListingsCount": true,
     "forksCount": true,

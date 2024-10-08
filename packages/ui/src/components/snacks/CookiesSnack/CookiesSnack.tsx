@@ -4,7 +4,7 @@ import { CloseIcon, LargeCookieIcon } from "icons";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { noSelect } from "styles";
-import { CookiePreferences, setCookie } from "utils/cookies";
+import { CookiePreferences, setCookie } from "utils/localStorage";
 import { CookiesSnackProps } from "../types";
 
 /**

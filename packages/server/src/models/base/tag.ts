@@ -1,7 +1,8 @@
-import { MaxObjects, TagSortBy, tagValidation } from "@local/shared";
+import { MaxObjects, TagSortBy, getTranslation, tagValidation } from "@local/shared";
 import { ModelMap } from ".";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
-import { bestTranslation, defaultPermissions } from "../../utils";
+import { defaultPermissions } from "../../utils";
 import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString";
 import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { TagFormat } from "../formats";
@@ -23,9 +24,9 @@ export const TagModel: TagModelLogic = ({
         embed: {
             select: () => ({ id: true, tag: true, translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, description: true } } }),
             get: ({ tag, translations }, languages) => {
-                const trans = bestTranslation(translations, languages);
+                const trans = getTranslation({ translations }, languages);
                 return getEmbeddableString({
-                    description: trans?.description,
+                    description: trans.description,
                     tag,
                 }, languages[0]);
             },
@@ -97,13 +98,16 @@ export const TagModel: TagModelLogic = ({
         isPublic: () => true,
         profanityFields: ["tag"],
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: null, // Search method disabled, since no one owns site stats
+            // Always public, os it's the same as "public"
+            ownOrPublic: function getOwnOrPublic(data) {
+                return useVisibility("StatsSite", "Public", data);
             },
+            ownPrivate: null, // Search method disabled, since no one owns site stats
+            ownPublic: null, // Search method disabled, since no one owns site stats
             public: function getVisibilityPublic() {
-                return {};
+                return {}; // Intentionally empty, since site stats are always public
             },
-            owner: () => ({}),
         },
     }),
 });

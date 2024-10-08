@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { SearchPageTabOption, findObjectTabParams } from "../../../utils/search/objectToSearch";
+import { findObjectTabParams } from "../../../utils/search/objectToSearch";
 import { convertRootObjectToVersion, getFilteredTabs } from "./FindObjectDialog";
 
 describe("getFilteredTabs function", () => {
@@ -9,7 +9,7 @@ describe("getFilteredTabs function", () => {
     });
 
     test("returns limited tabs when limitTo is specified", () => {
-        const limitTo = [SearchPageTabOption.Api, SearchPageTabOption.Code];
+        const limitTo = ["Api", "DataConverter"] as const;
         const result = getFilteredTabs(limitTo, undefined);
         expect(result.map(tab => tab.key)).toEqual(expect.arrayContaining(limitTo));
     });
@@ -18,20 +18,23 @@ describe("getFilteredTabs function", () => {
         const result = getFilteredTabs(undefined, true);
         // Expect all object types that can be versioned
         const expectedKeys = [
-            SearchPageTabOption.Api,
-            SearchPageTabOption.Code,
-            SearchPageTabOption.Note,
-            SearchPageTabOption.Project,
-            SearchPageTabOption.Routine,
-            SearchPageTabOption.Standard,
-        ];
+            "Api",
+            "DataConverter",
+            "DataStructure",
+            "Note",
+            "Project",
+            "Prompt",
+            "Routine",
+            "SmartContract",
+        ] as const;
         expect(result.map(tab => tab.key)).toEqual(expect.arrayContaining(expectedKeys));
+        expect(result.length).toBe(expectedKeys.length);
     });
 
     test("returns limited versioned tabs when both limitTo and onlyVersioned are specified", () => {
-        const limitTo = [SearchPageTabOption.Api, SearchPageTabOption.Note, SearchPageTabOption.User];
+        const limitTo = ["Api", "Note", "Bot"] as const;
         const result = getFilteredTabs(limitTo, true);
-        const expectedKeys = [SearchPageTabOption.Api, SearchPageTabOption.Note]; // Users are not versioned
+        const expectedKeys = ["Api", "Note"]; // Users are not versioned
         expect(result.map(tab => tab.key)).toEqual(expect.arrayContaining(expectedKeys));
     });
 
@@ -42,7 +45,8 @@ describe("getFilteredTabs function", () => {
     });
 
     test("handles non-existent keys in limitTo", () => {
-        const limitTo = ["NonExistent"];
+        const limitTo = ["NonExistent"] as const;
+        // @ts-ignore: Testing runtime scenario
         const result = getFilteredTabs(limitTo, undefined);
         expect(result).toEqual([]);
     });

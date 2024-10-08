@@ -1,6 +1,7 @@
-import { MaxObjects, QuestionAnswerSortBy, questionAnswerValidation } from "@local/shared";
+import { MaxObjects, QuestionAnswerSortBy, getTranslation, questionAnswerValidation } from "@local/shared";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { bestTranslation, defaultPermissions } from "../../utils";
+import { useVisibility } from "../../builders/visibilityBuilder";
+import { defaultPermissions } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { QuestionAnswerFormat } from "../formats";
 import { QuestionAnswerModelLogic } from "./types";
@@ -13,7 +14,7 @@ export const QuestionAnswerModel: QuestionAnswerModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, translations: { select: { language: true, text: true } } }),
-            get: (select, languages) => bestTranslation(select.translations, languages)?.text ?? "",
+            get: (select, languages) => getTranslation(select, languages).text ?? "",
         },
     }),
     format: QuestionAnswerFormat,
@@ -62,15 +63,32 @@ export const QuestionAnswerModel: QuestionAnswerModelLogic = ({
             createdBy: "User",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return {
+                    createdBy: { id: data.userId },
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    OR: [
+                        { createdBy: { id: data.userId } },
+                        { question: useVisibility("Question", "Public", data) },
+                    ],
+                };
             },
-            owner: (userId) => ({
-                createdBy: { id: userId },
-            }),
+            // Search method not useful for this object because answers are not explicitly set as private, so we'll return "Own"
+            // TODO when drafts are added, this and related functions will have to change
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("QuestionAnswer", "Own", data);
+            },
+            ownPublic: function getOwnPublic(data) {
+                return useVisibility("QuestionAnswer", "Own", data);
+            },
+            public: function getPublic(data) {
+                return {
+                    question: useVisibility("Question", "Public", data),
+                };
+            },
         },
     }),
 });

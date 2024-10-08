@@ -2,9 +2,9 @@ import { GqlModelType, LINKS, ListObject, getObjectUrlBase } from "@local/shared
 import { useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
-import { SearchList } from "components/lists/SearchList/SearchList";
+import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useFindMany } from "hooks/useFindMany";
 import { useTabs } from "hooks/useTabs";
 import { AddIcon, SearchIcon } from "icons";
@@ -17,6 +17,8 @@ import { scrollIntoFocusedView } from "utils/display/scroll";
 import { PubSub } from "utils/pubsub";
 import { searchVersionViewTabParams } from "utils/search/objectToSearch";
 import { SearchVersionViewProps } from "../types";
+
+const scrollContainerId = "version-search-scroll";
 
 /**
  * Uncommon search page for versioned objects
@@ -61,7 +63,7 @@ export function SearchVersionView({
     function focusSearch() { scrollIntoFocusedView("search-bar-version-search-page-list"); }
 
     return (
-        <>
+        <SearchListScrollContainer id={scrollContainerId}>
             <TopBar
                 display={display}
                 onClose={onClose}
@@ -79,9 +81,8 @@ export function SearchVersionView({
             />
             {searchType && <SearchList
                 {...findManyData}
-                id="version-search-page-list"
                 display={display}
-                sxs={{ search: { marginTop: 2 } }}
+                scrollContainerId={scrollContainerId}
             />}
             <SideActionsButtons display={display}>
                 <SideActionsButton aria-label={t("FilterList")} onClick={focusSearch}>
@@ -93,6 +94,6 @@ export function SearchVersionView({
                     </SideActionsButton>
                 ) : null}
             </SideActionsButtons>
-        </>
+        </SearchListScrollContainer>
     );
 }

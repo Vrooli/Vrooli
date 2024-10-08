@@ -2,6 +2,7 @@ import { MaxObjects, nodeLinkWhenValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { NodeLinkWhenFormat } from "../formats";
@@ -46,17 +47,31 @@ export const NodeLinkWhenModel: NodeLinkWhenModelLogic = ({
         isDeleted: (data, languages) => ModelMap.get<NodeLinkModelLogic>("NodeLink").validate().isDeleted(data.link as NodeLinkModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<NodeLinkWhenModelInfo["PrismaSelect"]>([["link", "NodeLink"]], ...rest),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    link: ModelMap.get<NodeLinkModelLogic>("NodeLink").validate().visibility.private(...params),
+                    link: useVisibility("NodeLink", "Own", data),
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    link: ModelMap.get<NodeLinkModelLogic>("NodeLink").validate().visibility.public(...params),
+                    link: useVisibility("NodeLink", "OwnOrPublic", data),
                 };
             },
-            owner: (userId) => ({ link: ModelMap.get<NodeLinkModelLogic>("NodeLink").validate().visibility.owner(userId) }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    link: useVisibility("NodeLink", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    link: useVisibility("NodeLink", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    link: useVisibility("NodeLink", "Public", data),
+                };
+            },
         },
     }),
 });

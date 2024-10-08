@@ -1,11 +1,52 @@
-import { Box, Tooltip, Typography, useTheme } from "@mui/material";
-import usePress from "hooks/usePress";
+import { Box, BoxProps, Tooltip, Typography, TypographyProps, styled } from "@mui/material";
+import { UsePressEvent, usePress } from "hooks/gestures";
 import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";
 import { BuildAction } from "utils/consts";
-import { NodeContextMenu, NodeWidth, calculateNodeSize } from "../..";
+import { NodeContextMenu, NodeWidth, SHOW_TITLE_ABOVE_SCALE, calculateNodeSize } from "../..";
 import { nodeLabel } from "../styles";
 import { StartNodeProps } from "../types";
+
+interface NodeTitleProps extends TypographyProps {
+    fontSize: string;
+    scale: number;
+}
+
+const NodeTitle = styled(Typography, {
+    shouldForwardProp: (prop) => prop !== "fontSize" && prop !== "scale",
+})<NodeTitleProps>(({ fontSize, scale }) => ({
+    ...noSelect,
+    ...nodeLabel,
+    pointerEvents: "none",
+    fontSize,
+    display: scale < SHOW_TITLE_ABOVE_SCALE ? "none" : "block",
+} as any));
+
+interface OuterCircleProps extends BoxProps {
+    nodeSize: string;
+    statusColor: string | null;
+}
+
+const OuterCircle = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "nodeSize" && prop !== "statusColor",
+})<OuterCircleProps>(({ nodeSize, statusColor, theme }) => ({
+    boxShadow: statusColor ? `0px 0px 12px ${statusColor}` : theme.shadows[12],
+    width: nodeSize,
+    height: nodeSize,
+    position: "relative",
+    display: "block",
+    backgroundColor: theme.palette.mode === "light" ? "#259a17" : "#387e30",
+    color: "white",
+    borderRadius: "100%",
+    "&:hover": {
+        filter: "brightness(120%)",
+        transition: "filter 0.2s",
+    },
+    "@media print": {
+        border: `1px solid ${theme.palette.mode === "light" ? "#259a17" : "#387e30"}`,
+        boxShadow: "none",
+    },
+}));
 
 export function StartNode({
     handleAction,
@@ -16,13 +57,7 @@ export function StartNode({
     labelVisible = true,
     linksOut,
 }: StartNodeProps) {
-    const { palette } = useTheme();
-
-    /**
-     * Border color indicates status of node.
-     * Red for not fully connected (missing in links)
-     */
-    const borderColor = useMemo<string | null>(() => {
+    const statusColor = useMemo<string | null>(() => {
         if (linksOut.length === 0) return "red";
         return null;
     }, [linksOut.length]);
@@ -30,24 +65,11 @@ export function StartNode({
     const nodeSize = useMemo(() => `min(max(${calculateNodeSize(NodeWidth.Start, scale) * 2}px, 5vw), 150px)`, [scale]);
     const fontSize = useMemo(() => `min(${calculateNodeSize(NodeWidth.Start, scale) / 2}px, 1.5em)`, [scale]);
 
-    const labelObject = useMemo(() => labelVisible && scale > -2 ? (
-        <Typography
-            variant="h6"
-            sx={{
-                ...noSelect,
-                ...nodeLabel,
-                fontSize,
-            }}
-        >
-            {label}
-        </Typography>
-    ) : null, [labelVisible, scale, fontSize, label]);
-
     // Right click context menu
     const [contextAnchor, setContextAnchor] = useState<any>(null);
     const contextId = useMemo(() => `node-context-menu-${node.id}`, [node]);
     const contextOpen = Boolean(contextAnchor);
-    const openContext = useCallback((target: EventTarget) => {
+    const openContext = useCallback(({ target }: UsePressEvent) => {
         if (!isEditing) return;
         setContextAnchor(target);
     }, [isEditing]);
@@ -62,6 +84,7 @@ export function StartNode({
             [BuildAction.AddOutgoingLink] :
             [];
     }, [isEditing]);
+    const handleContextSelect = useCallback((action: BuildAction) => { handleAction(action as BuildAction.AddOutgoingLink, node.id); }, [handleAction, node.id]);
 
     return (
         <>
@@ -71,34 +94,22 @@ export function StartNode({
                 anchorEl={contextAnchor}
                 availableActions={availableActions}
                 handleClose={closeContext}
-                handleSelect={(option) => { handleAction(option as BuildAction.AddOutgoingLink, node.id); }}
+                handleSelect={handleContextSelect}
             />
             <Tooltip placement={"top"} title={label ?? ""}>
-                <Box
+                <OuterCircle
                     id={`node-${node.id}`}
                     aria-owns={contextOpen ? contextId : undefined}
+                    nodeSize={nodeSize}
+                    statusColor={statusColor}
                     {...pressEvents}
-                    sx={{
-                        boxShadow: borderColor ? `0px 0px 12px ${borderColor}` : 12,
-                        width: nodeSize,
-                        height: nodeSize,
-                        position: "relative",
-                        display: "block",
-                        backgroundColor: palette.mode === "light" ? "#259a17" : "#387e30",
-                        color: "white",
-                        borderRadius: "100%",
-                        "&:hover": {
-                            filter: "brightness(120%)",
-                            transition: "filter 0.2s",
-                        },
-                        "@media print": {
-                            border: `1px solid ${palette.mode === "light" ? "#259a17" : "#387e30"}`,
-                            boxShadow: "none",
-                        },
-                    }}
                 >
-                    {labelObject}
-                </Box>
+                    {labelVisible && <NodeTitle
+                        fontSize={fontSize}
+                        scale={scale}
+                        variant="h6"
+                    >{label}</NodeTitle>}
+                </OuterCircle>
             </Tooltip>
         </>
     );

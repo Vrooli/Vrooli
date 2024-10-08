@@ -1,8 +1,9 @@
-import { ApiVersionSortBy, apiVersionValidation, MaxObjects } from "@local/shared";
+import { ApiVersionSortBy, apiVersionValidation, getTranslation, MaxObjects } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { bestTranslation, defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
+import { useVisibility } from "../../builders/visibilityBuilder";
+import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { afterMutationsVersion, preShapeVersion, PreShapeVersionResult, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
 import { ApiVersionFormat } from "../formats";
@@ -21,7 +22,7 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
             select: () => ({ id: true, callLink: true, translations: { select: { language: true, name: true } } }),
             get: ({ callLink, translations }, languages) => {
                 // Return name if exists, or callLink host
-                const name = bestTranslation(translations, languages)?.name ?? "";
+                const name = getTranslation({ translations }, languages).name ?? "";
                 if (name.length > 0) return name;
                 const url = new URL(callLink);
                 return url.host;
@@ -35,11 +36,11 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
                 translations: { select: { id: true, embeddingNeedsUpdate: true, language: true, name: true, summary: true } },
             }),
             get: ({ callLink, root, translations }, languages) => {
-                const trans = bestTranslation(translations, languages);
+                const trans = getTranslation({ translations }, languages);
                 return getEmbeddableString({
                     callLink,
-                    name: trans?.name,
-                    summary: trans?.summary,
+                    name: trans.name,
+                    summary: trans.summary,
                     tags: (root as any).tags.map(({ tag }) => tag),
                 }, languages[0]);
             },
@@ -69,6 +70,7 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
                     documentationLink: noNull(data.documentationLink),
                     isPrivate: data.isPrivate,
                     isComplete: noNull(data.isComplete),
+                    schemaLanguage: noNull(data.schemaLanguage),
                     schemaText: noNull(data.schemaText),
                     versionLabel: data.versionLabel,
                     versionNotes: noNull(data.versionNotes),
@@ -85,6 +87,7 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
                     documentationLink: noNull(data.documentationLink),
                     isPrivate: noNull(data.isPrivate),
                     isComplete: noNull(data.isComplete),
+                    schemaLanguage: noNull(data.schemaLanguage),
                     schemaText: noNull(data.schemaText),
                     versionLabel: noNull(data.versionLabel),
                     versionNotes: noNull(data.versionNotes),
@@ -135,7 +138,7 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ApiVersionModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -157,29 +160,84 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
         }),
         permissionResolvers: defaultPermissions,
         visibility: {
-            private: function getVisibilityPrivate() {
+            own: function getOwn(data) {
                 return {
-                    isDeleted: false,
-                    root: { isDeleted: false },
+                    isDeleted: false, // Can't be deleted
+                    root: useVisibility("Api", "Own", data),
+                };
+            },
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
                     OR: [
-                        { isPrivate: true },
-                        { root: { isPrivate: true } },
+                        // Objects you own
+                        {
+                            root: useVisibility("Api", "Own", data),
+                        },
+                        // Public objects
+                        {
+                            isPrivate: false, // Can't be private
+                            root: (useVisibility("ApiVersion", "Public", data) as { root: object }).root,
+                        },
                     ],
                 };
             },
-            public: function getVisibilityPublic() {
+            ownPrivate: function getOwnPrivate(data) {
                 return {
-                    isDeleted: false,
-                    root: { isDeleted: false },
-                    AND: [
-                        { isPrivate: false },
-                        { root: { isPrivate: false } },
+                    isDeleted: false, // Can't be deleted
+                    OR: [
+                        // Private versions you own
+                        {
+                            isPrivate: true, // Version is private
+                            root: useVisibility("Api", "Own", data),
+                        },
+                        // Private roots you own
+                        {
+                            root: {
+                                isPrivate: true, // Root is private
+                                ...useVisibility("Api", "Own", data),
+                            },
+                        },
                     ],
                 };
             },
-            owner: (userId) => ({
-                root: ModelMap.get<ApiModelLogic>("Api").validate().visibility.owner(userId),
-            }),
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    OR: [
+                        // Public versions you own
+                        {
+                            isPrivate: false, // Version is public
+                            root: useVisibility("Api", "Own", data),
+                        },
+                        // Public roots you own
+                        {
+                            root: {
+                                isPrivate: false, // Root is public
+                                ...useVisibility("Api", "Own", data),
+                            },
+                        },
+                    ],
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false, // Version can't be private
+                    root: {
+                        isDeleted: false, // Root can't be deleted
+                        isPrivate: false, // Root can't be private
+                        OR: [
+                            // Unowned
+                            { ownedByTeam: null, ownedByUser: null },
+                            // Owned by public teams
+                            { ownedByTeam: useVisibility("Team", "Public", data) },
+                            // Owned by public users
+                            { ownedByUser: { isPrivate: false, isPrivateApis: false } },
+                        ],
+                    },
+                };
+            },
         },
     }),
 });

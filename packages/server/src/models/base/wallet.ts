@@ -1,5 +1,6 @@
 import { MaxObjects, walletValidation } from "@local/shared";
 import { ModelMap } from ".";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { defaultPermissions } from "../../utils";
@@ -58,18 +59,25 @@ export const WalletModel: WalletModelLogic = ({
         isDeleted: () => false,
         isPublic: () => false, // Can make public in the future for donations, but for now keep private for security
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return {
+                    OR: [
+                        // TODO will have to update how owners are determined in the future. All members shouldn't always be considered owners. Just members with certain roles.
+                        { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                        { user: { id: data.userId } },
+                    ],
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            // Always private, so it's the same as "own"
+            ownOrPublic: function getOwnOrPublic(data) {
+                return useVisibility("Wallet", "Own", data);
             },
-            owner: (userId) => ({
-                OR: [
-                    { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
-                    { user: { id: userId } },
-                ],
-            }),
+            // Always private, so it's the same as "own"
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("Wallet", "Own", data);
+            },
+            ownPublic: null, // Search method disabled
+            public: null, // Search method disabled
         },
     }),
 });

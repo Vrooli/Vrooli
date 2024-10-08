@@ -22,6 +22,8 @@ export const nodeRoutineListItem: GqlPartial<NodeRoutineListItem> = {
         isOptional: true,
         translations: () => rel(nodeRoutineListItemTranslation, "full"),
     },
-    full: {},
+    full: {
+        routineVersion: async () => rel((await import("./routineVersion")).routineVersion, "nav"),
+    },
     list: {},
 };

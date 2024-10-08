@@ -141,6 +141,7 @@ export const routine_create = {
       "isPrivate": true,
       "__typename": "Routine"
     },
+    "routineType": true,
     "translations": {
       "id": true,
       "language": true,
@@ -176,6 +177,17 @@ export const routine_create = {
     "nodeLinksCount": true,
     "outputsCount": true,
     "reportsCount": true,
+    "you": {
+      "canComment": true,
+      "canCopy": true,
+      "canDelete": true,
+      "canBookmark": true,
+      "canReport": true,
+      "canRun": true,
+      "canUpdate": true,
+      "canRead": true,
+      "canReact": true
+    },
     "configCallData": true,
     "configFormInput": true,
     "configFormOutput": true,
@@ -382,15 +394,6 @@ export const routine_create = {
           },
           "__typename": "ApiVersion"
         },
-        "stats": {
-          "id": true,
-          "periodStart": true,
-          "periodEnd": true,
-          "periodType": true,
-          "calls": true,
-          "routineVersions": true,
-          "__typename": "StatsApi"
-        },
         "__typename": "Api"
       },
       "translations": {
@@ -400,6 +403,7 @@ export const routine_create = {
         "name": true,
         "summary": true
       },
+      "schemaLanguage": true,
       "schemaText": true,
       "versionNotes": true,
       "__typename": "ApiVersion"
@@ -637,14 +641,6 @@ export const routine_create = {
           },
           "__typename": "CodeVersion"
         },
-        "stats": {
-          "id": true,
-          "periodStart": true,
-          "periodEnd": true,
-          "periodType": true,
-          "calls": true,
-          "routineVersions": true
-        },
         "__typename": "Code"
       },
       "translations": {
@@ -665,16 +661,17 @@ export const routine_create = {
         "id": true,
         "created_at": true,
         "updated_at": true,
+        "codeLanguage": true,
+        "default": true,
         "isComplete": true,
         "isFile": true,
         "isLatest": true,
         "isPrivate": true,
-        "default": true,
-        "standardType": true,
         "props": true,
-        "yup": true,
+        "variant": true,
         "versionIndex": true,
         "versionLabel": true,
+        "yup": true,
         "commentsCount": true,
         "directoryListingsCount": true,
         "forksCount": true,
@@ -858,6 +855,7 @@ export const routine_create = {
             "isPrivate": true,
             "__typename": "Routine"
           },
+          "routineType": true,
           "translations": {
             "id": true,
             "language": true,
@@ -884,6 +882,32 @@ export const routine_create = {
             "language": true,
             "description": true,
             "name": true
+          },
+          "routineVersion": {
+            "id": true,
+            "complexity": true,
+            "isAutomatable": true,
+            "isComplete": true,
+            "isDeleted": true,
+            "isLatest": true,
+            "isPrivate": true,
+            "root": {
+              "id": true,
+              "isInternal": true,
+              "isPrivate": true,
+              "__typename": "Routine"
+            },
+            "routineType": true,
+            "translations": {
+              "id": true,
+              "language": true,
+              "description": true,
+              "instructions": true,
+              "name": true
+            },
+            "versionIndex": true,
+            "versionLabel": true,
+            "__typename": "RoutineVersion"
           },
           "__typename": "NodeRoutineListItem"
         },
@@ -929,16 +953,17 @@ export const routine_create = {
         "id": true,
         "created_at": true,
         "updated_at": true,
+        "codeLanguage": true,
+        "default": true,
         "isComplete": true,
         "isFile": true,
         "isLatest": true,
         "isPrivate": true,
-        "default": true,
-        "standardType": true,
         "props": true,
-        "yup": true,
+        "variant": true,
         "versionIndex": true,
         "versionLabel": true,
+        "yup": true,
         "commentsCount": true,
         "directoryListingsCount": true,
         "forksCount": true,
@@ -1168,6 +1193,7 @@ export const routine_create = {
         "isPrivate": true,
         "__typename": "Routine"
       },
+      "routineType": true,
       "translations": {
         "id": true,
         "language": true,
@@ -1187,16 +1213,6 @@ export const routine_create = {
       "name": true
     },
     "__typename": "RoutineVersion"
-  },
-  "stats": {
-    "id": true,
-    "periodStart": true,
-    "periodEnd": true,
-    "periodType": true,
-    "runsStarted": true,
-    "runsCompleted": true,
-    "runCompletionTimeAverage": true,
-    "runContextSwitchesAverage": true
   },
   "__typename": "Routine"
 } as const;

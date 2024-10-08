@@ -40,7 +40,7 @@ const lightPalette = {
         contrastText: "#ffffff",
     },
     background: {
-        default: "#e9ebf1",
+        default: "#c2cadd", // "#e9ebf1",
         paper: "#ebeff5",
         textPrimary: "#000000",
         textSecondary: "#6f6f6f",

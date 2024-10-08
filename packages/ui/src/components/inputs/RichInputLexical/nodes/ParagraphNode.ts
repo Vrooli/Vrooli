@@ -143,7 +143,7 @@ export class ParagraphNode extends ElementNode {
     }
 }
 
-const convertParagraphElement = (element: HTMLElement): DOMConversionOutput => {
+function convertParagraphElement(element: HTMLElement): DOMConversionOutput {
     const node = $createNode("Paragraph", {});
     if (element.style) {
         node.setFormat(element.style.textAlign as ElementFormatType);
@@ -153,4 +153,4 @@ const convertParagraphElement = (element: HTMLElement): DOMConversionOutput => {
         }
     }
     return { node };
-};
+}

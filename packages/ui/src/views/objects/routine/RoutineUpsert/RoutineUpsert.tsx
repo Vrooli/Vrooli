@@ -1,6 +1,7 @@
-import { DUMMY_ID, endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, LINKS, noopSubmit, orDefault, RoutineType, RoutineVersion, RoutineVersionCreateInput, routineVersionTranslationValidation, RoutineVersionUpdateInput, routineVersionValidation, Session, uuid } from "@local/shared";
+import { ConfigCallData, DUMMY_ID, FormInputBase, FormSchema, LINKS, LlmModel, LlmTask, NodeLinkShape, NodeShape, RoutineShape, RoutineType, RoutineVersion, RoutineVersionCreateInput, RoutineVersionInputShape, RoutineVersionOutputShape, RoutineVersionShape, RoutineVersionUpdateInput, SearchPageTabOption, Session, defaultConfigCallDataMap, defaultConfigFormInputMap, defaultConfigFormOutputMap, endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, initializeRoutineGraph, noop, noopSubmit, orDefault, parseConfigCallData, parseSchemaInput, parseSchemaOutput, routineVersionTranslationValidation, routineVersionValidation, shapeRoutineVersion, uuid, uuidValidate } from "@local/shared";
 import { Checkbox, Divider, FormControlLabel, Grid, Tooltip } from "@mui/material";
 import { useSubmitHelper } from "api";
+import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
@@ -14,11 +15,11 @@ import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { ResourceListInput } from "components/lists/resource/ResourceList/ResourceList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { FieldHelperProps, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { FormInputBase, FormSchema } from "forms/types";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { UseAutoFillProps, getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
@@ -27,21 +28,11 @@ import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
-import { LlmModel } from "utils/botUtils";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
-import { defaultSchemaInput, defaultSchemaOutput, parseConfigCallData, parseSchemaInputOutput } from "utils/routineUtils";
-import { initializeRoutineGraph } from "utils/runUtils";
-import { SearchPageTabOption } from "utils/search/objectToSearch";
 import { getRoutineTypeDescription, getRoutineTypeIcon, getRoutineTypeLabel, routineTypes } from "utils/search/schemas/routine";
-import { NodeShape } from "utils/shape/models/node";
-import { NodeLinkShape } from "utils/shape/models/nodeLink";
-import { RoutineShape } from "utils/shape/models/routine";
-import { RoutineVersionShape, shapeRoutineVersion } from "utils/shape/models/routineVersion";
-import { RoutineVersionInputShape } from "utils/shape/models/routineVersionInput";
-import { RoutineVersionOutputShape } from "utils/shape/models/routineVersionOutput";
 import { validateFormValues } from "utils/validateFormValues";
-import { ConfigCallData, RoutineApiForm, RoutineCodeForm, RoutineDataForm, RoutineGenerateForm, RoutineInformationalForm, RoutineMultiStepForm, RoutineSmartContractForm } from "../RoutineTypeForms/RoutineTypeForms";
+import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineGenerateForm, RoutineInformationalForm, RoutineMultiStepForm, RoutineSmartContractForm } from "../RoutineTypeForms/RoutineTypeForms";
 import { BuildRoutineVersion, RoutineFormProps, RoutineUpsertProps } from "../types";
 
 export function routineInitialValues(
@@ -165,7 +156,7 @@ export function updateSchemaElements({
                     // Add new translation
                     updatedTranslations.push({
                         __typename: type === "inputs" ? "RoutineVersionInputTranslation" : "RoutineVersionOutputTranslation",
-                        id: DUMMY_ID,
+                        id: uuidValidate(element.id) ? element.id : DUMMY_ID,
                         ...newTranslation,
                     });
                 }
@@ -184,7 +175,7 @@ export function updateSchemaElements({
             // Create new element
             return {
                 __typename: type === "inputs" ? "RoutineVersionInput" : "RoutineVersionOutput",
-                id: DUMMY_ID,
+                id: uuidValidate(element.id) ? element.id : DUMMY_ID,
                 name: element.fieldName,
                 isRequired,
                 routineVersion: {
@@ -213,6 +204,7 @@ function RoutineForm({
     display,
     existing,
     isCreate,
+    handleUpdate,
     isOpen,
     isReadLoading,
     isSubroutine,
@@ -259,18 +251,18 @@ function RoutineForm({
     const [codeVersionField, , codeVersionHelpers] = useField<RoutineVersion["codeVersion"]>("codeVersion");
 
     const configCallData = useMemo(function configCallDataMemo() {
-        return parseConfigCallData(configCallDataField.value, routineTypeField.value);
+        return parseConfigCallData(configCallDataField.value, routineTypeField.value, console);
     }, [configCallDataField.value, routineTypeField.value]);
     const onConfigCallDataChange = useCallback(function onConfigCallDataChange(config: ConfigCallData) {
         configCallDataHelpers.setValue(JSON.stringify(config));
     }, [configCallDataHelpers]);
 
     const schemaInput = useMemo(function schemeInputMemo() {
-        return parseSchemaInputOutput(configFormInputField.value, defaultSchemaInput);
-    }, [configFormInputField.value]);
+        return parseSchemaInput(configFormInputField.value, routineTypeField.value, console);
+    }, [configFormInputField.value, routineTypeField.value]);
     const schemaOutput = useMemo(function schemaOutputMemo() {
-        return parseSchemaInputOutput(configFormOutputField.value, defaultSchemaOutput);
-    }, [configFormOutputField.value]);
+        return parseSchemaOutput(configFormOutputField.value, routineTypeField.value, console);
+    }, [configFormOutputField.value, routineTypeField.value]);
     const onSchemaInputChange = useCallback(function onSchemaInputChange(schema: FormSchema) {
         configFormInputHelpers.setValue(JSON.stringify(schema));
         updateSchemaElements({
@@ -357,14 +349,14 @@ function RoutineForm({
         function performSwitch() {
             apiVersionHelpers.setValue(null);
             codeVersionHelpers.setValue(null);
-            configCallDataHelpers.setValue(null);
-            configFormInputHelpers.setValue(null);
-            configFormOutputHelpers.setValue(null);
             inputsHelpers.setValue([]);
             outputsHelpers.setValue([]);
             nodesHelpers.setValue([]);
             nodeLinksHelpers.setValue([]);
             routineTypeHelpers.setValue(type);
+            onConfigCallDataChange(defaultConfigCallDataMap[type]());
+            onSchemaInputChange(defaultConfigFormInputMap[type]());
+            onSchemaOutputChange(defaultConfigFormOutputMap[type]());
             // If we switch to a multi-step routine, open the graph
             if (type === RoutineType.MultiStep) handleGraphOpen();
         }
@@ -385,7 +377,7 @@ function RoutineForm({
         else {
             performSwitch();
         }
-    }, [routineTypeField.value, configCallDataField.value, configFormInputField.value, configFormOutputField.value, apiVersionField.value, codeVersionField.value, nodesField.value, nodeLinksField.value, apiVersionHelpers, codeVersionHelpers, configCallDataHelpers, configFormInputHelpers, configFormOutputHelpers, inputsHelpers, outputsHelpers, nodesHelpers, nodeLinksHelpers, routineTypeHelpers, handleGraphOpen]);
+    }, [routineTypeField.value, configCallDataField.value, configFormInputField.value, configFormOutputField.value, apiVersionField.value, codeVersionField.value, nodesField.value, nodeLinksField.value, apiVersionHelpers, codeVersionHelpers, inputsHelpers, outputsHelpers, nodesHelpers, nodeLinksHelpers, routineTypeHelpers, onConfigCallDataChange, onSchemaInputChange, onSchemaOutputChange, handleGraphOpen]);
 
     const { handleCancel, handleCompleted } = useUpsertActions<RoutineVersion>({
         display,
@@ -407,7 +399,28 @@ function RoutineForm({
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "RoutineVersion" });
 
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+    const getAutoFillInput = useCallback(function getAutoFillInput() {
+        return {
+            ...getAutoFillTranslationData(values, language),
+            //TODO
+        };
+    }, [language, values]);
+
+    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback(data: Parameters<UseAutoFillProps["shapeAutoFillResult"]>[0]) {
+        const originalValues = { ...values };
+        const updatedValues = {} as any; //TODO
+        console.log("in shapeAutoFillResult", language, data, originalValues, updatedValues);
+        return { originalValues, updatedValues };
+    }, [language, values]);
+
+    const { autoFill, isAutoFillLoading } = useAutoFill({
+        getAutoFillInput,
+        shapeAutoFillResult,
+        handleUpdate,
+        task: isCreate ? LlmTask.RoutineAdd : LlmTask.RoutineUpdate,
+    });
+
+    const isLoading = useMemo(() => isAutoFillLoading || isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isAutoFillLoading, isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 
     const onSubmit = useSubmitHelper<RoutineVersionCreateInput | RoutineVersionUpdateInput, RoutineVersion>({
         disabled,
@@ -423,13 +436,15 @@ function RoutineForm({
         return {
             configCallData,
             disabled,
-            isEditing: true,
+            display: "edit",
+            handleGenerateOutputs: noop,
+            isGeneratingOutputs: false,
             onConfigCallDataChange,
             onSchemaInputChange,
             onSchemaOutputChange,
             schemaInput,
             schemaOutput,
-        };
+        } as const;
     }, [configCallData, disabled, onConfigCallDataChange, onSchemaInputChange, onSchemaOutputChange, schemaInput, schemaOutput]);
 
     // Type-specific components
@@ -438,7 +453,7 @@ function RoutineForm({
             case RoutineType.Api:
                 return <RoutineApiForm {...routineTypeBaseProps} />;
             case RoutineType.Code:
-                return <RoutineCodeForm {...routineTypeBaseProps} />;
+                return <RoutineDataConverterForm {...routineTypeBaseProps} />;
             case RoutineType.Data:
                 return <RoutineDataForm {...routineTypeBaseProps} />;
             case RoutineType.Generate:
@@ -486,7 +501,6 @@ function RoutineForm({
             <BaseForm
                 display={display}
                 isLoading={isLoading}
-                maxWidth={700}
             >
                 <FormContainer>
                     <ContentCollapse title="Basic info" titleVariant="h4" isOpen={display === "page"} sxs={basicInfoCollapseStyle}>
@@ -502,9 +516,7 @@ function RoutineForm({
                             sxs={resourceListStyle}
                         />
                         <FormSection sx={formSectionStyle}>
-                            {/* TODO: work on fix for autoFocus accessibility issue. Probably need to use ref and useEffect, which also requires making RichInput a forwardRef. If doing this, then we can autoFocus in the helpbutton edit mode as well */}
                             <TranslatedTextInput
-                                autoFocus
                                 fullWidth
                                 isRequired
                                 label={t("Name")}
@@ -529,11 +541,11 @@ function RoutineForm({
                             />
                             <LanguageInput
                                 currentLanguage={language}
+                                flexDirection="row-reverse"
                                 handleAdd={handleAddLanguage}
                                 handleDelete={handleDeleteLanguage}
                                 handleCurrent={setLanguage}
                                 languages={languages}
-                                sx={languageInputStyle}
                             />
                         </FormSection>
                         <TagSelector name="root.tags" sx={tagSelectorStyle} />
@@ -589,12 +601,17 @@ function RoutineForm({
                 onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
+                sideActionButtons={<AutoFillButton
+                    handleAutoFill={autoFill}
+                    isAutoFillLoading={isAutoFillLoading}
+                />}
             />
         </MaybeLargeDialog >
     );
 }
 
 export function RoutineUpsert({
+    display,
     isCreate,
     isOpen,
     isSubroutine = false,
@@ -603,8 +620,9 @@ export function RoutineUpsert({
 }: RoutineUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<RoutineVersion, RoutineVersionShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<RoutineVersion, RoutineVersionShape>({
         ...endpointGetRoutineVersion,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "RoutineVersion",
         overrideObject,
@@ -626,6 +644,7 @@ export function RoutineUpsert({
         >
             {(formik) => <RoutineForm
                 disabled={!(isCreate || permissions.canUpdate)}
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

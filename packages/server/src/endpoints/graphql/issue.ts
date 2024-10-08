@@ -23,6 +23,7 @@ export const typeDef = gql`
     }
 
     enum IssueStatus {
+        Draft
         Open
         ClosedResolved
         ClosedUnresolved

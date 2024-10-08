@@ -1,4 +1,4 @@
-import { BookmarkFor, LINKS, ListObject, ResourceList as ResourceListType, Team, endpointGetTeam, uuidValidate } from "@local/shared";
+import { BookmarkFor, LINKS, ListObject, ResourceList as ResourceListType, Team, TeamPageTabOption, endpointGetTeam, getTranslation, uuidValidate } from "@local/shared";
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
@@ -13,23 +13,25 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Title } from "components/text/Title/Title";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
+import { useObjectActions } from "hooks/objectActions";
 import { useFindMany } from "hooks/useFindMany";
-import { useObjectActions } from "hooks/useObjectActions";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useTabs } from "hooks/useTabs";
 import { EditIcon, EllipsisIcon, ExportIcon, SearchIcon, TeamIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { BannerImageContainer, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack, SideActionsButton } from "styles";
+import { BannerImageContainer, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack, ScrollBox, SideActionsButton } from "styles";
 import { extractImageUrl } from "utils/display/imageTools";
 import { placeholderColor } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
-import { TeamPageTabOption, teamTabParams } from "utils/search/objectToSearch";
+import { teamTabParams } from "utils/search/objectToSearch";
 import { TeamViewProps } from "../types";
+
+const scrollContainerId = "team-search-scroll";
 
 export function TeamView({
     display,
@@ -42,7 +44,7 @@ export function TeamView({
     const profileColors = useMemo(() => placeholderColor(), []);
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    const { isLoading, object: team, permissions, setObject: setTeam } = useObjectFromUrl<Team>({
+    const { isLoading, object: team, permissions, setObject: setTeam } = useManagedObject<Team>({
         ...endpointGetTeam,
         objectType: "Team",
     });
@@ -125,7 +127,7 @@ export function TeamView({
     });
 
     return (
-        <>
+        <ScrollBox id={scrollContainerId}>
             <TopBar
                 display={display}
                 onClose={onClose}
@@ -260,18 +262,12 @@ export function TeamView({
                         currTab.key === TeamPageTabOption.Resource ? resources : (
                             <SearchList
                                 {...findManyData}
+                                borderRadius={0}
                                 display={display}
                                 hideUpdateButton={true}
-                                id="team-view-list"
+                                scrollContainerId={scrollContainerId}
                                 searchPlaceholder={searchPlaceholderKey}
-                                sxs={showSearchFilters ? {
-                                    search: { marginTop: 2 },
-                                    listContainer: { borderRadius: 0 },
-                                } : {
-                                    search: { display: "none" },
-                                    buttons: { display: "none" },
-                                    listContainer: { borderRadius: 0 },
-                                }}
+                                variant={showSearchFilters ? "normal" : "minimal"}
                             />
                         )
                     }
@@ -289,6 +285,6 @@ export function TeamView({
                     <ExportIcon fill={palette.secondary.contrastText} width='32px' height='32px' />
                 </SideActionsButton>
             </SideActionsButtons>
-        </>
+        </ScrollBox>
     );
 }

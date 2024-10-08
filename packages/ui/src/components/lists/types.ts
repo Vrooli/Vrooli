@@ -1,14 +1,13 @@
-import { BookmarkList, Chat, ChatInvite, ChatParticipant, CommonKey, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, NavigableObject, Notification, OrArray, Project, ProjectVersion, QuestionForType, Reminder, ReminderList, Role, Routine, RoutineVersion, RunProject, RunRoutine, Tag, Team, TimeFrame, User } from "@local/shared";
+import { BookmarkList, Chat, ChatInvite, ChatParticipant, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, NavigableObject, Notification, OrArray, Project, ProjectVersion, QuestionForType, Reminder, ReminderList, Report, ReportResponse, Role, Routine, RoutineVersion, RunProject, RunRoutine, SearchType, Tag, Team, TimeFrame, TranslationKeyCommon, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
-import { UseFindManyResult } from "hooks/useFindMany";
-import { UseObjectActionsReturn } from "hooks/useObjectActions";
+import { UsePressEvent } from "hooks/gestures";
+import { type UseObjectActionsReturn } from "hooks/objectActions";
+import { type UseFindManyResult } from "hooks/useFindMany";
 import { ReactNode } from "react";
-import { SvgComponent, SxType } from "types";
+import { SvgComponent, SxType, ViewDisplayType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { RelationshipButtonType } from "utils/consts";
 import { ObjectType } from "utils/navigation/openObject";
-import { SearchType } from "utils/search/objectToSearch";
-import { ViewDisplayType } from "views/types";
 import { ObjectListProps } from "./ObjectList/ObjectList";
 
 export interface ObjectActionsRowProps<T extends ListObject> {
@@ -33,7 +32,7 @@ type ObjectListItemBaseProps<T extends ListObject> = {
     belowSubtitle?: React.ReactNode;
     belowTags?: React.ReactNode;
     handleContextMenu: (target: EventTarget, object: ListObject | null) => unknown;
-    handleToggleSelect: (object: ListObject) => unknown;
+    handleToggleSelect: (item: ListObject, event?: UsePressEvent) => unknown;
     /** If update button should be hidden */
     hideUpdateButton?: boolean;
     isMobile: boolean;
@@ -66,6 +65,8 @@ export type MemberInviteListItemProps = ObjectListItemProps<MemberInvite>
 export type MemberListItemProps = ObjectListItemProps<Member>
 export type NotificationListItemProps = ObjectListItemProps<Notification>
 export type ReminderListItemProps = ObjectListItemProps<Reminder>
+export type ReportListItemProps = ObjectListItemProps<Report>
+export type ReportResponseListItemProps = ObjectListItemProps<ReportResponse>
 export type RunProjectListItemProps = ObjectListItemProps<RunProject>
 export type RunRoutineListItemProps = ObjectListItemProps<RunRoutine>
 
@@ -144,7 +145,7 @@ export interface RoleListProps {
  */
 export interface SearchListGenerator {
     searchType: SearchType | `${SearchType}`;
-    placeholder: CommonKey;
+    placeholder: TranslationKeyCommon;
     where: any;
 }
 
@@ -152,6 +153,10 @@ export type SearchListProps<T extends OrArray<ListObject>> =
     Pick<ObjectListProps<T>, "handleToggleSelect" | "isSelecting" | "selectedItems"> &
     Omit<UseFindManyResult<T>, "setAllData"> &
     {
+        /**
+         * The border radius of the search list container
+         */
+        borderRadius?: number;
         /**
          * Callback triggered before the list item is selected (for viewing, editing, adding a comment, etc.). 
          * If the callback returns false, the list item will not be selected.
@@ -166,8 +171,8 @@ export type SearchListProps<T extends OrArray<ListObject>> =
         dummyLength?: number;
         /** If update button on list items should be hidden */
         hideUpdateButton?: boolean;
-        id: string;
-        searchPlaceholder?: CommonKey;
+        scrollContainerId: string;
+        searchPlaceholder?: TranslationKeyCommon;
         searchType: SearchType | `${SearchType}`;
         sxs?: {
             search?: SxType;
@@ -175,6 +180,12 @@ export type SearchListProps<T extends OrArray<ListObject>> =
             listContainer?: SxType;
         }
         onItemClick?: (item: any) => unknown;
+        /**
+         * Changes the display of the search list.
+         * - "normal" displays the list with a search bar and buttons
+         * - "minimal" displays the list without a search bar or buttons
+         */
+        variant?: "normal" | "minimal";
     }
 
 export interface SearchQueryVariablesInput<SortBy> {
@@ -216,12 +227,13 @@ export interface LineGraphCardProps extends Omit<LineGraphProps, "dims"> {
 }
 
 export interface TIDCardProps {
-    buttonText: string;
+    below?: ReactNode;
+    buttonText?: string;
     description: string;
     key: string | number;
     Icon: SvgComponent | null | undefined;
     id?: string;
-    onClick: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => unknown;
+    onClick?: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => unknown;
     title: string;
     warning?: string;
 }

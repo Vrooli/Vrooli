@@ -6,12 +6,12 @@ import { useCallback, useRef, useState } from "react";
  * 1 million characters will be about 1-1.5 MB
  */
 const MAX_STACK_SIZE = 1000000;
-const DEBOUNCE_TIME = 200;
+const DEBOUNCE_TIME_MS = 200;
 
 /**
  * Adds debounced undo/redo functionality to a value.
  */
-export const useUndoRedo = <T>({
+export function useUndoRedo<T>({
     disabled,
     initialValue,
     onChange,
@@ -22,9 +22,9 @@ export const useUndoRedo = <T>({
     onChange: (updated: T) => unknown;
     /** Determines when the stack should be updated */
     forceAddToStack?: (updated: T, resetStackDebounce: () => unknown) => boolean;
-}) => {
+}) {
     const [internalValue, setInternalValue] = useState(initialValue);
-    const [onChangeDebounced, cancelDebounce] = useDebounce(onChange, DEBOUNCE_TIME);
+    const [onChangeDebounced, cancelDebounce] = useDebounce(onChange, DEBOUNCE_TIME_MS);
 
     const stack = useRef([initialValue]);
     const stackIndex = useRef(0);
@@ -54,7 +54,7 @@ export const useUndoRedo = <T>({
         updateUndoRedoStates();
     }, [updateUndoRedoStates]);
 
-    const [addToStackDebounced, cancelAddToStack] = useDebounce(addToStack, DEBOUNCE_TIME);
+    const [addToStackDebounced, cancelAddToStack] = useDebounce(addToStack, DEBOUNCE_TIME_MS);
     const changeInternalValue = useCallback((newValue: T) => {
         setInternalValue(newValue);
         onChangeDebounced(newValue);
@@ -87,21 +87,21 @@ export const useUndoRedo = <T>({
         cancelDebounce();
     }, [cancelDebounce]);
 
-    const undo = () => {
+    function undo() {
         if (disabled === true || stackIndex.current <= 0) return;
         stackIndex.current -= 1;
         setInternalValue(stack.current[stackIndex.current]);
         onChangeDebounced(stack.current[stackIndex.current]);
         updateUndoRedoStates();
-    };
+    }
 
-    const redo = () => {
+    function redo() {
         if (disabled === true || stackIndex.current >= stack.current.length - 1) return;
         stackIndex.current += 1;
         setInternalValue(stack.current[stackIndex.current]);
         onChangeDebounced(stack.current[stackIndex.current]);
         updateUndoRedoStates();
-    };
+    }
 
     return {
         internalValue,
@@ -112,4 +112,4 @@ export const useUndoRedo = <T>({
         canUndo,
         canRedo,
     };
-};
+}

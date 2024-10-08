@@ -1,10 +1,10 @@
-import { GqlModelType, LINKS, ListObject, getObjectUrlBase } from "@local/shared";
+import { GqlModelType, LINKS, ListObject, SearchType, getObjectUrlBase } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
-import { SearchList } from "components/lists/SearchList/SearchList";
+import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useFindMany } from "hooks/useFindMany";
 import { useTabs } from "hooks/useTabs";
 import { AddIcon, SearchIcon } from "icons";
@@ -15,8 +15,10 @@ import { SideActionsButton } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { scrollIntoFocusedView } from "utils/display/scroll";
 import { PubSub } from "utils/pubsub";
-import { SearchType, searchViewTabParams } from "utils/search/objectToSearch";
-import { SearchViewProps } from "../types";
+import { searchViewTabParams } from "utils/search/objectToSearch";
+import { SearchViewProps } from "views/types";
+
+const scrollContainerId = "main-search-scroll";
 
 const searchListStyle = { search: { marginTop: 2 } } as const;
 
@@ -69,27 +71,29 @@ export function SearchView({
 
     return (
         <>
-            <TopBar
-                display={display}
-                onClose={onClose}
-                title={t("Search")}
-                titleBehaviorDesktop="ShowIn"
-                below={<PageTabs
-                    ariaLabel="search-tabs"
-                    fullWidth
-                    id="search-tabs"
-                    ignoreIcons
-                    currTab={currTab}
-                    onChange={handleTabChange}
-                    tabs={tabs}
+            <SearchListScrollContainer id={scrollContainerId}>
+                <TopBar
+                    display={display}
+                    onClose={onClose}
+                    title={t("Search")}
+                    titleBehaviorDesktop="ShowIn"
+                    below={<PageTabs
+                        ariaLabel="search-tabs"
+                        fullWidth
+                        id="search-tabs"
+                        ignoreIcons
+                        currTab={currTab}
+                        onChange={handleTabChange}
+                        tabs={tabs}
+                    />}
+                />
+                {searchType && <SearchList
+                    {...findManyData}
+                    display={display}
+                    scrollContainerId={scrollContainerId}
+                    sxs={searchListStyle}
                 />}
-            />
-            {searchType && <SearchList
-                {...findManyData}
-                id="main-search-page-list"
-                display={display}
-                sxs={searchListStyle}
-            />}
+            </SearchListScrollContainer>
             <SideActionsButtons display={display}>
                 <SideActionsButton aria-label={t("FilterList")} onClick={focusSearch}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />

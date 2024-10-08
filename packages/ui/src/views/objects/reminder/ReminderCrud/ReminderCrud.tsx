@@ -1,6 +1,7 @@
-import { DeleteOneInput, DeleteType, DUMMY_ID, endpointGetReminder, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, noopSubmit, Reminder, ReminderCreateInput, ReminderUpdateInput, reminderValidation, Session, Success, uuid } from "@local/shared";
+import { DeleteOneInput, DeleteType, DUMMY_ID, endpointGetReminder, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, LlmTask, noopSubmit, Reminder, ReminderCreateInput, ReminderItemShape, ReminderShape, ReminderUpdateInput, reminderValidation, Session, shapeReminder, Success, uuid } from "@local/shared";
 import { Box, Button, Checkbox, Divider, FormControlLabel, IconButton, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper, useSubmitHelper } from "api";
+import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -9,11 +10,12 @@ import { RichInput } from "components/inputs/RichInput/RichInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
+import { useAutoFill, UseAutoFillProps } from "hooks/tasks";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
@@ -25,8 +27,6 @@ import { FormContainer, FormSection } from "styles";
 import { getFocusModeInfo } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
-import { ReminderShape, shapeReminder } from "utils/shape/models/reminder";
-import { ReminderItemShape } from "utils/shape/models/reminderItem";
 import { validateFormValues } from "utils/validateFormValues";
 import { ReminderCrudProps, ReminderFormProps } from "../types";
 
@@ -83,6 +83,9 @@ function reminderInitialValues(
 function transformReminderValues(values: ReminderShape, existing: ReminderShape, isCreate: boolean) {
     return isCreate ? shapeReminder.create(values) : shapeReminder.update(existing, values);
 }
+
+const relationshipListStyle = { marginBottom: 4 } as const;
+const formSectionStyle = { overflowX: "hidden" } as const;
 
 function ReminderForm({
     disabled,
@@ -166,7 +169,54 @@ function ReminderForm({
         });
     }, [deleteMutation, fetchCreate, handleCreated, handleDeleted, values]);
 
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || isDeleteLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isDeleteLoading, isUpdateLoading, props.isSubmitting]);
+    const getAutoFillInput = useCallback(function getAutoFillInput() {
+        const input = {
+            description: values.description,
+            dueDate: values.dueDate,
+            isComplete: values.isComplete,
+            name: values.name,
+            steps: values.reminderItems?.map(step => ({
+                description: step.description,
+                dueDate: step.dueDate,
+                isComplete: step.isComplete,
+                name: step.name,
+            })) ?? [],
+        } as Record<string, unknown> & { steps?: Record<string, unknown>[] };
+        if (input.steps && input.steps.length === 0) delete input.steps;
+        return input;
+    }, [values]);
+
+    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback(data: Parameters<UseAutoFillProps["shapeAutoFillResult"]>[0]) {
+        const originalValues = { ...values };
+        if (!data || typeof data !== "object") return { originalValues, updatedValues: originalValues };
+        const dataObject = data as Record<string, unknown>;
+        const updatedValues = {
+            ...values,
+            description: typeof dataObject.description === "string" ? dataObject.description : values.description,
+            dueDate: typeof dataObject.dueDate === "string" ? dataObject.dueDate : values.dueDate,
+            isComplete: typeof dataObject.isComplete === "boolean" ? dataObject.isComplete : values.isComplete,
+            name: typeof dataObject.name === "string" ? dataObject.name : values.name,
+            reminderItems: Array.isArray(dataObject.steps) ? dataObject.steps.map((step, i) => ({
+                //...values.reminderItems?.[i],
+                id: DUMMY_ID,
+                index: i,
+                isComplete: step.isComplete ?? false,
+                name: step.name ?? "",
+                description: step.description ?? "",
+                dueDate: step.dueDate ?? null,
+            })) : values.reminderItems,
+        } as ReminderShape;
+        return { originalValues, updatedValues };
+    }, [values]);
+
+    const { autoFill, isAutoFillLoading } = useAutoFill({
+        getAutoFillInput,
+        shapeAutoFillResult,
+        handleUpdate,
+        task: isCreate ? LlmTask.ReminderAdd : LlmTask.ReminderUpdate,
+    });
+
+    const isLoading = useMemo(() => isAutoFillLoading || isCreateLoading || isReadLoading || isUpdateLoading || isDeleteLoading || props.isSubmitting, [isAutoFillLoading, isCreateLoading, isReadLoading, isUpdateLoading, isDeleteLoading, props.isSubmitting]);
 
     const [reminderItemsField, , reminderItemsHelpers] = useField("reminderItems");
 
@@ -226,18 +276,16 @@ function ReminderForm({
                 <BaseForm
                     display={display}
                     isLoading={isLoading}
-                    maxWidth={700}
                 >
                     <FormContainer>
                         <ContentCollapse title="Basic info" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
                             <RelationshipList
                                 isEditing={true}
                                 objectType={"Reminder"}
-                                sx={{ marginBottom: 4 }}
+                                sx={relationshipListStyle}
                             />
-                            <FormSection sx={{ overflowX: "hidden" }}>
+                            <FormSection sx={formSectionStyle}>
                                 <Field
-                                    autoFocus
                                     fullWidth
                                     isRequired={true}
                                     name="name"
@@ -366,12 +414,17 @@ function ReminderForm({
                 onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
+                sideActionButtons={<AutoFillButton
+                    handleAutoFill={autoFill}
+                    isAutoFillLoading={isAutoFillLoading}
+                />}
             />
         </MaybeLargeDialog>
     );
 }
 
 export function ReminderCrud({
+    display,
     isCreate,
     isOpen,
     overrideObject,
@@ -379,23 +432,29 @@ export function ReminderCrud({
 }: ReminderCrudProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useObjectFromUrl<Reminder, ReminderShape>({
+    const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useManagedObject<Reminder, ReminderShape>({
         ...endpointGetReminder,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "Reminder",
         overrideObject: overrideObject as Reminder,
         transform: (existing) => reminderInitialValues(session, existing),
     });
 
+    async function validateValues(values: ReminderShape) {
+        return await validateFormValues(values, existing, isCreate, transformReminderValues, reminderValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformReminderValues, reminderValidation)}
+            validate={validateValues}
         >
             {(formik) => <ReminderForm
                 disabled={false} // Can always update reminders
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

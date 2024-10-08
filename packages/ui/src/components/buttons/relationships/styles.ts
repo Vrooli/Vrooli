@@ -20,6 +20,7 @@ export const RelationshipAvatar = styled(ProfileAvatar)(() => ({
 export const RelationshipChip = styled(Chip)<ChipProps>(({ icon, onClick, theme }) => ({
     background: theme.palette.primary.light,
     color: theme.palette.primary.contrastText,
+    fill: theme.palette.primary.contrastText,
     height: "48px",
     paddingLeft: icon ? theme.spacing(1) : 0,
     pointerEvents: typeof onClick === "function" ? "auto" : "none",

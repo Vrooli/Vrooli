@@ -1,20 +1,21 @@
-import { ChatInviteStatus, DUMMY_ID, getDotNotationValue, noop, setDotNotationValue, uuid } from "@local/shared";
-import { Box, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { TaskContextInfo, getDotNotationValue, noop, setDotNotationValue } from "@local/shared";
+import { Box, Chip, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { CharLimitIndicator } from "components/CharLimitIndicator/CharLimitIndicator";
-import { SessionContext } from "contexts/SessionContext";
+import { ActiveChatContext, SessionContext } from "contexts";
 import { useField } from "formik";
-import { useIsLeftHanded } from "hooks/useIsLeftHanded";
+import useDraggableScroll from "hooks/gestures";
+import { useIsLeftHanded } from "hooks/subscriptions";
+import { generateContextLabel } from "hooks/tasks";
 import { useUndoRedo } from "hooks/useUndoRedo";
+import { CloseIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
-import { getCookie, getCookieMatchingChat, setCookie } from "utils/cookies";
+import { DEFAULT_MIN_ROWS } from "utils/consts";
 import { getDeviceInfo, keyComboToString } from "utils/display/device";
 import { generateContext } from "utils/display/stringTools";
 import { getTranslationData, handleTranslationChange } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
-import { ChatShape } from "utils/shape/models/chat";
-import { ChatCrud, VALYXA_INFO } from "views/objects/chat/ChatCrud/ChatCrud";
-import { ChatCrudProps } from "views/objects/chat/types";
+import { getCookie, setCookie } from "utils/localStorage";
+import { CHAT_SIDE_MENU_ID, PubSub } from "utils/pubsub";
 import { RichInputLexical } from "../RichInputLexical/RichInputLexical";
 import { RichInputMarkdown } from "../RichInputMarkdown/RichInputMarkdown";
 import { RichInputToolbar, defaultActiveStates } from "../RichInputToolbar/RichInputToolbar";
@@ -22,6 +23,72 @@ import { RichInputAction, RichInputActiveStates, RichInputBaseProps, RichInputPr
 
 export const LINE_HEIGHT_MULTIPLIER = 1.5;
 const SHOW_CHAR_LIMIT_AT_REMAINING = 500;
+
+const ContextsRowOuter = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "row",
+    padding: theme.spacing(0.5),
+    gap: theme.spacing(1),
+    background: theme.palette.background.paper,
+    overflowX: "auto",
+    "&::-webkit-scrollbar": {
+        display: "none",
+    },
+}));
+
+const ContextChip = styled(Chip)(({ theme }) => ({
+    fontSize: "0.75rem",
+    padding: theme.spacing(0.5),
+    borderRadius: theme.shape.borderRadius * 2,
+}));
+
+interface ContextsRowProps {
+    activeContexts: TaskContextInfo[];
+    chatId: string | null | undefined;
+}
+
+function ContextsRow({
+    activeContexts,
+    chatId,
+}: ContextsRowProps) {
+    const { palette } = useTheme();
+    const ref = useRef<HTMLDivElement>(null);
+    const { onMouseDown } = useDraggableScroll({ ref, options: { direction: "horizontal" } });
+
+    function handleRemove(contextId: string) {
+        if (!chatId) return;
+        PubSub.get().publish("chatTask", {
+            chatId,
+            contexts: {
+                remove: [{
+                    __type: "contextId",
+                    data: contextId,
+                }],
+            },
+        });
+    }
+
+    return (
+        <ContextsRowOuter
+            onMouseDown={onMouseDown}
+            ref={ref}
+        >
+            {activeContexts.map(context => {
+                function onDelete() {
+                    handleRemove(context.id);
+                }
+                return (
+                    <ContextChip
+                        key={context.id}
+                        label={context.label}
+                        onDelete={onDelete}
+                        deleteIcon={<CloseIcon width={15} height={15} fill={palette.primary.contrastText} />}
+                    />
+                );
+            })}
+        </ContextsRowOuter>
+    );
+}
 
 const ActionButton = styled(IconButton)(({ theme }) => ({
     background: theme.palette.primary.dark,
@@ -43,7 +110,7 @@ export function RichInputBase({
     helperText,
     maxChars,
     maxRows,
-    minRows = 4,
+    minRows = DEFAULT_MIN_ROWS,
     name,
     onBlur,
     onFocus,
@@ -51,12 +118,14 @@ export function RichInputBase({
     onSubmit,
     placeholder = "",
     tabIndex,
+    taskInfo,
     value,
     sxs,
 }: RichInputBaseProps) {
     const { palette } = useTheme();
     const session = useContext(SessionContext);
     const isLeftHanded = useIsLeftHanded();
+    const { chat } = useContext(ActiveChatContext);
 
     const { internalValue, changeInternalValue, resetInternalValue, undo, redo, canUndo, canRedo } = useUndoRedo({
         initialValue: value,
@@ -84,47 +153,38 @@ export function RichInputBase({
 
     const id = useMemo(() => `input-container-${name}`, [name]);
 
-    const closeAssistantDialog = useCallback(() => {
-        setAssistantDialogProps(props => ({ ...props, context: undefined, isOpen: false, overrideObject: undefined } as ChatCrudProps));
-        PubSub.get().publish("sideMenu", { id: "chat-side-menu", idPrefix: "note", isOpen: false });
-    }, []);
-    const [assistantDialogProps, setAssistantDialogProps] = useState<ChatCrudProps>({
-        context: undefined,
-        display: "dialog",
-        isCreate: true,
-        isOpen: false,
-        onCancel: closeAssistantDialog,
-        onClose: closeAssistantDialog,
-        onCompleted: closeAssistantDialog,
-        onDeleted: closeAssistantDialog,
-        task: "note",
-    });
     const openAssistantDialog = useCallback((selected: string, fullText: string) => {
-        console.log("in openAssistantDialog", id);
         if (disabled) return;
         const userId = getCurrentUser(session)?.id;
         if (!userId) return;
+        const chatId = chat?.id;
+        if (!chatId) return;
 
-        const context = generateContext(selected, fullText);
-        console.log("got context", context);
+        const contextValue = generateContext(selected, fullText);
 
-        // Now we'll try to find an existing chat with Valyxa for this task
-        const existingChatId = getCookieMatchingChat([userId, VALYXA_INFO.id], "note");
-        const overrideObject = {
-            __typename: "Chat" as const,
-            id: existingChatId ?? DUMMY_ID,
-            openToAnyoneWithInvite: false,
-            invites: [{
-                __typename: "ChatInvite" as const,
-                id: uuid(),
-                status: ChatInviteStatus.Pending,
-                user: VALYXA_INFO,
-            }],
-        } as unknown as ChatShape;
-
-        // Open the assistant dialog
-        setAssistantDialogProps(props => ({ ...props, isCreate: !existingChatId, isOpen: true, context, overrideObject } as ChatCrudProps));
-    }, [disabled, id, session]);
+        // Open the side chat and provide it context
+        PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen: true, data: { tab: "Chat" } });
+        const context = {
+            id: `rich-${name}`,
+            label: generateContextLabel(contextValue),
+            data: contextValue,
+            template: "Text:\n\"\"\"\n<DATA>\n\"\"\"",
+            templateVariables: { data: "<DATA>" },
+        };
+        PubSub.get().publish("chatTask", {
+            chatId,
+            contexts: {
+                add: {
+                    behavior: "replace",
+                    connect: {
+                        __type: "contextId",
+                        data: context.id,
+                    },
+                    value: [context],
+                },
+            },
+        });
+    }, [chat?.id, disabled, name, session]);
 
     /** Prevents input from losing focus when the toolbar is pressed */
     const handleMouseDown = useCallback((event: React.MouseEvent) => {
@@ -235,8 +295,6 @@ export function RichInputBase({
 
     return (
         <>
-            {/* Assistant dialog for generating text */}
-            {!disableAssistant && <ChatCrud {...assistantDialogProps} />}
             <Box
                 id={`markdown-input-base-${name}`}
                 onMouseDown={handleMouseDown}
@@ -255,6 +313,10 @@ export function RichInputBase({
                     name={name}
                     sx={sxs?.topBar}
                 />
+                {taskInfo !== null && taskInfo !== undefined && Boolean(taskInfo.contexts[taskInfo.activeTask.taskId]) && taskInfo.contexts[taskInfo.activeTask.taskId].length > 0 && <ContextsRow
+                    activeContexts={taskInfo.contexts[taskInfo.activeTask.taskId]}
+                    chatId={chat?.id}
+                />}
                 {isMarkdownOn ? <RichInputMarkdown {...viewProps} /> : <RichInputLexical {...viewProps} />}
                 {/* Help text, characters remaining indicator, and action buttons */}
                 {

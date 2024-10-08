@@ -18,8 +18,8 @@ describe("LlmServiceRegistry", () => {
 
     test("returns the preferred service when active", () => {
         expect(registry.getBestService(AnthropicModel.Opus3)).toEqual(LlmServiceId.Anthropic);
-        expect(registry.getBestService(OpenAIModel.Gpt3_5Turbo)).toEqual(LlmServiceId.OpenAI);
-        expect(registry.getBestService(MistralModel.Mistral8x7b)).toEqual(LlmServiceId.Mistral);
+        expect(registry.getBestService(OpenAIModel.Gpt4o_Mini)).toEqual(LlmServiceId.OpenAI);
+        expect(registry.getBestService(MistralModel.Codestral)).toEqual(LlmServiceId.Mistral);
     });
 
     test("returns the first active fallback service when preferred is on cooldown", () => {

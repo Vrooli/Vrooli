@@ -1,7 +1,5 @@
-import { Resource } from "@local/shared";
-import { FormProps } from "forms/types";
-import { ResourceShape } from "utils/shape/models/resource";
-import { CrudPropsDialog, CrudPropsPage } from "../types";
+import { Resource, ResourceShape } from "@local/shared";
+import { CrudPropsDialog, CrudPropsPage, FormProps } from "../../../types";
 
 type ResourceUpsertPropsPage = CrudPropsPage & {
     isMutate: boolean;

@@ -1,14 +1,14 @@
-import { DUMMY_ID, endpointGetRunProject, endpointPostRunProject, endpointPutRunProject, noopSubmit, RunProject, RunProjectCreateInput, RunProjectUpdateInput, runProjectValidation, RunStatus, Schedule, Session } from "@local/shared";
+import { DUMMY_ID, endpointGetRunProject, endpointPostRunProject, endpointPutRunProject, noopSubmit, RunProject, RunProjectCreateInput, RunProjectShape, RunProjectUpdateInput, runProjectValidation, RunStatus, Schedule, Session, shapeRunProject } from "@local/shared";
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
@@ -17,30 +17,32 @@ import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
-import { RunProjectShape, shapeRunProject } from "utils/shape/models/runProject";
 import { validateFormValues } from "utils/validateFormValues";
 import { ScheduleUpsert } from "views/objects/schedule";
 import { RunProjectFormProps, RunProjectUpsertProps } from "../types";
 
-export const runProjectInitialValues = (
+export function runProjectInitialValues(
     session: Session | undefined,
     existing?: Partial<RunProject> | null | undefined,
-): RunProjectShape => ({
-    __typename: "RunProject" as const,
-    id: DUMMY_ID,
-    completedComplexity: 0,
-    contextSwitches: 0,
-    isPrivate: true,
-    name: existing?.name ?? getDisplay(existing?.projectVersion, getUserLanguages(session)).title ?? "Run",
-    schedule: null,
-    status: RunStatus.Scheduled,
-    steps: [],
-    timeElapsed: 0,
-    ...existing,
-});
+): RunProjectShape {
+    return {
+        __typename: "RunProject" as const,
+        id: DUMMY_ID,
+        completedComplexity: 0,
+        contextSwitches: 0,
+        isPrivate: true,
+        name: existing?.name ?? getDisplay(existing?.projectVersion, getUserLanguages(session)).title ?? "Run",
+        schedule: null,
+        status: RunStatus.Scheduled,
+        steps: [],
+        timeElapsed: 0,
+        ...existing,
+    };
+}
 
-export const transformRunProjectValues = (values: RunProjectShape, existing: RunProjectShape, isCreate: boolean) =>
-    isCreate ? shapeRunProject.create(values) : shapeRunProject.update(existing, values);
+export function transformRunProjectValues(values: RunProjectShape, existing: RunProjectShape, isCreate: boolean) {
+    return isCreate ? shapeRunProject.create(values) : shapeRunProject.update(existing, values);
+}
 
 function RunProjectForm({
     disabled,
@@ -231,31 +233,38 @@ function RunProjectForm({
     );
 }
 
-export const RunProjectUpsert = ({
+export function RunProjectUpsert({
+    display,
     isCreate,
     isOpen,
     overrideObject,
     ...props
-}: RunProjectUpsertProps) => {
+}: RunProjectUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<RunProject, RunProjectShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<RunProject, RunProjectShape>({
         ...endpointGetRunProject,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "RunProject",
         overrideObject,
         transform: (existing) => runProjectInitialValues(session, existing),
     });
 
+    async function validateValues(values: RunProjectShape) {
+        return await validateFormValues(values, existing, isCreate, transformRunProjectValues, runProjectValidation);
+    }
+
     return (
         <Formik
             enableReinitialize={true}
             initialValues={existing}
             onSubmit={noopSubmit}
-            validate={async (values) => await validateFormValues(values, existing, isCreate, transformRunProjectValues, runProjectValidation)}
+            validate={validateValues}
         >
             {(formik) => <RunProjectForm
                 disabled={!(isCreate || permissions.canUpdate)}
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}
@@ -266,4 +275,4 @@ export const RunProjectUpsert = ({
             />}
         </Formik>
     );
-};
+}

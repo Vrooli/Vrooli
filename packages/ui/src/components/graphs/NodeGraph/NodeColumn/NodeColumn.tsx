@@ -1,14 +1,12 @@
 /**
  * Displays a list of nodes vertically.
  */
-import { NodeType } from "@local/shared";
+import { getTranslation, NodeShape, NodeType } from "@local/shared";
 import { Box, Stack } from "@mui/material";
 import { useMemo } from "react";
 import { BuildAction } from "utils/consts";
-import { getTranslation } from "utils/display/translationTools";
-import { NodeShape } from "utils/shape/models/node";
 import { NodeWithEndShape, NodeWithRoutineListShape } from "views/objects/node/types";
-import { EndNode, RedirectNode, RoutineListNode, StartNode, calculateNodeSize } from "../nodes";
+import { calculateNodeSize, EndNode, RedirectNode, RoutineListNode, StartNode } from "../nodes";
 import { NodeColumnProps } from "../types";
 
 export function NodeColumn({
@@ -47,18 +45,20 @@ export function NodeColumn({
         return nodesWithGaps.map((node: NodeShape | null, index) => {
             // If a placeholder, return a placeholder node
             if (node === null) {
+                const placeholderStyle = {
+                    width: `${calculateNodeSize(100, scale)}px`,
+                    height: `${calculateNodeSize(350, scale)}px`,
+                } as const;
                 return (
-                    <Box key={`node-placeholder-${columnIndex}-${index}`} sx={{
-                        width: `${calculateNodeSize(100, scale)}px`,
-                        height: `${calculateNodeSize(350, scale)}px`,
-                    }} />
+                    <Box key={`node-placeholder-${columnIndex}-${index}`} sx={placeholderStyle} />
                 );
             }
             // Otherwise, return correct node
             // Common node props
+            const key = `node-${columnIndex}-${index}`;
             const nodeProps = {
-                key: `node-${columnIndex}-${index}`,
                 handleAction,
+                handleDelete: function handleDelete(node: NodeShape) { handleAction(BuildAction.DeleteNode, node.id); },
                 isLinked: true,
                 scale,
                 label: getTranslation(node, [language], false).name ?? undefined,
@@ -71,7 +71,7 @@ export function NodeColumn({
                 case NodeType.End:
                     return <EndNode
                         {...nodeProps}
-                        handleDelete={(node) => { handleAction(BuildAction.DeleteNode, node.id); }}
+                        key={key}
                         handleUpdate={handleNodeUpdate as ((updatedNode: NodeWithEndShape) => unknown)}
                         language={language}
                         linksIn={links.filter(l => l.to.id === node.id)}
@@ -80,13 +80,14 @@ export function NodeColumn({
                 case NodeType.Redirect:
                     return <RedirectNode
                         {...nodeProps}
+                        key={key}
                         node={node}
                     />;
                 case NodeType.RoutineList:
                     return (<RoutineListNode
                         {...nodeProps}
+                        key={key}
                         canExpand={true}
-                        handleDelete={(node) => { handleAction(BuildAction.DeleteNode, node.id); }}
                         handleUpdate={handleNodeUpdate as ((updatedNode: NodeWithRoutineListShape) => unknown)}
                         language={language}
                         linksIn={links.filter(l => l.to.id === node.id)}
@@ -96,6 +97,7 @@ export function NodeColumn({
                 case NodeType.Start:
                     return <StartNode
                         {...nodeProps}
+                        key={key}
                         linksOut={links.filter(l => l.from.id === node.id)}
                         node={node}
                     />;

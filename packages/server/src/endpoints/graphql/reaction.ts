@@ -47,10 +47,23 @@ export const typeDef = gql`
 
     input ReactionSearchInput {
         after: String
+        apiId: ID
+        chatMessageId: ID
+        codeId: ID
+        commentId: ID
         excludeLinkedToTag: Boolean
         ids: [ID!]
+        issueId: ID
+        noteId: ID
+        postId: ID
+        projectId: ID
+        questionId: ID
+        questionAnswerId: ID
+        quizId: ID
+        routineId: ID
         searchString: String
         sortBy: ReactionSortBy
+        standardId: ID
         take: Int
     }
 

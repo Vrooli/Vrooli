@@ -1,8 +1,3 @@
-export interface Dimensions {
-    width: number;
-    height: number;
-}
-
 export interface LineGraphProps {
     /** Dimensions of the line graph */
     dims: { width: number, height: number };

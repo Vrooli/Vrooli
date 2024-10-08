@@ -1,14 +1,16 @@
 import { DUMMY_ID, GqlModelType } from "@local/shared";
 import { useCallback, useEffect } from "react";
-import { getCookieAllowFormCache, removeCookieAllowFormCache, setCookieFormData } from "utils/cookies";
+import { getCookieAllowFormCache, removeCookieAllowFormCache, setCookieFormData } from "utils/localStorage";
 import { useDebounce } from "./useDebounce";
 
-const shouldValuesBeSaved = (values: object) => {
+const DEFAULT_DEBOUNCE_TIME_MS = 200;
+
+function shouldValuesBeSaved(values: object) {
     return Object.keys(values).length > 0;
-};
+}
 
 /** Caches updates to the `values` prop in localStorage*/
-export const useSaveToCache = <T extends object>({
+export function useSaveToCache<T extends object>({
     values,
     objectId,
     debounceTime,
@@ -24,18 +26,16 @@ export const useSaveToCache = <T extends object>({
     isCacheOn?: boolean;
     isCreate: boolean;
     disabled?: boolean;
-}) => {
-    // Create a unique cache key using the objectType and objectId (if it exists)
-    const formCacheId = isCreate ? `${objectType}-${DUMMY_ID}` : `${objectType}-${objectId}`;
-
+}) {
     // Define the function that will handle the cache saving logic
     const saveToCache = useCallback((currentValues: T) => {
         const isCacheAllowed = getCookieAllowFormCache(objectType, objectId);
         if (disabled || isCacheOn === false || !isCacheAllowed) return;
-        setCookieFormData(formCacheId, currentValues);
-    }, [disabled, formCacheId, isCacheOn, objectId, objectType]);
+        const formId = isCreate ? DUMMY_ID : objectId;
+        setCookieFormData(objectType, formId, currentValues);
+    }, [disabled, isCacheOn, isCreate, objectId, objectType]);
 
-    const [saveToCacheDebounced] = useDebounce(saveToCache, debounceTime ?? 200);
+    const [saveToCacheDebounced] = useDebounce(saveToCache, debounceTime ?? DEFAULT_DEBOUNCE_TIME_MS);
 
     // Effect to handle saving values to cache whenever they change
     useEffect(() => {
@@ -55,4 +55,4 @@ export const useSaveToCache = <T extends object>({
     useEffect(() => {
         removeCookieAllowFormCache(objectType, objectId);
     }, [objectId, objectType]);
-};
+}

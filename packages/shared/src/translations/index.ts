@@ -3,6 +3,7 @@ import common from "./locales/en/common.json" assert { type: "json" };
 import error from "./locales/en/error.json" assert { type: "json" };
 import langs from "./locales/en/langs.json" assert { type: "json" };
 import notify from "./locales/en/notify.json" assert { type: "json" };
+import service from "./locales/en/service.json" assert { type: "json" };
 import tasks from "./locales/en/tasks.json" assert { type: "json" };
 // const validate = require('./locales/en/validate.json')
 
@@ -16,6 +17,7 @@ const resources = {
         error,
         langs,
         notify,
+        service,
         tasks,
     },
 } as const;
@@ -28,16 +30,20 @@ const resources = {
  * of translating the key directly (e.g. "hello"). Useful for finding strings 
  * that are missing from the translation files.
  */
-export const i18nConfig = (debug: boolean, appendNS = true) => ({
-    debug,
-    partialBundledLanguages: true,
-    defaultNS,
-    ns: ["common", "error", "notify", "award", "tasks", "langs"], // 'validate'
-    nsSeparator: ":",
-    fallbackLng: "en",
-    resources,
-    backend: {
-        loadPath: "./locales/{{lng}}/{{ns}}.json",
-    },
-    appendNamespaceToCIMode: appendNS,
-});
+export function i18nConfig(debug: boolean, appendNS = true) {
+    return {
+        debug,
+        partialBundledLanguages: true,
+        defaultNS,
+        ns: ["common", "error", "notify", "award", "tasks", "service", "langs"], // 'validate'
+        nsSeparator: ":",
+        fallbackLng: "en",
+        resources,
+        backend: {
+            loadPath: "./locales/{{lng}}/{{ns}}.json",
+        },
+        appendNamespaceToCIMode: appendNS,
+    };
+}
+
+export * from "./translationTools";

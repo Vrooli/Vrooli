@@ -1,6 +1,6 @@
 import { Box, LinearProgress, List, ListItem, ListItemText, Tooltip, Typography, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
-import usePress from "hooks/usePress";
+import { UsePressEvent, usePress } from "hooks/gestures";
 import { useCallback, useMemo, useState } from "react";
 import { addSearchParams, useLocation } from "route";
 import { VersionDisplayProps } from "../types";
@@ -10,14 +10,14 @@ import { VersionDisplayProps } from "../types";
  * On hover or press, a popup displays a list of all versions. 
  * On click, the version is loaded.
  */
-export const VersionDisplay = ({
+export function VersionDisplay({
     confirmVersionChange,
     currentVersion,
     loading = false,
     prefix = "",
     versions = [],
     ...props
-}: VersionDisplayProps) => {
+}: VersionDisplayProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
@@ -52,7 +52,7 @@ export const VersionDisplay = ({
 
     // Versions popup
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-    const open = useCallback((target: EventTarget) => {
+    const open = useCallback(({ target }: UsePressEvent) => {
         if (versions.length > 1) {
             setAnchorEl(target as HTMLElement);
         }
@@ -112,4 +112,4 @@ export const VersionDisplay = ({
             </Tooltip>
         </Box>
     );
-};
+}

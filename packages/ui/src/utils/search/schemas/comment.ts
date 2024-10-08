@@ -1,5 +1,4 @@
-import { CommentSortBy, endpointGetComment, endpointGetComments } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { CommentSortBy, FormSchema, endpointGetComment, endpointGetComments } from "@local/shared";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, languagesContainer, languagesFields, searchFormLayout, votesContainer, votesFields } from "./common";
 

@@ -354,13 +354,15 @@ describe("replaceText", () => {
 
 describe("getTextSelection", () => {
     // Mocking the textArea object
-    const mockTextArea = () => ({
-        tagName: "TEXTAREA",
-        value: "Hello, world!",
-        selectionStart: 0,
-        selectionEnd: 0,
-        // You can add more properties and methods if needed
-    });
+    function mockTextArea() {
+        return {
+            tagName: "TEXTAREA",
+            value: "Hello, world!",
+            selectionStart: 0,
+            selectionEnd: 0,
+            // You can add more properties and methods if needed
+        } as const;
+    }
 
     beforeAll(() => {
         // Mock console.error to avoid cluttering test output
@@ -1376,30 +1378,30 @@ describe("insertTable function", () => {
 describe("generateContext function", () => {
     const MAX_CONTENT_LENGTH = 1500;
 
-    it("returns the trimmed selected text wrapped in a quote block", () => {
+    it("returns the trimmed selected text", () => {
         const selected = " Selected text ";
         const fullText = "Full text is irrelevant in this case";
         const context = generateContext(selected, fullText);
-        expect(context).toEqual("\"\"\"\nSelected text\n\"\"\"\n\n");
+        expect(context).toEqual("Selected text");
     });
 
     it("returns the last 1500 characters of selected text when it exceeds the maximum length", () => {
         const longSelected = "z" + "a".repeat(MAX_CONTENT_LENGTH + 50);
         const context = generateContext(longSelected, "");
-        expect(context).toEqual(`"""\n...${longSelected.slice(-MAX_CONTENT_LENGTH - 3)}\n"""\n\n`);
+        expect(context).toEqual(`…${longSelected.slice(-MAX_CONTENT_LENGTH - 1)}`);
     });
 
-    it("returns the full text trimmed and wrapped in a quote block if no selected text", () => {
+    it("returns the full text trimmed if no selected text", () => {
         const selected = "";
         const fullText = " Full text ";
         const context = generateContext(selected, fullText);
-        expect(context).toEqual("\"\"\"\nFull text\n\"\"\"\n\n");
+        expect(context).toEqual("Full text");
     });
 
     it("returns the last 1500 characters of the full text if it exceeds the maximum length and no selected text", () => {
         const fullText = "z" + "b".repeat(MAX_CONTENT_LENGTH + 50);
         const context = generateContext("", fullText);
-        expect(context).toEqual(`"""\n...${fullText.slice(-MAX_CONTENT_LENGTH - 3)}\n"""\n\n`);
+        expect(context).toEqual(`…${fullText.slice(-MAX_CONTENT_LENGTH - 1)}`);
     });
 
     it("returns empty string when both selected text and full text are empty", () => {

@@ -2,7 +2,7 @@ import { ListObject } from "@local/shared";
 import { Box, CircularProgress, List, ListItem, Popover } from "@mui/material";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import { noSelect } from "styles";
-import { RichInputBaseProps } from "../types";
+import { GetTaggableItemsFunc } from "../types";
 
 export interface RichInputTagDropdownData {
     anchorEl: HTMLElement | null;
@@ -15,11 +15,11 @@ export interface RichInputTagDropdownData {
     tagString: string;
 }
 
-export const useTagDropdown = ({
+export function useTagDropdown({
     getTaggableItems,
 }: {
-    getTaggableItems?: RichInputBaseProps["getTaggableItems"];
-}): RichInputTagDropdownData => {
+    getTaggableItems?: GetTaggableItemsFunc;
+}): RichInputTagDropdownData {
     // Handle "@" dropdown for tagging users or any other items
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const [tabIndex, setTabIndex] = useState(0); // The index of the currently selected item in the dropdown
@@ -30,7 +30,7 @@ export const useTagDropdown = ({
     useEffect(() => {
         if (!anchorEl || typeof getTaggableItems !== "function") return;
 
-        const fetchItems = async () => {
+        async function fetchItems(getTaggableItems: GetTaggableItemsFunc) {
             // Check the cache
             if (cachedTags[tagString] !== undefined) {
                 setList(cachedTags[tagString]);
@@ -50,9 +50,9 @@ export const useTagDropdown = ({
                     setList(items);
                 }
             }
-        };
+        }
 
-        fetchItems();
+        fetchItems(getTaggableItems);
     }, [cachedTags, anchorEl, getTaggableItems, tagString]);
 
     return {
@@ -65,10 +65,10 @@ export const useTagDropdown = ({
         setTagString,
         tagString,
     };
-};
+}
 
 /** When using "@" to tag an object, displays options */
-export const RichInputTagDropdown = ({
+export function RichInputTagDropdown({
     anchorEl,
     list,
     tabIndex,
@@ -77,7 +77,7 @@ export const RichInputTagDropdown = ({
     setTabIndex,
 }: RichInputTagDropdownData & {
     selectDropdownItem: (item: ListObject) => unknown;
-}) => {
+}) {
     const [popoverWidth, setPopoverWidth] = useState<number | null>(null);
 
     useEffect(() => {
@@ -135,4 +135,4 @@ export const RichInputTagDropdown = ({
             }
         </Popover>
     );
-};
+}

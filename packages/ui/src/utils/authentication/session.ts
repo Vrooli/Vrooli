@@ -1,6 +1,6 @@
 import { ActiveFocusMode, FocusMode, Session, SessionUser, uuidValidate } from "@local/shared";
-import { getCookie } from "utils/cookies";
 import { getUserLanguages } from "utils/display/translationTools";
+import { getCookie } from "utils/localStorage";
 
 /**
  * Session object that indicates no user is logged in
@@ -16,7 +16,7 @@ export const guestSession: Session = {
  * @param session Session object
  * @returns data SessionUser object, or empty values
  */
-export const getCurrentUser = (session: Session | null | undefined): Partial<SessionUser> => {
+export function getCurrentUser(session: Session | null | undefined): Partial<SessionUser> {
     if (!session || !session.isLoggedIn || !Array.isArray(session.users) || session.users.length === 0) {
         return {};
     }
@@ -24,7 +24,7 @@ export const getCurrentUser = (session: Session | null | undefined): Partial<Ses
     // Make sure that user data is valid, by checking ID. 
     // Can add more checks in the future
     return uuidValidate(userData.id) ? userData : {};
-};
+}
 
 /**
  * Checks if there is a user logged in. Falls back to flag in local storage 
@@ -33,12 +33,12 @@ export const getCurrentUser = (session: Session | null | undefined): Partial<Ses
  * @param session Session object
  * @returns True if user is logged in
  */
-export const checkIfLoggedIn = (session: Session | null | undefined): boolean => {
+export function checkIfLoggedIn(session: Session | null | undefined): boolean {
     // If there is no session, check local storage
     if (!session) return localStorage.getItem("isLoggedIn") === "true";
     // Otherwise, check session
     return session.isLoggedIn;
-};
+}
 
 /**
  * Languages the site has translations for (2-letter codes).
@@ -52,7 +52,7 @@ export const siteLanguages = ["en"];
  * Finds which language the site should be displayed in.
  * @param session Session object
  */
-export const getSiteLanguage = (session: Session | null | undefined): string => {
+export function getSiteLanguage(session: Session | null | undefined): string {
     // Try to find languages from session. Make sure not to return default
     const sessionLanguages = getUserLanguages(session, false);
     // Find first language that is in site languages
@@ -65,12 +65,12 @@ export const getSiteLanguage = (session: Session | null | undefined): string => 
     if (storedLanguage && siteLanguages.includes(storedLanguage)) return storedLanguage;
     // Otherwise, return default (first in array)
     return siteLanguages[0];
-};
+}
 
-export const getFocusModeInfo = (session: Session | null | undefined): {
+export function getFocusModeInfo(session: Session | null | undefined): {
     active: ActiveFocusMode | null,
     all: FocusMode[]
-} => {
+} {
     // Try to find focus modes user from session
     const { activeFocusMode, focusModes } = getCurrentUser(session);
 
@@ -84,4 +84,4 @@ export const getFocusModeInfo = (session: Session | null | undefined): {
     }
 
     return { active, all };
-};
+}

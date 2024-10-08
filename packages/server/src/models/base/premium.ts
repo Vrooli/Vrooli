@@ -1,6 +1,7 @@
 import { MaxObjects } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions } from "../../utils";
 import { PremiumFormat } from "../formats";
 import { PremiumModelLogic, TeamModelLogic } from "./types";
@@ -37,18 +38,24 @@ export const PremiumModel: PremiumModelLogic = ({
             user: "User",
         }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return {
+                    OR: [
+                        { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                        { user: { id: data.userId } },
+                    ],
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            // Always private, so it's the same as "own"
+            ownOrPublic: function getOwnOrPublic(data) {
+                return useVisibility("Premium", "Own", data);
             },
-            owner: (userId) => ({
-                OR: [
-                    { team: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
-                    { user: { id: userId } },
-                ],
-            }),
+            // Always private, so it's the same as "own"
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("Premium", "Own", data);
+            },
+            ownPublic: null, // Search method disabled
+            public: null, // Search method disabled
         },
     }),
 });

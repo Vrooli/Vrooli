@@ -1,5 +1,4 @@
-import { endpointGetPullRequest, endpointGetPullRequests, PullRequestSortBy } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetPullRequest, endpointGetPullRequests, FormSchema, PullRequestSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

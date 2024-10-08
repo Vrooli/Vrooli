@@ -1,4 +1,5 @@
-import { TransferObjectType, YupMutateParams } from "@local/shared";
+import { TransferObjectType } from "../../api/generated/graphqlTypes";
+import { YupMutateParams } from "../../validation/utils/types";
 import { YupModel, enumToYup, id, message, opt, req, yupObj } from "../utils";
 
 const transferObjectType = enumToYup(TransferObjectType);

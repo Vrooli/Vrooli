@@ -7,13 +7,15 @@ import { PartialGraphQLInfo, PartialPrismaSelect, PrismaSelect } from "./types";
 
 // Cache results of each `partial` conversion, so we only have to 
 // do it once. This improves performance a bit
-const cache = new LRUCache<string, PrismaSelect>(1000, 250_000);
+const SELECT_CACHE_LIMIT_COUNT = 1_000;
+const SELECT_CACHE_LIMIT_SIZE_BYTES = 250_000;
+const cache = new LRUCache<string, PrismaSelect>(SELECT_CACHE_LIMIT_COUNT, SELECT_CACHE_LIMIT_SIZE_BYTES);
 
 /**
  * Adds "select" to the correct parts of an object to make it a Prisma select. 
  * This function is recursive and idempotent.
  */
-export const selPad = (fields: object): PrismaSelect => {
+export function selPad(fields: object): PrismaSelect {
     // Only pad if fields is an object
     if (!isRelationshipObject(fields)) {
         // Return empty object for invalid/empty fields
@@ -42,13 +44,13 @@ export const selPad = (fields: object): PrismaSelect => {
     if ("select" in converted) return converted as PrismaSelect;
     // Return object with "select" padded
     return { select: converted } as PrismaSelect;
-};
+}
 
 /**
  * Converts shapes 2 and 3 of the GraphQL to Prisma conversion to shape 4.
  * @returns Object which can be passed into Prisma select directly
  */
-export const selectHelper = (partial: PartialGraphQLInfo | PartialPrismaSelect): PrismaSelect | undefined => {
+export function selectHelper(partial: PartialGraphQLInfo | PartialPrismaSelect): PrismaSelect | undefined {
     // Check if cached
     const cacheKey = JSON.stringify(partial);
     const cachedResult = cache.get(cacheKey);
@@ -65,4 +67,4 @@ export const selectHelper = (partial: PartialGraphQLInfo | PartialPrismaSelect):
     // Cache result
     cache.set(cacheKey, modified as PrismaSelect);
     return modified as PrismaSelect;
-};
+}

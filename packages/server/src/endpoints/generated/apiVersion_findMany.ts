@@ -23,6 +23,7 @@ export const apiVersion_findMany = {
         "canUse": true,
         "canRead": true
       },
+      "schemaLanguage": true,
       "root": {
         "id": true,
         "created_at": true,

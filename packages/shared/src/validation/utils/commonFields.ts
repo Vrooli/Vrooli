@@ -5,8 +5,11 @@
  * field with a duplicate name has the name format, so as long as 
  * that format matches the fields below, there should be no errors.
  */
-import { ReportFor, urlRegexDev, uuidValidate, YupMutateParams } from "@local/shared";
 import * as yup from "yup";
+import { ReportFor } from "../../api/generated/graphqlTypes";
+import { uuidValidate } from "../../id/uuid";
+import { urlRegexDev } from "../../validation/utils/regex";
+import { YupMutateParams } from "../../validation/utils/types";
 import { enumToYup } from "./builders";
 import { maxNumErr, maxStrErr, minNumErr, minStrErr, reqErr } from "./errors";
 import { handleRegex, hexColorRegex, urlRegex } from "./regex";

@@ -1,7 +1,8 @@
-import { QuizAttemptSortBy, quizAttemptValidation } from "@local/shared";
+import { MaxObjects, QuizAttemptSortBy, quizAttemptValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { QuizAttemptFormat } from "../formats";
@@ -66,7 +67,7 @@ export const QuizAttemptModel: QuizAttemptModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<QuizAttemptModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -76,20 +77,37 @@ export const QuizAttemptModel: QuizAttemptModelLogic = ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<QuizAttemptModelInfo["PrismaSelect"]>([["quiz", "Quiz"]], ...rest),
         isTransferable: false,
-        maxObjects: 100000,
+        maxObjects: MaxObjects[__typename],
         owner: (data, userId) => ModelMap.get<QuizModelLogic>("Quiz").validate().owner(data?.quiz as QuizModelInfo["PrismaModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({ id: true, quiz: "Quiz" }),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return {
+                    user: { id: data.userId },
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    OR: [
+                        { user: { id: data.userId } },
+                        { quiz: useVisibility("Quiz", "Public", data) },
+                    ],
+                };
             },
-            owner: (userId) => ({
-                quiz: ModelMap.get<QuizModelLogic>("Quiz").validate().visibility.owner(userId),
-            }),
+            // Search method not useful for this object because answers are not explicitly set as private, so we'll return "Own"
+            // TODO when drafts (i.e. in-progress attempts) are added, this and related functions will have to change
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("QuizAttempt", "Own", data);
+            },
+            ownPublic: function getOwnPublic(data) {
+                return useVisibility("QuizAttempt", "Own", data);
+            },
+            public: function getPublic(data) {
+                return {
+                    quiz: useVisibility("QuizAttempt", "Public", data),
+                };
+            },
         },
     }),
 });

@@ -1,21 +1,45 @@
 import { EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, endpointPostAuthEmailRequestPasswordChange, LINKS, Success } from "@local/shared";
-import { Box, Button, Grid, InputAdornment, Link, Typography, useTheme } from "@mui/material";
+import { Box, Button, InputAdornment } from "@mui/material";
 import { fetchLazyWrapper } from "api";
+import { BreadcrumbsBase } from "components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { Field, Formik } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { formNavLink, formPaper, formSubmit } from "forms/styles";
+import { Field, Formik, FormikHelpers } from "formik";
+import { InnerForm } from "forms/BaseForm/BaseForm";
+import { formPaper, formSubmit } from "forms/styles";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { EmailIcon } from "icons";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { clickSize } from "styles";
+import { CenteredContentPage, CenteredContentPageWrap, CenteredContentPaper, FormContainer, FormSection } from "styles";
 import { ForgotPasswordViewProps } from "views/types";
 
 interface ForgotPasswordFormProps {
     onClose?: () => unknown;
 }
+type FormValues = typeof initialValues;
+
+const initialValues = {
+    email: "",
+};
+
+const baseFormStyle = {
+    ...formPaper,
+    paddingBottom: "unset",
+    margin: "0px",
+} as const;
+const breadcrumbsStyle = {
+    margin: "auto",
+} as const;
+
+const emailInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <EmailIcon />
+        </InputAdornment>
+    ),
+} as const;
 
 function ForgotPasswordForm({
     onClose,
@@ -24,39 +48,47 @@ function ForgotPasswordForm({
     const [, setLocation] = useLocation();
     const [emailRequestPasswordChange, { loading }] = useLazyFetch<EmailRequestPasswordChangeInput, Success>(endpointPostAuthEmailRequestPasswordChange);
 
+    const onSubmit = useCallback(function onSubmitCallback(values: FormValues, helpers: FormikHelpers<FormValues>) {
+        fetchLazyWrapper<EmailRequestPasswordChangeInput, Success>({
+            fetch: emailRequestPasswordChange,
+            inputs: { ...values },
+            successCondition: (data) => data.success === true,
+            onSuccess: () => setLocation(LINKS.Home),
+            onCompleted: () => { helpers.setSubmitting(false); },
+            successMessage: () => ({ messageKey: "RequestSentCheckEmail" }),
+        });
+    }, [emailRequestPasswordChange, setLocation]);
+
+    const breadcrumbPaths = [
+        {
+            text: t("LogIn"),
+            link: LINKS.Login,
+        },
+        {
+            text: t("SignUp"),
+            link: LINKS.Signup,
+        },
+    ] as const;
+
     return (
-        <>
+        <Box>
             <TopBar
                 display="dialog"
                 onClose={onClose}
                 title={t("ForgotPassword")}
             />
             <Formik
-                initialValues={{
-                    email: "",
-                }}
-                onSubmit={(values, helpers) => {
-                    fetchLazyWrapper<EmailRequestPasswordChangeInput, Success>({
-                        fetch: emailRequestPasswordChange,
-                        inputs: { ...values },
-                        successCondition: (data) => data.success === true,
-                        onSuccess: () => setLocation(LINKS.Home),
-                        onCompleted: () => { helpers.setSubmitting(false); },
-                        successMessage: () => ({ messageKey: "RequestSentCheckEmail" }),
-                    });
-                }}
+                initialValues={initialValues}
+                onSubmit={onSubmit}
                 validationSchema={emailRequestPasswordChangeSchema}
             >
-                {(formik) => <BaseForm
+                {(formik) => <InnerForm
                     display={"dialog"}
                     isLoading={loading}
-                    style={{
-                        ...formPaper,
-                        paddingBottom: "unset",
-                    }}
+                    style={baseFormStyle}
                 >
-                    <Grid container spacing={2}>
-                        <Grid item xs={12}>
+                    <FormContainer width="unset" maxWidth="unset">
+                        <FormSection variant="transparent">
                             <Field
                                 fullWidth
                                 autoComplete="email"
@@ -65,89 +97,51 @@ function ForgotPasswordForm({
                                 label={t("Email", { count: 1 })}
                                 placeholder={t("EmailPlaceholder")}
                                 as={TextInput}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <EmailIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={emailInputProps}
                                 helperText={formik.touched.email && formik.errors.email}
                                 error={formik.touched.email && Boolean(formik.errors.email)}
                             />
-                        </Grid>
-                    </Grid>
-                    <Button
-                        fullWidth
-                        disabled={loading}
-                        type="submit"
-                        color="secondary"
-                        variant="contained"
-                        sx={{ ...formSubmit }}
-                    >
-                        {t("Submit")}
-                    </Button>
-                    <Box sx={{
-                        display: "flex",
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                    }}>
-                        <Link href={LINKS.Login}>
-                            <Typography
-                                sx={{
-                                    ...clickSize,
-                                    ...formNavLink,
-                                }}
+                        </FormSection>
+                        <Box width="100%" display="flex" flexDirection="column" p={2}>
+                            <Button
+                                fullWidth
+                                disabled={loading}
+                                type="submit"
+                                color="secondary"
+                                variant="contained"
+                                sx={{ ...formSubmit }}
                             >
-                                {t("LogIn")}
-                            </Typography>
-                        </Link>
-                        <Link href={LINKS.Signup}>
-                            <Typography
-                                sx={{
-                                    ...clickSize,
-                                    ...formNavLink,
-                                    flexDirection: "row-reverse",
-                                }}
-                            >
-                                {t("SignUp")}
-                            </Typography>
-                        </Link>
-                    </Box>
-                </BaseForm>}
+                                {t("Submit")}
+                            </Button>
+                            <BreadcrumbsBase
+                                paths={breadcrumbPaths}
+                                separator={"•"}
+                                sx={breadcrumbsStyle}
+                            />
+                        </Box>
+                    </FormContainer>
+                </InnerForm>}
             </Formik>
-        </>
+        </Box>
     );
 }
 
-export const ForgotPasswordView = ({
+export function ForgotPasswordView({
     display,
     onClose,
-}: ForgotPasswordViewProps) => {
-    const { palette } = useTheme();
-
+}: ForgotPasswordViewProps) {
     return (
-        <Box sx={{ maxHeight: "100vh", overflow: "hidden" }}>
+        <CenteredContentPage>
             <TopBar
                 display={display}
                 onClose={onClose}
                 titleBehaviorDesktop="ShowBelow"
             />
-            <Box
-                sx={{
-                    position: "absolute",
-                    top: "50%",
-                    left: "50%",
-                    transform: "translateX(-50%) translateY(-50%)",
-                    width: "min(700px, 100%)",
-                    background: palette.background.paper,
-                    borderRadius: { xs: 0, sm: 2 },
-                    overflow: "overlay",
-                }}
-            >
-                <ForgotPasswordForm onClose={onClose} />
-            </Box>
-        </Box>
+            <CenteredContentPageWrap>
+                <CenteredContentPaper maxWidth={600}>
+                    <ForgotPasswordForm onClose={onClose} />
+                </CenteredContentPaper>
+            </CenteredContentPageWrap>
+        </CenteredContentPage>
     );
-};
+}

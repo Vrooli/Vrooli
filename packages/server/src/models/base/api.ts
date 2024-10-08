@@ -2,6 +2,7 @@ import { ApiSortBy, apiValidation, MaxObjects } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions } from "../../utils/defaultPermissions";
 import { oneIsPublic } from "../../utils/oneIsPublic";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
@@ -10,7 +11,7 @@ import { afterMutationsRoot } from "../../utils/triggers/afterMutationsRoot";
 import { getSingleTypePermissions } from "../../validators/permissions";
 import { ApiFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { ApiModelInfo, ApiModelLogic, ApiVersionModelLogic, BookmarkModelLogic, ReactionModelLogic, TeamModelLogic, UserModelLogic, ViewModelLogic } from "./types";
+import { ApiModelInfo, ApiModelLogic, ApiVersionModelLogic, BookmarkModelLogic, ReactionModelLogic, TeamModelLogic, ViewModelLogic } from "./types";
 
 type ApiPre = PreShapeRootResult;
 
@@ -98,7 +99,7 @@ export const ApiModel: ApiModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ApiModelInfo["GqlPermission"]>(__typename, ids, userData)),
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
                         reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
@@ -111,6 +112,12 @@ export const ApiModel: ApiModelLogic = ({
         hasCompleteVersion: (data) => data.hasCompleteVersion === true,
         hasOriginalOwner: ({ createdBy, ownedByUser }) => ownedByUser !== null && ownedByUser.id === createdBy?.id,
         isDeleted: (data) => data.isDeleted === false,
+        // isPublic: function getIsPublic(data, ...rest) {
+        //     if (data.isPrivate || data.isDeleted) return false;
+        //     if (data.ownedByTeam === null && data.ownedByUser === null) return true;
+        //     if (data.ownedByTeam && data.ownedByTeam.isPrivate) return false;
+        //     if (data.ownedByUser && (data.ownedByUser.isPrivate || data.ownedByUser.isPrivateApi)) return false;
+        // },
         isPublic: (data, ...rest) =>
             data.isPrivate === false &&
             data.isDeleted === false &&
@@ -140,34 +147,56 @@ export const ApiModel: ApiModelLogic = ({
             versions: ["ApiVersion", ["root"]],
         }),
         visibility: {
-            //TODO for morning: all visiblity private/public need to be updated. Some are just blank when they should at MINIMUM look like the ones below, and ones like this one should also be checking that either the owners are both null, or the owner is also public/private
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    isDeleted: false,
+                    isDeleted: false, // Can't be deleted
                     OR: [
-                        { isPrivate: true },
-                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private(...params) },
-                        { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.private(...params) },
+                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                        { ownedByUser: { id: data.userId } },
                     ],
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    isDeleted: false,
-                    isPrivate: false,
+                    isDeleted: false, // Can't be deleted
+                    OR: [
+                        // Owned objects
+                        {
+                            OR: (useVisibility("Api", "Own", data) as { OR: object[] }).OR,
+                        },
+                        // Public objects
+                        {
+                            isPrivate: false, // Can't be private
+                            OR: (useVisibility("Api", "Public", data) as { OR: object[] }).OR,
+                        },
+                    ],
+                };
+            },
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: true,  // Must be private
+                    OR: (useVisibility("Api", "Own", data) as { OR: object[] }).OR,
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false,  // Must be public
+                    OR: (useVisibility("Api", "Own", data) as { OR: object[] }).OR,
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false, // Can't be private
                     OR: [
                         { ownedByTeam: null, ownedByUser: null },
-                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public(...params) },
-                        { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.public(...params) },
+                        { ownedByTeam: useVisibility("Team", "Public", data) },
+                        { ownedByUser: { isPrivate: false, isPrivateApis: false } },
                     ],
                 };
             },
-            owner: (userId) => ({
-                OR: [
-                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
-                    { ownedByUser: { id: userId } },
-                ],
-            }),
         },
     }),
 });

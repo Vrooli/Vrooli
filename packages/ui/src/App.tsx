@@ -1,24 +1,24 @@
 import { ActiveFocusMode, endpointPostAuthValidateSession, endpointPutFocusModeActive, getActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
 import { Box, BoxProps, createTheme, CssBaseline, GlobalStyles, styled, StyledEngineProvider, Theme, ThemeProvider } from "@mui/material";
 import { fetchLazyWrapper, hasErrorCode } from "api";
+import { fetchAIConfig } from "api/ai";
 import { BannerChicken } from "components/BannerChicken/BannerChicken";
 import { Celebration } from "components/Celebration/Celebration";
 import { DiagonalWaveLoader } from "components/DiagonalWaveLoader/DiagonalWaveLoader";
 import { AlertDialog } from "components/dialogs/AlertDialog/AlertDialog";
-import { chatSideMenuDisplayData } from "components/dialogs/ChatSideMenu/ChatSideMenu";
-import { SideMenu, sideMenuDisplayData } from "components/dialogs/SideMenu/SideMenu";
+import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
+import { SideMenu } from "components/dialogs/SideMenu/SideMenu";
 import { TutorialDialog } from "components/dialogs/TutorialDialog/TutorialDialog";
 import { BottomNav } from "components/navigation/BottomNav/BottomNav";
 import { CommandPalette } from "components/navigation/CommandPalette/CommandPalette";
 import { FindInPage } from "components/navigation/FindInPage/FindInPage";
-import { Footer } from "components/navigation/Footer/Footer";
 import { PullToRefresh } from "components/PullToRefresh/PullToRefresh";
 import { SnackStack } from "components/snacks";
-import { SessionContext } from "contexts/SessionContext";
-import { ZIndexProvider } from "contexts/ZIndexContext";
+import { ActiveChatProvider, SessionContext, ZIndexProvider } from "contexts";
 import { useHotkeys } from "hooks/useHotkeys";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useReactHash } from "hooks/useReactHash";
+import { useSideMenu } from "hooks/useSideMenu";
 import { useSocketConnect } from "hooks/useSocketConnect";
 import { useSocketUser } from "hooks/useSocketUser";
 import { useWindowSize } from "hooks/useWindowSize";
@@ -26,16 +26,18 @@ import i18next from "i18next";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Routes } from "Routes";
 import { getCurrentUser, getSiteLanguage, guestSession } from "utils/authentication/session";
-import { getCookie, getStorageItem, setCookie, ThemeType } from "utils/cookies";
+import { LEFT_DRAWER_WIDTH, RIGHT_DRAWER_WIDTH } from "utils/consts";
 import { getDeviceInfo } from "utils/display/device";
 import { DEFAULT_THEME, themes } from "utils/display/theme";
-import { PubSub, SideMenuPub } from "utils/pubsub";
+import { getCookie, getStorageItem, setCookie, ThemeType } from "utils/localStorage";
+import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID } from "utils/pubsub";
 import { CI_MODE } from "./i18n";
 
 function getGlobalStyles(theme: Theme) {
     return {
         html: {
             backgroundColor: theme.palette.background.default,
+            overflow: "hidden", //Force children to handle scrolling. This makes it easier to support persistent sidebars
         },
         // Custom scrollbar
         "*": {
@@ -128,6 +130,10 @@ function findThemeWithoutSession(): Theme {
 }
 
 const MainBox = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "row",
+    minHeight: "100vh",
+    minWidth: "100vw",
     background: theme.palette.background.default,
     color: theme.palette.background.textPrimary,
     // Style visited, active, and hovered links
@@ -149,25 +155,34 @@ const MainBox = styled(Box)(({ theme }) => ({
     },
 }));
 
-type ContentMargins = { marginLeft?: string, marginRight?: string };
-
 interface ContentWrapProps extends BoxProps {
-    contentMargins: ContentMargins;
+    isLeftDrawerOpen: boolean;
+    isLeftHanded: boolean;
+    isMobile: boolean;
+    isRightDrawerOpen: boolean;
 }
 
 const ContentWrap = styled(Box, {
-    shouldForwardProp: (prop) => prop !== "contentMargins",
-})<ContentWrapProps>(({ contentMargins, theme }) => ({
-    position: "relative",
-    background: theme.palette.mode === "light" ? "#c2cadd" : theme.palette.background.default,
-    minHeight: "100vh",
-    ...contentMargins,
-    transition: "margin 0.225s cubic-bezier(0, 0, 0.2, 1) 0s",
-    [theme.breakpoints.down("md")]: {
-        minHeight: "calc(100vh - 56px - env(safe-area-inset-bottom))",
-    },
-}));
-
+    shouldForwardProp: (prop) => prop !== "isLeftDrawerOpen" && prop !== "isLeftHanded" && prop !== "isMobile" && prop !== "isRightDrawerOpen",
+})<ContentWrapProps>(({ isLeftDrawerOpen, isLeftHanded, isMobile, isRightDrawerOpen, theme }) => {
+    const leftDrawerWidth = isLeftHanded ? isRightDrawerOpen ? RIGHT_DRAWER_WIDTH : 0 : isLeftDrawerOpen ? LEFT_DRAWER_WIDTH : 0;
+    const rightDrawerWidth = isLeftHanded ? isLeftDrawerOpen ? LEFT_DRAWER_WIDTH : 0 : isRightDrawerOpen ? RIGHT_DRAWER_WIDTH : 0;
+    return {
+        position: "relative",
+        background: theme.palette.background.default,
+        minHeight: "100vh",
+        width: isMobile ? "100vw" : `calc(100vw - ${leftDrawerWidth}px - ${rightDrawerWidth}px)`,
+        marginLeft: isMobile ? 0 : leftDrawerWidth,
+        marginRight: isMobile ? 0 : rightDrawerWidth,
+        transition: theme.transitions.create(["margin", "width"], {
+            easing: theme.transitions.easing.easeOut,
+            duration: theme.transitions.duration.enteringScreen,
+        }),
+        [theme.breakpoints.down("md")]: {
+            minHeight: "calc(100vh - 56px - env(safe-area-inset-bottom))",
+        },
+    } as const;
+});
 const LoaderBox = styled(Box)(() => ({
     position: "absolute",
     top: "50%",
@@ -175,11 +190,6 @@ const LoaderBox = styled(Box)(() => ({
     transform: "translate(-50%, -50%)",
     zIndex: 100000,
 }));
-
-const menusDisplayData: { [key in SideMenuPub["id"]]: { persistentOnDesktop: boolean, sideForRightHanded: "left" | "right" } } = {
-    "side-menu": sideMenuDisplayData,
-    "chat-side-menu": chatSideMenuDisplayData,
-};
 
 export function App() {
     // Session cookie should automatically expire in time determined by server,
@@ -195,8 +205,9 @@ export function App() {
     const [validateSession] = useLazyFetch<ValidateSessionInput, Session>(endpointPostAuthValidateSession);
     const [setActiveFocusMode] = useLazyFetch<SetActiveFocusModeInput, ActiveFocusMode>(endpointPutFocusModeActive);
     const isSettingActiveFocusMode = useRef<boolean>(false);
-    const [contentMargins, setContentMargins] = useState<ContentMargins>({}); // Adds margins to content when a persistent drawer is open
     const isMobile = useWindowSize(({ width }) => width <= theme.breakpoints.values.md);
+    const { isOpen: isLeftDrawerOpen } = useSideMenu({ id: CHAT_SIDE_MENU_ID, isMobile });
+    const { isOpen: isRightDrawerOpen } = useSideMenu({ id: SIDE_MENU_ID, isMobile });
 
     const closeTutorial = useCallback(function closeTutorialCallback() {
         setIsTutorialOpen(false);
@@ -206,6 +217,8 @@ export function App() {
     useEffect(() => {
         // Ignore if cimode (for testing) is enabled
         if (!CI_MODE) i18next.changeLanguage(language);
+        // Refetch LLM config data, which is language-dependent
+        fetchAIConfig(language);
     }, [language]);
     useEffect(() => {
         if (!session) return;
@@ -458,24 +471,6 @@ export function App() {
         const tutorialSub = PubSub.get().subscribe("tutorial", () => {
             setIsTutorialOpen(true);
         });
-        // Handle content margins when drawer(s) open/close
-        const sideMenuPub = PubSub.get().subscribe("sideMenu", (data) => {
-            const { persistentOnDesktop, sideForRightHanded } = menusDisplayData[data.id];
-            // Ignore if dialog is not persistent on desktop
-            if (!persistentOnDesktop) return;
-            // For now, ignore if "idPrefix" is present. This is currently only used for menus associated with dialogs
-            if (data.idPrefix) return;
-            // Flip side when in left-handed mode
-            const side = isLeftHanded ? (sideForRightHanded === "left" ? "right" : "left") : sideForRightHanded;
-            const menuElement = document.getElementById(data.id);
-            const margin = data.isOpen && !isMobile ? `${menuElement?.clientWidth ?? 0}px` : "0px";
-            // Only set on desktop
-            if (side === "left") {
-                setContentMargins(existing => ({ ...existing, marginLeft: margin }));
-            } else if (side === "right") {
-                setContentMargins(existing => ({ ...existing, marginRight: margin }));
-            }
-        });
         // On unmount, unsubscribe from all PubSub topics
         return (() => {
             loadingSub();
@@ -486,7 +481,6 @@ export function App() {
             languageSub();
             isLeftHandedSub();
             tutorialSub();
-            sideMenuPub();
         });
     }, [checkSession, isLeftHanded, isMobile, setActiveFocusMode, setThemeAndMeta]);
 
@@ -501,28 +495,38 @@ export function App() {
                     <GlobalStyles styles={getGlobalStyles} />
                     <SessionContext.Provider value={session}>
                         <ZIndexProvider>
-                            <MainBox id="App" component="main">
-                                {/* Pull-to-refresh for PWAs */}
-                                <PullToRefresh />
-                                <CommandPalette />
-                                <FindInPage />
-                                <Celebration />
-                                <AlertDialog />
-                                <SnackStack />
-                                <TutorialDialog isOpen={isTutorialOpen} onClose={closeTutorial} />
-                                <SideMenu />
-                                <ContentWrap id="content-wrap" contentMargins={contentMargins}>
-                                    {
-                                        isLoading && <LoaderBox>
-                                            <DiagonalWaveLoader size={100} />
-                                        </LoaderBox>
-                                    }
-                                    <Routes sessionChecked={session !== undefined} />
-                                </ContentWrap>
-                                <BannerChicken />
-                                <BottomNav />
-                                <Footer />
-                            </MainBox>
+                            <ActiveChatProvider>
+                                <MainBox id="App" component="main">
+                                    {/* Popups and other components that don't effect layout */}
+                                    <PullToRefresh />
+                                    <CommandPalette />
+                                    <FindInPage />
+                                    <Celebration />
+                                    <AlertDialog />
+                                    <SnackStack />
+                                    <TutorialDialog isOpen={isTutorialOpen} onClose={closeTutorial} />
+                                    {/* Main content*/}
+                                    <ContentWrap
+                                        id="content-wrap"
+                                        isLeftDrawerOpen={isLeftDrawerOpen}
+                                        isLeftHanded={isLeftHanded}
+                                        isMobile={isMobile}
+                                        isRightDrawerOpen={isRightDrawerOpen}
+                                    >
+                                        <ChatSideMenu />
+                                        {
+                                            isLoading && <LoaderBox>
+                                                <DiagonalWaveLoader size={100} />
+                                            </LoaderBox>
+                                        }
+                                        <Routes sessionChecked={session !== undefined} />
+                                        <SideMenu />
+                                    </ContentWrap>
+                                    {/* Below main content */}
+                                    <BannerChicken />
+                                    <BottomNav />
+                                </MainBox>
+                            </ActiveChatProvider>
                         </ZIndexProvider>
                     </SessionContext.Provider>
                 </ThemeProvider>

@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkFor, CommentFor, CommonKey, CopyResult, CopyType, DeleteType, ListObject, ReactionFor, ReportFor, Session, Success, getReactionScore } from "@local/shared";
+import { Bookmark, BookmarkFor, CommentFor, CopyResult, CopyType, DeleteType, ListObject, ReactionFor, ReportFor, Session, Success, TranslationKeyCommon, getReactionScore } from "@local/shared";
 import { ListMenuItemData } from "components/dialogs/types";
 import { ArrowDownIcon, ArrowUpIcon, BookmarkFilledIcon, BookmarkOutlineIcon, BranchIcon, CommentIcon, DeleteIcon, DonateIcon, EditIcon, ReportIcon, SearchIcon, ShareIcon, StatsIcon } from "icons";
 import { SvgComponent } from "types";
@@ -134,7 +134,7 @@ export function getAvailableActions(
 /**
  * Maps an ObjectAction to [labelKey, Icon, iconColor, preview]
  */
-const allOptionsMap: { [key in ObjectAction]: [CommonKey, SvgComponent, string, boolean] } = ({
+const allOptionsMap: { [key in ObjectAction]: [TranslationKeyCommon, SvgComponent, string, boolean] } = ({
     [ObjectAction.Bookmark]: ["Bookmark", BookmarkOutlineIcon, "#cbae30", false],
     [ObjectAction.BookmarkUndo]: ["BookmarkUndo", BookmarkFilledIcon, "#cbae30", false],
     [ObjectAction.Comment]: ["Comment", CommentIcon, "default", false],

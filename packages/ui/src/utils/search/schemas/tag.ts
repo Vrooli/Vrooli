@@ -1,5 +1,4 @@
-import { endpointGetTag, endpointGetTags, TagSortBy } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetTag, endpointGetTags, FormSchema, TagSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

@@ -196,13 +196,13 @@ function createNode(
     return dom;
 }
 
-const createChildren = (
+function createChildren(
     children: NodeKey[],
     _startIndex: number,
     endIndex: number,
     dom: HTMLElement | null,
     insertDOM: HTMLElement | null,
-): void => {
+): void {
     let startIndex = _startIndex;
 
     for (; startIndex <= endIndex; ++startIndex) {
@@ -212,22 +212,22 @@ const createChildren = (
             subTreeTextFormat = node.getFormat();
         }
     }
-};
+}
 
-const isLastChildLineBreakOrDecorator = (
+function isLastChildLineBreakOrDecorator(
     childKey: NodeKey,
     nodeMap: NodeMap,
-): boolean => {
+): boolean {
     const node = nodeMap.get(childKey);
     return $isNode("LineBreak", node) || ($isNode("Decorator", node) && node.isInline());
-};
+}
 
 // If we end an element with a LineBreakNode, then we need to add an additional <br>
-const reconcileElementTerminatingLineBreak = (
+function reconcileElementTerminatingLineBreak(
     prevElement: null | ElementNode,
     nextElement: ElementNode,
     dom: HTMLElement,
-): void => {
+): void {
     const prevLineBreak =
         prevElement !== null &&
         (prevElement.__size === 0 ||
@@ -257,9 +257,9 @@ const reconcileElementTerminatingLineBreak = (
         (dom as CustomDomElement).__lexicalLineBreak = element;
         dom.appendChild(element);
     }
-};
+}
 
-const reconcileParagraphFormat = (element: ElementNode): void => {
+function reconcileParagraphFormat(element: ElementNode): void {
     if (
         $isNode("Paragraph", element) &&
         subTreeTextFormat !== null &&
@@ -267,23 +267,23 @@ const reconcileParagraphFormat = (element: ElementNode): void => {
     ) {
         element.setTextFormat(subTreeTextFormat);
     }
-};
+}
 
-const reconcileChildrenWithDirection = (
+function reconcileChildrenWithDirection(
     prevElement: ElementNode,
     nextElement: ElementNode,
     dom: HTMLElement,
-): void => {
+): void {
     subTreeTextFormat = null;
     reconcileChildren(prevElement, nextElement, dom);
     reconcileParagraphFormat(nextElement);
     subTreeTextFormat = null;
-};
+}
 
-const createChildrenArray = (
+function createChildrenArray(
     element: ElementNode,
     nodeMap: NodeMap,
-): NodeKey[] => {
+): NodeKey[] {
     const children: string[] = [];
     let nodeKey = element.__first;
     while (nodeKey) {
@@ -295,7 +295,7 @@ const createChildrenArray = (
         nodeKey = node.__next;
     }
     return children;
-};
+}
 
 function reconcileChildren(
     prevElement: ElementNode,

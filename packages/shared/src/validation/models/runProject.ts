@@ -1,4 +1,4 @@
-import { RunStatus } from "@local/shared";
+import { RunStatus } from "../../api/generated/graphqlTypes";
 import { bool, enumToYup, id, intPositiveOrZero, name, opt, req, YupModel, yupObj } from "../utils";
 import { runProjectStepValidation } from "./runProjectStep";
 import { scheduleValidation } from "./schedule";
@@ -13,6 +13,7 @@ export const runProjectValidation: YupModel<["create", "update"]> = {
         isPrivate: opt(bool),
         status: req(runStatus),
         name: req(name),
+        timeElapsed: opt(intPositiveOrZero),
     }, [
         ["projectVersion", ["Connect"], "one", "req"],
         ["schedule", ["Create"], "one", "opt", scheduleValidation],

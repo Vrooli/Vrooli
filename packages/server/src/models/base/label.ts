@@ -2,6 +2,7 @@ import { LabelSortBy, labelValidation, MaxObjects } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions } from "../../validators";
@@ -66,7 +67,7 @@ export const LabelModel: LabelModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<LabelModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -93,18 +94,24 @@ export const LabelModel: LabelModelLogic = ({
                 ["ownedByUser", "User"],
             ], data, ...rest),
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return {
+                    OR: [
+                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                        { ownedByUser: { id: data.userId } },
+                    ],
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
+            // Always private, so it's the same as "own"
+            ownOrPublic: function getOwnOrPublic(data) {
+                return useVisibility("Label", "Own", data);
             },
-            owner: (userId) => ({
-                OR: [
-                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
-                    { ownedByUser: { id: userId } },
-                ],
-            }),
+            // Always private, so it's the same as "own"
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("Label", "Own", data);
+            },
+            ownPublic: null, // Search method disabled
+            public: null, // Search method disabled
         },
     }),
 });

@@ -1,8 +1,6 @@
-import { Tag } from "@local/shared";
+import { Tag, TagSelectorFormInput, TagShape } from "@local/shared";
 import { TagSelectorBase } from "components/inputs/TagSelector/TagSelector";
 import { useField } from "formik";
-import { TagSelectorFormInput } from "forms/types";
-import { TagShape } from "utils/shape/models/tag";
 import { FormInputProps } from "../types";
 
 export function FormInputTagSelector({

@@ -1,11 +1,11 @@
-import { User, exists, noop } from "@local/shared";
+import { OwnerShape, User, exists, getTranslation, noop } from "@local/shared";
 import { Tooltip } from "@mui/material";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { ListMenu } from "components/dialogs/ListMenu/ListMenu";
-import { ListMenuItemData, SelectOrCreateObjectType } from "components/dialogs/types";
+import { FindObjectType, ListMenuItemData } from "components/dialogs/types";
 import { userFromSession } from "components/lists/RelationshipList/RelationshipList";
 import { RelationshipItemTeam, RelationshipItemUser } from "components/lists/types";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useField } from "formik";
 import { usePopover } from "hooks/usePopover";
 import { TeamIcon, UserIcon } from "icons";
@@ -16,9 +16,8 @@ import { getCurrentUser } from "utils/authentication/session";
 import { extractImageUrl } from "utils/display/imageTools";
 import { placeholderColor } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
-import { getTranslation, getUserLanguages } from "utils/display/translationTools";
+import { getUserLanguages } from "utils/display/translationTools";
 import { openObject } from "utils/navigation/openObject";
-import { OwnerShape } from "utils/shape/models/types";
 import { RelationshipAvatar, RelationshipButton, RelationshipChip } from "../styles";
 import { OwnerButtonProps } from "../types";
 
@@ -84,8 +83,8 @@ export function OwnerButton({
     }, [closeOwnerDialog, openTeamDialog, session, versionHelpers, rootHelpers]);
 
     // FindObjectDialog
-    const [findType, findHandleAdd, findHandleClose] = useMemo<[SelectOrCreateObjectType | null, (item: any) => unknown, () => unknown]>(() => {
-        if (isTeamDialogOpen) return ["Team", handleOwnerSelect, closeTeamDialog];
+    const [findType, findHandleAdd, findHandleClose] = useMemo<[FindObjectType | null, (data: object) => unknown, () => unknown]>(() => {
+        if (isTeamDialogOpen) return ["Team", handleOwnerSelect as (data: object) => unknown, closeTeamDialog];
         return [null, noop, noop];
     }, [isTeamDialogOpen, handleOwnerSelect, closeTeamDialog]);
     const limitTo = useMemo(function limitToMemo() {

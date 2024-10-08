@@ -1,9 +1,8 @@
 /* eslint-disable func-style */
-import { CommonKey, InputType } from "@local/shared";
-import { FormInputType, FormSchema, GridContainer } from "forms/types";
+import { FormInputType, FormSchema, GridContainer, InputType, TranslationKeyCommon } from "@local/shared";
 import i18next from "i18next";
 
-export const searchFormLayout = (title: CommonKey): FormSchema["layout"] => ({
+export const searchFormLayout = (title: TranslationKeyCommon): FormSchema["layout"] => ({
     title: i18next.t(title),
 });
 

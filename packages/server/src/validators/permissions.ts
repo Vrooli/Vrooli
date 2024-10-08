@@ -4,8 +4,9 @@ import { PrismaDelegate } from "../builders/types";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
+import { Validator } from "../models/types";
 import { SessionUserToken } from "../types";
-import { AuthDataById } from "../utils/getAuthenticatedData";
+import { AuthDataById, AuthDataItem } from "../utils/getAuthenticatedData";
 import { getParentInfo } from "../utils/getParentInfo";
 import { InputsById, QueryAction } from "../utils/types";
 import { isOwnerAdminCheck } from "./isOwnerAdminCheck";
@@ -220,11 +221,43 @@ export type TeamPolicy = PolicyPart & {
     };
 };
 
+type ResolvedPermissions = { [x in Exclude<QueryAction, "Create"> as `can${x}`]: boolean } & { canReact: boolean };
+
+/**
+ * Calculates and returns permissions for a given object based on user and auth data.
+ * @param authData The authentication data for the object.
+ * @param userData Details about the user, such as ID and role.
+ * @param validator Contains methods for permission checks like isAdmin, isDeleted, and isPublic.
+ * @param inputsById Optional data for additional permission logic context.
+ * @returns A promise that resolves to an object with permission keys and boolean values.
+ */
+export async function calculatePermissions(
+    authData: AuthDataItem,
+    userData: SessionUserToken | null,
+    validator: ReturnType<Validator<any>>,
+    inputsById?: InputsById,
+): Promise<ResolvedPermissions> {
+    const languages = userData?.languages ?? ["en"];
+    const isAdmin = userData?.id ? isOwnerAdminCheck(validator.owner(authData, userData.id), userData.id) : false;
+    const isDeleted = validator.isDeleted(authData, languages);
+    const isLoggedIn = !!userData?.id;
+    const isPublic = validator.isPublic(authData, (...rest) => inputsById ? getParentInfo(...rest, inputsById) : undefined, languages);
+
+    const permissionResolvers = validator.permissionResolvers({ isAdmin, isDeleted, isLoggedIn, isPublic, data: authData, userId: userData?.id });
+
+    // Execute resolvers and convert to object entries
+    const permissions = await Promise.all(
+        Object.entries(permissionResolvers).map(async ([key, resolver]) => [key, await resolver()]),
+    ).then(entries => Object.fromEntries(entries));
+
+    return permissions;
+}
+
 /**
  * Using queried permissions data, calculates permissions for multiple objects. These are used to let a user know ahead of time if they're allowed to 
  * perform an action, and indicate that in the UX
  * @param authDataById Map of all queried data required to validate permissions, keyed by ID.
- * @parma userData Data about the user performing the action
+ * @param userData Data about the user performing the action
  * @returns Map of permissions objects, keyed by ID
  */
 export async function getMultiTypePermissions(
@@ -233,23 +266,12 @@ export async function getMultiTypePermissions(
     userData: SessionUserToken | null,
 ): Promise<{ [id: string]: { [x: string]: any } }> {
     // Initialize result
-    const permissionsById: { [id: string]: { [key in QueryAction]?: boolean } } = {};
+    const permissionsById: { [id: string]: { [key in QueryAction as `can${key}`]?: boolean } } = {};
     // Loop through each ID and calculate permissions
     for (const [id, authData] of Object.entries(authDataById)) {
         // Get permissions object for this ID
         const validator = ModelMap.get(authData.__typename).validate();
-        const isAdmin = userData?.id ? isOwnerAdminCheck(validator.owner(authData, userData.id), userData.id) : false;
-        const isDeleted = validator.isDeleted(authData, userData?.languages ?? ["en"]);
-        const isLoggedIn = !!userData?.id;
-        const isPublic = validator.isPublic(authData, (...rest) => getParentInfo(...rest, inputsById), userData?.languages ?? ["en"]);
-        const permissionResolvers = validator.permissionResolvers({ isAdmin, isDeleted, isLoggedIn, isPublic, data: authDataById[id], userId: userData?.id });
-        // permissionResolvers is an object of key/resolver pairs. We want to create a new object with 
-        // the same keys, but with the values of the resolvers instead.
-        const permissions = await Promise.all(
-            Object.entries(permissionResolvers).map(async ([key, resolver]) => [key, await resolver()]),
-        ).then(entries => Object.fromEntries(entries));
-        // Add permissions object to result
-        permissionsById[id] = permissions;
+        permissionsById[id] = await calculatePermissions(authData, userData, validator, inputsById);
     }
     return permissionsById;
 }
@@ -288,15 +310,7 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
     // Loop through each id and calculate permissions
     for (const id of ids) {
         // Get permissions object for this ID
-        const authDataItem = dataById[id];
-        const isAdmin = userData?.id ? isOwnerAdminCheck(validator.owner(authDataItem, userData.id), userData.id) : false;
-        const isDeleted = validator.isDeleted(authDataItem, userData?.languages ?? ["en"]);
-        const isLoggedIn = !!userData?.id;
-        const isPublic = validator.isPublic(authDataItem, () => undefined, userData?.languages ?? ["en"]);
-        const permissionResolvers = validator.permissionResolvers({ isAdmin, isDeleted, isLoggedIn, isPublic, data: authDataItem, userId: userData?.id });
-        // permissionResolvers is an array of key/resolver pairs. We can use this to create an object with the same keys
-        // as the permissions object, but with the values being the result of the resolver.
-        const permissionsObject = Object.fromEntries(Object.entries(permissionResolvers).map(([key, resolver]) => [key, resolver()]));
+        const permissionsObject = await calculatePermissions(dataById[id] as AuthDataItem, userData, validator);
         // Add permissions object to result
         for (const key of Object.keys(permissionsObject)) {
             permissions[key as keyof Permissions] = [...(permissions[key as keyof Permissions] ?? []), permissionsObject[key]];
@@ -311,14 +325,16 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
  * @param authDataById Map of all queried data required to validate permissions, keyed by ID.
  * @param idsByAction Map of object IDs to validate permissions for, keyed by action. We store actions this way (instead of keyed by ID) 
  * in case one ID is used for multiple actions.
- * @parma userId ID of user requesting permissions
+ * @param userId ID of user requesting permissions
+ * @param throwsOnError Whether to throw an error if the user does not have permission, or return a boolean
  */
 export async function permissionsCheck(
     authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } },
     idsByAction: { [key in QueryAction]?: string[] },
     inputsById: InputsById,
     userData: SessionUserToken | null,
-) {
+    throwsOnError = true,
+): Promise<boolean> {
     // Get permissions
     const permissionsById = await getMultiTypePermissions(authDataById, inputsById, userData);
     // Loop through each action and validate permissions
@@ -340,12 +356,21 @@ export async function permissionsCheck(
             const permissions = permissionsById[id];
             // If permissions doesn't exist, something went wrong.
             if (!permissions) {
-                throw new CustomError("0390", "CouldNotFindPermissions", userData?.languages ?? ["en"], { action, id, __typename: authDataById?.[id]?.__typename });
+                if (throwsOnError) {
+                    throw new CustomError("0390", "CouldNotFindPermissions", userData?.languages ?? ["en"], { action, id, __typename: authDataById?.[id]?.__typename });
+                } else {
+                    return false;
+                }
             }
             // Check if permissions contains the current action. If so, make sure it's not false.
             if (`can${action}` in permissions && !permissions[`can${action}`]) {
-                throw new CustomError("0297", "Unauthorized", userData?.languages ?? ["en"], { action, id, __typename: authDataById[id].__typename });
+                if (throwsOnError) {
+                    throw new CustomError("0297", "Unauthorized", userData?.languages ?? ["en"], { action, id, __typename: authDataById[id].__typename });
+                } else {
+                    return false;
+                }
             }
         }
     }
+    return true;
 }

@@ -1,4 +1,4 @@
-import { CodeVersion, CommentFor, LINKS, ResourceList as ResourceListType, Tag, endpointGetCodeVersion, exists, noopSubmit } from "@local/shared";
+import { CodeLanguage, CodeShape, CodeVersion, CommentFor, LINKS, ResourceListShape, ResourceList as ResourceListType, SearchVersionPageTabOption, Tag, TagShape, endpointGetCodeVersion, exists, getTranslation, noopSubmit } from "@local/shared";
 import { Box, Button, Divider, Stack, useTheme } from "@mui/material";
 import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -6,7 +6,7 @@ import { CommentContainer } from "components/containers/CommentContainer/Comment
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { CodeInput, CodeLanguage } from "components/inputs/CodeInput/CodeInput";
+import { CodeInput } from "components/inputs/CodeInput/CodeInput";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TagList } from "components/lists/TagList/TagList";
@@ -15,10 +15,10 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { StatsCompact } from "components/text/StatsCompact/StatsCompact";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Formik } from "formik";
-import { useObjectActions } from "hooks/useObjectActions";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useObjectActions } from "hooks/objectActions";
+import { useManagedObject } from "hooks/useManagedObject";
 import { AddIcon, EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -26,13 +26,12 @@ import { useLocation } from "route";
 import { SideActionsButton } from "styles";
 import { ObjectAction } from "utils/actions/objectActions";
 import { firstString } from "utils/display/stringTools";
-import { getLanguageSubtag, getPreferredLanguage, getTranslation, getUserLanguages } from "utils/display/translationTools";
-import { SearchVersionPageTabOption } from "utils/search/objectToSearch";
-import { CodeShape } from "utils/shape/models/code";
-import { ResourceListShape } from "utils/shape/models/resourceList";
-import { TagShape } from "utils/shape/models/tag";
+import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
 import { smartContractInitialValues } from "../SmartContractUpsert/SmartContractUpsert";
 import { SmartContractViewProps } from "../types";
+
+const actionsRowExclude = [ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp] as const;
+const codeLimitTo = [CodeLanguage.Javascript] as const;
 
 export function SmartContractView({
     display,
@@ -45,7 +44,7 @@ export function SmartContractView({
     const { t } = useTranslation();
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
-    const { isLoading, object: existing, permissions, setObject: setCodeVersion } = useObjectFromUrl<CodeVersion>({
+    const { isLoading, object: existing, permissions, setObject: setCodeVersion } = useManagedObject<CodeVersion>({
         ...endpointGetCodeVersion,
         objectType: "CodeVersion",
     });
@@ -67,7 +66,7 @@ export function SmartContractView({
 
     const actionData = useObjectActions({
         object: existing,
-        objectType: "Code",
+        objectType: "CodeVersion",
         openAddCommentDialog,
         setLocation,
         setObject: setCodeVersion,
@@ -136,7 +135,7 @@ export function SmartContractView({
                     >
                         <CodeInput
                             disabled={true}
-                            limitTo={[CodeLanguage.Javascript]}
+                            limitTo={codeLimitTo}
                             name="content"
                         />
                     </ContentCollapse>
@@ -182,7 +181,7 @@ export function SmartContractView({
                         {/* Action buttons */}
                         <ObjectActionsRow
                             actionData={actionData}
-                            exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
+                            exclude={actionsRowExclude} // Handled elsewhere
                             object={existing}
                         />
                     </Box>

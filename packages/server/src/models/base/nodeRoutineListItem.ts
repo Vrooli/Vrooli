@@ -1,8 +1,9 @@
-import { MaxObjects, nodeRoutineListItemValidation } from "@local/shared";
+import { MaxObjects, getTranslation, nodeRoutineListItemValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { bestTranslation, defaultPermissions, oneIsPublic } from "../../utils";
+import { useVisibility } from "../../builders/visibilityBuilder";
+import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { NodeRoutineListItemFormat } from "../formats";
 import { NodeRoutineListItemModelInfo, NodeRoutineListItemModelLogic, NodeRoutineListModelInfo, NodeRoutineListModelLogic, RoutineVersionModelInfo, RoutineVersionModelLogic } from "./types";
@@ -21,7 +22,7 @@ export const NodeRoutineListItemModel: NodeRoutineListItemModelLogic = ({
             }),
             get: (select, languages) => {
                 // Prefer item translations over routineVersion's
-                const itemLabel = bestTranslation(select.translations, languages)?.name ?? "";
+                const itemLabel = getTranslation(select, languages).name ?? "";
                 if (itemLabel.length > 0) return itemLabel;
                 return ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").display().label.get(select.routineVersion as RoutineVersionModelInfo["PrismaModel"], languages);
             },
@@ -57,17 +58,31 @@ export const NodeRoutineListItemModel: NodeRoutineListItemModelLogic = ({
         isDeleted: (data, languages) => ModelMap.get<NodeRoutineListModelLogic>("NodeRoutineList").validate().isDeleted(data.list as NodeRoutineListModelInfo["PrismaModel"], languages),
         isPublic: (...rest) => oneIsPublic<NodeRoutineListItemModelInfo["PrismaSelect"]>([["list", "NodeRoutineList"]], ...rest),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    list: ModelMap.get<NodeRoutineListModelLogic>("NodeRoutineList").validate().visibility.private(...params),
+                    list: useVisibility("NodeRoutineList", "Own", data),
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    list: ModelMap.get<NodeRoutineListModelLogic>("NodeRoutineList").validate().visibility.public(...params),
+                    list: useVisibility("NodeRoutineList", "OwnOrPublic", data),
                 };
             },
-            owner: (userId) => ({ list: ModelMap.get<NodeRoutineListModelLogic>("NodeRoutineList").validate().visibility.owner(userId) }),
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    list: useVisibility("NodeRoutineList", "OwnPrivate", data),
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    list: useVisibility("NodeRoutineList", "OwnPublic", data),
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    list: useVisibility("NodeRoutineList", "Public", data),
+                };
+            },
         },
     }),
 });

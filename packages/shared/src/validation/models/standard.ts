@@ -8,7 +8,7 @@ export const standardValidation: YupModel<["create", "update"]> = {
         id: req(id),
         isInternal: opt(bool),
         isPrivate: opt(bool),
-        permissions: req(permissions),
+        permissions: opt(permissions),
     }, [
         ["ownedByUser", ["Connect"], "one", "opt"],
         ["ownedByTeam", ["Connect"], "one", "opt"],

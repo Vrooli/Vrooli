@@ -2,7 +2,7 @@ import { ListObject } from "@local/shared";
 import { useCallback, useState } from "react";
 
 /** Hook for providing context menu logic for object lists */
-export const useObjectContextMenu = () => {
+export function useObjectContextMenu() {
     const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
     const [object, setObject] = useState<ListObject | null>(null);
     const handleContextMenu = useCallback((target: EventTarget, object: ListObject | null) => {
@@ -22,4 +22,4 @@ export const useObjectContextMenu = () => {
         object,
         setObject,
     };
-};
+}

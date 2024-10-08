@@ -1,4 +1,5 @@
 import { Resource, ResourceList, ResourceListFor } from "@local/shared";
+import { UsePressEvent } from "hooks/gestures";
 import { DraggableProvidedDragHandleProps, DraggableProvidedDraggableProps } from "react-beautiful-dnd";
 import { SxType } from "types";
 import { ObjectListActions } from "../types";
@@ -33,7 +34,7 @@ export type ResourceListProps = {
 export interface ResourceListItemProps {
     canUpdate: boolean;
     data: Resource;
-    handleContextMenu: (target: EventTarget, index: number) => unknown;
+    handleContextMenu: (event: UsePressEvent, index: number) => unknown;
     handleEdit: (index: number) => unknown;
     handleDelete: (index: number) => unknown;
     index: number;

@@ -1,5 +1,4 @@
-import { endpointGetRoutine, endpointGetRoutines, InputType, RoutineSortBy, RoutineType } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetRoutine, endpointGetRoutines, FormSchema, InputType, RoutineSortBy, RoutineType } from "@local/shared";
 import { ActionIcon, ApiIcon, CaseSensitiveIcon, HelpIcon, MagicIcon, RoutineIcon, SmartContractIcon, TerminalIcon } from "icons";
 import { SvgProps } from "types";
 import { toParams } from "./base";
@@ -85,7 +84,6 @@ export function routineSearchSchema(): FormSchema {
                     getOptionDescription: (option) => option.description,
                     getOptionLabel: (option) => option.label,
                     getOptionValue: (option) => option.label,
-                    name: "routineType",
                     options: [
                         {
                             type: null,

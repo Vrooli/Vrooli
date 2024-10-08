@@ -27,6 +27,7 @@ export const typeDef = gql`
         contextSwitches: Int
         name: String!
         status: RunStatus!
+        timeElapsed: Int
         stepsCreate: [RunProjectStepCreateInput!]
         scheduleCreate: ScheduleCreateInput
         projectVersionConnect: ID!
@@ -53,6 +54,7 @@ export const typeDef = gql`
         startedAt: Date
         timeElapsed: Int
         completedAt: Date
+        lastStep: [Int!]
         name: String!
         status: RunStatus!
         projectVersion: ProjectVersion
@@ -99,19 +101,6 @@ export const typeDef = gql`
         node: RunProject!
     }
 
-    input RunProjectCompleteInput {
-        id: ID! # Run ID if "exists" is true, or routine version ID if "exists" is false
-        completedComplexity: Int # Even though the runProject was completed, the user may not have completed every subroutine
-        exists: Boolean # If true, runProject ID is provided, otherwise routine ID so we can create a runProject
-        name: String # Title of routine, so runProject name stays consistent even if routine updates/deletes
-        finalStepCreate: RunProjectStepCreateInput
-        finalStepUpdate: RunProjectStepUpdateInput
-        wasSuccessful: Boolean
-    }
-    input RunProjectCancelInput {
-        id: ID!
-    }
-
     extend type Query {
         runProject(input: FindByIdInput!): RunProject
         runProjects(input: RunProjectSearchInput!): RunProjectSearchResult!
@@ -121,8 +110,6 @@ export const typeDef = gql`
         runProjectCreate(input: RunProjectCreateInput!): RunProject!
         runProjectUpdate(input: RunProjectUpdateInput!): RunProject!
         runProjectDeleteAll: Count!
-        runProjectComplete(input: RunProjectCompleteInput!): RunProject!
-        runProjectCancel(input: RunProjectCancelInput!): RunProject!
     }
 `;
 

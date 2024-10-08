@@ -1,4 +1,4 @@
-import { AutocompleteOption, CommonKey } from "@local/shared";
+import { AutocompleteOption, TranslationKeyCommon } from "@local/shared";
 import { InputProps } from "@mui/material";
 import { SxType } from "types";
 import { SearchItem } from "utils/search/siteToSearch";
@@ -17,7 +17,7 @@ export type SiteSearchBarProps = Omit<InputProps, "onChange" | "onInputChange"> 
     onChange: (updatedText: string) => unknown;
     onInputChange: (newValue: AutocompleteOption) => unknown;
     options?: readonly AutocompleteOption[];
-    placeholder?: CommonKey;
+    placeholder?: TranslationKeyCommon;
     value: string;
     sxs?: {
         paper?: SxType;
@@ -30,6 +30,6 @@ export type SettingsSearchBarProps = InputProps & {
     id?: string;
     onChange: (updatedText: string) => unknown;
     onInputChange: (newValue: SearchItem) => unknown;
-    placeholder?: CommonKey;
+    placeholder?: TranslationKeyCommon;
     value: string;
 }

@@ -1,5 +1,6 @@
-import { Chip, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { useMemo } from "react";
+import { ListItemChip } from "../ObjectListItemBase/ObjectListItemBase";
 import { RoleListProps } from "../types";
 
 export const RoleList = ({
@@ -17,15 +18,11 @@ export const RoleList = ({
             if (role.name.length < charactersBeforeCutoff) {
                 charactersBeforeCutoff -= role.name.length;
                 chipResult.push(
-                    <Chip
+                    <ListItemChip
+                        color="Blue"
                         key={role.name}
                         label={role.name}
-                        size="small"
-                        sx={{
-                            backgroundColor: palette.mode === "light" ? "#1d7691" : "#016d97",
-                            color: "white",
-                            width: "fit-content",
-                        }} />,
+                    />,
                 );
             }
         }

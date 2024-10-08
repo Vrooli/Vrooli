@@ -542,9 +542,9 @@ function registerRichText(editor: LexicalEditor): (() => void) {
 /**
  * Adds support for Dragon, which is an extension that allows users to dictate text.
  */
-const registerDragonSupport = (editor: LexicalEditor): () => void => {
+function registerDragonSupport(editor: LexicalEditor): (() => void) {
     const origin = window.location.origin;
-    const handler = (event: MessageEvent) => {
+    function handler(event: MessageEvent) {
         if (event.origin !== origin) {
             return;
         }
@@ -646,23 +646,22 @@ const registerDragonSupport = (editor: LexicalEditor): () => void => {
                 }
             }
         }
-    };
+    }
 
     window.addEventListener("message", handler, true);
     return () => {
         window.removeEventListener("message", handler, true);
     };
-};
+}
 
-export const RichTextPlugin = ({
+export function RichTextPlugin({
     contentEditable,
 }: {
     contentEditable: JSX.Element;
-}): JSX.Element => {
+}): JSX.Element {
     const editor = useLexicalComposerContext();
 
     useLayoutEffect(() => {
-        console.log("in richtextplugin uselayouteffect", editor);
         if (!editor) return;
         return mergeRegister(
             registerRichText(editor),
@@ -675,4 +674,4 @@ export const RichTextPlugin = ({
             {contentEditable}
         </LexicalErrorBoundary>
     );
-};
+}

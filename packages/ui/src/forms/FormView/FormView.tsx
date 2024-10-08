@@ -1,4 +1,4 @@
-import { InputType, mergeDeep, noop, noopSubmit } from "@local/shared";
+import { CreateFormInputProps, FormBuildViewProps, FormDividerType, FormElement, FormHeaderType, FormInputType, FormRunViewProps, FormSchema, FormStructureType, FormViewProps, GridContainer, InputType, createFormInput, generateInitialValues, mergeDeep, noop, noopSubmit, preventFormSubmit, uuid } from "@local/shared";
 import { Box, BoxProps, Divider, Grid, GridSpacing, IconButton, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover, Stack, Typography, styled, useTheme } from "@mui/material";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { FormInput } from "components/inputs/form";
@@ -6,15 +6,12 @@ import { FormDivider } from "components/inputs/form/FormDivider/FormDivider";
 import { FormHeader } from "components/inputs/form/FormHeader/FormHeader";
 import { Formik } from "formik";
 import { FormErrorBoundary } from "forms/FormErrorBoundary/FormErrorBoundary";
-import { CreateFormInputProps, createFormInput, generateInitialValues, generateYupSchema } from "forms/generators";
-import { FormBuildViewProps, FormDividerType, FormElement, FormHeaderType, FormInputType, FormRunViewProps, FormSchema, FormViewProps, GridContainer } from "forms/types";
 import { usePopover } from "hooks/usePopover";
 import { useWindowSize } from "hooks/useWindowSize";
 import { CaseSensitiveIcon, DragIcon, Header1Icon, Header2Icon, Header3Icon, Header4Icon, HeaderIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, MinusIcon, NumberIcon, ObjectIcon, SliderIcon, SwitchIcon, CaseSensitiveIcon as TextInputIcon, UploadIcon, VrooliIcon } from "icons";
 import React, { Fragment, memo, useCallback, useMemo, useRef, useState } from "react";
 import { DragDropContext, Draggable, DraggableProvided, DropResult, Droppable } from "react-beautiful-dnd";
 import { randomString } from "utils/codes";
-import { FormStructureType } from "utils/consts";
 
 /**
  * Function to convert a FormSchema into an array of containers with start and end indices for rendering.
@@ -111,10 +108,9 @@ function filterCategory<T extends PopoverListInput | PopoverListStructure>(
 interface ElementBuildOuterBoxProps extends BoxProps {
     isSelected: boolean;
 }
-
 const ElementBuildOuterBox = styled(Box, {
     shouldForwardProp: (prop) => prop !== "isSelected",
-})<ElementBuildOuterBoxProps>(({ theme, isSelected }) => ({
+})<ElementBuildOuterBoxProps>(({ isSelected, theme }) => ({
     display: "flex",
     background: theme.palette.background.paper,
     border: isSelected ? `4px solid ${theme.palette.secondary.main}` : "none",
@@ -151,7 +147,7 @@ interface ToolbarBoxProps extends BoxProps {
 
 const ToolbarBox = styled(Box, {
     shouldForwardProp: (prop) => prop !== "formElementsCount",
-})<ToolbarBoxProps>(({ theme, formElementsCount }) => ({
+})<ToolbarBoxProps>(({ formElementsCount, theme }) => ({
     display: "flex",
     justifyContent: "space-around",
     margin: "-4px",
@@ -187,7 +183,6 @@ const PopoverListItem = memo(function PopoverListItemMemo({
     tag,
     type,
 }: PopoverListItemProps) {
-    console.log("routinegenerateform popoverkey", key);
     const handleClick = useCallback(() => {
         if (type === "Divider") {
             onAddDivider();
@@ -224,11 +219,11 @@ const formDividerStyle = { marginBottom: 2 } as const;
 
 //TODO: Allow titles to collapse sections below them. Need to update the way inputs are rendered so that they're nested within the header using a collapsibetext component
 export function FormBuildView({
+    fieldNamePrefix,
     limits,
     onSchemaChange,
     schema,
 }: FormBuildViewProps) {
-    console.log("rendering FormBuildView", schema);
     const { breakpoints, palette } = useTheme();
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
 
@@ -255,7 +250,7 @@ export function FormBuildView({
     const handleAddElement = useCallback(function handleAddElementCallback<T extends FormElement>(element: Omit<T, "id">) {
         const newElement = {
             ...element,
-            id: Date.now().toString(),
+            id: uuid(),
         } as unknown as FormElement;
         const newElements = [...schema.elements ?? []];
         if (selectedElementIndex !== null) {
@@ -366,8 +361,9 @@ export function FormBuildView({
     }, [limits]);
 
     const handleAddInput = useCallback(function handleAddInputCallback(data: Omit<Partial<FormInputType>, "type"> & { type: InputType }) {
+        const FIELD_NAME_RANDOM_LENGTH = 10;
         const newElement = createFormInput({
-            fieldName: `input-${randomString()}`,
+            fieldName: `field-${randomString(FIELD_NAME_RANDOM_LENGTH)}`,
             label: `Input #${selectedElementIndex !== null ? selectedElementIndex + 1 : schema.elements.length + 1}`,
             ...data,
         } as CreateFormInputProps);
@@ -475,6 +471,7 @@ export function FormBuildView({
                     ref={handleElementButtonRef}
                     onClick={onElementButtonClick}
                     onKeyDown={onElementButtonKeyDown}
+                    onSubmit={preventFormSubmit} // Form elements should never submit the form
                     type="button"
                 >
                     {element.type === FormStructureType.Header && (
@@ -494,6 +491,7 @@ export function FormBuildView({
                     {!(element.type in FormStructureType) && (
                         <FormInput
                             fieldData={element as FormInputType}
+                            fieldNamePrefix={fieldNamePrefix}
                             index={index}
                             isEditing={isSelected}
                             onConfigUpdate={onFormInputConfigUpdate}
@@ -565,8 +563,8 @@ export function FormBuildView({
     }, [inputItems, structureItems, schema.elements.length, isMobile, handleAddInput, handleInputPopoverOpen, handleAddDivider, handleAddHeader, handleStructurePopoverOpen]);
 
     const initialValues = useMemo(function initialValuesMemo() {
-        return generateInitialValues(schema.elements);
-    }, [schema]);
+        return generateInitialValues(schema.elements, fieldNamePrefix);
+    }, [fieldNamePrefix, schema.elements]);
 
     return (
         <div>
@@ -716,6 +714,7 @@ const formViewDividerStyle = {
 
 export function FormRunView({
     disabled,
+    fieldNamePrefix,
     schema,
 }: FormRunViewProps) {
 
@@ -742,6 +741,7 @@ export function FormRunView({
                     <FormInput
                         disabled={disabled}
                         fieldData={element as FormInputType}
+                        fieldNamePrefix={fieldNamePrefix}
                         index={index}
                         isEditing={false}
                         onConfigUpdate={noop}
@@ -749,7 +749,7 @@ export function FormRunView({
                     />)}
             </ElementRunOuterBox>
         );
-    }, [disabled]);
+    }, [disabled, fieldNamePrefix]);
 
     // TODO build view should also group into sections, where sections are created automatically based on headers and page dividers, or manually somehow (when you want to display inputs on the same line, for example). Can possibly update normalizeFormContainers to handle this
     const sections = useMemo(() => {
@@ -823,13 +823,6 @@ export function FormRunView({
         }
         return sections;
     }, [renderElement, schema]);
-
-    const initialValues = useMemo(function initialValuesMemo() {
-        return generateInitialValues(schema.elements);
-    }, [schema]);
-    const validationSchema = useMemo(function validationSchemaMemo() {
-        return generateYupSchema(schema);
-    }, [schema]);
 
     return (
         <div>

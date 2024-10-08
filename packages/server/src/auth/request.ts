@@ -1,4 +1,4 @@
-import { COOKIE, mergeDeep, uuidValidate } from "@local/shared";
+import { COOKIE, DAYS_30_MS, mergeDeep, uuidValidate } from "@local/shared";
 import cookie from "cookie";
 import { CookieOptions, NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
@@ -11,14 +11,14 @@ import { UI_URL_REMOTE } from "../server";
 import { ApiToken, BasicToken, RecursivePartial, RecursivePartialNullable, SessionData, SessionToken, SessionUserToken } from "../types";
 import { isSafeOrigin } from "../utils/origin";
 
-const SESSION_MILLI = 30 * 86400 * 1000; // 30 days
+const SESSION_MILLI = DAYS_30_MS;
 
 interface JwtKeys {
     privateKey: string;
     publicKey: string;
 }
 let jwtKeys: JwtKeys | null = null;
-const getJwtKeys = (): JwtKeys => {
+function getJwtKeys(): JwtKeys {
     // If jwtKeys is already defined, return it immediately
     if (jwtKeys) {
         return jwtKeys;
@@ -40,14 +40,14 @@ const getJwtKeys = (): JwtKeys => {
     jwtKeys = { privateKey, publicKey };
 
     return jwtKeys;
-};
+}
 
 /**
  * Parses a request's accept-language header
  * @param req The request
  * @returns A list of languages without any subtags
  */
-const parseAcceptLanguage = (req: { headers: Record<string, any> }): string[] => {
+function parseAcceptLanguage(req: { headers: Record<string, any> }): string[] {
     const acceptString = req.headers["accept-language"];
     // Default to english if not found or a wildcard
     if (!acceptString || acceptString === "*") return ["en"];
@@ -56,9 +56,9 @@ const parseAcceptLanguage = (req: { headers: Record<string, any> }): string[] =>
     // Remove subtags
     acceptValues = acceptValues.map((lang: string) => lang.split("-")[0]);
     return acceptValues;
-};
+}
 
-const verifyJwt = (token: string, publicKey: string): Promise<any> => {
+function verifyJwt(token: string, publicKey: string): Promise<any> {
     return new Promise((resolve, reject) => {
         jwt.verify(token, publicKey, { algorithms: ["RS256"] }, (error: any, payload: any) => {
             if (error) {
@@ -68,7 +68,7 @@ const verifyJwt = (token: string, publicKey: string): Promise<any> => {
             }
         });
     });
-};
+}
 
 /**
  * Verifies if a user is authenticated, using an http cookie. 
@@ -78,12 +78,12 @@ const verifyJwt = (token: string, publicKey: string): Promise<any> => {
  * @param next The next function to call.
  */
 export async function authenticate(req: Request, res: Response, next: NextFunction) {
-    const handleUnauthenticatedRequest = (req: Request, next: NextFunction) => {
+    function handleUnauthenticatedRequest(req: Request, next: NextFunction) {
         let error: CustomError | undefined;
         // If from unsafe origin, deny access.
         if (!req.session.fromSafeOrigin) error = new CustomError("0247", "UnsafeOriginNoApiToken", req.session.languages);
         next(error);
-    };
+    }
     try {
         const { cookies } = req;
         // Initialize session
@@ -141,10 +141,10 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
  * @param socket - The socket object
  * @param next - The next function to call
  */
-export const authenticateSocket = async (
+export async function authenticateSocket(
     socket: Socket<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>,
     next: (err?: ExtendedError | undefined) => void,
-) => {
+) {
     try {
         // Add IP address to socket object, so we can use it later
         socket.req = { ip: socket.handshake.address };
@@ -183,18 +183,23 @@ export const authenticateSocket = async (
     } catch (error) {
         return next(new Error("Unauthorized"));
     }
-};
+}
 
 /**
  * Generates the minimum data required for a session token
  */
-const basicToken = (): BasicToken => ({
-    iat: Date.now(),
-    iss: UI_URL_REMOTE,
-    exp: Date.now() + SESSION_MILLI,
-});
+function basicToken(): BasicToken {
+    return {
+        iat: Date.now(),
+        iss: UI_URL_REMOTE,
+        exp: Date.now() + SESSION_MILLI,
+    };
+}
 
+/** Maximum size of a JWT token. Limited by the JWT standard. */
 const TOKEN_LENGTH_LIMIT = 4096;
+/** Buffer for additional data in the token that we didn't account for, and just to be safe */
+const TOKEN_BUFFER = 200;
 // Options for the jwt cookie
 const tokenOptions: CookieOptions = {
     httpOnly: true,
@@ -210,16 +215,16 @@ let maxPayloadSize = 0;
 /**
  * Calculates token and signature size for JWT tokens
  */
-const calculateTokenSizes = () => {
+function calculateTokenSizes() {
     if (tokenHeaderSize <= 0 || tokenSignatureSize <= 0 || maxPayloadSize <= 0) {
         const emptyToken = jwt.sign({}, getJwtKeys().privateKey, { algorithm: "RS256" });
         const [header, , signature] = emptyToken.split(".");
         tokenHeaderSize = Buffer.byteLength(header, "utf8");
         tokenSignatureSize = Buffer.byteLength(signature, "utf8");
         // Total allowed size (both name and jwt value) - name - jwt header size - jwt payload size - jwt signature size - options size - buffer for additional data (e.g. "=" between name and value, ";" after value, path, expires)
-        maxPayloadSize = TOKEN_LENGTH_LIMIT - COOKIE.Jwt.length - tokenHeaderSize - tokenSignatureSize - JSON.stringify(tokenOptions).length - 200;
+        maxPayloadSize = TOKEN_LENGTH_LIMIT - COOKIE.Jwt.length - tokenHeaderSize - tokenSignatureSize - JSON.stringify(tokenOptions).length - TOKEN_BUFFER;
     }
-};
+}
 
 /**
  * Calculates the length of a base64url encoded string (without padding, as that's added to the 
@@ -227,38 +232,40 @@ const calculateTokenSizes = () => {
  * @param payload The payload to be encoded. If an object is provided, it will be stringified.
  * @returns The length of the base64url encoded string without padding.
  */
-const calculateBase64Length = (payload: string | object) => {
+function calculateBase64Length(payload: string | object) {
     // Calculate base64 string from payload
     const base64Payload = Buffer.from(JSON.stringify(payload)).toString("base64");
     // Remove padding
     const withoutPadding = base64Payload.replace(/=/g, "");
     // Return size of base64 string
     return withoutPadding.length;
-};
+}
 
 /**
  * Creates user payload for session token
  */
-const createUserPayload = (user: SessionUserToken): SessionUserToken => ({
-    id: user.id,
-    activeFocusMode: user.activeFocusMode ? {
-        mode: {
-            id: user.activeFocusMode.mode?.id,
-            reminderList: user.activeFocusMode?.mode?.reminderList ? {
-                id: user.activeFocusMode.mode.reminderList.id,
-            } : undefined,
-        },
-        stopCondition: user.activeFocusMode.stopCondition,
-        stopTime: user.activeFocusMode.stopTime,
-    } : undefined,
-    credits: user.credits + "", // Convert to string because BigInt cannot be serialized
-    handle: user.handle,
-    hasPremium: user.hasPremium ?? false,
-    languages: user.languages ?? [],
-    name: user.name ?? undefined,
-    profileImage: user.profileImage ?? undefined,
-    updated_at: user.updated_at,
-});
+function createUserPayload(user: SessionUserToken): SessionUserToken {
+    return {
+        id: user.id,
+        activeFocusMode: user.activeFocusMode ? {
+            mode: {
+                id: user.activeFocusMode.mode?.id,
+                reminderList: user.activeFocusMode?.mode?.reminderList ? {
+                    id: user.activeFocusMode.mode.reminderList.id,
+                } : undefined,
+            },
+            stopCondition: user.activeFocusMode.stopCondition,
+            stopTime: user.activeFocusMode.stopTime,
+        } : undefined,
+        credits: user.credits + "", // Convert to string because BigInt cannot be serialized
+        handle: user.handle,
+        hasPremium: user.hasPremium ?? false,
+        languages: user.languages ?? [],
+        name: user.name ?? undefined,
+        profileImage: user.profileImage ?? undefined,
+        updated_at: user.updated_at,
+    };
+}
 
 /**
  * Generates a JSON Web Token (JWT) for user authentication (including guest access).
@@ -267,10 +274,10 @@ const createUserPayload = (user: SessionUserToken): SessionUserToken => ({
  * @param session 
  * @returns 
  */
-export const generateSessionJwt = async (
+export async function generateSessionJwt(
     res: Response,
     session: RecursivePartialNullable<Pick<SessionData, "isLoggedIn" | "languages" | "timeZone" | "users">>,
-): Promise<void> => {
+): Promise<void> {
     const languages = getUser(session)?.languages ?? ["en"];
     // Make token sizes and limits have been calculated
     calculateTokenSizes();
@@ -313,7 +320,7 @@ export const generateSessionJwt = async (
             maxAge: SESSION_MILLI,
         });
     }
-};
+}
 
 /**
  * Generates a JSON Web Token (JWT) for API authentication.
@@ -438,11 +445,11 @@ export async function requireLoggedIn(req: Request, _: unknown, next: NextFuncti
  * @param req Request object
  * @returns First userId in Session object, or null if not found/invalid
  */
-export const getUser = (session: RecursivePartialNullable<Pick<SessionData, "users">>): SessionUserToken | null => {
+export function getUser(session: RecursivePartialNullable<Pick<SessionData, "users">>): SessionUserToken | null {
     if (!session || !Array.isArray(session?.users) || session.users.length === 0) return null;
     const user = session.users[0];
     return user !== undefined && typeof user.id === "string" && uuidValidate(user.id) ? user : null;
-};
+}
 
 export type RequestConditions = {
     /**
@@ -469,7 +476,7 @@ type AssertRequestFromResult<T extends RequestConditions> = T extends { isUser: 
  * @param conditions The conditions to check
  * @returns user data, if isUser or isOfficialUser is true
  */
-export const assertRequestFrom = <Conditions extends RequestConditions>(req: { session: SessionData }, conditions: Conditions): AssertRequestFromResult<Conditions> => {
+export function assertRequestFrom<Conditions extends RequestConditions>(req: { session: SessionData }, conditions: Conditions): AssertRequestFromResult<Conditions> {
     const { session } = req;
     // Determine if user data is found in the request
     const userData = getUser(session);
@@ -495,4 +502,4 @@ export const assertRequestFrom = <Conditions extends RequestConditions>(req: { s
         if (conditions.isOfficialUser === false && isOfficialUser) throw new CustomError("0270", "NotLoggedInOfficial", session.languages);
     }
     return conditions.isUser === true || conditions.isOfficialUser === true ? userData as any : undefined;
-};
+}

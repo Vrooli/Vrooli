@@ -1,4 +1,4 @@
-import { CommonKey, Session } from "@local/shared";
+import { Session, TranslationKeyCommon } from "@local/shared";
 import { FilterOptionsState } from "@mui/material";
 import i18next from "i18next";
 import { SvgComponent } from "types";
@@ -13,7 +13,7 @@ export interface PreSearchItem {
     /**
      * Key for the label
      */
-    label: CommonKey;
+    label: TranslationKeyCommon;
     /**
      * Arguments for the label
      */
@@ -21,7 +21,7 @@ export interface PreSearchItem {
     /**
      * Keys (and possibly arguments) for the keywords
      */
-    keywords?: readonly (CommonKey | ({ key: CommonKey; } & { [key: string]: string | number }))[];
+    keywords?: readonly (TranslationKeyCommon | ({ key: TranslationKeyCommon; } & { [key: string]: string | number }))[];
     /**
      * The link/value that will be used when the user selects the item.
      */

@@ -1,24 +1,26 @@
 import { Chat, ChatInvite, ChatParticipant, ListObject, Meeting, Member, MemberInvite, ReactionFor, getObjectUrl, isOfType, uuid } from "@local/shared";
-import { AvatarGroup, Box, Chip, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
+import { AvatarGroup, Box, BoxProps, Chip, ChipProps, ListItemProps, ListItemText, Palette, Stack, Tooltip, styled, useTheme } from "@mui/material";
+import { CompletionBar } from "components/CompletionBar/CompletionBar";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { CommentsButton } from "components/buttons/CommentsButton/CommentsButton";
 import { ReportsButton } from "components/buttons/ReportsButton/ReportsButton";
 import { VoteButton } from "components/buttons/VoteButton/VoteButton";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
-import { SessionContext } from "contexts/SessionContext";
-import usePress from "hooks/usePress";
+import { CompletionBarProps } from "components/types";
+import { SessionContext } from "contexts";
+import { UsePressEvent, usePress } from "hooks/gestures";
 import { BookmarkFilledIcon, BotIcon, EditIcon, TeamIcon, UserIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { ObjectListProfileAvatar, multiLineEllipsis } from "styles";
+import { ObjectListProfileAvatar, multiLineEllipsis, noSelect } from "styles";
 import { SvgComponent } from "types";
 import { getCurrentUser } from "utils/authentication/session";
-import { setCookiePartialData } from "utils/cookies";
 import { extractImageUrl } from "utils/display/imageTools";
 import { getBookmarkFor, getCounts, getDisplay, getYou, placeholderColor } from "utils/display/listTools";
 import { fontSizeToPixels } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
+import { setCookiePartialData } from "utils/localStorage";
 import { getObjectEditUrl } from "utils/navigation/openObject";
 import { TagList } from "../TagList/TagList";
 import { TextLoading } from "../TextLoading/TextLoading";
@@ -28,6 +30,197 @@ const LIST_PREFIX = "list-item-";
 const EDIT_PREFIX = "edit-list-item-";
 const TARGET_IMAGE_SIZE = 100;
 const MAX_AVATARS_IN_GROUP = 4;
+
+export type ListItemStyleColor = "Default" | "Red" | "Yellow" | "Green" | "Blue" | "Purple";
+type ListItemStyleColorPair = { background: string, color: string };
+type ListItemStyleColorThemed = { dark: ListItemStyleColorPair, light: ListItemStyleColorPair };
+
+const LIST_ITEM_STYLE_COLORS: Record<ListItemStyleColor, (palette: Palette) => (ListItemStyleColorPair | ListItemStyleColorThemed)> = {
+    Default: (palette) => ({ background: palette.secondary.main, color: palette.secondary.contrastText }),
+    Red: (palette) => ({ background: palette.error.main, color: palette.error.contrastText }),
+    Yellow: (palette) => ({ background: palette.warning.main, color: palette.warning.contrastText }),
+    Green: (palette) => ({ background: palette.success.main, color: palette.success.contrastText }),
+    Blue: () => ({
+        dark: { background: "#016d97", color: "#ffffff" },
+        light: { background: "#1d7691", color: "#ffffff" },
+    }),
+    Purple: () => ({ background: "#8148b0", color: "#ffffff" }),
+};
+
+function getStyleColor(color: ListItemStyleColor, palette: Palette): { background: string | undefined, color: string | undefined } {
+    const colorFunc = LIST_ITEM_STYLE_COLORS[color];
+    if (!colorFunc) {
+        console.error(`Invalid color "${color}" for component`);
+        return { background: undefined, color: undefined };
+    }
+    const colorData = colorFunc(palette);
+    if (Object.prototype.hasOwnProperty.call(colorData, "dark")) {
+        const themed = colorData as ListItemStyleColorThemed;
+        return {
+            background: themed.dark.background,
+            color: themed.dark.color,
+        };
+    }
+    const unthemed = colorData as ListItemStyleColorPair;
+    return {
+        background: unthemed.background,
+        color: unthemed.color,
+    };
+}
+
+type ListItemChipProps = Omit<ChipProps, "color"> & {
+    color: ListItemStyleColor;
+}
+
+/**
+ * Chip component used in several ObjectListItem components.
+ */
+export function ListItemChip({
+    color,
+    size,
+    variant,
+    ...props
+}: ListItemChipProps) {
+    const { palette } = useTheme();
+
+    const style = useMemo(function styleMemo() {
+        const baseStyle = { width: "fit-content" } as const;
+        const { background, color: textColor } = getStyleColor(color, palette);
+        return {
+            ...baseStyle,
+            backgroundColor: background,
+            color: textColor,
+        };
+    }, [color, palette]);
+
+    return (
+        <Chip
+            {...props}
+            size={size || "small"}
+            sx={style}
+            variant={variant || "outlined"}
+        />
+    );
+}
+
+type ListItemCompletionBarProps = Omit<CompletionBarProps, "color"> & {
+    color: ListItemStyleColor;
+}
+
+/**
+ * Bar component used in several ObjectListItem components.
+ */
+export function ListItemCompletionBar({
+    color,
+    ...props
+}: ListItemCompletionBarProps) {
+    const { palette } = useTheme();
+
+    const style = useMemo(function styleMemo() {
+        const { background } = getStyleColor(color, palette);
+        return {
+            bar: {
+                backgroundColor: background,
+            },
+        } as const;
+    }, [color, palette]);
+
+    return (
+        <CompletionBar
+            {...props}
+            sxs={style}
+        />
+    );
+}
+
+interface StyledListItemProps extends ListItemProps {
+    isMobile: boolean;
+    isSelected: boolean;
+}
+
+const StyledListItem = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "isMobile" && prop !== "isSelected",
+})<StyledListItemProps>(({ isMobile, isSelected, theme }) => ({
+    display: "flex",
+    padding: isMobile ? "4px 8px" : "8px 16px",
+    cursor: "pointer",
+    borderBottom: `1px solid ${theme.palette.divider}`,
+    background: isSelected ? theme.palette.secondary.light : theme.palette.background.paper,
+    "&:hover": {
+        background: isSelected ? theme.palette.secondary.light : theme.palette.action.hover,
+    },
+    textDecoration: "none",
+    "& *": {
+        textDecoration: "none",
+    },
+    ...noSelect,
+}));
+
+const TitleBox = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "row",
+    gap: theme.spacing(0.5),
+    lineBreak: "auto",
+    wordBreak: "break-word",
+    pointerEvents: "none",
+}));
+
+interface ActionButtonsRowProps extends BoxProps {
+    isMobile: boolean;
+}
+const ActionButtonsRow = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "isMobile",
+})<ActionButtonsRowProps>(({ isMobile, theme }) => ({
+    display: "flex",
+    flexDirection: isMobile ? "row" : "column",
+    gap: theme.spacing(1),
+    justifyContent: isMobile ? "right" : "center",
+    pointerEvents: "none",
+    alignItems: "center",
+}));
+
+interface EditIconBoxProps extends BoxProps {
+    isMobile: boolean;
+}
+const EditIconBox = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "isMobile",
+})<EditIconBoxProps>(({ isMobile, theme }) => ({
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    cursor: "pointer",
+    pointerEvents: "all",
+    paddingBottom: isMobile ? "0px" : "4px",
+}));
+
+interface GiantSelectorProps extends BoxProps {
+    isSelected: boolean;
+}
+const GiantSelector = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "isSelected",
+})<GiantSelectorProps>(({ isSelected, theme }) => ({
+    width: theme.spacing(3),
+    height: theme.spacing(3),
+    borderRadius: "50%",
+    backgroundColor: isSelected ? theme.palette.secondary.dark : theme.palette.background.paper,
+    border: `1px solid ${theme.palette.divider}`,
+    pointerEvents: "none",
+    marginRight: theme.spacing(1),
+    marginTop: "auto",
+    marginBottom: "auto",
+}));
+
+const TitleText = styled(ListItemText)(({ theme }) => ({
+    color: theme.palette.background.textPrimary,
+    ...noSelect,
+}));
+
+const SubtitleText = styled(MarkdownDisplay)(({ theme }) => ({
+    color: theme.palette.text.secondary,
+    pointerEvents: "none",
+    ...multiLineEllipsis(2),
+    ...noSelect,
+}));
 
 /**
  * A list item that automatically supports most object types, with props 
@@ -78,13 +271,13 @@ export function ObjectListItemBase<T extends ListObject>({
         !isSelecting ?
         getObjectUrl(data) :
         "", [data, canNavigate, isSelecting, onClick]);
-    const handleClick = useCallback((target: EventTarget) => {
-        if (!target.id || !target.id.startsWith(LIST_PREFIX)) return;
+    const handleClick = useCallback((event: UsePressEvent) => {
+        if (!event.target.id || !event.target.id.startsWith(LIST_PREFIX)) return;
         // If data not supplied, don't open
         if (data === null) return;
         // If in selection mode, toggle selection
         if (isSelecting && typeof handleToggleSelect === "function") {
-            handleToggleSelect(data);
+            handleToggleSelect(data, event);
             return;
         }
         // If onClick is supplied, call it instead of navigating
@@ -120,9 +313,9 @@ export function ObjectListItemBase<T extends ListObject>({
     }, [canNavigate, data, editUrl, setLocation]);
 
     const pressEvents = usePress({
-        onLongPress: (target) => { handleContextMenu(target, data); },
+        onLongPress: ({ target }) => { handleContextMenu(target, data); },
         onClick: handleClick,
-        onRightClick: (target) => { handleContextMenu(target, data); },
+        onRightClick: ({ target }) => { handleContextMenu(target, data); },
     });
 
     /**
@@ -227,35 +420,31 @@ export function ObjectListItemBase<T extends ListObject>({
     const actionButtons = useMemo(() => {
         const reportsCount: number = getCounts(object).reports;
         const { bookmarkFor, starForId } = getBookmarkFor(object);
+
+        const willShowEditButton = !hideUpdateButton && canUpdate;
+        const willShowVoteButton = isMobile && canReact && object; // Displayed elsewhere on wide screens
+        const willShowBookmarkButton = canBookmark && bookmarkFor && starForId;
+        const willShowCommentButton = canComment;
+        const willShowReportsButton = !isOfType(object, "RunRoutine", "RunProject") && reportsCount > 0;
+
+        if (!willShowEditButton && !willShowVoteButton && !willShowBookmarkButton && !willShowCommentButton && !willShowReportsButton) return null;
+
         return (
-            <Stack
-                direction={isMobile ? "row" : "column"}
-                spacing={1}
-                sx={{
-                    pointerEvents: "none",
-                    justifyContent: isMobile ? "right" : "center",
-                    alignItems: "center",
-                }}
-            >
-                {!hideUpdateButton && canUpdate &&
-                    <Box
+            <ActionButtonsRow isMobile={isMobile}>
+                {willShowEditButton &&
+                    <EditIconBox
                         id={`${EDIT_PREFIX}button-${id}`}
                         component="a"
                         aria-label={t("Edit")}
+                        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                        // @ts-ignore
                         href={editUrl}
+                        isMobile={isMobile}
                         onClick={handleEditClick}
-                        sx={{
-                            display: "flex",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            cursor: "pointer",
-                            pointerEvents: "all",
-                            paddingBottom: isMobile ? "0px" : "4px",
-                        }}>
+                    >
                         <EditIcon id={`${EDIT_PREFIX}icon-${id}`} fill={palette.secondary.main} />
-                    </Box>}
-                {/* Add upvote/downvote if mobile */}
-                {isMobile && canReact && object && (
+                    </EditIconBox>}
+                {willShowVoteButton && (
                     <VoteButton
                         disabled={!canReact}
                         emoji={reaction}
@@ -265,23 +454,23 @@ export function ObjectListItemBase<T extends ListObject>({
                         onChange={(newEmoji: string | null, newScore: number) => { }}
                     />
                 )}
-                {canBookmark && bookmarkFor && <BookmarkButton
+                {willShowBookmarkButton && <BookmarkButton
                     disabled={!canBookmark}
                     objectId={starForId}
                     bookmarkFor={bookmarkFor}
                     isBookmarked={isBookmarked}
                     bookmarks={getCounts(object).bookmarks}
                 />}
-                {canComment && (<CommentsButton
+                {willShowCommentButton && <CommentsButton
                     commentsCount={getCounts(object).comments}
                     disabled={!canComment}
                     object={object}
-                />)}
-                {!isOfType(object, "RunRoutine", "RunProject") && reportsCount > 0 && <ReportsButton
+                />}
+                {willShowReportsButton && <ReportsButton
                     reportsCount={reportsCount}
                     object={object}
                 />}
-            </Stack>
+            </ActionButtonsRow>
         );
     }, [object, isMobile, hideUpdateButton, canUpdate, id, t, editUrl, handleEditClick, palette.secondary.main, canReact, reaction, score, canBookmark, isBookmarked, canComment]);
 
@@ -294,35 +483,20 @@ export function ObjectListItemBase<T extends ListObject>({
     return (
         <>
             {/* List item */}
-            <ListItem
+            <StyledListItem
                 id={`${LIST_PREFIX}${id}`}
                 disablePadding
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-ignore
                 button
                 component={link.length > 0 ? "a" : "div"}
                 href={link.length > 0 ? link : undefined}
+                isMobile={isMobile}
+                isSelected={isSelected}
                 {...pressEvents}
-                sx={{
-                    display: "flex",
-                    padding: isMobile ? "8px" : "8px 16px",
-                    cursor: "pointer",
-                    borderBottom: `1px solid ${palette.divider}`,
-                    background: isSelected ? palette.secondary.light : palette.background.paper,
-                    "&:hover": {
-                        background: isSelected ? palette.secondary.light : palette.action.hover,
-                    },
-                }}
             >
-                {/* Giant radio button if isSelecting */}
-                {isSelecting && <Box
-                    sx={{
-                        width: "24px",
-                        height: "24px",
-                        borderRadius: "50%",
-                        backgroundColor: isSelected ? palette.secondary.main : palette.background.paper,
-                        border: `1px solid ${palette.divider}`,
-                        pointerEvents: "none",
-                        marginRight: "8px",
-                    }}
+                {isSelecting && <GiantSelector
+                    isSelected={isSelected}
                 />}
                 {leftColumn}
                 <Stack
@@ -336,52 +510,47 @@ export function ObjectListItemBase<T extends ListObject>({
                     }}
                 >
                     {/* Title */}
-                    {loading ? <TextLoading /> :
-                        (
-                            <Stack id={titleId} direction="row" spacing={0.5} sx={{
-                                lineBreak: "auto",
-                                wordBreak: "break-word",
-                                pointerEvents: "none",
-                            }}>
-                                <ListItemText primary={titleOverride ?? title} sx={{ display: "contents" }} />
-                                {adornments.map(({ Adornment, key }) => (
-                                    <Box key={key} sx={{
-                                        width: fontSizeToPixels(typography.body1.fontSize ?? "1rem", titleId) * Number(typography.body1.lineHeight ?? "1.5"),
-                                        height: fontSizeToPixels(typography.body1.fontSize ?? "1rem", titleId) * Number(typography.body1.lineHeight ?? "1.5"),
-                                    }}>
-                                        {Adornment}
-                                    </Box>
-                                ))}
-                            </Stack>
-                        )
+                    {loading
+                        ? <TextLoading />
+                        : (titleOverride ?? title)
+                            ? (
+                                <TitleBox id={titleId}>
+                                    <TitleText primary={titleOverride ?? title} />
+                                    {adornments.map(({ Adornment, key }) => (
+                                        <Box key={key} sx={{
+                                            height: fontSizeToPixels(typography.body1.fontSize ?? "1rem", titleId) * Number(typography.body1.lineHeight ?? "1.5"),
+                                        }}>
+                                            {Adornment}
+                                        </Box>
+                                    ))}
+                                </TitleBox>
+                            )
+                            : null
                     }
                     {/* Subtitle */}
-                    {loading ? <TextLoading /> : <MarkdownDisplay
-                        content={subtitleOverride ?? subtitle}
-                        sx={{ ...multiLineEllipsis(2), color: palette.text.secondary, pointerEvents: "none" }}
-                    />}
+                    {
+                        loading
+                            ? <TextLoading />
+                            : (subtitleOverride ?? subtitle)
+                                ? <SubtitleText
+                                    content={subtitleOverride ?? subtitle}
+                                />
+                                : null
+                    }
                     {/* Any custom components to display below the subtitle */}
                     {belowSubtitle}
                     {(showIncompleteChip || showInternalChip || showTags || belowTags) && <Stack direction="row" spacing={1} sx={{ pointerEvents: "none" }}>
                         {showIncompleteChip && <Tooltip placement="top" title={t("MarkedIncomplete")}>
-                            <Chip
+                            <ListItemChip
+                                color="Red"
                                 label="Incomplete"
-                                size="small"
-                                sx={{
-                                    backgroundColor: palette.error.main,
-                                    color: palette.error.contrastText,
-                                    width: "fit-content",
-                                }} />
+                            />
                         </Tooltip>}
                         {showInternalChip && <Tooltip placement="top" title={t("MarkedInternal")}>
-                            <Chip
+                            <ListItemChip
+                                color="Yellow"
                                 label="Internal"
-                                size="small"
-                                sx={{
-                                    backgroundColor: palette.warning.main,
-                                    color: palette.error.contrastText,
-                                    width: "fit-content",
-                                }} />
+                            />
                         </Tooltip>}
                         {showTags &&
                             <TagList
@@ -396,7 +565,7 @@ export function ObjectListItemBase<T extends ListObject>({
                 {!isMobile && !isSelecting && actionButtons}
                 {/* Custom components displayed on the right */}
                 {toTheRight}
-            </ListItem>
+            </StyledListItem>
         </>
     );
 }

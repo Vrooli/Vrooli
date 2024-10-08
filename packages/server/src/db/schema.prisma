@@ -85,6 +85,7 @@ model api_version {
     completedAt             DateTime?                   @db.Timestamptz(6)
     callLink                String                      @unique @db.VarChar(1024)
     documentationLink       String?                     @db.VarChar(1024)
+    schemaLanguage          String?                     @db.VarChar(128)
     schemaText              String?                     @db.VarChar(16384)
     isComplete              Boolean                     @default(false)
     isDeleted               Boolean                     @default(false)
@@ -194,6 +195,7 @@ model chat {
     created_at             DateTime                    @default(now()) @db.Timestamptz(6)
     updated_at             DateTime                    @default(now()) @db.Timestamptz(6)
     inviteId               String?                     @db.Uuid
+    isPrivate              Boolean                     @default(true)
     openToAnyoneWithInvite Boolean                     @default(false)
     creatorId              String?                     @db.Uuid
     teamId                 String?                     @db.Uuid
@@ -226,6 +228,7 @@ model chat_message {
     id                String                     @id @default(uuid()) @db.Uuid
     created_at        DateTime                   @default(now()) @db.Timestamptz(6)
     updated_at        DateTime                   @default(now()) @db.Timestamptz(6)
+    metadata          String?                    @db.VarChar(4096)
     score             Int                        @default(0)
     sequence          Int                        @default(autoincrement())
     versionIndex      Int                        @default(0)
@@ -1682,6 +1685,8 @@ model reaction_summary {
     quiz             quiz?            @relation("reaction_summary_quiz", fields: [quizId], references: [id], onDelete: Cascade)
     routine          routine?         @relation("reaction_summary_routine", fields: [routineId], references: [id], onDelete: Cascade)
     standard         standard?        @relation("reaction_summary_standard", fields: [standardId], references: [id], onDelete: Cascade)
+
+    @@unique([emoji, apiId, chatMessageId, codeId, commentId, issueId, noteId, postId, projectId, questionId, questionAnswerId, quizId, routineId, standardId], name: "reaction_summary_emoji_unique")
 }
 
 model reminder_list {
@@ -2005,6 +2010,7 @@ model routine_version_output {
     routineVersion    routine_version                       @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
     standardVersion   standard_version?                     @relation(fields: [standardVersionId], references: [id], onDelete: SetNull)
     translations      routine_verstion_output_translation[]
+    runOutputs        run_routine_output[]
 }
 
 model routine_verstion_output_translation {
@@ -2117,6 +2123,7 @@ model run_routine {
     user                 user?                       @relation("run_routine_user", fields: [userId], references: [id], onDelete: Cascade)
     steps                run_routine_step[]          @relation("run_routine_step_run")
     inputs               run_routine_input[]         @relation("run_routine_input_run")
+    outputs              run_routine_output[]        @relation("run_routine_output_run")
 }
 
 model run_routine_input {
@@ -2130,22 +2137,33 @@ model run_routine_input {
     runRoutine   run_routine           @relation("run_routine_input_run", fields: [runRoutineId], references: [id], onDelete: Cascade)
 }
 
+model run_routine_output {
+    id           String                 @id @default(uuid()) @db.Uuid
+    created_at   DateTime               @default(now()) @db.Timestamptz(6)
+    updated_at   DateTime               @default(now()) @db.Timestamptz(6)
+    data         String                 @db.VarChar(8192)
+    outputId     String                 @db.Uuid
+    runRoutineId String                 @db.Uuid
+    output       routine_version_output @relation(fields: [outputId], references: [id], onDelete: Cascade)
+    runRoutine   run_routine            @relation("run_routine_output_run", fields: [runRoutineId], references: [id], onDelete: Cascade)
+}
+
 model run_routine_step {
-    id                  String           @id @default(uuid()) @db.Uuid
-    order               Int
-    contextSwitches     Int              @default(0)
-    runRoutineId        String           @db.Uuid
-    nodeId              String?          @db.Uuid
-    subroutineVersionId String?          @db.Uuid
-    startedAt           DateTime?        @db.Timestamptz(6)
-    timeElapsed         Int?
-    completedAt         DateTime?        @db.Timestamptz(6)
-    step                Int[]
-    status              RunStepStatus    @default(InProgress)
-    name                String           @db.VarChar(128)
-    node                node?            @relation("run_routine_step_node", fields: [nodeId], references: [id], onDelete: SetNull)
-    runRoutine          run_routine      @relation("run_routine_step_run", fields: [runRoutineId], references: [id], onDelete: Cascade)
-    subroutine          routine_version? @relation("run_routine_step_subroutine", fields: [subroutineVersionId], references: [id])
+    id              String           @id @default(uuid()) @db.Uuid
+    order           Int
+    contextSwitches Int              @default(0)
+    runRoutineId    String           @db.Uuid
+    nodeId          String?          @db.Uuid
+    subroutineId    String?          @db.Uuid
+    startedAt       DateTime?        @db.Timestamptz(6)
+    timeElapsed     Int?
+    completedAt     DateTime?        @db.Timestamptz(6)
+    step            Int[]
+    status          RunStepStatus    @default(InProgress)
+    name            String           @db.VarChar(128)
+    node            node?            @relation("run_routine_step_node", fields: [nodeId], references: [id], onDelete: SetNull)
+    runRoutine      run_routine      @relation("run_routine_step_run", fields: [runRoutineId], references: [id], onDelete: Cascade)
+    subroutine      routine_version? @relation("run_routine_step_subroutine", fields: [subroutineId], references: [id])
 }
 
 model schedule {
@@ -2239,8 +2257,9 @@ model standard_version {
     created_at            DateTime                       @default(now()) @db.Timestamptz(6)
     updated_at            DateTime                       @default(now()) @db.Timestamptz(6)
     completedAt           DateTime?                      @db.Timestamptz(6)
+    codeLanguage          String                         @default("json") @db.VarChar(128)
     default               String?                        @db.VarChar(2048)
-    standardType          String
+    variant               StandardType                   @default(DataStructure)
     props                 String                         @db.VarChar(8192)
     isLatest              Boolean                        @default(false)
     isLatestPublic        Boolean                        @default(false)
@@ -2559,6 +2578,8 @@ model user {
     isPrivateApisCreated           Boolean                     @default(false)
     isPrivateCodes                 Boolean                     @default(false)
     isPrivateCodesCreated          Boolean                     @default(false)
+    isPrivateNotes                 Boolean                     @default(false)
+    isPrivateNotesCreated          Boolean                     @default(false)
     isPrivateMemberships           Boolean                     @default(false)
     isPrivateProjects              Boolean                     @default(false)
     isPrivateProjectsCreated       Boolean                     @default(false)
@@ -2814,7 +2835,9 @@ enum FocusModeFilterType {
 }
 
 enum IssueStatus {
+    Draft
     Open
+    Canceled
     ClosedResolved
     ClosedUnresolved
     Rejected
@@ -2861,6 +2884,7 @@ enum PeriodType {
 }
 
 enum PullRequestStatus {
+    Draft
     Open
     Canceled
     Merged
@@ -2940,6 +2964,11 @@ enum ScheduleRecurrenceType {
     Weekly
     Monthly
     Yearly
+}
+
+enum StandardType {
+    DataStructure
+    Prompt
 }
 
 enum TransferStatus {

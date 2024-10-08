@@ -291,6 +291,7 @@ export const MaxObjects = {
     },
     ProjectVersion: 100000,
     ProjectVersionDirectory: 1000000,
+    PullRequest: 1000000,
     PushDevice: {
         User: 5,
         Team: 0,
@@ -307,6 +308,7 @@ export const MaxObjects = {
         User: 2000,
         Team: 0,
     },
+    QuizAttempt: 100000,
     QuizQuestion: {
         User: 200000,
         Team: 0,
@@ -315,6 +317,7 @@ export const MaxObjects = {
         User: 200000,
         Team: 0,
     },
+    ReactionSummary: 0,
     Report: {
         User: {
             private: 0,
@@ -322,6 +325,7 @@ export const MaxObjects = {
         },
         Team: 0,
     },
+    ReportResponse: 100000,
     ReminderItem: {
         User: 100000,
         Team: 0,
@@ -366,10 +370,13 @@ export const MaxObjects = {
         },
     },
     RoutineVersion: 100000,
+    RoutineVersionInput: 100000,
+    RoutineVersionOutput: 100000,
     RunProject: {
         User: 5000,
         Team: 50000,
     },
+    RunProjectStep: 100000,
     RunRoutine: {
         User: 5000,
         Team: 50000,
@@ -399,6 +406,15 @@ export const MaxObjects = {
         },
     },
     StandardVersion: 100000,
+    StatsApi: 0,
+    StatsCode: 0,
+    StatsProject: 0,
+    StatsQuiz: 0,
+    StatsRoutine: 0,
+    StatsSite: 10000000,
+    StatsStandard: 0,
+    StatsTeam: 0,
+    StatsUser: 0,
     Tag: {
         User: 5000,
         Team: 0,
@@ -424,6 +440,7 @@ export const MaxObjects = {
         User: 1,
         Team: 0,
     },
+    View: 10000000,
     Wallet: {
         User: {
             private: 5,

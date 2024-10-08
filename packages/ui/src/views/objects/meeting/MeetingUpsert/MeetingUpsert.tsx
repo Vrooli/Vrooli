@@ -1,14 +1,14 @@
-import { DUMMY_ID, endpointGetMeeting, endpointPostMeeting, endpointPutMeeting, Meeting, MeetingCreateInput, MeetingUpdateInput, meetingValidation, noopSubmit, orDefault, Schedule, Session } from "@local/shared";
+import { DUMMY_ID, endpointGetMeeting, endpointPostMeeting, endpointPutMeeting, Meeting, MeetingCreateInput, MeetingShape, MeetingUpdateInput, meetingValidation, noopSubmit, orDefault, Schedule, Session, shapeMeeting } from "@local/shared";
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
@@ -16,7 +16,6 @@ import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getUserLanguages } from "utils/display/translationTools";
-import { MeetingShape, shapeMeeting } from "utils/shape/models/meeting";
 import { validateFormValues } from "utils/validateFormValues";
 import { ScheduleUpsert } from "views/objects/schedule";
 import { MeetingFormProps, MeetingUpsertProps } from "../types";
@@ -243,6 +242,7 @@ function MeetingForm({
 }
 
 export function MeetingUpsert({
+    display,
     isCreate,
     isOpen,
     overrideObject,
@@ -250,8 +250,9 @@ export function MeetingUpsert({
 }: MeetingUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Meeting, MeetingShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Meeting, MeetingShape>({
         ...endpointGetMeeting,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "Meeting",
         overrideObject,
@@ -271,6 +272,7 @@ export function MeetingUpsert({
         >
             {(formik) => <MeetingForm
                 disabled={!(isCreate || permissions.canUpdate)}
+                display={display}
                 existing={existing}
                 handleUpdate={setExisting}
                 isCreate={isCreate}

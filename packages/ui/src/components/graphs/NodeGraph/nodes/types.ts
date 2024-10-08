@@ -1,8 +1,7 @@
-import { Node, NodeLink, NodeLoop, NodeRoutineListItem, NodeType } from "@local/shared";
+import { Node, NodeLink, NodeLoop, NodeRoutineListItem, NodeShape, NodeType } from "@local/shared";
 import { BoxProps } from "@mui/material";
-import { MouseEvent, ReactNode } from "react";
+import { ReactNode } from "react";
 import { BuildAction } from "utils/consts";
-import { NodeShape } from "utils/shape/models/node";
 import { NodeWithEndShape, NodeWithRoutineListShape } from "views/objects/node/types";
 
 /**
@@ -92,7 +91,6 @@ export interface RoutineListNodeProps extends ScaleProps, LabelledProps, Editabl
  */
 export interface SubroutineNodeProps extends ScaleProps, LabelledProps, EditableProps {
     data: NodeRoutineListItem;
-    isOpen: boolean;
     handleAction: (action: BuildAction.OpenSubroutine | BuildAction.EditSubroutine | BuildAction.DeleteSubroutine, subroutineId: string) => unknown;
     handleUpdate: (subroutineId: string, updatedItem: NodeRoutineListItem) => unknown;
     language: string;
@@ -113,6 +111,4 @@ export interface DraggableNodeProps extends BoxProps, Omit<DraggableProps, "isLi
     children: ReactNode;
     /** Threshold for dragging to start */
     dragThreshold?: number;
-    /** Callback when the node is clicked, but not dragged */
-    onClick?: (event: MouseEvent) => unknown;
 }

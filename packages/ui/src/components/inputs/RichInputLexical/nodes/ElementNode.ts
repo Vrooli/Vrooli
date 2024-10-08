@@ -197,23 +197,33 @@ export class ElementNode extends LexicalNode {
     }
 
     getMarkdownContent() {
-        return this.getChildren().map(child => {
+        let result = "";
+        const children = this.getChildren();
+        for (let i = 0; i < children.length; i++) {
+            const child = children[i];
             const text = child.getMarkdownContent();
-            if ($isNode("Element", child) && !child.isInline()) {
-                return text + "\n";
+            if ($isNode("Element", child) && !child.isInline() && i < children.length - 1) {
+                result += text + "\n";
+            } else {
+                result += text;
             }
-            return text;
-        }).join("");
+        }
+        return result;
     }
 
     getTextContent() {
-        return this.getChildren().map(child => {
+        let result = "";
+        const children = this.getChildren();
+        for (let i = 0; i < children.length; i++) {
+            const child = children[i];
             const text = child.getTextContent();
-            if ($isNode("Element", child) && !child.isInline()) {
-                return text + "\n";
+            if ($isNode("Element", child) && !child.isInline() && i < children.length - 1) {
+                result += text + "\n";
+            } else {
+                result += text;
             }
-            return text;
-        }).join("");
+        }
+        return result;
     }
 
     getTextContentSize() {
@@ -518,11 +528,11 @@ export class ElementNode extends LexicalNode {
     }
 }
 
-const isPointRemoved = (
+function isPointRemoved(
     point: PointType,
     nodesToRemoveKeySet: Set<NodeKey>,
     nodesToInsertKeySet: Set<NodeKey>,
-): boolean => {
+): boolean {
     let node: ElementNode | TextNode | null = point.getNode();
     while (node) {
         const nodeKey = node.__key;
@@ -532,4 +542,4 @@ const isPointRemoved = (
         node = getParent(node);
     }
     return false;
-};
+}

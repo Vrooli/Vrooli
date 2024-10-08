@@ -87,6 +87,7 @@ export const typeDef = gql`
         RunProjectStep
         RunRoutine
         RunRoutineInput
+        RunRoutineOutput
         RunRoutineStep
         Schedule
         ScheduleException
@@ -113,10 +114,11 @@ export const typeDef = gql`
     }
 
     enum VisibilityType {
-        All
         Own
+        OwnOrPublic
+        OwnPrivate
+        OwnPublic
         Public
-        Private
     }
 
     scalar Date

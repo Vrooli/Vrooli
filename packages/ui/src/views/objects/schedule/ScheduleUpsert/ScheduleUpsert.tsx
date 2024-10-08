@@ -1,10 +1,9 @@
-import { DeleteOneInput, DeleteType, DUMMY_ID, endpointGetSchedule, endpointPostDeleteOne, endpointPostSchedule, endpointPutSchedule, HOURS_1_MS, isOfType, LINKS, noopSubmit, Schedule, ScheduleCreateInput, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, ScheduleUpdateInput, scheduleValidation, Session, Success, uuid } from "@local/shared";
+import { CanConnect, DeleteOneInput, DeleteType, DUMMY_ID, endpointGetSchedule, endpointPostDeleteOne, endpointPostSchedule, endpointPutSchedule, FocusModeShape, HOURS_1_MS, isOfType, LINKS, MeetingShape, noopSubmit, RunProjectShape, RunRoutineShape, Schedule, ScheduleCreateInput, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, ScheduleShape, ScheduleUpdateInput, scheduleValidation, Session, shapeSchedule, Success, uuid } from "@local/shared";
 import { Box, Button, Card, Divider, FormControl, IconButton, InputLabel, MenuItem, Select, SelectChangeEvent, Stack, styled, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { SelectOrCreateObject } from "components/dialogs/types";
 import { DateInput } from "components/inputs/DateInput/DateInput";
 import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
 import { Selector, SelectorBase } from "components/inputs/Selector/Selector";
@@ -12,11 +11,11 @@ import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TimezoneSelector } from "components/inputs/TimezoneSelector/TimezoneSelector";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Title } from "components/text/Title/Title";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
@@ -25,15 +24,9 @@ import { memo, useCallback, useContext, useEffect, useMemo, useState } from "rea
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { FormSection, ProfileAvatar } from "styles";
-import { CanConnect } from "types";
 import { getDisplay, placeholderColor } from "utils/display/listTools";
 import { openObject } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
-import { FocusModeShape } from "utils/shape/models/focusMode";
-import { MeetingShape } from "utils/shape/models/meeting";
-import { RunProjectShape } from "utils/shape/models/runProject";
-import { RunRoutineShape } from "utils/shape/models/runRoutine";
-import { ScheduleShape, shapeSchedule } from "utils/shape/models/schedule";
 import { validateFormValues } from "utils/validateFormValues";
 import { ScheduleFormProps, ScheduleForOption, ScheduleUpsertProps } from "../types";
 
@@ -246,7 +239,7 @@ function ScheduleForm({
     }, [t]);
 
     const [isScheduleForSearchOpen, setIsScheduleForSearchOpen] = useState(false);
-    const closeScheduleForSearch = useCallback(function closeScheduleForSearchCallback(selected?: SelectOrCreateObject) {
+    const closeScheduleForSearch = useCallback(function closeScheduleForSearchCallback(selected?: object) {
         setIsScheduleForSearchOpen(false);
         if (selected) {
             focusModeHelpers.setValue(isOfType(selected, "FocusMode") ? selected as FocusModeShape : null);
@@ -432,7 +425,7 @@ function ScheduleForm({
                             isOpen={isScheduleForSearchOpen}
                             limitTo={findScheduleForLimitTo}
                             handleCancel={closeScheduleForSearch}
-                            handleComplete={closeScheduleForSearch}
+                            handleComplete={closeScheduleForSearch as (item: object) => unknown}
                         />}
                         {canSetScheduleFor && isCreate && <Button
                             fullWidth
@@ -609,8 +602,9 @@ export function ScheduleUpsert({
         setScheduleFor(newScheduleFor);
     }, []);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<Schedule, ScheduleShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Schedule, ScheduleShape>({
         ...endpointGetSchedule,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "Schedule",
         overrideObject,

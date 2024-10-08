@@ -1,5 +1,4 @@
-import { endpointGetTeam, endpointGetTeams, TeamSortBy } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { endpointGetTeam, endpointGetTeams, FormSchema, TeamSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, languagesContainer, languagesFields, searchFormLayout, tagsContainer, tagsFields, yesNoDontCare } from "./common";
 

@@ -2,16 +2,17 @@ export const standardVersion_findOne = {
   "id": true,
   "created_at": true,
   "updated_at": true,
+  "codeLanguage": true,
+  "default": true,
   "isComplete": true,
   "isFile": true,
   "isLatest": true,
   "isPrivate": true,
-  "default": true,
-  "standardType": true,
   "props": true,
-  "yup": true,
+  "variant": true,
   "versionIndex": true,
   "versionLabel": true,
+  "yup": true,
   "commentsCount": true,
   "directoryListingsCount": true,
   "forksCount": true,
@@ -229,14 +230,6 @@ export const standardVersion_findOne = {
         "name": true
       },
       "__typename": "StandardVersion"
-    },
-    "stats": {
-      "id": true,
-      "periodStart": true,
-      "periodEnd": true,
-      "periodType": true,
-      "linksToInputs": true,
-      "linksToOutputs": true
     },
     "__typename": "Standard"
   },

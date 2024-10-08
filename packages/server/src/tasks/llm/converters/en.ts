@@ -167,6 +167,22 @@ export const convert: LlmTaskConverters = {
         id: validUuid(data.id) ?? "",
         //...
     }),
+    QuestionAdd: (data) => ({
+        id: uuid(),
+        isPrivate: true,
+        //...
+    }),
+    QuestionDelete: (data) => ({
+        id: validUuid(data.id) ?? "",
+        objectType: DeleteType.Question,
+    }),
+    QuestionFind: (data) => ({
+        searchString: noEmptyString(data.searchString),
+    }),
+    QuestionUpdate: (data) => ({
+        id: validUuid(data.id) ?? "",
+        //...
+    }),
     ReminderAdd: (data) => ({
         id: uuid(),
         name: noEmptyString(data.name) ?? "Reminder",

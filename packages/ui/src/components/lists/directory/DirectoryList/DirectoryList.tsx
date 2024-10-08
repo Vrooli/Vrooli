@@ -8,16 +8,14 @@ import { SearchButtonsProps } from "components/buttons/types";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
-import { SelectOrCreateObject } from "components/dialogs/types";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { ObjectListActions } from "components/lists/types";
-import { SessionContext } from "contexts/SessionContext";
-import { useBulkObjectActions } from "hooks/useBulkObjectActions";
+import { SessionContext } from "contexts";
+import { UsePressEvent, usePress } from "hooks/gestures";
+import { useBulkObjectActions, useObjectActions } from "hooks/objectActions";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { useObjectActions } from "hooks/useObjectActions";
 import { useObjectContextMenu } from "hooks/useObjectContextMenu";
-import usePress from "hooks/usePress";
 import { useSelectableList } from "hooks/useSelectableList";
 import { AddIcon, ApiIcon, DeleteIcon, GridIcon, HelpIcon, LinkIcon, ListIcon, NoteIcon, ProjectIcon, RoutineIcon, StandardIcon, TeamIcon, TerminalIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -52,6 +50,10 @@ function DirectorySearchButtons({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
+    const toggleViewMode = useCallback(function toggleViewModeCallback() {
+        setViewMode(viewMode === "list" ? "card" : "list");
+    }, [setViewMode, viewMode]);
+
     return (
         <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: 1, ...sx }}>
             <SortButton
@@ -67,7 +69,7 @@ function DirectorySearchButtons({
             <Tooltip title={t(viewMode === "list" ? "CardModeSwitch" : "ListModeSwitch")} placement="top">
                 <Box
                     id="card-list-toggle-button"
-                    onClick={() => setViewMode(viewMode === "list" ? "card" : "list")}
+                    onClick={toggleViewMode}
                     sx={searchButtonStyle(palette)}
                 >
                     {viewMode === "list" ? <ListIcon fill={palette.secondary.main} /> : <GridIcon fill={palette.secondary.main} />}
@@ -109,7 +111,7 @@ export function DirectoryCard({
     }, [data]);
 
     const href = useMemo(() => data ? getObjectUrl(data) : "#", [data]);
-    const handleClick = useCallback((target: EventTarget) => {
+    const handleClick = useCallback(({ target }: UsePressEvent) => {
         // Check if delete button was clicked
         const targetId: string | undefined = target.id;
         if (targetId && targetId.startsWith("delete-")) {
@@ -120,7 +122,7 @@ export function DirectoryCard({
             setLocation(href);
         }
     }, [data, href, onDelete, setLocation]);
-    const handleContextMenu = useCallback((target: EventTarget) => {
+    const handleContextMenu = useCallback(({ target }: UsePressEvent) => {
         onContextMenu(target, data);
     }, [onContextMenu, data]);
 
@@ -425,7 +427,7 @@ export function DirectoryList(props: DirectoryListProps) {
         selectedData,
         setIsSelecting,
         setSelectedData,
-    } = useSelectableList<DirectoryItem>();
+    } = useSelectableList<DirectoryItem>(list);
     const { onBulkActionStart, BulkDeleteDialogComponent } = useBulkObjectActions<DirectoryItem>({
         allData: list,
         selectedData,
@@ -510,7 +512,7 @@ export function DirectoryList(props: DirectoryListProps) {
                 find="List"
                 isOpen={isAddDialogOpen}
                 handleCancel={closeAddDialog}
-                handleComplete={onAdd as (item: SelectOrCreateObject) => unknown}
+                handleComplete={onAdd as (item: object) => unknown}
             />
             {BulkDeleteDialogComponent}
             <Box sx={{

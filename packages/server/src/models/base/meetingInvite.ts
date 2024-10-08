@@ -2,6 +2,7 @@ import { MaxObjects, MeetingInviteSortBy, meetingInviteValidation } from "@local
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { getSingleTypePermissions } from "../../validators";
 import { MeetingInviteFormat } from "../formats";
@@ -57,7 +58,7 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<MeetingInviteModelInfo["GqlPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -77,16 +78,20 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
         }),
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<MeetingInviteModelInfo["PrismaSelect"]>([["meeting", "Meeting"]], ...rest),
+        // Not sure which search methods are needed, so we'll add them as needed
         visibility: {
-            private: function getVisibilityPrivate() {
-                return {};
+            own: function getOwn(data) {
+                return {
+                    OR: [
+                        { meeting: useVisibility("Meeting", "OwnOrPublic", data) },
+                        { user: { id: data.userId } },
+                    ]
+                };
             },
-            public: function getVisibilityPublic() {
-                return {};
-            },
-            owner: (userId) => ({
-                meeting: ModelMap.get<MeetingModelLogic>("Meeting").validate().visibility.owner(userId),
-            }),
+            ownOrPublic: null,
+            ownPrivate: null,
+            ownPublic: null,
+            public: null,
         },
     }),
 });

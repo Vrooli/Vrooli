@@ -1,5 +1,4 @@
-import { ChatParticipantSortBy, endpointGetChatParticipant, endpointGetChatParticipants } from "@local/shared";
-import { FormSchema } from "forms/types";
+import { ChatParticipantSortBy, FormSchema, endpointGetChatParticipant, endpointGetChatParticipants } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 

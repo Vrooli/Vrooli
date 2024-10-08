@@ -2,16 +2,16 @@ import { Notify, batch, emitSocketEvent, logger, prismaInstance } from "@local/s
 import { API_CREDITS_PREMIUM } from "@local/shared";
 import { Prisma } from "@prisma/client";
 
+const MAX_MONTHS_ACCRUED = 6;
 /**
  * The max number of free credits to give to premium users.
- * This is 6x the monthly free amount.
  */
-const MAX_FREE_CREDITS = BigInt(6) * API_CREDITS_PREMIUM;
+const MAX_FREE_CREDITS = BigInt(MAX_MONTHS_ACCRUED) * API_CREDITS_PREMIUM;
 
 /**
  * Provides free credits to premium users.
  */
-export const paymentsCreditsFreePremium = async (): Promise<void> => {
+export async function paymentsCreditsFreePremium(): Promise<void> {
     try {
         await batch<Prisma.userFindManyArgs>({
             objectType: "User",
@@ -66,4 +66,4 @@ export const paymentsCreditsFreePremium = async (): Promise<void> => {
     } catch (error) {
         logger.error("Error giving free credits to pro users", { error, trace: "0470" });
     }
-};
+}

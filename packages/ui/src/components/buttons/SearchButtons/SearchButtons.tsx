@@ -1,11 +1,12 @@
+import { SearchType } from "@local/shared";
 import { Box } from "@mui/material";
-import { SearchType } from "utils/search/objectToSearch";
+import { useMemo } from "react";
 import { AdvancedSearchButton } from "../AdvancedSearchButton/AdvancedSearchButton";
 import { SortButton } from "../SortButton/SortButton";
 import { TimeButton } from "../TimeButton/TimeButton";
 import { SearchButtonsProps } from "../types";
 
-export const SearchButtons = ({
+export function SearchButtons({
     advancedSearchParams,
     advancedSearchSchema,
     controlsUrl,
@@ -17,9 +18,19 @@ export const SearchButtons = ({
     sortByOptions,
     sx,
     timeFrame,
-}: SearchButtonsProps) => {
+}: SearchButtonsProps) {
+    const outerBoxStyle = useMemo(function outerBoxStyleMemo() {
+        return {
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            marginBottom: 1,
+            ...sx,
+        } as const;
+    }, [sx]);
+
     return (
-        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: 1, ...sx }}>
+        <Box sx={outerBoxStyle}>
             <SortButton
                 options={sortByOptions}
                 setSortBy={setSortBy}
@@ -38,4 +49,4 @@ export const SearchButtons = ({
             />}
         </Box>
     );
-};
+}

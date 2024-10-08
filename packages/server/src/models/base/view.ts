@@ -1,9 +1,10 @@
-import { Count, GqlModelType, lowercaseFirstLetter, ViewFor, ViewSortBy } from "@local/shared";
+import { Count, GqlModelType, HOURS_1_MS, MaxObjects, ViewFor, ViewSortBy, lowercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { ModelMap } from ".";
 import { onlyValidIds } from "../../builders/onlyValidIds";
 import { PrismaDelegate } from "../../builders/types";
+import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { getLabels } from "../../getters/getLabels";
@@ -13,25 +14,25 @@ import { defaultPermissions } from "../../utils/defaultPermissions";
 import { ViewFormat } from "../formats";
 import { TeamModelLogic, ViewModelLogic } from "./types";
 
-const toWhere = (key: string, nestedKey: string | null, id: string) => {
+function toWhere(key: string, nestedKey: string | null, id: string) {
     if (nestedKey) return { [key]: { [nestedKey]: { some: { id } } } };
     return { [key]: { id } };
-};
+}
 
-const toSelect = (key?: string) => {
+function toSelect(key?: string) {
     if (key) return { [key]: { select: { id: true, views: true } } };
     return { id: true, views: true };
-};
+}
 
-const toData = (object: any, key?: string) => {
+function toData(object: object, key?: string) {
     if (key) return object[key];
     return object;
-};
+}
 
-const toCreate = (object: any, relName: string, key?: string) => {
+function toCreate(object: object, relName: string, key?: string) {
     if (key) return { [relName]: { connect: { id: object[key].id } } };
-    return { [relName]: { connect: { id: object.id } } };
-};
+    return { [relName]: { connect: { id: (object as { id: string }).id } } };
+}
 
 /**
  * Maps ViewFor types to partial query objects, used to determine 
@@ -80,42 +81,42 @@ const selectMapper = {
  * Maps object with selectMapper data to its corresponding id
  */
 const dataMapper = {
-    Api: (object: any) => toData(object),
-    ApiVersion: (object: any) => toData(object, "root"),
-    Code: (object: any) => toData(object),
-    CodeVersion: (object: any) => toData(object, "root"),
-    Note: (object: any) => toData(object),
-    NoteVersion: (object: any) => toData(object, "root"),
-    Project: (object: any) => toData(object),
-    ProjectVersion: (object: any) => toData(object, "root"),
-    Question: (object: any) => toData(object),
-    Routine: (object: any) => toData(object),
-    RoutineVersion: (object: any) => toData(object, "root"),
-    Standard: (object: any) => toData(object),
-    StandardVersion: (object: any) => toData(object, "root"),
-    Team: (object: any) => toData(object),
-    User: (object: any) => toData(object),
+    Api: (object: object) => toData(object),
+    ApiVersion: (object: object) => toData(object, "root"),
+    Code: (object: object) => toData(object),
+    CodeVersion: (object: object) => toData(object, "root"),
+    Note: (object: object) => toData(object),
+    NoteVersion: (object: object) => toData(object, "root"),
+    Project: (object: object) => toData(object),
+    ProjectVersion: (object: object) => toData(object, "root"),
+    Question: (object: object) => toData(object),
+    Routine: (object: object) => toData(object),
+    RoutineVersion: (object: object) => toData(object, "root"),
+    Standard: (object: object) => toData(object),
+    StandardVersion: (object: object) => toData(object, "root"),
+    Team: (object: object) => toData(object),
+    User: (object: object) => toData(object),
 };
 
 /**
  * Maps object with selectMapper data to a Prisma data object, to create a view.
  */
 const createMapper = {
-    Api: (object: any) => toCreate(object, "api"),
-    ApiVersion: (object: any) => toCreate(object, "api", "root"),
-    Code: (object: any) => toCreate(object, "code"),
-    CodeVersion: (object: any) => toCreate(object, "code", "root"),
-    Note: (object: any) => toCreate(object, "note"),
-    NoteVersion: (object: any) => toCreate(object, "note", "root"),
-    Project: (object: any) => toCreate(object, "project"),
-    ProjectVersion: (object: any) => toCreate(object, "project", "root"),
-    Question: (object: any) => toCreate(object, "question"),
-    Routine: (object: any) => toCreate(object, "routine"),
-    RoutineVersion: (object: any) => toCreate(object, "routine", "root"),
-    Standard: (object: any) => toCreate(object, "standard"),
-    StandardVersion: (object: any) => toCreate(object, "standard", "root"),
-    Team: (object: any) => toCreate(object, "team"),
-    User: (object: any) => toCreate(object, "user"),
+    Api: (object: object) => toCreate(object, "api"),
+    ApiVersion: (object: object) => toCreate(object, "api", "root"),
+    Code: (object: object) => toCreate(object, "code"),
+    CodeVersion: (object: object) => toCreate(object, "code", "root"),
+    Note: (object: object) => toCreate(object, "note"),
+    NoteVersion: (object: object) => toCreate(object, "note", "root"),
+    Project: (object: object) => toCreate(object, "project"),
+    ProjectVersion: (object: object) => toCreate(object, "project", "root"),
+    Question: (object: object) => toCreate(object, "question"),
+    Routine: (object: object) => toCreate(object, "routine"),
+    RoutineVersion: (object: object) => toCreate(object, "routine", "root"),
+    Standard: (object: object) => toCreate(object, "standard"),
+    StandardVersion: (object: object) => toCreate(object, "standard", "root"),
+    Team: (object: object) => toCreate(object, "team"),
+    User: (object: object) => toCreate(object, "user"),
 };
 
 interface ViewInput {
@@ -126,7 +127,7 @@ interface ViewInput {
 /**
  * Deletes views from user's view list, but does not affect view count or logs.
  */
-const deleteViews = async (userId: string, ids: string[]): Promise<Count> => {
+async function deleteViews(userId: string, ids: string[]): Promise<Count> {
     return await prismaInstance.view.deleteMany({
         where: {
             AND: [
@@ -135,16 +136,16 @@ const deleteViews = async (userId: string, ids: string[]): Promise<Count> => {
             ],
         },
     }).then(({ count }) => ({ __typename: "Count" as const, count }));
-};
+}
 
 /**
  * Removes all of user's views, but does not affect view count or logs.
  */
-const clearViews = async (userId: string): Promise<Count> => {
+async function clearViews(userId: string): Promise<Count> {
     return await prismaInstance.view.deleteMany({
         where: { byId: userId },
     }).then(({ count }) => ({ __typename: "Count" as const, count }));
-};
+}
 
 const displayMapper: { [key in ViewFor]?: keyof Prisma.viewUpsertArgs["create"] } = {
     Api: "api",
@@ -218,7 +219,7 @@ export const ViewModel: ViewModelLogic = ({
         isDeleted: () => false,
         isPublic: () => false,
         isTransferable: false,
-        maxObjects: 10000000,
+        maxObjects: MaxObjects[__typename],
         owner: (data) => ({
             User: data?.by,
         }),
@@ -228,24 +229,34 @@ export const ViewModel: ViewModelLogic = ({
             by: "User",
         }),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
+                    by: { id: data.userId },
+                    // Any non-public, non-owned objects should be filtered out
+                    // Can use OR because only one relation will be present
                     OR: [
-                        ...Object.entries(displayMapper).map(([key, value]) => ({ [value]: ModelMap.get(key as GqlModelType).validate().visibility.private(...params) })),
+                        ...useVisibilityMapper("OwnOrPublic", data, displayMapper, false),
                     ],
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            // Not useful for this object type
+            ownOrPublic: null,
+            // Not useful for this object type
+            ownPrivate: function getOwnPrivate(data) {
+                return useVisibility("View", "Own", data);
+            },
+            // Not useful for this object type
+            ownPublic: function getOwnPublic(data) {
+                return useVisibility("View", "Own", data);
+            },
+            public: function getPublic(data) {
                 return {
                     // Can use OR because only one relation will be present
                     OR: [
-                        ...Object.entries(displayMapper).map(([key, value]) => ({ [value]: ModelMap.get(key as GqlModelType).validate().visibility.public(...params) })),
+                        ...useVisibilityMapper("Public", data, displayMapper, false),
                     ],
                 };
             },
-            owner: (userId) => ({
-                by: { id: userId },
-            }),
         },
     }),
     /**
@@ -350,7 +361,7 @@ export const ViewModel: ViewModelLogic = ({
                 const redisKey = `view:${userData.id}_${dataMapper[input.viewFor](objectToView).id}_${input.viewFor}`;
                 const lastViewed = await redisClient.get(redisKey);
                 // If object viewed more than 1 hour ago, update view count
-                if (!lastViewed || new Date(lastViewed).getTime() < new Date().getTime() - 3600000) {
+                if (!lastViewed || new Date(lastViewed).getTime() < new Date().getTime() - HOURS_1_MS) {
                     // View counts don't exist on versioned objects, so we must make sure we are updating the root object
                     const { dbTable: rootDbTable } = ModelMap.getLogic(["dbTable"], input.viewFor.replace("Version", "") as GqlModelType, true, "view 3");
                     await (prismaInstance[rootDbTable] as PrismaDelegate).update({

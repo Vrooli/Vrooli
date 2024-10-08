@@ -1,8 +1,8 @@
+import { SelectorFormInput, SelectorFormInputOption, SelectorFormInputProps, getFormikFieldName } from "@local/shared";
 import { Button, IconButton, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { SelectorBase } from "components/inputs/Selector/Selector";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useField } from "formik";
-import { SelectorFormInput, SelectorFormInputOption, SelectorFormInputProps } from "forms/types";
 import { AddIcon, CloseIcon, DragIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { DragDropContext, Draggable, DropResult, Droppable } from "react-beautiful-dnd";
@@ -15,6 +15,7 @@ import { FormInputProps } from "../types";
 export function FormInputSelector<T extends SelectorFormInputOption>({
     disabled,
     fieldData,
+    fieldNamePrefix,
     isEditing,
     onConfigUpdate,
 }: FormInputProps<SelectorFormInput<T>>) {
@@ -22,7 +23,7 @@ export function FormInputSelector<T extends SelectorFormInputOption>({
 
     const props = useMemo(() => fieldData.props, [fieldData.props]);
 
-    const [field, , helpers] = useField(fieldData.fieldName);
+    const [field, meta, helpers] = useField(getFormikFieldName(fieldData.fieldName, fieldNamePrefix));
     const handleChange = useCallback((selected: T | null) => {
         const newValue = selected !== null ? props.getOptionValue(selected) ?? undefined : undefined;
         if (isEditing) {
@@ -107,11 +108,10 @@ export function FormInputSelector<T extends SelectorFormInputOption>({
             options={props.options}
             value={isEditing ? props.options?.find(option => option.value === field.value) : field.value}
             getOptionDescription={props.getOptionDescription}
-            getOptionIcon={props.getOptionIcon}
             multiple={false}
             tabIndex={props.tabIndex}
         />
-    ), [props.autoFocus, props.getOptionLabel, props.inputAriaLabel, props.label, props.noneOption, props.options, props.getOptionDescription, props.getOptionIcon, props.tabIndex, disabled, fieldData.isRequired, fieldData.fieldName, handleChange, isEditing, field.value]);
+    ), [props.autoFocus, props.getOptionLabel, props.inputAriaLabel, props.label, props.noneOption, props.options, props.getOptionDescription, props.tabIndex, disabled, fieldData.isRequired, fieldData.fieldName, handleChange, isEditing, field.value]);
 
     const optionsButtonStyle = useMemo(function optionsButtonStyleMemo() {
         return propButtonWithSectionStyle(showOptions);

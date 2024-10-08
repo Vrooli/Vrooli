@@ -1,6 +1,8 @@
-import { AutoFillInput, AutoFillResult, BotCreateInput, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetAutoFill, endpointGetUser, endpointPostBot, endpointPutBot, LINKS, LlmTask, noopSubmit, Session, User } from "@local/shared";
-import { Divider, IconButton, InputAdornment, Slider, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { fetchLazyWrapper, useSubmitHelper } from "api";
+import { BotCreateInput, BotShape, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetUser, endpointPostBot, endpointPutBot, findBotData, getAvailableModels, getModelDescription, getModelName, LINKS, LlmModel, LlmTask, noopSubmit, SearchPageTabOption, Session, shapeBot, User, validateAndGetYupErrors } from "@local/shared";
+import { Divider, InputAdornment, Slider, Stack, Typography } from "@mui/material";
+import { useSubmitHelper } from "api";
+import { getExistingAIConfig } from "api/ai";
+import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
@@ -13,33 +15,28 @@ import { SelectorBase } from "components/inputs/Selector/Selector";
 import { TextInput, TranslatedTextInput } from "components/inputs/TextInput/TextInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { useObjectFromUrl } from "hooks/useObjectFromUrl";
+import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "hooks/tasks";
+import { useManagedObject } from "hooks/useManagedObject";
 import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { BotIcon, CommentIcon, HandleIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, MagicIcon, PersonaIcon, RoutineValidIcon, TeamIcon } from "icons";
+import { BotIcon, CommentIcon, HandleIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, PersonaIcon, RoutineValidIcon, TeamIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
-import { getCurrentUser } from "utils/authentication/session";
-import { AVAILABLE_MODELS, findBotData, LlmModel } from "utils/botUtils";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
-import { SearchPageTabOption } from "utils/search/objectToSearch";
-import { validateAndGetYupErrors } from "utils/shape/general";
-import { BotShape, BotTranslationShape, shapeBot } from "utils/shape/models/bot";
 import { BotFormProps, BotUpsertProps } from "../types";
 
 function botInitialValues(
     session: Session | undefined,
     existing?: Partial<User> | BotShape | null | undefined,
 ): BotShape {
-    const { creativity, verbosity, model, translations } = findBotData(getUserLanguages(session)[0], existing);
+    const availableModels = getAvailableModels(getExistingAIConfig()?.service?.config);
+    const { creativity, verbosity, model, translations } = findBotData(getUserLanguages(session)[0], availableModels, existing);
 
     return {
         __typename: "User" as const,
@@ -67,6 +64,17 @@ async function validateBotValues(session: Session | undefined, values: BotShape,
     return result;
 }
 
+const sliderStyle = {
+    "& .MuiSlider-markLabel": {
+        "&[data-index=\"0\"]": {
+            marginLeft: 2,
+        },
+        "&[data-index=\"1\"]": {
+            marginLeft: -2,
+        },
+    },
+} as const;
+
 export function FeatureSlider({
     disabled,
     id,
@@ -88,6 +96,23 @@ export function FeatureSlider({
     const max = 1;
     const step = 0.1;
 
+    const handleChange = useCallback(function handleChangeMemo(_: unknown, value: number | number[]) {
+        if (Array.isArray(value) && value.length > 0) {
+            setValue(value[0]);
+        } else if (typeof value === "number") {
+            setValue(value);
+        } else {
+            setValue(min);
+        }
+    }, [setValue]);
+
+    const marks = useMemo(function marksMemo() {
+        return [
+            { value: min, label: labelLeft },
+            { value: max, label: labelRight },
+        ];
+    }, [labelLeft, labelRight]);
+
     return (
         <Stack>
             <Typography id={id} gutterBottom>
@@ -97,33 +122,13 @@ export function FeatureSlider({
                 aria-labelledby={id}
                 disabled={disabled}
                 value={value}
-                onChange={(_, value) => {
-                    if (Array.isArray(value) && value.length > 0) {
-                        setValue(value[0]);
-                    } else if (typeof value === "number") {
-                        setValue(value);
-                    } else {
-                        setValue(min);
-                    }
-                }}
+                onChange={handleChange}
                 valueLabelDisplay="auto"
                 min={min}
                 max={max}
                 step={step}
-                marks={[
-                    { value: min, label: labelLeft },
-                    { value: max, label: labelRight },
-                ]}
-                sx={{
-                    "& .MuiSlider-markLabel": {
-                        "&[data-index=\"0\"]": {
-                            marginLeft: 2,
-                        },
-                        "&[data-index=\"1\"]": {
-                            marginLeft: -2,
-                        },
-                    },
-                }}
+                marks={marks}
+                sx={sliderStyle}
             />
         </Stack>
     );
@@ -153,25 +158,86 @@ type InputMode = "default" | "custom";
 //     )
 // };
 
+const nameInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <BotIcon />
+        </InputAdornment>
+    ),
+} as const;
+const handleInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <HandleIcon />
+        </InputAdornment>
+    ),
+} as const;
+const startingMessageInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <CommentIcon />
+        </InputAdornment>
+    ),
+} as const;
+const occupationInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <TeamIcon />
+        </InputAdornment>
+    ),
+} as const;
+const personaInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <PersonaIcon />
+        </InputAdornment>
+    ),
+} as const;
+const toneInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <RoutineValidIcon />
+        </InputAdornment>
+    ),
+} as const;
+const keyPhrasesInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <KeyPhrasesIcon />
+        </InputAdornment>
+    ),
+} as const;
+const domainKnowledgeInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <LearnIcon />
+        </InputAdornment>
+    ),
+} as const;
+const biasInputProps = {
+    startAdornment: (
+        <InputAdornment position="start">
+            <HeartFilledIcon />
+        </InputAdornment>
+    ),
+} as const;
+const relationshipListStyle = { marginBottom: 4 } as const;
+const formSectionStyle = { overflowX: "hidden" } as const;
+
 function BotForm({
     disabled,
-    dirty,
     display,
     existing,
     handleUpdate,
     isCreate,
     isOpen,
     isReadLoading,
-    onCancel,
     onClose,
-    onCompleted,
-    onDeleted,
+    setFieldValue,
     values,
     ...props
 }: BotFormProps) {
     const session = useContext(SessionContext);
-    const { credits } = useMemo(() => getCurrentUser(session), [session]);
-    const { palette } = useTheme();
     const { t } = useTranslation();
 
     // const [inputMode, setInputMode] = useState<InputMode>("default");
@@ -182,9 +248,14 @@ function BotForm({
     const [modelField, , modelHelpers] = useField<string>("model");
     const [model, setModel] = useState<LlmModel | null>(null);
     useEffect(() => {
-        const availableModel = AVAILABLE_MODELS.find(m => m.value === modelField.value);
+        const availableModels = getAvailableModels(getExistingAIConfig()?.service?.config);
+        const availableModel = availableModels.find(m => m.value === modelField.value);
         setModel(availableModel ?? null);
     }, [modelField.value]);
+
+    const handleModelChange = useCallback(function handleModelChangeCallback(newModel: LlmModel | null) {
+        modelHelpers.setValue(newModel?.value ?? "");
+    }, [modelHelpers]);
 
     const [creativityField, , creativityHelpers] = useField<number>("creativity");
     const [verbosityField, , verbosityHelpers] = useField<number>("verbosity");
@@ -231,46 +302,47 @@ function BotForm({
         onCompleted: () => { props.setSubmitting(false); },
     });
 
-    const [getAutoFill, { loading: isLoadingAutoFill }] = useLazyFetch<AutoFillInput, AutoFillResult>(endpointGetAutoFill);
-    const autoFill = useCallback(() => {
-        const defaultTranslation = { ...(values.translations?.length ? values.translations[0] : {}) } as Partial<BotTranslationShape> & { __typename?: string };
-        delete defaultTranslation.id;
-        delete defaultTranslation.language;
-        delete defaultTranslation.__typename;
-        const existingData = {
-            ...defaultTranslation,
+    const getAutoFillInput = useCallback(function getAutoFillInput() {
+        return {
+            ...getAutoFillTranslationData(values, language),
             name: values.name,
         };
-        Object.entries(existingData).forEach(([key, value]) => {
-            if (typeof value === "string" && value.trim() === "") {
-                delete existingData[key];
-            }
-        });
-        fetchLazyWrapper<AutoFillInput, AutoFillResult>({
-            fetch: getAutoFill,
-            inputs: {
-                task: isCreate ? LlmTask.BotAdd : LlmTask.BotUpdate,
-                data: existingData,
-            },
-            onSuccess: ({ data }) => {
-                console.log("got autofill response", data);
-                const originalValues = { ...values };
-                const { name, ...rest } = data;
-                const updatedValues = {
-                    ...values,
-                    name: name ?? values.name,
-                    translations: values.translations?.length ? [{
-                        ...values.translations[0],
-                        ...rest,
-                    }, ...values.translations.slice(1)] : [],
-                };
-                handleUpdate(updatedValues);
-                PubSub.get().publish("snack", { message: "Form auto-filled", buttonKey: "Undo", buttonClicked: () => { handleUpdate(originalValues); }, severity: "Success", autoHideDuration: 15000 });
-            },
-        });
-    }, [getAutoFill, handleUpdate, isCreate, values]);
+    }, [language, values]);
 
-    const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || isLoadingAutoFill || props.isSubmitting, [isCreateLoading, isLoadingAutoFill, isReadLoading, isUpdateLoading, props.isSubmitting]);
+    const shapeAutoFillResult = useCallback(function shapeAutoFillResultCallback(data: Parameters<UseAutoFillProps["shapeAutoFillResult"]>[0]) {
+        const originalValues = { ...values };
+        const { updatedTranslations, rest } = createUpdatedTranslations(values, data, language, ["bio", "occupation", "persona", "startingMessage", "tone", "keyPhrases", "domainKnowledge", "bias"]);
+        delete rest.id;
+        const creativity = typeof rest.creativity === "number" ? rest.creativity : values.creativity;
+        const isBotDepictingPerson = typeof rest.isBotDepictingPerson === "boolean" ? rest.isBotDepictingPerson : values.isBotDepictingPerson;
+        const name = typeof rest.name === "string" ? rest.name : values.name;
+        const verbosity = typeof rest.verbosity === "number" ? rest.verbosity : values.verbosity;
+        const updatedValues = {
+            ...values,
+            creativity,
+            isBotDepictingPerson,
+            name,
+            translations: updatedTranslations,
+            verbosity,
+        };
+        return { originalValues, updatedValues };
+    }, [language, values]);
+
+    const { autoFill, isAutoFillLoading } = useAutoFill({
+        getAutoFillInput,
+        shapeAutoFillResult,
+        handleUpdate,
+        task: isCreate ? LlmTask.BotAdd : LlmTask.BotUpdate,
+    });
+
+    const isLoading = useMemo(() => isAutoFillLoading || isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isAutoFillLoading, isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
+
+    const handleBannerImageChange = useCallback(function handleBannerImageChangeCallback(newPicture: File | null) {
+        setFieldValue("bannerImage", newPicture);
+    }, [setFieldValue]);
+    const handleProfileImageChange = useCallback(function handleProfileImageChangeCallback(newPicture: File | null) {
+        setFieldValue("profileImage", newPicture);
+    }, [setFieldValue]);
 
     return (
         <MaybeLargeDialog
@@ -291,37 +363,29 @@ function BotForm({
             <BaseForm
                 display={display}
                 isLoading={isLoading}
-                maxWidth={700}
             >
                 <FormContainer>
                     <ContentCollapse title="Basic info" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
                         <RelationshipList
                             isEditing={true}
                             objectType={"User"}
-                            sx={{ marginBottom: 4 }}
+                            sx={relationshipListStyle}
                         />
                         <ProfilePictureInput
-                            onBannerImageChange={(newPicture) => props.setFieldValue("bannerImage", newPicture)}
-                            onProfileImageChange={(newPicture) => props.setFieldValue("profileImage", newPicture)}
+                            onBannerImageChange={handleBannerImageChange}
+                            onProfileImageChange={handleProfileImageChange}
                             name="profileImage"
-                            profile={{ ...values }}
+                            profile={values}
                         />
-                        <FormSection sx={{ overflowX: "hidden" }}>
+                        <FormSection sx={formSectionStyle}>
                             <Field
                                 fullWidth
                                 autoComplete="name"
-                                autoFocus
                                 name="name"
                                 label={t("Name")}
                                 placeholder={t("NamePlaceholder")}
                                 as={TextInput}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <BotIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={nameInputProps}
                                 error={props.touched.name && Boolean(props.errors.name)}
                                 helperText={props.touched.name && props.errors.name}
                             />
@@ -337,13 +401,7 @@ function BotForm({
                                 label={t("Handle")}
                                 placeholder={t("HandlePlaceholder")}
                                 as={TextInput}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <HandleIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={handleInputProps}
                                 error={props.touched.handle && Boolean(props.errors.handle)}
                                 helperText={props.touched.handle && props.errors.handle}
                             />
@@ -362,29 +420,21 @@ function BotForm({
                                 placeholder={t("StartMessagePlaceholder")}
                                 language={language}
                                 name="startingMessage"
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <CommentIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={startingMessageInputProps}
                             />
                             <LanguageInput
                                 currentLanguage={language}
+                                flexDirection="row-reverse"
                                 handleAdd={handleAddLanguage}
                                 handleDelete={handleDeleteLanguage}
                                 handleCurrent={setLanguage}
                                 languages={languages}
-                                sx={{ flexDirection: "row-reverse" }}
                             />
                         </FormSection>
                     </ContentCollapse>
                     <Divider />
                     <ContentCollapse title="Personality" titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
-                        <FormSection sx={{
-                            overflowX: "hidden",
-                        }}>
+                        <FormSection overflow="hidden">
                             {/* <InputToggle
                             canChangeInputMode={true}
                             inputMode={inputMode}
@@ -397,13 +447,7 @@ function BotForm({
                                 placeholder={t("OccupationPlaceholderBot")}
                                 language={language}
                                 name="occupation"
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <TeamIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={occupationInputProps}
                             />
                             <TranslatedTextInput
                                 fullWidth
@@ -412,13 +456,7 @@ function BotForm({
                                 placeholder={t("PersonaPlaceholderBot")}
                                 language={language}
                                 name="persona"
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <PersonaIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={personaInputProps}
                             />
                             <TranslatedTextInput
                                 fullWidth
@@ -427,13 +465,7 @@ function BotForm({
                                 placeholder={t("TonePlaceholderBot")}
                                 language={language}
                                 name="tone"
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <RoutineValidIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={toneInputProps}
                             />
                             <TranslatedTextInput
                                 fullWidth
@@ -442,13 +474,7 @@ function BotForm({
                                 placeholder={t("KeyPhrasesPlaceholderBot")}
                                 language={language}
                                 name="keyPhrases"
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <KeyPhrasesIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={keyPhrasesInputProps}
                             />
                             <TranslatedTextInput
                                 fullWidth
@@ -457,13 +483,7 @@ function BotForm({
                                 placeholder={t("DomainKnowledgePlaceholderBot")}
                                 language={language}
                                 name="domainKnowledge"
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <LearnIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={domainKnowledgeInputProps}
                             />
                             <TranslatedTextInput
                                 fullWidth
@@ -472,13 +492,7 @@ function BotForm({
                                 placeholder={t("BiasPlaceholderBot")}
                                 language={language}
                                 name="bias"
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <HeartFilledIcon />
-                                        </InputAdornment>
-                                    ),
-                                }}
+                                InputProps={biasInputProps}
                             />
                             <FeatureSlider
                                 id="creativity-slider"
@@ -502,20 +516,18 @@ function BotForm({
                     <ContentCollapse title={t("Model", { count: 1 })} titleVariant="h4" isOpen={true} sxs={{ titleContainer: { marginBottom: 1 } }}>
                         <SelectorBase
                             name="model"
-                            options={AVAILABLE_MODELS}
-                            getOptionLabel={(r) => r.name}
-                            getOptionDescription={(r) => r.description}
+                            options={getAvailableModels(getExistingAIConfig()?.service?.config)}
+                            getOptionLabel={getModelName}
+                            getOptionDescription={getModelDescription}
                             fullWidth={true}
-                            inputAriaLabel="Mode"
+                            inputAriaLabel="Model"
                             label={t("Model", { count: 1 })}
-                            onChange={(newModel) => {
-                                modelHelpers.setValue(newModel.value);
-                            }}
+                            onChange={handleModelChange}
                             value={model}
                         />
                     </ContentCollapse>
                 </FormContainer>
-            </BaseForm >
+            </BaseForm>
             <BottomActionsButtons
                 display={display}
                 errors={combineErrorsWithTranslations(props.errors, translationErrors)}
@@ -525,24 +537,17 @@ function BotForm({
                 onCancel={handleCancel}
                 onSetSubmitting={props.setSubmitting}
                 onSubmit={onSubmit}
-                sideActionButtons={credits && BigInt(credits) > 0 ? (
-                    <Tooltip title={t("AutoFill")} placement="top">
-                        <IconButton
-                            aria-label={t("AutoFill")}
-                            disabled={isLoadingAutoFill}
-                            onClick={autoFill}
-                            sx={{ background: palette.secondary.main }}
-                        >
-                            <MagicIcon fill={palette.secondary.contrastText} width="36px" height="36px" />
-                        </IconButton>
-                    </Tooltip>
-                ) : null}
+                sideActionButtons={<AutoFillButton
+                    handleAutoFill={autoFill}
+                    isAutoFillLoading={isAutoFillLoading}
+                />}
             />
         </MaybeLargeDialog >
     );
 }
 
 export function BotUpsert({
+    display,
     isCreate,
     isOpen,
     overrideObject,
@@ -550,8 +555,9 @@ export function BotUpsert({
 }: BotUpsertProps) {
     const session = useContext(SessionContext);
 
-    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useObjectFromUrl<User, BotShape>({
+    const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<User, BotShape>({
         ...endpointGetUser,
+        disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "User",
         overrideObject,
@@ -572,6 +578,7 @@ export function BotUpsert({
             {(formik) =>
                 <BotForm
                     disabled={!(isCreate || permissions.canUpdate)}
+                    display={display}
                     existing={existing}
                     handleUpdate={setExisting}
                     isCreate={isCreate}

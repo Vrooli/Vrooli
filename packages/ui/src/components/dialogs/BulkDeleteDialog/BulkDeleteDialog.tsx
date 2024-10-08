@@ -112,7 +112,7 @@ export function BulkDeleteDialog({
                 />
             </DialogContent>
             <BottomActionsGrid display="dialog">
-                <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
+                <Grid item xs={6}>
                     <Button
                         disabled={!isConfirmationValid}
                         fullWidth
@@ -122,7 +122,7 @@ export function BulkDeleteDialog({
                         variant="contained"
                     >{t("Delete")}</Button>
                 </Grid>
-                <Grid item xs={6} p={1} sx={{ paddingTop: 0 }}>
+                <Grid item xs={6}>
                     <Button
                         fullWidth
                         startIcon={<CancelIcon />}

@@ -4,13 +4,13 @@ import { ListMenu } from "../ListMenu/ListMenu";
 import { ObjectActionDialogs } from "../ObjectActionDialogs/ObjectActionDialogs";
 import { ObjectActionMenuProps } from "../types";
 
-export const ObjectActionMenu = ({
+export function ObjectActionMenu({
     actionData,
     anchorEl,
     exclude,
     object,
     onClose,
-}: ObjectActionMenuProps) => {
+}: ObjectActionMenuProps) {
     const displayedActions = useMemo(() => getActionsDisplayData(actionData.availableActions.filter(action => !exclude?.includes(action))), [actionData.availableActions, exclude]);
 
     const onSelect = useCallback((action: ObjectAction) => {
@@ -35,4 +35,4 @@ export const ObjectActionMenu = ({
             />
         </>
     );
-};
+}

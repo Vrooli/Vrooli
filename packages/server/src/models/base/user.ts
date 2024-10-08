@@ -1,9 +1,10 @@
-import { BotUpdateInput, MaxObjects, ProfileUpdateInput, UserSortBy, userValidation } from "@local/shared";
+import { BotUpdateInput, MaxObjects, ProfileUpdateInput, UserSortBy, getTranslation, userValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { withRedis } from "../../redisConn";
-import { bestTranslation, defaultPermissions, getEmbeddableString } from "../../utils";
+import { defaultPermissions, getEmbeddableString } from "../../utils";
 import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
 import { getSingleTypePermissions, handlesCheck } from "../../validators";
 import { UserFormat } from "../formats";
@@ -78,9 +79,9 @@ export const UserModel: UserModelLogic = ({
         embed: {
             select: () => ({ id: true, name: true, handle: true, translations: { select: { id: true, bio: true, embeddingNeedsUpdate: true } } }),
             get: ({ name, handle, translations }, languages) => {
-                const trans = bestTranslation(translations, languages);
+                const trans = getTranslation({ translations }, languages);
                 return getEmbeddableString({
-                    bio: trans?.bio,
+                    bio: trans.bio,
                     handle,
                     name,
                 }, languages[0]);
@@ -151,6 +152,8 @@ export const UserModel: UserModelLogic = ({
             minBookmarks: true,
             minViews: true,
             notInChatId: true,
+            notInvitedToTeamId: true,
+            notMemberInTeamId: true,
             translationLanguages: true,
             updatedTimeFrame: true,
         },
@@ -166,7 +169,7 @@ export const UserModel: UserModelLogic = ({
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<UserModelInfo["GqlPermission"]>(__typename, ids, userData)),
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
                     },
@@ -190,22 +193,47 @@ export const UserModel: UserModelLogic = ({
         isPublic: (data) => data.isPrivate === false,
         profanityFields: ["name", "handle"],
         visibility: {
-            private: function getVisibilityPrivate() {
+            own: function getOwn(data) {
                 return {
-                    isPrivate: true,
+                    OR: [ // Either yourself or a bot you created
+                        { id: data.userId },
+                        { isBot: true, invitedByUser: { id: data.userId } },
+                    ],
                 };
             },
-            public: function getVisibilityPublic() {
+            ownOrPublic: function getOwnOrPublic(data) {
+                return {
+                    OR: [
+                        // Owned objects
+                        useVisibility("User", "Own", data),
+                        // Public objects
+                        useVisibility("User", "Public", data),
+                    ],
+                };
+            },
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    isPrivate: true,
+                    OR: [ // Either yourself or a bot you created
+                        { id: data.userId },
+                        { isBot: true, invitedByUser: { id: data.userId } },
+                    ],
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    isPrivate: false,
+                    OR: [ // Either yourself or a bot you created
+                        { id: data.userId },
+                        { isBot: true, invitedByUser: { id: data.userId } },
+                    ],
+                };
+            },
+            public: function getPublic() {
                 return {
                     isPrivate: false,
                 };
             },
-            owner: (userId) => ({
-                OR: [
-                    { id: userId },
-                    { isBot: true, invitedByUser: { id: userId } },
-                ],
-            }),
         },
         // createMany.forEach(input => lineBreaksCheck(input, ['bio'], 'LineBreaksBio'));
     }),

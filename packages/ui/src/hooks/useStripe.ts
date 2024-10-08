@@ -1,7 +1,7 @@
-import { CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CommonKey, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, CreatePortalSessionParams, CreatePortalSessionResponse, LINKS, PaymentType, StripeEndpoint, SubscriptionPricesResponse, parseSearchParams } from "@local/shared";
+import { CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, CreatePortalSessionParams, CreatePortalSessionResponse, LINKS, PaymentType, StripeEndpoint, SubscriptionPricesResponse, TranslationKeyCommon, parseSearchParams } from "@local/shared";
 import { loadStripe } from "@stripe/stripe-js";
 import { fetchData } from "api";
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { addSearchParams, openLink, removeSearchParams, useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
@@ -10,14 +10,14 @@ import { useFetch } from "./useFetch";
 
 const stripePromise = loadStripe(process.env.VITE_STRIPE_PUBLISHABLE_KEY ?? "");
 
-const paymentTypeToSuccessMessage: Record<PaymentType, CommonKey> = {
+const paymentTypeToSuccessMessage: Record<PaymentType, TranslationKeyCommon> = {
     [PaymentType.Credits]: "CreditsPaymentSuccess",
     [PaymentType.Donation]: "DonationPaymentSuccess",
     [PaymentType.PremiumMonthly]: "ProPaymentSuccess",
     [PaymentType.PremiumYearly]: "ProPaymentSuccess",
 };
 
-export const useStripe = () => {
+export function useStripe() {
     const [, setLocation] = useLocation();
     const session = useContext(SessionContext);
     const currentUser = useMemo(() => getCurrentUser(session), [session]);
@@ -29,14 +29,14 @@ export const useStripe = () => {
         omitRestBase: true,
     });
 
-    const toggleLoading = (isLoading: boolean) => {
+    const toggleLoading = useCallback(function toggleLoadingCallback(isLoading: boolean) {
         setLoading(isLoading);
         PubSub.get().publish("loading", isLoading);
-    };
+    }, []);
 
-    const handleError = (error: unknown) => {
+    const handleError = useCallback(function handleErrorCallback(error: unknown) {
         PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error", data: error });
-    };
+    }, []);
 
     const handleUrlParams = useCallback(() => {
         const { paymentType, status } = parseSearchParams();
@@ -244,4 +244,4 @@ export const useStripe = () => {
         redirectToCustomerPortal,
         startCheckout,
     } as const;
-};
+}

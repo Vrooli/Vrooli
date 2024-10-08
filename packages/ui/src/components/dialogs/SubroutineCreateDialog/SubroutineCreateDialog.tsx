@@ -1,4 +1,4 @@
-import { CommonKey } from "@local/shared";
+import { TranslationKeyCommon } from "@local/shared";
 import { Box, IconButton, useTheme } from "@mui/material";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
@@ -14,7 +14,7 @@ import { SubroutineCreateDialogProps } from "../types";
 type SubroutineType = "Api" | "Code" | "Data" | "Generate" | "Prompt" | "SmartContract" | "WebContent";
 type SubroutineInfo = {
     objectType: SubroutineType;
-    description: CommonKey,
+    description: TranslationKeyCommon,
     Icon: SvgComponent,
     id: string,
 }

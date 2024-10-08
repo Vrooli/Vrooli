@@ -1,14 +1,13 @@
 /**
  * Displays nodes associated with a routine, but that are not linked to any other nodes.
  */
-import { Node, NodeRoutineList, NodeType, noop } from "@local/shared";
+import { getTranslation, Node, NodeRoutineList, NodeType, noop } from "@local/shared";
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { EndNode, RedirectNode, RoutineListNode } from "components/graphs/NodeGraph";
 import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, UnlinkedNodesIcon } from "icons";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { noSelect } from "styles";
-import { getTranslation } from "utils/display/translationTools";
 import { NodeWithEnd } from "views/objects/node/types";
 import { UnlinkedNodesDialogProps } from "../types";
 

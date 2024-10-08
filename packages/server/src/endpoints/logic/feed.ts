@@ -10,6 +10,8 @@ import { rateLimit } from "../../middleware/rateLimit";
 import { GQLEndpoint } from "../../types";
 import { FocusModeEndpoints } from "./focusMode";
 
+const SCHEDULES_DAYS_TO_LOOK_AHEAD = 7;
+
 export type EndpointsFeed = {
     Query: {
         home: GQLEndpoint<HomeInput, HomeResult>;
@@ -46,36 +48,36 @@ export const FeedEndpoints: EndpointsFeed = {
             // Query reminders
             const { nodes: reminders } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: {
+                additionalQueries: activeFocusModeId ? {
                     reminderList: {
                         focusMode: {
-                            ...(activeFocusModeId ? { id: activeFocusModeId } : { user: { id: userData.id } }),
+                            id: activeFocusModeId,
                         },
                     },
-                },
+                } : undefined,
                 info: partial.reminders as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: ReminderSortBy.DateCreatedAsc, isComplete: false, visibility: VisibilityType.Public }, // VisibilityType.Own clashes with additionalQueries
+                input: { ...input, take, sortBy: ReminderSortBy.DateCreatedAsc, isComplete: false, visibility: VisibilityType.Own },
                 objectType: "Reminder",
             });
             // Query resources
             const { nodes: resources } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: {
+                additionalQueries: activeFocusModeId ? {
                     list: {
                         focusMode: {
-                            ...(activeFocusModeId ? { id: activeFocusModeId } : { user: { id: userData.id } }),
+                            id: activeFocusModeId,
                         },
                     },
-                },
+                } : undefined,
                 info: partial.resources as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: ResourceSortBy.IndexAsc, visibility: VisibilityType.Public }, // VisibilityType.Own clashes with additionalQueries
+                input: { ...input, take, sortBy: ResourceSortBy.IndexAsc, visibility: VisibilityType.Own },
                 objectType: "Resource",
             });
             // Query schedules that might occur in the next 7 days. 
             // Need to perform calculations on the client side to determine which ones are actually relevant.
             const now = new Date();
             const startDate = now;
-            const endDate = new Date(now.setDate(now.getDate() + 7));
+            const endDate = new Date(now.setDate(now.getDate() + SCHEDULES_DAYS_TO_LOOK_AHEAD));
             const { nodes: schedules } = await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: {
@@ -116,10 +118,10 @@ export const FeedEndpoints: EndpointsFeed = {
             const aftersCount = Object.entries(input).filter(([key, value]) => key.endsWith("After") && typeof value === "string" && value.trim() !== "").length;
             const anyAfters = aftersCount > 0;
             // Checks if object type should be included in results
-            const shouldInclude = (objectType: `${PopularSearchInput["objectType"]}`) => {
+            function shouldInclude(objectType: `${PopularSearchInput["objectType"]}`) {
                 if (anyAfters && (input[`${objectType.toLowerCase()}After`]?.trim() ?? "") === "") return false;
                 return input.objectType ? input.objectType === objectType : true;
-            };
+            }
             // Split take between each requested object type.
             // If input.objectType is provided, take stays the same (as it's only querying one object type).
             // If there are any "after" cursors, take is split evenly between each object type.

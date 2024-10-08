@@ -1,12 +1,11 @@
+import { CheckboxFormInput, CheckboxFormInputProps, getFormikFieldName, updateArray } from "@local/shared";
 import { Button, Checkbox, FormControl, FormControlLabel, FormGroup, FormHelperText, IconButton, TextField, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { IntegerInputBase } from "components/inputs/IntegerInput/IntegerInput";
 import { useField } from "formik";
-import { CheckboxFormInput, CheckboxFormInputProps } from "forms/types";
 import { AddIcon, CloseIcon, DragIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { DragDropContext, Draggable, DropResult, Droppable } from "react-beautiful-dnd";
 import { randomString } from "utils/codes";
-import { updateArray } from "utils/shape/general";
 import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles";
 import { FormInputProps } from "../types";
 
@@ -34,12 +33,13 @@ const addOptionStyle = {
 export function FormInputCheckbox({
     disabled,
     fieldData,
+    fieldNamePrefix,
     isEditing,
     onConfigUpdate,
 }: FormInputProps<CheckboxFormInput>) {
     const { palette, typography } = useTheme();
 
-    const [field, meta, helpers] = useField(fieldData.fieldName);
+    const [field, meta, helpers] = useField(getFormikFieldName(fieldData.fieldName, fieldNamePrefix));
     const props = useMemo(() => fieldData.props, [fieldData.props]);
 
     const [showMore, setShowMore] = useState(false);

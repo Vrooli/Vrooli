@@ -35,11 +35,11 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
     const { t } = useTranslation();
 
     const getOptionStyle = useCallback((label: string) => {
-        const isSelected = exists(value) && getOptionLabel(value) === label;
+        const isSelected = exists(value) && getOptionLabel(value, t) === label;
         return {
             fontWeight: isSelected ? typography.fontWeightMedium : typography.fontWeightRegular,
         };
-    }, [value, getOptionLabel, typography.fontWeightMedium, typography.fontWeightRegular]);
+    }, [value, getOptionLabel, t, typography.fontWeightMedium, typography.fontWeightRegular]);
 
     const getLabelStyle = useCallback(function getLabelStyleCallback(label: string, description: string | null | undefined) {
         return {
@@ -52,8 +52,8 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
 
     // Render all labels
     const labels = useMemo(() => options.map((option) => {
-        const labelText = getOptionLabel(option) ?? "";
-        const description = getOptionDescription ? getOptionDescription(option) : null;
+        const labelText = getOptionLabel(option, t) ?? "";
+        const description = getOptionDescription ? getOptionDescription(option, t) : null;
         const Icon = getOptionIcon ? getOptionIcon(option) : null;
         const labelStyle = getLabelStyle(labelText, description);
 
@@ -74,24 +74,26 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                 </Stack>
             </MenuItem>
         );
-    }), [options, getOptionLabel, getOptionDescription, getOptionIcon, palette.background.textSecondary, getOptionStyle, typography.fontWeightRegular]);
+    }), [options, getOptionLabel, t, getOptionDescription, getOptionIcon, getLabelStyle, palette.background.textSecondary, getOptionStyle]);
 
     // Find option from label
-    const findOption = useCallback((label: string) => options.find((option) => getOptionLabel(option) === label), [options, getOptionLabel]);
+    const findOption = useCallback(function findOptionCallback(label: string) {
+        return options.find((option) => getOptionLabel(option, t) === label);
+    }, [options, getOptionLabel, t]);
 
     /**
      * Determines if label should be shrunk
      */
     const shrinkLabel = useMemo(() => {
         if (!exists(value)) return false;
-        const labelText = getOptionLabel(value);
+        const labelText = getOptionLabel(value, t);
         return typeof labelText === "string" && labelText.length > 0;
-    }, [value, getOptionLabel]);
+    }, [value, getOptionLabel, t]);
 
     const renderValue = useCallback(function renderValueCallback(value: string) {
         const option = findOption(value as string);
         if (!exists(option)) return null;
-        const labelText = getOptionLabel(option) ?? "";
+        const labelText = getOptionLabel(option, t) ?? "";
         // Icon function can be overridden by getDisplayIcon
         const Icon = typeof getDisplayIcon === "function"
             ? getDisplayIcon(option) :
@@ -113,7 +115,7 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                 {/* Note that we omit the description */}
             </Stack>
         );
-    }, []);
+    }, [findOption, getDisplayIcon, getOptionIcon, getOptionLabel, getOptionStyle, palette.background.textSecondary, t]);
 
     const selectStyle = useMemo(function selectStyle() {
         return {
@@ -169,7 +171,7 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                 onChange={(e) => { onChange(findOption(e.target.value as string) as T); }}
                 onBlur={onBlur}
                 required={isRequired}
-                value={exists(value) ? (getOptionLabel(value) ?? undefined) : ""}
+                value={exists(value) ? (getOptionLabel(value, t) ?? undefined) : ""}
                 variant="outlined"
                 sx={selectStyle}
                 tabIndex={tabIndex}

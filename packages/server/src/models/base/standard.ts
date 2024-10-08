@@ -2,6 +2,7 @@ import { MaxObjects, StandardCreateInput, StandardSortBy, standardValidation } f
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
+import { useVisibility } from "../../builders/visibilityBuilder";
 import { getLabels } from "../../getters";
 import { SessionUserToken } from "../../types";
 import { defaultPermissions, oneIsPublic } from "../../utils";
@@ -11,7 +12,7 @@ import { afterMutationsRoot } from "../../utils/triggers";
 import { getSingleTypePermissions } from "../../validators";
 import { StandardFormat } from "../formats";
 import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, ReactionModelLogic, StandardModelInfo, StandardModelLogic, StandardVersionModelLogic, TeamModelLogic, UserModelLogic, ViewModelLogic } from "./types";
+import { BookmarkModelLogic, ReactionModelLogic, StandardModelInfo, StandardModelLogic, StandardVersionModelLogic, TeamModelLogic, ViewModelLogic } from "./types";
 
 type StandardPre = PreShapeRootResult;
 
@@ -157,6 +158,7 @@ export const StandardModel: StandardModelLogic = ({
         defaultSort: StandardSortBy.ScoreDesc,
         sortBy: StandardSortBy,
         searchFields: {
+            codeLanguageLatestVersion: true,
             createdById: true,
             createdTimeFrame: true,
             excludeIds: true,
@@ -177,6 +179,7 @@ export const StandardModel: StandardModelLogic = ({
             tags: true,
             translationLanguagesLatestVersion: true,
             updatedTimeFrame: true,
+            variantLatestVersion: true,
         },
         searchStringQuery: () => ({
             OR: [
@@ -186,17 +189,12 @@ export const StandardModel: StandardModelLogic = ({
                 { versions: { some: "transDescriptionWrapped" } },
             ],
         }),
-        /**
-         * Internal standards should never appear in the query, since they are 
-         * only meant for a single input/output
-         */
-        customQueryData: () => ({ isInternal: false }),
         supplemental: {
             graphqlFields: SuppFields[__typename],
             toGraphQL: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<Permissions>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<StandardModelInfo["GqlPermission"]>(__typename, ids, userData)),
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
                         reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
@@ -240,33 +238,60 @@ export const StandardModel: StandardModelLogic = ({
             User: data?.ownedByUser,
         }),
         visibility: {
-            private: function getVisibilityPrivate(...params) {
+            own: function getOwn(data) {
                 return {
-                    isDeleted: false,
+                    isDeleted: false, // Can't be deleted
+                    isInternal: false, // Internal standards should never be in search results
                     OR: [
-                        { isPrivate: true },
-                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.private(...params) },
-                        { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.private(...params) },
+                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId) },
+                        { ownedByUser: { id: data.userId } },
                     ],
                 };
             },
-            public: function getVisibilityPublic(...params) {
+            ownOrPublic: function getOwnOrPublic(data) {
                 return {
-                    isDeleted: false,
-                    isPrivate: false,
+                    isDeleted: false, // Can't be deleted
+                    isInternal: false, // Internal standards should never be in search results
+                    OR: [
+                        // Owned objects
+                        {
+                            OR: (useVisibility("Standard", "Own", data) as { OR: object[] }).OR,
+                        },
+                        // Public objects
+                        {
+                            isPrivate: false, // Can't be private
+                            OR: (useVisibility("Standard", "Public", data) as { OR: object[] }).OR,
+                        },
+                    ],
+                };
+            },
+            ownPrivate: function getOwnPrivate(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isInternal: false, // Internal standards should never be in search results
+                    isPrivate: true,  // Must be private
+                    OR: (useVisibility("Standard", "Own", data) as { OR: object[] }).OR,
+                };
+            },
+            ownPublic: function getOwnPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isPrivate: false, // Must be public
+                    OR: (useVisibility("Standard", "Own", data) as { OR: object[] }).OR,
+                };
+            },
+            public: function getPublic(data) {
+                return {
+                    isDeleted: false, // Can't be deleted
+                    isInternal: false, // Internal standards should never be in search results
+                    isPrivate: false, // Can't be private
                     OR: [
                         { ownedByTeam: null, ownedByUser: null },
-                        { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").validate().visibility.public(...params) },
-                        { ownedByUser: ModelMap.get<UserModelLogic>("User").validate().visibility.public(...params) },
+                        { ownedByTeam: useVisibility("Team", "Public", data) },
+                        { ownedByUser: { isPrivate: false, isPrivateStandards: false } },
                     ],
                 };
             },
-            owner: (userId) => ({
-                OR: [
-                    { ownedByTeam: ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(userId) },
-                    { ownedByUser: { id: userId } },
-                ],
-            }),
         },
         // TODO perform unique checks: Check if standard with same createdByUserId, createdByTeamId, name, and version already exists with the same creator
         // TODO when deleting, anonymize standards which are being used by inputs/outputs

@@ -6,7 +6,7 @@ import { PubSub } from "utils/pubsub";
 /**
  * Clears search history from all search bars
  */
-export const clearSearchHistory = (session: Session) => {
+export function clearSearchHistory(session: Session) {
     const { id } = getCurrentUser(session);
     // Find all search history objects in localStorage
     const searchHistoryKeys = getLocalStorageKeys({
@@ -18,4 +18,4 @@ export const clearSearchHistory = (session: Session) => {
         localStorage.removeItem(key);
     });
     PubSub.get().publish("snack", { messageKey: "SearchHistoryCleared", severity: "Success" });
-};
+}

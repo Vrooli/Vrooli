@@ -93,15 +93,16 @@ const originalDataSelect = {
  * 3. Determine which creates/updates require a transfer request
  * @returns maps for version, trigger, and transfer data
  */
-export const preShapeRoot = async ({
+export async function preShapeRoot({
     Create,
     Update,
     Delete,
     objectType,
     userData,
-}: PreShapeRootParams): Promise<PreShapeRootResult> => {
+}: PreShapeRootParams): Promise<PreShapeRootResult> {
     // Get db table
     const { dbTable } = ModelMap.getLogic(["dbTable"], objectType);
+    console.log("dbTable", dbTable, "objectType", objectType);
     // Calculate hasCompleteVersion and hasCompleteAndPublic version flags
     const versionMap: Record<string, HasCompleteVersionData> = {};
     const triggerMap: Record<string, ObjectTriggerData> = {};
@@ -209,4 +210,4 @@ export const preShapeRoot = async ({
         transferMap[id] = requireTransfers[i];
     }
     return { versionMap, triggerMap, transferMap };
-};
+}

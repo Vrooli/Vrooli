@@ -1,8 +1,9 @@
 // Defines common props
-import { AwardCategory, CommonKey, NodeLink, RoutineVersion } from "@local/shared";
+import { AwardCategory, ListObject, OrArray, TranslationKeyCommon } from "@local/shared";
 import { Theme } from "@mui/material";
 import { SystemStyleObject } from "@mui/system";
-import { ProjectStepType, RoutineStepType } from "utils/consts";
+import { FormikProps } from "formik";
+import { Dispatch, SetStateAction } from "react";
 
 /** 
  * An object which at least includes its type.
@@ -16,6 +17,7 @@ export type PartialOrArrayWithType<T> = T extends { __typename: string }[] ?
     PartialWithType<T> :
     never;
 export interface SvgProps {
+    className?: string;
     fill?: string;
     iconTitle?: string;
     id?: string;
@@ -40,10 +42,10 @@ export type FormErrors = { [key: string]: string | string[] | null | undefined |
  */
 export type OptionalTranslation = {
     help?: string;
-    helpKey?: CommonKey;
+    helpKey?: TranslationKeyCommon;
     helpVariables?: { [x: string]: string | number };
     title?: string;
-    titleKey?: CommonKey;
+    titleKey?: TranslationKeyCommon;
     titleVariables?: { [x: string]: string | number };
 }
 
@@ -75,95 +77,6 @@ export type AwardDisplay = {
     },
     progress: number;
 }
-
-/**
- * Converts objects as represented in the UI (especially forms) to create/update 
- * input objects for the GraphQL API.
- */
-export type ShapeModel<
-    T extends object,
-    TCreate extends object | null,
-    TUpdate extends object | null
-> = (TCreate extends null ? object : { create: (item: T) => TCreate }) &
-    (TUpdate extends null ? object : {
-        update: (o: T, u: T, assertHasUpdate?: boolean) => TUpdate | undefined,
-        hasObjectChanged?: (o: T, u: T) => boolean,
-    }) & { idField?: keyof T & string }
-
-// Routine-related props
-export interface BaseStep {
-    name: string, // name from node
-    description: string | null, // description from node
-}
-export interface DecisionStep extends BaseStep {
-    links: NodeLink[]
-    type: RoutineStepType.Decision,
-    /**
-     * The ID of the routine containing this step
-     */
-    parentRoutineVersionId: string,
-}
-// Not a real step, but need this info in certain places
-export interface EndStep extends BaseStep {
-    type: "End",
-    /**
-     * The ID of this node
-     */
-    nodeId: string,
-    wasSuccessful: boolean,
-}
-export interface SubroutineStep extends BaseStep {
-    index: number,
-    routineVersion: RoutineVersion
-    type: RoutineStepType.Subroutine,
-    /**
-     * The ID of this node
-     */
-    nodeId: string,
-    /**
-     * The ID of the routine containing this step
-     */
-    parentRoutineVersionId: string,
-}
-export interface RoutineListStep extends BaseStep {
-    /**
-     * Node's ID if object was created from a node (and does not 
-     * represent a full routine)
-     */
-    nodeId?: string | null,
-    /**
-     * If this object represents a routine (and not a routine list node), 
-     * this is the routine's ID.
-     */
-    routineVersionId?: string | null,
-    /**
-     * The ID of the routine containing this node
-     */
-    parentRoutineVersionId: string,
-    isOrdered: boolean,
-    type: RoutineStepType.RoutineList,
-    steps: RoutineStep[],
-    endSteps: EndStep[],
-}
-export type RoutineStep = DecisionStep | SubroutineStep | RoutineListStep
-
-// Project-related props
-export interface DirectoryStep extends BaseStep {
-    /**
-     * Directory's ID if object was created from a directory
-     */
-    directoryId?: string | null,
-    isOrdered: boolean,
-    isRoot: boolean,
-    type: ProjectStepType.Directory,
-    steps: ProjectStep[],
-}
-export type ProjectStep = DirectoryStep | RoutineStep;
-
-export type CanConnect<
-    RelationShape extends ({ [key in IDField]: string } & { __typename: string }),
-    IDField extends string = "id",
-> = RelationShape | (Pick<RelationShape, IDField | "__typename"> & { __connect?: boolean } & { [key: string]: any });
 
 declare global {
     interface Window {
@@ -201,4 +114,91 @@ export type MaybeLazyAsync<T> = T | (() => T) | (() => Promise<T>);
 
 export type SxType = NonNullable<SystemStyleObject<Theme>> & {
     color?: string;
+}
+
+export type CrudPropsBase = {
+    display: "dialog" | "page" | "partial";
+    isCreate: boolean;
+}
+export type CrudPropsPage = CrudPropsBase & ObjectViewPropsPage & {
+    display: "page";
+    onCancel?: never;
+    onClose?: never;
+    onCompleted?: never;
+    onDeleted?: never;
+}
+export type CrudPropsDialog<T extends OrArray<ListObject>> = CrudPropsBase & ObjectViewPropsDialog<T> & {
+    display: "dialog";
+    /** Closes the view and clears cached data */
+    onCancel: () => unknown;
+    /** Closes the view without clearing cached data */
+    onClose: () => unknown;
+    /** Closes the view, clears cached data, and returns created/updated data */
+    onCompleted: (data: T) => unknown;
+    /** Closes the view, clears cached data, and returns deleted object (or objects if arrray) */
+    onDeleted: (data: T) => unknown;
+}
+export type CrudPropsPartial<T extends OrArray<ListObject>> = CrudPropsBase & ObjectViewPropsPartial<T> & {
+    display: "partial";
+    onCancel?: never;
+    onClose?: never;
+    onCompleted?: never;
+    onDeleted?: never;
+}
+export type CrudProps<T extends OrArray<ListObject>> = CrudPropsPage | CrudPropsDialog<T> | CrudPropsPartial<T>;
+
+/** Views can be displayed as full pages or as dialogs */
+export type ViewDisplayType = "dialog" | "page" | "partial";
+export type ViewPropsBase = {
+    display: "dialog" | "page" | "partial";
+};
+export type ViewPropsPartial = ViewPropsBase & {
+    display: "partial";
+    isOpen?: never;
+    onClose?: never;
+}
+export type ViewPropsPage = ViewPropsBase & {
+    display: "page";
+    isOpen?: never;
+    onClose?: never;
+}
+export type ViewPropsDialog = ViewPropsBase & {
+    display: "dialog";
+    isOpen: boolean;
+    onClose: () => unknown;
+}
+export type ViewProps = ViewPropsPartial | ViewPropsPage | ViewPropsDialog;
+
+export type ObjectViewPropsBase = ViewProps;
+export type ObjectViewPropsPage = ObjectViewPropsBase & {
+    overrideObject?: never;
+}
+export type ObjectViewPropsDialog<T extends OrArray<ListObject>> = ObjectViewPropsBase & {
+    /**  Data known about the object, which cannot be fetched from the server or cache. */
+    overrideObject?: PartialOrArrayWithType<T>;
+}
+export type ObjectViewPropsPartial<T extends OrArray<ListObject>> = ObjectViewPropsBase & {
+    /**  Data known about the object, which cannot be fetched from the server or cache. */
+    overrideObject?: PartialOrArrayWithType<T>;
+}
+export type ObjectViewProps<T extends OrArray<ListObject>> = ObjectViewPropsPage | ObjectViewPropsDialog<T> | ObjectViewPropsPartial<T>;
+export interface PageProps {
+    children: JSX.Element;
+    excludePageContainer?: boolean;
+    mustBeLoggedIn?: boolean;
+    sessionChecked: boolean;
+    redirect?: string;
+    sx?: SxType;
+}
+
+export type FormProps<Model extends OrArray<ListObject>, ModelShape extends OrArray<object>> = Omit<CrudProps<Model>, "isLoading"> & FormikProps<ModelShape> & {
+    disabled: boolean;
+    existing: ModelShape;
+    handleUpdate: Dispatch<SetStateAction<ModelShape>>;
+    isReadLoading: boolean;
+};
+
+export interface Dimensions {
+    width: number;
+    height: number;
 }

@@ -1,4 +1,89 @@
-import { placeholderColor, placeholderColors, simpleHash } from "./listTools";
+import { DUMMY_ID } from "@local/shared";
+import { defaultYou, getYou, placeholderColor, placeholderColors, simpleHash } from "./listTools";
+
+describe("getYou function", () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it("should return defaultYou when object is null or undefined", () => {
+        expect(getYou(null)).toEqual(defaultYou);
+        expect(getYou(undefined)).toEqual(defaultYou);
+    });
+
+    it("should handle DUMMY_ID case", () => {
+        const dummyObject = {
+            __typename: "Api",
+            id: DUMMY_ID,
+        } as const;
+        const result = getYou(dummyObject);
+        expect(result).toEqual({
+            ...Object.keys(defaultYou).reduce((acc, key) => ({ ...acc, [key]: typeof defaultYou[key] === "boolean" ? false : defaultYou[key] }), {}),
+            canDelete: true,
+        });
+    });
+
+    it("should get permissions from object.you", () => {
+        const object = {
+            __typename: "RoutineVersion",
+            you: {
+                canUpdate: true,
+                canDelete: false,
+            },
+        } as const;
+        const result = getYou(object);
+        expect(result.canUpdate).toBe(true);
+        expect(result.canDelete).toBe(false);
+    });
+
+    it("should get permissions from object.root.you if not in object.you", () => {
+        const object = {
+            __typename: "CodeVersion",
+            you: {},
+            root: {
+                __typename: "Code",
+                you: {
+                    canUpdate: true,
+                    canDelete: false,
+                },
+            },
+        } as const;
+        const result = getYou(object);
+        expect(result.canUpdate).toBe(true);
+        expect(result.canDelete).toBe(false);
+    });
+
+    it("should default to false if permission is not found", () => {
+        const object = {
+            __typename: "Standard",
+            you: {},
+        } as const;
+        const result = getYou(object);
+        expect(result.canUpdate).toBe(false);
+        expect(result.canDelete).toBe(false);
+    });
+
+    it("should filter invalid actions", () => {
+        const object = {
+            __typename: "InvalidType",
+            you: {
+                canBookmark: true,
+                canComment: true,
+                canCopy: true,
+                canDelete: true,
+                canReact: true,
+                canReport: true,
+            },
+        } as any;
+        const result = getYou(object);
+        expect(result.canBookmark).toBe(false);
+        expect(result.canComment).toBe(false);
+        expect(result.canCopy).toBe(false);
+        expect(result.canDelete).toBe(false);
+        expect(result.canReact).toBe(false);
+        expect(result.canReport).toBe(false);
+    });
+});
 
 describe("simpleHash", () => {
     it("should return the same hash for the same input", () => {
@@ -46,8 +131,16 @@ describe("placeholderColor", () => {
     });
 
     it("should return different results without a seed", () => {
-        const result1 = placeholderColor();
-        const result2 = placeholderColor();
-        expect(result1).not.toEqual(result2); // Note: This test might occasionally fail due to random chance
+        let isDifferent = false;
+        // Try multiple times to prevent failure due to random chance
+        for (let i = 0; i < 10; i++) {
+            const result1 = placeholderColor();
+            const result2 = placeholderColor();
+            if (result1 !== result2) {
+                isDifferent = true;
+                break;
+            }
+        }
+        expect(isDifferent).toBe(true);
     });
 });

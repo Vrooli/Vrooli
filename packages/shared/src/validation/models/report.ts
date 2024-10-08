@@ -3,7 +3,7 @@ import { details, id, language, opt, reportCreatedFor, reportReason, req, YupMod
 export const reportValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({
         id: req(id),
-        createdFor: req(reportCreatedFor),
+        createdForType: req(reportCreatedFor),
         details: opt(details),
         language: req(language),
         reason: req(reportReason),

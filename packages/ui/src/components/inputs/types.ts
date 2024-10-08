@@ -1,13 +1,11 @@
-import { ApiVersion, CodeVersion, ListObject, NoteVersion, ProjectVersion, ResourceListFor, RoutineVersion, StandardVersion, Tag } from "@local/shared";
+import { ApiVersion, CodeLanguage, CodeVersion, JSONVariable, ListObject, NoteVersion, ProjectVersion, ResourceListFor, RoutineVersion, StandardVersion, Tag, TagShape, TranslationFunc } from "@local/shared";
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
-import { FindObjectTabOption } from "components/dialogs/FindObjectDialog/FindObjectDialog";
+import { FindObjectType } from "components/dialogs/types";
 import { ResourceListProps } from "components/lists/resource/types";
 import { FieldProps } from "formik";
-import { JSONVariable } from "forms/types";
+import { type UseChatTaskReturn } from "hooks/tasks";
 import { CSSProperties, RefObject } from "react";
 import { SvgComponent, SxType } from "types";
-import { TagShape } from "utils/shape/models/tag";
-import { CodeLanguage } from "./CodeInput/CodeInput";
 
 export interface CharLimitIndicatorProps {
     chars: number;
@@ -74,7 +72,7 @@ export interface CodeInputBaseProps {
     /**
      * Limit the languages that can be selected in the language dropdown.
      */
-    limitTo?: CodeLanguage[];
+    limitTo?: readonly CodeLanguage[];
     name: string;
     /**
      * Dictionary which describes variables (e.g. <name>, <age>) in
@@ -95,7 +93,9 @@ export interface CodeInputBaseProps {
     variables?: { [x: string]: JSONVariable };
 }
 
-export type CodeInputProps = Omit<CodeInputBaseProps, "codeLanguage" | "content" | "defaultValue" | "format" | "handleCodeLanguageChange" | "handleContentChange" | "variables">
+export type CodeInputProps = Omit<CodeInputBaseProps, "codeLanguage" | "content" | "defaultValue" | "format" | "handleCodeLanguageChange" | "handleContentChange" | "variables"> & {
+    codeLanguageField?: string;
+}
 
 export interface DateInputProps {
     isRequired?: boolean;
@@ -115,14 +115,41 @@ export interface DropzoneProps {
     uploadText?: string;
 }
 
-export type LanguageInputProps = {
+export type IntegerInputBaseProps = {
+    allowDecimal?: boolean;
+    autoFocus?: boolean;
     disabled?: boolean;
+    error?: boolean;
+    fullWidth?: boolean;
+    helperText?: string | boolean | null | undefined;
+    key?: string;
+    initial?: number;
+    label?: string;
+    max?: number;
+    min?: number;
+    name: string;
+    offset?: number;
+    onBlur?: (event: React.FocusEvent<HTMLElement>) => unknown;
+    onChange: (newValue: number) => unknown;
+    step?: number;
+    sx?: SxType;
+    tooltip?: string;
+    value: number;
+    /** If provided, displays this text instead of 0 */
+    zeroText?: string;
+}
+
+export type IntegerInputProps = Omit<IntegerInputBaseProps, "onChange" | "value">;
+
+export type LanguageInputProps = {
     /**
      * Currently-selected language, if using this component to add/edit an object
      * with translations. Not needed if using this component to select languages 
      * for an advanced search, for example.
      */
     currentLanguage: string;
+    disabled?: boolean;
+    flexDirection?: "row" | "row-reverse";
     handleAdd: (language: string) => unknown;
     handleDelete: (language: string) => unknown;
     handleCurrent: (language: string) => unknown;
@@ -130,7 +157,6 @@ export type LanguageInputProps = {
      * All languages that currently have translations for the object being edited.
      */
     languages: string[];
-    sx?: SxType
 }
 
 export interface LinkInputBaseProps {
@@ -141,7 +167,7 @@ export interface LinkInputBaseProps {
     helperText?: string | boolean | null | undefined;
     key?: string;
     label?: string;
-    limitTo?: FindObjectTabOption[];
+    limitTo?: FindObjectType[];
     name: string;
     onBlur?: (event: React.FocusEvent<HTMLElement>) => unknown;
     onChange: (newLink: string) => unknown;
@@ -154,6 +180,7 @@ export interface LinkInputBaseProps {
 
 export type LinkInputProps = Omit<LinkInputBaseProps, "onChange" | "value">;
 
+export type GetTaggableItemsFunc = (query: string) => Promise<ListObject[]>;
 export type RichInputBaseProps = Omit<TextInputProps, "onChange" | "onSubmit"> & {
     actionButtons?: Array<{
         disabled?: boolean;
@@ -169,7 +196,7 @@ export type RichInputBaseProps = Omit<TextInputProps, "onChange" | "onSubmit"> &
      * Callback to provide data for "@" tagging dropdown. 
      * If not provided, the dropdown will not appear.
      */
-    getTaggableItems?: (query: string) => Promise<ListObject[]>;
+    getTaggableItems?: GetTaggableItemsFunc;
     helperText?: string | boolean | null | undefined;
     maxChars?: number;
     maxRows?: number;
@@ -182,6 +209,7 @@ export type RichInputBaseProps = Omit<TextInputProps, "onChange" | "onSubmit"> &
     onSubmit?: (newText: string) => unknown;
     placeholder?: string;
     tabIndex?: number;
+    taskInfo?: Pick<UseChatTaskReturn, "activeTask" | "contexts">;
     value: string;
     sxs?: {
         topBar?: SxType;
@@ -285,30 +313,6 @@ export interface ProfilePictureInputProps {
     } | null | undefined;
 }
 
-export interface IntegerInputBaseProps extends Omit<BoxProps, "onChange"> {
-    allowDecimal?: boolean;
-    autoFocus?: boolean;
-    disabled?: boolean;
-    error?: boolean;
-    fullWidth?: boolean;
-    helperText?: string | boolean | null | undefined;
-    key?: string;
-    initial?: number;
-    label?: string;
-    max?: number;
-    min?: number;
-    name: string;
-    offset?: number;
-    onChange: (newValue: number) => unknown;
-    step?: number;
-    tooltip?: string;
-    value: number;
-    /** If provided, displays this text instead of 0 */
-    zeroText?: string;
-}
-
-export type IntegerInputProps = Omit<IntegerInputBaseProps, "onChange" | "value">;
-
 export type ResourceListInputProps = Pick<ResourceListProps, "sxs"> & {
     disabled?: boolean;
     horizontal: boolean;
@@ -326,9 +330,9 @@ export interface SelectorProps<T extends string | number | { [x: string]: any }>
     disabled?: boolean;
     fullWidth?: boolean;
     getDisplayIcon?: (option: T) => SvgComponent | JSX.Element | undefined;
-    getOptionDescription?: (option: T) => string | null | undefined;
+    getOptionDescription?: (option: T, t: TranslationFunc) => string | null | undefined;
     getOptionIcon?: (option: T) => SvgComponent | JSX.Element | undefined;
-    getOptionLabel: (option: T) => string | null | undefined;
+    getOptionLabel: (option: T, t: TranslationFunc) => string | null | undefined;
     inputAriaLabel?: string;
     isRequired?: boolean,
     label?: string;

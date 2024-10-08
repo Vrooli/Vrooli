@@ -19,6 +19,7 @@ import { SERVER_URL, server } from "./server";
 import { setupStripe } from "./services";
 import { io } from "./sockets/io";
 import { chatSocketRoomHandlers } from "./sockets/rooms/chat";
+import { runSocketRoomHandlers } from "./sockets/rooms/run";
 import { userSocketRoomHandlers } from "./sockets/rooms/user";
 import { setupEmailQueue } from "./tasks/email/queue";
 import { setupExportQueue } from "./tasks/export/queue";
@@ -30,6 +31,7 @@ import { setupPushQueue } from "./tasks/push/queue";
 import { setupRunQueue } from "./tasks/run/queue";
 import { setupSandboxQueue } from "./tasks/sandbox";
 import { setupSmsQueue } from "./tasks/sms/queue";
+import { initializeProfanity } from "./utils/censor";
 import { setupDatabase } from "./utils/setupDatabase";
 
 const debug = process.env.NODE_ENV === "development";
@@ -45,6 +47,9 @@ export async function initSingletons() {
     // Initialize singletons
     await ModelMap.init();
     await LlmServiceRegistry.init();
+
+    // Initialize censor dictionary
+    initializeProfanity();
 }
 
 async function main() {
@@ -130,7 +135,7 @@ async function main() {
     setupStripe(app);
 
     // Set static folders
-    app.use("/llm/configs", express.static(path.join(__dirname, "../../shared/dist/llm/configs")));
+    app.use("/ai/configs", express.static(path.join(__dirname, "../../shared/dist/ai/configs")));
 
     // Set up REST API
     Object.keys(restRoutes).forEach((key) => {
@@ -167,6 +172,7 @@ async function main() {
     io.on("connection", (socket) => {
         // Add handlers
         chatSocketRoomHandlers(socket);
+        runSocketRoomHandlers(socket);
         userSocketRoomHandlers(socket);
     });
 

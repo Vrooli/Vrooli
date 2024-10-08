@@ -1,17 +1,16 @@
 import { RunStatus } from "@local/shared";
-import { Chip, Stack } from "@mui/material";
-import { CompletionBar } from "components/CompletionBar/CompletionBar";
+import { Stack } from "@mui/material";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
+import { ListItemChip, ListItemCompletionBar, ListItemStyleColor, ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
 import { RunProjectListItemProps } from "../types";
 
-const statusToColor = (status: RunStatus | undefined) => {
-    if (!status) return "secondary";
+const statusToColor = (status: RunStatus | undefined): ListItemStyleColor => {
+    if (!status) return "Default";
     switch (status) {
-        case RunStatus.Completed: return "success";
-        case RunStatus.Failed: return "error";
-        default: return "secondary";
+        case RunStatus.Completed: return "Green";
+        case RunStatus.Failed: return "Red";
+        default: return "Default";
     }
 };
 
@@ -32,11 +31,10 @@ export function RunProjectListItem({
             (completedComplexity && totalComplexity) ?
                 Math.min(Math.round(completedComplexity / totalComplexity * 100), 100) :
                 0;
-        return (<CompletionBar
+        return (<ListItemCompletionBar
             color={statusToColor(data?.status)}
             isLoading={loading}
             value={percentComplete}
-            sx={{ height: "15px" }}
         />);
     }, [data?.completedComplexity, data?.projectVersion?.complexity, data?.status, loading]);
 
@@ -45,13 +43,12 @@ export function RunProjectListItem({
             {...props}
             belowSubtitle={
                 <Stack direction="row" spacing={1} sx={{
-                    "& > .MuiBox-root:first-child": {
+                    "& > .MuiBox-root:first-of-type": {
                         flex: "1 1 auto",
                     },
                 }}>
                     {progressBar}
-                    <Chip
-                        variant="filled"
+                    <ListItemChip
                         color={statusToColor(data?.status)}
                         label={t(data?.status ?? RunStatus.InProgress, { defaultValue: data?.status ?? RunStatus.InProgress })}
                     />

@@ -1481,10 +1481,10 @@ describe("processInputObjectField", () => {
  * Helper function to check that an object has only the expected non-empty arrays, 
  * and that every other value is an empty array.
  */
-const expectOnlyTheseArrays = <ArrayItem>(
+function expectOnlyTheseArrays<ArrayItem>(
     actual: Record<string, unknown>,
     expectedNonEmpty: Record<string, ArrayItem[]>,
-) => {
+) {
     // Check non-empty properties
     Object.entries(expectedNonEmpty).forEach(([key, value]) => {
         // @ts-ignore: expect-message
@@ -1500,7 +1500,7 @@ const expectOnlyTheseArrays = <ArrayItem>(
             expect(value, `Should be empty array. Key: ${key}`).toEqual([]);
         }
     });
-};
+}
 
 describe("inputToMaps", () => {
     let idsByAction, idsByType, inputsById, inputsByType, format, closestWithId;

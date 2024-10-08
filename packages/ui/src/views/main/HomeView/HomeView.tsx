@@ -1,4 +1,4 @@
-import { SessionContext } from "contexts/SessionContext";
+import { SessionContext } from "contexts";
 import { Suspense, useContext } from "react";
 import { lazily } from "react-lazily";
 import { checkIfLoggedIn } from "utils/authentication/session";
