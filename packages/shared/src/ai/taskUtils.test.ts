@@ -2,7 +2,7 @@
 import { LlmTask } from "../api/generated/graphqlTypes";
 import { pascalCase } from "../utils/casing";
 import { importCommandToTask } from "./config";
-import { detectWrappedTasks, extractTasksFromJson, extractTasksFromText, filterInvalidTasks, findCharWithLimit, getValidTasksFromMessage, handleTaskTransitionAction, handleTaskTransitionCode, handleTaskTransitionCommand, handleTaskTransitionOutside, handleTaskTransitionPropName, handleTaskTransitionPropValue, isAlphaNum, isNewline, isWhitespace, removeTasks } from "./tasks";
+import { detectWrappedTasks, extractTasksFromJson, extractTasksFromText, filterInvalidTasks, findCharWithLimit, getValidTasksFromMessage, handleTaskTransitionAction, handleTaskTransitionCode, handleTaskTransitionCommand, handleTaskTransitionOutside, handleTaskTransitionPropName, handleTaskTransitionPropValue, isAlphaNum, isNewline, isWhitespace, removeTasks } from "./taskUtils";
 import { MaybeLlmTaskInfo, PartialTaskInfo } from "./types";
 
 describe("isNewline", () => {

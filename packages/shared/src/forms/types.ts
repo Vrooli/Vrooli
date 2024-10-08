@@ -441,7 +441,7 @@ export type FormElement = FormHeaderType | FormDividerType | FormInputType;
  */
 export interface YupCheck {
     key: string;
-    value: string | number | boolean;
+    value?: string | number | boolean;
     error: string;
 }
 

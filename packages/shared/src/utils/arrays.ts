@@ -59,7 +59,8 @@ export function uniqBy(array: any[], iteratee: (item: any) => any): any[] {
 export function arraysEqual<T>(a: T[], b: T[], comparator: (a: T, b: T) => boolean): boolean {
     if (a.length !== b.length) return false;
     for (let i = 0; i < a.length; i++) {
-        if (!comparator(a[i], b[i])) return false;
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        if (!comparator(a[i]!, b[i]!)) return false;
     }
     return true;
 }

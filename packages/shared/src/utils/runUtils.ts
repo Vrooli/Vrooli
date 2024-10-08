@@ -1403,8 +1403,8 @@ export function parseChildOrder(childOrder: string): string[] {
     // Check if it's the root format
     const rootMatch = childOrder.match(/^l\((.*?)\)\s*,?\s*r\((.*?)\)$/);
     if (rootMatch) {
-        const leftOrder = rootMatch[1].split(",").filter(Boolean);
-        const rightOrder = rootMatch[2].split(",").filter(Boolean);
+        const leftOrder = rootMatch[1] ? rootMatch[1].split(",").filter(Boolean) : [];
+        const rightOrder = rootMatch[2] ? rootMatch[2].split(",").filter(Boolean) : [];
 
         // Check for nested parentheses
         if (leftOrder.some(item => item.includes("(") || item.includes(")")) ||
@@ -1469,10 +1469,12 @@ export function sortStepsAndAddDecisions(
         // Get all outgoing links from the current step's node
         const outgoingLinks = nodeLinks.filter(link => link.from?.id === currentStep.nodeId);
         // If there's one outgoing link, set the nextLocation to the next node's location
-        if (outgoingLinks.length === 1) {
-            const nextNode = steps.find(step => step.nodeId === outgoingLinks[0].to?.id);
+        if (outgoingLinks.length === 1 && outgoingLinks[0]!.to?.id) {
+            const nextNode = steps.find((step) => step.nodeId === outgoingLinks[0]!.to!.id);
             if (nextNode) {
-                currentStep.nextLocation = visited[nextNode.nodeId] ? [...nextNode.location] : [...baseLocation, lastEndLocation];
+                currentStep.nextLocation = visited[nextNode.nodeId]
+                    ? [...nextNode.location]
+                    : [...baseLocation, lastEndLocation];
             }
         }
         // If there are multiple outgoing links, set the nextLocation to the DecisionStep we're about to create
@@ -1655,7 +1657,7 @@ export function projectToStep(
     // Projects are represented as root directories
     const steps: DirectoryStep[] = [];
     for (let i = 0; i < projectVersion.directories.length; i++) {
-        const directory = projectVersion.directories[i];
+        const directory = projectVersion.directories[i]!;
         const directoryStep = directoryToStep(directory, [...location, i + 1], languages, projectVersion.id);
         if (directoryStep) {
             steps.push(directoryStep);

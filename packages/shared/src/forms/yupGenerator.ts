@@ -1,6 +1,6 @@
-import { InputType } from "@local/shared";
-import { buildYup } from "schema-to-yup";
-import { FormInputBase, FormSchema, YupSchema, YupType } from "./types";
+import * as Yup from "yup";
+import { InputType } from "../consts/model";
+import { FormInputBase, FormSchema, YupType } from "./types";
 
 /**
  * Maps input types to their yup types. 
@@ -28,92 +28,81 @@ export function generateYupSchema(
     formSchema: Pick<FormSchema, "elements">,
 ) {
     if (!formSchema) return null;
-    // Create shape object to describe yup validation
-    const shape: YupSchema = {
-        title: "validationSchema",
-        type: "object",
-        required: [], // Name of every field that is required
-        properties: {},
-    };
-    // Create config object for yup builder. Currently only used for error messages
-    const config = { errMessages: {} };
+
+    // Initialize an empty object to hold the field schemas
+    const shape: { [fieldName: string]: Yup.AnySchema } = {};
+
     // Loop through each field in the form schema
     formSchema.elements.forEach(field => {
         // Skip non-input fields
-        if (!Object.prototype.hasOwnProperty.call(field, "fieldName")) return;
+        if (!("fieldName" in field)) return;
         const formInput = field as FormInputBase;
         const name = formInput.fieldName;
+
         // Field will only be validated if it has a yup schema, and it is a valid input type
         if (formInput.yup && InputToYupType[field.type]) {
-            // Add field to properties
-            shape.properties[name] = { type: InputToYupType[field.type] };
-            // Set up required and error messages
-            config.errMessages[name] = {};
+            // Start building the Yup schema for this field
+            let validator: Yup.AnySchema;
+
+            // Determine the base Yup type based on InputToYupType
+            const baseType = InputToYupType[field.type];
+
+            if (!baseType) return; // Skip if type is not supported
+
+            switch (baseType) {
+                case "string":
+                    validator = Yup.string();
+                    break;
+                case "number":
+                    validator = Yup.number();
+                    break;
+                case "boolean":
+                    validator = Yup.boolean();
+                    break;
+                case "date":
+                    validator = Yup.date();
+                    break;
+                case "object":
+                    validator = Yup.object();
+                    break;
+                default:
+                    validator = Yup.mixed();
+                    break;
+            }
+
+            // Apply required
             if (formInput.yup.required) {
-                shape.properties[name].required = true;
-                shape.required.push(name);
-                config.errMessages[name].required = `${field.label} is required`;
-                config.errMessages[name].string = `${field.label} is required`;
+                validator = validator.required(`${field.label} is required`);
+            } else {
+                validator = validator.nullable(true);
             }
-            else {
-                shape.properties[name].required = false;
-                shape.properties[name].nullable = true;
-            }
-            // Add additional validation checks
-            if (Array.isArray(formInput.yup.checks)) {
-                formInput.yup.checks.forEach(check => {
-                    shape.properties[name][check.key] = check.value;
-                    if (check.error) { config.errMessages[name][check.key] = check.error; }
-                });
-            }
+
+            // Apply additional checks
+            formInput.yup.checks.forEach(check => {
+                const { key, value, error } = check;
+                const method = (validator as any)[key];
+                if (typeof method === 'function') {
+                    if (value !== undefined && error !== undefined) {
+                        validator = method.call(validator, value, error);
+                    } else if (value !== undefined) {
+                        validator = method.call(validator, value);
+                    } else if (error !== undefined) {
+                        validator = method.call(validator, error);
+                    } else {
+                        validator = method.call(validator);
+                    }
+                } else {
+                    throw new Error(`Validation method ${key} does not exist on Yup.${baseType}()`);
+                }
+            });
+
+            // Add the validator to the shape
+            shape[name] = validator;
         }
     });
-    // Build yup using newly-created shape and config
-    const yup = buildYup(shape, config);
-    return yup;
-    // return buildYup({
-    //     $schema: "http://json-schema.org/draft-07/schema#",
-    //     $id: "http://example.com/person.schema.json",
-    //     title: "Person",
-    //     description: "A person",
-    //     type: "object",
-    //     properties: {
-    //         name: {
-    //             description: "Name of the person",
-    //             type: "string",
-    //         },
-    //         email: {
-    //             type: "string",
-    //             format: "email",
-    //         },
-    //         foobar: {
-    //             type: "string",
-    //             matches: "(foo|bar)",
-    //         },
-    //         age: {
-    //             description: "Age of person",
-    //             type: "number",
-    //             exclusiveMinimum: 0,
-    //             required: true,
-    //         },
-    //         characterType: {
-    //             enum: ["good", "bad"],
-    //             enum_titles: ["Good", "Bad"],
-    //             type: "string",
-    //             title: "Type of people",
-    //             propertyOrder: 3,
-    //         },
-    //     },
-    //     required: ["name", "email"],
-    // }, {
-    //     errMessages: {
-    //         age: {
-    //             required: "A person must have an age",
-    //         },
-    //         email: {
-    //             required: "You must enter an email address",
-    //             format: "Not a valid email address",
-    //         },
-    //     },
-    // })
+
+    // Build the Yup object schema
+    const yupSchema = Yup.object().shape(shape);
+
+    return yupSchema;
 }

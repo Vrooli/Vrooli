@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
+import { OpenAIModel } from "../ai/services";
 import { User } from "../api/generated/graphqlTypes";
-import { OpenAIModel } from "../consts/llm";
-import { findBotData, toBotSettings } from "./bot";
+import { LlmModel, findBotData, toBotSettings } from "./bot";
 
 describe("toBotSettings", () => {
     beforeAll(() => {
@@ -245,9 +245,15 @@ describe("findBotData", () => {
         }),
     } as unknown as Partial<User>;
 
+    const availableModels: LlmModel[] = [
+        { name: "" as any, description: "" as any, value: OpenAIModel.Gpt4o_Mini },
+        { name: "" as any, description: "" as any, value: OpenAIModel.Gpt4_Turbo },
+        { name: "" as any, description: "" as any, value: OpenAIModel.Gpt4o_Mini },
+    ];
+
     // Typical use cases
     test("should return default values for empty settings", () => {
-        const result = findBotData("ge", null); // Passing in null instead of data 
+        const result = findBotData("ge", availableModels, null); // Passing in null instead of data 
         expect(result).toEqual({
             creativity: 0.5,
             verbosity: 0.5,
@@ -257,7 +263,7 @@ describe("findBotData", () => {
     });
 
     test("should return parsed values from user settings", () => {
-        const result = findBotData("fr", existingUser);
+        const result = findBotData("fr", availableModels, existingUser);
         expect(result).toEqual({
             creativity: 0.8,
             verbosity: 0.4,
