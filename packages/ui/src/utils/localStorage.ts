@@ -236,7 +236,7 @@ export class LocalStorageLruCache<ValueType> {
                 return JSON.parse(serializedValue);
             }
         } catch (error) {
-            console.error(`Error parsing value for key ${key} from localStorage:`, error);
+            console.error("Error parsing value from localStorage", key, error);
         }
         return undefined;
     }
