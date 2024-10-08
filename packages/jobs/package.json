@@ -21,7 +21,7 @@
         "type-check": "NODE_OPTIONS=\"--max-old-space-size=6144\" tsc --noEmit"
     },
     "dependencies": {
-        "@aws-sdk/client-s3": "^3.370.0",
+        "@aws-sdk/client-s3": "^3.666.0",
         "@emurgo/cardano-serialization-lib-nodejs": "^9.1.2",
         "@graphql-tools/schema": "^8.2.0",
         "@local/server": "*",
