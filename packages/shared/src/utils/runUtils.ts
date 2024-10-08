@@ -2137,7 +2137,7 @@ export function parseSchemaOutput(
     logger: PassableLogger,
 ): FormSchema {
     return parseSchema(value, () => {
-        if (!routineType || typeof defaultConfigFormOutputMap[routineType] !== 'function') {
+        if (!routineType || !defaultConfigFormOutputMap.hasOwnProperty(routineType) || typeof defaultConfigFormOutputMap[routineType] !== 'function') {
             return defaultSchemaOutput();
         }
         return defaultConfigFormOutputMap[routineType]();
