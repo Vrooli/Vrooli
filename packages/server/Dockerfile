@@ -1,5 +1,5 @@
 # Stage 0. Copy required files
-FROM node:18-alpine as stage0 
+FROM node:18-alpine AS stage0 
 
 # Set working directory
 ARG PROJECT_DIR
@@ -25,7 +25,7 @@ COPY --chown=node:node scripts/* scripts/
 RUN chown -R node:node .
 
 # Stage 1. Copy files from stage 0, and install yarn packages
-FROM node:18-alpine as stage1
+FROM node:18-alpine AS stage1
 
 # Set working directory
 ARG PROJECT_DIR
@@ -41,7 +41,7 @@ RUN yarn install
 RUN yarn global add typescript@5.3.3 nodemon@3.0.2 prisma@5.7.1
 
 # Stage 2. Copy files from stage 1, and install required unix tools
-FROM node:18-alpine as stage2
+FROM node:18-alpine AS stage2
 
 # Set working directory
 ARG PROJECT_DIR
