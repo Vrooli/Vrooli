@@ -57,35 +57,35 @@ describe("Regular Expressions Tests", () => {
         });
 
         describe("ReDoS Vulnerability Tests for urlRegexDev", () => {
-    // Function to measure execution time
-    const measureExecutionTime = (regex, input) => {
-        const start = process.hrtime.bigint();
-        const result = regex.test(input);
-        const end = process.hrtime.bigint();
-        const duration = Number(end - start) / 1e6; // Convert to milliseconds
-        return { result, duration };
-    };
+            // Function to measure execution time
+            const measureExecutionTime = (regex, input) => {
+                const start = process.hrtime.bigint();
+                const result = regex.test(input);
+                const end = process.hrtime.bigint();
+                const duration = Number(end - start) / 1e6; // Convert to milliseconds
+                return { result, duration };
+            };
 
-    // Benign input
-    const benignInput = "ftp://example.com";
+            // Benign input
+            const benignInput = "ftp://example.com";
 
-    // Potentially malicious inputs
-    const maliciousInputs = [
-        "ftp://0." + "0.".repeat(10) + "0",   // Repeats '0.' 10 times
-        "ftp://0." + "0.".repeat(100) + "0",  // Repeats '0.' 100 times
-        "ftp://0." + "0.".repeat(1000) + "0", // Repeats '0.' 1000 times
-    ];
+            // Potentially malicious inputs
+            const maliciousInputs = [
+                "ftp://0." + "0.".repeat(10) + "0",   // Repeats '0.' 10 times
+                "ftp://0." + "0.".repeat(100) + "0",  // Repeats '0.' 100 times
+                "ftp://0." + "0.".repeat(1000) + "0", // Repeats '0.' 1000 times
+            ];
 
-    test("Benign input should execute quickly", () => {
-        const { duration } = measureExecutionTime(urlRegexDev, benignInput);
-        expect(duration).toBeLessThan(1); // Less than 1 millisecond
-    });
+            test("Benign input should execute quickly", () => {
+                const { duration } = measureExecutionTime(urlRegexDev, benignInput);
+                expect(duration).toBeLessThan(1); // Less than 1 millisecond
+            });
 
-    test.each(maliciousInputs)("Malicious input of length %i should not cause performance issues", (input) => {
-        const { duration } = measureExecutionTime(urlRegexDev, input);
-        expect(duration).toBeLessThan(10); // Execution should be quick
-    });
-});
+            test.each(maliciousInputs)("Malicious input of length %i should not cause performance issues", (input) => {
+                const { duration } = measureExecutionTime(urlRegexDev, input);
+                expect(duration).toBeLessThan(10); // Execution should be quick
+            });
+        });
     });
 
     // Test suite for walletAddressRegex
