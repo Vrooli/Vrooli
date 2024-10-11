@@ -23,7 +23,7 @@
     "dependencies": {
         "@aws-sdk/client-s3": "^3.666.0",
         "@emurgo/cardano-serialization-lib-nodejs": "^9.1.2",
-        "@graphql-tools/schema": "^8.2.0",
+        "@graphql-tools/schema": "^8.5.1",
         "@local/server": "*",
         "@local/shared": "*",
         "@prisma/client": "5.7.1",
