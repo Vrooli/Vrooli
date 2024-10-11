@@ -2,7 +2,7 @@ import { AutocompleteOption, endpointGetFeedPopular, getObjectUrl, PopularSearch
 import { DialogContent, useTheme } from "@mui/material";
 import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { SiteSearchBar } from "components/inputs/search";
+import { SiteSearchBar } from "components/inputs/search/SiteSearchBar/SiteSearchBar";
 import { SessionContext } from "contexts";
 import { parseData } from "hooks/useFindMany";
 import { useLazyFetch } from "hooks/useLazyFetch";

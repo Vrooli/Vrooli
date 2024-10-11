@@ -5,10 +5,10 @@ import { CameraButtonProps } from "../types";
 /**
  * A microphone icon that can be used to trigger speech recognition
  */
-export const CameraButton = ({
+export function CameraButton({
     disabled = false,
     onTranscriptChange,
-}: CameraButtonProps) => {
+}: CameraButtonProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 

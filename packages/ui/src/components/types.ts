@@ -1,4 +1,4 @@
-import { ChatMessageShape } from "@local/shared";
+import { ChatMessageShape, Comment, CommentThread, NavigableObject } from "@local/shared";
 import { LinearProgressProps } from "@mui/material";
 import { PageTab } from "hooks/useTabs";
 import { SxType } from "types";
@@ -37,6 +37,29 @@ export interface ChatBubbleTreeProps {
     isOwn: boolean;
     onDeleted: (message: ChatMessageShape) => unknown;
     onUpdated: (message: ChatMessageShape) => unknown;
+}
+
+export interface CommentConnectorProps {
+    isOpen: boolean;
+    parentType: "User" | "Team";
+    onToggle: () => unknown;
+}
+
+export interface CommentThreadProps {
+    canOpen: boolean;
+    data: CommentThread | null;
+    language: string;
+}
+
+export interface CommentThreadItemProps {
+    data: Comment | null;
+    handleCommentRemove: (comment: Comment) => unknown;
+    handleCommentUpsert: (comment: Comment) => unknown;
+    isOpen: boolean;
+    language: string;
+    loading: boolean;
+    /** Object which has a comment, not the comment itself or the comment thread */
+    object: NavigableObject | null | undefined;
 }
 
 export interface CompletionBarProps extends Omit<LinearProgressProps, "value"> {

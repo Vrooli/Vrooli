@@ -1,6 +1,7 @@
 import { emailLogInFormValidation, EmailLogInInput, endpointPostAuthEmailLogin, LINKS, Session } from "@local/shared";
 import { Box, Button, InputAdornment } from "@mui/material";
-import { errorToMessage, fetchLazyWrapper, hasErrorCode } from "api";
+import { errorToMessage, hasErrorCode } from "api/errorParser";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { BreadcrumbsBase } from "components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase";
 import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";

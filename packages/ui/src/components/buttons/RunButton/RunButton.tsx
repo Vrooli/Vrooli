@@ -1,6 +1,6 @@
 import { HistoryPageTabOption, LINKS, ListObject, ProjectVersion, ProjectVersionTranslation, RoutineVersion, RoutineVersionTranslation, RunProject, RunProjectCreateInput, RunRoutine, RunRoutineCreateInput, RunStatus, Status, base36ToUuid, camelCase, endpointPostRunProject, endpointPostRunRoutine, funcFalse, getTranslation, isOfType, noop, parseSearchParams, projectVersionStatus, routineVersionStatus, uuid, uuidToBase36, uuidValidate } from "@local/shared";
 import { Box, Button, Menu, Tooltip, styled, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { MenuTitle } from "components/dialogs/MenuTitle/MenuTitle";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";

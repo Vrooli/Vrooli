@@ -1,6 +1,6 @@
-import { BookmarkFor, Comment, CommentFor, DeleteOneInput, DeleteType, ReactionFor, ReportFor, Success, endpointPostDeleteOne, getTranslation } from "@local/shared";
-import { IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { BookmarkFor, Comment, CommentFor, DeleteOneInput, DeleteType, ReactionFor, ReportFor, Success, endpointPostDeleteOne, getTranslation, updateArray } from "@local/shared";
+import { Avatar, Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportButton } from "components/buttons/ReportButton/ReportButton";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
@@ -9,16 +9,105 @@ import { TextLoading } from "components/lists/TextLoading/TextLoading";
 import { OwnerLabel } from "components/text/OwnerLabel/OwnerLabel";
 import { SessionContext } from "contexts";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { DeleteIcon, ReplyIcon } from "icons";
+import { DeleteIcon, OpenThreadIcon, ReplyIcon, TeamIcon, UserIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
-import { getYou } from "utils/display/listTools";
+import { getYou, placeholderColor } from "utils/display/listTools";
 import { displayDate } from "utils/display/stringTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { ObjectType } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { CommentUpsert } from "views/objects/comment";
-import { CommentThreadItemProps } from "../types";
+import { CommentConnectorProps, CommentThreadItemProps, CommentThreadProps } from "../../types";
+
+/**
+ * Collapsible, vertical line for indicating a comment level. Top of line 
+ * if the profile image of the comment.
+ */
+export function CommentConnector({
+    isOpen,
+    parentType,
+    onToggle,
+}: CommentConnectorProps) {
+    const { palette } = useTheme();
+
+    // Random color for profile image (since we don't display custom image yet)
+    const profileColors = useMemo(() => placeholderColor(), []);
+    // Determine profile image type
+    const ProfileIcon = useMemo(() => {
+        switch (parentType) {
+            case "Team":
+                return TeamIcon;
+            default:
+                return UserIcon;
+        }
+    }, [parentType]);
+
+    // Profile image
+    const profileImage = useMemo(() => (
+        <Avatar
+            src="/broken-image.jpg" //TODO
+            sx={{
+                backgroundColor: profileColors[0],
+                width: "48px",
+                height: "48px",
+                minWidth: "48px",
+                minHeight: "48px",
+            }}
+        >
+            <ProfileIcon
+                fill={profileColors[1]}
+                width="75%"
+                height="75%"
+            />
+        </Avatar>
+    ), [ProfileIcon, profileColors]);
+
+    // If open, profile image on top of collapsible line
+    if (isOpen) {
+        return (
+            <Stack direction="column">
+                {/* Profile image */}
+                {profileImage}
+                {/* Collapsible, vertical line */}
+                {
+                    isOpen && <Box
+                        width="5px"
+                        height="100%"
+                        borderRadius='100px'
+                        bgcolor={profileColors[0]}
+                        sx={{
+                            marginLeft: "auto",
+                            marginRight: "auto",
+                            marginTop: 1,
+                            marginBottom: 1,
+                            cursor: "pointer",
+                            "&:hover": {
+                                brightness: palette.mode === "light" ? 1.05 : 0.95,
+                            },
+                        }}
+                        onClick={onToggle}
+                    />
+                }
+            </Stack>
+        );
+    }
+    // If closed, OpenIcon to the left of profile image
+    return (
+        <Stack direction="row">
+            <IconButton
+                onClick={onToggle}
+                sx={{
+                    width: "48px",
+                    height: "48px",
+                }}
+            >
+                <OpenThreadIcon fill={profileColors[0]} />
+            </IconButton>
+            {profileImage}
+        </Stack>
+    );
+}
 
 export function CommentThreadItem({
     data,
@@ -216,3 +305,91 @@ export function CommentThreadItem({
         </>
     );
 }
+
+/**
+ * Comment and its list of child comments (which can have their own children and so on). 
+ * Each level  contains a list of comment items, then a "Show more" text button.
+ * To the left of this is a CommentConnector item, which is a collapsible line.
+ */
+export const CommentThread = ({
+    canOpen,
+    data,
+    language,
+}: CommentThreadProps) => {
+    // open state
+    const [isOpen, setIsOpen] = useState(true);
+
+    const [childData, setChildData] = useState(data?.childThreads ?? []);
+    useMemo(() => {
+        setChildData(data?.childThreads ?? []);
+    }, [data]);
+    const removeComment = useCallback((comment: Comment) => {
+        setChildData(curr => [...curr.filter(c => c.comment.id !== comment.id)]);
+    }, []);
+    const upsertComment = useCallback((comment: Comment) => {
+        // Find index of comment
+        const index = childData.findIndex(c => c.comment.id === comment.id);
+        // If not found, must be a new comment
+        if (index !== -1) {
+            // Make comment first, so you can see it without having to scroll to the bottom
+            setChildData(curr => [{
+                __typename: "CommentThread",
+                comment: comment as any,
+                childThreads: [],
+                endCursor: null,
+                totalInThread: 0,
+            }, ...curr]);
+        }
+        // If found, update comment
+        else {
+            setChildData(curr => updateArray(curr, index, {
+                ...curr[index],
+                comment,
+            }));
+        }
+    }, [childData]);
+
+    // list of comment items
+    const children = useMemo(() => {
+        if (!data) return [];
+        return childData.map((child, index) => {
+            return <CommentThread
+                key={`thread-${data.comment.id}-${index}`}
+                canOpen={canOpen && isOpen}
+                data={{
+                    ...child,
+                    childThreads: [],
+                }}
+                language={language}
+            />;
+        });
+    }, [canOpen, childData, data, isOpen, language]);
+
+    return data && canOpen ? (
+        <Stack direction="row" spacing={1} pl={2} pr={2}>
+            {/* Comment connector */}
+            <CommentConnector
+                isOpen={isOpen}
+                parentType={data.comment.owner?.__typename ?? "User"}
+                onToggle={() => setIsOpen(!isOpen)}
+            />
+            {/* Comment and child comments */}
+            <Stack direction="column" spacing={1} sx={{ width: "100%" }}>
+                {/* Comment */}
+                <CommentThreadItem
+                    data={data.comment}
+                    handleCommentRemove={removeComment}
+                    handleCommentUpsert={upsertComment}
+                    isOpen={isOpen}
+                    language={language}
+                    loading={false}
+                    object={data.comment.commentedOn}
+                />
+                {/* Child comments */}
+                {children}
+                {/* "Show More" button */}
+                {/* TODO */}
+            </Stack>
+        </Stack>
+    ) : null;
+};

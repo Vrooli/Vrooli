@@ -10,8 +10,8 @@ import { usePinchZoom } from "hooks/gestures";
 import { TouchEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { firstString } from "utils/display/stringTools";
 import { PubSub } from "utils/pubsub";
+import { NodeEdge } from "../edges/NodeEdge/NodeEdge";
 import { NodeColumn } from "../NodeColumn/NodeColumn";
-import { NodeEdge } from "../edges";
 import { NodeGraphProps } from "../types";
 
 type DragRefs = {

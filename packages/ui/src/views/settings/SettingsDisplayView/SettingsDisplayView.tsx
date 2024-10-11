@@ -1,6 +1,6 @@
 import { endpointPutProfile, ProfileUpdateInput, profileValidation, User } from "@local/shared";
 import { Box, Button, Divider, Grid, styled, Typography, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { FocusModeSelector } from "components/inputs/FocusModeSelector/FocusModeSelector";
 import { LanguageSelector } from "components/inputs/LanguageSelector/LanguageSelector";

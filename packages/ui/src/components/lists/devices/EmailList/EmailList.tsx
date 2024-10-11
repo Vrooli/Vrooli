@@ -1,6 +1,6 @@
 import { DeleteOneInput, DeleteType, DUMMY_ID, Email, EmailCreateInput, emailValidation, endpointPostDeleteOne, endpointPostEmail, endpointPostEmailVerification, SendVerificationEmailInput, Success, uuid } from "@local/shared";
 import { Box, IconButton, InputAdornment, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { useFormik } from "formik";

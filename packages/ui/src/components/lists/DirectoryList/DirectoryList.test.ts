@@ -1,4 +1,4 @@
-import { initializeDirectoryList } from "./common"; // Update with the actual path
+import { initializeDirectoryList } from "./DirectoryList";
 
 type SimpleObject = {
     created_at: string;

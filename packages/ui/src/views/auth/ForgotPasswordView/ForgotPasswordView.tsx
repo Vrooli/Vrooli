@@ -1,6 +1,6 @@
 import { EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, endpointPostAuthEmailRequestPasswordChange, LINKS, Success } from "@local/shared";
 import { Box, Button, InputAdornment } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { BreadcrumbsBase } from "components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";

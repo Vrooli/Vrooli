@@ -3,7 +3,9 @@
  */
 import { getTranslation, Node, NodeRoutineList, NodeType, noop } from "@local/shared";
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { EndNode, RedirectNode, RoutineListNode } from "components/graphs/NodeGraph";
+import { EndNode } from "components/graphs/NodeGraph/nodes/EndNode/EndNode";
+import { RedirectNode } from "components/graphs/NodeGraph/nodes/RedirectNode/RedirectNode";
+import { RoutineListNode } from "components/graphs/NodeGraph/nodes/RoutineListNode/RoutineListNode";
 import { DeleteIcon, ExpandLessIcon, ExpandMoreIcon, UnlinkedNodesIcon } from "icons";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";

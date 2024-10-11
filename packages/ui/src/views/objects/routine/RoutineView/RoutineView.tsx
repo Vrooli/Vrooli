@@ -1,6 +1,6 @@
 import { CommentFor, ParseSearchParamsResult, ResourceListShape, ResourceList as ResourceListType, RoutineShape, RoutineType, RoutineVersion, RunRoutine, RunRoutineCreateInput, RunStatus, RunnableRoutineVersion, Tag, TagShape, endpointGetRoutineVersion, endpointPostRunRoutine, exists, generateInitialValues, generateYupSchema, getTranslation, noop, noopSubmit, parseConfigCallData, parseSchemaInput, parseSchemaOutput, parseSearchParams, runInputsUpdate, uuid } from "@local/shared";
 import { Box, Button, Divider, Stack, Typography, styled, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { RunButton } from "components/buttons/RunButton/RunButton";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";

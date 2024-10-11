@@ -4,15 +4,14 @@ import { UsePressEvent, usePress } from "hooks/gestures";
 import { ActionIcon, CloseIcon, NoActionIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { multiLineEllipsis, noSelect } from "styles";
-import { BuildAction } from "utils/consts";
+import { BuildAction, NodeWidth } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { routineTypes } from "utils/search/schemas/routine";
-import { SHOW_TITLE_ABOVE_SCALE, calculateNodeSize } from "..";
-import { NodeWidth } from "../..";
 import { NodeContextMenu } from "../../NodeContextMenu/NodeContextMenu";
 import { routineNodeActionStyle, routineNodeCheckboxOption } from "../styles";
 import { SubroutineNodeProps } from "../types";
+import { SHOW_TITLE_ABOVE_SCALE, calculateNodeSize } from "../utils";
 
 /**
  * Decides if a clicked element should trigger opening the subroutine dialog 

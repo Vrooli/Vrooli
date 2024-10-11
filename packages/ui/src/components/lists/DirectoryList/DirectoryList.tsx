@@ -1,9 +1,8 @@
-import { ApiVersion, CodeVersion, Count, DeleteManyInput, DeleteType, GqlModelType, ListObject, NoteVersion, ProjectVersion, ProjectVersionDirectory, RoutineVersion, StandardVersion, Team, TimeFrame, endpointPostDeleteMany, getObjectUrl, isOfType } from "@local/shared";
+import { ApiVersion, CodeVersion, Count, DeleteManyInput, DeleteType, GqlModelType, ListObject, NoteVersion, ProjectVersion, ProjectVersionDirectory, RoutineVersion, Session, StandardVersion, Team, TimeFrame, endpointPostDeleteMany, getObjectUrl, isOfType } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { SortButton } from "components/buttons/SortButton/SortButton";
 import { TimeButton } from "components/buttons/TimeButton/TimeButton";
-import { searchButtonStyle } from "components/buttons/styles";
 import { SearchButtonsProps } from "components/buttons/types";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
@@ -21,15 +20,89 @@ import { AddIcon, ApiIcon, DeleteIcon, GridIcon, HelpIcon, LinkIcon, ListIcon, N
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { CardBox, multiLineEllipsis } from "styles";
+import { CardBox, multiLineEllipsis, searchButtonStyle } from "styles";
 import { ArgsType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { DUMMY_LIST_LENGTH, DUMMY_LIST_LENGTH_SHORT } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
-import { DirectoryListSortBy, initializeDirectoryList } from "../common";
 import { DirectoryCardProps, DirectoryItem, DirectoryListHorizontalProps, DirectoryListProps, DirectoryListVerticalProps } from "../types";
+
+export enum DirectoryListSortBy {
+    DateCreatedAsc = "DateCreatedAsc",
+    DateCreatedDesc = "DateCreatedDesc",
+    DateUpdatedAsc = "DateUpdatedAsc",
+    DateUpdatedDesc = "DateUpdatedDesc",
+    NameAsc = "NameAsc",
+    NameDesc = "NameDesc",
+}
+
+export function initializeDirectoryList(
+    directory: ProjectVersionDirectory | null | undefined,
+    sortBy: DirectoryListSortBy | `${DirectoryListSortBy}`,
+    timeFrame: TimeFrame | undefined,
+    session: Session | null | undefined,
+): DirectoryItem[] {
+    if (!directory) return [];
+    let items = [
+        ...directory.childApiVersions,
+        ...directory.childCodeVersions,
+        ...directory.childNoteVersions,
+        ...directory.childProjectVersions,
+        ...directory.childRoutineVersions,
+        ...directory.childStandardVersions,
+        ...directory.childTeams,
+    ];
+    const userLanguages = getUserLanguages(session);
+
+    // Helper function to safely parse dates and return a timestamp
+    const parseDate = (dateString: string) => {
+        const date = new Date(dateString);
+        return !isFinite(date.getTime()) ? 0 : date.getTime(); // Return 0 if date is invalid
+    };
+
+    // Filter items based on time frame
+    if (timeFrame?.after || timeFrame?.before) {
+        const afterTime = timeFrame?.after ? parseDate(timeFrame.after) : -Infinity;
+        const beforeTime = timeFrame?.before ? parseDate(timeFrame.before) : Infinity;
+
+        items = items.filter(item => {
+            const itemTime = parseDate(item.created_at); // Assuming filtering by creation date
+            return itemTime > afterTime && itemTime < beforeTime;
+        });
+    }
+
+    return items.sort((a, b) => {
+        // Extracting titles for name-based sorting
+        const { title: aTitle } = getDisplay(a, userLanguages);
+        const { title: bTitle } = getDisplay(b, userLanguages);
+
+        // Helper function to safely parse dates and return a timestamp
+        const parseDate = (dateString: string) => {
+            const date = new Date(dateString);
+            return !isFinite(date.getTime()) ? 0 : date.getTime(); // Return 0 if date is invalid
+        };
+
+        switch (sortBy) {
+            case "DateCreatedAsc":
+                return parseDate(a.created_at) - parseDate(b.created_at);
+            case "DateCreatedDesc":
+                return parseDate(b.created_at) - parseDate(a.created_at);
+            case "DateUpdatedAsc":
+                return parseDate(a.updated_at) - parseDate(b.updated_at);
+            case "DateUpdatedDesc":
+                return parseDate(b.updated_at) - parseDate(a.updated_at);
+            case "NameAsc":
+                return aTitle.localeCompare(bTitle);
+            case "NameDesc":
+                return bTitle.localeCompare(aTitle);
+            default:
+                // Default fallback to name ascending if no valid sort by is provided
+                return aTitle.localeCompare(bTitle);
+        }
+    });
+};
 
 type ViewMode = "card" | "list";
 type DirectorySearchButtonsProps = Omit<SearchButtonsProps, "advancedSearchParams" | "advancedSearchSchema" | "controlsUrl" | "searchType" | "setAdvancedSearchParams" | "setSortBy" | "sortByOptions"> & {

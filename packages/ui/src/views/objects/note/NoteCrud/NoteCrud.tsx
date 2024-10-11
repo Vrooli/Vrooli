@@ -1,6 +1,6 @@
 import { DUMMY_ID, DeleteOneInput, DeleteType, ListObject, LlmTask, NoteVersion, NoteVersionCreateInput, NoteVersionShape, NoteVersionUpdateInput, OwnerShape, Session, Success, endpointGetNoteVersion, endpointPostDeleteOne, endpointPostNoteVersion, endpointPutNoteVersion, noopSubmit, noteVersionTranslationValidation, noteVersionValidation, orDefault, shapeNoteVersion } from "@local/shared";
 import { Box, IconButton, Tooltip, styled, useTheme } from "@mui/material";
-import { fetchLazyWrapper, useSubmitHelper } from "api";
+import { fetchLazyWrapper, useSubmitHelper } from "api/fetchWrapper";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";

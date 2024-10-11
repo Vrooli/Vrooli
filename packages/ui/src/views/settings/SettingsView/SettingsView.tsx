@@ -1,6 +1,6 @@
 import { LINKS } from "@local/shared";
 import { Box } from "@mui/material";
-import { SettingsSearchBar } from "components/inputs/search";
+import { SettingsSearchBar } from "components/inputs/search/SettingsSearchBar/SettingsSearchBar";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
 import { TopBar } from "components/navigation/TopBar/TopBar";

@@ -1,6 +1,6 @@
 import { Email, endpointPostAuthLogout, endpointPutProfileEmail, LINKS, LogOutInput, Phone, profileEmailUpdateFormValidation, ProfileEmailUpdateInput, Session, User, Wallet } from "@local/shared";
 import { Box, Button, Divider, Stack, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
 import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";

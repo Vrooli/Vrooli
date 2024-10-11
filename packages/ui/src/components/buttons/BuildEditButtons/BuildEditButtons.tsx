@@ -4,7 +4,7 @@ import { useCallback } from "react";
 import { BottomActionsButtons } from "../BottomActionsButtons/BottomActionsButtons";
 import { BuildEditButtonsProps } from "../types";
 
-export const BuildEditButtons = ({
+export function BuildEditButtons({
     canSubmitMutate,
     canCancelMutate,
     errors,
@@ -15,7 +15,7 @@ export const BuildEditButtons = ({
     isEditing,
     loading,
     scale,
-}: BuildEditButtonsProps) => {
+}: BuildEditButtonsProps) {
 
     const handleSliderChangeThrottled = useThrottle<[number]>((delta) => {
         handleScaleChange(delta);

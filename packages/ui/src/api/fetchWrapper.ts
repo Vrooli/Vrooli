@@ -1,10 +1,9 @@
 import { TranslationKeyCommon, TranslationKeyError, exists } from "@local/shared";
-import { Method, ServerResponse } from "api";
 import { useCallback } from "react";
 import { PubSub } from "utils/pubsub";
 import { errorToMessage } from "./errorParser";
 import { fetchData } from "./fetchData";
-import { LazyRequestWithResult } from "./types";
+import { LazyRequestWithResult, Method, ServerResponse } from "./types";
 
 // For some reason, these snack message types break when we omit "severity". So we must redefine them here
 type TranslatedSnackMessage<KeyList = TranslationKeyCommon | TranslationKeyError> = {

@@ -54,7 +54,7 @@ export default defineConfig((props) => {
         build: {
             chunkSizeWarningLimit: 1000,
             // Enable source maps for debugging. Can be disabled in production, but it only saves a few seconds
-            sourcemap: true,
+            sourcemap: false,
             rollupOptions: {
                 output: {
                     // Anything which doesn't need to be in the main bundle can be defined here as a separate chunk. 

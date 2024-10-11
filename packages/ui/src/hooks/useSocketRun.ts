@@ -1,5 +1,6 @@
 import { DUMMY_ID, RunProject, RunRoutine, RunTaskInfo, RunnableProjectVersion, RunnableRoutineVersion, StartRunTaskInput, Success, TaskStatus, endpointPostStartRunTask } from "@local/shared";
-import { emitSocketEvent, fetchLazyWrapper, onSocketEvent } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
+import { emitSocketEvent, onSocketEvent } from "api/socket";
 import { FormikProps } from "formik";
 import { RefObject, useCallback, useEffect, useRef, useState } from "react";
 import { PubSub } from "utils/pubsub";

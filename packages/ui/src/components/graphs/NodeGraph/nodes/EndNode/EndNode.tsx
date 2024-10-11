@@ -2,13 +2,15 @@ import { Box, BoxProps, Tooltip, Typography, TypographyProps, styled } from "@mu
 import { UsePressEvent, usePress } from "hooks/gestures";
 import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";
-import { BuildAction } from "utils/consts";
+import { BuildAction, DRAG_THRESHOLD, NodeWidth } from "utils/consts";
 import { firstString } from "utils/display/stringTools";
 import { NodeWithEndCrud } from "views/objects/node";
 import { NodeWithEnd, NodeWithEndShape } from "views/objects/node/types";
-import { DRAG_THRESHOLD, DraggableNode, NodeContextMenu, NodeWidth, SHOW_TITLE_ABOVE_SCALE, calculateNodeSize } from "../..";
+import { NodeContextMenu } from "../../NodeContextMenu/NodeContextMenu";
+import { DraggableNode } from "../DraggableNode/DraggableNode";
 import { nodeLabel } from "../styles";
 import { EndNodeProps } from "../types";
+import { SHOW_TITLE_ABOVE_SCALE, calculateNodeSize } from "../utils";
 
 interface NodeTitleProps extends TypographyProps {
     fontSize: string;

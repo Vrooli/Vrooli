@@ -1,6 +1,6 @@
 import { ChatInvite, ChatInviteCreateInput, ChatInviteShape, ChatInviteUpdateInput, chatInviteValidation, endpointPostChatInvites, endpointPutChatInvites, noop, noopSubmit, shapeChatInvite, validateAndGetYupErrors } from "@local/shared";
 import { Box, Typography, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { RichInputBase } from "components/inputs/RichInput/RichInput";

@@ -1,6 +1,6 @@
 import { ProfileUpdateInput, User, endpointPutProfile } from "@local/shared";
 import { Box, Typography, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { DarkModeIcon, LightModeIcon } from "icons";
 import { useCallback, useMemo } from "react";

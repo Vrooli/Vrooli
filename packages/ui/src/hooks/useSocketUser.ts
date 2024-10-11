@@ -1,5 +1,5 @@
 import { Session } from "@local/shared";
-import { emitSocketEvent, onSocketEvent } from "api";
+import { emitSocketEvent, onSocketEvent } from "api/socket";
 import { useEffect } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 

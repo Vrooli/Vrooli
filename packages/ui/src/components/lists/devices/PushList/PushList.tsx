@@ -1,6 +1,6 @@
 import { DeleteOneInput, DeleteType, PushDevice, PushDeviceTestInput, PushDeviceUpdateInput, Success, endpointPostDeleteOne, endpointPutPushDevice, endpointPutPushDeviceTest, updateArray } from "@local/shared";
 import { Box, Button, IconButton, ListItem, ListItemText, Stack, TextField, Tooltip, styled, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { useEditableLabel } from "hooks/useEditableLabel";
 import { useLazyFetch } from "hooks/useLazyFetch";

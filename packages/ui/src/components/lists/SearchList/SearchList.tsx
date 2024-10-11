@@ -5,7 +5,7 @@ import { ListObject, NavigableObject, funcTrue } from "@local/shared";
 import { Box } from "@mui/material";
 import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { SiteSearchBar } from "components/inputs/search";
+import { SiteSearchBar } from "components/inputs/search/SiteSearchBar/SiteSearchBar";
 import { useInfiniteScroll } from "hooks/gestures";
 import { ReactNode, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";

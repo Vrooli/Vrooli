@@ -1,5 +1,6 @@
 import { endpointPostPushDevice, PushDevice, PushDeviceCreateInput } from "@local/shared";
-import { errorToMessage, fetchData } from "api";
+import { errorToMessage } from "api/errorParser";
+import { fetchData } from "api/fetchData";
 import { requestNotificationPermission, subscribeUserToPush } from "serviceWorkerRegistration";
 import { getDeviceInfo } from "./display/device";
 import { PubSub } from "./pubsub";

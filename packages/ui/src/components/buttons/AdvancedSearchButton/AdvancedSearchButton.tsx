@@ -8,10 +8,10 @@ import { BuildIcon, CancelIcon, RefreshIcon, SearchIcon } from "icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { addSearchParams, removeSearchParams, useLocation } from "route";
+import { searchButtonStyle } from "styles";
 import { convertFormikForSearch, convertSearchForFormik } from "utils/search/inputToSearch";
 import { searchTypeToParams } from "utils/search/objectToSearch";
 import { BottomActionsGrid } from "../BottomActionsGrid/BottomActionsGrid";
-import { searchButtonStyle } from "../styles";
 import { AdvancedSearchButtonProps } from "../types";
 
 const titleId = "advanced-search-dialog-title";

@@ -1,7 +1,12 @@
 import { GqlModelType, OwnerShape, Session } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
-import { FocusModeButton, IsCompleteButton, IsPrivateButton, MembersButton, OwnerButton, QuestionForButton } from "components/buttons/relationships";
+import { FocusModeButton } from "components/buttons/relationships/FocusModeButton/FocusModeButton";
+import { IsCompleteButton } from "components/buttons/relationships/IsCompleteButton/IsCompleteButton";
+import { IsPrivateButton } from "components/buttons/relationships/IsPrivateButton/IsPrivateButton";
+import { MembersButton } from "components/buttons/relationships/MembersButton/MembersButton";
+import { OwnerButton } from "components/buttons/relationships/OwnerButton/OwnerButton";
 import { ParticipantsButton } from "components/buttons/relationships/ParticipantsButton/ParticipantsButton";
+import { QuestionForButton } from "components/buttons/relationships/QuestionForButton/QuestionForButton";
 import { useMemo } from "react";
 import { formSection, noSelect } from "styles";
 import { getCurrentUser } from "utils/authentication/session";

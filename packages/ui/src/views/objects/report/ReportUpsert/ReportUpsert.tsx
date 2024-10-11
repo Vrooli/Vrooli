@@ -1,5 +1,5 @@
 import { DUMMY_ID, endpointGetReport, endpointPostReport, endpointPutReport, getObjectSlug, getObjectUrlBase, noopSubmit, Report, ReportCreateInput, ReportFor, ReportShape, ReportUpdateInput, reportValidation, Session, shapeReport } from "@local/shared";
-import { useSubmitHelper } from "api";
+import { useSubmitHelper } from "api/fetchWrapper";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";

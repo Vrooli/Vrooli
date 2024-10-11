@@ -1,6 +1,6 @@
 import { Bookmark, BookmarkList, BookmarkListCreateInput, BookmarkListShape, BookmarkListUpdateInput, bookmarkListValidation, BookmarkShape, DeleteOneInput, DeleteType, DUMMY_ID, endpointGetBookmarkList, endpointPostBookmarkList, endpointPostDeleteOne, endpointPutBookmarkList, ListObject, noopSubmit, Session, shapeBookmarkList, Success, uuid } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
-import { fetchLazyWrapper, useSubmitHelper } from "api";
+import { fetchLazyWrapper, useSubmitHelper } from "api/fetchWrapper";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";

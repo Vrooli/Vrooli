@@ -1,6 +1,7 @@
 import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, endpointPostAuthEmailSignup, LINKS, Session, SignUpPageTabOption } from "@local/shared";
 import { Box, BoxProps, Button, Checkbox, FormControl, FormControlLabel, FormHelperText, IconButton, InputAdornment, Link, Modal, styled, useTheme } from "@mui/material";
-import { fetchLazyWrapper, hasErrorCode } from "api";
+import { hasErrorCode } from "api/errorParser";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { BreadcrumbsBase } from "components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase";
 import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";

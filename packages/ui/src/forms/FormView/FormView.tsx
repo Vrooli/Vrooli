@@ -1,9 +1,9 @@
 import { CreateFormInputProps, FormBuildViewProps, FormDividerType, FormElement, FormHeaderType, FormInputType, FormRunViewProps, FormSchema, FormStructureType, FormViewProps, GridContainer, InputType, createFormInput, generateInitialValues, mergeDeep, noop, noopSubmit, preventFormSubmit, uuid } from "@local/shared";
 import { Box, BoxProps, Divider, Grid, GridSpacing, IconButton, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover, Stack, Typography, styled, useTheme } from "@mui/material";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
-import { FormInput } from "components/inputs/form";
 import { FormDivider } from "components/inputs/form/FormDivider/FormDivider";
 import { FormHeader } from "components/inputs/form/FormHeader/FormHeader";
+import { FormInput } from "components/inputs/form/FormInput/FormInput";
 import { Formik } from "formik";
 import { FormErrorBoundary } from "forms/FormErrorBoundary/FormErrorBoundary";
 import { usePopover } from "hooks/usePopover";

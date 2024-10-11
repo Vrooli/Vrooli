@@ -1,7 +1,7 @@
 import { ChatMessageShape, ChatMessageStatus, ChatSocketEventPayloads, ListObject, NavigableObject, ReactInput, ReactionFor, ReactionSummary, ReportFor, Success, endpointPostReact, getObjectUrl, getTranslation, noop } from "@local/shared";
 import { Box, BoxProps, CircularProgress, CircularProgressProps, IconButton, IconButtonProps, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { green, red } from "@mui/material/colors";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { EmojiPicker } from "components/EmojiPicker/EmojiPicker";
 import { ReportButton } from "components/buttons/ReportButton/ReportButton";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";

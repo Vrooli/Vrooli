@@ -1,5 +1,5 @@
 import { AITaskInfo, ChatMessage, ChatMessageCreateInput, ChatMessageCreateWithTaskInfoInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageShape, ChatMessageUpdateInput, ChatMessageUpdateWithTaskInfoInput, ChatParticipant, ChatShape, DUMMY_ID, LlmTask, RegenerateResponseInput, Session, Success, TaskContextInfo, endpointGetChatMessageTree, endpointPostChatMessage, endpointPostRegenerateResponse, endpointPutChatMessage, getTranslation, noop, uuid } from "@local/shared";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { SessionContext } from "contexts";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";

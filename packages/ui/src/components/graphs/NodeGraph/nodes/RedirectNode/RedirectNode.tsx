@@ -3,10 +3,11 @@ import { UsePressEvent, usePress } from "hooks/gestures";
 import { RedirectIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";
-import { DraggableNode, calculateNodeSize } from "../";
-import { NodeWidth } from "../..";
+import { NodeWidth } from "utils/consts";
+import { DraggableNode } from "../DraggableNode/DraggableNode";
 import { nodeLabel } from "../styles";
 import { RedirectNodeProps } from "../types";
+import { calculateNodeSize } from "../utils";
 
 export function RedirectNode({
     canDrag,

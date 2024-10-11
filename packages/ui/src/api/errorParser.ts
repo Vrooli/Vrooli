@@ -1,7 +1,7 @@
 import { TranslationKeyError, exists } from "@local/shared";
-import { ServerResponse } from "api";
 import i18next from "i18next";
 import { PubSub } from "utils/pubsub";
+import { ServerResponse } from "./types";
 
 /**
  * Finds the error code in an ServerResponse object

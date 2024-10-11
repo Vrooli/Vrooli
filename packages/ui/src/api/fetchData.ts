@@ -1,7 +1,7 @@
 import { ParseSearchParamsResult, stringifySearchParams } from "@local/shared";
-import { Method, ServerResponseWithTimestamp } from "api";
 import { apiUrlBase, restBase } from "utils/consts";
 import { invalidateAIConfigCache } from "./ai";
+import { Method, ServerResponseWithTimestamp } from "./types";
 
 const SERVER_VERSION_CACHE_KEY = "serverVersionCache";
 

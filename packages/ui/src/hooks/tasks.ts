@@ -1,5 +1,5 @@
 import { AITaskInfo, CheckTaskStatusesInput, CheckTaskStatusesResult, DUMMY_ID, LlmTask, StartLlmTaskInput, TaskContextInfo, TaskType, VALYXA_ID, endpointGetCheckTaskStatuses, endpointPostStartLlmTask, getTranslation, uuid } from "@local/shared";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { ActiveChatContext } from "contexts";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { taskToTaskInfo } from "utils/display/chatTools";

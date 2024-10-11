@@ -4,7 +4,7 @@
 import { Comment, CommentThread as ThreadType, lowercaseFirstLetter, uuidValidate } from "@local/shared";
 import { Button, Stack, useTheme } from "@mui/material";
 import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
-import { CommentThread } from "components/lists/comment";
+import { CommentThread } from "components/lists/CommentThread/CommentThread";
 import { useFindMany } from "hooks/useFindMany";
 import { useWindowSize } from "hooks/useWindowSize";
 import { CreateIcon } from "icons";

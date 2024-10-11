@@ -5,7 +5,7 @@ import { usePopover } from "hooks/usePopover";
 import { HistoryIcon as TimeIcon } from "icons";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { searchButtonStyle } from "../styles";
+import { searchButtonStyle } from "styles";
 import { TimeButtonProps } from "../types";
 
 /** Map time selections to time length in milliseconds */

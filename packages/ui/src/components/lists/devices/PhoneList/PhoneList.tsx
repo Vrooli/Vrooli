@@ -1,6 +1,6 @@
 import { DUMMY_ID, DeleteOneInput, DeleteType, Phone, PhoneCreateInput, SendVerificationTextInput, Success, ValidateVerificationTextInput, endpointPostDeleteOne, endpointPostPhone, endpointPostPhoneValidateText, endpointPostPhoneVerificationText, phoneValidation, updateArray, uuid } from "@local/shared";
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { PhoneNumberInputBase } from "components/inputs/PhoneNumberInput/PhoneNumberInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";

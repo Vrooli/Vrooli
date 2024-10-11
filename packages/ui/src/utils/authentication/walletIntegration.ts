@@ -3,7 +3,7 @@
  * See CIP-0030 for more info: https://github.com/cardano-foundation/CIPs/pull/148
  */
 import { endpointPostAuthWalletComplete, endpointPostAuthWalletInit, WalletComplete, WalletCompleteInput, WalletInitInput } from "@local/shared";
-import { fetchWrapper } from "api";
+import { fetchWrapper } from "api/fetchWrapper";
 import { PubSub } from "utils/pubsub";
 
 /**
@@ -55,13 +55,15 @@ const Network = {
  * @param key The wallet provider to check 
  * @returns True if installed, false if not
  */
-export const hasWalletExtension = (key: string) => Boolean(window.cardano && window.cardano[key]);
+export function hasWalletExtension(key: string) {
+    return Boolean(window.cardano && window.cardano[key]);
+}
 
 /**
  * Finds all wallet providers that are installed
  * @returns Array of key and wallet provider info, as they appear in window.cardano
  */
-export const getInstalledWalletProviders = (): [string, WalletProviderInfo][] => {
+export function getInstalledWalletProviders(): [string, WalletProviderInfo][] {
     // Check if window.cardano is defined
     if (!window.cardano) {
         return [];
@@ -93,7 +95,7 @@ export const getInstalledWalletProviders = (): [string, WalletProviderInfo][] =>
  * @param key The wallet provider to connect to
  * @returns Object containing methods to interact with the wallet provider
  */
-const connectWallet = async (key: string): Promise<any> => {
+async function connectWallet(key: string): Promise<any> {
     if (!hasWalletExtension(key)) return false;
     return await window.cardano[key].enable();
 };
@@ -103,7 +105,7 @@ const connectWallet = async (key: string): Promise<any> => {
  * @param stakingAddress Wallet's staking address
  * @returns Hex string of payload to be signed by wallet
  */
-const walletInit = async (stakingAddress: string): Promise<string | null> => {
+async function walletInit(stakingAddress: string): Promise<string | null> {
     const data = await fetchWrapper<WalletInitInput, string>({
         ...endpointPostAuthWalletInit,
         inputs: { stakingAddress },
@@ -117,7 +119,7 @@ const walletInit = async (stakingAddress: string): Promise<string | null> => {
  * @param signedPayload Message signed by wallet
  * @returns Session object if successful, null if not
  */
-const walletComplete = async (stakingAddress: string, signedPayload: string): Promise<WalletComplete | null> => {
+async function walletComplete(stakingAddress: string, signedPayload: string): Promise<WalletComplete | null> {
     const data = await fetchWrapper<WalletCompleteInput, WalletComplete>({
         ...endpointPostAuthWalletComplete,
         inputs: { stakingAddress, signedPayload },
@@ -133,7 +135,7 @@ const walletComplete = async (stakingAddress: string, signedPayload: string): Pr
  * @param payload Hex string of payload to be signed by wallet
  * @returns Result of walletActions.signData
  */
-const signPayload = async (key: string, walletActions: WalletActions, stakingAddress: string, payload: string): Promise<any> => {
+async function signPayload(key: string, walletActions: WalletActions, stakingAddress: string, payload: string): Promise<any> {
     if (!hasWalletExtension(key)) return null;
     // As of 2022-02-05, new Nami endpoint is not fully working. So the old method is used for now
     if (key === "nami")
@@ -147,7 +149,7 @@ const signPayload = async (key: string, walletActions: WalletActions, stakingAdd
  * @param key The wallet provider to use
  * @returns WalletCompleteResult or null
  */
-export const validateWallet = async (key: string): Promise<WalletComplete | null> => {
+export async function validateWallet(key: string): Promise<WalletComplete | null> {
     let result: WalletComplete | null = null;
     try {
         // Connect to wallet extension

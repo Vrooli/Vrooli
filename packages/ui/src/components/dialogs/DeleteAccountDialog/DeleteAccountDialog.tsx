@@ -1,6 +1,6 @@
 import { endpointDeleteUser, LINKS, Session, UserDeleteInput, userDeleteOneSchema as validationSchema } from "@local/shared";
 import { Button, Checkbox, DialogContent, FormControlLabel, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
 import { SessionContext } from "contexts";
 import { Formik } from "formik";

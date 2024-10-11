@@ -1,7 +1,7 @@
 // Used to display popular/search results of a particular object type
 import { endpointPutReminder, Reminder, ReminderUpdateInput, shapeReminder } from "@local/shared";
 import { Checkbox, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { CompletionBar } from "components/CompletionBar/CompletionBar";
 import { ObjectListItemBase } from "components/lists/ObjectListItemBase/ObjectListItemBase";
 import { ReminderListItemProps } from "components/lists/types";

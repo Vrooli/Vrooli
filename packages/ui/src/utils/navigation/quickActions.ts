@@ -1,5 +1,6 @@
 import { ActionOption, endpointPutProfile, HistoryPageTabOption, LINKS, ProfileUpdateInput, SearchPageTabOption, Session, User } from "@local/shared";
-import { errorToMessage, fetchWrapper } from "api";
+import { errorToMessage } from "api/errorParser";
+import { fetchWrapper } from "api/fetchWrapper";
 import { getCurrentUser } from "utils/authentication/session";
 import { getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";

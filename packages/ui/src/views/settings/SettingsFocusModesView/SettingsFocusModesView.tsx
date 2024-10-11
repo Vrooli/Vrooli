@@ -1,6 +1,6 @@
 import { DeleteOneInput, DeleteType, endpointPostDeleteOne, FocusMode, LINKS, MaxObjects, noop, SessionUser, Success } from "@local/shared";
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";

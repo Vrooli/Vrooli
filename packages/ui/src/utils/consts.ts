@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { InputType, ValueOf } from "@local/shared";
+import { InputType, NodeType, ValueOf } from "@local/shared";
 
 export const Forms = {
     ForgotPassword: "forgot-password",
@@ -156,3 +156,15 @@ export const webSocketUrlBase: string = isLocalhost ?
     serverUrlProvided ?
         `${process.env.VITE_SERVER_URL}` :
         `http://${process.env.VITE_SITE_IP}:${portServer}`;
+
+export const NodeWidth = {
+    [NodeType.End]: 100,
+    [NodeType.Redirect]: 100,
+    [NodeType.RoutineList]: 350,
+    [NodeType.Start]: 100,
+};
+
+/**
+ * Distance before a click is considered a drag
+ */
+export const DRAG_THRESHOLD = 10;

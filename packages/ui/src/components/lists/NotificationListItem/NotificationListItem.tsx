@@ -1,6 +1,6 @@
 import { endpointPutNotification, FindByIdInput, Success } from "@local/shared";
 import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { VisibleIcon } from "icons";
 import { useCallback } from "react";

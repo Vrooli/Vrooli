@@ -3,9 +3,9 @@ import { useTranslation } from "react-i18next";
 import { BreadcrumbsBase } from "../BreadcrumbsBase/BreadcrumbsBase";
 import { PolicyBreadcrumbsProps } from "../types";
 
-export const PolicyBreadcrumbs = ({
+export function PolicyBreadcrumbs({
     ...props
-}: PolicyBreadcrumbsProps) => {
+}: PolicyBreadcrumbsProps) {
     const { t } = useTranslation();
     return BreadcrumbsBase({
         paths: [

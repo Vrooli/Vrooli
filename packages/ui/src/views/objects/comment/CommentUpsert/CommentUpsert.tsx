@@ -1,6 +1,6 @@
 import { camelCase, Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentShape, commentTranslationValidation, CommentUpdateInput, commentValidation, DUMMY_ID, endpointGetComments, endpointPostComment, endpointPutComment, noopSubmit, orDefault, Session, shapeComment, uuidValidate } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
-import { useSubmitHelper } from "api";
+import { useSubmitHelper } from "api/fetchWrapper";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";

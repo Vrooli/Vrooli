@@ -5,7 +5,7 @@ import i18next from "i18next";
 import { SortIcon } from "icons";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { searchButtonStyle } from "../styles";
+import { searchButtonStyle } from "styles";
 import { SortButtonProps } from "../types";
 
 export type LabelledSortOption<SortBy> = { label: string, value: SortBy };

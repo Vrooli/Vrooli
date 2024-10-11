@@ -1,5 +1,6 @@
 import { Chat, ChatCreateInput, ChatParticipantShape, ChatShape, DUMMY_ID, FindByIdInput, Session, VALYXA_ID, endpointGetChat, endpointPostChat, noop, uuidValidate } from "@local/shared";
-import { fetchLazyWrapper, hasErrorCode } from "api";
+import { hasErrorCode } from "api/errorParser";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";

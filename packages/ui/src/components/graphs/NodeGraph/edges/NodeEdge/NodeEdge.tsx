@@ -1,7 +1,7 @@
 import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { AddIcon, BranchIcon, DeleteIcon, EditIcon, LinkIcon } from "icons";
 import { useCallback, useMemo } from "react";
-import { calculateNodeSize } from "../../nodes";
+import { calculateNodeSize } from "../../nodes/utils";
 import { BaseEdge } from "../BaseEdge/BaseEdge";
 import { NodeEdgeProps } from "../types";
 

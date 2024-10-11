@@ -1,6 +1,6 @@
 import { Chat, endpointPutNotificationsMarkAllAsRead, getObjectUrlBase, InboxPageTabOption, ListObject, Notification, Success } from "@local/shared";
 import { Tooltip, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";

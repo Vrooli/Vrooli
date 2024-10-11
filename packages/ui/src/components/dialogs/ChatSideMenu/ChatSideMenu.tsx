@@ -3,7 +3,7 @@ import { Box, BoxProps, Button, Divider, IconButton, SwipeableDrawer, Tooltip, T
 import { ChatBubbleTree } from "components/ChatBubbleTree/ChatBubbleTree";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { ChatMessageInput } from "components/inputs/ChatMessageInput/ChatMessageInput";
-import { SiteSearchBar } from "components/inputs/search";
+import { SiteSearchBar } from "components/inputs/search/SiteSearchBar/SiteSearchBar";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ObjectListActions } from "components/lists/types";
 import { ActiveChatContext, SessionContext } from "contexts";

@@ -1,5 +1,6 @@
-import { displayServerErrors, fetchData, Method, ServerResponse, ServerResponseWithTimestamp } from "api";
-import { LazyRequestWithResult } from "api/types";
+import { displayServerErrors } from "api/errorParser";
+import { fetchData } from "api/fetchData";
+import { LazyRequestWithResult, Method, ServerResponse, ServerResponseWithTimestamp } from "api/types";
 import { useCallback, useRef, useState } from "react";
 
 type RequestState<TData> = {

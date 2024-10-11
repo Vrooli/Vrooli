@@ -2,10 +2,11 @@ import { Box, BoxProps, Tooltip, Typography, TypographyProps, styled } from "@mu
 import { UsePressEvent, usePress } from "hooks/gestures";
 import { useCallback, useMemo, useState } from "react";
 import { noSelect } from "styles";
-import { BuildAction } from "utils/consts";
-import { NodeContextMenu, NodeWidth, SHOW_TITLE_ABOVE_SCALE, calculateNodeSize } from "../..";
+import { BuildAction, NodeWidth } from "utils/consts";
+import { NodeContextMenu } from "../../NodeContextMenu/NodeContextMenu";
 import { nodeLabel } from "../styles";
 import { StartNodeProps } from "../types";
+import { SHOW_TITLE_ABOVE_SCALE, calculateNodeSize } from "../utils";
 
 interface NodeTitleProps extends TypographyProps {
     fontSize: string;

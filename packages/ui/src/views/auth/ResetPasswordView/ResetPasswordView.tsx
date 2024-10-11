@@ -1,6 +1,6 @@
 import { EmailResetPasswordInput, LINKS, Session, emailResetPasswordSchema, endpointPostAuthEmailResetPassword, parseSearchParams, uuidValidate } from "@local/shared";
 import { Box, Button } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Formik, FormikHelpers } from "formik";

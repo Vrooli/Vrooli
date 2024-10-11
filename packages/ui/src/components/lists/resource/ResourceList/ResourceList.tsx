@@ -2,7 +2,7 @@
 // it will display options for adding, removing, and sorting
 import { Count, DUMMY_ID, DeleteManyInput, DeleteType, ListObject, Resource, ResourceList as ResourceListType, ResourceUsedFor, TranslationKeyCommon, endpointPostDeleteMany, updateArray } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { ResourceListInputProps } from "components/inputs/types";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";

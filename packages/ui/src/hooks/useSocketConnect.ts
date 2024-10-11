@@ -1,4 +1,4 @@
-import { socket } from "api";
+import { socket } from "api/socket";
 import { useEffect } from "react";
 import { PubSub } from "utils/pubsub";
 

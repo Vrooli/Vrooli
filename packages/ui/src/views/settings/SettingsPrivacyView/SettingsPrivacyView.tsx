@@ -1,6 +1,6 @@
 import { endpointPutProfile, ProfileUpdateInput, profileValidation, User } from "@local/shared";
 import { Box, styled, Typography } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";

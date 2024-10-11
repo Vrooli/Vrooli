@@ -1,5 +1,5 @@
 import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, CopyInput, CopyResult, CopyType, Count, DeleteManyInput, DeleteOneInput, DeleteType, GqlModelType, LINKS, ListObject, ReactInput, ReactionFor, Role, Success, User, endpointGetBookmarks, endpointPostBookmark, endpointPostCopy, endpointPostDeleteMany, endpointPostDeleteOne, endpointPostReact, exists, getReactionScore, setDotNotationValue, shapeBookmark, uuid } from "@local/shared";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { BulkDeleteDialog } from "components/dialogs/BulkDeleteDialog/BulkDeleteDialog";
 import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
 import { DeleteDialog } from "components/dialogs/DeleteDialog/DeleteDialog";

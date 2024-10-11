@@ -6,7 +6,11 @@ import { Box, Stack } from "@mui/material";
 import { useMemo } from "react";
 import { BuildAction } from "utils/consts";
 import { NodeWithEndShape, NodeWithRoutineListShape } from "views/objects/node/types";
-import { calculateNodeSize, EndNode, RedirectNode, RoutineListNode, StartNode } from "../nodes";
+import { EndNode } from "../nodes/EndNode/EndNode";
+import { RedirectNode } from "../nodes/RedirectNode/RedirectNode";
+import { RoutineListNode } from "../nodes/RoutineListNode/RoutineListNode";
+import { StartNode } from "../nodes/StartNode/StartNode";
+import { calculateNodeSize } from "../nodes/utils";
 import { NodeColumnProps } from "../types";
 
 export function NodeColumn({

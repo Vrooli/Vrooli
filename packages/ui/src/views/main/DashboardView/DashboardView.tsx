@@ -1,6 +1,7 @@
 import { calculateOccurrences, CalendarEvent, Chat, ChatCreateInput, ChatParticipantShape, ChatShape, ChatUpdateInput, DAYS_30_MS, deleteArrayIndex, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, MyStuffPageTabOption, Reminder, ResourceList as ResourceListType, Schedule, updateArray, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Button, styled, useTheme } from "@mui/material";
-import { fetchLazyWrapper, hasErrorCode } from "api";
+import { hasErrorCode } from "api/errorParser";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { ChatBubbleTree } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { ChatMessageInput } from "components/inputs/ChatMessageInput/ChatMessageInput";

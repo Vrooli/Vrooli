@@ -1,7 +1,7 @@
 import { ActiveFocusMode, endpointPostAuthValidateSession, endpointPutFocusModeActive, getActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
 import { Box, BoxProps, createTheme, CssBaseline, GlobalStyles, styled, StyledEngineProvider, Theme, ThemeProvider } from "@mui/material";
-import { fetchLazyWrapper, hasErrorCode } from "api";
 import { fetchAIConfig } from "api/ai";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { BannerChicken } from "components/BannerChicken/BannerChicken";
 import { Celebration } from "components/Celebration/Celebration";
 import { DiagonalWaveLoader } from "components/DiagonalWaveLoader/DiagonalWaveLoader";
@@ -32,6 +32,7 @@ import { DEFAULT_THEME, themes } from "utils/display/theme";
 import { getCookie, getStorageItem, setCookie, ThemeType } from "utils/localStorage";
 import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID } from "utils/pubsub";
 import { CI_MODE } from "./i18n";
+import { hasErrorCode } from "api/errorParser";
 
 function getGlobalStyles(theme: Theme) {
     return {

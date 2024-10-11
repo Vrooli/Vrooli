@@ -1,6 +1,6 @@
 import { DeleteOneInput, endpointPostDeleteOne, endpointPutWallet, Success, updateArray, Wallet, WalletUpdateInput } from "@local/shared";
 import { Box, Button, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { WalletInstallDialog } from "components/dialogs/WalletInstallDialog/WalletInstallDialog";
 import { WalletSelectDialog } from "components/dialogs/WalletSelectDialog/WalletSelectDialog";
