@@ -73,7 +73,7 @@
         "stripe": "^11.17.0",
         "superjson": "^2.2.1",
         "twilio": "^4.23.0",
-        "typescript": "5.3.3",
+        "typescript": "5.4.5",
         "web-push": "^3.5.0",
         "winston": "^3.12.0"
     },

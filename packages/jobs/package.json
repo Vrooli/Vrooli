@@ -52,7 +52,7 @@
         "stopword": "^2.0.8",
         "stripe": "^11.17.0",
         "twilio": "^3.61.0",
-        "typescript": "5.3.3",
+        "typescript": "5.4.5",
         "web-push": "^3.5.0",
         "winston": "^3.7.2"
     },
