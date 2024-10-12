@@ -18,24 +18,81 @@ const target: Target = "rest";
 // Only used if `target` is "rest" or "both".
 const createEndpointMethodPairs = true;
 
-const createFolder = (folder: string) => {
+function createFolder(folder: string) {
     if (!fs.existsSync(folder)) {
         console.info(`Creating folder: ${folder}`);
         fs.mkdirSync(folder);
     }
-};
-const deleteFolder = (folder: string) => {
+}
+function deleteFolder(folder: string) {
     if (fs.existsSync(folder)) {
         console.info(`Deleting folder: ${folder}`);
         fs.rmdirSync(folder, { recursive: true });
     }
-};
-const deleteFile = (file: string) => {
+}
+function deleteFile(file: string) {
     if (fs.existsSync(file)) {
         console.info(`Deleting file: ${file}`);
         fs.unlinkSync(file);
     }
-};
+}
+
+// Converts gql tags to GraphQLResolveInfo objects
+function gqlToGraphQLResolveInfo(query: DocumentNode, path: string): GraphQLResolveInfo {
+    const operation: OperationDefinitionNode | undefined = query.definitions
+        .find(({ kind }) => kind === "OperationDefinition") as OperationDefinitionNode;
+    const fragmentDefinitions = query.definitions
+        .filter(({ kind }) => kind === "FragmentDefinition") as FragmentDefinitionNode[];
+    const fragments: { [key: string]: FragmentDefinitionNode } = fragmentDefinitions
+        .reduce((result, current: FragmentDefinitionNode) => ({
+            ...result,
+            [current.name.value]: current,
+        }), {});
+
+    const operationFieldNodes: FieldNode[] = operation?.selectionSet.selections as FieldNode[];
+    // Add fields from fragments to the operation's fieldNodes
+    const fragmentFieldNodes: FieldNode[] = fragmentDefinitions.flatMap(fragment => fragment.selectionSet.selections) as FieldNode[];
+    const fieldNodes = [...operationFieldNodes, ...fragmentFieldNodes];
+    const resolveInfo: GraphQLResolveInfo = {
+        fieldName: fieldNodes[0]?.name.value || "",
+        fieldNodes,
+        returnType: null,
+        parentType: null,
+        schema: null,
+        fragments,
+        rootValue: {},
+        operation,
+        variableValues: {},
+        path: {
+            prev: undefined,
+            key: path,
+        },
+    } as any;
+    return resolveInfo;
+}
+
+// Converts endpoints to proper names
+function endpointToCamelCase(endpoint: string): string {
+    // Split string by slash and filter out empty strings and strings containing ':'
+    const parts = endpoint.split("/").filter(p => p && !p.includes(":"));
+
+    // If there's only one part, return it
+    if (parts.length === 1) {
+        return parts[0] as string;
+    }
+
+    // Map through the array to construct the camelCase string
+    const camelCaseString = parts.map((part, index) => {
+        // If it's the first part, return it with the first character lowercase
+        if (index === 0) {
+            return part.charAt(0).toLowerCase() + part.slice(1);
+        }
+        // If it's not the first part, return it with the first character capitalized
+        return part.charAt(0).toUpperCase() + part.slice(1);
+    }).join("");
+
+    return camelCaseString;
+}
 
 async function main() {
     // Create the output folders if they doesn't exist
@@ -130,61 +187,6 @@ async function main() {
     if (["rest", "both"].includes(target)) {
         // Initialize restFiles list to store all rest files names
         const restFiles: string[] = [];
-        // Define function to convert gql tags to GraphQLResolveInfo objects
-        const gqlToGraphQLResolveInfo = (query: DocumentNode, path: string): GraphQLResolveInfo => {
-            const operation: OperationDefinitionNode | undefined = query.definitions
-                .find(({ kind }) => kind === "OperationDefinition") as OperationDefinitionNode;
-            const fragmentDefinitions = query.definitions
-                .filter(({ kind }) => kind === "FragmentDefinition") as FragmentDefinitionNode[];
-            const fragments: { [key: string]: FragmentDefinitionNode } = fragmentDefinitions
-                .reduce((result, current: FragmentDefinitionNode) => ({
-                    ...result,
-                    [current.name.value]: current,
-                }), {});
-
-            const operationFieldNodes: FieldNode[] = operation?.selectionSet.selections as FieldNode[];
-            // Add fields from fragments to the operation's fieldNodes
-            const fragmentFieldNodes: FieldNode[] = fragmentDefinitions.flatMap(fragment => fragment.selectionSet.selections) as FieldNode[];
-            const fieldNodes = [...operationFieldNodes, ...fragmentFieldNodes];
-            const resolveInfo: GraphQLResolveInfo = {
-                fieldName: fieldNodes[0]?.name.value || "",
-                fieldNodes,
-                returnType: null,
-                parentType: null,
-                schema: null,
-                fragments,
-                rootValue: {},
-                operation,
-                variableValues: {},
-                path: {
-                    prev: undefined,
-                    key: path,
-                },
-            } as any;
-            return resolveInfo;
-        };
-        // Define function to convert endpoints to proper names
-        const endpointToCamelCase = (endpoint: string): string => {
-            // Split string by slash and filter out empty strings and strings containing ':'
-            const parts = endpoint.split("/").filter(p => p && !p.includes(":"));
-
-            // If there's only one part, return it
-            if (parts.length === 1) {
-                return parts[0] as string;
-            }
-
-            // Map through the array to construct the camelCase string
-            const camelCaseString = parts.map((part, index) => {
-                // If it's the first part, return it with the first character lowercase
-                if (index === 0) {
-                    return part.charAt(0).toLowerCase() + part.slice(1);
-                }
-                // If it's not the first part, return it with the first character capitalized
-                return part.charAt(0).toUpperCase() + part.slice(1);
-            }).join("");
-
-            return camelCaseString;
-        };
         // Loop through allEndpoints
         for (const [name, endpoint] of Object.entries(allEndpoints)) {
             // Extract the gql tag using a regex

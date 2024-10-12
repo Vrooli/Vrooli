@@ -6,7 +6,7 @@ import { EditableTextCollapse } from "components/containers/EditableTextCollapse
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { ResourceList } from "components/lists/resource";
+import { ResourceList } from "components/lists/ResourceList/ResourceList";
 import { Title } from "components/text/Title/Title";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { SessionContext } from "contexts";

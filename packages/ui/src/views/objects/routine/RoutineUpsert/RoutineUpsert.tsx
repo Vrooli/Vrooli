@@ -1,6 +1,5 @@
 import { ConfigCallData, DUMMY_ID, FormInputBase, FormSchema, LINKS, LlmModel, LlmTask, NodeLinkShape, NodeShape, RoutineShape, RoutineType, RoutineVersion, RoutineVersionCreateInput, RoutineVersionInputShape, RoutineVersionOutputShape, RoutineVersionShape, RoutineVersionUpdateInput, SearchPageTabOption, Session, defaultConfigCallDataMap, defaultConfigFormInputMap, defaultConfigFormOutputMap, endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, initializeRoutineGraph, noop, noopSubmit, orDefault, parseConfigCallData, parseSchemaInput, parseSchemaOutput, routineVersionTranslationValidation, routineVersionValidation, shapeRoutineVersion, uuid, uuidValidate } from "@local/shared";
 import { Checkbox, Divider, FormControlLabel, Grid, Tooltip } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
 import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
@@ -13,7 +12,7 @@ import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedTextInput } from "components/inputs/TextInput/TextInput";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { ResourceListInput } from "components/lists/resource/ResourceList/ResourceList";
+import { ResourceListInput } from "components/lists/ResourceList/ResourceList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts";
 import { FieldHelperProps, Formik, useField } from "formik";

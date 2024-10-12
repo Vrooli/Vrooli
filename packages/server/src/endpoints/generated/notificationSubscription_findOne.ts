@@ -866,8 +866,10 @@ export const notificationSubscription_findOne = {
                 "language": true,
                 "description": true,
                 "name": true
-              }
-            }
+              },
+              "__typename": "Resource"
+            },
+            "__typename": "ResourceList"
           },
           "__typename": "FocusMode"
         },

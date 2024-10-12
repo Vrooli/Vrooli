@@ -6,7 +6,7 @@ import { ChatBubbleTree } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { ChatMessageInput } from "components/inputs/ChatMessageInput/ChatMessageInput";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
-import { ResourceList } from "components/lists/resource";
+import { ResourceList } from "components/lists/ResourceList/ResourceList";
 import { ObjectListActions } from "components/lists/types";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";

@@ -1,5 +1,4 @@
 import { DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, Session, Team, TeamCreateInput, TeamShape, TeamUpdateInput, endpointGetTeam, endpointPostTeam, endpointPutTeam, noopSubmit, orDefault, shapeTeam, teamTranslationValidation, teamValidation } from "@local/shared";
-import { fetchLazyWrapper } from "api/fetchWrapper";
 import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
@@ -11,7 +10,7 @@ import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TranslatedTextInput } from "components/inputs/TextInput/TextInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { ResourceListInput } from "components/lists/resource/ResourceList/ResourceList";
+import { ResourceListInput } from "components/lists/ResourceList/ResourceList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts";
 import { Formik } from "formik";

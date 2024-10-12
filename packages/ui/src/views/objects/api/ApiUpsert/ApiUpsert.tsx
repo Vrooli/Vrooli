@@ -12,7 +12,7 @@ import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TextInput, TranslatedTextInput } from "components/inputs/TextInput/TextInput";
 import { VersionInput } from "components/inputs/VersionInput/VersionInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { ResourceListInput } from "components/lists/resource/ResourceList/ResourceList";
+import { ResourceListInput } from "components/lists/ResourceList/ResourceList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts";
 import { Field, Formik, useField } from "formik";

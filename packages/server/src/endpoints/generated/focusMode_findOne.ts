@@ -88,8 +88,10 @@ export const focusMode_findOne = {
             "language": true,
             "description": true,
             "name": true
-          }
-        }
+          },
+          "__typename": "Resource"
+        },
+        "__typename": "ResourceList"
       },
       "schedule": {
         "id": true,
@@ -174,8 +176,10 @@ export const focusMode_findOne = {
         "language": true,
         "description": true,
         "name": true
-      }
-    }
+      },
+      "__typename": "Resource"
+    },
+    "__typename": "ResourceList"
   },
   "schedule": {
     "id": true,

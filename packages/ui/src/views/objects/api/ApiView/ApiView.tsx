@@ -5,7 +5,7 @@ import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { ResourceList } from "components/lists/resource";
+import { ResourceList } from "components/lists/ResourceList/ResourceList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { Title } from "components/text/Title/Title";

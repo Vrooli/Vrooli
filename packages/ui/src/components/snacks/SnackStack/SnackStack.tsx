@@ -1,5 +1,5 @@
 import { uuid } from "@local/shared";
-import { Stack } from "@mui/material";
+import { Box, BoxProps, styled } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { translateSnackMessage } from "utils/display/translationTools";
@@ -9,6 +9,27 @@ import { CookiesSnack } from "../CookiesSnack/CookiesSnack";
 import { BasicSnackProps } from "../types";
 
 const MAX_SNACKS = 3;
+
+interface StyledBoxProps extends BoxProps {
+    isVisible: boolean;
+}
+
+const StyledBox = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "isVisible",
+})<StyledBoxProps>(({ isVisible, theme }) => ({
+    display: isVisible ? "flex" : "none",
+    flexDirection: "column",
+    gap: theme.spacing(1),
+    position: "fixed",
+    left: "calc(8px + env(safe-area-inset-left))",
+    zIndex: 20000,
+    pointerEvents: "none",
+    // Displays above the bottom nav bar, accounting for PWA inset-bottom
+    bottom: "calc(8px + env(safe-area-inset-bottom))",
+    [theme.breakpoints.down("md")]: {
+        bottom: "calc(64px + env(safe-area-inset-bottom))",
+    },
+}));
 
 /**
  * Displays a stack of snack messages. 
@@ -75,19 +96,11 @@ export function SnackStack() {
         };
     }, [t]);
 
-    const visible = useMemo(() => snacks.length > 0 || isCookieSnackOpen, [snacks, isCookieSnackOpen]);
+    const isVisible = useMemo(() => snacks.length > 0 || isCookieSnackOpen, [snacks, isCookieSnackOpen]);
 
     return (
         // Snacks displayed in bottom left corner
-        <Stack direction="column" spacing={1} sx={{
-            display: visible ? "flex" : "none",
-            position: "fixed",
-            // Displays above the bottom nav bar, accounting for PWA inset-bottom
-            bottom: { xs: "calc(64px + env(safe-area-inset-bottom))", md: "calc(8px + env(safe-area-inset-bottom))" },
-            left: "calc(8px + env(safe-area-inset-left))",
-            zIndex: 20000,
-            pointerEvents: "none",
-        }}>
+        <StyledBox isVisible={isVisible}>
             {/* Basic snacks on top */}
             {snacks.map((snack) => (
                 <BasicSnack
@@ -98,6 +111,6 @@ export function SnackStack() {
             {/* Special snacks below */}
             {/* Cookie snack */}
             {isCookieSnackOpen && <CookiesSnack handleClose={closeCookieSnack} />}
-        </Stack>
+        </StyledBox>
     );
 }

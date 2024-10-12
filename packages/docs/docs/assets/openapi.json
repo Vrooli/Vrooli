@@ -4723,9 +4723,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "ApiSearchInput.visibility",
@@ -5452,9 +5453,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "ApiVersionSearchInput.visibility",
@@ -6687,9 +6689,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "BookmarkSearchInput.visibility",
@@ -7539,9 +7542,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "ChatInviteSearchInput.visibility",
@@ -8639,9 +8643,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "ChatParticipantSearchInput.visibility",
@@ -8838,9 +8843,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "ChatSearchInput.visibility",
@@ -9944,9 +9950,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "CodeSearchInput.visibility",
@@ -10756,9 +10763,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "CodeVersionSearchInput.visibility",
@@ -13160,6 +13168,7 @@
             "enum": [
               "ClosedResolved",
               "ClosedUnresolved",
+              "Draft",
               "Open",
               "Rejected"
             ],
@@ -13228,6 +13237,7 @@
             "enum": [
               "ClosedResolved",
               "ClosedUnresolved",
+              "Draft",
               "Open",
               "Rejected"
             ],
@@ -13492,6 +13502,7 @@
                 "enum": [
                   "ClosedResolved",
                   "ClosedUnresolved",
+                  "Draft",
                   "Open",
                   "Rejected"
                 ],
@@ -13548,9 +13559,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "IssueSearchInput.visibility",
@@ -14353,9 +14365,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "LabelSearchInput.visibility",
@@ -15449,9 +15462,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "MeetingInviteSearchInput.visibility",
@@ -15700,9 +15714,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "MeetingSearchInput.visibility",
@@ -16482,9 +16497,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "MemberInviteSearchInput.visibility",
@@ -16701,9 +16717,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "MemberSearchInput.visibility",
@@ -19294,9 +19311,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "NoteSearchInput.visibility",
@@ -19940,9 +19958,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "NoteVersionSearchInput.visibility",
@@ -20499,9 +20518,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "NotificationSearchInput.visibility",
@@ -21072,9 +21092,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "NotificationSubscriptionSearchInput.visibility",
@@ -21780,9 +21801,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "PopularSearchInput.visibility",
@@ -23631,9 +23653,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "ProjectOrRoutineSearchInput.visibility",
@@ -24016,9 +24039,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "ProjectOrTeamSearchInput.visibility",
@@ -24293,9 +24317,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "ProjectSearchInput.visibility",
@@ -24813,9 +24838,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "ProjectVersionContentsSearchInput.visibility",
@@ -25460,9 +25486,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "ProjectVersionDirectorySearchInput.visibility",
@@ -26176,9 +26203,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "ProjectVersionSearchInput.visibility",
@@ -26671,6 +26699,7 @@
           "status": {
             "enum": [
               "Canceled",
+              "Draft",
               "Merged",
               "Open",
               "Rejected"
@@ -26978,9 +27007,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "PullRequestSearchInput.visibility",
@@ -27148,6 +27178,7 @@
               {
                 "enum": [
                   "Canceled",
+                  "Draft",
                   "Merged",
                   "Open",
                   "Rejected"
@@ -29079,9 +29110,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "QuizAttemptSearchInput.visibility",
@@ -29735,9 +29767,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "QuizQuestionResponseSearchInput.visibility",
@@ -29951,9 +29984,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "QuizQuestionSearchInput.visibility",
@@ -30372,9 +30406,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "QuizSearchInput.visibility",
@@ -30844,6 +30879,26 @@
             "nullable": true,
             "type": "string"
           },
+          "apiId": {
+            "title": "ReactionSearchInput.apiId",
+            "nullable": true,
+            "type": "string"
+          },
+          "chatMessageId": {
+            "title": "ReactionSearchInput.chatMessageId",
+            "nullable": true,
+            "type": "string"
+          },
+          "codeId": {
+            "title": "ReactionSearchInput.codeId",
+            "nullable": true,
+            "type": "string"
+          },
+          "commentId": {
+            "title": "ReactionSearchInput.commentId",
+            "nullable": true,
+            "type": "string"
+          },
           "excludeLinkedToTag": {
             "title": "ReactionSearchInput.excludeLinkedToTag",
             "nullable": true,
@@ -30864,6 +30919,46 @@
               }
             ],
             "title": "ReactionSearchInput.ids"
+          },
+          "issueId": {
+            "title": "ReactionSearchInput.issueId",
+            "nullable": true,
+            "type": "string"
+          },
+          "noteId": {
+            "title": "ReactionSearchInput.noteId",
+            "nullable": true,
+            "type": "string"
+          },
+          "postId": {
+            "title": "ReactionSearchInput.postId",
+            "nullable": true,
+            "type": "string"
+          },
+          "projectId": {
+            "title": "ReactionSearchInput.projectId",
+            "nullable": true,
+            "type": "string"
+          },
+          "questionAnswerId": {
+            "title": "ReactionSearchInput.questionAnswerId",
+            "nullable": true,
+            "type": "string"
+          },
+          "questionId": {
+            "title": "ReactionSearchInput.questionId",
+            "nullable": true,
+            "type": "string"
+          },
+          "quizId": {
+            "title": "ReactionSearchInput.quizId",
+            "nullable": true,
+            "type": "string"
+          },
+          "routineId": {
+            "title": "ReactionSearchInput.routineId",
+            "nullable": true,
+            "type": "string"
           },
           "searchString": {
             "title": "ReactionSearchInput.searchString",
@@ -30886,6 +30981,11 @@
               }
             ],
             "title": "ReactionSearchInput.sortBy"
+          },
+          "standardId": {
+            "title": "ReactionSearchInput.standardId",
+            "nullable": true,
+            "type": "string"
           },
           "take": {
             "title": "ReactionSearchInput.take",
@@ -32225,9 +32325,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "ReportResponseSearchInput.visibility",
@@ -32509,6 +32610,26 @@
             "title": "ReportSearchInput.userId",
             "nullable": true,
             "type": "string"
+          },
+          "visibility": {
+            "anyOf": [
+              {
+                "enum": [
+                  "Own",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
+                  "Public"
+                ],
+                "title": "ReportSearchInput.visibility",
+                "type": "string"
+              },
+              {
+                "title": "ReportSearchInput.visibility",
+                "nullable": true
+              }
+            ],
+            "title": "ReportSearchInput.visibility"
           }
         },
         "additionalProperties": false,
@@ -32788,9 +32909,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "ReputationHistorySearchInput.visibility",
@@ -34232,9 +34354,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "RoleSearchInput.visibility",
@@ -35126,9 +35249,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "RoutineSearchInput.visibility",
@@ -36871,9 +36995,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "RoutineVersionSearchInput.visibility",
@@ -38117,9 +38242,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "RunProjectOrRunRoutineSearchInput.visibility",
@@ -38376,9 +38502,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "RunProjectSearchInput.visibility",
@@ -39830,9 +39957,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "RunRoutineSearchInput.visibility",
@@ -41367,9 +41495,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "ScheduleSearchInput.visibility",
@@ -42485,9 +42614,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "StandardSearchInput.visibility",
@@ -43317,9 +43447,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "StandardVersionSearchInput.visibility",
@@ -47472,9 +47603,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "TeamSearchInput.visibility",
@@ -48344,9 +48476,10 @@
             "anyOf": [
               {
                 "enum": [
-                  "All",
                   "Own",
-                  "Private",
+                  "OwnOrPublic",
+                  "OwnPrivate",
+                  "OwnPublic",
                   "Public"
                 ],
                 "title": "TransferSearchInput.visibility",

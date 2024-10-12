@@ -19,7 +19,7 @@ import { ArgsType } from "types";
 import { getDummyListLength } from "utils/consts";
 import { getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
-import { RunView } from "views/runs";
+import { RunView } from "views/runs/RunView/RunView";
 import { RunButtonProps } from "../types";
 
 const emptyArray = [];
@@ -205,7 +205,6 @@ export function RunPickerMenu({
             id='select-run-dialog'
             aria-labelledby={titleId}
             disableScrollLock={true}
-            autoFocus={true}
             open={open}
             anchorEl={anchorEl}
             anchorOrigin={anchorOrigin}

@@ -1,7 +1,7 @@
 import { Box, Dialog, useTheme } from "@mui/material";
 import { useZIndex } from "hooks/useZIndex";
 import { useMemo } from "react";
-import { UpTransition } from "../../transitions";
+import { UpTransition } from "../../transitions/UpTransition/UpTransition";
 import { LargeDialogProps, MaybeLargeDialogProps } from "../types";
 
 const DEFAULT_Z_INDEX_OFFSET = 1000;

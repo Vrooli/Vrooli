@@ -170,8 +170,10 @@ export const scheduleException_create = {
                 "language": true,
                 "description": true,
                 "name": true
-              }
-            }
+              },
+              "__typename": "Resource"
+            },
+            "__typename": "ResourceList"
           },
           "schedule": {
             "id": true,
@@ -256,8 +258,10 @@ export const scheduleException_create = {
             "language": true,
             "description": true,
             "name": true
-          }
-        }
+          },
+          "__typename": "Resource"
+        },
+        "__typename": "ResourceList"
       },
       "__typename": "FocusMode"
     },

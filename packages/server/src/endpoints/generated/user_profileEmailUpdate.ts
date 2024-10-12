@@ -122,8 +122,10 @@ export const user_profileEmailUpdate = {
               "language": true,
               "description": true,
               "name": true
-            }
-          }
+            },
+            "__typename": "Resource"
+          },
+          "__typename": "ResourceList"
         },
         "schedule": {
           "id": true,
@@ -208,8 +210,10 @@ export const user_profileEmailUpdate = {
           "language": true,
           "description": true,
           "name": true
-        }
-      }
+        },
+        "__typename": "Resource"
+      },
+      "__typename": "ResourceList"
     },
     "schedule": {
       "id": true,

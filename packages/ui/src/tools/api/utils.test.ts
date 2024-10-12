@@ -1,4 +1,4 @@
-import { findSelection } from "./findSelection"; // Adjust the import path as necessary
+import { findSelection } from "./utils";
 
 // Mock the console.warn to test warning outputs
 const originalConsoleWarn = console.warn;

@@ -9,8 +9,8 @@ import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/Select
 import { CodeInput } from "components/inputs/CodeInput/CodeInput";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { ResourceList } from "components/lists/ResourceList/ResourceList";
 import { TagList } from "components/lists/TagList/TagList";
-import { ResourceList } from "components/lists/resource";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { StatsCompact } from "components/text/StatsCompact/StatsCompact";

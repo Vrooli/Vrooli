@@ -1,15 +1,15 @@
-import { BookmarkList, Chat, ChatInvite, ChatParticipant, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, NavigableObject, Notification, OrArray, Project, ProjectVersion, QuestionForType, Reminder, ReminderList, Report, ReportResponse, Role, Routine, RoutineVersion, RunProject, RunRoutine, SearchType, Tag, Team, TimeFrame, TranslationKeyCommon, User } from "@local/shared";
+import { ApiVersionShape, BookmarkList, Chat, ChatInvite, ChatParticipant, CodeVersionShape, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, NavigableObject, NoteVersionShape, Notification, OrArray, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionShape, QuestionForType, Reminder, ReminderList, Report, ReportResponse, Resource, ResourceList, ResourceListFor, Role, Routine, RoutineVersion, RoutineVersionShape, RunProject, RunRoutine, SearchType, StandardVersionShape, Tag, Team, TeamShape, TimeFrame, TranslationKeyCommon, User } from "@local/shared";
 import { LineGraphProps } from "components/graphs/types";
 import { UsePressEvent } from "hooks/gestures";
 import { type UseObjectActionsReturn } from "hooks/objectActions";
 import { type UseFindManyResult } from "hooks/useFindMany";
 import { ReactNode } from "react";
+import { type DraggableProvidedDragHandleProps, type DraggableProvidedDraggableProps } from "react-beautiful-dnd";
 import { SvgComponent, SxType, ViewDisplayType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
 import { RelationshipButtonType } from "utils/consts";
 import { ObjectType } from "utils/navigation/openObject";
 import { ObjectListProps } from "./ObjectList/ObjectList";
-import { ApiVersionShape, CodeVersionShape, NoteVersionShape, ProjectVersionDirectory, ProjectVersionShape, RoutineVersionShape, StandardVersionShape, TeamShape } from "@local/shared";
 
 export interface ObjectActionsRowProps<T extends ListObject> {
     actionData: UseObjectActionsReturn;
@@ -275,3 +275,62 @@ export type DirectoryListHorizontalProps = DirectoryListProps & {
 }
 
 export type DirectoryListVerticalProps = DirectoryListHorizontalProps
+
+export interface ResourceCardProps {
+    data: Resource;
+    dragProps: DraggableProvidedDraggableProps;
+    dragHandleProps: DraggableProvidedDragHandleProps | null | undefined;
+    /** 
+     * Hides edit and delete icons when in edit mode, 
+     * making only drag'n'drop and the context menu available.
+     **/
+    isEditing: boolean;
+    onContextMenu: (target: EventTarget, data: Resource) => unknown;
+    onEdit: (data: Resource) => unknown;
+    onDelete: (data: Resource) => unknown;
+}
+
+export type ResourceListProps = {
+    title?: string;
+    canUpdate?: boolean;
+    handleUpdate?: (updatedList: ResourceList) => unknown;
+    horizontal?: boolean;
+    id?: string;
+    list: ResourceList | null | undefined;
+    loading?: boolean;
+    mutate?: boolean;
+    parent: { __typename: ResourceListFor | `${ResourceListFor}`, id: string };
+    sxs?: { list?: SxType };
+}
+
+export interface ResourceListItemProps {
+    canUpdate: boolean;
+    data: Resource;
+    handleContextMenu: (event: UsePressEvent, index: number) => unknown;
+    handleEdit: (index: number) => unknown;
+    handleDelete: (index: number) => unknown;
+    index: number;
+    loading: boolean;
+}
+
+export type ResourceListHorizontalProps = ResourceListProps & {
+    handleToggleSelect: (data: Resource) => unknown;
+    isEditing: boolean;
+    isSelecting: boolean;
+    onAction: (action: keyof ObjectListActions<Resource>, ...data: unknown[]) => unknown;
+    onClick: (data: Resource) => unknown;
+    onDelete: (data: Resource) => unknown;
+    openAddDialog: () => unknown;
+    openUpdateDialog: (data: Resource) => unknown;
+    selectedData: Resource[];
+}
+
+export type ResourceListVerticalProps = ResourceListHorizontalProps
+
+export interface ScheduleListProps {
+
+}
+
+export interface ScheduleListItemProps {
+
+}

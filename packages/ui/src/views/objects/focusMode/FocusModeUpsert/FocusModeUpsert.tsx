@@ -7,7 +7,7 @@ import { ListContainer } from "components/containers/ListContainer/ListContainer
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector";
 import { TextInput } from "components/inputs/TextInput/TextInput";
-import { ResourceListInput } from "components/lists/resource/ResourceList/ResourceList";
+import { ResourceListInput } from "components/lists/ResourceList/ResourceList";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts";

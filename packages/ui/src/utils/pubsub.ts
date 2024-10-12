@@ -1,6 +1,6 @@
-import { AITaskInfo, ActiveFocusMode, ChatPageTabOption, TranslationKeyCommon, TranslationKeyError, LlmTask, Session, TaskContextInfo } from "@local/shared";
+import { AITaskInfo, ActiveFocusMode, ChatPageTabOption, LlmTask, Session, TaskContextInfo, TranslationKeyCommon, TranslationKeyError } from "@local/shared";
 import { AlertDialogSeverity } from "components/dialogs/AlertDialog/AlertDialog";
-import { SnackSeverity } from "components/snacks";
+import { SnackSeverity } from "components/snacks/BasicSnack/BasicSnack";
 import { ThemeType } from "./localStorage";
 
 export type TranslatedSnackMessage<KeyList = TranslationKeyCommon | TranslationKeyError> = {

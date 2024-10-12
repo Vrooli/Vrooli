@@ -1,6 +1,7 @@
 import { ActiveFocusMode, endpointPostAuthValidateSession, endpointPutFocusModeActive, getActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
 import { Box, BoxProps, createTheme, CssBaseline, GlobalStyles, styled, StyledEngineProvider, Theme, ThemeProvider } from "@mui/material";
 import { fetchAIConfig } from "api/ai";
+import { hasErrorCode } from "api/errorParser";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { BannerChicken } from "components/BannerChicken/BannerChicken";
 import { Celebration } from "components/Celebration/Celebration";
@@ -13,7 +14,7 @@ import { BottomNav } from "components/navigation/BottomNav/BottomNav";
 import { CommandPalette } from "components/navigation/CommandPalette/CommandPalette";
 import { FindInPage } from "components/navigation/FindInPage/FindInPage";
 import { PullToRefresh } from "components/PullToRefresh/PullToRefresh";
-import { SnackStack } from "components/snacks";
+import { SnackStack } from "components/snacks/SnackStack/SnackStack";
 import { ActiveChatProvider, SessionContext, ZIndexProvider } from "contexts";
 import { useHotkeys } from "hooks/useHotkeys";
 import { useLazyFetch } from "hooks/useLazyFetch";
@@ -32,7 +33,6 @@ import { DEFAULT_THEME, themes } from "utils/display/theme";
 import { getCookie, getStorageItem, setCookie, ThemeType } from "utils/localStorage";
 import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID } from "utils/pubsub";
 import { CI_MODE } from "./i18n";
-import { hasErrorCode } from "api/errorParser";
 
 function getGlobalStyles(theme: Theme) {
     return {

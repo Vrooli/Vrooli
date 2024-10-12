@@ -6,7 +6,7 @@ import Earth from "assets/img/Earth.svg";
 import OrganizationalManagement from "assets/img/OrganizationalManagement.png";
 import { StarryBackground } from "components/StarryBackground/StarryBackground";
 import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SlideContainerNeon } from "components/slides";
+import { SlideContainerNeon } from "components/slides/SlideContainerNeon/SlideContainerNeon";
 import { useWindowSize } from "hooks/useWindowSize";
 import { ArticleIcon, GitHubIcon, PlayIcon, XIcon } from "icons";
 import { useEffect, useRef, useState } from "react";

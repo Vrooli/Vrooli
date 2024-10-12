@@ -36,8 +36,10 @@ export const reminderList_findOne = {
           "language": true,
           "description": true,
           "name": true
-        }
-      }
+        },
+        "__typename": "Resource"
+      },
+      "__typename": "ResourceList"
     },
     "schedule": {
       "id": true,
