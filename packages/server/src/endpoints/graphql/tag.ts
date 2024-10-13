@@ -1,8 +1,7 @@
 import { TagSortBy } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { EndpointsTag, TagEndpoints } from "../logic/tag";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum TagSortBy {
         EmbedDateCreatedAsc
         EmbedDateCreatedDesc

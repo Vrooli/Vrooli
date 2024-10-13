@@ -1,8 +1,7 @@
 import { TeamSortBy } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { EndpointsTeam, TeamEndpoints } from "../logic/team";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum TeamSortBy {
         DateCreatedAsc
         DateCreatedDesc

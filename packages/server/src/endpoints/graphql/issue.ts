@@ -1,10 +1,9 @@
 import { IssueFor, IssueSortBy, IssueStatus } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { UnionResolver } from "../../types";
 import { EndpointsIssue, IssueEndpoints } from "../logic/issue";
 import { resolveUnion } from "./resolvers";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum IssueSortBy {
         CommentsAsc
         CommentsDesc

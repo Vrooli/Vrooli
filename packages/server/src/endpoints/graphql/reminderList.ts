@@ -1,7 +1,6 @@
-import { gql } from "apollo-server-express";
 import { EndpointsReminderList, ReminderListEndpoints } from "../logic/reminderList";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     input ReminderListCreateInput {
         id: ID!
         focusModeConnect: ID

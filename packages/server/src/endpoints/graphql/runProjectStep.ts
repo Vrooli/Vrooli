@@ -1,7 +1,6 @@
 import { RunProjectStepStatus } from "@local/shared";
-import { gql } from "apollo-server-express";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum RunProjectStepStatus {
         InProgress
         Completed

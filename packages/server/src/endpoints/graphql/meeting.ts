@@ -1,8 +1,7 @@
 import { MeetingSortBy } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { EndpointsMeeting, MeetingEndpoints } from "../logic/meeting";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum MeetingSortBy {
         AttendeesAsc
         AttendeesDesc

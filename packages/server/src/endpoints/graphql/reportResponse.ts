@@ -1,8 +1,7 @@
 import { ReportResponseSortBy } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { EndpointsReportResponse, ReportResponseEndpoints } from "../logic/reportResponse";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum ReportResponseSortBy {
         DateCreatedAsc
         DateCreatedDesc

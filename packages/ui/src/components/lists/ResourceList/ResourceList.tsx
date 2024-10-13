@@ -93,6 +93,8 @@ export function ResourceListItem({
                 disablePadding
                 {...pressEvents}
                 onClick={(e) => { e.preventDefault(); }}
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-ignore
                 component="a"
                 href={href}
             >

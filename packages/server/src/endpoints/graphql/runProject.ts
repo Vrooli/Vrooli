@@ -1,8 +1,7 @@
 import { RunProjectSortBy, RunStatus } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { EndpointsRunProject, RunProjectEndpoints } from "../logic/runProject";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum RunProjectSortBy {
         ContextSwitchesAsc
         ContextSwitchesDesc

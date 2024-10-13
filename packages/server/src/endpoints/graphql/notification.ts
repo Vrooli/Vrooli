@@ -1,8 +1,7 @@
 import { NotificationSortBy } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { EndpointsNotification, NotificationEndpoints } from "../logic/notification";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum NotificationSortBy {
         DateCreatedAsc
         DateCreatedDesc

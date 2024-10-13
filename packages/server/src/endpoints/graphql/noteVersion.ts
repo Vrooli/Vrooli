@@ -1,8 +1,7 @@
 import { NoteVersionSortBy } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { EndpointsNoteVersion, NoteVersionEndpoints } from "../logic/noteVersion";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum NoteVersionSortBy {
         CommentsAsc
         CommentsDesc

@@ -675,7 +675,7 @@ export async function generateResponseWithFallback({
             return { attempts, cost: finalCost, message: responseMessage };
         } catch (error) {
             // If the error is due to unsafe content, immediately throw it without retrying
-            if (error instanceof CustomError && error.code === UNSAFE_CONTENT_CODE) {
+            if (error instanceof CustomError && error.code === "UnsafeContent") {
                 throw error;
             }
             const serviceState = LlmServiceRegistry.get().getServiceState(serviceId);

@@ -1,8 +1,7 @@
 import { ReportFor, ReportSortBy, ReportStatus } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { EndpointsReport, ReportEndpoints } from "../logic/report";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum ReportFor {
         ApiVersion
         ChatMessage

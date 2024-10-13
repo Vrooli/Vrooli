@@ -1,8 +1,7 @@
 import { ReputationHistorySortBy } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { EndpointsReputationHistory, ReputationHistoryEndpoints } from "../logic/reputationHistory";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum ReputationHistorySortBy {
         AmountAsc
         AmountDesc

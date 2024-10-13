@@ -1,4 +1,4 @@
-import { Box, Popover, Tooltip } from "@mui/material";
+import { Box, BoxProps, Popover, Tooltip, styled } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BaseEdgeProps, EdgePositions, Point } from "../types";
 
@@ -11,14 +11,14 @@ import { BaseEdgeProps, EdgePositions, Point } from "../types";
  * @param ep The end point of the curve
  * @returns The y position of the point
  */
-const getBezierPoint = (t: number, sp: Point, cp1: Point, cp2: Point, ep: Point): Point => {
+function getBezierPoint(t: number, sp: Point, cp1: Point, cp2: Point, ep: Point): Point {
     return {
         x: Math.pow(1 - t, 3) * sp.x + 3 * t * Math.pow(1 - t, 2) * cp1.x
             + 3 * t * t * (1 - t) * cp2.x + t * t * t * ep.x,
         y: Math.pow(1 - t, 3) * sp.y + 3 * t * Math.pow(1 - t, 2) * cp1.y
             + 3 * t * t * (1 - t) * cp2.y + t * t * t * ep.y,
     };
-};
+}
 
 /**
  * Creates a bezier curve between two points
@@ -26,7 +26,7 @@ const getBezierPoint = (t: number, sp: Point, cp1: Point, cp2: Point, ep: Point)
  * @param p2 The second point
  * @returns The bezier curve, as an array of {x, y} objects
  */
-const createBezier = (p1: Point, p2: Point): [Point, Point, Point, Point] => {
+function createBezier(p1: Point, p2: Point): [Point, Point, Point, Point] {
     const midX = (p1.x + p2.x) / 2;
     // Calculate two horizontal lines for midpoints
     const mid1 = {
@@ -38,7 +38,7 @@ const createBezier = (p1: Point, p2: Point): [Point, Point, Point, Point] => {
         y: p2.y,
     };
     return [p1, mid1, mid2, p2];
-};
+}
 
 /**
  * Calculates absolute position of one point of an edge.
@@ -48,7 +48,7 @@ const createBezier = (p1: Point, p2: Point): [Point, Point, Point, Point] => {
  * @param nodeId ID of the node that we are finding the position of
  * @returns x and y coordinates of the center point, as well as the start and end x
  */
-const getPoint = (containerId: string, nodeId: string): { x: number, y: number, startX: number, endX: number } | null => {
+function getPoint(containerId: string, nodeId: string): { x: number, y: number, startX: number, endX: number } | null {
     // Find graph and node
     const graph = document.getElementById(containerId);
     const node = document.getElementById(nodeId);
@@ -64,13 +64,59 @@ const getPoint = (containerId: string, nodeId: string): { x: number, y: number, 
         startX: graph.scrollLeft + nodeRect.left - graphRect.left,
         endX: graph.scrollLeft + nodeRect.left + nodeRect.width - graphRect.left,
     };
-};
+}
+
+const EdgePopover = styled(Popover)(({ theme }) => ({
+    "& .MuiPopover-paper": {
+        background: "transparent",
+        boxShadow: "none",
+        border: "none",
+        paddingBottom: theme.spacing(1),
+    },
+}));
+
+interface PopoverButtonProps extends BoxProps {
+    bezierPoint: Point;
+    diameter: number;
+    dims: EdgePositions;
+    isEditOpen: boolean;
+    thiccness: number;
+}
+const PopoverButton = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "bezierPoint" && prop !== "diameter" && prop !== "dims" && prop !== "isEditOpen" && prop !== "thiccness",
+})<PopoverButtonProps>(({ bezierPoint, diameter, dims, isEditOpen, thiccness }) => ({
+    position: "absolute",
+    top: dims.top + bezierPoint.y - (diameter / 2),
+    left: dims.left + bezierPoint.x - (diameter / 2),
+    height: `${diameter}px`,
+    width: `${diameter}px`,
+    borderRadius: "100%",
+    border: isEditOpen ? "2px solid #9e3984" : "none",
+    cursor: "pointer",
+    zIndex: 2,
+    background: isEditOpen ? "transparent" : "#9e3984",
+    "&:hover": {
+        height: `${thiccness}px`,
+        width: `${thiccness}px`,
+        top: dims.top + bezierPoint.y - (thiccness / 2),
+        left: dims.left + bezierPoint.x - (thiccness / 2),
+    },
+}));
+
+const edgePopoverAnchorOrigin = {
+    vertical: "top",
+    horizontal: "center",
+} as const;
+const edgePopoverTransformOrigin = {
+    vertical: "bottom",
+    horizontal: "center",
+} as const;
 
 /**
  * Displays a bezier line between any two UX components (probably have to be in the same DOM stack, but I never checked).
  * If in editing mode, displays a clickable button to edit the link or inserting a node
  */
-export const BaseEdge = ({
+export function BaseEdge({
     containerId,
     fromId,
     isEditing,
@@ -79,7 +125,7 @@ export const BaseEdge = ({
     thiccness,
     timeBetweenDraws,
     toId,
-}: BaseEdgeProps) => {
+}: BaseEdgeProps) {
 
     /**
      * Padding ensures that the line is doesn't get cut off
@@ -181,49 +227,25 @@ export const BaseEdge = ({
         return (
             <>
                 <Tooltip title={isEditOpen ? "" : "Edit edge or insert node"}>
-                    <Box onClick={toggleEdit} sx={{
-                        position: "absolute",
-                        top: dims.top + bezierPoint.y - (diameter / 2),
-                        left: dims.left + bezierPoint.x - (diameter / 2),
-                        height: `${diameter}px`,
-                        width: `${diameter}px`,
-                        borderRadius: "100%",
-                        border: isEditOpen ? "2px solid #9e3984" : "none",
-                        cursor: "pointer",
-                        zIndex: 2,
-                        background: isEditOpen ? "transparent" : "#9e3984",
-                        "&:hover": {
-                            height: `${thiccness}px`,
-                            width: `${thiccness}px`,
-                            top: dims.top + bezierPoint.y - (thiccness / 2),
-                            left: dims.left + bezierPoint.x - (thiccness / 2),
-                        },
-                    }} />
+                    <PopoverButton
+                        bezierPoint={bezierPoint}
+                        diameter={diameter}
+                        dims={dims}
+                        isEditOpen={isEditOpen}
+                        onClick={toggleEdit}
+                        thiccness={thiccness}
+                    />
                 </Tooltip >
-                <Popover
+                <EdgePopover
                     open={isEditOpen}
                     anchorEl={anchorEl}
                     onClose={closeEdit}
                     onClick={closeEdit}
-                    anchorOrigin={{
-                        vertical: "top",
-                        horizontal: "center",
-                    }}
-                    transformOrigin={{
-                        vertical: "bottom",
-                        horizontal: "center",
-                    }}
-                    sx={{
-                        "& .MuiPopover-paper": {
-                            background: "transparent",
-                            boxShadow: "none",
-                            border: "none",
-                            paddingBottom: 1,
-                        },
-                    }}
+                    anchorOrigin={edgePopoverAnchorOrigin}
+                    transformOrigin={edgePopoverTransformOrigin}
                 >
                     {popoverComponent}
-                </Popover>
+                </EdgePopover>
             </>
         );
     }, [anchorEl, dims, isEditOpen, isEditing, popoverComponent, popoverT, thiccness, toggleEdit]);
@@ -234,4 +256,4 @@ export const BaseEdge = ({
             {Boolean(popoverComponent) && popoverButton}
         </>
     );
-};
+}

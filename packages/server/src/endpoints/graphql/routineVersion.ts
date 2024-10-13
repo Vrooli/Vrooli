@@ -1,8 +1,7 @@
 import { RoutineType, RoutineVersionSortBy } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { EndpointsRoutineVersion, RoutineVersionEndpoints } from "../logic/routineVersion";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum RoutineType {
         Action
         Api

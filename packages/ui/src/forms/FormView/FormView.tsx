@@ -144,7 +144,6 @@ const dragIconStyle = { marginTop: "auto", marginBottom: "auto" } as const;
 interface ToolbarBoxProps extends BoxProps {
     formElementsCount: number;
 }
-
 const ToolbarBox = styled(Box, {
     shouldForwardProp: (prop) => prop !== "formElementsCount",
 })<ToolbarBoxProps>(({ formElementsCount, theme }) => ({

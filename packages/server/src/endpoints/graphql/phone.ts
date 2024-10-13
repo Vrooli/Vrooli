@@ -1,7 +1,6 @@
-import { gql } from "apollo-server-express";
 import { EndpointsPhone, PhoneEndpoints } from "../logic/phone";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     input PhoneCreateInput {
         id: ID!
         phoneNumber: String!

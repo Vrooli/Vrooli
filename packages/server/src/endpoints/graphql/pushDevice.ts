@@ -1,7 +1,6 @@
-import { gql } from "apollo-server-express";
 import { EndpointsPushDevice, PushDeviceEndpoints } from "../logic/pushDevice";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     input PushDeviceKeysInput {
         auth: String!   
         p256dh: String!

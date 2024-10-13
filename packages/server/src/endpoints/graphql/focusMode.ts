@@ -1,8 +1,7 @@
 import { FocusModeSortBy, FocusModeStopCondition } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { EndpointsFocusMode, FocusModeEndpoints } from "../logic/focusMode";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum FocusModeSortBy {
         NameAsc
         NameDesc

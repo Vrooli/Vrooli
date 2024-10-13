@@ -69,18 +69,32 @@ export async function handleEndpoint<TInput extends object | undefined, TResult 
         const data = await Promise.resolve(endpoint(undefined, (input ? { input } : undefined) as any, context({ req, res }), selection));
         res.json({ data, version });
     } catch (error: unknown) {
-        // Assume that error is from CustomError by default
-        const code = (error as CustomError).extensions?.code;
-        let message = (error as CustomError).message ?? (error as CustomError).name ?? "";
-        // If error is named ValidationError, it's from yup
-        if ((error as CustomError).name === "ValidationError") {
+        let code: string | undefined;
+        let message: string;
+
+        if (error instanceof CustomError) {
+            // Use the code and message directly from CustomError
+            code = error.code;
+            message = error.message;
+        } else if ((error as Error).name === "ValidationError") {
+            // Handle ValidationError from Yup
             const languages = getUser(req.session)?.languages ?? ["en"];
             const lng = languages.length > 0 ? languages[0] : "en";
-            message = i18next.t("error:ValidationFailed", { lng, defaultValue: "Validation failed." });
+            message = i18next.t("error:ValidationFailed", {
+                lng,
+                defaultValue: "Validation failed.",
+            });
+            code = "ValidationError";
+        } else {
+            // Handle unexpected errors
+            message = "An unexpected error occurred.";
+            code = "InternalServerError";
         }
-        // Handle other errors here if needed
-        // ...
-        res.status(HttpStatus.InternalServerError).json({ errors: [{ code, message }], version });
+
+        res.status(HttpStatus.InternalServerError).json({
+            errors: [{ code, message }],
+            version,
+        });
     }
 }
 

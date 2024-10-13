@@ -1,5 +1,4 @@
 import { makeExecutableSchema } from "@graphql-tools/schema";
-import { DocumentNode } from "graphql";
 import pkg from "lodash";
 import * as Api from "./api";
 import * as ApiKey from "./apiKey";
@@ -102,7 +101,7 @@ import * as Wallet from "./wallet";
 const { merge } = pkg;
 
 export type SchemaType = {
-    typeDef: DocumentNode;
+    typeDef: string;
     resolvers: { [key: string]: any };
 }
 

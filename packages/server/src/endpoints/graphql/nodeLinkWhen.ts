@@ -1,6 +1,5 @@
-import { gql } from "apollo-server-express";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     input NodeLinkWhenCreateInput {
         id: ID!
         linkConnect: ID!

@@ -1,8 +1,7 @@
 import { PostSortBy } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { EndpointsPost, PostEndpoints } from "../logic/post";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum PostSortBy {
         CommentsAsc
         CommentsDesc

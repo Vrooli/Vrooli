@@ -1,8 +1,7 @@
 import { ScheduleExceptionSortBy } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { EndpointsScheduleException, ScheduleExceptionEndpoints } from "../logic/scheduleException";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum ScheduleExceptionSortBy {
         OriginalStartTimeAsc
         OriginalStartTimeDesc

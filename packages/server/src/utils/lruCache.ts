@@ -10,8 +10,8 @@ export class LRUCache<KeyType, ValueType> {
     }
 
     get(key: KeyType): ValueType | undefined {
-        if (this.cache.has(key)) {
-            const value = this.cache.get(key)!;
+        const value = this.cache.get(key);
+        if (value !== undefined) {
             this.cache.delete(key); // Remove the key and then set it to renew its position (most recently used)
             this.cache.set(key, value);
             return value;

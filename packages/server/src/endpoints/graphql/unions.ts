@@ -1,10 +1,9 @@
 import { ProjectOrRoutineSortBy, ProjectOrTeamSortBy, RunProjectOrRunRoutineSortBy } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { UnionResolver } from "../../types";
 import { EndpointsUnions, UnionsEndpoints } from "../logic/unions";
 import { resolveUnion } from "./resolvers";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum ProjectOrRoutineSortBy {
         DateCompletedAsc
         DateCompletedDesc

@@ -1,8 +1,7 @@
 import { PaymentSortBy, PaymentStatus, PaymentType } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { EndpointsPayment, PaymentEndpoints } from "../logic/payment";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum PaymentSortBy {
         AmountAsc
         AmountDesc

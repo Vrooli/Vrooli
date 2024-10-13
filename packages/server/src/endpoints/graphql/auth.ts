@@ -1,10 +1,9 @@
 import pkg from "@prisma/client";
-import { gql } from "apollo-server-express";
 import { AuthEndpoints, EndpointsAuth } from "../logic/auth";
 
 const { AccountStatus } = pkg;
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum AccountStatus {
         Deleted
         Unlocked

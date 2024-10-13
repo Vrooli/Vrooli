@@ -1,8 +1,7 @@
 import { RunRoutineOutputSortBy } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { EndpointsRunRoutineOutput, RunRoutineOutputEndpoints } from "../logic/runRoutineOutput";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum RunRoutineOutputSortBy {
         DateCreatedAsc
         DateCreatedDesc

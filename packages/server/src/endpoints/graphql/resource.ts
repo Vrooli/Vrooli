@@ -1,8 +1,7 @@
 import { ResourceSortBy, ResourceUsedFor } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { EndpointsResource, ResourceEndpoints } from "../logic/resource";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum ResourceSortBy {
         DateCreatedAsc
         DateCreatedDesc

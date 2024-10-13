@@ -1,8 +1,9 @@
 import type { TranslationKeyError } from "@local/shared";
-import { ApolloError } from "apollo-server-express";
 import i18next from "i18next";
 import { randomString } from "../auth/codes";
 import { logger } from "./logger";
+
+const TRACE_LENGTH = 4;
 
 export type ErrorTrace = Record<string, any>;
 
@@ -16,10 +17,15 @@ export type ErrorTrace = Record<string, any>;
  * @returns `${locationCode}-${randomString}`, where the random string is 4 characters long.
  */
 function genTrace(locationCode: string): string {
-    return `${locationCode}-${randomString(4)}`;
+    return `${locationCode}-${randomString(TRACE_LENGTH)}`;
 }
 
-export class CustomError extends ApolloError {
+export class CustomError extends Error {
+    /** The translation key for the error message */
+    public code: TranslationKeyError;
+    /** The base trace (unique identifier) for the error */
+    public traceBase: string;
+
     constructor(traceBase: string, errorCode: TranslationKeyError, languages: string[], data?: ErrorTrace) {
         // Find message in user's language
         const lng = languages.length > 0 ? languages[0] : "en";
@@ -30,7 +36,9 @@ export class CustomError extends ApolloError {
         // Remove period from message if it exists
         const displayMessage = (message.endsWith(".") ? message.slice(0, -1) : message) + `: ${trace}`;
         // Format error
-        super(displayMessage, errorCode);
+        super(displayMessage);
+        this.code = errorCode;
+        this.traceBase = traceBase;
         Object.defineProperty(this, "name", { value: errorCode });
         // Log error, if trace is provided
         if (trace) {

@@ -5,7 +5,8 @@
         "rootDir": "./src",
         "outDir": "./dist",
         "lib": [
-            "ESNext"
+            "DOM",
+            "ESNext",
         ],
         "allowJs": true,
         "skipLibCheck": true,

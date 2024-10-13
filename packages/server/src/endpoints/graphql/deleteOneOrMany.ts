@@ -1,8 +1,7 @@
 import { DeleteType } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { DeleteOneOrManyEndpoints, EndpointsDeleteOneOrMany } from "../logic/deleteOneOrMany";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum DeleteType {
         Api
         ApiKey

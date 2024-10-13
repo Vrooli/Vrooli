@@ -1,6 +1,5 @@
-import { gql } from "apollo-server-express";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     input NodeLoopCreateInput {
         id: ID!
         loops: Int

@@ -1,11 +1,10 @@
 import { TransferObjectType, TransferSortBy } from "@local/shared";
 import { TransferStatus } from "@prisma/client";
-import { gql } from "apollo-server-express";
 import { UnionResolver } from "../../types";
 import { EndpointsTransfer, TransferEndpoints } from "../logic/transfer";
 import { resolveUnion } from "./resolvers";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum TransferSortBy {
         DateCreatedAsc
         DateCreatedDesc

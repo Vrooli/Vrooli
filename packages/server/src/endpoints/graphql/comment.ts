@@ -1,10 +1,9 @@
 import { CommentFor, CommentSortBy } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { UnionResolver } from "../../types";
 import { CommentEndpoints, EndpointsComment } from "../logic/comment";
 import { resolveUnion } from "./resolvers";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum CommentFor {
         ApiVersion
         CodeVersion

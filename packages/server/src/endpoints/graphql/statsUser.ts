@@ -1,7 +1,6 @@
-import { gql } from "apollo-server-express";
 import { EndpointsStatsUser, StatsUserEndpoints } from "../logic/statsUser";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum StatsUserSortBy {
         PeriodStartAsc
         PeriodStartDesc

@@ -1,7 +1,6 @@
-import { gql } from "apollo-server-express";
 import { EndpointsTranslate, TranslateEndpoints } from "../logic/translate";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     input TranslateInput {
         fields: String!
         languageSource: String!

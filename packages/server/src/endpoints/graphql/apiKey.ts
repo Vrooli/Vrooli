@@ -1,7 +1,6 @@
-import { gql } from "apollo-server-express";
 import { ApiKeyEndpoints, EndpointsApiKey } from "../logic/apiKey";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     input ApiKeyCreateInput {
         absoluteMax: Int!
         creditsUsedBeforeLimit: Int!

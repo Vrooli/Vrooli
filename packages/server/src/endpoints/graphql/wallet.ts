@@ -1,7 +1,6 @@
-import { gql } from "apollo-server-express";
 import { EndpointsWallet, WalletEndpoints } from "../logic/wallet";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
 
     input WalletUpdateInput {
         id: ID!

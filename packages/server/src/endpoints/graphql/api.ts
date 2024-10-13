@@ -1,8 +1,7 @@
 import { ApiSortBy } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { ApiEndpoints, EndpointsApi } from "../logic/api";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum ApiSortBy {
         DateCreatedAsc
         DateCreatedDesc

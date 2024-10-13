@@ -1,8 +1,7 @@
 import { NoteSortBy } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { EndpointsNote, NoteEndpoints } from "../logic/note";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum NoteSortBy {
         DateCreatedAsc
         DateCreatedDesc

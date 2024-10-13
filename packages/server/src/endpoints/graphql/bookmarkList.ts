@@ -1,8 +1,7 @@
 import { BookmarkListSortBy } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { BookmarkListEndpoints, EndpointsBookmarkList } from "../logic/bookmarkList";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum BookmarkListSortBy {
         DateUpdatedAsc
         DateUpdatedDesc

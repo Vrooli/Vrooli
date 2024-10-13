@@ -1,5 +1,7 @@
+import { ApolloServer } from "@apollo/server";
+import { expressMiddleware } from "@apollo/server/express4";
+import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHttpServer";
 import { HttpStatus, i18nConfig } from "@local/shared";
-import { ApolloServer } from "apollo-server-express";
 import cookie from "cookie";
 import cors from "cors";
 import express from "express";
@@ -148,21 +150,22 @@ async function main() {
     // GraphQL server for latest API version, if needed. We use GraphQL to generate 
     // types, so this needs to run at least in development.
     if (debug) {
-        const apollo_options_latest = new ApolloServer({
+        const apolloServerLatest = new ApolloServer({
             cache: "bounded",
             introspection: debug,
             schema,
-            context: (c) => context(c), // Allows request and response to be included in the context
+            plugins: [ApolloServerPluginDrainHttpServer({ httpServer: server })],
             validationRules: [depthLimit(QUERY_DEPTH_LIMIT)], // Prevents DoS attack from arbitrarily-nested query
         });
         // Start server
-        await apollo_options_latest.start();
+        await apolloServerLatest.start();
         // Configure server with ExpressJS settings and path
-        apollo_options_latest.applyMiddleware({
-            app,
-            path: "/api/v2/graphql",
-            cors: false,
-        });
+        app.use(
+            "/api/v2/graphql",
+            expressMiddleware(apolloServerLatest, {
+                context: async ({ req, res }) => context({ req, res }), // Pass req and res to your context function
+            }),
+        );
     }
 
     // Set up websocket server

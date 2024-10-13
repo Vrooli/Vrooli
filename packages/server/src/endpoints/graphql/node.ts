@@ -1,10 +1,9 @@
 import pkg from "@prisma/client";
-import { gql } from "apollo-server-express";
 import { EndpointsNode, NodeEndpoints } from "../logic/node";
 
 const { NodeType } = pkg;
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum NodeType {
         End
         Redirect

@@ -1,8 +1,7 @@
 import { MemberInviteSortBy, MemberInviteStatus } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { EndpointsMemberInvite, MemberInviteEndpoints } from "../logic/memberInvite";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum MemberInviteSortBy {
         DateCreatedAsc
         DateCreatedDesc

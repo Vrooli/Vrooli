@@ -1,8 +1,7 @@
 import { LabelSortBy } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { EndpointsLabel, LabelEndpoints } from "../logic/label";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum LabelSortBy {
         DateCreatedAsc
         DateCreatedDesc

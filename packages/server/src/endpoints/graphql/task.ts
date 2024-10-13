@@ -1,8 +1,7 @@
 import { LlmTask, RunTask, SandboxTask, TaskStatus, TaskType } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { EndpointsTask, TaskEndpoints } from "../logic/task";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum LlmTask {
         ApiAdd
         ApiDelete

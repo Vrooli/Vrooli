@@ -2,10 +2,13 @@ import { Moment } from "moment-timezone";
 import { type Schedule, type ScheduleRecurrence } from "../api/generated/graphqlTypes";
 import { HOURS_1_MS, MINUTES_1_MS, YEARS_1_MS } from "../consts/numbers";
 
+const DAYS_IN_WEEK = 7;
+const OCCURRENCE_LOOP_LIMIT = 5000;
+
 // Native Date objects don't handle time zones well, so we use moment-timezone instead.
 // This must be loaded asynchronously so the UI can code-split it.
 let moment;
-const ensureMomentTimezone = async () => {
+async function ensureMomentTimezone() {
     if (!moment) {
         if (typeof window !== "undefined") {
             // Client-side: Use dynamic import
@@ -15,7 +18,7 @@ const ensureMomentTimezone = async () => {
             moment = require("moment-timezone");
         }
     }
-};
+}
 
 /**
  * Ensure that the given time frame does not exceed a year.
@@ -24,7 +27,7 @@ const ensureMomentTimezone = async () => {
  * @param timeframeEnd - The end of the time frame as a Date, in UTC.
  * @returns boolean - Returns true if the timeframe is valid (not longer than a year) and false otherwise.
  */
-export const validateTimeFrame = (timeframeStart: Date, timeframeEnd: Date): boolean => {
+export function validateTimeFrame(timeframeStart: Date, timeframeEnd: Date): boolean {
     if (timeframeStart.getTime() > timeframeEnd.getTime()) {
         console.error("Start date is after end date", { trace: "0232", timeframeStart, timeframeEnd });
         return false;
@@ -35,7 +38,7 @@ export const validateTimeFrame = (timeframeStart: Date, timeframeEnd: Date): boo
         return false;
     }
     return true;
-};
+}
 
 /**
  * Calculate the next occurrence for a daily recurrence.
@@ -45,7 +48,7 @@ export const validateTimeFrame = (timeframeStart: Date, timeframeEnd: Date): boo
  * @param timeZone - The time zone identifier (e.g., 'America/New_York').
  * @returns The next start time for the daily recurrence.
  */
-export const calculateNextDailyOccurrence = async (currentStartTime: Date, recurrence: ScheduleRecurrence, timeZone = "UTC"): Promise<Date> => {
+export async function calculateNextDailyOccurrence(currentStartTime: Date, recurrence: ScheduleRecurrence, timeZone = "UTC"): Promise<Date> {
     await ensureMomentTimezone();
 
     // Keep the current start time in UTC.
@@ -56,7 +59,7 @@ export const calculateNextDailyOccurrence = async (currentStartTime: Date, recur
 
     // Convert the result to the desired time zone and return.
     return currentMoment.tz(timeZone).toDate();
-};
+}
 
 /**
  * Calculate the next occurrence for a weekly recurrence.
@@ -66,7 +69,7 @@ export const calculateNextDailyOccurrence = async (currentStartTime: Date, recur
  * @param timeZone - The time zone identifier (e.g., 'America/New_York').
  * @returns The start time of the next weekly occurrence.
  */
-export const calculateNextWeeklyOccurrence = async (currentStartTime: Date, recurrence: ScheduleRecurrence, timeZone = "UTC"): Promise<Date> => {
+export async function calculateNextWeeklyOccurrence(currentStartTime: Date, recurrence: ScheduleRecurrence, timeZone = "UTC"): Promise<Date> {
     await ensureMomentTimezone();
 
     // Keep the current start time in UTC.
@@ -76,7 +79,7 @@ export const calculateNextWeeklyOccurrence = async (currentStartTime: Date, recu
     if (recurrence.dayOfWeek !== undefined && recurrence.dayOfWeek !== null) {
         const dayOfWeek = recurrence.dayOfWeek;
         // Calculate the difference in days to the next occurrence.
-        const diffDays = (dayOfWeek - currentMoment.day() + 7) % 7 || recurrence.interval * 7;
+        const diffDays = (dayOfWeek - currentMoment.day() + DAYS_IN_WEEK) % DAYS_IN_WEEK || recurrence.interval * DAYS_IN_WEEK;
         currentMoment.add(diffDays, "days");
     } else {
         // If dayOfWeek is not set, then the recurrence happens every week on the same day as currentStartTime.
@@ -85,7 +88,7 @@ export const calculateNextWeeklyOccurrence = async (currentStartTime: Date, recu
 
     // Convert the result to the desired time zone and return.
     return currentMoment.tz(timeZone).toDate();
-};
+}
 
 /**
  * Calculate the next occurrence for a monthly recurrence.
@@ -95,7 +98,7 @@ export const calculateNextWeeklyOccurrence = async (currentStartTime: Date, recu
  * @param timeZone - The time zone identifier (e.g., 'America/New_York').
  * @returns The start time of the next monthly occurrence.
  */
-export const calculateNextMonthlyOccurrence = async (currentStartTime: Date, recurrence: ScheduleRecurrence, timeZone = "UTC"): Promise<Date> => {
+export async function calculateNextMonthlyOccurrence(currentStartTime: Date, recurrence: ScheduleRecurrence, timeZone = "UTC"): Promise<Date> {
     await ensureMomentTimezone();
 
     // Convert the current start time to the desired time zone.
@@ -117,7 +120,7 @@ export const calculateNextMonthlyOccurrence = async (currentStartTime: Date, rec
 
     // Convert the result to the desired time zone and return.
     return nextOccurrence.tz(timeZone).toDate();
-};
+}
 
 /**
  * Calculate the next occurrence for a yearly recurrence.
@@ -127,7 +130,7 @@ export const calculateNextMonthlyOccurrence = async (currentStartTime: Date, rec
  * @param timeZone - The time zone identifier (e.g., 'America/New_York').
  * @returns The start time of the next yearly occurrence.
  */
-export const calculateNextYearlyOccurrence = async (currentStartTime: Date, recurrence: ScheduleRecurrence, timeZone = "UTC"): Promise<Date> => {
+export async function calculateNextYearlyOccurrence(currentStartTime: Date, recurrence: ScheduleRecurrence, timeZone = "UTC"): Promise<Date> {
     await ensureMomentTimezone();
 
     // Keep the current start time in UTC.
@@ -164,7 +167,7 @@ export const calculateNextYearlyOccurrence = async (currentStartTime: Date, recu
 
     // Convert the result to the desired time zone and return.
     return nextOccurrence.tz(timeZone).toDate();
-};
+}
 
 /**
  * Jumps to the first occurrence of the event that is on or after the specified timeframe start,
@@ -176,12 +179,12 @@ export const calculateNextYearlyOccurrence = async (currentStartTime: Date, recu
  * @param timeZone - The time zone identifier (e.g., 'Europe/London').
  * @returns The Date object for the first occurrence on or after the timeframe start.
  */
-export const jumpToFirstRelevantDailyOccurrence = async (
+export async function jumpToFirstRelevantDailyOccurrence(
     scheduleStart: Date,
     recurrence: ScheduleRecurrence,
     timeframeStart: Date,
     timeZone = "UTC",
-): Promise<Date> => {
+): Promise<Date> {
     await ensureMomentTimezone();
 
     const relevantStart = moment.utc(scheduleStart);
@@ -209,7 +212,7 @@ export const jumpToFirstRelevantDailyOccurrence = async (
 
     // Convert the result to the desired time zone and return.
     return relevantStart.tz(timeZone).toDate();
-};
+}
 
 /**
  * Jumps to the first occurrence of the event that is on or after the specified timeframe start.
@@ -220,12 +223,12 @@ export const jumpToFirstRelevantDailyOccurrence = async (
  * @param timeZone - The time zone identifier (e.g., 'Europe/London').
  * @returns The Date object for the first occurrence on or after the timeframe start.
  */
-export const jumpToFirstRelevantWeeklyOccurrence = async (
+export async function jumpToFirstRelevantWeeklyOccurrence(
     scheduleStart: Date,
     recurrence: ScheduleRecurrence,
     timeframeStart: Date,
     timeZone = "UTC",
-): Promise<Date> => {
+): Promise<Date> {
     await ensureMomentTimezone();
 
     const relevantStart = moment.utc(scheduleStart);
@@ -245,23 +248,23 @@ export const jumpToFirstRelevantWeeklyOccurrence = async (
     const intervalsPassed = weeksBetween === 0 ? 0 : Math.floor(weeksBetween / recurrence.interval);
 
     // Jump ahead by the number of intervals that have passed
-    relevantStart.add(intervalsPassed * recurrence.interval * 7, "days");
+    relevantStart.add(intervalsPassed * recurrence.interval * DAYS_IN_WEEK, "days");
 
     // Adjust to the next relevant dayOfWeek
-    let daysToAdd = ((7 - relevantStart.day() + targetDayOfWeek) % 7);
+    let daysToAdd = ((DAYS_IN_WEEK - relevantStart.day() + targetDayOfWeek) % DAYS_IN_WEEK);
     if (daysToAdd === 0 && relevantStart.isBefore(timeframeStartMoment)) {
-        daysToAdd = 7;
+        daysToAdd = DAYS_IN_WEEK;
     }
     relevantStart.add(daysToAdd, "days");
 
     // Now find the first occurrence on or after the timeframeStart
     while (relevantStart.isBefore(timeframeStartMoment)) {
-        relevantStart.add(recurrence.interval * 7, "days");
+        relevantStart.add(recurrence.interval * DAYS_IN_WEEK, "days");
     }
 
     // Convert the result to the desired time zone and return.
     return relevantStart.tz(timeZone).toDate();
-};
+}
 
 /**
  * Jumps to the first occurrence of the event that is on or after the specified timeframe start,
@@ -273,12 +276,12 @@ export const jumpToFirstRelevantWeeklyOccurrence = async (
  * @param timeZone - The time zone identifier (e.g., 'Europe/London').
  * @returns The Date object for the first occurrence on or after the timeframe start.
  */
-export const jumpToFirstRelevantMonthlyOccurrence = async (
+export async function jumpToFirstRelevantMonthlyOccurrence(
     scheduleStart: Date,
     recurrence: ScheduleRecurrence,
     timeframeStart: Date,
     timeZone = "UTC",
-): Promise<Date> => {
+): Promise<Date> {
     await ensureMomentTimezone();
 
     const relevantStart = moment.utc(scheduleStart);
@@ -312,7 +315,7 @@ export const jumpToFirstRelevantMonthlyOccurrence = async (
 
     // Convert the result to the desired time zone and return.
     return nextOccurrence.tz(timeZone).toDate();
-};
+}
 
 /**
  * Jumps to the first occurrence of the event that is on or after the specified timeframe start,
@@ -324,12 +327,12 @@ export const jumpToFirstRelevantMonthlyOccurrence = async (
  * @param timeZone - The time zone identifier (e.g., 'Europe/London').
  * @returns The Date object for the first occurrence on or after the timeframe start.
  */
-export const jumpToFirstRelevantYearlyOccurrence = async (
+export async function jumpToFirstRelevantYearlyOccurrence(
     scheduleStart: Date,
     recurrence: ScheduleRecurrence,
     timeframeStart: Date,
     timeZone = "UTC",
-): Promise<Date> => {
+): Promise<Date> {
     await ensureMomentTimezone();
 
     // Use UTC for calculations
@@ -382,7 +385,7 @@ export const jumpToFirstRelevantYearlyOccurrence = async (
 
     // Convert the result to the desired time zone without changing the actual time and return
     return nextOccurrence.tz(timeZone, true).toDate();
-};
+}
 
 
 /**
@@ -407,12 +410,12 @@ export const jumpToFirstRelevantYearlyOccurrence = async (
  *    - `null` if the occurrence is cancelled,
  *    - `undefined` if no exceptions apply to the current occurrence.
  */
-export const applyExceptions = (
+export function applyExceptions(
     currentStartTime: Date,
     schedule: Schedule,
     duration: number,
     timeZone: string,
-): { start: Date; end: Date } | null | undefined => {
+): { start: Date; end: Date } | null | undefined {
     // Iterate through the list of exceptions in the schedule
     for (const exception of schedule.exceptions) {
         const exceptionOriginalStartTime = new Date(exception.originalStartTime.toLocaleString("en-US", { timeZone }));
@@ -433,9 +436,9 @@ export const applyExceptions = (
         }
     }
     return undefined; // No exceptions apply, return undefined
-};
+}
 
-const calculateNextOccurrence = async (currentStartTime: Date, recurrence: ScheduleRecurrence, timeZone?: string): Promise<Date> => {
+async function calculateNextOccurrence(currentStartTime: Date, recurrence: ScheduleRecurrence, timeZone?: string): Promise<Date> {
     switch (recurrence.recurrenceType) {
         case "Daily":
             return await calculateNextDailyOccurrence(currentStartTime, recurrence, timeZone);
@@ -448,7 +451,7 @@ const calculateNextOccurrence = async (currentStartTime: Date, recurrence: Sched
         default:
             throw new Error("Invalid recurrence type");
     }
-};
+}
 
 /**
  * Calculate occurrences of a scheduled event within a given time frame. 
@@ -461,11 +464,11 @@ const calculateNextOccurrence = async (currentStartTime: Date, recurrence: Sched
  * @param timeframeEnd - The end of the time frame as a Date, in UTC.
  * @returns An array of objects representing the occurrences of the scheduled event.
  */
-export const calculateOccurrences = async (
+export async function calculateOccurrences(
     schedule: Schedule,
     timeframeStart: Date,
     timeframeEnd: Date,
-): Promise<Array<{ start: Date; end: Date }>> => {
+): Promise<Array<{ start: Date; end: Date }>> {
     const occurrences: Array<{ start: Date; end: Date }> = [];
     // Make sure that the time frame is no longer than a year, so that we don't overload the server
     if (!validateTimeFrame(timeframeStart, timeframeEnd)) {
@@ -494,7 +497,7 @@ export const calculateOccurrences = async (
         }
 
         // While the current start time is before the end of the time frame (and also while we haven't maxed out the loop)
-        while (currentStartTime <= timeframeEnd && occurrences.length < 5000) {
+        while (currentStartTime <= timeframeEnd && occurrences.length < OCCURRENCE_LOOP_LIMIT) {
             const currentEndTime = new Date(currentStartTime.getTime() + duration);
 
             // Check if the currentStartTime is after the recurrence endDate, if so break the loop before adding to occurrences
@@ -534,4 +537,4 @@ export const calculateOccurrences = async (
     }
     // Return occurrences
     return occurrences;
-};
+}

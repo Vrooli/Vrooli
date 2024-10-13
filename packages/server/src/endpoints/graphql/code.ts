@@ -1,8 +1,7 @@
 import { CodeSortBy } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { CodeEndpoints, EndpointsCode } from "../logic/code";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum CodeSortBy {
         DateCompletedAsc
         DateCompletedDesc

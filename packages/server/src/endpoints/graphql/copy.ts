@@ -1,8 +1,7 @@
 import { CopyType } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { CopyEndpoints, EndpointsCopy } from "../logic/copy";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum CopyType {
         ApiVersion
         CodeVersion

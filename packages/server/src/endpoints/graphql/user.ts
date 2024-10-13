@@ -1,8 +1,7 @@
 import { UserSortBy } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { EndpointsUser, UserEndpoints } from "../logic/user";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum UserSortBy {
         DateCreatedAsc
         DateCreatedDesc

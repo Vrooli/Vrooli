@@ -1,8 +1,7 @@
 import { QuizQuestionResponseSortBy } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { EndpointsQuizQuestionResponse, QuizQuestionResponseEndpoints } from "../logic/quizQuestionResponse";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum QuizQuestionResponseSortBy {
         DateCreatedAsc
         DateCreatedDesc

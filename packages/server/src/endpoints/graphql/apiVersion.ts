@@ -1,8 +1,7 @@
 import { ApiVersionSortBy } from "@local/shared";
-import { gql } from "apollo-server-express";
 import { ApiVersionEndpoints, EndpointsApiVersion } from "../logic/apiVersion";
 
-export const typeDef = gql`
+export const typeDef = `#graphql
     enum ApiVersionSortBy {
         CalledByRoutinesAsc
         CalledByRoutinesDesc
