@@ -13,8 +13,9 @@ ENV_FILES_SET_UP=""
 USE_KUBERNETES=false
 
 # Read arguments
-for arg in "$@"; do
-    case $arg in
+while [[ $# -gt 0 ]]; do
+    key="$1"
+    case $key in
     -h | --help)
         echo "Usage: $0 [-h HELP] [-e ENV_SETUP] [-k KUBERNETES] [-m MODULES_REINSTALL] [-p PROD] [-r REMOTE]"
         echo "  -h --help: Show this help message"
@@ -26,27 +27,44 @@ for arg in "$@"; do
         exit 0
         ;;
     -e | --env-setup)
+        if [ -z "$2" ] || [[ "$2" == -* ]]; then
+            echo "Error: Option $key requires an argument."
+            exit 1
+        fi
         ENV_FILES_SET_UP="${2}"
-        shift
-        shift
+        shift # past argument
+        shift # past value
         ;;
     -k | --kubernetes)
         USE_KUBERNETES=true
-        shift
+        shift # past argument
         ;;
     -m | --modules-reinstall)
+        if [ -z "$2" ] || [[ "$2" == -* ]]; then
+            echo "Error: Option $key requires an argument."
+            exit 1
+        fi
         REINSTALL_MODULES="${2}"
-        shift
-        shift
+        shift # past argument
+        shift # past value
         ;;
     -p | --prod)
         ENVIRONMENT="production"
-        shift
+        shift # past argument
         ;;
     -r | --remote)
+        if [ -z "$2" ] || [[ "$2" == -* ]]; then
+            echo "Error: Option $key requires an argument."
+            exit 1
+        fi
         ON_REMOTE="${2}"
-        shift
-        shift
+        shift # past argument
+        shift # past value
+        ;;
+    *)
+        # Unknown option
+        echo "Unknown option: $1"
+        shift # past argument
         ;;
     esac
 done

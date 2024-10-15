@@ -17,8 +17,9 @@ USE_KUBERNETES=false
 SHUTDOWN_VAULT=false
 
 # Read arguments
-for arg in "$@"; do
-    case $arg in
+while [[ $# -gt 0 ]]; do
+    key="$1"
+    case $key in
     -h | --help)
         echo "Usage: $0 [-h HELP] [-e ENV_SETUP] [-k KUBERNETES] [-m MODULES_REINSTALL] [-p PROD] [-r REMOTE] [-x SHUTDOWN]"
         echo "  -h --help: Show this help message"
@@ -29,15 +30,15 @@ for arg in "$@"; do
         ;;
     -k | --kubernetes)
         USE_KUBERNETES=true
-        shift
+        shift # past argument
         ;;
     -p | --prod)
         ENVIRONMENT="prod"
-        shift
+        shift # past argument
         ;;
     -x | --shutdown)
         SHUTDOWN_VAULT=true
-        shift
+        shift # past argument
         ;;
     esac
 done

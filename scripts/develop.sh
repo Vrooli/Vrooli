@@ -12,24 +12,25 @@ USE_KUBERNETES=false
 # Read arguments
 SETUP_ARGS=()
 PROD_FLAG_FOUND=false
-for arg in "$@"; do
-    case $arg in
+while [[ $# -gt 0 ]]; do
+    key="$1"
+    case $key in
     -b | --build)
         BUILD="--build"
-        shift
+        shift # past argument
         ;;
     -f | --force-recreate)
         FORCE_RECREATE="--force-recreate"
-        shift
+        shift # past argument
         ;;
     -k | --kubernetes)
         USE_KUBERNETES=true
-        shift
+        shift # past argument
         ;;
     -p | --prod)
         PROD_FLAG_FOUND=true
         SETUP_ARGS+=("$1")
-        shift
+        shift # past argument
         ;;
     -h | --help)
         echo "Usage: $0 [-b BUILD] [-f FORCE_RECREATE] [-h]"
@@ -41,8 +42,8 @@ for arg in "$@"; do
         exit 0
         ;;
     *)
-        SETUP_ARGS+=("${arg}")
-        shift
+        SETUP_ARGS+=("$key")
+        shift # past argument
         ;;
     esac
 done

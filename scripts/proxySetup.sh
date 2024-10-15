@@ -6,12 +6,17 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Read arguments
 SETUP_ARGS=()
-for arg in "$@"; do
-    case $arg in
+while [[ $# -gt 0 ]]; do
+    key="$1"
+    case $key in
     -n | --nginx-location)
+        if [ -z "$2" ] || [[ "$2" == -* ]]; then
+            echo "Error: Option $key requires an argument."
+            exit 1
+        fi
         NGINX_LOCATION="${2}"
-        shift
-        shift
+        shift # past argument
+        shift # past value
         ;;
     -h | --help)
         echo "Usage: $0 [-n NGINX_LOCATION] [-h]"
@@ -20,8 +25,8 @@ for arg in "$@"; do
         exit 0
         ;;
     *)
-        SETUP_ARGS+=("${arg}")
-        shift
+        SETUP_ARGS+=("$key")
+        shift # past argument
         ;;
     esac
 done
