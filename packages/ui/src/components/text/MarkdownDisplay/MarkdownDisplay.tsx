@@ -6,7 +6,7 @@ import { usePress, UsePressEvent } from "hooks/gestures";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { CopyIcon } from "icons";
 import Markdown from "markdown-to-jsx";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SxType } from "types";
 import { getDisplay } from "utils/display/listTools";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
@@ -261,18 +261,30 @@ const languageImportMap = {
     zephir: () => import("highlight.js/lib/languages/zephir"),
 } as const;
 
+// Lazy-load the TeX component and CSS when needed
+const TeXComponent = lazy(async () => {
+    await import("katex/dist/katex.min.css");
+    const module = await import("@matejmazur/react-katex");
+    return { default: module.default };
+});
+
 /** Pretty code block with copy button */
 function CodeBlock({ children, className }) {
     const textRef = useRef<HTMLElement | null>(null);
     const [isHighlighted, setIsHighlighted] = useState(false);
 
     // Extract language from className
-    const language = className ? className.replace("language-", "") : "";
+    const language = className ? className.replace("language-", "").replace("lang-", "") : "";
 
     // Ensure children is a string
     const codeString = String(children).trim();
 
-    useEffect(() => {
+    // Check if the language is LaTeX
+    const isLatex = language === "latex" || language === "tex";
+
+    useEffect(function loadAndApplyHighlighting() {
+        if (isLatex) return; // Skip Highlight.js logic for LaTeX
+
         let isMounted = true;
 
         async function loadLanguage(lang: string) {
@@ -326,7 +338,7 @@ function CodeBlock({ children, className }) {
             if (!isReadyToLoad) return;
 
             // Determine the language to use
-            let lang = language.replace("language-", "").replace("lang-", "");
+            let lang = language;
             lang = aliasMap[lang] ?? lang;
             if (languageImportMap[lang]) {
                 await loadLanguage(lang);
@@ -343,14 +355,16 @@ function CodeBlock({ children, className }) {
         return () => {
             isMounted = false;
         };
-    }, [codeString, language]);
+    }, [codeString, isLatex, language]);
 
     function copyCode() {
-        if (textRef && textRef.current) {
+        if (isLatex) {
+            navigator.clipboard.writeText(codeString);
+        } else if (textRef && textRef.current) {
             // Copy the text content of the code block
             navigator.clipboard.writeText(textRef.current.textContent ?? "");
-            PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
         }
+        PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
     }
 
     return (
@@ -360,15 +374,24 @@ function CodeBlock({ children, className }) {
             >
                 <CopyIcon fill="white" />
             </CopyButton>
-            <pre>
-                <code
-                    ref={textRef}
-                    className={className}
-                    style={{ paddingRight: "40px", opacity: isHighlighted ? 1 : 0 }}
-                >
-                    {codeString}
-                </code>
-            </pre>
+            {isLatex && (
+                <Suspense fallback={<div>Loading...</div>}>
+                    <div>
+                        <TeXComponent block>{codeString}</TeXComponent>
+                    </div>
+                </Suspense>
+            )}
+            {!isLatex && (
+                <pre>
+                    <code
+                        ref={textRef}
+                        className={className}
+                        style={{ paddingRight: "40px", opacity: isHighlighted ? 1 : 0 }}
+                    >
+                        {codeString}
+                    </code>
+                </pre>
+            )}
         </CodeBlockOuter>
     );
 }
