@@ -1,5 +1,5 @@
 import { LINKS } from "@local/shared";
-import { useTheme } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { SessionContext } from "contexts";
 import { useWindowSize } from "hooks/useWindowSize";
 import { useContext, useEffect, useMemo } from "react";

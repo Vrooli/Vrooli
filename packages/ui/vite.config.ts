@@ -54,13 +54,15 @@ export default defineConfig((props) => {
         build: {
             chunkSizeWarningLimit: 1000,
             // Enable source maps for debugging. Can be disabled in production, but it only saves a few seconds
-            sourcemap: false,
+            sourcemap: true,
             rollupOptions: {
                 output: {
                     // Anything which doesn't need to be in the main bundle can be defined here as a separate chunk. 
                     // This should be done only if you've tried everything else to reduce the bundle size.
                     // Also, this doesn't guarantee that the chunk will be moved to its own bundle. But it's worth a try.
                     manualChunks: {
+                        // Packages used in virtually every file
+                        'vendor': ['react', 'react-dom', '@mui/material', 'formik', 'icons/common', 'i18next', 'yup'],
                         // Bundle for ad banners (if an ad-blocker decides to block this, 
                         // it won't affect the rest of the site).
                         // To help prevent blocking, it's named something random.
@@ -91,6 +93,8 @@ export default defineConfig((props) => {
                         'codemirror-state': ['@codemirror/state'],
                         'codemirror-theme-one-dark': ['@codemirror/theme-one-dark'],
                         'codemirror-view': ['@codemirror/view'],
+                        // Latex bundles
+                        'latex': ['katex', '@matejmazur/react-katex'],
                     },
                 },
             },
