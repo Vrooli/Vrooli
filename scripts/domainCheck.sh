@@ -40,7 +40,7 @@ if [[ "$current_ip" == "$SITE_IP" ]]; then
         error "SITE_IP must be valid when running this script on a test/production server"
         exit 1
     fi
-    echo "dns"
+    echo "remote"
 else
     echo "local"
 fi

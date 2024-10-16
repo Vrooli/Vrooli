@@ -126,7 +126,7 @@ else
 
     docker-compose down
 
-    # If server is not local, set up reverse proxy
+    # Determine where this script is running (local or remote)
     if [[ "$SERVER_LOCATION" != "local" ]]; then
         . "${HERE}/proxySetup.sh" -n "${NGINX_LOCATION}"
     fi

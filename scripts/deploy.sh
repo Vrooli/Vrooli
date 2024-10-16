@@ -169,7 +169,7 @@ export REDIS_URL="redis://:${REDIS_PASSWORD}@redis:${PORT_REDIS:-6379}"
 # This is not the case for the other secrets.
 export JWT_PRIV
 export JWT_PUB
-# Determine how CORS should be set up
+# Determine where this script is running (local or remote)
 export SERVER_LOCATION=$("${HERE}/domainCheck.sh" $SITE_IP $SERVER_URL | tail -n 1)
 if [ $? -ne 0 ]; then
     echo $SERVER_LOCATION

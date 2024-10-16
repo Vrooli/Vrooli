@@ -114,13 +114,23 @@ fi
 header "Setting script permissions"
 chmod +x "${HERE}/"*.sh
 
-# If this script is being run on a remote server
-if [ -z "${ON_REMOTE}" ]; then
-    prompt "Is this script being run on a remote server? (Y/n)"
-    read -n1 -r ON_REMOTE
-    echo
+# Set env file based on the environment
+env_file="${HERE}/../.env"
+if [ "$ENVIRONMENT" == "prod" ]; then
+    env_file="${HERE}/../.env-prod"
 fi
-if [[ "$ON_REMOTE" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+# Check if env file exists
+if [ ! -f "$env_file" ]; then
+    error "Environment file $env_file does not exist."
+    exit 1
+fi
+# Source the env file
+. "$env_file"
+
+# Determine where this script is running (local or remote)
+export SERVER_LOCATION=$("${HERE}/domainCheck.sh" $SITE_IP $SERVER_URL | tail -n 1)
+
+if [[ "$SERVER_LOCATION" != "local" ]]; then
     # enable PasswordAuthentication for ssh
     header "Enabling PasswordAuthentication"
     sudo sed -i 's/#\?PasswordAuthentication .*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
