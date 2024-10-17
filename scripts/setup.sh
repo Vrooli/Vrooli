@@ -8,7 +8,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # Default values
 REINSTALL_MODULES=""
 ON_REMOTE=""
-ENVIRONMENT=$NODE_ENV
+ENVIRONMENT=${NODE_ENV:-development}
 ENV_FILES_SET_UP=""
 USE_KUBERNETES=false
 
@@ -116,7 +116,7 @@ chmod +x "${HERE}/"*.sh
 
 # Set env file based on the environment
 env_file="${HERE}/../.env"
-if [ "$ENVIRONMENT" == "prod" ]; then
+if [ "${ENVIRONMENT}" = "production" ]; then
     env_file="${HERE}/../.env-prod"
 fi
 # Check if env file exists
@@ -188,6 +188,46 @@ else
     else
         info "keytool is already installed"
     fi
+
+    # Install Bats for testing bash scripts
+    header "Installing Bats and dependencies for Bash script testing"
+    BATS_TEST_DIR="${HERE}/tests/helpers"
+    mkdir -p "$BATS_TEST_DIR"
+    cd "$BATS_TEST_DIR"
+
+    # Function to clone and confirm each dependency
+    install_bats_dependency() {
+        local repo_url=$1
+        local dir_name=$2
+        if [ ! -d "$dir_name" ]; then
+            git clone "$repo_url" "$dir_name"
+            success "$dir_name installed successfully at $(pwd)/$dir_name"
+        else
+            info "$dir_name is already installed"
+        fi
+    }
+
+    # Install Bats-core
+    if [ ! -d "bats-core" ]; then
+        git clone https://github.com/bats-core/bats-core.git
+        cd bats-core
+        sudo ./install.sh /usr/local
+        success "Bats-core installed successfully at $(pwd)"
+        cd ..
+    else
+        info "Bats-core is already installed"
+    fi
+
+    # Install bats-support
+    install_bats_dependency "https://github.com/bats-core/bats-support.git" "bats-support"
+
+    # Install bats-mock
+    install_bats_dependency "https://github.com/jasonkarns/bats-mock.git" "bats-mock"
+
+    # Install bats-assert
+    install_bats_dependency "https://github.com/bats-core/bats-assert.git" "bats-assert"
+
+    cd "$ORIGINAL_DIR"
 fi
 
 header "Installing nvm"
@@ -443,7 +483,12 @@ header "Generating JWT key pair for authentication"
 . "${HERE}/genJwt.sh"
 
 if [ "${ENV_FILES_SET_UP}" = "" ]; then
-    prompt "Have you already set up your .env and .env-prod files, and would like to generate secret files? (Y/n)"
+    echo "${ENVIRONMENT} detected."
+    if [ "${ENVIRONMENT}" = "development" ]; then
+        prompt "Have you already set up your .env file, and would you like to generate secret files? (Y/n)"
+    else
+        prompt "Have you already set up your .env-prod file, and would you like to generate secret files? (Y/n)"
+    fi
     read -n1 -r ENV_FILES_SET_UP
     echo
 fi

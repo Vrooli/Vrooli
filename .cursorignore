@@ -190,3 +190,7 @@ jwt_priv.pem
 # Upload keys (for Google Play Store)
 upload_certificate.pem
 upload-keystore.jks
+
+# Bats test helpers (e.g. bats-core)
+scripts/test/helpers
+scripts/test/tmp

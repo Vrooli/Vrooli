@@ -1,46 +1,160 @@
 #!/bin/bash
-# Checks if the domain resolves to this server's IP.
-# Important for setting CORS.
+
+# Exit codes
+E_USAGE=64
+E_DOMAIN_RESOLVE=65
+E_INVALID_SITE_IP=66
+E_CURRENT_IP_FAIL=67
+E_SITE_IP_MISMATCH=68
+
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 . "${HERE}/prettify.sh"
 
-# Check if sufficient arguments are provided
-if [ "$#" -ne 2 ]; then
-    echo "Usage: $0 SITE_IP SERVER_URL"
-    exit 1
-fi
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") SITE_IP SERVER_URL
 
-# Assign arguments to variables
-SITE_IP=$1    # IP of the server associated with the domain
-SERVER_URL=$2 # URL of the server
+Checks if the domain resolves to this server's IP.
 
-# Extract the domain from SERVER_URL
-domain=$(echo $SERVER_URL | awk -F[/:] '{print $4}')
-info "Domain: $domain"
+Arguments:
+  SITE_IP     IP address (IPv4 or IPv6) of the server associated with the domain.
+  SERVER_URL  URL of the server.
 
-# Find what IP the domain resolves to
-domain_ip=$(dig +short $domain)
-info "Domain IP: $domain_ip"
+Exit Codes:
+  0                     Success
+  $E_USAGE              Command line usage error
+  $E_DOMAIN_RESOLVE     Failed to resolve domain
+  $E_INVALID_SITE_IP    SITE_IP does not match domain IP
+  $E_CURRENT_IP_FAIL    Failed to retrieve current IP
+  $E_SITE_IP_MISMATCH   SITE_IP must be valid on production server
 
-# Make sure the domain resolves to the server's IP
-if [[ "$domain_ip" != "$SITE_IP" ]]; then
-    VALID_IP=false
-    error "SITE_IP does not point to the server associated with $domain"
-fi
+EOF
+}
 
-# Find what IP we're currently using
-current_ip=$(curl -s http://ipecho.net/plain)
-info "Current IP: $current_ip"
+exit_with_error() {
+    local message="$1"
+    local code="$2"
+    error "$message"
+    exit "$code"
+}
 
-# If the current IP is the same as the domain IP ,
-# then we're running this script on a test/production server
-if [[ "$current_ip" == "$SITE_IP" ]]; then
-    # SITE_IP must be valid
-    if [[ "$VALID_IP" == false ]]; then
-        error "SITE_IP must be valid when running this script on a test/production server"
-        exit 1
+extract_domain() {
+    local server_url="$1"
+    local domain="${server_url#*://}" # Remove protocol and '://', if present
+    domain="${domain%%/*}"            # Remove everything after the first '/'
+    domain="${domain%%:*}"            # Remove port, if present
+    echo "$domain"
+}
+
+get_domain_ip() {
+    local domain="$1"
+    local ipv4
+    local ipv6
+
+    ipv4="$(dig +short +time=5 +tries=1 A "$domain")"
+    ipv6="$(dig +short +time=5 +tries=1 AAAA "$domain")"
+
+    local all_ips="$ipv4"$'\n'"$ipv6"
+    # Make sure output is not empty/whitespace
+    if [ -z "$ipv4" ] && [ -z "$ipv6" ]; then
+        error "Failed to resolve domain $domain"
+        return $E_DOMAIN_RESOLVE
     fi
-    echo "remote"
-else
-    echo "local"
+    echo "$all_ips" | grep -v '^$'
+}
+
+get_current_ip() {
+    local ipv4
+    local ipv6
+
+    ipv4=$(curl -s --max-time 10 -4 http://ipecho.net/plain)
+    ipv6=$(curl -s --max-time 10 -6 http://ipecho.net/plain)
+
+    if [[ -z "$ipv4" && -z "$ipv6" ]]; then
+        error "Failed to retrieve current IP"
+        return $E_CURRENT_IP_FAIL
+    fi
+
+    echo "$ipv4"$'\n'"$ipv6" | grep -v '^$'
+    return 0
+}
+
+validate_ip() {
+    local ip="$1"
+    if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        return 0 # Valid IPv4
+    elif [[ $ip =~ ^([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}$|^([0-9a-fA-F]{1,4}:){1,7}:|^([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}$|^([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}$|^([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}$|^([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}$|^([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}$|^[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})$|^:((:[0-9a-fA-F]{1,4}){1,7}|:)$ ]]; then
+        return 0 # Valid IPv6
+    else
+        exit_with_error "Invalid IP address format: $ip" $E_INVALID_SITE_IP
+    fi
+}
+
+validate_url() {
+    local server_url="$1"
+
+    if ! [[ $server_url =~ ^(http|https):// ]]; then
+        exit_with_error "Invalid URL format. Must start with http:// or https://" $E_USAGE
+    fi
+}
+
+main() {
+    if [ "$#" -ne 2 ]; then
+        error "Provided $# arguments. Expected 2"
+        usage
+        exit $E_USAGE
+    fi
+
+    local site_ip="$1"
+    local server_url="$2"
+    validate_ip "$site_ip"
+    validate_url "$server_url"
+
+    local domain
+    local domain_ip
+    local current_ip
+
+    domain="$(extract_domain "$server_url")"
+    local extract_domain_status=$?
+    if [ $extract_domain_status -ne 0 ]; then
+        exit $extract_domain_status
+    fi
+    info "Domain: $domain"
+
+    domain_ips="$(get_domain_ip "$domain")"
+    local get_domain_ip_status=$?
+    if [ $get_domain_ip_status -ne 0 ]; then
+        exit $get_domain_ip_status
+    fi
+    info "Domain IPs:"
+    echo "$domain_ips" | sed 's/^/  /'
+
+    if [[ -z "$domain_ips" ]]; then
+        exit_with_error "Failed to resolve domain $domain" $E_DOMAIN_RESOLVE
+    fi
+
+    if ! echo "$domain_ips" | grep -q "^$site_ip$"; then
+        exit_with_error "SITE_IP does not point to the server associated with $domain" $E_INVALID_SITE_IP
+    fi
+
+    current_ips="$(get_current_ip)"
+    local get_current_ip_status=$?
+    if [ $get_current_ip_status -ne 0 ]; then
+        exit $get_current_ip_status
+    fi
+    info "Current IPs:"
+    echo "$current_ips" | sed 's/^/  /'
+
+    if echo "$current_ips" | grep -q "^$site_ip$"; then
+        echo "remote"
+        exit 0
+    else
+        echo "local"
+        exit 0
+    fi
+}
+
+# Only run main if the script is executed (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
 fi

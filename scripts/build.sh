@@ -99,6 +99,18 @@ else
     VERSION=$CURRENT_VERSION
 fi
 
+# Run bash script tests
+if [[ "$TEST" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+    header "Running bash script tests (bats)..."
+    "${HERE}/tests/__runTests.sh"
+    if [ $? -ne 0 ]; then
+        error "Failed to run bash script tests"
+        exit 1
+    fi
+else
+    warning "Skipping bash script tests..."
+fi
+
 # Navigate to shared directory
 cd ${HERE}/../packages/shared
 
@@ -246,8 +258,8 @@ else
 fi
 
 # Create Twilio domain verification file
-# WARNING: This probably won't work, as it's an html file, so our app will get confused and think we're 
-# trying to serve a page that doesn't exist. If this happens, you can add a new DNS record instead. 
+# WARNING: This probably won't work, as it's an html file, so our app will get confused and think we're
+# trying to serve a page that doesn't exist. If this happens, you can add a new DNS record instead.
 # Set the host to "_twilio", the type to "TXT", and the value to what you would have put in the file.
 if [ -z "${TWILIO_DOMAIN_VERIFICATION_CODE}" ]; then
     error "TWILIO_DOMAIN_VERIFICATION_CODE is not set. Not creating Twilio domain verification file, which is needed to send SMS messages."
@@ -308,7 +320,7 @@ if [ -f "${KEYSTORE_PATH}" ]; then
     if [ $? -ne 0 ]; then
         echo "SHA-256 fingerprint could not be extracted. The app cannot be uploaded to the Google Play store without it."
         exit 1
-    else 
+    else
         echo "SHA-256 fingerprint extracted successfully: $GOOGLE_PLAY_FINGERPRINT"
     fi
 
@@ -319,22 +331,22 @@ if [ -f "${KEYSTORE_PATH}" ]; then
         info "Creating dist/.well-known/assetlinks.json file for Google Play Trusted Web Activity (TWA)..."
         mkdir -p ${HERE}/../packages/ui/dist/.well-known
         cd ${HERE}/../packages/ui/dist/.well-known
-        echo "[{" > assetlinks.json
-        echo "    \"relation\": [\"delegate_permission/common.handle_all_urls\"]," >> assetlinks.json
-        echo "    \"target\": {" >> assetlinks.json
-        echo "      \"namespace\": \"android_app\"," >> assetlinks.json
-        echo "      \"package_name\": \"com.vrooli.twa\"," >> assetlinks.json
+        echo "[{" >assetlinks.json
+        echo "    \"relation\": [\"delegate_permission/common.handle_all_urls\"]," >>assetlinks.json
+        echo "    \"target\": {" >>assetlinks.json
+        echo "      \"namespace\": \"android_app\"," >>assetlinks.json
+        echo "      \"package_name\": \"com.vrooli.twa\"," >>assetlinks.json
         # Check if the GOOGLE_PLAY_DOMAIN_FINGERPRINT variable is set and append it to the array
         if [ ! -z "${GOOGLE_PLAY_DOMAIN_FINGERPRINT}" ]; then
-            echo "      \"sha256_cert_fingerprints\": [" >> assetlinks.json
-            echo "          \"${GOOGLE_PLAY_FINGERPRINT}\"," >> assetlinks.json
-            echo "          \"${GOOGLE_PLAY_DOMAIN_FINGERPRINT}\"" >> assetlinks.json
-            echo "      ]" >> assetlinks.json
+            echo "      \"sha256_cert_fingerprints\": [" >>assetlinks.json
+            echo "          \"${GOOGLE_PLAY_FINGERPRINT}\"," >>assetlinks.json
+            echo "          \"${GOOGLE_PLAY_DOMAIN_FINGERPRINT}\"" >>assetlinks.json
+            echo "      ]" >>assetlinks.json
         else
-            echo "      \"sha256_cert_fingerprints\": [\"${GOOGLE_PLAY_FINGERPRINT}\"]" >> assetlinks.json
+            echo "      \"sha256_cert_fingerprints\": [\"${GOOGLE_PLAY_FINGERPRINT}\"]" >>assetlinks.json
         fi
-        echo "    }" >> assetlinks.json
-        echo "}]" >> assetlinks.json
+        echo "    }" >>assetlinks.json
+        echo "}]" >>assetlinks.json
         cd ${HERE}/..
     fi
 fi

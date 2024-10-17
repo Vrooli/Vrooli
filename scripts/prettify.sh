@@ -3,8 +3,8 @@
 
 export TERM=${TERM:-xterm}
 
-# Determine if tput is available
-if [ -n "$(command -v tput)" ]; then
+# Check if stdout is a terminal and if 'tput' is available
+if [ -t 1 ] && [ -n "$(command -v tput)" ]; then
     # Set colors
     RED=$(tput setaf 1)
     GREEN=$(tput setaf 2)
