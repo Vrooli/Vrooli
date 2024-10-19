@@ -14,7 +14,8 @@ For all devices and operating systems to display the logo correctly, it needs to
 1. Create an SVG version of the logo, using a tool like [Inkscape](https://inkscape.org/).  
 2. Create a square PNG version of the logo (512px x 512px), using a tool like [GIMP](https://www.gimp.org/). This is simply the logo in the center, with some solid or gradient background.  
 3. Use a tool like [realfavicongenerator](https://realfavicongenerator.net/) to generate the different versions of the logo. Passing in the SVG (i.e. no background) often looks better for the Mac and Windows icons, and the PNG (i.e. with background) often looks better for the Android and iOS icons. You can also pass in a version of the PNG with rounded corners for Android.  
-4. Add the generated logo files to `packages/ui/public`. Also add the square PNG from step 2, and call it `logo-mask-512x512.png`.
+4. If your images are not in the `webp` format, you may want to use a tool to convert them. `webp` images are smaller and load faster than other formats.
+5. Add the generated logo files to `packages/ui/public`. Also add the square PNG from step 2, and call it `logo-mask-512x512.webp`.
 
 ## Splash Screens
 Splash screens are displayed on mobile devices while the app is loading. For Android, they are created automatically using the theme color and icon. For iOS, you need to create a splash screen for every device and theme combination. For this, you can use [Progressier](https://progressier.com/pwa-icons-and-ios-splash-screen-generator).  
@@ -46,20 +47,20 @@ And here's an example of a manifest file that includes different icon sizes:
             "type": "image/png"
         },
         {
-            "src": "/android-chrome-192x192.png",
+            "src": "/android-chrome-192x192.webp",
             "sizes": "192x192",
-            "type": "image/png"
+            "type": "image/webp"
         },
         {
-            "src": "/android-chrome-512x512.png",
+            "src": "/android-chrome-512x512.webp",
             "sizes": "512x512",
-            "type": "image/png",
+            "type": "image/webp",
             "purpose": "any"
         },
         {
-            "src": "/logo-mask-512x512.png",
+            "src": "/logo-mask-512x512.webp",
             "sizes": "512x512",
-            "type": "image/png",
+            "type": "image/webp",
             "purpose": "maskable"
         }
     ],

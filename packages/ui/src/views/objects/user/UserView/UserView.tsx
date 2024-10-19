@@ -1,8 +1,8 @@
 import { BookmarkFor, ChatShape, FindByIdOrHandleInput, LINKS, ListObject, User, UserPageTabOption, endpointGetProfile, endpointGetUser, findBotData, getAvailableModels, getObjectUrl, getTranslation, noop, uuid, uuidValidate } from "@local/shared";
 import { Box, IconButton, InputAdornment, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { getExistingAIConfig } from "api/ai";
-import BannerDefault from "assets/img/BannerDefault.png";
-import BannerDefaultBot from "assets/img/BannerDefaultBot.png";
+import BannerDefault from "assets/img/BannerDefault.webp";
+import BannerDefaultBot from "assets/img/BannerDefaultBot.webp";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";

@@ -1,5 +1,5 @@
 import { Box, Button, IconButton, Link, Stack, Tooltip, Typography, keyframes, styled, useTheme } from "@mui/material";
-import MattProfilePic from "assets/img/profile-matt.jpg";
+import MattProfilePic from "assets/img/profile-matt.webp";
 import { PageContainer } from "components/Page/Page";
 import { Footer } from "components/navigation/Footer/Footer";
 import { TopBar } from "components/navigation/TopBar/TopBar";

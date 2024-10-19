@@ -21,20 +21,20 @@
             "type": "image/png"
         },
         {
-            "src": "/android-chrome-192x192.png",
+            "src": "/android-chrome-192x192.webp",
             "sizes": "192x192",
-            "type": "image/png"
+            "type": "image/webp"
         },
         {
-            "src": "/android-chrome-512x512.png",
+            "src": "/android-chrome-512x512.webp",
             "sizes": "512x512",
-            "type": "image/png",
+            "type": "image/webp",
             "purpose": "any"
         },
         {
-            "src": "/logo-mask-512x512.png",
+            "src": "/logo-mask-512x512.webp",
             "sizes": "512x512",
-            "type": "image/png",
+            "type": "image/webp",
             "purpose": "maskable"
         }
     ],
@@ -58,73 +58,73 @@
     "start_url": "/",
     "screenshots": [
         {
-            "src": "/screenshots/narrow-1-intro.png",
+            "src": "/screenshots/narrow-1-intro.webp",
             "sizes": "720x1280",
             "form_factor": "narrow",
-            "type": "image/png",
+            "type": "image/webp",
             "label": "Chatting with bot from main page"
         },
         {
-            "src": "/screenshots/narrow-2-build.png",
+            "src": "/screenshots/narrow-2-build.webp",
             "sizes": "720x1280",
             "form_factor": "narrow",
-            "type": "image/png",
+            "type": "image/webp",
             "label": "Building a multi-step routine"
         },
         {
-            "src": "/screenshots/narrow-3-team.png",
+            "src": "/screenshots/narrow-3-team.webp",
             "sizes": "720x1280",
             "form_factor": "narrow",
-            "type": "image/png",
+            "type": "image/webp",
             "label": "Viewing a team"
         },
         {
-            "src": "/screenshots/narrow-4-search.png",
+            "src": "/screenshots/narrow-4-search.webp",
             "sizes": "720x1280",
             "form_factor": "narrow",
-            "type": "image/png",
+            "type": "image/webp",
             "label": "Searching for existing routines"
         },
         {
-            "src": "/screenshots/narrow-5-start.png",
+            "src": "/screenshots/narrow-5-start.webp",
             "sizes": "720x1280",
             "form_factor": "narrow",
-            "type": "image/png",
+            "type": "image/webp",
             "label": "Start page"
         },
         {
-            "src": "/screenshots/wide-1-intro.png",
+            "src": "/screenshots/wide-1-intro.webp",
             "sizes": "1280x720",
             "form_factor": "wide",
-            "type": "image/png",
+            "type": "image/webp",
             "label": "Chatting with bot from main page"
         },
         {
-            "src": "/screenshots/wide-2-build.png",
+            "src": "/screenshots/wide-2-build.webp",
             "sizes": "1280x720",
             "form_factor": "wide",
-            "type": "image/png",
+            "type": "image/webp",
             "label": "Building a multi-step routine"
         },
         {
-            "src": "/screenshots/wide-3-team.png",
+            "src": "/screenshots/wide-3-team.webp",
             "sizes": "1280x720",
             "form_factor": "wide",
-            "type": "image/png",
+            "type": "image/webp",
             "label": "Viewing a team"
         },
         {
-            "src": "/screenshots/wide-4-search.png",
+            "src": "/screenshots/wide-4-search.webp",
             "sizes": "1280x720",
             "form_factor": "wide",
-            "type": "image/png",
+            "type": "image/webp",
             "label": "Searching for existing routines"
         },
         {
-            "src": "/screenshots/wide-5-start.png",
+            "src": "/screenshots/wide-5-start.webp",
             "sizes": "1280x720",
             "form_factor": "wide",
-            "type": "image/png",
+            "type": "image/webp",
             "label": "Start page"
         }
     ],

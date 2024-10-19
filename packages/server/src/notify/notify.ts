@@ -18,7 +18,7 @@ import { SessionUserToken } from "../types";
 import { batch } from "../utils/batch";
 import { findRecipientsAndLimit, updateNotificationSettings } from "./notificationSettings";
 
-const APP_ICON = "https://vrooli.com/apple-touch-icon.png";
+const APP_ICON = "https://vrooli.com/apple-touch-icon.webp";
 
 export type NotificationUrgency = "low" | "normal" | "critical";
 

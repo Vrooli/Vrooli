@@ -89,11 +89,11 @@
 <br/>
 
 <div style="display: flex; overflow-x: auto; white-space: nowrap; align-items: start;">
-  <img src="packages/ui/public/screenshots/wide-1-intro.png" alt="Chatting with bot from main page" style="width: 1024; display: inline-block; margin-right: 10px;">
-  <img src="packages/ui/public/screenshots/wide-2-build.png" alt="Building a multi-step routine" style="width: 1024; display: inline-block; margin-right: 10px;">
-  <img src="packages/ui/public/screenshots/wide-3-team.png" alt="Viewing a team" style="width: 1024; display: inline-block; margin-right: 10px;">
-  <img src="packages/ui/public/screenshots/wide-4-search.png" alt="Searching for existing routines" style="width: 1024; display: inline-block; margin-right: 10px;">
-  <img src="packages/ui/public/screenshots/wide-5-start.png" alt="Start page" style="width: 1024; display: inline-block; margin-right: 10px;">
+  <img src="packages/ui/public/screenshots/wide-1-intro.webp" alt="Chatting with bot from main page" style="width: 1024; display: inline-block; margin-right: 10px;">
+  <img src="packages/ui/public/screenshots/wide-2-build.webp" alt="Building a multi-step routine" style="width: 1024; display: inline-block; margin-right: 10px;">
+  <img src="packages/ui/public/screenshots/wide-3-team.webp" alt="Viewing a team" style="width: 1024; display: inline-block; margin-right: 10px;">
+  <img src="packages/ui/public/screenshots/wide-4-search.webp" alt="Searching for existing routines" style="width: 1024; display: inline-block; margin-right: 10px;">
+  <img src="packages/ui/public/screenshots/wide-5-start.webp" alt="Start page" style="width: 1024; display: inline-block; margin-right: 10px;">
 </div>
 
 <br/>

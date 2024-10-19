@@ -2,12 +2,12 @@ import { SessionContext } from "contexts";
 import { Suspense, useContext } from "react";
 import { lazily } from "react-lazily";
 import { checkIfLoggedIn } from "utils/authentication/session";
-import { LandingView } from "../LandingView/LandingView";
 import { HomeViewProps } from "../types";
 
 const { DashboardView } = lazily(() => import("../DashboardView/DashboardView"));
+const { LandingView } = lazily(() => import("../LandingView/LandingView"));
 
-export const HomeView = (props: HomeViewProps) => {
+export function HomeView(props: HomeViewProps) {
     const session = useContext(SessionContext);
     const isLoggedIn = checkIfLoggedIn(session);
 
@@ -19,5 +19,9 @@ export const HomeView = (props: HomeViewProps) => {
         );
     }
 
-    return <LandingView {...props} />;
-};
+    return (
+        <Suspense>
+            <LandingView {...props} />
+        </Suspense>
+    );
+}

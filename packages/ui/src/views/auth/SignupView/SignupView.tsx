@@ -272,16 +272,16 @@ const Screenshot = styled("img", {
 }));
 
 const screenshots = [{
-    src: "1-intro.png",
+    src: "1-intro.webp",
     alt: "Chatting with bot from main page",
 }, {
-    src: "2-build.png",
+    src: "2-build.webp",
     alt: "Building a multi-step routine",
 }, {
-    src: "3-team.png",
+    src: "3-team.webp",
     alt: "Viewing a team",
 }, {
-    src: "4-search.png",
+    src: "4-search.webp",
     alt: "Searching for existing routines",
 }];
 
