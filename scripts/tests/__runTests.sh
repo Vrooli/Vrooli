@@ -2,7 +2,7 @@
 # Runs all *.bats files in the current directory and provides a summary
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "${HERE}/../prettify.sh"
+source "${HERE}/../utils.sh"
 
 total_tests=0
 total_failures=0

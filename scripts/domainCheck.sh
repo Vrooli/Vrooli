@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # Exit codes
-E_USAGE=64
-E_DOMAIN_RESOLVE=65
-E_INVALID_SITE_IP=66
-E_CURRENT_IP_FAIL=67
-E_SITE_IP_MISMATCH=68
+export ERROR_USAGE=64
+export ERROR_DOMAIN_RESOLVE=65
+export ERROR_INVALID_SITE_IP=66
+export ERROR_CURRENT_IP_FAIL=67
+export ERROR_SITE_IP_MISMATCH=68
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-. "${HERE}/prettify.sh"
+source "${HERE}/utils.sh"
 
 usage() {
     cat <<EOF
@@ -22,20 +22,13 @@ Arguments:
 
 Exit Codes:
   0                     Success
-  $E_USAGE              Command line usage error
-  $E_DOMAIN_RESOLVE     Failed to resolve domain
-  $E_INVALID_SITE_IP    SITE_IP does not match domain IP
-  $E_CURRENT_IP_FAIL    Failed to retrieve current IP
-  $E_SITE_IP_MISMATCH   SITE_IP must be valid on production server
+  $ERROR_USAGE              Command line usage error
+  $ERROR_DOMAIN_RESOLVE     Failed to resolve domain
+  $ERROR_INVALID_SITE_IP    SITE_IP does not match domain IP
+  $ERROR_CURRENT_IP_FAIL    Failed to retrieve current IP
+  $ERROR_SITE_IP_MISMATCH   SITE_IP must be valid on production server
 
 EOF
-}
-
-exit_with_error() {
-    local message="$1"
-    local code="$2"
-    error "$message"
-    exit "$code"
 }
 
 extract_domain() {
@@ -58,7 +51,7 @@ get_domain_ip() {
     # Make sure output is not empty/whitespace
     if [ -z "$ipv4" ] && [ -z "$ipv6" ]; then
         error "Failed to resolve domain $domain"
-        return $E_DOMAIN_RESOLVE
+        return $ERROR_DOMAIN_RESOLVE
     fi
     echo "$all_ips" | grep -v '^$'
 }
@@ -72,7 +65,7 @@ get_current_ip() {
 
     if [[ -z "$ipv4" && -z "$ipv6" ]]; then
         error "Failed to retrieve current IP"
-        return $E_CURRENT_IP_FAIL
+        return $ERROR_CURRENT_IP_FAIL
     fi
 
     echo "$ipv4"$'\n'"$ipv6" | grep -v '^$'
@@ -86,7 +79,7 @@ validate_ip() {
     elif [[ $ip =~ ^([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}$|^([0-9a-fA-F]{1,4}:){1,7}:|^([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}$|^([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}$|^([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}$|^([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}$|^([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}$|^[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})$|^:((:[0-9a-fA-F]{1,4}){1,7}|:)$ ]]; then
         return 0 # Valid IPv6
     else
-        exit_with_error "Invalid IP address format: $ip" $E_INVALID_SITE_IP
+        exit_with_error "Invalid IP address format: $ip" $ERROR_INVALID_SITE_IP
     fi
 }
 
@@ -94,7 +87,7 @@ validate_url() {
     local server_url="$1"
 
     if ! [[ $server_url =~ ^(http|https):// ]]; then
-        exit_with_error "Invalid URL format. Must start with http:// or https://" $E_USAGE
+        exit_with_error "Invalid URL format. Must start with http:// or https://" $ERROR_USAGE
     fi
 }
 
@@ -102,7 +95,7 @@ main() {
     if [ "$#" -ne 2 ]; then
         error "Provided $# arguments. Expected 2"
         usage
-        exit $E_USAGE
+        exit $ERROR_USAGE
     fi
 
     local site_ip="$1"
@@ -130,11 +123,11 @@ main() {
     echo "$domain_ips" | sed 's/^/  /'
 
     if [[ -z "$domain_ips" ]]; then
-        exit_with_error "Failed to resolve domain $domain" $E_DOMAIN_RESOLVE
+        exit_with_error "Failed to resolve domain $domain" $ERROR_DOMAIN_RESOLVE
     fi
 
     if ! echo "$domain_ips" | grep -q "^$site_ip$"; then
-        exit_with_error "SITE_IP does not point to the server associated with $domain" $E_INVALID_SITE_IP
+        exit_with_error "SITE_IP does not point to the server associated with $domain" $ERROR_INVALID_SITE_IP
     fi
 
     current_ips="$(get_current_ip)"
@@ -154,7 +147,4 @@ main() {
     fi
 }
 
-# Only run main if the script is executed (not sourced)
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    main "$@"
-fi
+run_if_executed main "$@"

@@ -1,7 +1,7 @@
 #!/bin/sh
 HERE=$(dirname $0)
 start_time=$(date +%s)
-. "${HERE}/prettify.sh"
+. "${HERE}/utils.sh"
 
 # If in development mode
 if [ "${NODE_ENV}" = "development" ]; then

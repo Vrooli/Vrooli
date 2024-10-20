@@ -2,10 +2,10 @@
 # binstub script for stubbing commands
 
 # Exit codes
-E_NO_PLAN=74        # No stub plan file found
-E_MISSING_TMPDIR=75 # BATS_MOCK_TMPDIR not set
-E_OUTPUT_FAIL=76    # Failed to output stub plan
-E_LOGGING_FAIL=77   # Failed to log the stub call
+export ERROR_NO_PLAN=74        # No stub plan file found
+export ERROR_MISSING_TMPDIR=75 # BATS_MOCK_TMPDIR not set
+export ERROR_OUTPUT_FAIL=76    # Failed to output stub plan
+export ERROR_LOGGING_FAIL=77   # Failed to log the stub call
 
 program_name=$(basename "$0")
 plan_file="${BATS_MOCK_TMPDIR}/${program_name}-stub-plan"
@@ -13,13 +13,13 @@ plan_file="${BATS_MOCK_TMPDIR}/${program_name}-stub-plan"
 # Check if BATS_MOCK_TMPDIR is set
 if [ -z "$BATS_MOCK_TMPDIR" ]; then
     echo "Error: BATS_MOCK_TMPDIR is not set" >&2
-    exit $E_MISSING_TMPDIR
+    exit $ERROR_MISSING_TMPDIR
 fi
 
 # Log the stub call for debugging purposes
 echo "Stub called: $program_name" >>/tmp/bats_stub.log || {
     echo "Error: Failed to log stub call" >&2
-    exit $E_LOGGING_FAIL
+    exit $ERROR_LOGGING_FAIL
 }
 
 # Check if the plan file exists
@@ -27,15 +27,15 @@ if [ -f "$plan_file" ]; then
     # Output each line of the plan file (supports multi-line outputs)
     cat "$plan_file" || {
         echo "Error: Failed to output stub plan" >&2
-        exit $E_OUTPUT_FAIL
+        exit $ERROR_OUTPUT_FAIL
     }
     exit_status=0
 else
     # No plan file found, output error message
     echo "No stub plan found for $program_name" >&2
-    exit_status=$E_NO_PLAN
+    exit_status=$ERROR_NO_PLAN
 fi
 
 # Log exit status for debugging
-echo "Exit status: $exit_status" >>/tmp/bats_stub.log || exit $E_LOGGING_FAIL
+echo "Exit status: $exit_status" >>/tmp/bats_stub.log || exit $ERROR_LOGGING_FAIL
 exit "$exit_status"

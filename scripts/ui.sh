@@ -1,6 +1,6 @@
 #!/bin/sh
 HERE=$(dirname $0)
-. "${HERE}/prettify.sh"
+. "${HERE}/utils.sh"
 
 cd ${PROJECT_DIR}/packages/ui
 info 'Starting app...'

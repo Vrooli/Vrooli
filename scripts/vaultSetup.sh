@@ -2,7 +2,7 @@
 # Sets up a development or production version of Hashicorp Vault,
 # either directly on the host machine or in a Kubernetes cluster.
 HERE=$(dirname $0)
-. "${HERE}/prettify.sh"
+. "${HERE}/utils.sh"
 . "${HERE}/vaultTools.sh"
 
 VAULT_PORT=8200

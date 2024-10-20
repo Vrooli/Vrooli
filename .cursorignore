@@ -192,5 +192,5 @@ upload_certificate.pem
 upload-keystore.jks
 
 # Bats test helpers (e.g. bats-core)
-scripts/test/helpers
-scripts/test/tmp
+scripts/tests/helpers
+scripts/tests/tmp

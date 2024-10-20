@@ -2,7 +2,7 @@
 # This script connects to the remote server using the SSH key set up by keylessSsh.sh
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-. "${HERE}/prettify.sh"
+. "${HERE}/utils.sh"
 
 # Load variables from .env file
 ENV_FILE="${HERE}/../.env-prod"

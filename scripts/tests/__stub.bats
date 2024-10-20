@@ -14,18 +14,12 @@ chmod +x "${HERE}/__binstub"
 load "${HERE}/__stub.bash"
 
 # Common exit codes
-E_COMMAND_NOT_FOUND=127
-# Exit codes (copied from script we're testing)
-E_MOCK_DIR_CREATION=65
-E_LINK_FAIL=66
-E_WRITE_PLAN_FAIL=67
-E_TRANSFORM_FAIL=68
-E_CLEANUP_FAIL=69
-
-E_NO_PLAN=74        # No stub plan file found
-E_MISSING_TMPDIR=75 # BATS_MOCK_TMPDIR not set
-E_OUTPUT_FAIL=76    # Failed to output stub plan
-E_LOGGING_FAIL=77   # Failed to log the stub call
+ERROR_COMMAND_NOT_FOUND=127
+# Exit codes from __binstub
+ERROR_NO_PLAN=74        # No stub plan file found
+ERROR_MISSING_TMPDIR=75 # BATS_MOCK_TMPDIR not set
+ERROR_OUTPUT_FAIL=76    # Failed to output stub plan
+ERROR_LOGGING_FAIL=77   # Failed to log the stub call
 
 setup() {
     # Reset any environment variables or settings here if necessary
@@ -102,8 +96,8 @@ teardown() {
     unstub "skrrt"
 
     # Assert: skrrt command should now return an error (not found)
-    run -$E_COMMAND_NOT_FOUND skrrt
-    [ "$status" -eq $E_COMMAND_NOT_FOUND ]
+    run -$ERROR_COMMAND_NOT_FOUND skrrt
+    [ "$status" -eq $ERROR_COMMAND_NOT_FOUND ]
 }
 
 @test "stub without plan file outputs an error" {
@@ -117,6 +111,6 @@ teardown() {
     run nonexistent_command
 
     # Assert: Expect specific error message since there’s no plan for this stub
-    [ "$status" -eq $E_NO_PLAN ]
+    [ "$status" -eq $ERROR_NO_PLAN ]
     [[ "$output" == *"No stub plan found for nonexistent_command"* ]]
 }

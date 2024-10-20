@@ -3,7 +3,7 @@
 # when one of the error codes you specify appears in the logs. This is useful
 # for catching errors in production
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-. "${HERE}/prettify.sh"
+. "${HERE}/utils.sh"
 . "${HERE}/keylessSsh.sh"
 
 # The error codes you want to track

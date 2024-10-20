@@ -3,7 +3,7 @@
 # Secrets are retrieved either from /run/secrets or via getSecrets.sh.
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-. "${HERE}/prettify.sh"
+. "${HERE}/utils.sh"
 
 # Default values for command line options
 ENVIRONMENT="production"

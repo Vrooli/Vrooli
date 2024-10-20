@@ -1,7 +1,7 @@
 #!/bin/bash
 # This script periodically backs up the database and essential files from a remote server
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-. "${HERE}/prettify.sh"
+. "${HERE}/utils.sh"
 . "${HERE}/keylessSsh.sh"
 
 # Read arguments

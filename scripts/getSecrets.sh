@@ -4,7 +4,7 @@
 #
 # TMP_FILE=$(mktemp) && { ./getSecrets.sh <environment> <secret1> <secret2> ... > "$TMP_FILE" 2>/dev/null && . "$TMP_FILE"; } || echo "Failed to get secrets."; rm "$TMP_FILE"
 HERE=$(cd "$(dirname "$0")" && pwd)
-. "${HERE}/prettify.sh"
+. "${HERE}/utils.sh"
 . "${HERE}/vaultTools.sh"
 
 # Check if at least two arguments were provided

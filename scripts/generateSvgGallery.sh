@@ -1,7 +1,7 @@
 #!/bin/bash
 # Generates an HTML file to display all svg files in a folder
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-. "${HERE}/prettify.sh"
+. "${HERE}/utils.sh"
 
 # Default SVG directory
 DIRECTORY="assets/svgs"

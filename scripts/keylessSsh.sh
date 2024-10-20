@@ -5,7 +5,7 @@
 #  ./scripts/keylessSsh.sh 123.456.789.012
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-. "${HERE}/prettify.sh"
+. "${HERE}/utils.sh"
 
 # Connection timeout in seconds
 CONN_TIMEOUT=10

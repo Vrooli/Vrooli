@@ -2,7 +2,7 @@
 # Sets secrets from an environment variable and .pem files into the secrets location.
 # Useful when developing locally with Docker Compose, instead of Kubernetes.
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-. "${HERE}/prettify.sh"
+. "${HERE}/utils.sh"
 . "${HERE}/vaultTools.sh"
 
 # Variable to hold environment

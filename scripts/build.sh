@@ -2,7 +2,7 @@
 # NOTE: Run outside of Docker container
 # Prepares project for deployment via Docker Compose or Kubernetes
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-. "${HERE}/prettify.sh"
+. "${HERE}/utils.sh"
 
 # Read arguments
 ENV_FILE="${HERE}/../.env-prod"

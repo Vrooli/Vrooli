@@ -1,7 +1,7 @@
 #!/bin/bash
 # This scripts sets up the Stripe CLI for local testing on Debian/Ubuntu distributions.
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-. "${HERE}/prettify.sh"
+. "${HERE}/utils.sh"
 
 header "Setting up the Stripe CLI..."
 

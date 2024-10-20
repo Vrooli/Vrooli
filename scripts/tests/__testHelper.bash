@@ -26,7 +26,7 @@ setup() {
 
 teardown() {
     # Unstub any stubbed commands. Add commands between `in` and `do`
-    for cmd in dig curl; do
+    for cmd in dig curl tput; do
         if [ -x "${BATS_MOCK_BINDIR}/$cmd" ]; then
             unstub "$cmd"
         fi

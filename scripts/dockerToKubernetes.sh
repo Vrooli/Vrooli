@@ -2,7 +2,7 @@
 # Converts a Docker Compose file to Kubernetes YAML files using Kompose.
 # Installs Kompose if it is not already installed.
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-. "${HERE}/prettify.sh"
+. "${HERE}/utils.sh"
 
 KOMPOSE_VERSION="v1.28.0"
 SECRET_NAME="vrooli-secrets"

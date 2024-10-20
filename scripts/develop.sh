@@ -1,7 +1,7 @@
 #!/bin/bash
 # Starts the development environment, using sensible defaults.
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-. "${HERE}/prettify.sh"
+. "${HERE}/utils.sh"
 
 # Default values
 BUILD=""

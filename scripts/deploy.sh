@@ -11,7 +11,7 @@
 # 5. Moves build created by build.sh to the correct location.
 # 6. Restarts docker containers
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-. "${HERE}/prettify.sh"
+. "${HERE}/utils.sh"
 
 # Read arguments
 SETUP_ARGS=()

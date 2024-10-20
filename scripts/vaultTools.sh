@@ -1,7 +1,7 @@
 #!/bin/sh
 # Vault functions shared by multiple scripts.
 HERE=$(dirname $0)
-. "${HERE}/prettify.sh"
+. "${HERE}/utils.sh"
 
 # Checks if Vault is initialized.
 is_vault_initialized() {

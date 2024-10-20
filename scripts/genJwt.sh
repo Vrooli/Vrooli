@@ -2,7 +2,7 @@
 # This script generates a public/private key pair for JWT signing
 
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-. "${HERE}/prettify.sh"
+. "${HERE}/utils.sh"
 
 # Go to root directory of the project
 cd "${HERE}/.."

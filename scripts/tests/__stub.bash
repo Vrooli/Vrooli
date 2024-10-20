@@ -1,11 +1,11 @@
 # shellcheck shell=bash
 
 # Exit codes
-E_MOCK_DIR_CREATION=65 # Failed to create mock binary directory
-E_LINK_FAIL=66         # Failed to link binstub
-E_WRITE_PLAN_FAIL=67   # Failed to write stub plan
-E_TRANSFORM_FAIL=68    # Failed to transform program name to uppercase
-E_CLEANUP_FAIL=69      # Failed to clean up stub files
+export ERROR_MOCK_DIR_CREATION=65 # Failed to create mock binary directory
+export ERROR_LINK_FAIL=66         # Failed to link binstub
+export ERROR_WRITE_PLAN_FAIL=67   # Failed to write stub plan
+export ERROR_TRANSFORM_FAIL=68    # Failed to transform program name to uppercase
+export ERROR_CLEANUP_FAIL=69      # Failed to clean up stub files
 
 # Set a temporary directory for mock binaries specific to BATS (Bash Automated Testing System)
 export BATS_MOCK_TMPDIR="${BATS_TMPDIR}"
@@ -24,7 +24,7 @@ stub() {
     if [ ! -d "${BATS_MOCK_BINDIR}" ] || [ ! -w "${BATS_MOCK_BINDIR}" ]; then
         mkdir -p "${BATS_MOCK_BINDIR}" || {
             echo "Error: Failed to create or write to mock binary directory at ${BATS_MOCK_BINDIR}" >&2
-            return $E_MOCK_DIR_CREATION
+            return $ERROR_MOCK_DIR_CREATION
         }
     fi
 
@@ -35,21 +35,21 @@ stub() {
     # Attempt to link the binstub script to the mock program name
     if [ -f "${BATS_MOCK_BINDIR}/${program}" ] && [ ! -w "${BATS_MOCK_BINDIR}/${program}" ]; then
         echo "Error: Existing link is not writable: ${BATS_MOCK_BINDIR}/${program}" >&2
-        return $E_LINK_FAIL
+        return $ERROR_LINK_FAIL
     fi
     ln -sf "$BINSTUB_PATH" "${BATS_MOCK_BINDIR}/${program}" || {
         echo "Error: Failed to link __binstub for ${program}" >&2
-        return $E_LINK_FAIL
+        return $ERROR_LINK_FAIL
     }
 
     # Write the mock output plan (sequence of responses) to a file to be used during tests
     if [ ! -w "${BATS_MOCK_TMPDIR}" ]; then
         echo "Error: Cannot write to temporary directory ${BATS_MOCK_TMPDIR}" >&2
-        return $E_WRITE_PLAN_FAIL
+        return $ERROR_WRITE_PLAN_FAIL
     fi
     printf "%s\n" "$@" >"${BATS_MOCK_TMPDIR}/${program}-stub-plan" || {
         echo "Error: Failed to write stub plan for ${program}" >&2
-        return $E_WRITE_PLAN_FAIL
+        return $ERROR_WRITE_PLAN_FAIL
     }
 }
 
@@ -60,7 +60,7 @@ stub_repeated() {
     local prefix
     prefix="$(echo "$program" | tr 'a-z-' 'A-Z_')" || {
         echo "Error: Failed to transform program name to uppercase" >&2
-        return $E_TRANSFORM_FAIL
+        return $ERROR_TRANSFORM_FAIL
     }
 
     # Set environment variable to prevent index incrementation (simulate same output for repeated calls)
@@ -80,7 +80,7 @@ unstub() {
     local prefix
     prefix="$(echo "$program" | tr 'a-z-' 'A-Z_')" || {
         echo "Error: Failed to transform program name to uppercase" >&2
-        return $E_TRANSFORM_FAIL
+        return $ERROR_TRANSFORM_FAIL
     }
     # Define path to the mock binary for the program
     local path="${BATS_MOCK_BINDIR}/${program}"
@@ -98,7 +98,7 @@ unstub() {
     # Remove the mock binary and any temporary files related to this program
     rm -f "$path" "${BATS_MOCK_TMPDIR}/${program}-stub-plan" "${BATS_MOCK_TMPDIR}/${program}-stub-run" || {
         echo "Error: Failed to clean up files for ${program}" >&2
-        return $E_CLEANUP_FAIL
+        return $ERROR_CLEANUP_FAIL
     }
 
     # Return the exit status of the mock command or zero if it wasn't executed

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Adds production docker images to the Docker Hub registry
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-. "${HERE}/prettify.sh"
+. "${HERE}/utils.sh"
 . "${HERE}/../.env"
 
 # Exit if any command fails

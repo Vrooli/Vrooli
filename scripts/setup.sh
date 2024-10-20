@@ -3,7 +3,7 @@
 # required to get the project up and running.
 ORIGINAL_DIR=$(pwd)
 HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-. "${HERE}/prettify.sh"
+. "${HERE}/utils.sh"
 
 # Default values
 REINSTALL_MODULES=""
