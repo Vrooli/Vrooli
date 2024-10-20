@@ -136,24 +136,17 @@ if [[ "$SERVER_LOCATION" != "local" ]]; then
     sudo sed -i 's/#\?PasswordAuthentication .*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
     sudo sed -i 's/#\?PubkeyAuthentication .*/PubkeyAuthentication yes/g' /etc/ssh/sshd_config
     sudo sed -i 's/#\?AuthorizedKeysFile .*/AuthorizedKeysFile .ssh\/authorized_keys/g' /etc/ssh/sshd_config
-    if [ ! -d ~/.ssh ]; then
-        mkdir ~/.ssh
-        chmod 700 ~/.ssh
-    fi
-    if [ ! -f ~/.ssh/authorized_keys ]; then
-        touch ~/.ssh/authorized_keys
-    fi
+
+    # Ensure .ssh directory and authorized_keys file exist with correct permissions
+    mkdir -p ~/.ssh
+    touch ~/.ssh/authorized_keys
+    chmod 700 ~/.ssh
     chmod 600 ~/.ssh/authorized_keys
-    # Try restarting service. Can either be called "sshd" or "ssh"
-    sudo service sshd restart
-    # If sshd fails, try to restart ssh
-    if [ $? -ne 0 ]; then
-        warning "Failed to restart sshd, trying ssh..."
-        sudo systemctl restart ssh
-        # If ssh also fails, exit with an error
-        if [ $? -ne 0 ]; then
+
+    # Try restarting SSH service, checking for both common service names
+    if ! sudo systemctl restart sshd 2>/dev/null; then
+        if ! sudo systemctl restart ssh 2>/dev/null; then
             echo "Failed to restart ssh. Exiting with error."
-            cd "$ORIGINAL_DIR"
             exit 1
         fi
     fi
@@ -177,10 +170,9 @@ else
         warning "Please update the .env-prod file with your own values."
     fi
 
-    # Check for keytool and install JDK if it's not available. This is 
+    # Check for keytool and install JDK if it's not available. This is
     # used for signing the app in the Google Play store
-    if ! command -v keytool &> /dev/null
-    then
+    if ! command -v keytool &>/dev/null; then
         header "Installing JDK for keytool"
         sudo apt update
         sudo apt install -y default-jdk
