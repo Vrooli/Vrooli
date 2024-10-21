@@ -17,7 +17,6 @@ get_color_code() {
     MAGENTA) echo "5" ;;
     CYAN) echo "6" ;;
     WHITE) echo "7" ;;
-    ORANGE) echo "208" ;;
     *) echo "0" ;;
     esac
 }
@@ -80,7 +79,7 @@ warning() {
 
 # Print input prompt message
 prompt() {
-    echo_color ORANGE "$1"
+    echo_color BLUE "$1"
 }
 
 # One-line confirmation prompt
