@@ -1,6 +1,6 @@
 #!/bin/bash
-
-HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# WARNING: This is used by some shell scripts, so be careful not to use any
+# Bash-specific features outside of functions.
 
 # Exit codes
 E_NO_TPUT=1
@@ -46,12 +46,15 @@ initialize_reset() {
 
 # Echo colored text
 echo_color() {
-    local color="$1"
-    local message="$2"
+    color="$1"
+    message="$2"
 
     initialize_color "$color"
     initialize_reset
-    echo "${!color}${message}${RESET}"
+
+    eval "color_value=\$$color"
+
+    printf '%s%s%s\n' "$color_value" "$message" "$RESET"
 }
 
 # Print header message
@@ -114,6 +117,8 @@ run_if_executed() {
 }
 
 load_env_file() {
+    HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
     local environment=$1
     local env_file="$HERE/../.env"
 

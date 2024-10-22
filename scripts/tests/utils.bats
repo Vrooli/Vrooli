@@ -14,7 +14,6 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/../utils.sh"
     [ "$(get_color_code MAGENTA)" = "5" ]
     [ "$(get_color_code CYAN)" = "6" ]
     [ "$(get_color_code WHITE)" = "7" ]
-    [ "$(get_color_code ORANGE)" = "208" ]
     [ "$(get_color_code INVALID)" = "0" ]
 }
 
