@@ -114,18 +114,7 @@ fi
 header "Setting script permissions"
 chmod +x "${HERE}/"*.sh
 
-# Set env file based on the environment
-env_file="${HERE}/../.env"
-if [ "${ENVIRONMENT}" = "production" ]; then
-    env_file="${HERE}/../.env-prod"
-fi
-# Check if env file exists
-if [ ! -f "$env_file" ]; then
-    error "Environment file $env_file does not exist."
-    exit 1
-fi
-# Source the env file
-. "$env_file"
+load_env_file $ENVIRONMENT
 
 # Determine where this script is running (local or remote)
 export SERVER_LOCATION=$("${HERE}/domainCheck.sh" $SITE_IP $SERVER_URL | tail -n 1)

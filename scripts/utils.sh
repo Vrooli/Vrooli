@@ -1,5 +1,7 @@
 #!/bin/bash
 
+HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
 # Exit codes
 E_NO_TPUT=1
 
@@ -109,4 +111,25 @@ run_if_executed() {
     if [[ "${BASH_SOURCE[1]}" == "${0}" ]]; then
         "$callback" "$@"
     fi
+}
+
+load_env_file() {
+    local environment=$1
+    local env_file="$HERE/../.env"
+
+    if [ "$environment" != "development" ] && [ "$environment" != "production" ]; then
+        error "Error: Environment must be either development or production."
+        exit 1
+    fi
+
+    if [ "$environment" = "production" ]; then
+        env_file="$HERE/../.env.prod"
+    fi
+
+    if [ ! -f "$env_file" ]; then
+        error "Error: Environment file $env_file does not exist."
+        exit 1
+    fi
+
+    . "$env_file"
 }
