@@ -126,10 +126,8 @@ else
 
     docker-compose down
 
-    # Determine where this script is running (local or remote)
-    if [[ "$SERVER_LOCATION" != "local" ]]; then
-        . "${HERE}/proxySetup.sh" -n "${NGINX_LOCATION}"
-    fi
+    # Start the reverse proxy
+    . "${HERE}/proxySetup.sh" -n "${NGINX_LOCATION}"
 
     # Start the development environment
     info "Starting development environment using Docker Compose..."

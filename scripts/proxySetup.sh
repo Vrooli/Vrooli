@@ -13,15 +13,19 @@ ERROR_PROXY_CLONE_FAILED=67
 DEFAULT_PROXY_LOCATION="/root/NginxSSLReverseProxy"
 PROXY_REPO_URL="https://github.com/MattHalloran/NginxSSLReverseProxy.git"
 
+ENVIRONMENT="development" # Default environment
+SERVER_LOCATION="local"   # Default server location
+
 usage() {
     cat <<EOF
-Usage: $(basename "$0") [-n PROXY_LOCATION] [-h]
+Usage: $(basename "$0") [-n PROXY_LOCATION] [-p PROD] [-h]
 
 Sets up reverse proxy for a remote server.
 
 Options:
-  -n, --nginx-location PROXY_LOCATION  Nginx proxy location (e.g. "/root/NginxSSLReverseProxy")
-  -h, --help                           Show this help message
+  -n, --nginx-location:  Nginx proxy location (e.g. "/root/NginxSSLReverseProxy")
+  -p, --production:      Set environment to production
+  -h, --help             Show this help message
 
 Exit Codes:
   0                                   Success
@@ -46,7 +50,12 @@ parse_arguments() {
             fi
             echo "Setting PROXY_LOCATION to $2"
             PROXY_LOCATION="$2"
-            shift 2
+            shift # past argument
+            shift # past value
+            ;;
+        -p | --prod)
+            ENVIRONMENT="production"
+            shift # past argument
             ;;
         -h | --help)
             usage
@@ -95,7 +104,15 @@ get_proxy_location() {
     done
 }
 
-are_proxy_containers_running() {
+are_local_containers_running() {
+    # Look for running Docker container with name 'nginx-local-dev'
+    if [ "$(docker ps -q -f name=nginx-local-dev)" ]; then
+        return 0
+    fi
+    return 1
+}
+
+are_remote_containers_running() {
     # Look for running Docker containers with names 'nginx-proxy' and 'nginx-proxy-le'
     if [ "$(docker ps -q -f name=nginx-proxy)" ] && [ "$(docker ps -q -f name=nginx-proxy-acme)" ]; then
         return 0
@@ -103,26 +120,55 @@ are_proxy_containers_running() {
     return 1
 }
 
-start_proxy_containers() {
-    # Check if containers are already running
-    if are_proxy_containers_running; then
+stop_local_containers() {
+    if ! are_local_containers_running; then
         return 0
     fi
 
-    if [ -f "${PROXY_LOCATION}/docker-compose.yml" ]; then
-        info "Starting proxy containers..."
-        cd "$PROXY_LOCATION" && docker-compose up -d
-    elif [ -f "${PROXY_LOCATION}/docker-compose.yaml" ]; then
-        info "Starting proxy containers..."
-        cd "$PROXY_LOCATION" && docker-compose up -d
+    info "Stopping local proxy container..."
+    docker stop $(docker ps -q -f name=nginx-local-dev) 2>/dev/null
+    docker rm $(docker ps -aq -f name=nginx-local-dev) 2>/dev/null
+}
+
+stop_remote_containers() {
+    if ! are_remote_containers_running; then
+        return 0
+    fi
+
+    info "Stopping remote proxy containers..."
+    docker stop $(docker ps -q -f name=nginx-proxy) $(docker ps -q -f name=nginx-proxy-acme) 2>/dev/null
+    docker rm $(docker ps -aq -f name=nginx-proxy) $(docker ps -aq -f name=nginx-proxy-acme) 2>/dev/null
+}
+
+start_proxy_containers() {
+    if [ "$SERVER_LOCATION" == "local" ]; then
+        compose_file="docker-compose-local.yml"
+        stop_remote_containers
+        if are_local_containers_running; then
+            return 0
+        fi
+    elif [ "$SERVER_LOCATION" == "remote" ]; then
+        compose_file="docker-compose-remote.yml"
+        stop_local_containers
+        if are_remote_containers_running; then
+            return 0
+        fi
     else
-        error "Could not find docker-compose.yml file in $PROXY_LOCATION"
+        error "Invalid SERVER_LOCATION: $SERVER_LOCATION"
+        return 1
+    fi
+
+    if [ -f "${PROXY_LOCATION}/${compose_file}" ]; then
+        info "Starting proxy containers using ${compose_file}..."
+        cd "$PROXY_LOCATION" && docker-compose -f ${compose_file} up -d
+    else
+        error "Could not find ${compose_file} in $PROXY_LOCATION"
         return 1
     fi
 }
 
 is_proxy_cloned() {
-    if [ ! -f "${PROXY_LOCATION}/docker-compose.yml" ] && [ ! -f "${PROXY_LOCATION}/docker-compose.yaml" ]; then
+    if [ ! -f "${PROXY_LOCATION}/docker-compose-local.yml" ] || [ ! -f "${PROXY_LOCATION}/docker-compose-remote.yml" ]; then
         return 1
     fi
     return 0
@@ -138,11 +184,14 @@ setup_proxy_repo() {
     info "Cloning and setting up proxy repo in $PROXY_LOCATION..."
     git clone --depth 1 --branch main "$PROXY_REPO_URL" "$PROXY_LOCATION"
     chmod +x "${PROXY_LOCATION}/scripts/"*
-    "${PROXY_LOCATION}/scripts/fullSetup.sh"
+    "${PROXY_LOCATION}/scripts/fullSetup.sh" --location "$SERVER_LOCATION"
 }
 
 main() {
     parse_arguments "$@"
+
+    load_env_file $ENVIRONMENT
+    SERVER_LOCATION=$("${HERE}/domainCheck.sh" $SITE_IP $SERVER_URL | tail -n 1)
 
     # Get proxy location
     get_proxy_location
