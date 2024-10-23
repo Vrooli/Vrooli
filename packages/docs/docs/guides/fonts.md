@@ -30,7 +30,7 @@ Then, when you need to use the font, you can reference it the same way as the `i
 
 When supplying a font, it is a good idea to compress it using [Font Squirrel](https://www.fontsquirrel.com/tools/webfont-generator). If you know which characters you need (such as for a logo), you can also delete unneeded characters via an app like [FontForge](https://fontforge.org/). In web development, size matters😉  
 
-If you want to go even further (though it is probably not necessary), you can also encode your font as a base64 string so it can be used without fetching. On a Unix-based terminal, a `.woff` can be converted to base64 using the command `base64 -w 0 yourfont.woff > yourfont-64.txt`. Then, you can enter that string into the `@font-face` src like so: 
+If you want to go even further (though it is probably not necessary), you can also encode your font as a base64 string. This allows the font to be used without fetching, but also makes it harder to cache. On a Unix-based terminal, a `.woff` can be converted to base64 using the command `base64 -w 0 yourfont.woff > yourfont-64.txt`. Then, you can enter that string into the `@font-face` src like so: 
 
 ```javascript
     ...

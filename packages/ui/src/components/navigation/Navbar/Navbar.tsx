@@ -150,7 +150,7 @@ const NameTypography = styled(Typography)(({ theme }) => ({
     cursor: "pointer",
     lineHeight: "1.3",
     fontSize: "2.5em",
-    fontFamily: "SakBunderan",
+    fontFamily: "sakbunderan",
     color: theme.palette.primary.contrastText,
 }));
 
