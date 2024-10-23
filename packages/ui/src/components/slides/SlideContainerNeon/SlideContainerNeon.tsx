@@ -55,7 +55,7 @@ const CHUNK_CAPACITY = 15;
 /** Multiplier for adding/removing decimals */
 const DECIMAL_MULTIPLIER = 100;
 
-const canvasStyle = `position:fixed;top:0;left:0;opacity:${OPACITY}`;
+const canvasStyle = `position:fixed;top:0;left:0;opacity:${OPACITY};pointer-events:none;`;
 
 function rand(min: number, max: number) { return (max - min) * Math.random() + min; }
 
@@ -520,13 +520,14 @@ class ParticleCanvas {
     optimizeChunkSize() {
         if (!this.canvas) return;
         const opti_size = Math.floor(POINT_DIST * CHUNK_SIZE_CONSTANT);
-        console.log("Optimized chunk size:", opti_size);
-        const calOpti = (dimension: number) => {
-            const diff = (num_of_chunks: number) => Math.abs(dimension / num_of_chunks - opti_size);
+        function calOpti(dimension: number) {
+            function diff(num_of_chunks: number) {
+                return Math.abs(dimension / num_of_chunks - opti_size);
+            }
             const test_num = dimension / opti_size;
             if (diff(Math.floor(test_num)) < diff(Math.ceil(test_num))) return Math.floor(test_num);
             else return Math.ceil(test_num);
-        };
+        }
         this.c.X_CHUNK = calOpti(this.canvas.width);
         this.c.Y_CHUNK = calOpti(this.canvas.height);
         console.log("X_CHUNK", this.c.X_CHUNK);

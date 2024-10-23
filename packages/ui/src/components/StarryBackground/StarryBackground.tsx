@@ -16,7 +16,11 @@ const SpaceBox = styled(Box)(() => ({
     background: "black",
 }));
 
-const canvasStyle = { width: "100%", height: "100%" } as const;
+const canvasStyle = {
+    width: "100%",
+    height: "100%",
+    pointerEvents: "none",
+} as const;
 
 export function StarryBackground() {
     const canvasRef = useRef<HTMLCanvasElement>(null);

@@ -50,7 +50,7 @@ export function Footer() {
     if (isStandalone) return null;
     return (
         <StyledFooter id="footer" component="footer">
-            <Box display="flex" justifyContent="center" sx={{ width: "100%" }}>
+            <Box display="flex" justifyContent="space-around" sx={{ width: "100%" }}>
                 <Box sx={footerColumn}>
                     <Typography variant="body1" sx={{ textTransform: "uppercase" }}>{t("Resource", { count: 2 })}</Typography>
                     <List component="nav" dense>
