@@ -1,6 +1,7 @@
 import { ChatMessageShape, Comment, CommentThread, NavigableObject } from "@local/shared";
 import { LinearProgressProps } from "@mui/material";
 import { PageTab } from "hooks/useTabs";
+import { ReactNode } from "react";
 import { SxType } from "types";
 import { TabsInfo } from "utils/search/objectToSearch";
 
@@ -90,4 +91,10 @@ export interface PageTabsProps<TabList extends TabsInfo> {
     onChange: (event: React.ChangeEvent<unknown>, value: PageTab<TabList>) => unknown,
     tabs: PageTab<TabList>[],
     sx?: SxType,
+}
+
+export interface SlideProps {
+    id: string;
+    children: ReactNode;
+    sx?: SxType;
 }

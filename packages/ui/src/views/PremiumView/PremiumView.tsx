@@ -1,7 +1,6 @@
 import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, LINKS, PaymentType } from "@local/shared";
 import { Box, Button, Link, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography, styled, useTheme } from "@mui/material";
 import { PageContainer } from "components/Page/Page";
-import { RandomBlobs } from "components/RandomBlobs/RandomBlobs";
 import { Testimonials } from "components/Testimonials/Testimonials";
 import { IntegerInputBase } from "components/inputs/IntegerInput/IntegerInput";
 import { Footer } from "components/navigation/Footer/Footer";
@@ -14,6 +13,7 @@ import { useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { ScrollBox } from "styles";
+import { RandomBlobs } from "views/main/LandingView/LandingView";
 import { PremiumViewProps } from "../types";
 
 const purpleRadial = "radial-gradient(circle, rgb(16 6 46) 15%, rgb(11 1 36) 55%, rgb(8 3 20) 85%)";
@@ -166,6 +166,18 @@ export function PremiumView({
         startCheckout,
     } = useStripe();
 
+    function startDonation5Dollars() {
+        startCheckout(PaymentType.Donation, 500);
+    }
+
+    function startDonation20Dollars() {
+        startCheckout(PaymentType.Donation, 2000);
+    }
+
+    function startDonationCustom() {
+        setIsCustomDonationAmountOpen(true);
+    }
+
     return (
         <PageContainer size="fullSize" sx={{
             background: purpleRadial,
@@ -196,29 +208,35 @@ export function PremiumView({
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    {rows.map(({ feature, free, pro }) => (
-                                        <TableRow
-                                            key={feature}
-                                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = ""}
-                                        >
-                                            <TableCell component="th" scope="row">
-                                                {feature.startsWith("*") ? (
-                                                    <>
-                                                        <span style={{ color: palette.error.main, fontSize: "x-large" }}>*</span>
-                                                        {feature.slice(1)}
-                                                    </>
-                                                ) : (
-                                                    feature
-                                                )}
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                {free === "✔️" ? <CompleteIcon fill={palette.mode === "light" ? palette.secondary.dark : palette.secondary.light} /> : free}
-                                            </TableCell>
-                                            <TableCell align="center" sx={{ background: palette.mode === "light" ? "#c8ffdd" : "#555f6a" }}>
-                                                {pro === "✔️" ? <CompleteIcon fill={palette.mode === "light" ? palette.secondary.dark : palette.secondary.light} /> : pro}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
+                                    {rows.map(({ feature, free, pro }) => {
+                                        function handleMouseOut(e: React.MouseEvent<HTMLTableRowElement, MouseEvent>) {
+                                            e.currentTarget.style.backgroundColor = "";
+                                        }
+
+                                        return (
+                                            <TableRow
+                                                key={feature}
+                                                onMouseOut={handleMouseOut}
+                                            >
+                                                <TableCell component="th" scope="row">
+                                                    {feature.startsWith("*") ? (
+                                                        <>
+                                                            <span style={{ color: palette.error.main, fontSize: "x-large" }}>*</span>
+                                                            {feature.slice(1)}
+                                                        </>
+                                                    ) : (
+                                                        feature
+                                                    )}
+                                                </TableCell>
+                                                <TableCell align="center">
+                                                    {free === "✔️" ? <CompleteIcon fill={palette.mode === "light" ? palette.secondary.dark : palette.secondary.light} /> : free}
+                                                </TableCell>
+                                                <TableCell align="center" sx={{ background: palette.mode === "light" ? "#c8ffdd" : "#555f6a" }}>
+                                                    {pro === "✔️" ? <CompleteIcon fill={palette.mode === "light" ? palette.secondary.dark : palette.secondary.light} /> : pro}
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
                                 </TableBody>
                             </Table>
                         </TableContainer>
@@ -396,17 +414,17 @@ export function PremiumView({
                             }}>
                                 <Button
                                     fullWidth
-                                    onClick={() => { startCheckout(PaymentType.Donation, 500); }}
+                                    onClick={startDonation5Dollars}
                                     variant="outlined"
                                 >$5</Button>
                                 <Button
                                     fullWidth
-                                    onClick={() => { startCheckout(PaymentType.Donation, 2000); }}
+                                    onClick={startDonation20Dollars}
                                     variant="outlined"
                                 >$20</Button>
                                 <Button
                                     fullWidth
-                                    onClick={() => { setIsCustomDonationAmountOpen(true); }}
+                                    onClick={startDonationCustom}
                                     variant="outlined"
                                 >Custom</Button>
                             </Box>}

@@ -177,12 +177,6 @@ export const SlideContainer = styled(Box)(() => ({
     ...slideContainer,
 }));
 
-export const slidePage = {
-} as const;
-export const SlidePage = styled(Box)(() => ({
-    ...slidePage,
-}));
-
 export function slideBox(theme: Theme) {
     return {
         ...slideContent(theme),
