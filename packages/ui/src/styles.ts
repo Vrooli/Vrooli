@@ -69,7 +69,7 @@ export function linkColors(palette: Palette) {
 
 export const greenNeonText = {
     color: "#fff",
-    filter: "drop-shadow(0 0 1px #0fa) drop-shadow(0 0 2px #0fa) drop-shadow(0 0 20px #0fa)",
+    filter: "drop-shadow(0 0 2px #0fa) drop-shadow(0 0 20px #0fa)",
 } as const;
 
 export const slideIconButton = {
@@ -91,6 +91,11 @@ export function slideText(theme: Theme) {
         zIndex: 10,
         textAlign: "center",
         textWrap: "balance",
+        maxWidth: "700px",
+        marginLeft: "auto",
+        marginRight: "auto",
+        background: "#00000055",
+        borderRadius: theme.spacing(1),
         [theme.breakpoints.up("md")]: {
             fontSize: "1.5rem",
         },
@@ -105,18 +110,17 @@ export const SlideText = styled("h3")(({ theme }) => ({
 
 export function slideTitle(theme: Theme) {
     return {
-        letterSpacing: "-0.05em",
         textAlign: "center",
         wordBreak: "break-word",
         zIndex: 10,
-        [theme.breakpoints.up("md")]: {
-            fontSize: "3.75rem",
+        [theme.breakpoints.up("xs")]: {
+            fontSize: "2.4rem",
         },
         [theme.breakpoints.up("sm")]: {
             fontSize: "3rem",
         },
-        [theme.breakpoints.up("xs")]: {
-            fontSize: "2.4rem",
+        [theme.breakpoints.up("md")]: {
+            fontSize: "3.75rem",
         },
     } as const;
 }
@@ -124,7 +128,7 @@ export const SlideTitle = styled(Typography)(({ theme }) => ({
     ...slideTitle(theme),
 }));
 
-export function slideImageContainer(theme: Theme) {
+export function slideImageContainer() {
     return {
         justifyContent: "center",
         height: "100%",
@@ -157,12 +161,15 @@ export function slideContent(theme: Theme) {
         justifyContent: "center",
         marginLeft: "auto",
         marginRight: "auto",
-        maxWidth: "700px",
+        maxWidth: "min(1000px, 120vh)",
         minHeight: "100vh",
         padding: theme.spacing(2),
         textAlign: "center",
         zIndex: 5,
-        gap: theme.spacing(4),
+        gap: theme.spacing(8),
+        [theme.breakpoints.down("md")]: {
+            gap: theme.spacing(4),
+        },
     } as const;
 }
 export const SlideContent = styled(Stack)(({ theme }) => ({
@@ -175,20 +182,6 @@ export const slideContainer = {
 } as const;
 export const SlideContainer = styled(Box)(() => ({
     ...slideContainer,
-}));
-
-export function slideBox(theme: Theme) {
-    return {
-        ...slideContent(theme),
-        background: "#2c2d2fd1",
-        borderRadius: theme.spacing(4),
-        minHeight: "unset",
-        zIndex: 2,
-        gap: theme.spacing(6),
-    } as const;
-}
-export const SlideBox = styled(Stack)(({ theme }) => ({
-    ...slideBox(theme),
 }));
 
 export const textPop = {

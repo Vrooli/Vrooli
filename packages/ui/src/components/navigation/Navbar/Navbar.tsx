@@ -55,6 +55,9 @@ const EnterButton = styled(Button)(({ theme }) => ({
     whiteSpace: "nowrap",
     // Hide text on small screens, and remove start icon's padding
     fontSize: "1.4em",
+    // eslint-disable-next-line no-magic-numbers
+    borderRadius: theme.spacing(1.5),
+    textTransform: "none",
     [theme.breakpoints.down("md")]: {
         fontSize: "1em",
     },

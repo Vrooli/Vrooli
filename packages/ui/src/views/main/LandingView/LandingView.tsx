@@ -1,5 +1,5 @@
 import { DOCS_URL, LINKS, SOCIALS } from "@local/shared";
-import { Box, BoxProps, Button, ButtonProps, Grid, Stack, Tooltip, keyframes, styled, useTheme } from "@mui/material";
+import { Box, BoxProps, Button, ButtonProps, Grid, Tooltip, keyframes, styled, useTheme } from "@mui/material";
 import AiDrivenConvo from "assets/img/AiDrivenConvo.png";
 import CollaborativeRoutines from "assets/img/CollaborativeRoutines.webp";
 import Earth from "assets/img/Earth.svg";
@@ -10,11 +10,10 @@ import { PageContainer } from "components/Page/Page";
 import { Footer } from "components/navigation/Footer/Footer";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useWindowSize } from "hooks/useWindowSize";
-import { ArticleIcon, GitHubIcon, PlayIcon, XIcon } from "icons";
+import { ArticleIcon, GitHubIcon, PlayIcon, ShortcutIcon, XIcon } from "icons";
 import { useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
-import { ScrollBox, SlideBox, SlideContainer, SlideContent, SlideIconButton, SlideImage, SlideImageContainer, SlideText, greenNeonText, textPop } from "styles";
+import { ScrollBox, SlideContainer, SlideContent, SlideIconButton, SlideImage, SlideImageContainer, SlideText, greenNeonText } from "styles";
 import { SvgComponent } from "types";
 import { SlideTitle } from "../../../styles";
 import { LandingViewProps } from "../types";
@@ -164,7 +163,8 @@ type PointInfo = {
 }
 
 /** The number of particles. (a number lesser than 1000 is recommended under regular settings) */
-const POINT_COUNT = 50;
+const POINT_COUNT_MOBILE = 25;
+const POINT_COUNT_DESKTOP = 50;
 /** Minimum point size */
 const POINT_SIZE_MIN = 2;
 /** Maximum point size */
@@ -308,15 +308,17 @@ class DrawBuffer {
 
 class Simulator {
     ctx: CanvasRenderingContext2D;
+    numPoints: number;
     points: Point[];
     draw_buffer: DrawBuffer;
     w: number;
     h: number;
 
-    constructor(ctx: CanvasRenderingContext2D, w: number, h: number) {
+    constructor(ctx: CanvasRenderingContext2D, w: number, h: number, numPoints: number) {
         this.ctx = ctx;
         this.w = w;
         this.h = h;
+        this.numPoints = numPoints;
         this.draw_buffer = new DrawBuffer(this.ctx);
         this.points = [];
 
@@ -324,7 +326,7 @@ class Simulator {
     }
 
     initializePoints(): void {
-        for (let i = 0; i < POINT_COUNT; i++) this.genNewPoint();
+        for (let i = 0; i < this.numPoints; i++) this.genNewPoint();
     }
 
     genNewPoint(): void {
@@ -375,6 +377,7 @@ class ParticleCanvas {
     ctx: CanvasRenderingContext2D | null;
     lastHeight: number;
     lastWidth: number;
+    numPoints: number;
     simulator: Simulator | undefined;
     render: {
         draw: boolean;
@@ -385,8 +388,10 @@ class ParticleCanvas {
     resizeListener: (() => unknown) | undefined;
     tid: number | undefined;
 
-    constructor(canvasRef: HTMLCanvasElement | null) {
+    constructor(canvasRef: HTMLCanvasElement | null, numPoints: number) {
         this.canvas = canvasRef;
+        this.numPoints = numPoints;
+
         this.initializeCanvas();
         this.ctx = this.canvas!.getContext("2d");
 
@@ -473,6 +478,7 @@ class ParticleCanvas {
                     this.ctx!,
                     this.canvas.width,
                     this.canvas.height,
+                    this.numPoints,
                 );
 
                 this.render.need_initialize = false;
@@ -527,7 +533,7 @@ export function NeonBackground({
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
     useEffect(function handleCanvasInstance() {
-        const canvasInstance = new ParticleCanvas(canvasRef.current);
+        const canvasInstance = new ParticleCanvas(canvasRef.current, isMobile ? POINT_COUNT_MOBILE : POINT_COUNT_DESKTOP);
         return () => {
             canvasInstance?.destroy();
         };
@@ -649,24 +655,23 @@ const pulse = keyframes`
         box-shadow: 0 0 0 0 rgba(0, 255, 170, 0);
     }
 `;
-
+const pulseHover = {
+    background: "#2f9875",
+    borderColor: "#0fa",
+    borderWidth: "2px",
+    filter: "brightness(1.2)",
+} as const;
 const PulseButton = styled(Button)(({ theme }) => ({
     // Button border has neon green glow animation
     animation: `${pulse} 3s infinite ease`,
-    background: "#00aa71",
+    background: "#017d53",
     borderColor: "#0fa",
     borderWidth: "2px",
     borderRadius: theme.spacing(2),
     color: "white",
     fontWeight: 550,
     width: "fit-content",
-    // On hover, brighten and grow
-    "&:hover": {
-        background: "#2f9875",
-        borderColor: "#0fa",
-        filter: "brightness(1.2)",
-        transform: "scale(1.05)",
-    },
+    "&:hover": pulseHover,
     transition: "all 0.2s ease",
 }));
 
@@ -732,26 +737,54 @@ const Slide1SiteNavBox = styled(Box)(() => ({
     marginRight: "auto !important",
     marginBottom: 3,
 }));
+const Slide1MainButtonsBox = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing(2),
+    [theme.breakpoints.down("md")]: {
+        flexDirection: "column",
+        gap: theme.spacing(1),
+    },
+}));
 interface Slide1StartButtonProps extends ButtonProps {
     isMobile: boolean;
 }
 const Slide1StartButton = styled(PulseButton, {
     shouldForwardProp: (prop) => prop !== "isMobile",
 })<Slide1StartButtonProps>(({ isMobile }) => ({
+    fontSize: isMobile ? "1.6rem" : "2rem",
+    zIndex: 2,
+    textTransform: "none",
+}));
+interface Slide1QuickTourButtonProps extends ButtonProps {
+    isMobile: boolean;
+}
+const Slide1QuickTourButton = styled(PulseButton, {
+    shouldForwardProp: (prop) => prop !== "isMobile",
+})<Slide1QuickTourButtonProps>(({ isMobile }) => ({
+    animation: "none",
+    background: "#00000033",
     fontSize: isMobile ? "1.3rem" : "1.8rem",
     zIndex: 2,
     textTransform: "none",
+    "&:hover": {
+        ...pulseHover,
+        background: "#00000088",
+    },
 }));
 interface Slide1ViewSiteButtonProps extends ButtonProps {
     isMobile: boolean;
 }
 const Slide1ViewSiteButton = styled(Button, {
     shouldForwardProp: (prop) => prop !== "isMobile",
-})<Slide1ViewSiteButtonProps>(({ isMobile }) => ({
+})<Slide1ViewSiteButtonProps>(({ isMobile, theme }) => ({
     fontSize: isMobile ? "1rem" : "1.4rem",
     zIndex: 2,
+    background: "#00000033",
     color: "white",
     borderColor: "white",
+    borderRadius: theme.spacing(2),
     textDecoration: "underline",
     textTransform: "none",
 }));
@@ -762,21 +795,25 @@ const Slide5Title = styled(SlideTitle)(() => ({
 const Slide5Text = styled(SlideText)(() => ({
     zIndex: 6,
 }));
-const Slide6Title = styled(SlideTitle)(() => ({
-    ...textPop,
-    zIndex: 6,
-    marginBottom: 4,
-}));
-interface Slide6StartButtonProps extends ButtonProps {
-    isMobile: boolean;
-}
-const Slide6StartButton = styled(PulseButton, {
-    shouldForwardProp: (prop) => prop !== "isMobile",
-})<Slide6StartButtonProps>(({ isMobile }) => ({
-    fontSize: isMobile ? "1rem" : "1.4rem",
+const Slide6Title = Slide1Title;
+const Slide6StartButton = styled(Slide1StartButton)(() => ({
     marginLeft: "auto !important",
     marginRight: "auto !important",
     zIndex: 6,
+}));
+const ExternalLinksBox = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: theme.spacing(2),
+    zIndex: 6,
+    background: "#00000033",
+    width: "fit-content",
+    padding: theme.spacing(1),
+    borderRadius: theme.spacing(4),
+    marginLeft: "auto",
+    marginRight: "auto",
 }));
 
 /**
@@ -787,7 +824,6 @@ export function LandingView({
     onClose,
 }: LandingViewProps) {
     const [, setLocation] = useLocation();
-    const { t } = useTranslation();
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
@@ -796,6 +832,9 @@ export function LandingView({
     }
     function toSearch() {
         openLink(setLocation, LINKS.Search);
+    }
+    function toVideoTour() {
+        //TODO
     }
 
     // Track scroll information
@@ -870,13 +909,22 @@ export function LandingView({
                             Use AI teams to automate business tasks and enhance personal productivity
                         </Slide1Subtitle>
                         <Slide1SiteNavBox>
-                            <Slide1StartButton
-                                variant="outlined"
-                                color="secondary"
-                                isMobile={isMobile}
-                                onClick={toSignUp}
-                                startIcon={<PlayIcon fill='white' />}
-                            >Start for free</Slide1StartButton>
+                            <Slide1MainButtonsBox>
+                                <Slide1StartButton
+                                    variant="outlined"
+                                    color="secondary"
+                                    isMobile={isMobile}
+                                    onClick={toSignUp}
+                                    startIcon={<ShortcutIcon fill='white' />}
+                                >Start for free</Slide1StartButton>
+                                <Slide1QuickTourButton
+                                    variant="outlined"
+                                    color="secondary"
+                                    isMobile={isMobile}
+                                    onClick={toVideoTour}
+                                    startIcon={<PlayIcon fill='white' />}
+                                >Video tour</Slide1QuickTourButton>
+                            </Slide1MainButtonsBox>
                             <Slide1ViewSiteButton
                                 variant="text"
                                 color="secondary"
@@ -884,81 +932,78 @@ export function LandingView({
                                 onClick={toSearch}
                             >View Site</Slide1ViewSiteButton>
                         </Slide1SiteNavBox>
-                        <Stack direction="row" spacing={2} display="flex" justifyContent="center" alignItems="center">
-                            {externalLinks.map(([tooltip, link, Icon]) => {
-                                function onClick() {
-                                    openLink(setLocation, link);
-                                }
-
-                                return (
-                                    <Tooltip key={tooltip} title={tooltip} placement="bottom">
-                                        <SlideIconButton onClick={onClick}>
-                                            <Icon fill='#0fa' />
-                                        </SlideIconButton>
-                                    </Tooltip>
-                                );
-                            })}
-                        </Stack>
                     </SlideContent1>
                     <SlideContent id={SLIDE_IDS.slide2}>
-                        <SlideBox>
-                            <SlideTitle variant='h2'>AI Coworkers</SlideTitle>
-                            <Grid container spacing={2}>
-                                <Grid item xs={12} sm={6} margin="auto">
+                        <SlideTitle variant='h2'>AI Coworkers, Ready on Demand</SlideTitle>
+                        <Grid container spacing={2}>
+                            <Grid item xs={12} sm={6} margin="auto">
+                                <Box display="flex" flexDirection="column" gap={2}>
                                     <SlideText>
-                                        Create AI bots capable of intelligent conversation and task execution.
+                                        Our bots work around the clock to handle your repetitive tasks, so you can focus on what matters most.
                                     </SlideText>
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                    <SlideImageContainer>
-                                        <SlideImage
-                                            alt="A conversation between a user and a bot. The user asks the bot about starting a business, and the bot gives suggestions on how to get started."
-                                            src={AiDrivenConvo}
-                                        />
-                                    </SlideImageContainer>
-                                </Grid>
+                                    <SlideText>
+                                        Whether it&apos;s managing projects, automating workflows, or answering common questions, our AI bots are here to make your life easier and your business run smoother.
+                                    </SlideText>
+                                </Box>
                             </Grid>
-                        </SlideBox>
+                            <Grid item xs={12} sm={6}>
+                                <SlideImageContainer>
+                                    <SlideImage
+                                        alt="A conversation between a user and a bot. The user asks the bot about starting a business, and the bot gives suggestions on how to get started."
+                                        src={AiDrivenConvo}
+                                    />
+                                </SlideImageContainer>
+                            </Grid>
+                        </Grid>
                     </SlideContent>
                     <SlideContent id={SLIDE_IDS.slide3}>
-                        <SlideBox>
-                            <SlideTitle variant='h2'>Do Anything</SlideTitle>
-                            <Grid container spacing={2}>
-                                <Grid item xs={12} sm={6} margin="auto">
+                        <SlideTitle variant='h2'>Build Consistent, Automated Workflows</SlideTitle>
+                        <Grid container spacing={2}>
+                            <Grid item xs={12} sm={6} margin="auto">
+                                <Box display="flex" flexDirection="column" gap={2}>
                                     <SlideText>
-                                        Collaboratively design routines for a wide variety of tasks, such as business management, content creation, and surveys.
+                                        Create reusable workflows that ensure your AI-driven business operates smoothly, every time.
                                     </SlideText>
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                    <SlideImageContainer>
-                                        <SlideImage
-                                            alt="A graphical representation of the nodes and edges of a routine."
-                                            src={CollaborativeRoutines}
-                                        />
-                                    </SlideImageContainer>
-                                </Grid>
+                                    <SlideText>
+                                        Manage your business, create content, and more, in a way that is repeatable and reliable.
+                                    </SlideText>
+                                    <SlideText>
+                                        Alternatively, let our AI bots build routines for you based on your preferences and needs.
+                                    </SlideText>
+                                </Box>
                             </Grid>
-                        </SlideBox>
+                            <Grid item xs={12} sm={6}>
+                                <SlideImageContainer>
+                                    <SlideImage
+                                        alt="A graphical representation of the nodes and edges of a routine."
+                                        src={CollaborativeRoutines}
+                                    />
+                                </SlideImageContainer>
+                            </Grid>
+                        </Grid>
                     </SlideContent>
                     <SlideContent id={SLIDE_IDS.slide4}>
-                        <SlideBox>
-                            <SlideTitle variant='h2'>Manage Teams</SlideTitle>
-                            <Grid container spacing={2}>
-                                <Grid item xs={12} sm={6} margin="auto">
+                        <SlideTitle variant='h2'>Manage Teams Like a Pro</SlideTitle>
+                        <Grid container spacing={2}>
+                            <Grid item xs={12} sm={6} margin="auto">
+                                <Box display="flex" flexDirection="column" gap={2}>
                                     <SlideText>
-                                        Organize your business processes efficiently with routines and bots, or copy an existing business in a few clicks.
+                                        With AI-powered routines and bots, you can handle the workload of an entire team on your own—no humans required.
                                     </SlideText>
-                                </Grid>
-                                <Grid item xs={12} sm={6}>
-                                    <SlideImageContainer>
-                                        <SlideImage
-                                            alt="The page for a team, showing the team's name, bio, picture, and members."
-                                            src={OrganizationalManagement}
-                                        />
-                                    </SlideImageContainer>
-                                </Grid>
+                                    <SlideText>
+                                        Perfect for solo developers or small businesses, Vrooli lets you automate and manage everything from operations to communication, freeing up your time to focus on growth.
+                                    </SlideText>
+                                </Box>
                             </Grid>
-                        </SlideBox>
+                            <Grid item xs={12} sm={6}>
+                                <SlideImageContainer>
+                                    <SlideImage
+                                        alt="The page for a team, showing the team's name, bio, picture, and members."
+                                        src={OrganizationalManagement}
+                                    />
+                                </SlideImageContainer>
+                            </Grid>
+                        </Grid>
                     </SlideContent>
                 </SlideContainer>
                 <SlideContainer id={SLIDE_CONTAINER_IDS.sky}>
@@ -989,7 +1034,22 @@ export function LandingView({
                             isMobile={isMobile}
                             onClick={toSignUp}
                             startIcon={<PlayIcon fill='white' />}
-                        >{t("Start")}</Slide6StartButton>
+                        >I&apos;m ready</Slide6StartButton>
+                        <ExternalLinksBox>
+                            {externalLinks.map(([tooltip, link, Icon]) => {
+                                function onClick() {
+                                    openLink(setLocation, link);
+                                }
+
+                                return (
+                                    <Tooltip key={tooltip} title={tooltip} placement="bottom">
+                                        <SlideIconButton onClick={onClick}>
+                                            <Icon fill='#0fa' />
+                                        </SlideIconButton>
+                                    </Tooltip>
+                                );
+                            })}
+                        </ExternalLinksBox>
                     </SlideContent>
                 </SlideContainer>
                 <Footer />
