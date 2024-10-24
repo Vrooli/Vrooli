@@ -55,7 +55,7 @@ fi
 
 # Running setup.sh
 info "Running setup.sh..."
-. "${HERE}/setup.sh" -e y -r n "${SETUP_ARGS[@]}"
+"${HERE}/setup.sh" -e y -r n "${SETUP_ARGS[@]}"
 if [ $? -ne 0 ]; then
     error "setup.sh failed"
     exit 1
@@ -127,7 +127,11 @@ else
     docker-compose down
 
     # Start the reverse proxy
-    . "${HERE}/proxySetup.sh" -n "${NGINX_LOCATION}"
+    "${HERE}/proxySetup.sh"
+    if [ $? -ne 0 ]; then
+        error "Failed to set up proxy"
+        exit 1
+    fi
 
     # Start the development environment
     info "Starting development environment using Docker Compose..."

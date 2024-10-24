@@ -6,7 +6,7 @@ start_time=$(date +%s)
 # If in development mode
 if [ "${NODE_ENV}" = "development" ]; then
     # Convert shared packages to typescript. In production, this should already be done
-    . "${HERE}/shared.sh"
+    "${HERE}/shared.sh"
     # Perform pre-develop steps
     cd ${PROJECT_DIR}/packages/server
     yarn pre-build-${NODE_ENV} && yarn build && yarn pre-develop

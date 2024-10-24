@@ -37,7 +37,7 @@ Exit Codes:
 EOF
 }
 
-PROXY_LOCATION=""
+PROXY_LOCATION="$DEFAULT_PROXY_LOCATION"
 parse_arguments() {
     while [[ $# -gt 0 ]]; do
         key="$1"

@@ -28,19 +28,9 @@ while [[ $# -gt 0 ]]; do
         shift # past argument
         shift # past value
         ;;
-    -n | --nginx-location)
-        if [ -z "$2" ] || [[ "$2" == -* ]]; then
-            echo "Error: Option $key requires an argument."
-            exit 1
-        fi
-        NGINX_LOCATION="${2}"
-        shift # past argument
-        shift # past value
-        ;;
     -h | --help)
-        echo "Usage: $0 [-v VERSION] [-n NGINX_LOCATION] [-h]"
+        echo "Usage: $0 [-v VERSION] [-h]"
         echo "  -v --version: Version number to use (e.g. \"1.0.0\")"
-        echo "  -n --nginx-location: Nginx proxy location (e.g. \"/root/NginxSSLReverseProxy\")"
         echo "  -h --help: Show this help message"
         exit 0
         ;;
@@ -123,7 +113,7 @@ fi
 
 # Running setup.sh
 info "Running setup.sh..."
-. "${HERE}/setup.sh" "${SETUP_ARGS[@]}" -p
+"${HERE}/setup.sh" "${SETUP_ARGS[@]}" -p
 if [ $? -ne 0 ]; then
     error "setup.sh failed"
     exit 1
@@ -177,9 +167,11 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# If server is not local, set up reverse proxy
-if [[ "$SERVER_LOCATION" != "local" ]]; then
-    . "${HERE}/proxySetup.sh" -n "${NGINX_LOCATION}"
+# Set up reverse proxy
+"${HERE}/proxySetup.sh"
+if [ $? -ne 0 ]; then
+    error "Failed to set up proxy"
+    exit 1
 fi
 
 # Restart docker containers.

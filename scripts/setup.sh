@@ -545,7 +545,7 @@ setup_production_environment() {
 
 generate_jwt_key_pair() {
     header "Generating JWT key pair for authentication"
-    . "${HERE}/genJwt.sh"
+    "${HERE}/genJwt.sh"
 }
 
 setup_vault() {
