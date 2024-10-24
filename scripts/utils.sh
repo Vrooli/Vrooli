@@ -128,7 +128,7 @@ load_env_file() {
     fi
 
     if [ "$environment" = "production" ]; then
-        env_file="$HERE/../.env.prod"
+        env_file="$HERE/../.env-prod"
     fi
 
     if [ ! -f "$env_file" ]; then
@@ -137,4 +137,8 @@ load_env_file() {
     fi
 
     . "$env_file"
+}
+
+is_running_in_ci() {
+    [[ "$CI" == "true" ]]
 }
