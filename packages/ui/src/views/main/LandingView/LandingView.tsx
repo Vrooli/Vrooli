@@ -1,5 +1,5 @@
 import { DOCS_URL, LINKS, SOCIALS } from "@local/shared";
-import { Box, BoxProps, Button, ButtonProps, Grid, Tooltip, keyframes, styled, useTheme } from "@mui/material";
+import { Box, BoxProps, Button, ButtonProps, Grid, IconButton, Modal, Tooltip, keyframes, styled, useTheme } from "@mui/material";
 import AiDrivenConvo from "assets/img/AiDrivenConvo.png";
 import CollaborativeRoutines from "assets/img/CollaborativeRoutines.webp";
 import Earth from "assets/img/Earth.svg";
@@ -10,8 +10,8 @@ import { PageContainer } from "components/Page/Page";
 import { Footer } from "components/navigation/Footer/Footer";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useWindowSize } from "hooks/useWindowSize";
-import { ArticleIcon, GitHubIcon, PlayIcon, ShortcutIcon, XIcon } from "icons";
-import { useEffect, useRef, useState } from "react";
+import { ArticleIcon, CloseIcon, GitHubIcon, LogInIcon, PlayIcon, XIcon } from "icons";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { openLink, useLocation } from "route";
 import { ScrollBox, SlideContainer, SlideContent, SlideIconButton, SlideImage, SlideImageContainer, SlideText, greenNeonText } from "styles";
 import { SvgComponent } from "types";
@@ -276,7 +276,8 @@ class DrawBuffer {
                 pathMap.set(styleKey, new Path2D());
             }
 
-            const path = pathMap.get(styleKey)!;
+            const path = pathMap.get(styleKey);
+            if (!path) continue;
             path.moveTo(fromX, fromY);
             path.lineTo(toX, toY);
         }
@@ -393,7 +394,7 @@ class ParticleCanvas {
         this.numPoints = numPoints;
 
         this.initializeCanvas();
-        this.ctx = this.canvas!.getContext("2d");
+        this.ctx = this.canvas?.getContext("2d") ?? null;
 
         this.simulator = undefined;
 
@@ -525,7 +526,7 @@ interface NeonBackgroundProps {
  * Custom background for hero section. 
  * Contains neon blobs and particles
  */
-export function NeonBackground({
+function NeonBackground({
     isVisible,
 }: NeonBackgroundProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -537,7 +538,7 @@ export function NeonBackground({
         return () => {
             canvasInstance?.destroy();
         };
-    }, []);
+    }, [isMobile]);
 
     return (
         <NeonBox isVisible={isVisible}>
@@ -578,7 +579,7 @@ type StarryBackgroundProps = {
     isVisible: boolean;
 }
 
-export function StarryBackground({
+function StarryBackground({
     isVisible,
 }: StarryBackgroundProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -616,6 +617,99 @@ export function StarryBackground({
     );
 }
 
+const VideoModal = styled(Modal)(() => ({
+    backgroundColor: "rgba(0,0,0,0.8)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+}));
+const VideoModalInner = styled(Box)(() => ({
+    position: "relative",
+    width: "80%",
+    height: "80%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+}));
+const PlayIconButton = styled(IconButton)(() => ({
+    position: "absolute",
+    right: 20,
+    top: 20,
+    color: "white",
+}));
+
+function VideoPopup({
+    open,
+    onClose,
+    videoUrl,
+}: {
+    open: boolean;
+    onClose: () => void;
+    videoUrl: string | null;
+}) {
+    return (
+        <VideoModal
+            open={open}
+            onClose={onClose}
+            aria-labelledby="video-modal"
+            aria-describedby="video-modal-description"
+        >
+            <VideoModalInner>
+                {videoUrl && (
+                    <iframe
+                        width="100%"
+                        height="100%"
+                        src={videoUrl}
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        title="Video Tour"
+                    ></iframe>
+                )}
+                <PlayIconButton
+                    aria-label="close"
+                    onClick={onClose}
+                >
+                    <CloseIcon />
+                </PlayIconButton>
+            </VideoModalInner>
+        </VideoModal>
+    );
+}
+
+const VideoContainerOuter = styled(SlideImageContainer)(() => ({
+    cursor: "pointer",
+}));
+const PlayIconBox = styled(Box)(({ theme }) => ({
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    display: "flex",
+    padding: theme.spacing(1),
+    background: "#bfbfbf88",
+    borderRadius: "100%",
+    zIndex: 10,
+}));
+
+type SlideImageWithVideoContainerProps = {
+    children: ReactNode;
+    onClick: () => unknown;
+}
+function SlideImageWithVideoContainer({
+    onClick,
+    children,
+}: SlideImageWithVideoContainerProps) {
+    return (
+        <VideoContainerOuter onClick={onClick}>
+            {children}
+            <PlayIconBox>
+                <PlayIcon fill="white" width={40} height={40} />
+            </PlayIconBox>
+        </VideoContainerOuter>
+    );
+}
+
 type EarthPosition = keyof typeof earthPositions;
 type ScrollDirection = "up" | "down";
 type ScrollInfo = {
@@ -643,6 +737,14 @@ const externalLinks: [string, string, SvgComponent][] = [
     ["Check out our code", SOCIALS.GitHub, GitHubIcon],
     ["Follow us on X/Twitter", SOCIALS.X, XIcon],
 ];
+
+// TODO create videos and update URLs
+const videoUrls = {
+    Tour: "https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1",
+    Convo: "https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1",
+    Routine: "https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1",
+    Team: "https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1",
+};
 
 const pulse = keyframes`
     0% {
@@ -726,6 +828,7 @@ const Slide1Title = styled(SlideTitle)(({ theme }) => ({
 }));
 const Slide1Subtitle = styled(SlideText)(() => ({
     paddingBottom: 4,
+    textAlign: "center",
 }));
 const Slide1SiteNavBox = styled(Box)(() => ({
     display: "flex",
@@ -794,11 +897,17 @@ const Slide5Title = styled(SlideTitle)(() => ({
 }));
 const Slide5Text = styled(SlideText)(() => ({
     zIndex: 6,
+    textAlign: "center",
 }));
 const Slide6Title = Slide1Title;
+const Slide6MainButtonsBox = styled(Slide1MainButtonsBox)(() => ({
+    marginLeft: "auto",
+    marginRight: "auto",
+}));
 const Slide6StartButton = styled(Slide1StartButton)(() => ({
-    marginLeft: "auto !important",
-    marginRight: "auto !important",
+    zIndex: 6,
+}));
+const Slide6QuickTourButton = styled(Slide1QuickTourButton)(() => ({
     zIndex: 6,
 }));
 const ExternalLinksBox = styled(Box)(({ theme }) => ({
@@ -827,14 +936,32 @@ export function LandingView({
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
+    const [videoUrl, setVideoUrl] = useState<string | null>(null);
+    function closeVideo() {
+        setVideoUrl(null);
+    }
+
     function toSignUp() {
         openLink(setLocation, LINKS.Signup);
     }
     function toSearch() {
         openLink(setLocation, LINKS.Search);
     }
-    function toVideoTour() {
-        //TODO
+    function toPricing() {
+        openLink(setLocation, LINKS.Pro);
+    }
+
+    function toTourVideo() {
+        setVideoUrl(videoUrls.Tour);
+    }
+    function toConvoVideo() {
+        setVideoUrl(videoUrls.Convo);
+    }
+    function toRoutineVideo() {
+        setVideoUrl(videoUrls.Routine);
+    }
+    function toTeamVideo() {
+        setVideoUrl(videoUrls.Team);
     }
 
     // Track scroll information
@@ -892,6 +1019,11 @@ export function LandingView({
 
     return (
         <PageContainer size="fullSize">
+            <VideoPopup
+                open={!!videoUrl}
+                onClose={closeVideo}
+                videoUrl={videoUrl}
+            />
             <NeonBackground isVisible={earthPosition === "hidden"} />
             <StarryBackground isVisible={earthPosition !== "hidden"} />
             <ScrollBox ref={scrollBoxRef}>
@@ -915,13 +1047,13 @@ export function LandingView({
                                     color="secondary"
                                     isMobile={isMobile}
                                     onClick={toSignUp}
-                                    startIcon={<ShortcutIcon fill='white' />}
+                                    startIcon={<LogInIcon fill='white' />}
                                 >Start for free</Slide1StartButton>
                                 <Slide1QuickTourButton
                                     variant="outlined"
                                     color="secondary"
                                     isMobile={isMobile}
-                                    onClick={toVideoTour}
+                                    onClick={toTourVideo}
                                     startIcon={<PlayIcon fill='white' />}
                                 >Video tour</Slide1QuickTourButton>
                             </Slide1MainButtonsBox>
@@ -947,12 +1079,12 @@ export function LandingView({
                                 </Box>
                             </Grid>
                             <Grid item xs={12} sm={6}>
-                                <SlideImageContainer>
+                                <SlideImageWithVideoContainer onClick={toConvoVideo}>
                                     <SlideImage
                                         alt="A conversation between a user and a bot. The user asks the bot about starting a business, and the bot gives suggestions on how to get started."
                                         src={AiDrivenConvo}
                                     />
-                                </SlideImageContainer>
+                                </SlideImageWithVideoContainer>
                             </Grid>
                         </Grid>
                     </SlideContent>
@@ -973,12 +1105,12 @@ export function LandingView({
                                 </Box>
                             </Grid>
                             <Grid item xs={12} sm={6}>
-                                <SlideImageContainer>
+                                <SlideImageWithVideoContainer onClick={toRoutineVideo}>
                                     <SlideImage
                                         alt="A graphical representation of the nodes and edges of a routine."
                                         src={CollaborativeRoutines}
                                     />
-                                </SlideImageContainer>
+                                </SlideImageWithVideoContainer>
                             </Grid>
                         </Grid>
                     </SlideContent>
@@ -996,12 +1128,12 @@ export function LandingView({
                                 </Box>
                             </Grid>
                             <Grid item xs={12} sm={6}>
-                                <SlideImageContainer>
+                                <SlideImageWithVideoContainer onClick={toTeamVideo}>
                                     <SlideImage
                                         alt="The page for a team, showing the team's name, bio, picture, and members."
                                         src={OrganizationalManagement}
                                     />
-                                </SlideImageContainer>
+                                </SlideImageWithVideoContainer>
                             </Grid>
                         </Grid>
                     </SlideContent>
@@ -1028,13 +1160,21 @@ export function LandingView({
                         <Slide6Title variant="h2">
                             Ready to Change the World?
                         </Slide6Title>
-                        <Slide6StartButton
-                            variant="outlined"
-                            color="secondary"
-                            isMobile={isMobile}
-                            onClick={toSignUp}
-                            startIcon={<PlayIcon fill='white' />}
-                        >I&apos;m ready</Slide6StartButton>
+                        <Slide6MainButtonsBox>
+                            <Slide6StartButton
+                                variant="outlined"
+                                color="secondary"
+                                isMobile={isMobile}
+                                onClick={toSignUp}
+                                startIcon={<LogInIcon fill='white' />}
+                            >I&apos;m ready</Slide6StartButton>
+                            <Slide6QuickTourButton
+                                variant="outlined"
+                                color="secondary"
+                                isMobile={isMobile}
+                                onClick={toPricing}
+                            >View pricing</Slide6QuickTourButton>
+                        </Slide6MainButtonsBox>
                         <ExternalLinksBox>
                             {externalLinks.map(([tooltip, link, Icon]) => {
                                 function onClick() {

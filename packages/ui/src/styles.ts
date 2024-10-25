@@ -89,7 +89,7 @@ export const SlideIconButton = styled(IconButton)(({ theme }) => ({
 export function slideText(theme: Theme) {
     return {
         zIndex: 10,
-        textAlign: "center",
+        textAlign: "start",
         textWrap: "balance",
         maxWidth: "700px",
         marginLeft: "auto",
@@ -130,6 +130,7 @@ export const SlideTitle = styled(Typography)(({ theme }) => ({
 
 export function slideImageContainer() {
     return {
+        position: "relative",
         justifyContent: "center",
         height: "100%",
         display: "flex",
@@ -141,7 +142,7 @@ export function slideImageContainer() {
     } as const;
 }
 export const SlideImageContainer = styled(Box)(({ theme }) => ({
-    ...slideImageContainer(theme),
+    ...slideImageContainer(),
 }));
 
 export function slideImage(theme: Theme) {
