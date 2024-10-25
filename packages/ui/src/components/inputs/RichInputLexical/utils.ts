@@ -1523,14 +1523,14 @@ export function $getTopListNode(listItem: LexicalNode): ListNode {
  * @param node - The node to be checked.
  * @returns true if the node is a ListItemNode and has a ListNode child, false otherwise.
  */
-export const isNestedListNode = (
+export function isNestedListNode(
     node: LexicalNode | null | undefined,
 ): node is Spread<
     { getFirstChild(): ListNode },
     ListItemNode
-> => {
+> {
     return $isNode("ListItem", node) && $isNode("List", node.getFirstChild());
-};
+}
 
 /**
  * A recursive Depth-First Search (Postorder Traversal) that finds all of a node's children
@@ -1539,7 +1539,7 @@ export const isNestedListNode = (
  * @returns An array containing all nodes of type ListItemNode found.
  */
 // This should probably be $getAllChildrenOfType
-export const $getAllListItems = (node: ListNode): Array<ListItemNode> => {
+export function $getAllListItems(node: ListNode): Array<ListItemNode> {
     let listItemNodes: ListItemNode[] = [];
     const listChildren = node
         .getChildren()
@@ -1557,7 +1557,7 @@ export const $getAllListItems = (node: ListNode): Array<ListItemNode> => {
     }
 
     return listItemNodes;
-};
+}
 
 /**
  * Takes a deeply nested ListNode or ListItemNode and traverses up the branch to delete the first
@@ -1566,9 +1566,9 @@ export const $getAllListItems = (node: ListNode): Array<ListItemNode> => {
  * Should not break ListItem -> List -> ListItem chain as empty List/ItemNodes should be removed on .remove().
  * @param sublist - The nested ListNode or ListItemNode to be brought up the branch.
  */
-export const $removeHighestEmptyListParent = (
+export function $removeHighestEmptyListParent(
     sublist: ListItemNode | ListNode,
-) => {
+) {
     // Nodes may be repeatedly indented, to create deeply nested lists that each
     // contain just one bullet.
     // Our goal is to remove these (empty) deeply nested lists. The easiest
@@ -1594,14 +1594,14 @@ export const $removeHighestEmptyListParent = (
     }
 
     emptyListPtr.remove();
-};
+}
 
 /**
  * Checks the depth of listNode from the root node.
  * @param listNode - The ListNode to be checked.
  * @returns The depth of the ListNode.
  */
-export const $getListDepth = (listNode: ListNode): number => {
+export function $getListDepth(listNode: ListNode): number {
     let depth = 1;
     let parent = getParent(listNode);
 
@@ -1621,9 +1621,9 @@ export const $getListDepth = (listNode: ListNode): number => {
     }
 
     return depth;
-};
+}
 
-const $normalizePoint = (point: PointType): void => {
+function $normalizePoint(point: PointType): void {
     while (point.type === "element") {
         const node = point.getNode();
         const offset = point.offset;
@@ -1652,28 +1652,28 @@ const $normalizePoint = (point: PointType): void => {
             "element",
         );
     }
-};
+}
 
-export const $normalizeSelection = (selection: RangeSelection): RangeSelection => {
+export function $normalizeSelection(selection: RangeSelection): RangeSelection {
     $normalizePoint(selection.anchor);
     $normalizePoint(selection.focus);
     return selection;
-};
+}
 
-export const $selectAll = (): void => {
+export function $selectAll(): void {
     const root = $getRoot();
     const selection = root.select(0, root.getChildrenSize());
     $setSelection($normalizeSelection(selection));
-};
+}
 
-export const append = (node: ElementNode, nodesToAppend: LexicalNode[]) => {
+export function append(node: ElementNode, nodesToAppend: LexicalNode[]) {
     node.splice(node.getChildrenSize(), 0, nodesToAppend);
-};
+}
 
-export const onCutForRichText = async (
+export async function onCutForRichText(
     event: CommandPayloadType<typeof CUT_COMMAND>,
     editor: LexicalEditor,
-): Promise<void> => {
+): Promise<void> {
     await copyToClipboard(
         editor,
         objectKlassEquals(event, ClipboardEvent) ? (event as ClipboardEvent) : null,
@@ -1686,12 +1686,12 @@ export const onCutForRichText = async (
             selection.getNodes().forEach((node) => node.remove());
         }
     });
-};
+}
 
-export const onPasteForRichText = (
+export function onPasteForRichText(
     event: CommandPayloadType<typeof PASTE_COMMAND>,
     editor: LexicalEditor,
-): void => {
+): void {
     event.preventDefault();
     editor.update(
         () => {
@@ -1709,7 +1709,7 @@ export const onPasteForRichText = (
             tag: "paste",
         },
     );
-};
+}
 
 export function $copyNode<T extends LexicalNode>(node: T): T {
     const copy = (node.constructor as LexicalNodeClass).clone(node);
@@ -1730,9 +1730,9 @@ export function $splitNode(
         throw new Error("Can not call $splitNode() on root element");
     }
 
-    const recurse = <T extends LexicalNode>(
+    function recurse<T extends LexicalNode>(
         currentNode: T,
-    ): [ElementNode, ElementNode, T] => {
+    ): [ElementNode, ElementNode, T] {
         const parent = getParent(currentNode, { throwIfNull: true });
         const isParentRoot = $isRootOrShadowRoot(parent);
         // The node we start split from (leaf) is moved, but its recursive
@@ -1756,7 +1756,7 @@ export function $splitNode(
             newParent.append(nodeToMove, ...nextSiblings);
             return [leftTree, rightTree, nodeToMove];
         }
-    };
+    }
 
     const [leftTree, rightTree] = recurse(startNode);
 
@@ -1771,7 +1771,7 @@ export function $splitNode(
  * @param node - The node to be inserted
  * @returns The node after its insertion
  */
-export const $insertNodeToNearestRoot = <T extends LexicalNode>(node: T): T => {
+export function $insertNodeToNearestRoot<T extends LexicalNode>(node: T): T {
     const selection = $getSelection() || $getPreviousSelection();
 
     if ($isRangeSelection(selection)) {
@@ -1818,9 +1818,9 @@ export const $insertNodeToNearestRoot = <T extends LexicalNode>(node: T): T => {
         paragraphNode.select();
     }
     return node.getLatest();
-};
+}
 
-const getConversionFunction = (domNode: Node): DOMConversionFn | null => {
+function getConversionFunction(domNode: Node): DOMConversionFn | null {
     const { nodeName } = domNode;
 
     const cachedConversions = LexicalNodes.getConversionsForTag(nodeName.toLowerCase());
@@ -1842,13 +1842,13 @@ const getConversionFunction = (domNode: Node): DOMConversionFn | null => {
     }
 
     return currentConversion !== null ? currentConversion.conversion : null;
-};
+}
 
-const $createNodesFromDOM = (
+function $createNodesFromDOM(
     node: Node,
     forChildMap: Map<string, DOMChildConversion> = new Map(),
     parentLexicalNode?: LexicalNode | null | undefined,
-): Array<LexicalNode> => {
+): Array<LexicalNode> {
     let lexicalNodes: Array<LexicalNode> = [];
 
     if (IGNORE_TAGS.has(node.nodeName)) {
@@ -1927,14 +1927,14 @@ const $createNodesFromDOM = (
     }
 
     return lexicalNodes;
-};
+}
 
 /**
  * How you parse your html string to get a document is left up to you. In the browser you can use the native
  * DOMParser API to generate a document (see clipboard.ts), but to use in a headless environment you can use JSDom
  * or an equivalent library and pass in the document here.
  */
-export const $generateNodesFromDOM = (dom: Document): Array<LexicalNode> => {
+export function $generateNodesFromDOM(dom: Document): Array<LexicalNode> {
     const elements = dom.body ? dom.body.childNodes : [];
     let lexicalNodes: Array<LexicalNode> = [];
     for (let i = 0; i < elements.length; i++) {
@@ -1948,12 +1948,12 @@ export const $generateNodesFromDOM = (dom: Document): Array<LexicalNode> => {
     }
 
     return lexicalNodes;
-};
+}
 
-const $updateElementNodeProperties = <T extends ElementNode>(
+function $updateElementNodeProperties<T extends ElementNode>(
     target: T,
     source: ElementNode,
-): T => {
+): T {
     target.__first = source.__first;
     target.__last = source.__last;
     target.__size = source.__size;
@@ -1961,26 +1961,26 @@ const $updateElementNodeProperties = <T extends ElementNode>(
     target.__indent = source.__indent;
     target.__dir = source.__dir;
     return target;
-};
+}
 
-const $updateTextNodeProperties = <T extends TextNode>(
+function $updateTextNodeProperties<T extends TextNode>(
     target: T,
     source: TextNode,
-): T => {
+): T {
     target.__format = source.__format;
     target.__style = source.__style;
     target.__mode = source.__mode;
     target.__detail = source.__detail;
     return target;
-};
+}
 
-const $updateParagraphNodeProperties = <T extends ParagraphNode>(
+function $updateParagraphNodeProperties<T extends ParagraphNode>(
     target: T,
     source: ParagraphNode,
-): T => {
+): T {
     target.__textFormat = source.__textFormat;
     return target;
-};
+}
 
 
 /**
@@ -2288,7 +2288,7 @@ const MAX_PARENT_SEARCH_DEPTH = 25;
  * Returns a list of the every ancestor of the provided node,
  * all the way up to the RootNode.
  */
-export const getParents = (node: LexicalNode): ElementNode[] => {
+export function getParents(node: LexicalNode): ElementNode[] {
     const parents: ElementNode[] = [];
     let currNode = getParent(node);
     while (currNode && parents.length < MAX_PARENT_SEARCH_DEPTH) {
@@ -2296,25 +2296,25 @@ export const getParents = (node: LexicalNode): ElementNode[] => {
         currNode = getParent(currNode);
     }
     return parents;
-};
+}
 
 /**
  * Returns a list of the keys of every ancestor of this node,
  * all the way up to the RootNode.
  */
-export const getParentKeys = (node: LexicalNode): NodeKey[] => {
+export function getParentKeys(node: LexicalNode): NodeKey[] {
     return getParents(node).map((parent) => parent.__key);
-};
+}
 
 /**
  * Returns the "previous" siblings - that is, the node that comes
  * before this one in the same parent.
  */
-export const getPreviousSibling = <T extends LexicalNode>(node: LexicalNode): T | null => {
+export function getPreviousSibling<T extends LexicalNode>(node: LexicalNode): T | null {
     const self = node.getLatest();
     const prevKey = self.__prev;
     return prevKey === null ? null : $getNodeByKey<T>(prevKey);
-};
+}
 
 /**
  * Returns the "previous" siblings - that is, the nodes that come between
@@ -2342,18 +2342,18 @@ export const getPreviousSiblings = <T extends LexicalNode>(node: LexicalNode): A
  * after this one in the same parent
  *
  */
-export const getNextSibling = <T extends LexicalNode>(node: LexicalNode): T | null => {
+export function getNextSibling<T extends LexicalNode>(node: LexicalNode): T | null {
     const self = node.getLatest();
     const nextKey = self.__next;
     return nextKey === null ? null : $getNodeByKey<T>(nextKey);
-};
+}
 
 /**
  * Returns all "next" siblings - that is, the nodes that come between this
  * one and the last child of it's parent, inclusive.
  *
  */
-export const getNextSiblings = <T extends LexicalNode>(node: LexicalNode): Array<T> => {
+export function getNextSiblings<T extends LexicalNode>(node: LexicalNode): Array<T> {
     const siblings: Array<T> = [];
     let currNode: null | T = getNextSibling(node);
     while (currNode !== null) {
@@ -2361,17 +2361,17 @@ export const getNextSiblings = <T extends LexicalNode>(node: LexicalNode): Array
         currNode = getNextSibling(currNode);
     }
     return siblings;
-};
+}
 
 /**
  * Returns the closest common ancestor of the two nodes, or null if none is found.
  *
  * @param node - the other node to find the common ancestor of.
  */
-export const getCommonAncestor = <T extends ElementNode = ElementNode>(
+export function getCommonAncestor<T extends ElementNode = ElementNode>(
     nodeA: LexicalNode,
     nodeB: LexicalNode,
-): T | null => {
+): T | null {
     const a = getParents(nodeA);
     const b = getParents(nodeB);
     if ($isNode("Element", nodeA)) {
@@ -2393,5 +2393,5 @@ export const getCommonAncestor = <T extends ElementNode = ElementNode>(
         }
     }
     return null;
-};
+}
 

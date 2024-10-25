@@ -1,4 +1,21 @@
+import { CodeBlockNode } from "../plugins/CodePlugin";
 import { DOMConversionCache, LexicalNodeClass, NodeType } from "../types";
+import { DecoratorNode } from "./DecoratorNode";
+import { ElementNode } from "./ElementNode";
+import { HashtagNode } from "./HashtagNode";
+import { HeadingNode } from "./HeadingNode";
+import { LineBreakNode } from "./LineBreakNode";
+import { LinkNode } from "./LinkNode";
+import { ListItemNode } from "./ListItemNode";
+import { ListNode } from "./ListNode";
+import { ParagraphNode } from "./ParagraphNode";
+import { QuoteNode } from "./QuoteNode";
+import { RootNode } from "./RootNode";
+import { TabNode } from "./TabNode";
+import { TableCellNode } from "./TableCellNode";
+import { TableNode } from "./TableNode";
+import { TableRowNode } from "./TableRowNode";
+import { TextNode } from "./TextNode";
 
 /**
  * Maps the node types to the LexicalNode classes and HTML -> LexicalNode conversion functions.
@@ -25,23 +42,23 @@ export class LexicalNodes {
 
     private static async loadNodes() {
         LexicalNodes.instance.nodes = {
-            "Code": (await import("../plugins/CodePlugin")).CodeBlockNode,
-            "Decorator": (await import("./DecoratorNode")).DecoratorNode,
-            "Element": (await import("./ElementNode")).ElementNode,
-            "Hashtag": (await import("./HashtagNode")).HashtagNode,
-            "Heading": (await import("./HeadingNode")).HeadingNode,
-            "LineBreak": (await import("./LineBreakNode")).LineBreakNode,
-            "Link": (await import("./LinkNode")).LinkNode,
-            "List": (await import("./ListNode")).ListNode,
-            "ListItem": (await import("./ListItemNode")).ListItemNode,
-            "Paragraph": (await import("./ParagraphNode")).ParagraphNode,
-            "Quote": (await import("./QuoteNode")).QuoteNode,
-            "Root": (await import("./RootNode")).RootNode,
-            "Tab": (await import("./TabNode")).TabNode,
-            "Table": (await import("./TableNode")).TableNode,
-            "TableCell": (await import("./TableCellNode")).TableCellNode,
-            "TableRow": (await import("./TableRowNode")).TableRowNode,
-            "Text": (await import("./TextNode")).TextNode,
+            "Code": CodeBlockNode,
+            "Decorator": DecoratorNode,
+            "Element": ElementNode,
+            "Hashtag": HashtagNode,
+            "Heading": HeadingNode,
+            "LineBreak": LineBreakNode,
+            "Link": LinkNode,
+            "List": ListNode,
+            "ListItem": ListItemNode,
+            "Paragraph": ParagraphNode,
+            "Quote": QuoteNode,
+            "Root": RootNode,
+            "Tab": TabNode,
+            "Table": TableNode,
+            "TableCell": TableCellNode,
+            "TableRow": TableRowNode,
+            "Text": TextNode,
         };
     }
 
