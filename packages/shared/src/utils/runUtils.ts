@@ -5,8 +5,7 @@ import { InputType } from "../consts/model";
 import { generateInitialValues } from "../forms/defaultGenerator";
 import { FormSchema } from "../forms/types";
 import { uuid, uuidValidate } from "../id/uuid";
-import { NodeShape } from "../shape/models/node";
-import { NodeLinkShape } from "../shape/models/nodeLink";
+import { NodeShape, type NodeLinkShape } from "../shape/models";
 import { getTranslation } from "../translations/translationTools";
 import { arraysEqual, uniqBy } from "./arrays";
 import { LlmModel } from "./bot";
@@ -2126,7 +2125,7 @@ export function parseSchemaInput(
     logger: PassableLogger,
 ): FormSchema {
     return parseSchema(value, () => {
-        if (!routineType || !defaultConfigFormInputMap.hasOwnProperty(routineType) || typeof defaultConfigFormInputMap[routineType] !== 'function') {
+        if (!routineType || !Object.prototype.hasOwnProperty.call(defaultConfigFormInputMap, routineType) || typeof defaultConfigFormInputMap[routineType] !== "function") {
             return defaultSchemaInput();
         }
         return defaultConfigFormInputMap[routineType]();
@@ -2139,7 +2138,7 @@ export function parseSchemaOutput(
     logger: PassableLogger,
 ): FormSchema {
     return parseSchema(value, () => {
-        if (!routineType || !defaultConfigFormOutputMap.hasOwnProperty(routineType) || typeof defaultConfigFormOutputMap[routineType] !== 'function') {
+        if (!routineType || !Object.prototype.hasOwnProperty.call(defaultConfigFormOutputMap, routineType) || typeof defaultConfigFormOutputMap[routineType] !== "function") {
             return defaultSchemaOutput();
         }
         return defaultConfigFormOutputMap[routineType]();

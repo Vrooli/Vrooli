@@ -2,7 +2,7 @@ import { OpenAIModel, type AIServiceName, type AIServicesInfo } from "../ai/serv
 import { type User, type UserTranslation } from "../api/generated/graphqlTypes";
 import { type PassableLogger } from "../consts/commonTypes";
 import { DUMMY_ID } from "../id/uuid";
-import { type BotShape, type BotTranslationShape } from "../shape/models/bot";
+import { type BotShape, type BotTranslationShape } from "../shape/models";
 import { type TranslationFunc, type TranslationKeyService } from "../types";
 import { toPosDouble } from "../validation/utils/builders/toPosDouble";
 
