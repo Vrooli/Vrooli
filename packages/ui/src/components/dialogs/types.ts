@@ -300,4 +300,5 @@ export interface PopoverWithArrowProps extends Omit<PopoverProps, "open" | "sx">
 export interface TutorialDialogProps {
     isOpen: boolean;
     onClose: () => unknown;
+    onOpen: () => unknown;
 }

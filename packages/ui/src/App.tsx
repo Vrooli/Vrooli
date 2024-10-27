@@ -221,6 +221,9 @@ export function App() {
     const closeTutorial = useCallback(function closeTutorialCallback() {
         setIsTutorialOpen(false);
     }, []);
+    const openTutorial = useCallback(function openTutorialCallback() {
+        setIsTutorialOpen(true);
+    }, []);
 
     // Applies language change
     useEffect(() => {
@@ -513,7 +516,11 @@ export function App() {
                                     <Celebration />
                                     <AlertDialog />
                                     <SnackStack />
-                                    <TutorialDialog isOpen={isTutorialOpen} onClose={closeTutorial} />
+                                    <TutorialDialog
+                                        isOpen={isTutorialOpen}
+                                        onClose={closeTutorial}
+                                        onOpen={openTutorial}
+                                    />
                                     {/* Main content*/}
                                     <ContentWrap
                                         id="content-wrap"

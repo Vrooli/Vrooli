@@ -1,13 +1,11 @@
-import { LINKS } from "@local/shared";
+import { LINKS, parseSearchParams } from "@local/shared";
 import { Box, Button, Dialog, IconButton, MobileStepper, Paper, PaperProps, Stack, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
-import { SessionContext } from "contexts";
 import { ArrowLeftIcon, ArrowRightIcon, CompleteAllIcon, CompleteIcon } from "icons";
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Draggable from "react-draggable";
-import { useLocation } from "route";
-import { getCurrentUser } from "utils/authentication/session";
+import { addSearchParams, removeSearchParams, useLocation } from "route";
 import { TUTORIAL_HIGHLIGHT, removeHighlights } from "utils/display/documentTools";
 import { PubSub, SIDE_MENU_ID } from "utils/pubsub";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
@@ -336,6 +334,15 @@ export function getCurrentStep(
 const titleId = "tutorial-dialog-title";
 const zIndex = 100000;
 
+const dialogTitleStyle = { root: { cursor: "move" } } as const;
+const popoverWithArrowStyle = {
+    root: {
+        zIndex,
+        maxWidth: "500px",
+    },
+    content: { padding: 0 },
+} as const;
+
 function DraggableDialogPaper(props: PaperProps) {
     return (
         <Draggable
@@ -350,27 +357,38 @@ function DraggableDialogPaper(props: PaperProps) {
 export function TutorialDialog({
     isOpen,
     onClose,
+    onOpen,
 }: TutorialDialogProps) {
     const { palette } = useTheme();
     const [{ pathname }, setLocation] = useLocation();
-    const session = useContext(SessionContext);
-    const user = useMemo(() => getCurrentUser(session), [session]);
 
     const [place, setPlace] = useState({ section: 0, step: 0 });
+    useEffect(function initializePlace() {
+        const searchParams = parseSearchParams();
+        const section = parseInt(searchParams.tutorial_section as string, 10);
+        const step = parseInt(searchParams.tutorial_step as string, 10);
+        if (!isNaN(section) && !isNaN(step)) {
+            setPlace({ section, step });
+            onOpen();
+        }
+    }, [onOpen]);
+    useEffect(function updatePlaceInUrl() {
+        if (!isOpen) return;
+        addSearchParams(setLocation, {
+            tutorial_section: place.section,
+            tutorial_step: place.step,
+        });
+    }, [place.section, place.step, isOpen, setLocation]);
 
     const [openImageUrl, setOpenImageUrl] = useState("");
     const [openVideoUrl, setOpenVideoUrl] = useState("");
 
-    useEffect(function handleCloseEffect() {
-        if (isOpen) return;
+    const handleClose = useCallback(function handleCloseCallback() {
         setPlace({ section: 0, step: 0 });
         removeHighlights(TUTORIAL_HIGHLIGHT);
-    }, [isOpen]);
-
-    useEffect(function handleLogOutEffect() {
-        if (user.id) return;
+        removeSearchParams(setLocation, ["tutorial_section", "tutorial_step"]);
         onClose();
-    }, [onClose, user]);
+    }, [onClose, setLocation]);
 
     useEffect(function triggerStepLoadAction() {
         if (!isOpen) return;
@@ -384,8 +402,7 @@ export function TutorialDialog({
         nextStep,
     } = useMemo(() => getTutorialStepInfo(sections, place), [place]);
 
-    /** Move to the next step */
-    const handleNext = useCallback(() => {
+    const handleNext = useCallback(function handleNextCallback() {
         const nextPlace = getNextPlace(sections, place);
         if (nextPlace) {
             const nextStep = getCurrentStep(sections, nextPlace);
@@ -395,12 +412,11 @@ export function TutorialDialog({
             }
             setPlace(nextPlace);
         } else {
-            onClose();
+            handleClose();
         }
-    }, [pathname, onClose, place, setLocation]);
+    }, [pathname, handleClose, place, setLocation]);
 
-    /** Move to the previous step */
-    const handlePrev = useCallback(() => {
+    const handlePrev = useCallback(function handlePreviousCallback() {
         const prevPlace = getPrevPlace(sections, place);
         if (prevPlace) {
             const prevStep = getCurrentStep(sections, prevPlace);
@@ -450,9 +466,9 @@ export function TutorialDialog({
                     <DialogTitle
                         id={titleId}
                         title={"Wrong Page"}
-                        onClose={onClose}
+                        onClose={handleClose}
                         variant="subheader"
-                        sxs={{ root: { cursor: "move" } }}
+                        sxs={dialogTitleStyle}
                     />
                     <Stack direction="column" spacing={2} p={2}>
                         <MarkdownDisplay
@@ -477,7 +493,7 @@ export function TutorialDialog({
                 <DialogTitle
                     id={titleId}
                     title={`${currentSection.title} (${place.section + 1} of ${sections.length})`}
-                    onClose={onClose}
+                    onClose={handleClose}
                     variant="subheader"
                     // Can only drag dialogs, not popovers
                     sxs={{ root: { cursor: anchorElement ? "auto" : "move" } }}
@@ -512,7 +528,7 @@ export function TutorialDialog({
                 />
             </>
         );
-    }, [place.section, place.step, pathname, onClose, anchorElement, handlePrev, handleNext, isFinalStep, isFinalStepInSection, setLocation]);
+    }, [place.section, place.step, pathname, handleClose, anchorElement, handlePrev, handleNext, isFinalStep, isFinalStepInSection, setLocation]);
 
     useEffect(function autoAdvanceOnCorrectNavigationEffect() {
         const currentSection = sections[place.section];
@@ -542,13 +558,7 @@ export function TutorialDialog({
             <PopoverWithArrow
                 anchorEl={anchorElement}
                 disableScrollLock={true}
-                sxs={{
-                    root: {
-                        zIndex,
-                        maxWidth: "500px",
-                    },
-                    content: { padding: 0 },
-                }}
+                sxs={popoverWithArrowStyle}
             >
                 {content}
             </PopoverWithArrow>
