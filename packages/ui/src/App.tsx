@@ -87,6 +87,12 @@ function getGlobalStyles(theme: Theme) {
             backgroundColor: "#3f0",
             color: "#000",
         },
+        ".tutorial-highlight": {
+            boxShadow: theme.palette.mode === "light"
+                ? "0 0 10px #27623bcc, 0 0 20px rgb(0 255 190 / 60%)"
+                : "0 0 10px #00cbffcc, 0 0 20px rgb(255 255 255 / 60%)",
+            transition: "box-shadow 0.3s ease-in-out",
+        },
         // Add custom fonts
         "@font-face": [
             // Logo

@@ -690,6 +690,11 @@ const PlayIconBox = styled(Box)(({ theme }) => ({
     background: "#bfbfbf88",
     borderRadius: "100%",
     zIndex: 10,
+    "&:hover": {
+        transform: "translate(-50%, -50%) scale(1.1)",
+        background: "#bfbfbfcc",
+    },
+    transition: "all 0.2s ease",
 }));
 
 type SlideImageWithVideoContainerProps = {

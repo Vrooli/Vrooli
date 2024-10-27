@@ -4,22 +4,49 @@ import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWit
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { SessionContext } from "contexts";
 import { ArrowLeftIcon, ArrowRightIcon, CompleteAllIcon, CompleteIcon } from "icons";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import Draggable from "react-draggable";
 import { useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session";
+import { TUTORIAL_HIGHLIGHT, removeHighlights } from "utils/display/documentTools";
 import { PubSub, SIDE_MENU_ID } from "utils/pubsub";
 import { DialogTitle } from "../DialogTitle/DialogTitle";
 import { TutorialDialogProps } from "../types";
 
 type TutorialStep = {
-    text: string;
-    page?: LINKS;
-    element?: string;
+    /**
+     * Action triggered when step is reached. 
+     * Useful for opening side menus, putting components in 
+     * a certain state, etc.
+     */
     action?: () => unknown;
+    content: {
+        /**
+         * Main text. Markdown is supported.
+         */
+        text: string;
+        /** 
+         * Optional image under text
+         */
+        imageUrl?: string;
+        /**
+         * Optional YouTube video under text
+         */
+        videoUrl?: string;
+    };
+    location?: {
+        /**
+         * ID of the element to anchor the tutorial step to.
+         */
+        element?: string;
+        /**
+         * What page to navigate to when the step is reached.
+         */
+        page?: LINKS;
+    }
 }
 
-type TutorialSection = {
+export type TutorialSection = {
     title: string;
     steps: TutorialStep[];
 }
@@ -30,8 +57,12 @@ const sections: TutorialSection[] = [
         title: "Welcome to Vrooli!",
         steps: [
             {
-                text: "This tutorial will show you how to use Vrooli to assist your personal and professional life.\n\nIt will only take a few minutes, and you can skip it at any time.\n\nTo open the tutorial again, press the **Tutorial** option in the side menu.",
-                page: LINKS.Home,
+                content: {
+                    text: "This tutorial will show you how to use Vrooli to assist your personal and professional life.\n\nIt will only take a few minutes, and you can skip it at any time.\n\nTo open the tutorial again, press the **Tutorial** option in the side menu.",
+                },
+                location: {
+                    page: LINKS.Home,
+                },
             },
         ],
     },
@@ -39,28 +70,48 @@ const sections: TutorialSection[] = [
         title: "The Home Page",
         steps: [
             {
-                text: "The home page shows the most important information for you.",
-                page: LINKS.Home,
+                content: {
+                    text: "The home page shows the most important information for you.",
+                },
+                location: {
+                    page: LINKS.Home,
+                },
             },
             {
-                text: "The first thing you'll see are the focus mode tabs. These allow you to customize the resources and reminders shown on the home page.\n\nBy default, these are **Work** and **Study**. These can be customized in the settings page.\n\nMore focus mode-related features will be released in the future.",
-                page: LINKS.Home,
-                element: "home-tabs",
+                content: {
+                    text: "The first thing you'll see are the focus mode tabs. These allow you to customize the resources and reminders shown on the home page.\n\nBy default, these are **Work** and **Study**. These can be customized in the settings page.\n\nMore focus mode-related features will be released in the future.",
+                },
+                location: {
+                    element: "home-tabs",
+                    page: LINKS.Home,
+                },
             },
             {
-                text: "Next is a customizable list of resources.\n\nThese can be anything you want, such as links to your favorite websites, or objects on Vrooli.",
-                page: LINKS.Home,
-                element: "main-resource-list",
+                content: {
+                    text: "Next is a customizable list of resources.\n\nThese can be anything you want, such as links to your favorite websites, or objects on Vrooli.",
+                },
+                location: {
+                    element: "main-resource-list",
+                    page: LINKS.Home,
+                },
             },
             {
-                text: "Next is a list of upcoming events. These can be for meetings, focus mode sessions, or scheduled tasks (more on this later).\n\nOpening the schedule will show you a calendar view of your events.",
-                page: LINKS.Home,
-                element: "main-event-list",
+                content: {
+                    text: "Next is a list of upcoming events. These can be for meetings, focus mode sessions, or scheduled tasks (more on this later).\n\nOpening the schedule will show you a calendar view of your events.",
+                },
+                location: {
+                    element: "main-event-list",
+                    page: LINKS.Home,
+                },
             },
             {
-                text: "Then there's a list of reminders.\n\nThese are associated with the current focus mode. Press **See All** to view all reminders, regardless of focus mode.",
-                page: LINKS.Home,
-                element: "main-reminder-list",
+                content: {
+                    text: "Then there's a list of reminders.\n\nThese are associated with the current focus mode. Press **See All** to view all reminders, regardless of focus mode.",
+                },
+                location: {
+                    element: "main-reminder-list",
+                    page: LINKS.Home,
+                },
             },
         ],
     },
@@ -68,21 +119,31 @@ const sections: TutorialSection[] = [
         title: "The Side Menu",
         steps: [
             {
-                text: "The side menu has many useful features. Open it by pressing on your profile picture.",
-                element: "side-menu-profile-icon",
                 action: () => { PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: false }); },
+                content: {
+                    text: "The side menu has many useful features. Open it by pressing on your profile picture.",
+                },
+                location: {
+                    element: "side-menu-profile-icon",
+                },
             },
             {
-                text: "The first section lists all logged-in accounts.\n\nPress on an account to switch to it, or press on your current account to open your profile.",
                 action: () => { PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: true }); },
+                content: {
+                    text: "The first section lists all logged-in accounts.\n\nPress on an account to switch to it, or press on your current account to open your profile.",
+                },
             },
             {
-                text: "The second section allows you to control your display settings. This includes:\n\n- **Theme**: Choose between light and dark mode.\n- **Text size**: Grow or shrink the text on all pages.\n- **Left handed?**: Move various elements, such as the side menu, to the left side of the screen.\n- **Language**: Change the language of the app.\n- **Focus mode**: Switch between focus modes.",
                 action: () => { PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: true }); },
+                content: {
+                    text: "The second section allows you to control your display settings. This includes:\n\n- **Theme**: Choose between light and dark mode.\n- **Text size**: Grow or shrink the text on all pages.\n- **Left handed?**: Move various elements, such as the side menu, to the left side of the screen.\n- **Language**: Change the language of the app.\n- **Focus mode**: Switch between focus modes.",
+                },
             },
             {
-                text: "The third section displays a list of pages not listed in the main navigation bar.",
                 action: () => { PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: true }); },
+                content: {
+                    text: "The third section displays a list of pages not listed in the main navigation bar.",
+                },
             },
         ],
     },
@@ -90,14 +151,22 @@ const sections: TutorialSection[] = [
         title: "Searching Objects",
         steps: [
             {
-                text: "This page allows you to search public objects on Vrooli.",
-                page: LINKS.Search,
                 action: () => { PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: false }); },
+                content: {
+                    text: "This page allows you to search public objects on Vrooli.",
+                },
+                location: {
+                    page: LINKS.Search,
+                },
             },
             {
-                text: "Use these tabs to switch between different types of objects.\n\nThe first, default tab is for **routines**. These allow you to complete and automate various tasks.\n\nLet's look at some routines now.",
-                page: LINKS.Search,
-                element: "search-tabs",
+                content: {
+                    text: "Use these tabs to switch between different types of objects.\n\nThe first, default tab is for **routines**. These allow you to complete and automate various tasks.\n\nLet's look at some routines now.",
+                },
+                location: {
+                    element: "search-tabs",
+                    page: LINKS.Search,
+                },
             },
         ],
     },
@@ -125,8 +194,12 @@ const sections: TutorialSection[] = [
         title: "Creating Objects",
         steps: [
             {
-                text: "This page allows you to create new objects on Vrooli.",
-                page: LINKS.Create,
+                content: {
+                    text: "This page allows you to create new objects on Vrooli.",
+                },
+                location: {
+                    page: LINKS.Create,
+                },
             },
         ],
     },
@@ -134,13 +207,21 @@ const sections: TutorialSection[] = [
         title: "Your Stuff",
         steps: [
             {
-                text: "After you've created an object, you can find it here.",
-                page: LINKS.MyStuff,
+                content: {
+                    text: "After you've created an object, you can find it here.",
+                },
+                location: {
+                    page: LINKS.MyStuff,
+                },
             },
             {
-                text: "Just like the search page, you can use these tabs to switch between different types of objects.",
-                page: LINKS.MyStuff,
-                element: "my-stuff-tabs",
+                content: {
+                    text: "Just like the search page, you can use these tabs to switch between different types of objects.",
+                },
+                location: {
+                    element: "my-stuff-tabs",
+                    page: LINKS.MyStuff,
+                },
             },
         ],
     },
@@ -148,8 +229,12 @@ const sections: TutorialSection[] = [
         title: "Inbox",
         steps: [
             {
-                text: "This page allows you to view your messages and notifications.\n\nIf you have a premium account, you can message bots and have them run tasks and perform other actions for you.",
-                page: LINKS.Inbox,
+                content: {
+                    text: "This page allows you to view your messages and notifications.\n\nIf you have a premium account, you can message bots and have them run tasks and perform other actions for you.",
+                },
+                location: {
+                    page: LINKS.Inbox,
+                },
             },
         ],
     },
@@ -157,16 +242,101 @@ const sections: TutorialSection[] = [
         title: "That's it!",
         steps: [
             {
-                text: "Now you know the basics of Vrooli. Have fun!",
+                content: {
+                    text: "Now you know the basics of Vrooli. Have fun!",
+                },
             },
         ],
     },
 ];
 
+/**
+ * Returns information about the current tutorial step.
+ * @param sections - Array of tutorial sections.
+ * @param Current section and step index in the tutorial.
+ */
+export function getTutorialStepInfo(
+    sections: TutorialSection[],
+    place: { section: number; step: number },
+) {
+    const section = sections[place.section];
+    const nextSection = sections[place.section + 1];
+
+    if (!section || place.step < 0 || place.step >= section.steps.length) {
+        return {
+            isFinalStep: false,
+            isFinalStepInSection: false,
+            nextStep: null,
+        };
+    }
+
+    const isFinalStepInSection = place.step === section.steps.length - 1;
+    const isFinalSection = place.section === sections.length - 1;
+    const isFinalStep = isFinalStepInSection && isFinalSection;
+
+    const nextStep = isFinalStep
+        ? null
+        : isFinalStepInSection
+            ? nextSection?.steps[0] || null
+            : section.steps[place.step + 1];
+
+    return { isFinalStep, isFinalStepInSection, nextStep };
+}
+
+export function getNextPlace(
+    sections: TutorialSection[],
+    place: { section: number; step: number },
+) {
+    const currentSection = sections[place.section];
+    const nextSection = sections[place.section + 1];
+
+    if (currentSection && currentSection.steps[place.step + 1]) {
+        return { section: place.section, step: place.step + 1 };
+    } else if (nextSection && nextSection.steps[0]) {
+        return { section: place.section + 1, step: 0 };
+    } else {
+        return null; // No more steps
+    }
+}
+
+export function getPrevPlace(
+    sections: TutorialSection[],
+    place: { section: number; step: number },
+) {
+    const currentSection = sections[place.section];
+    const previousSection = sections[place.section - 1];
+
+    if (currentSection && currentSection.steps[place.step - 1]) {
+        return { section: place.section, step: place.step - 1 };
+    } else if (previousSection) {
+        const prevStepIndex = previousSection.steps.length - 1;
+        return { section: place.section - 1, step: prevStepIndex };
+    }
+    return null; // No previous steps
+}
+
+export function getCurrentElement(
+    sections: TutorialSection[],
+    place: { section: number; step: number },
+) {
+    const currentSection = sections[place.section];
+    const currentStep = currentSection?.steps[place.step];
+    const elementId = currentStep?.location?.element;
+    return elementId ? document.getElementById(elementId) : null;
+}
+
+export function getCurrentStep(
+    sections: TutorialSection[],
+    place: { section: number; step: number },
+): TutorialStep | null {
+    const currentSection = sections[place.section];
+    return currentSection?.steps[place.step] || null;
+}
+
 const titleId = "tutorial-dialog-title";
 const zIndex = 100000;
 
-const DraggableDialogPaper = (props: PaperProps) => {
+function DraggableDialogPaper(props: PaperProps) {
     return (
         <Draggable
             handle={`#${titleId}`}
@@ -175,12 +345,12 @@ const DraggableDialogPaper = (props: PaperProps) => {
             <Paper {...props} />
         </Draggable>
     );
-};
+}
 
-export const TutorialDialog = ({
+export function TutorialDialog({
     isOpen,
     onClose,
-}: TutorialDialogProps) => {
+}: TutorialDialogProps) {
     const { palette } = useTheme();
     const [{ pathname }, setLocation] = useLocation();
     const session = useContext(SessionContext);
@@ -188,64 +358,42 @@ export const TutorialDialog = ({
 
     const [place, setPlace] = useState({ section: 0, step: 0 });
 
-    // Reset when dialog is closed
-    useEffect(() => { !isOpen && setPlace({ section: 0, step: 0 }); }, [isOpen]);
+    const [openImageUrl, setOpenImageUrl] = useState("");
+    const [openVideoUrl, setOpenVideoUrl] = useState("");
 
-    // Close if user logs out
-    useEffect(() => { !user.id && onClose(); }, [onClose, user]);
+    useEffect(function handleCloseEffect() {
+        if (isOpen) return;
+        setPlace({ section: 0, step: 0 });
+        removeHighlights(TUTORIAL_HIGHLIGHT);
+    }, [isOpen]);
 
-    // Call action if it exists
-    useEffect(() => { isOpen && sections[place.section]?.steps[place.step]?.action?.(); }, [isOpen, place]);
+    useEffect(function handleLogOutEffect() {
+        if (user.id) return;
+        onClose();
+    }, [onClose, user]);
+
+    useEffect(function triggerStepLoadAction() {
+        if (!isOpen) return;
+        sections[place.section]?.steps[place.step]?.action?.();
+    }, [isOpen, place]);
 
     // Find information about our position in the tutorial
     const {
         isFinalStep,
         isFinalStepInSection,
         nextStep,
-    } = useMemo(() => {
-        const section = sections[place.section];
-        const nextSection = sections[place.section + 1];
-
-        // If no current section is found, or the current step is invalid, default to initial values
-        if (!section || place.step < 0 || place.step >= section.steps.length) {
-            return {
-                isFinalStep: false,
-                isFinalStepInSection: false,
-                nextStep: null,
-            };
-        }
-
-        const isFinalStepInSection = place.step === section.steps.length - 1;
-        const isFinalSection = place.section === sections.length - 1;
-        const isFinalStep = isFinalStepInSection && isFinalSection;
-
-        const nextStep = isFinalStep
-            ? null
-            : isFinalStepInSection
-                ? nextSection ? nextSection.steps[0] : null
-                : section.steps[place.step + 1];
-
-        return { isFinalStep, isFinalStepInSection, nextStep };
-    }, [place]);
+    } = useMemo(() => getTutorialStepInfo(sections, place), [place]);
 
     /** Move to the next step */
     const handleNext = useCallback(() => {
-        const currentSection = sections[place.section];
-        const nextSection = sections[place.section + 1];
-
-        // ensure the current section and next step exists
-        if (currentSection && currentSection.steps[place.step + 1]) {
-            const nextPage = currentSection.steps[place.step + 1].page;
+        const nextPlace = getNextPlace(sections, place);
+        if (nextPlace) {
+            const nextStep = getCurrentStep(sections, nextPlace);
+            const nextPage = nextStep?.location?.page;
             if (nextPage && nextPage !== pathname) {
                 setLocation(nextPage);
             }
-            setPlace({ section: place.section, step: place.step + 1 });
-        } else if (nextSection && nextSection.steps[0]) {
-            const nextPage = nextSection.steps[0].page;
-            if (nextPage && nextPage !== pathname) {
-                setLocation(nextPage);
-            }
-            setPlace({ section: place.section + 1, step: 0 });
+            setPlace(nextPlace);
         } else {
             onClose();
         }
@@ -253,36 +401,33 @@ export const TutorialDialog = ({
 
     /** Move to the previous step */
     const handlePrev = useCallback(() => {
-        const currentSection = sections[place.section];
-        const previousSection = sections[place.section - 1];
-
-        // ensure the current section and previous step exists
-        if (currentSection && currentSection.steps[place.step - 1]) {
-            const prevPage = currentSection.steps[place.step - 1].page;
+        const prevPlace = getPrevPlace(sections, place);
+        if (prevPlace) {
+            const prevStep = getCurrentStep(sections, prevPlace);
+            const prevPage = prevStep?.location?.page;
             if (prevPage && prevPage !== pathname) {
                 setLocation(prevPage);
             }
-            setPlace({ section: place.section, step: place.step - 1 });
-        } else if (previousSection) {
-            const prevStepIndex = previousSection.steps.length - 1;
-            if (previousSection.steps[prevStepIndex]) {
-                const prevPage = previousSection.steps[prevStepIndex].page;
-                if (prevPage && prevPage !== pathname) {
-                    setLocation(prevPage);
-                }
-                setPlace({ section: place.section - 1, step: prevStepIndex });
-            }
+            setPlace(prevPlace);
         }
     }, [pathname, place, setLocation]);
 
-    const getCurrentElement = useCallback(() => {
-        const currentSection = sections[place.section];
-        if (!currentSection || !currentSection.steps[place.step]) {
-            return null;
+    const anchorElement = useMemo(
+        () => getCurrentElement(sections, place),
+        [place],
+    );
+    const anchorElementRef = useRef(anchorElement);
+    useEffect(function highlightElementEffect() {
+        // Remove highlight from previous element
+        if (anchorElementRef.current) {
+            removeHighlights(TUTORIAL_HIGHLIGHT, anchorElementRef.current);
         }
-        const elementId = currentSection.steps[place.step].element;
-        return elementId ? document.getElementById(elementId) : null;
-    }, [place]);
+        // Highlight current element
+        if (anchorElement) {
+            anchorElement.classList.add(TUTORIAL_HIGHLIGHT);
+        }
+        anchorElementRef.current = anchorElement;
+    }, [anchorElement, palette.action.hover]);
 
     const content = useMemo(() => {
         const currentSection = sections[place.section];
@@ -293,8 +438,13 @@ export const TutorialDialog = ({
         const currentStep = currentSection.steps[place.step];
 
         // Guide user to correct page if they're on the wrong one
-        const correctPage = currentStep.page;
-        if (correctPage && correctPage !== pathname) {
+        const correctPage = currentStep.location?.page;
+        const isOnWrongPage = correctPage && correctPage !== pathname;
+        function toCorrectPage() {
+            if (!isOnWrongPage) return;
+            setLocation(correctPage);
+        }
+        if (isOnWrongPage) {
             return (
                 <>
                     <DialogTitle
@@ -313,7 +463,7 @@ export const TutorialDialog = ({
                             fullWidth
                             variant="contained"
                             color="primary"
-                            onClick={() => setLocation(correctPage)}
+                            onClick={toCorrectPage}
                         >
                             Go to {correctPage}
                         </Button>
@@ -330,12 +480,12 @@ export const TutorialDialog = ({
                     onClose={onClose}
                     variant="subheader"
                     // Can only drag dialogs, not popovers
-                    sxs={{ root: { cursor: getCurrentElement() ? "auto" : "move" } }}
+                    sxs={{ root: { cursor: anchorElement ? "auto" : "move" } }}
                 />
                 <Box sx={{ padding: "16px" }}>
                     <MarkdownDisplay
                         variant="body1"
-                        content={currentStep.text}
+                        content={currentStep.content.text}
                     />
                 </Box>
                 <MobileStepper
@@ -362,11 +512,9 @@ export const TutorialDialog = ({
                 />
             </>
         );
-    }, [getCurrentElement, handleNext, handlePrev, isFinalStep, isFinalStepInSection, pathname, onClose, place, setLocation]);
+    }, [place.section, place.step, pathname, onClose, anchorElement, handlePrev, handleNext, isFinalStep, isFinalStepInSection, setLocation]);
 
-    // If the user navigates to the page for the next step, automatically advance. 
-    // This is temporarily disabled after the previous/next buttons are pressed.
-    useEffect(() => {
+    useEffect(function autoAdvanceOnCorrectNavigationEffect() {
         const currentSection = sections[place.section];
         if (!currentSection || !currentSection.steps[place.step]) {
             PubSub.get().publish("snack", { message: "Failed to load tutorial", severity: "Error" });
@@ -374,25 +522,25 @@ export const TutorialDialog = ({
         }
         const currentStep = currentSection.steps[place.step];
         // Find current step's page
-        const currPage = currentStep.page;
+        const currPage = currentStep.location?.page;
         // If already on the correct page, return
         if (currPage && currPage === pathname) return;
 
         // Find next step's page
-        const nextPage = nextStep?.page;
+        const nextPage = nextStep?.location?.page;
 
         // If next step has a page and it's the current page, advance
         if (currPage && nextPage && nextPage === pathname) {
             handleNext();
         }
-    }, [handleNext, pathname, nextStep?.page, place, setLocation]);
+    }, [handleNext, pathname, nextStep?.location?.page, place, setLocation]);
 
 
     // If there's an anchor, use a popper
-    if (getCurrentElement()) {
+    if (anchorElement) {
         return (
             <PopoverWithArrow
-                anchorEl={getCurrentElement()}
+                anchorEl={anchorElement}
                 disableScrollLock={true}
                 sxs={{
                     root: {
@@ -438,4 +586,4 @@ export const TutorialDialog = ({
             {content}
         </Dialog>
     );
-};
+}
