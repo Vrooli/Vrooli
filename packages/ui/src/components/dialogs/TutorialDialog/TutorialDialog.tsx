@@ -2,6 +2,7 @@ import { LINKS, parseSearchParams } from "@local/shared";
 import { Box, Button, Dialog, IconButton, MobileStepper, Paper, PaperProps, Stack, useTheme } from "@mui/material";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
+import { useHotkeys } from "hooks/useHotkeys";
 import { ArrowLeftIcon, ArrowRightIcon, CompleteAllIcon, CompleteIcon } from "icons";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Draggable from "react-draggable";
@@ -333,8 +334,12 @@ export function getCurrentStep(
 
 const titleId = "tutorial-dialog-title";
 const zIndex = 100000;
+/** Poll interval for finding anchor element */
+const POLL_INTERVAL_MS = 1000;
+const INITIAL_RENDER_DELAY_MS = 100;
 
-const dialogTitleStyle = { root: { cursor: "move" } } as const;
+const wrongPageDialogTitleStyle = { root: { cursor: "move" } } as const;
+const mobileStepperStyle = { background: "transparent" } as const;
 const popoverWithArrowStyle = {
     root: {
         zIndex,
@@ -362,6 +367,27 @@ export function TutorialDialog({
     const { palette } = useTheme();
     const [{ pathname }, setLocation] = useLocation();
 
+    const [openImageUrl, setOpenImageUrl] = useState("");
+    const [openVideoUrl, setOpenVideoUrl] = useState("");
+
+    const pollIntervalRef = useRef<number>();
+    // Add a ref to track initial render. Added to prevent hotkeys 
+    // from triggering on initial render, if tutorial is selected using 
+    // hotkeys in the command palette.
+    const initialRenderRef = useRef(true);
+    const [isInitialRender, setIsInitialRender] = useState(true);
+
+    useEffect(function clearInitialRenderEffect() {
+        // Clear the initial render flag after a short delay
+        if (isOpen && initialRenderRef.current) {
+            const timer = setTimeout(() => {
+                initialRenderRef.current = false;
+                setIsInitialRender(false);
+            }, INITIAL_RENDER_DELAY_MS); // Small delay to avoid the initial Enter keypress
+            return () => clearTimeout(timer);
+        }
+    }, [isOpen]);
+
     const [place, setPlace] = useState({ section: 0, step: 0 });
     useEffect(function initializePlace() {
         const searchParams = parseSearchParams();
@@ -380,14 +406,15 @@ export function TutorialDialog({
         });
     }, [place.section, place.step, isOpen, setLocation]);
 
-    const [openImageUrl, setOpenImageUrl] = useState("");
-    const [openVideoUrl, setOpenVideoUrl] = useState("");
-
     const handleClose = useCallback(function handleCloseCallback() {
         setPlace({ section: 0, step: 0 });
         removeHighlights(TUTORIAL_HIGHLIGHT);
         removeSearchParams(setLocation, ["tutorial_section", "tutorial_step"]);
         onClose();
+        setTimeout(() => {
+            setIsInitialRender(true);
+            initialRenderRef.current = true;
+        }, INITIAL_RENDER_DELAY_MS);
     }, [onClose, setLocation]);
 
     useEffect(function triggerStepLoadAction() {
@@ -428,11 +455,55 @@ export function TutorialDialog({
         }
     }, [pathname, place, setLocation]);
 
+    useHotkeys([
+        {
+            keys: ["ArrowRight", "l"],
+            callback: handleNext,
+        },
+        {
+            keys: ["ArrowLeft", "h"],
+            callback: handlePrev,
+        },
+        {
+            keys: ["Enter", " "],
+            callback: handleNext,
+        },
+    ], isOpen && !isInitialRender);
+    console.log("qqqq is initial render", isInitialRender);
+
     const anchorElement = useMemo(
         () => getCurrentElement(sections, place),
         [place],
     );
+    // Poll for anchor element, since it might not be available yet on initial render
+    useEffect(function pollForAnchorElementEffect() {
+        if (!isOpen || anchorElement) {
+            // Clear interval if dialog is closed, element is found, or polling is disabled
+            if (pollIntervalRef.current) {
+                window.clearInterval(pollIntervalRef.current);
+                pollIntervalRef.current = undefined;
+            }
+            return;
+        }
+
+        // Start polling if element is not found
+        pollIntervalRef.current = window.setInterval(() => {
+            const element = getCurrentElement(sections, place);
+            if (element) {
+                // Force a re-render to update the anchor element
+                setPlace(prev => ({ ...prev }));
+            }
+        }, POLL_INTERVAL_MS);
+
+        return () => {
+            if (pollIntervalRef.current) {
+                window.clearInterval(pollIntervalRef.current);
+                pollIntervalRef.current = undefined;
+            }
+        };
+    }, [isOpen, anchorElement, place]);
     const anchorElementRef = useRef(anchorElement);
+
     useEffect(function highlightElementEffect() {
         // Remove highlight from previous element
         if (anchorElementRef.current) {
@@ -468,7 +539,7 @@ export function TutorialDialog({
                         title={"Wrong Page"}
                         onClose={handleClose}
                         variant="subheader"
-                        sxs={dialogTitleStyle}
+                        sxs={wrongPageDialogTitleStyle}
                     />
                     <Stack direction="column" spacing={2} p={2}>
                         <MarkdownDisplay
@@ -498,7 +569,7 @@ export function TutorialDialog({
                     // Can only drag dialogs, not popovers
                     sxs={{ root: { cursor: anchorElement ? "auto" : "move" } }}
                 />
-                <Box sx={{ padding: "16px" }}>
+                <Box p={2}>
                     <MarkdownDisplay
                         variant="body1"
                         content={currentStep.content.text}
@@ -524,7 +595,7 @@ export function TutorialDialog({
                             {isFinalStep ? <CompleteAllIcon /> : isFinalStepInSection ? <CompleteIcon /> : <ArrowRightIcon />}
                         </IconButton>
                     }
-                    sx={{ background: "transparent" }}
+                    sx={mobileStepperStyle}
                 />
             </>
         );

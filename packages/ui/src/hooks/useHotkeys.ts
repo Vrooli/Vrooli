@@ -12,7 +12,6 @@ export function useHotkeys(
     hotkeys: HotkeyConfig[],
     condition = true,
     targetRef: React.RefObject<HTMLElement> | null = null,
-
 ) {
     useEffect(() => {
         // Sort hotkeys by number of conditions to prioritize more specific hotkeys
@@ -33,6 +32,7 @@ export function useHotkeys(
 
                     if (keysMatch && ctrlMatch && altMatch && shiftMatch) {
                         e.preventDefault();
+                        console.log("qqqq c alling hotkey callback", hotkey, e);
                         hotkey.callback();
                         break; // Stop checking further once a match is found
                     }

@@ -240,17 +240,19 @@ export const Actions: { [x: string]: ActionItem } = {
 /**
  * Shape actions to match AutoCompleteListItem format.
  */
-export const toActionOption = (action: ActionItem): ActionOption => ({
-    __typename: "Action",
-    ...action,
-});
+export function toActionOption(action: ActionItem): ActionOption {
+    return {
+        __typename: "Action",
+        ...action,
+    };
+}
 export const actionsItems: ActionOption[] = Object.values(Actions).map(toActionOption);
 
 /**
  * Maps action ids to their corresponding action. 
  * Actions cannot be stored in the options themselves because localStorage cannot store functions.
  */
-export const performAction = async (option: ActionOption, session: Session | null | undefined): Promise<void> => {
+export async function performAction(option: ActionOption, session: Session | null | undefined): Promise<void> {
     switch (option.id) {
         case "clear-search-history":
             session && clearSearchHistory(session);
@@ -289,4 +291,4 @@ export const performAction = async (option: ActionOption, session: Session | nul
             }
             break;
     }
-};
+}
