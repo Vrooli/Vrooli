@@ -74,6 +74,7 @@ export function RelationshipList({
             justifyContent: "flex-start",
             gap: 1,
             overflowX: "auto",
+            background: theme.palette.background.paper,
             ...props.sx,
         } as const;
     }, [theme, props.sx]);

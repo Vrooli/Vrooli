@@ -21,13 +21,13 @@ import { useLocation } from "route";
 import { noSelect } from "styles";
 import { SvgComponent } from "types";
 import { getCurrentUser, guestSession } from "utils/authentication/session";
-import { RIGHT_DRAWER_WIDTH } from "utils/consts";
+import { ELEMENT_IDS, RIGHT_DRAWER_WIDTH } from "utils/consts";
 import { extractImageUrl } from "utils/display/imageTools";
 import { removeCookie } from "utils/localStorage";
 import { openObject } from "utils/navigation/openObject";
 import { Actions, performAction, toActionOption } from "utils/navigation/quickActions";
 import { NAV_ACTION_TAGS, NavAction, getUserActions } from "utils/navigation/userActions";
-import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID } from "utils/pubsub";
+import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID, SideMenuPayloads } from "utils/pubsub";
 
 // Maximum accounts to sign in with. 
 // Limited by cookie size (4kb)
@@ -75,13 +75,6 @@ export function SideMenu() {
 
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
-    // Handle opening and closing
-    const { isOpen, close } = useSideMenu({ id: SIDE_MENU_ID, isMobile });
-    // When moving between mobile/desktop, publish current state
-    useEffect(() => {
-        PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen });
-    }, [breakpoints, isOpen]);
-
     // Display settings collapse
     const [isDisplaySettingsOpen, setIsDisplaySettingsOpen] = useState(false);
     const toggleDisplaySettings = useCallback(() => { setIsDisplaySettingsOpen(!isDisplaySettingsOpen); }, [isDisplaySettingsOpen]);
@@ -91,6 +84,26 @@ export function SideMenu() {
     const [isAdditionalResourcesOpen, setIsAdditionalResourcesOpen] = useState(false);
     const toggleAdditionalResources = useCallback(() => { setIsAdditionalResourcesOpen(!isAdditionalResourcesOpen); }, [isAdditionalResourcesOpen]);
     const closeAdditionalResources = useCallback(() => { setIsAdditionalResourcesOpen(false); }, []);
+
+    // Handle opening and closing
+    const onEvent = useCallback(function onEventCallback({ data }: SideMenuPayloads["side-menu"]) {
+        if (!data) return;
+        if (typeof data.isAdditionalResourcesCollapsed === "boolean") {
+            setIsAdditionalResourcesOpen(!data.isAdditionalResourcesCollapsed);
+        }
+        if (typeof data.isDisplaySettingsCollapsed === "boolean") {
+            setIsDisplaySettingsOpen(!data.isDisplaySettingsCollapsed);
+        }
+    }, []);
+    const { isOpen, close } = useSideMenu({
+        id: SIDE_MENU_ID,
+        isMobile,
+        onEvent,
+    });
+    // When moving between mobile/desktop, publish current state
+    useEffect(() => {
+        PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen });
+    }, [breakpoints, isOpen]);
 
     // Handle update. Only updates when menu closes, and account settings have changed.
     const [fetch] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);
@@ -184,15 +197,15 @@ export function SideMenu() {
         setLocation(LINKS.Home);
     }, [handleClose, isMobile, session, logOut, setLocation]);
 
-    const handleOpen = (event: React.MouseEvent<HTMLElement>, link: string) => {
+    function handleOpen(event: React.MouseEvent<HTMLElement>, link: string) {
         setLocation(link);
         if (isMobile) handleClose(event);
-    };
+    }
 
-    const handleAction = (event: React.MouseEvent<HTMLElement>, action: ActionOption) => {
+    function handleAction(event: React.MouseEvent<HTMLElement>, action: ActionOption) {
         if (isMobile) handleClose(event);
         performAction(action, session);
-    };
+    }
 
     const accounts = useMemo(() => session?.users ?? [], [session?.users]);
     const profileListItems = accounts.map((account) => (
@@ -269,7 +282,10 @@ export function SideMenu() {
                 overflowX: "hidden",
             }}>
                 {/* List of logged/in accounts and authentication-related actions */}
-                <List id="side-menu-account-list" sx={{ paddingTop: 0, paddingBottom: 0 }}>
+                <List
+                    id={ELEMENT_IDS.SideMenuAccountList}
+                    sx={{ paddingTop: 0, paddingBottom: 0 }}
+                >
                     {profileListItems}
                     <Divider sx={{ background: palette.background.textSecondary }} />
                     {/* Buttons to add account and log out */}
@@ -288,7 +304,7 @@ export function SideMenu() {
                 </List>
                 <Divider sx={{ background: palette.background.textSecondary }} />
                 {/* Display Settings */}
-                <Stack direction="row" spacing={1} onClick={toggleDisplaySettings} sx={{
+                <Stack id="side-menu-display-header" direction="row" spacing={1} onClick={toggleDisplaySettings} sx={{
                     display: "flex",
                     alignItems: "center",
                     textAlign: "left",
@@ -305,7 +321,7 @@ export function SideMenu() {
                 </Stack>
                 <Collapse in={isDisplaySettingsOpen} sx={{ display: "inline-block", minHeight: "auto!important" }}>
                     <Box
-                        id="side-menu-display-settings"
+                        id={ELEMENT_IDS.SideMenuDisplaySettings}
                         sx={{
                             display: "flex",
                             flexDirection: "column",
@@ -329,7 +345,7 @@ export function SideMenu() {
                 </Collapse>
                 <Divider sx={{ background: palette.background.textSecondary }} />
                 {/* List of quick links */}
-                <List id="side-menu-quick-links">
+                <List id={ELEMENT_IDS.SideMenuQuickLinks}>
                     {/* Main navigation links, if not mobile */}
                     {!isMobile && navActions.map((action) => (
                         <NavListItem

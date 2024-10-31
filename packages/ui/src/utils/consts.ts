@@ -168,3 +168,19 @@ export const NodeWidth = {
  * Distance before a click is considered a drag
  */
 export const DRAG_THRESHOLD = 10;
+
+export const ELEMENT_IDS = {
+    ChatSideMenuMessageTree: "chat-side-menu-message-tree",
+    ChatSideMenuIcon: "chat-side-menu-icon",
+    ChatSideMenuTabs: "chat-side-menu-tabs",
+    DashboardEventList: "dashboard-event-list",
+    DashboardReminderList: "dashboard-reminder-list",
+    DashboardResourceList: "dashboard-resource-list",
+    DashboardFocusModeTabs: "dashboard-focus-mode-tabs",
+    MyStuffTabs: "my-stuff-tabs",
+    SearchTabs: "search-tabs",
+    SideMenuAccountList: "side-menu-account-list",
+    SideMenuDisplaySettings: "side-menu-display-settings",
+    SideMenuProfileIcon: "side-menu-profile-icon",
+    SideMenuQuickLinks: "side-menu-quick-links",
+};

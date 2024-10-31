@@ -92,7 +92,6 @@ function ForgotPasswordForm({
                             <Field
                                 fullWidth
                                 autoComplete="email"
-                                autoFocus
                                 name="email"
                                 label={t("Email", { count: 1 })}
                                 placeholder={t("EmailPlaceholder")}
@@ -109,7 +108,7 @@ function ForgotPasswordForm({
                                 type="submit"
                                 color="secondary"
                                 variant="contained"
-                                sx={{ ...formSubmit }}
+                                sx={formSubmit}
                             >
                                 {t("Submit")}
                             </Button>

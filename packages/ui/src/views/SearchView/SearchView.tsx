@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { SideActionsButton } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
+import { ELEMENT_IDS } from "utils/consts";
 import { scrollIntoFocusedView } from "utils/display/scroll";
 import { PubSub } from "utils/pubsub";
 import { searchViewTabParams } from "utils/search/objectToSearch";
@@ -41,7 +42,7 @@ export function SearchView({
         searchType,
         tabs,
         where,
-    } = useTabs({ id: "search-tabs", tabParams: searchViewTabParams, display });
+    } = useTabs({ id: ELEMENT_IDS.SearchTabs, tabParams: searchViewTabParams, display });
 
     const findManyData = useFindMany<ListObject>({
         controlsUrl: display === "page",
@@ -78,9 +79,9 @@ export function SearchView({
                     title={t("Search")}
                     titleBehaviorDesktop="ShowIn"
                     below={<PageTabs
-                        ariaLabel="search-tabs"
+                        ariaLabel="Search tabs"
                         fullWidth
-                        id="search-tabs"
+                        id={ELEMENT_IDS.SearchTabs}
                         ignoreIcons
                         currTab={currTab}
                         onChange={handleTabChange}

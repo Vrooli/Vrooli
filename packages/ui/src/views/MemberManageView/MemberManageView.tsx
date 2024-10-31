@@ -279,7 +279,7 @@ export function MemberManageView({
                     display={display}
                     onClose={onClose}
                     below={<PageTabs
-                        ariaLabel="search-tabs"
+                        ariaLabel="Search tabs"
                         currTab={currTab}
                         fullWidth
                         onChange={handleTabChange}

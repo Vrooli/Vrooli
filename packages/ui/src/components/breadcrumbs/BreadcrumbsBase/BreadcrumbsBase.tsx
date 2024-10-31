@@ -4,13 +4,13 @@ import { openLink, useLocation } from "route";
 import { noSelect } from "styles";
 import { BreadcrumbsBaseProps } from "../types";
 
-export const BreadcrumbsBase = ({
+export function BreadcrumbsBase({
     paths,
     separator = "|",
     ariaLabel = "breadcrumb",
     textColor,
     sx,
-}: BreadcrumbsBaseProps) => {
+}: BreadcrumbsBaseProps) {
     const [, setLocation] = useLocation();
 
     const pathLinks = useMemo(() => (
@@ -46,4 +46,4 @@ export const BreadcrumbsBase = ({
             {pathLinks}
         </Breadcrumbs>
     );
-};
+}

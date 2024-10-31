@@ -200,9 +200,7 @@ export const textPop = {
 export function formSection(theme: Pick<Theme, "breakpoints" | "palette" | "spacing">, variant: "card" | "transparent" = "card") {
     let background: string | undefined;
     if (variant === "card") {
-        background = theme.palette.mode === "dark" ?
-            theme.palette.background.paper :
-            theme.palette.background.default;
+        background = theme.palette.background.paper;
     }
     return {
         overflowX: "auto",

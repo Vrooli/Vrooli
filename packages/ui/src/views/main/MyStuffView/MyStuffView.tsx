@@ -17,6 +17,7 @@ import { useLocation } from "route";
 import { SideActionsButton } from "styles";
 import { BulkObjectAction } from "utils/actions/bulkObjectActions";
 import { getCurrentUser } from "utils/authentication/session";
+import { ELEMENT_IDS } from "utils/consts";
 import { scrollIntoFocusedView } from "utils/display/scroll";
 import { myStuffTabParams } from "utils/search/objectToSearch";
 import { MyStuffViewProps } from "../types";
@@ -66,7 +67,7 @@ export function MyStuffView({
         searchType,
         tabs,
         where,
-    } = useTabs({ id: "my-stuff-tabs", tabParams: filteredTabs, display });
+    } = useTabs({ id: ELEMENT_IDS.MyStuffTabs, tabParams: filteredTabs, display });
 
     const findManyData = useFindMany<ListObject>({
         canSearch: () => uuidValidate(userId),
@@ -145,9 +146,9 @@ export function MyStuffView({
                 title={t("MyStuff")}
                 titleBehaviorDesktop="ShowIn"
                 below={<PageTabs
-                    ariaLabel="my-stuff-tabs"
+                    ariaLabel="Search tabs"
                     fullWidth
-                    id="my-stuff-tabs"
+                    id={ELEMENT_IDS.MyStuffTabs}
                     ignoreIcons
                     currTab={currTab}
                     onChange={handleTabChange}

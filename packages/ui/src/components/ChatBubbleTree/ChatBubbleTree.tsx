@@ -720,6 +720,7 @@ type ChatBubbleTreeProps = {
     handleReply: (message: ChatMessageShape) => unknown,
     handleRetry: (message: ChatMessageShape) => unknown,
     isBotOnlyChat: boolean,
+    id?: string;
     isEditingMessage: boolean,
     isReplyingToMessage: boolean,
     messageStream: ChatSocketEventPayloads["responseStream"] | null,
@@ -761,6 +762,7 @@ export function ChatBubbleTree({
     handleRegenerateResponse,
     handleReply,
     handleRetry,
+    id,
     isBotOnlyChat,
     isEditingMessage,
     isReplyingToMessage,
@@ -816,7 +818,7 @@ export function ChatBubbleTree({
     }, [branches, removeMessages, setBranches, tree.map, tree.roots, userId]);
 
     return (
-        <OuterMessageList ref={dimRef}>
+        <OuterMessageList id={id} ref={dimRef}>
             <InnerMessageList isEditingOrReplying={isEditingMessage || isReplyingToMessage}>
                 {messageData.map((data) => (
                     <ChatBubble

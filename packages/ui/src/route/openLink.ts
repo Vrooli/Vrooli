@@ -7,7 +7,7 @@ import { SetLocation } from "./types";
  * @param link Link to open
  * @param searchParams Query parameters to append to the link
  */
-export const openLink = (setLocation: SetLocation, link: string, searchParams?: ParseSearchParamsResult) => {
+export function openLink(setLocation: SetLocation, link: string, searchParams?: ParseSearchParamsResult) {
     // If link is external, open new tab
     if ((link.includes("http:") || link.includes("https:")) && !link.startsWith(window.location.origin)) {
         const linkWithParams = `${link}${stringifySearchParams(searchParams || {})}`;

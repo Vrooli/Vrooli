@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { noSelect } from "styles";
 import { checkIfLoggedIn, getCurrentUser } from "utils/authentication/session";
+import { ELEMENT_IDS } from "utils/consts";
 import { extractImageUrl } from "utils/display/imageTools";
 import { NAV_ACTION_TAGS, NavAction, actionsToMenu, getUserActions } from "utils/navigation/userActions";
 import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID } from "utils/pubsub";
@@ -130,7 +131,7 @@ export function NavList() {
             )}
             {checkIfLoggedIn(session) && (
                 <ProfileAvatar
-                    id="side-menu-profile-icon"
+                    id={ELEMENT_IDS.SideMenuProfileIcon}
                     src={extractImageUrl(user.profileImage, user.updated_at, 50)}
                     onClick={openSideMenu}
                 >
@@ -392,6 +393,7 @@ export const Navbar = forwardRef(({
             return (
                 <IconButton
                     aria-label="Open chat menu"
+                    id={ELEMENT_IDS.ChatSideMenuIcon}
                     onClick={openSideMenu}
                     sx={sideMenuStyle}
                 >

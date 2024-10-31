@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ArgsType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
-import { LEFT_DRAWER_WIDTH } from "utils/consts";
+import { ELEMENT_IDS, LEFT_DRAWER_WIDTH } from "utils/consts";
 import { getUserLanguages } from "utils/display/translationTools";
 import { CHAT_SIDE_MENU_ID, PubSub, SideMenuPayloads } from "utils/pubsub";
 import { ChatTabsInfo, TabParam, chatTabParams } from "utils/search/objectToSearch";
@@ -113,6 +113,7 @@ function ChatTab({
                 handleRegenerateResponse={messageActions.regenerateResponse}
                 handleReply={messageInput.startReplyingToMessage}
                 handleRetry={messageActions.retryPostMessage}
+                id={ELEMENT_IDS.ChatSideMenuMessageTree}
                 isBotOnlyChat={isBotOnlyChat}
                 isEditingMessage={Boolean(messageInput.messageBeingEdited)}
                 isReplyingToMessage={Boolean(messageInput.messageBeingRepliedTo)}
@@ -222,7 +223,7 @@ export function ChatSideMenu() {
             location.pathname === route || location.pathname.startsWith(`${route}/`),
         );
         if (canShowChatTab) {
-            baseTabs.push(chatViewTab as TabParam<ChatTabsInfo>);
+            baseTabs.unshift(chatViewTab as TabParam<ChatTabsInfo>);
         }
         return baseTabs;
     }, [location.pathname]);
@@ -232,7 +233,7 @@ export function ChatSideMenu() {
         searchType,
         tabs,
         where,
-    } = useTabs({ id: "chat-side-tabs", tabParams: allTabParams, display: "dialog" });
+    } = useTabs({ id: ELEMENT_IDS.ChatSideMenuTabs, tabParams: allTabParams, display: "dialog" });
     useEffect(function leaveChatTab() {
         const canShowChatTab = !CHAT_IS_MAIN_CONTENT_ROUTES.some(route =>
             location.pathname === route || location.pathname.startsWith(`${route}/`),
@@ -415,7 +416,7 @@ export function ChatSideMenu() {
                     >
                         <CloseIcon fill={palette.primary.contrastText} width="32px" height="32px" />
                     </IconButton>
-                    <SiteSearchBar
+                    {currTab.key !== "Chat" && <SiteSearchBar
                         id={"search-bar-chat-side-menu"}
                         isNested={true}
                         placeholder={"Search"}
@@ -423,12 +424,13 @@ export function ChatSideMenu() {
                         onChange={handleSearchStringChange}
                         onInputChange={noop}
                         sxs={searchBarStyle}
-                    />
+                    />}
                 </Box>
                 <TabsBox>
                     <PageTabs
-                        ariaLabel="chat-side-menu-tabs"
+                        ariaLabel="Chat side menu tabs"
                         currTab={currTab}
+                        id={ELEMENT_IDS.ChatSideMenuTabs}
                         fullWidth
                         onChange={handleTabChange}
                         tabs={tabs}

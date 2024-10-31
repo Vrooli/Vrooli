@@ -385,7 +385,7 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
                         title={t("SearchVrooli")}
                         titleBehaviorDesktop="ShowIn"
                         below={tabs.length > 1 && Boolean(currTab) && <PageTabs
-                            ariaLabel="search-tabs"
+                            ariaLabel="Search tabs"
                             currTab={currTab}
                             fullWidth
                             ignoreIcons={true}

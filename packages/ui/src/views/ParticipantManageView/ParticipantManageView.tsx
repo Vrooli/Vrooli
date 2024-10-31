@@ -175,7 +175,7 @@ export function ParticipantManageView({
                     onClose={onClose}
                     title={t("Participant", { count: 2 })}
                     below={<PageTabs
-                        ariaLabel="search-tabs"
+                        ariaLabel="Search tabs"
                         currTab={currTab}
                         fullWidth
                         onChange={handleTabChange}

@@ -24,7 +24,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "r
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
-import { DUMMY_LIST_LENGTH } from "utils/consts";
+import { DUMMY_LIST_LENGTH, ELEMENT_IDS } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { getCookieMatchingChat, setCookieMatchingChat } from "utils/localStorage";
@@ -414,8 +414,8 @@ export function DashboardView({
                 onClose={onClose}
                 below={<>
                     {showTabs && currTab && <PageTabs
-                        ariaLabel="home-tabs"
-                        id="home-tabs"
+                        ariaLabel="Focus modes"
+                        id={ELEMENT_IDS.DashboardFocusModeTabs}
                         currTab={currTab as PageTab<DashboardTabsInfo>}
                         fullWidth
                         onChange={handleTabChange}
@@ -448,7 +448,7 @@ export function DashboardView({
                 {view === "home" && <>
                     <Box p={1}>
                         <ResourceList
-                            id="main-resource-list"
+                            id={ELEMENT_IDS.DashboardResourceList}
                             list={resourceList}
                             canUpdate={true}
                             handleUpdate={setResourceList}
@@ -470,7 +470,7 @@ export function DashboardView({
                     {/* Events */}
                     <ListTitleContainer
                         Icon={MonthIcon}
-                        id="main-event-list"
+                        id={ELEMENT_IDS.DashboardEventList}
                         isEmpty={upcomingEvents.length === 0 && !isFeedLoading}
                         emptyText="No upcoming events"
                         loading={isFeedLoading}
@@ -488,7 +488,7 @@ export function DashboardView({
                     {/* Reminders */}
                     <ListTitleContainer
                         Icon={ReminderIcon}
-                        id="main-reminder-list"
+                        id={ELEMENT_IDS.DashboardReminderList}
                         isEmpty={reminders.length === 0 && !isFeedLoading}
                         emptyText="No reminders"
                         loading={isFeedLoading}
