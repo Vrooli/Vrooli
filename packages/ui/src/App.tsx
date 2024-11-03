@@ -8,8 +8,10 @@ import { Celebration } from "components/Celebration/Celebration";
 import { DiagonalWaveLoader } from "components/DiagonalWaveLoader/DiagonalWaveLoader";
 import { AlertDialog } from "components/dialogs/AlertDialog/AlertDialog";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
+import { ImagePopup } from "components/dialogs/ImagePopup/ImagePopup";
 import { SideMenu } from "components/dialogs/SideMenu/SideMenu";
 import { TutorialDialog } from "components/dialogs/TutorialDialog/TutorialDialog";
+import { VideoPopup } from "components/dialogs/VideoPopup/VideoPopup";
 import { BottomNav } from "components/navigation/BottomNav/BottomNav";
 import { CommandPalette } from "components/navigation/CommandPalette/CommandPalette";
 import { FindInPage } from "components/navigation/FindInPage/FindInPage";
@@ -31,7 +33,7 @@ import { LEFT_DRAWER_WIDTH, RIGHT_DRAWER_WIDTH } from "utils/consts";
 import { getDeviceInfo } from "utils/display/device";
 import { DEFAULT_THEME, themes } from "utils/display/theme";
 import { getCookie, getStorageItem, setCookie, ThemeType } from "utils/localStorage";
-import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID } from "utils/pubsub";
+import { CHAT_SIDE_MENU_ID, PopupImagePub, PopupVideoPub, PubSub, SIDE_MENU_ID } from "utils/pubsub";
 import { CI_MODE } from "./i18n";
 
 function getGlobalStyles(theme: Theme) {
@@ -89,8 +91,8 @@ function getGlobalStyles(theme: Theme) {
         },
         ".tutorial-highlight": {
             boxShadow: theme.palette.mode === "light"
-                ? "0 0 10px #27623bcc, 0 0 20px rgb(0 255 190 / 60%)"
-                : "0 0 10px #00cbffcc, 0 0 20px rgb(255 255 255 / 60%)",
+                ? "inset 0 0 5px #339358, 0 0 10px #009e15"
+                : "inset 0 0 5px #00cbff, 0 0 10px #00cbff",
             transition: "box-shadow 0.3s ease-in-out",
         },
         // Add custom fonts
@@ -210,6 +212,8 @@ export function App() {
     const [isLeftHanded, setIsLeftHanded] = useState<boolean>(getCookie("IsLeftHanded"));
     const [isLoading, setIsLoading] = useState(false);
     const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+    const [openImageData, setOpenImageData] = useState<PopupImagePub | null>(null);
+    const [openVideoData, setOpenVideoData] = useState<PopupVideoPub | null>(null);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [validateSession] = useLazyFetch<ValidateSessionInput, Session>(endpointPostAuthValidateSession);
     const [setActiveFocusMode] = useLazyFetch<SetActiveFocusModeInput, ActiveFocusMode>(endpointPutFocusModeActive);
@@ -218,11 +222,17 @@ export function App() {
     const { isOpen: isLeftDrawerOpen } = useSideMenu({ id: CHAT_SIDE_MENU_ID, isMobile });
     const { isOpen: isRightDrawerOpen } = useSideMenu({ id: SIDE_MENU_ID, isMobile });
 
+    const openTutorial = useCallback(function openTutorialCallback() {
+        setIsTutorialOpen(true);
+    }, []);
     const closeTutorial = useCallback(function closeTutorialCallback() {
         setIsTutorialOpen(false);
     }, []);
-    const openTutorial = useCallback(function openTutorialCallback() {
-        setIsTutorialOpen(true);
+    const closePopupImage = useCallback(function closePopupImageCallback() {
+        setOpenImageData(null);
+    }, []);
+    const closePopupVideo = useCallback(function closePopupVideoCallback() {
+        setOpenVideoData(null);
     }, []);
 
     // Applies language change
@@ -483,7 +493,12 @@ export function App() {
         const tutorialSub = PubSub.get().subscribe("tutorial", () => {
             setIsTutorialOpen(true);
         });
-        // On unmount, unsubscribe from all PubSub topics
+        const popupImageSub = PubSub.get().subscribe("popupImage", (data) => {
+            setOpenImageData(data);
+        });
+        const popupVideoSub = PubSub.get().subscribe("popupVideo", data => {
+            setOpenVideoData(data);
+        });
         return (() => {
             loadingSub();
             sessionSub();
@@ -493,6 +508,8 @@ export function App() {
             languageSub();
             isLeftHandedSub();
             tutorialSub();
+            popupImageSub();
+            popupVideoSub();
         });
     }, [checkSession, isLeftHanded, isMobile, setActiveFocusMode, setThemeAndMeta]);
 
@@ -521,6 +538,19 @@ export function App() {
                                         onClose={closeTutorial}
                                         onOpen={openTutorial}
                                     />
+                                    <ImagePopup
+                                        alt="Tutorial content"
+                                        open={!!openImageData}
+                                        onClose={closePopupImage}
+                                        src={openImageData?.src ?? ""}
+                                        zIndex={999999999}
+                                    />
+                                    <VideoPopup
+                                        open={!!openVideoData}
+                                        onClose={closePopupVideo}
+                                        src={openVideoData?.src ?? ""}
+                                        zIndex={999999999}
+                                    />
                                     {/* Main content*/}
                                     <ContentWrap
                                         id="content-wrap"
@@ -539,7 +569,10 @@ export function App() {
                                         <SideMenu />
                                     </ContentWrap>
                                     {/* Below main content */}
-                                    <BannerChicken />
+                                    <BannerChicken
+                                        backgroundColor={theme.palette.background.default}
+                                        isMobile={isMobile}
+                                    />
                                     <BottomNav />
                                 </MainBox>
                             </ActiveChatProvider>

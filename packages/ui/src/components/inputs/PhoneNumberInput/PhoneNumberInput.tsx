@@ -7,6 +7,11 @@ import { CountryCallingCode, CountryCode } from "libphonenumber-js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PhoneNumberInputBaseProps, PhoneNumberInputProps } from "../types";
 
+const anchorOrigin = {
+    vertical: "bottom",
+    horizontal: "left",
+} as const;
+
 export function PhoneNumberInputBase({
     autoComplete = "tel",
     autoFocus = false,
@@ -168,10 +173,7 @@ export function PhoneNumberInputBase({
                 open={Boolean(anchorEl)}
                 anchorEl={anchorEl}
                 onClose={closePopover}
-                anchorOrigin={{
-                    vertical: "bottom",
-                    horizontal: "left",
-                }}
+                anchorOrigin={anchorOrigin}
             >
                 <TextField
                     margin="normal"

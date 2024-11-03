@@ -145,6 +145,14 @@ export type RequestTaskContextPub = {
     context: TaskContextInfo;
 }
 
+export type PopupImagePub = {
+    alt: string;
+    src: string;
+}
+
+export type PopupVideoPub = {
+    src: string;
+}
 
 /** Determines how many options should be displayed directly in the rich input toolbar */
 export type RichInputToolbarViewSize = "minimal" | "partial" | "full";
@@ -155,7 +163,16 @@ type SideMenuBase = {
     isOpen: boolean;
 }
 export type SideMenuPayloads = {
-    [SIDE_MENU_ID]: SideMenuBase & { id: typeof SIDE_MENU_ID };
+    [SIDE_MENU_ID]: SideMenuBase & {
+        id: typeof SIDE_MENU_ID;
+        /**
+         * Optional data to provide to the menu
+         */
+        data?: {
+            isDisplaySettingsCollapsed?: boolean;
+            isAdditionalResourcesCollapsed?: boolean;
+        };
+    };
     [CHAT_SIDE_MENU_ID]: SideMenuBase & {
         id: typeof CHAT_SIDE_MENU_ID;
         /**
@@ -190,6 +207,8 @@ export interface EventPayloads {
     logOut: void;
     nodeDrag: { nodeId: string };
     nodeDrop: { nodeId: string, position: { x: number, y: number } };
+    popupImage: PopupImagePub;
+    popupVideo: PopupVideoPub;
     requestTaskContext: RequestTaskContextPub;
     richInputToolbarViewSize: RichInputToolbarViewSize;
     session: Session | undefined;

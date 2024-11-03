@@ -1,5 +1,5 @@
 import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, endpointPostAuthEmailSignup, LINKS, Session, SignUpPageTabOption } from "@local/shared";
-import { Box, BoxProps, Button, Checkbox, FormControl, FormControlLabel, FormHelperText, IconButton, InputAdornment, Link, Modal, styled, useTheme } from "@mui/material";
+import { Box, BoxProps, Button, Checkbox, FormControl, FormControlLabel, FormHelperText, InputAdornment, Link, styled, useTheme } from "@mui/material";
 import { hasErrorCode } from "api/errorParser";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { BreadcrumbsBase } from "components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase";
@@ -15,8 +15,8 @@ import { useIsLeftHanded } from "hooks/subscriptions";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useTabs } from "hooks/useTabs";
 import { useWindowSize } from "hooks/useWindowSize";
-import { CloseIcon, EmailIcon, UserIcon } from "icons";
-import { useCallback, useMemo, useState } from "react";
+import { EmailIcon, UserIcon } from "icons";
+import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { FormContainer, FormSection } from "styles";
@@ -298,9 +298,15 @@ function Promo({
 }: {
     isMobile: boolean;
 }) {
-    const [openedImage, setOpenedImage] = useState<number | null>(null);
-    const handleCloseImage = useCallback(() => { setOpenedImage(null); }, []);
-    const handleImageOpen = useCallback((index: number) => { setOpenedImage(index); }, []);
+    const handleImageOpen = useCallback((index: number) => {
+        if (index < 0 || index >= screenshots.length) {
+            console.error("Invalid index", index);
+            return;
+        }
+        const screenshot = screenshots[index];
+        const src = getFullSrc(screenshot.src, isMobile);
+        PubSub.get().publish("popupImage", { src, alt: screenshot.alt });
+    }, [isMobile]);
 
     return (
         <>
@@ -309,6 +315,7 @@ function Promo({
                     const fullSrc = getFullSrc(src, isMobile);
 
                     function handleClick() {
+                        console.log("opening image", index, src, alt, screenshots);
                         handleImageOpen(index);
                     }
 
@@ -322,53 +329,6 @@ function Promo({
                         />
                     );
                 })}
-                <Modal
-                    open={openedImage !== null}
-                    onClose={handleCloseImage}
-                    aria-labelledby="full-size-image"
-                    aria-describedby="full-size-screenshot"
-                    sx={{
-                        backgroundColor: "black",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                    }}
-                >
-                    <Box
-                        sx={{
-                            position: "relative",
-                            width: "100%",
-                            height: "100%",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                        }}
-                        onClick={handleCloseImage}
-                    >
-                        <img
-                            src={getFullSrc(screenshots[openedImage ?? 0].src, isMobile)}
-                            alt={screenshots[openedImage ?? 0].alt}
-                            onClick={stopPropagation}
-                            style={{
-                                maxWidth: "90%",
-                                maxHeight: "90%",
-                                objectFit: "contain",
-                            }}
-                        />
-                        <IconButton
-                            aria-label="close"
-                            onClick={handleCloseImage}
-                            sx={{
-                                position: "absolute",
-                                right: 20,
-                                top: 20,
-                                color: "white",
-                            }}
-                        >
-                            <CloseIcon />
-                        </IconButton>
-                    </Box>
-                </Modal>
             </Box>
             <Footer />
         </>

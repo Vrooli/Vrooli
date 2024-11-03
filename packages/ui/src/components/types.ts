@@ -31,15 +31,6 @@ export interface ChatBubbleProps {
     onRetry: (message: ChatMessageShape) => unknown;
 }
 
-export interface ChatBubbleTreeProps {
-    chatWidth: number;
-    message: ChatMessageShape;
-    index: number;
-    isOwn: boolean;
-    onDeleted: (message: ChatMessageShape) => unknown;
-    onUpdated: (message: ChatMessageShape) => unknown;
-}
-
 export interface CommentConnectorProps {
     isOpen: boolean;
     parentType: "User" | "Team";

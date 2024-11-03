@@ -1,5 +1,5 @@
 import { DOCS_URL, LINKS, SOCIALS } from "@local/shared";
-import { Box, BoxProps, Button, ButtonProps, Grid, IconButton, Modal, Tooltip, keyframes, styled, useTheme } from "@mui/material";
+import { Box, BoxProps, Button, ButtonProps, Grid, Tooltip, keyframes, styled, useTheme } from "@mui/material";
 import AiDrivenConvo from "assets/img/AiDrivenConvo.png";
 import CollaborativeRoutines from "assets/img/CollaborativeRoutines.webp";
 import Earth from "assets/img/Earth.svg";
@@ -10,11 +10,12 @@ import { PageContainer } from "components/Page/Page";
 import { Footer } from "components/navigation/Footer/Footer";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useWindowSize } from "hooks/useWindowSize";
-import { ArticleIcon, CloseIcon, GitHubIcon, LogInIcon, PlayIcon, XIcon } from "icons";
+import { ArticleIcon, GitHubIcon, LogInIcon, PlayIcon, XIcon } from "icons";
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { openLink, useLocation } from "route";
 import { ScrollBox, SlideContainer, SlideContent, SlideIconButton, SlideImage, SlideImageContainer, SlideText, greenNeonText } from "styles";
 import { SvgComponent } from "types";
+import { PubSub } from "utils/pubsub";
 import { SlideTitle } from "../../../styles";
 import { LandingViewProps } from "../types";
 
@@ -617,66 +618,6 @@ function StarryBackground({
     );
 }
 
-const VideoModal = styled(Modal)(() => ({
-    backgroundColor: "rgba(0,0,0,0.8)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-}));
-const VideoModalInner = styled(Box)(() => ({
-    position: "relative",
-    width: "80%",
-    height: "80%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-}));
-const PlayIconButton = styled(IconButton)(() => ({
-    position: "absolute",
-    right: 20,
-    top: 20,
-    color: "white",
-}));
-
-function VideoPopup({
-    open,
-    onClose,
-    videoUrl,
-}: {
-    open: boolean;
-    onClose: () => void;
-    videoUrl: string | null;
-}) {
-    return (
-        <VideoModal
-            open={open}
-            onClose={onClose}
-            aria-labelledby="video-modal"
-            aria-describedby="video-modal-description"
-        >
-            <VideoModalInner>
-                {videoUrl && (
-                    <iframe
-                        width="100%"
-                        height="100%"
-                        src={videoUrl}
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                        title="Video Tour"
-                    ></iframe>
-                )}
-                <PlayIconButton
-                    aria-label="close"
-                    onClick={onClose}
-                >
-                    <CloseIcon />
-                </PlayIconButton>
-            </VideoModalInner>
-        </VideoModal>
-    );
-}
-
 const VideoContainerOuter = styled(SlideImageContainer)(() => ({
     cursor: "pointer",
 }));
@@ -925,6 +866,7 @@ const ExternalLinksBox = styled(Box)(({ theme }) => ({
     background: "#00000033",
     width: "fit-content",
     padding: theme.spacing(1),
+    // eslint-disable-next-line no-magic-numbers
     borderRadius: theme.spacing(4),
     marginLeft: "auto",
     marginRight: "auto",
@@ -941,11 +883,6 @@ export function LandingView({
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
-    const [videoUrl, setVideoUrl] = useState<string | null>(null);
-    function closeVideo() {
-        setVideoUrl(null);
-    }
-
     function toSignUp() {
         openLink(setLocation, LINKS.Signup);
     }
@@ -956,17 +893,20 @@ export function LandingView({
         openLink(setLocation, LINKS.Pro);
     }
 
+    function openVideo(src: string) {
+        PubSub.get().publish("popupVideo", { src });
+    }
     function toTourVideo() {
-        setVideoUrl(videoUrls.Tour);
+        openVideo(videoUrls.Tour);
     }
     function toConvoVideo() {
-        setVideoUrl(videoUrls.Convo);
+        openVideo(videoUrls.Convo);
     }
     function toRoutineVideo() {
-        setVideoUrl(videoUrls.Routine);
+        openVideo(videoUrls.Routine);
     }
     function toTeamVideo() {
-        setVideoUrl(videoUrls.Team);
+        openVideo(videoUrls.Team);
     }
 
     // Track scroll information
@@ -1024,11 +964,6 @@ export function LandingView({
 
     return (
         <PageContainer size="fullSize">
-            <VideoPopup
-                open={!!videoUrl}
-                onClose={closeVideo}
-                videoUrl={videoUrl}
-            />
             <NeonBackground isVisible={earthPosition === "hidden"} />
             <StarryBackground isVisible={earthPosition !== "hidden"} />
             <ScrollBox ref={scrollBoxRef}>

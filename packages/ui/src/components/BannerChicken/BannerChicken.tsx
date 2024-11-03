@@ -1,10 +1,7 @@
 import { LINKS } from "@local/shared";
-import { useTheme } from "@mui/material/styles";
 import { SessionContext } from "contexts";
-import { useWindowSize } from "hooks/useWindowSize";
 import { useContext, useEffect, useMemo } from "react";
 import { useLocation } from "route";
-import { pagePaddingBottom } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 
@@ -19,18 +16,27 @@ const BLACKLIST_ROUTES = [
     LINKS.Signup,
 ] as string[];
 
+type BannerChickenProps = {
+    backgroundColor: string;
+    isMobile: boolean;
+}
+
 /**
  * Displays a banner ad the bottom of the screen, above the BottomNav. 
  * Uses session to display no ads for premium users, and less ads if logged in.
  * 
- * NOTE: If we call this "BannerAd", ad blockers will cause the whole bundle to break. 
+ * NOTE 1: If we call this "BannerAd", ad blockers will cause the whole bundle to break. 
  * Hence the name "BannerChicken".
+ * 
+ * NOTE 2: This is setup to use a minimal amount of imports. We want this to be the only 
+ * file in its bundle, in case it is blocked by an ad blocker.
  */
-export function BannerChicken() {
+export function BannerChicken({
+    backgroundColor,
+    isMobile,
+}: BannerChickenProps) {
     const session = useContext(SessionContext);
-    const { breakpoints, palette } = useTheme();
     const [location] = useLocation();
-    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
     const adFrequency = useMemo(() => {
         const user = getCurrentUser(session);
@@ -73,10 +79,10 @@ export function BannerChicken() {
     const insStyle = useMemo(() => ({
         position: "absolute",
         // Display above the BottomNav, which is only displayed on mobile
-        bottom: isMobile ? pagePaddingBottom : "env(safe-area-inset-bottom)",
+        bottom: isMobile ? "var(--page-padding-bottom)" : "env(safe-area-inset-bottom)",
         display: "block",
-        background: palette.background.default,
-    } as const), [isMobile, palette.background.default]);
+        background: backgroundColor,
+    } as const), [isMobile, backgroundColor]);
 
     if (!shouldDisplayAd) return null;
 
