@@ -33,6 +33,23 @@ function Heading({ children, level, ...props }: HeadingProps) {
     );
 }
 
+type ParagraphProps = {
+    children: string;
+};
+
+function Paragraph({ children, ...props }: ParagraphProps) {
+    return (
+        <Typography
+            variant="body1"
+            component="p"
+            marginBottom={2}
+            {...props}
+        >
+            {children}
+        </Typography>
+    );
+}
+
 const CodeBlockOuter = styled("div")(() => ({
     position: "relative",
 }));
@@ -742,6 +759,7 @@ export function MarkdownDisplay({
                 h4: { component: Heading, props: { level: 4 } },
                 h5: { component: Heading, props: { level: 5 } },
                 h6: { component: Heading, props: { level: 6 } },
+                p: Paragraph,
             },
         };
     }, [content, id, onChange]);

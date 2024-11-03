@@ -453,8 +453,6 @@ export interface TranslatedTextInputProps {
 }
 
 export type VersionInputProps = Omit<TextInputProps, "helperText" | "onBlur" | "onChange" | "value"> & {
-    autoFocus?: boolean;
-    fullWidth?: boolean;
     /** Label for input component, NOT the version label. */
     label?: string;
     name?: string;

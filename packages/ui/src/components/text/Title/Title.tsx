@@ -1,10 +1,27 @@
-import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { Box, BoxProps, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { useWindowSize } from "hooks/useWindowSize";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { multiLineEllipsis } from "styles";
+import { SxType } from "types";
 import { fontSizeToPixels } from "utils/display/stringTools";
 import { TitleProps } from "../types";
+
+interface OuterBoxProps extends BoxProps {
+    numberOfLines: number;
+    stackSx?: SxType;
+}
+const OuterBox = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "numberOfLines" && prop !== "stackSx",
+})<OuterBoxProps>(({ numberOfLines, stackSx, theme }) => ({
+    display: "flex",
+    flexDirection: numberOfLines >= 2 ? "column" : "row",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: theme.spacing(1),
+    wordBreak: "break-word",
+    ...(stackSx as object),
+}));
 
 export function Title({
     adornments,
@@ -48,17 +65,8 @@ export function Title({
     }
 
     return (
-        <Stack
-            direction={numberOfLines >= 2 ? "column" : "row"}
-            justifyContent={variant === "header" ? "center" : "flex-start"}
-            alignItems="center"
-            sx={{
-                padding: 1,
-                wordBreak: "break-word",
-                ...sxs?.stack,
-            }}
-        >
-            <Box sx={{ display: "flex", alignItems: "center" }}>
+        <OuterBox numberOfLines={numberOfLines} stackSx={sxs?.stack}>
+            <Box display="flex" alignItems="center">
                 {/* Icon */}
                 {Icon && <Icon fill={palette.background.textPrimary} style={{ width: "30px", height: "30px", marginRight: 8 }} />}
                 {/* Title */}
@@ -82,7 +90,7 @@ export function Title({
                     </Box>
                 ))}
             </Box>
-            <Box sx={{ display: "flex" }}>
+            <Box display="flex">
                 {/* Help button */}
                 {help && help.length > 0 ? <HelpButton
                     markdown={help}
@@ -100,6 +108,6 @@ export function Title({
                     </Tooltip>
                 ))}
             </Box>
-        </Stack>
+        </OuterBox>
     );
 }

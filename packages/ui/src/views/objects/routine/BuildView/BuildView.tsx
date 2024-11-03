@@ -1080,6 +1080,7 @@ export function BuildView({
         submitLabelChange,
     } = useEditableLabel({
         isEditable: isEditing,
+        isMultiline: false,
         label: name,
         onUpdate: updateLabel,
     });
