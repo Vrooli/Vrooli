@@ -2,11 +2,20 @@ import { Button, Popover, useTheme } from "@mui/material";
 import { usePopover } from "hooks/usePopover";
 import { PopupMenuProps } from "../types";
 
-export const PopupMenu = ({
+const anchorOrigin = {
+    vertical: "bottom",
+    horizontal: "center",
+} as const;
+const transformOrigin = {
+    vertical: "top",
+    horizontal: "center",
+} as const;
+
+export function PopupMenu({
     text = "Menu",
     children,
     ...props
-}: PopupMenuProps) => {
+}: PopupMenuProps) {
     const { palette } = useTheme();
     const [anchorEl, handleOpen, handleClose, isOpen] = usePopover();
     const id = isOpen ? "simple-popover" : undefined;
@@ -26,14 +35,8 @@ export const PopupMenu = ({
                 anchorEl={anchorEl}
                 onClose={handleClose}
                 disableScrollLock={true}
-                anchorOrigin={{
-                    vertical: "bottom",
-                    horizontal: "center",
-                }}
-                transformOrigin={{
-                    vertical: "top",
-                    horizontal: "center",
-                }}
+                anchorOrigin={anchorOrigin}
+                transformOrigin={transformOrigin}
                 sx={{
                     "& .MuiPopover-paper": {
                         background: palette.primary.light,
@@ -45,4 +48,4 @@ export const PopupMenu = ({
             </Popover>
         </>
     );
-};
+}

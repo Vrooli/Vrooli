@@ -288,7 +288,7 @@ export interface PopoverWithArrowProps extends Omit<PopoverProps, "open" | "sx">
     anchorEl: HTMLElement | null;
     children: ReactNode;
     handleClose?: () => unknown;
-    placement?: "top" | "right" | "bottom" | "left";
+    placement?: "auto" | "top" | "right" | "bottom" | "left";
     sxs?: {
         root?: Record<string, unknown>;
         content?: SxType;
