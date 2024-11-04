@@ -1,14 +1,18 @@
-import { CreateFormInputProps, FormBuildViewProps, FormDividerType, FormElement, FormHeaderType, FormInputType, FormRunViewProps, FormSchema, FormStructureType, FormViewProps, GridContainer, InputType, createFormInput, generateInitialValues, mergeDeep, noop, noopSubmit, preventFormSubmit, uuid } from "@local/shared";
+import { CreateFormInputProps, FormBuildViewProps, FormDividerType, FormElement, FormHeaderType, FormImageType, FormInformationalType, FormInputType, FormQrCodeType, FormRunViewProps, FormSchema, FormStructureType, FormTipType, FormVideoType, FormViewProps, GridContainer, InputType, createFormInput, generateInitialValues, mergeDeep, noop, noopSubmit, preventFormSubmit, uuid } from "@local/shared";
 import { Box, BoxProps, Divider, Grid, GridSpacing, IconButton, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover, Stack, Typography, styled, useTheme } from "@mui/material";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { FormDivider } from "components/inputs/form/FormDivider/FormDivider";
-import { FormHeader } from "components/inputs/form/FormHeader/FormHeader";
+import { FORM_HEADER_SIZE_OPTIONS, FormHeader } from "components/inputs/form/FormHeader/FormHeader";
+import { FormImage } from "components/inputs/form/FormImage/FormImage";
 import { FormInput } from "components/inputs/form/FormInput/FormInput";
+import { FormQrCode } from "components/inputs/form/FormQrCode/FormQrCode";
+import { FormTip } from "components/inputs/form/FormTip/FormTip";
+import { FormVideo } from "components/inputs/form/FormVideo/FormVideo";
 import { Formik } from "formik";
 import { FormErrorBoundary } from "forms/FormErrorBoundary/FormErrorBoundary";
 import { usePopover } from "hooks/usePopover";
 import { useWindowSize } from "hooks/useWindowSize";
-import { CaseSensitiveIcon, DragIcon, Header1Icon, Header2Icon, Header3Icon, Header4Icon, HeaderIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, MinusIcon, NumberIcon, ObjectIcon, SliderIcon, SwitchIcon, CaseSensitiveIcon as TextInputIcon, UploadIcon, VrooliIcon } from "icons";
+import { CaseSensitiveIcon, DragIcon, HeaderIcon, HelpIcon, ImageIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, MinusIcon, NumberIcon, ObjectIcon, PlayIcon, QrCodeIcon, SliderIcon, SwitchIcon, CaseSensitiveIcon as TextInputIcon, UploadIcon, VrooliIcon } from "icons";
 import React, { Fragment, memo, useCallback, useMemo, useRef, useState } from "react";
 import { DragDropContext, Draggable, DraggableProvided, DropResult, Droppable } from "react-beautiful-dnd";
 import { randomString } from "utils/codes";
@@ -162,39 +166,39 @@ const toolbarLargeButtonStyle = { cursor: "pointer" } as const;
 const popoverAnchorOrigin = { vertical: "bottom", horizontal: "center" } as const;
 
 interface PopoverListItemProps {
-    icon: React.ReactNode;
+    icon?: React.ReactNode | null;
     key: string;
     label: string;
     tag?: FormHeaderType["tag"];
-    type: FormElement["type"];
-    onAddDivider: () => unknown;
+    type: FormStructureType | InputType;
     onAddHeader: (headerData: Partial<FormHeaderType>) => unknown;
-    onAddInput: (InputData: Omit<Partial<FormInputType>, "type"> & { type: InputType; }) => unknown;
+    onAddInput: (inputData: Omit<Partial<FormInputType>, "type"> & { type: InputType; }) => unknown;
+    onAddStructure: (structureData: Omit<Partial<FormInformationalType>, "type"> & { type: "Divider" | "Image" | "QrCode" | "Tip" | "Video" }) => unknown;
 }
 
 const PopoverListItem = memo(function PopoverListItemMemo({
     icon,
     key,
     label,
-    onAddDivider,
     onAddHeader,
     onAddInput,
+    onAddStructure,
     tag,
     type,
 }: PopoverListItemProps) {
     const handleClick = useCallback(() => {
-        if (type === "Divider") {
-            onAddDivider();
-        } else if (type === "Header") {
+        if (type === FormStructureType.Header) {
             if (tag) {
                 onAddHeader({ tag });
             } else {
                 console.error("Missing tag for header - cannot add header to form.");
             }
+        } else if ([FormStructureType.Divider, FormStructureType.Image, FormStructureType.QrCode, FormStructureType.Tip, FormStructureType.Video].includes(type as unknown as FormStructureType)) {
+            onAddStructure({ type: type as "Divider" | "Image" | "QrCode" | "Tip" | "Video" });
         } else {
-            onAddInput({ type });
+            onAddInput({ type: type as InputType });
         }
-    }, [onAddDivider, onAddHeader, onAddInput, tag, type]);
+    }, [onAddHeader, onAddInput, onAddStructure, tag, type]);
 
     return (
         <ListItem
@@ -202,7 +206,7 @@ const PopoverListItem = memo(function PopoverListItemMemo({
             key={key}
             onClick={handleClick}
         >
-            <ListItemIcon>{icon}</ListItemIcon>
+            {Boolean(icon) && <ListItemIcon>{icon}</ListItemIcon>}
             <ListItemText primary={label} />
         </ListItem>
     );
@@ -338,16 +342,19 @@ export function FormBuildView({
         return ([
             {
                 category: "Headers",
-                items: [
-                    { type: FormStructureType.Header, tag: "h1", icon: <Header1Icon />, label: "Title (Largest)" },
-                    { type: FormStructureType.Header, tag: "h2", icon: <Header2Icon />, label: "Subtitle (Large)" },
-                    { type: FormStructureType.Header, tag: "h3", icon: <Header3Icon />, label: "Header (Medium)" },
-                    { type: FormStructureType.Header, tag: "h4", icon: <Header4Icon />, label: "Subheader (Small)" },
-                ],
+                items: FORM_HEADER_SIZE_OPTIONS,
             }, {
                 category: "Page Elements",
                 items: [
                     { type: FormStructureType.Divider, icon: <MinusIcon />, label: "Divider" },
+                ],
+            }, {
+                category: "Informational",
+                items: [
+                    { type: FormStructureType.Tip, icon: <HelpIcon />, label: "Tip" },
+                    { type: FormStructureType.Image, icon: <ImageIcon />, label: "Image (URL)" },
+                    { type: FormStructureType.Video, icon: <PlayIcon />, label: "Video (URL)" },
+                    { type: FormStructureType.QrCode, icon: <QrCodeIcon />, label: "QR Code" },
                 ],
             },
         ] as const).reduce((acc, category) => {
@@ -388,33 +395,66 @@ export function FormBuildView({
         const tag = data.tag ?? "h1";
         handleAddElement<FormHeaderType>({
             type: FormStructureType.Header,
-            label: data.label ?? `New ${tag.toUpperCase()}`,
+            label: data.label ?? "",
             tag,
             ...data,
         });
         closeStructurePopover();
     }, [handleAddElement, closeStructurePopover]);
 
-    const handleUpdateHeader = useCallback(function handleUpdateHeaderCallback(index: number, data: Partial<FormHeaderType>) {
+    const handleAddStructure = useCallback(function handleAddStructureCallback({ type }: { type: "Divider" | "Image" | "QrCode" | "Tip" | "Video" }) {
+        switch (type) {
+            case "Divider":
+                handleAddElement<FormDividerType>({
+                    type: FormStructureType.Divider,
+                    label: "",
+                });
+                break;
+            case "Image":
+                handleAddElement<FormImageType>({
+                    type: FormStructureType.Image,
+                    label: "",
+                    url: "",
+                });
+                break;
+            case "QrCode":
+                handleAddElement<FormQrCodeType>({
+                    type: FormStructureType.QrCode,
+                    label: "",
+                    url: "",
+                });
+                break;
+            case "Tip":
+                handleAddElement<FormTipType>({
+                    type: FormStructureType.Tip,
+                    label: "",
+                });
+                break;
+            case "Video":
+                handleAddElement<FormVideoType>({
+                    type: FormStructureType.Video,
+                    label: "",
+                    url: "",
+                });
+                break;
+            default:
+                console.error("Invalid structure type", type);
+        }
+        closeStructurePopover();
+    }, [handleAddElement, closeStructurePopover]);
+
+    const handleUpdateStructure = useCallback(function handleUpdateStructureCallback(index: number, data: Partial<FormInformationalType>) {
         const element = {
             ...schema.elements[index],
             ...data,
-        };
-        const newElements = [...schema.elements.slice(0, index), element, ...schema.elements.slice(index + 1)] as FormElement[];
+        } as FormElement;
+        const newElements = [...schema.elements.slice(0, index), element, ...schema.elements.slice(index + 1)];
         onSchemaChange({
             ...schema,
             containers: normalizeFormContainers(schema),
             elements: newElements,
         });
     }, [onSchemaChange, schema]);
-
-    const handleAddDivider = useCallback(function handleAddDividerCallback() {
-        handleAddElement<FormDividerType>({
-            type: FormStructureType.Divider,
-            label: "",
-        });
-        closeStructurePopover();
-    }, [handleAddElement, closeStructurePopover]);
 
     const onDragEnd = useCallback((result: DropResult) => {
         const { source, destination } = result;
@@ -446,9 +486,9 @@ export function FormBuildView({
             }
         }
 
-        function onFormHeaderUpdate(data: Partial<FormHeaderType>) {
+        function onFormStructureUpdate(data: Partial<FormInformationalType>) {
             if (!isSelected) return;
-            handleUpdateHeader(index, data);
+            handleUpdateStructure(index, data);
         }
         function onFormInputConfigUpdate(updatedInput: Partial<FormInputType>) {
             if (!isSelected) return;
@@ -477,13 +517,45 @@ export function FormBuildView({
                         <FormHeader
                             element={element as FormHeaderType}
                             isEditing={isSelected}
-                            onUpdate={onFormHeaderUpdate}
+                            onUpdate={onFormStructureUpdate}
                             onDelete={onFormElementDelete}
                         />
                     )}
                     {element.type === FormStructureType.Divider && (
                         <FormDivider
                             isEditing={isSelected}
+                            onDelete={onFormElementDelete}
+                        />
+                    )}
+                    {element.type === FormStructureType.Image && (
+                        <FormImage
+                            element={element as FormImageType}
+                            isEditing={isSelected}
+                            onUpdate={onFormStructureUpdate}
+                            onDelete={onFormElementDelete}
+                        />
+                    )}
+                    {element.type === FormStructureType.QrCode && (
+                        <FormQrCode
+                            element={element as FormQrCodeType}
+                            isEditing={isSelected}
+                            onUpdate={onFormStructureUpdate}
+                            onDelete={onFormElementDelete}
+                        />
+                    )}
+                    {element.type === FormStructureType.Tip && (
+                        <FormTip
+                            element={element as FormTipType}
+                            isEditing={isSelected}
+                            onUpdate={onFormStructureUpdate}
+                            onDelete={onFormElementDelete}
+                        />
+                    )}
+                    {element.type === FormStructureType.Video && (
+                        <FormVideo
+                            element={element as FormVideoType}
+                            isEditing={isSelected}
+                            onUpdate={onFormStructureUpdate}
                             onDelete={onFormElementDelete}
                         />
                     )}
@@ -531,10 +603,10 @@ export function FormBuildView({
         const DisplayedStructureIcon = firstStructureItem ? (() => firstStructureItem.icon) : HeaderIcon;
         function structureOnClick(event: React.MouseEvent<HTMLElement>) {
             if (firstStructureItem) {
-                if (firstStructureItem.type === "Divider") {
-                    handleAddDivider();
-                } else {
+                if (firstStructureItem.tag) {
                     handleAddHeader({ tag: firstStructureItem.tag });
+                } else {
+                    handleAddStructure({ type: firstStructureItem.type as "Divider" | "Image" | "QrCode" | "Tip" | "Video" });
                 }
             } else {
                 handleStructurePopoverOpen(event);
@@ -559,7 +631,7 @@ export function FormBuildView({
                 </>}
             </ToolbarBox>
         );
-    }, [inputItems, structureItems, schema.elements.length, isMobile, handleAddInput, handleInputPopoverOpen, handleAddDivider, handleAddHeader, handleStructurePopoverOpen]);
+    }, [inputItems, structureItems, schema.elements.length, isMobile, handleAddInput, handleInputPopoverOpen, handleAddHeader, handleAddStructure, handleStructurePopoverOpen]);
 
     const initialValues = useMemo(function initialValuesMemo() {
         return generateInitialValues(schema.elements, fieldNamePrefix);
@@ -573,24 +645,25 @@ export function FormBuildView({
                 onClose={closeInputPopover}
                 anchorOrigin={popoverAnchorOrigin}
             >
-
-                {inputItems.map(({ category, items }) => (
-                    <Fragment key={category}>
-                        <ListSubheader>{category}</ListSubheader>
-                        {items.map((item) => (
-                            <PopoverListItem
-                                key={item.type}
-                                icon={item.icon}
-                                label={item.label}
-                                type={item.type as PopoverListItemProps["type"]}
-                                onAddDivider={handleAddDivider}
-                                onAddHeader={handleAddHeader}
-                                onAddInput={handleAddInput}
-                            />
-                        ))}
-                        <Divider />
-                    </Fragment>
-                ))}
+                <List disablePadding>
+                    {inputItems.map(({ category, items }) => (
+                        <Fragment key={category}>
+                            <ListSubheader>{category}</ListSubheader>
+                            {items.map((item) => (
+                                <PopoverListItem
+                                    key={item.type}
+                                    icon={item.icon}
+                                    label={item.label}
+                                    type={item.type as PopoverListItemProps["type"]}
+                                    onAddHeader={handleAddHeader}
+                                    onAddInput={handleAddInput}
+                                    onAddStructure={handleAddStructure}
+                                />
+                            ))}
+                            <Divider />
+                        </Fragment>
+                    ))}
+                </List>
             </Popover>
             <Popover
                 open={isStructurePopoverOpen}
@@ -598,7 +671,7 @@ export function FormBuildView({
                 onClose={closeStructurePopover}
                 anchorOrigin={popoverAnchorOrigin}
             >
-                <List>
+                <List disablePadding>
                     {structureItems.map(({ category, items }) => (
                         <Fragment key={category}>
                             <ListSubheader>{category}</ListSubheader>
@@ -609,9 +682,9 @@ export function FormBuildView({
                                     label={item.label}
                                     tag={item.tag}
                                     type={item.type}
-                                    onAddDivider={handleAddDivider}
                                     onAddHeader={handleAddHeader}
                                     onAddInput={handleAddInput}
+                                    onAddStructure={handleAddStructure}
                                 />
                             ))}
                             <Divider />
@@ -695,7 +768,7 @@ export function GeneratedGridItem({
     return isInGrid ? <Grid item {...calculateGridItemSize(fieldsInGrid)}>{children}</Grid> : children;
 }
 
-const ElementRunOuterBox = styled("button")(() => ({
+const ElementRunOuterBox = styled(Box)(() => ({
     padding: 0,
     width: "100%",
     overflow: "hidden",
@@ -703,7 +776,6 @@ const ElementRunOuterBox = styled("button")(() => ({
     color: "inherit",
     border: "none",
     textAlign: "left",
-    cursor: "pointer",
 }));
 
 const sectionsStackStyle = { width: "100%" } as const;
@@ -734,6 +806,38 @@ export function FormRunView({
                     <FormDivider
                         isEditing={false}
                         onDelete={noop}
+                    />
+                )}
+                {element.type === FormStructureType.Image && (
+                    <FormImage
+                        element={element as FormImageType}
+                        isEditing={false}
+                        onDelete={noop}
+                        onUpdate={noop}
+                    />
+                )}
+                {element.type === FormStructureType.QrCode && (
+                    <FormQrCode
+                        element={element as FormQrCodeType}
+                        isEditing={false}
+                        onDelete={noop}
+                        onUpdate={noop}
+                    />
+                )}
+                {element.type === FormStructureType.Tip && (
+                    <FormTip
+                        element={element as FormTipType}
+                        isEditing={false}
+                        onDelete={noop}
+                        onUpdate={noop}
+                    />
+                )}
+                {element.type === FormStructureType.Video && (
+                    <FormVideo
+                        element={element as FormVideoType}
+                        isEditing={false}
+                        onDelete={noop}
+                        onUpdate={noop}
                     />
                 )}
                 {!(element.type in FormStructureType) && (

@@ -52,6 +52,14 @@ const autoTranslateLanguages = [
 ] as const;
 
 const titleId = "select-language-dialog-title";
+const anchorOrigin = {
+    vertical: "bottom",
+    horizontal: "center",
+} as const;
+const transformOrigin = {
+    vertical: "top",
+    horizontal: "center",
+} as const;
 
 export function SelectLanguageMenu({
     currentLanguage,
@@ -202,14 +210,8 @@ export function SelectLanguageMenu({
                         paddingBottom: 1,
                     },
                 }}
-                anchorOrigin={{
-                    vertical: "bottom",
-                    horizontal: "center",
-                }}
-                transformOrigin={{
-                    vertical: "top",
-                    horizontal: "center",
-                }}
+                anchorOrigin={anchorOrigin}
+                transformOrigin={transformOrigin}
             >
                 {/* Title */}
                 <MenuTitle

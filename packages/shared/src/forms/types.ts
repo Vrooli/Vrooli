@@ -8,6 +8,10 @@ import { CodeLanguage } from "../consts/ui";
 export enum FormStructureType {
     Divider = "Divider",
     Header = "Header",
+    Image = "Image",
+    QrCode = "QrCode",
+    Tip = "Tip",
+    Video = "Video",
 }
 
 export type FormBuildViewProps = {
@@ -63,7 +67,7 @@ export interface FormElementBase {
     label: string;
 }
 
-export type HeaderTag = "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+export type HeaderTag = "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "body1" | "body2";
 export type FormHeaderType = FormElementBase & {
     type: FormStructureType.Header;
     /** 
@@ -71,12 +75,46 @@ export type FormHeaderType = FormElementBase & {
      * until the next header, page break/divider, or the end of the form.
      */
     isCollapsible?: boolean;
+    isMarkdown?: boolean;
     tag: HeaderTag;
+    color?: "primary" | "secondary" | "default" | string;
 };
 
 export type FormDividerType = FormElementBase & {
     type: FormStructureType.Divider;
 }
+
+export type FormImageType = FormElementBase & {
+    /** URL of the image */
+    url: string;
+    type: FormStructureType.Image;
+}
+
+export type FormQrCodeType = FormElementBase & {
+    /** URL of the QR code */
+    url: string;
+    type: FormStructureType.QrCode;
+}
+
+export type FormTipType = FormElementBase & {
+    /** Icon displayed with the tip. Defaults to "Info" */
+    icon?: "Error" | "Info" | "Warning";
+    isMarkdown?: boolean;
+    /** 
+     * URL, if the tip is a link.
+     * 
+     * NOTE: This may override the icon, chaning it to 
+     * a link or video icon (depending on the URL).
+     */
+    link?: string;
+    type: FormStructureType.Tip;
+};
+
+export type FormVideoType = FormElementBase & {
+    /** URL of the video. Currently only supports YouTube */
+    url: string;
+    type: FormStructureType.Video;
+};
 
 /** Common props required by every form input type */
 export interface FormInputBase extends FormElementBase {
@@ -391,8 +429,14 @@ export type FormInputType =
     SwitchFormInput |
     TagSelectorFormInput |
     TextFormInput;
-
-export type FormElement = FormHeaderType | FormDividerType | FormInputType;
+export type FormInformationalType =
+    FormHeaderType |
+    FormDividerType |
+    FormImageType |
+    FormQrCodeType |
+    FormTipType |
+    FormVideoType;
+export type FormElement = FormInformationalType | FormInputType;
 
 
 //==============================================================
@@ -540,11 +584,11 @@ export interface FormSchema {
      * can only be one level deep. If this is empty, then all elements
      * will be placed in one container.
      */
-    containers: GridContainer[];
+    containers: readonly GridContainer[];
     /**
      * Defines the shape of every element in the form, including headers, dividers, and inputs
      */
-    elements: FormElement[];
+    elements: readonly FormElement[];
 }
 
 /**

@@ -1,5 +1,5 @@
 import { SliderFormInput, SliderFormInputProps, getFormikFieldName } from "@local/shared";
-import { Button, Slider, Typography, useTheme } from "@mui/material";
+import { Box, Button, Slider, Typography, useTheme } from "@mui/material";
 import { IntegerInputBase } from "components/inputs/IntegerInput/IntegerInput";
 import { SelectorBase } from "components/inputs/Selector/Selector";
 import { TextInput } from "components/inputs/TextInput/TextInput";
@@ -19,7 +19,7 @@ export function FormInputSlider({
 
     const props = useMemo(() => fieldData.props, [fieldData.props]);
 
-    const [field, meta, helpers] = useField(getFormikFieldName(fieldData.fieldName, fieldNamePrefix));
+    const [field, , helpers] = useField(getFormikFieldName(fieldData.fieldName, fieldNamePrefix));
     const handleChange = useCallback((_, value: number | number[]) => {
         const newValue = Array.isArray(value) ? value[0] : value;
         if (isEditing) {
@@ -85,18 +85,20 @@ export function FormInputSlider({
     }
 
     const SliderElement = useMemo(() => (
-        <Slider
-            disabled={disabled}
-            key={`field-${fieldData.id}`}
-            min={props.min}
-            max={props.max}
-            name={fieldData.fieldName}
-            step={props.step}
-            valueLabelDisplay={props.valueLabelDisplay || "auto"}
-            value={isEditing ? props.defaultValue ?? props.min : field.value}
-            onBlur={field.onBlur}
-            onChange={handleChange}
-        />
+        <Box pl={3} pr={3} pt={4}>
+            <Slider
+                disabled={disabled}
+                key={`field-${fieldData.id}`}
+                min={props.min}
+                max={props.max}
+                name={fieldData.fieldName}
+                step={props.step}
+                valueLabelDisplay={props.valueLabelDisplay || "auto"}
+                value={isEditing ? props.defaultValue ?? props.min : field.value}
+                onBlur={field.onBlur}
+                onChange={handleChange}
+            />
+        </Box>
     ), [disabled, fieldData.id, fieldData.fieldName, props.min, props.max, props.step, props.valueLabelDisplay, props.defaultValue, isEditing, field.value, field.onBlur, handleChange]);
 
     const moreButtonStyle = useMemo(function moreButtonStyleMemo() {

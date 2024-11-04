@@ -15,6 +15,15 @@ export interface RichInputTagDropdownData {
     tagString: string;
 }
 
+const anchorOrigin = {
+    vertical: "top",
+    horizontal: "left",
+} as const;
+const transformOrigin = {
+    vertical: "bottom",
+    horizontal: "left",
+} as const;
+
 export function useTagDropdown({
     getTaggableItems,
 }: {
@@ -107,14 +116,8 @@ export function RichInputTagDropdown({
             open={Boolean(anchorEl)}
             anchorEl={anchorEl}
             onClose={() => setAnchorEl(null)}
-            anchorOrigin={{
-                vertical: "top",
-                horizontal: "left",
-            }}
-            transformOrigin={{
-                vertical: "bottom",
-                horizontal: "left",
-            }}
+            anchorOrigin={anchorOrigin}
+            transformOrigin={transformOrigin}
             sx={{
                 "& .MuiPopover-paper": {
                     width: popoverWidth,

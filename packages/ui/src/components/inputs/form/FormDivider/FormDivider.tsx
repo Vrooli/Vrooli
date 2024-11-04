@@ -2,7 +2,11 @@ import { Button, Divider } from "@mui/material";
 import { propButtonStyle } from "../styles";
 import { FormDividerProps } from "../types";
 
-const dividerStyle = {
+const displayStyle = {
+    paddingTop: "0px",
+    paddingBottom: "0px",
+} as const;
+const editingStyle = {
     paddingTop: "8px",
     paddingBottom: "8px",
 } as const;
@@ -13,11 +17,11 @@ export function FormDivider({
 }: FormDividerProps) {
     // If not selected, return a plain divider
     if (!isEditing) {
-        return <Divider sx={dividerStyle} />;
+        return <Divider sx={displayStyle} />;
     }
     // Otherwise, return a divider with a delete button
     return (
-        <Divider sx={dividerStyle}>
+        <Divider sx={editingStyle}>
             <Button variant="text" sx={propButtonStyle} onClick={onDelete}>
                 Delete
             </Button>

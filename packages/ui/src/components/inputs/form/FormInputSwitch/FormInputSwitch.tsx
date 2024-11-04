@@ -56,6 +56,7 @@ export function FormInputSwitch({
         submitLabelChange,
     } = useEditableLabel({
         isEditable: isEditing,
+        isMultiline: false,
         label: props.label ?? "",
         onUpdate: updateLabel,
     });

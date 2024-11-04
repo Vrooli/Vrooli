@@ -1,4 +1,4 @@
-import { Tooltip } from "@mui/material";
+import { Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { CompleteIcon as CIcon } from "icons";
 import { useCallback, useMemo } from "react";
@@ -12,17 +12,19 @@ export function IsCompleteButton({
     isEditing,
 }: IsCompleteButtonProps) {
     const { t } = useTranslation();
+    const { palette } = useTheme();
 
     const [field, , helpers] = useField("isComplete");
 
     const { Icon, label, tooltip } = useMemo(() => {
         const isComplete = field?.value;
+        const iconColor = isEditing ? palette.primary.light : palette.secondary.contrastText;
         return {
-            Icon: isComplete ? CompleteIcon : undefined,
+            Icon: () => <CompleteIcon fill={iconColor} />,
             label: t(field?.value ? "Complete" : "Incomplete"),
             tooltip: t(`IsComplete${isComplete ? "True" : "False"}TogglePress${isEditing ? "Editable" : ""}`),
         };
-    }, [field?.value, isEditing, t]);
+    }, [field?.value, isEditing, palette.primary.light, palette.secondary.contrastText, t]);
 
     const handleClick = useCallback(() => {
         if (!isEditing) return;

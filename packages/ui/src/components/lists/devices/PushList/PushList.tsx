@@ -63,6 +63,7 @@ export function PushListItem({
         submitLabelChange,
     } = useEditableLabel({
         isEditable: true,
+        isMultiline: false,
         label: data.name || data.deviceId || "",
         onUpdate: updateLabel,
     });

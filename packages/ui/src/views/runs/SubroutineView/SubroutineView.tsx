@@ -104,8 +104,8 @@ export function SubroutineView({
     }, [routineTypeBaseProps, routineVersion.routineType]);
 
     const inputValidationSchema = useMemo(function inputValidationSchemaMemo() {
-        // TODO need one to combine inputs and outputs together
-        return schemaInput ? generateYupSchema(schemaInput) : undefined;
+        // TODO might need to do output validation as well
+        return schemaInput ? generateYupSchema(schemaInput, "input") : undefined;
     }, [schemaInput]);
 
     const initialValues = useMemo(() => routineInitialValues(session, internalRoutineVersion), [internalRoutineVersion, session]);
