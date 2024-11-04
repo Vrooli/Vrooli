@@ -26,6 +26,7 @@ export const InputToYupType: { [key in InputType]?: YupType } = {
  */
 export function generateYupSchema(
     formSchema: Pick<FormSchema, "elements">,
+    prefix?: string,
 ) {
     if (!formSchema) return null;
 
@@ -37,7 +38,7 @@ export function generateYupSchema(
         // Skip non-input fields
         if (!("fieldName" in field)) return;
         const formInput = field as FormInputBase;
-        const name = formInput.fieldName;
+        const name = prefix ? `${prefix}-${formInput.fieldName}` : formInput.fieldName;
 
         // Field will only be validated if it has a yup schema, and it is a valid input type
         if (formInput.yup && InputToYupType[field.type]) {
@@ -81,7 +82,7 @@ export function generateYupSchema(
             formInput.yup.checks.forEach(check => {
                 const { key, value, error } = check;
                 const method = (validator as any)[key];
-                if (typeof method === 'function') {
+                if (typeof method === "function") {
                     if (value !== undefined && error !== undefined) {
                         validator = method.call(validator, value, error);
                     } else if (value !== undefined) {
