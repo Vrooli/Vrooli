@@ -26,6 +26,7 @@ import { useSocketConnect } from "hooks/useSocketConnect";
 import { useSocketUser } from "hooks/useSocketUser";
 import { useWindowSize } from "hooks/useWindowSize";
 import i18next from "i18next";
+import { vrooliIconPath } from "icons/common";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Routes } from "Routes";
 import { getCurrentUser, getSiteLanguage, guestSession } from "utils/authentication/session";
@@ -281,28 +282,25 @@ export function App() {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         setIsLoading(false);
         // Add help wanted to console logs
-        console.info(`                                               
-                               !G!              
-                               #@@!   :?J.      
-                              .&@@#.:5@@&.      
-                               B@@@?#@@@?       
-                               J@@@Y#@@Y        
-                               .B@@JB#!         
-                                J@@GGPJ?7^.     
-                             .J#@@@@@@@@###Y:   
- :!!:                       ~G@@@@@@@@@  ^&@&~  
-?@@@&?#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@##@@@5  
-!#@@#?&@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#~  
- .^^ :@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&BJ:   
-     :&@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@GY?~:      
-     :&@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@&#GY^      
-     :@@@@@&#####################&&&@@@@@@^     
-     :@@@@@J                       :^!YBBY.     
-      5&@@#^                                    
-       :^^.                                     
-                                                
-         Consider developing with us!                                         
-       https://github.com/Vrooli/Vrooli                            
+        const svgCode = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <path d="${vrooliIconPath}" fill="#ccc"/>
+</svg>
+`;
+        const svgDataUrl = `data:image/svg+xml,${encodeURIComponent(svgCode)}`;
+        console.info(
+            "%c ", `
+            background-image: url(${svgDataUrl});
+            font-size: 0;
+            padding-left: 200px;
+            background-size: contain;
+            background-position: center center;
+            background-repeat: no-repeat;
+            line-height: 200px;
+            `);
+        console.info(`                                                                              
+  Consider developing with us!                                         
+https://github.com/Vrooli/Vrooli                            
 `);
         // Detect online/offline status
         const onlineStatusId = "online-status"; // Use same ID for both so both can't be displayed at the same time
