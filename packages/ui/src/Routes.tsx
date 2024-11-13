@@ -46,7 +46,7 @@ const { ChatCrud } = lazily(() => import("./views/objects/chat"));
 const { DataConverterUpsert, DataConverterView } = lazily(() => import("./views/objects/dataConverter"));
 const { DataStructureUpsert, DataStructureView } = lazily(() => import("./views/objects/dataStructure"));
 const { NotFoundView } = lazily(() => import("./views/NotFoundView/NotFoundView"));
-const { PremiumView } = lazily(() => import("./views/PremiumView/PremiumView"));
+const { ProView } = lazily(() => import("./views/ProView/ProView"));
 const { SearchView } = lazily(() => import("./views/SearchView/SearchView"));
 const { SearchVersionView } = lazily(() => import("./views/SearchVersionView/SearchVersionView"));
 const { StatsSiteView: StatsView } = lazily(() => import("./views/StatsSiteView/StatsSiteView"));
@@ -221,7 +221,7 @@ export function Routes(props: { sessionChecked: boolean }) {
                     changeFreq="weekly"
                     {...props}
                 >
-                    <PremiumView display="page" />
+                    <ProView display="page" />
                 </NavRoute>
                 <NavRoute
                     path={LINKS.Privacy}
@@ -317,9 +317,9 @@ export function Routes(props: { sessionChecked: boolean }) {
                 <NavRoute path={`${LINKS.Routine}/:rootId/:versionId?`} {...props}>
                     <RoutineView display="page" />
                 </NavRoute>
-                {/* <NavRoute path={`${LINKS.Run}/:objectType/:id`} {...props}>
+                <NavRoute path={`${LINKS.Run}/:objectType/:id`} {...props}>
                     <RunView display="page" />
-                </NavRoute> */}
+                </NavRoute>
                 <NavRoute
                     path={`${LINKS.Search}/:params*`}
                     sitemapIndex

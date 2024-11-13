@@ -185,18 +185,6 @@ export const SlideContainer = styled(Box)(() => ({
     ...slideContainer,
 }));
 
-export const textPop = {
-    padding: "0",
-    color: "white",
-    textAlign: "center",
-    fontWeight: 600,
-    textShadow:
-        `-1px -1px 0 black,  
-                1px -1px 0 black,
-                -1px 1px 0 black,
-                1px 1px 0 black`,
-} as const;
-
 export function formSection(theme: Pick<Theme, "breakpoints" | "palette" | "spacing">, variant: "card" | "transparent" = "card") {
     let background: string | undefined;
     if (variant === "card") {

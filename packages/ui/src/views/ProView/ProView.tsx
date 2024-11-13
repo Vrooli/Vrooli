@@ -13,13 +13,11 @@ import { useContext, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { ScrollBox } from "styles";
+import { ELEMENT_IDS } from "utils/consts";
 import { RandomBlobs } from "views/main/LandingView/LandingView";
-import { PremiumViewProps } from "../types";
+import { ProViewProps } from "../types";
 
 const purpleRadial = "radial-gradient(circle, rgb(16 6 46) 15%, rgb(11 1 36) 55%, rgb(8 3 20) 85%)";
-const subscriptionBoxId = "get-subscription";
-const buyCreditsBoxId = "buy-credits";
-const donateBoxId = "donate";
 
 // Features comparison table data
 const rows = [
@@ -100,13 +98,13 @@ function WaysToSupportUs() {
     const [, setLocation] = useLocation();
 
     function toSubscriptionBox() {
-        scrollToElement(subscriptionBoxId);
+        scrollToElement(ELEMENT_IDS.ProViewSubscribeBox);
     }
     function toBuyCreditsBox() {
-        scrollToElement(buyCreditsBoxId);
+        scrollToElement(ELEMENT_IDS.ProViewBuyCreditsBox);
     }
     function toDonateBox() {
-        scrollToElement(donateBoxId);
+        scrollToElement(ELEMENT_IDS.ProViewDonateBox);
     }
     function toCreate() {
         openLink(setLocation, LINKS.Create);
@@ -142,10 +140,10 @@ function WaysToSupportUs() {
     );
 }
 
-export function PremiumView({
+export function ProView({
     display,
     onClose,
-}: PremiumViewProps) {
+}: ProViewProps) {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
@@ -195,7 +193,7 @@ export function PremiumView({
                 <Box display="flex" flexDirection="column" gap={8} pb={2} margin="auto" maxWidth="min(800px, 100%)">
                     <WaysToSupportUs />
                     {/* Main features as table */}
-                    <Box id="pro-features" sx={{ width: "100%", margin: "auto", boxShadow: 3 }}>
+                    <Box id={ELEMENT_IDS.ProViewFeatures} sx={{ width: "100%", margin: "auto", boxShadow: 3 }}>
                         <Typography variant="h5" mb={2}>{t("Feature", { count: 2 })}</Typography>
                         <TableContainer component={Paper} sx={{ borderRadius: 4 }}>
                             <Table aria-label="features table">
@@ -244,7 +242,7 @@ export function PremiumView({
                             <span style={{ fontSize: "x-large", verticalAlign: "middle", paddingLeft: 1 }}>*</span> {t("ComingSoon")}
                         </Typography>
                     </Box>
-                    <Box id={subscriptionBoxId} mb={4} sx={{ maxWidth: "800px", width: "100%" }}>
+                    <Box id={ELEMENT_IDS.ProViewSubscribeBox} mb={4} sx={{ maxWidth: "800px", width: "100%" }}>
                         <Typography variant="h6" pt={3} pb={2} sx={{ textAlign: "center" }}>
                             Upgrade to Vrooli Pro for AI-powered integrations, advanced analytics tools, and more. Maximize your potential — become a Vrooli Pro user today!
                         </Typography>
@@ -297,7 +295,7 @@ export function PremiumView({
                             </Stack>
                         </Box>
                     </Box>
-                    <Box id={buyCreditsBoxId} mb={4} sx={{ maxWidth: "800px", width: "100%" }}>
+                    <Box id={ELEMENT_IDS.ProViewBuyCreditsBox} mb={4} sx={{ maxWidth: "800px", width: "100%" }}>
                         <Typography variant="h6" pt={3} pb={2} sx={{ textAlign: "center" }}>
                             Buy credits to perform AI-related tasks, such as running routines, messaging bots, and auto-filling forms.
                         </Typography>
@@ -394,7 +392,7 @@ export function PremiumView({
                             </Box>
                         </Box>
                     </Box>
-                    <Box id={donateBoxId} mb={4} sx={{ maxWidth: "800px", width: "100%" }}>
+                    <Box id={ELEMENT_IDS.ProViewDonateBox} mb={4} sx={{ maxWidth: "800px", width: "100%" }}>
                         <Typography variant="h6" pt={3} pb={2} sx={{ textAlign: "center" }}>
                             Support Vrooli directly by making a donation. Your contribution helps us maintain and improve our services💙
                         </Typography>
@@ -460,8 +458,7 @@ export function PremiumView({
                     </Box>
                     <Typography variant="h5">Made-Up Testimonials</Typography>
                     <Testimonials />
-                    {/* FAQ Section at the bottom */}
-                    <Box mt={4} px={4} py={3} borderRadius={4} boxShadow={3} sx={{
+                    <Box id={ELEMENT_IDS.ProViewFAQBox} mt={4} px={4} py={3} borderRadius={4} boxShadow={3} sx={{
                         background: palette.background.paper + (palette.mode === "light" ? "44" : "c4"),
                         color: "white",
                     }}>
