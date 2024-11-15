@@ -4,20 +4,6 @@ import { Avatar, AvatarProps, Box, BoxProps, IconButton, Palette, Stack, StackPr
 export const bottomNavHeight = "56px";
 export const pagePaddingBottom = "var(--page-padding-bottom)";
 
-export const centeredDiv = {
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-} as const;
-
-export const textShadow = {
-    textShadow:
-        `-0.5px -0.5px 0 black,  
-        0.5px -0.5px 0 black,
-        -0.5px 0.5px 0 black,
-        0.5px 0.5px 0 black`,
-} as const;
-
 /**
  * Lighthouse recommended size for clickable elements, to improve SEO
  */
@@ -141,7 +127,7 @@ export function slideImageContainer() {
         },
     } as const;
 }
-export const SlideImageContainer = styled(Box)(({ theme }) => ({
+export const SlideImageContainer = styled(Box)(() => ({
     ...slideImageContainer(),
 }));
 

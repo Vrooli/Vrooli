@@ -45,8 +45,14 @@ export function keepSearchParams(setLocation: SetLocation, keep: string[]) {
 export function removeSearchParams(setLocation: SetLocation, remove: string[]) {
     const removeResult: ParseSearchParamsResult = {};
     const searchParams = parseSearchParams();
+    let hasRemoved = false;
     Object.keys(searchParams).forEach(key => {
-        if (!remove.includes(key)) removeResult[key] = searchParams[key];
+        if (!remove.includes(key)) {
+            removeResult[key] = searchParams[key];
+        } else {
+            hasRemoved = true;
+        }
     });
+    if (!hasRemoved) return;
     setLocation(window.location.pathname, { replace: true, searchParams: removeResult });
 }

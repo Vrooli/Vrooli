@@ -20,7 +20,6 @@ import { SnackStack } from "components/snacks/SnackStack/SnackStack";
 import { ActiveChatProvider, SessionContext, ZIndexProvider } from "contexts";
 import { useHotkeys } from "hooks/useHotkeys";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { useReactHash } from "hooks/useReactHash";
 import { useSideMenu } from "hooks/useSideMenu";
 import { useSocketConnect } from "hooks/useSocketConnect";
 import { useSocketUser } from "hooks/useSocketUser";
@@ -324,26 +323,6 @@ https://github.com/Vrooli/Vrooli
         };
     }, []);
 
-    // If anchor tag in url, scroll to element
-    const hash = useReactHash();
-    useEffect(() => {
-        // if not a hash link, scroll to top
-        if (hash === "") {
-            window.scrollTo(0, 0);
-        }
-        // else scroll to id
-        else {
-            setTimeout(() => {
-                const id = hash.replace("#", "");
-                const element = document.getElementById(id);
-                console.log("scrolling to element", element, id);
-                if (element) {
-                    element.scrollIntoView();
-                }
-            }, 0);
-        }
-    }, [hash]);
-
     useEffect(() => {
         // Determine theme
         let theme: Theme | null | undefined;
@@ -406,8 +385,7 @@ https://github.com/Vrooli/Vrooli
         });
     }, [validateSession]);
 
-    useEffect(() => {
-        checkSession();
+    useEffect(function handleSessionAndSubscriptions() {
         // Handle session updates
         const loadingSub = PubSub.get().subscribe("loading", (data) => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);

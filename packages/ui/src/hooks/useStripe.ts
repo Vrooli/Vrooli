@@ -1,4 +1,4 @@
-import { CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, CreatePortalSessionParams, CreatePortalSessionResponse, LINKS, PaymentType, StripeEndpoint, SubscriptionPricesResponse, TranslationKeyCommon, parseSearchParams } from "@local/shared";
+import { CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, CreatePortalSessionParams, CreatePortalSessionResponse, LINKS, PaymentType, StripeEndpoint, SubscriptionPricesResponse, TranslationKeyCommon, UrlTools, parseSearchParams } from "@local/shared";
 import { loadStripe } from "@stripe/stripe-js";
 import { fetchData } from "api/fetchData";
 import { SessionContext } from "contexts";
@@ -38,7 +38,7 @@ export function useStripe() {
         PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error", data: error });
     }, []);
 
-    const handleUrlParams = useCallback(() => {
+    const handleUrlParams = useCallback(function handleUrlParamsCallback() {
         const { paymentType, status } = parseSearchParams();
         removeSearchParams(setLocation, ["status"]);
         if (status === "success") {
@@ -75,10 +75,10 @@ export function useStripe() {
      * @param variant The type of payment to start
      * @param amount The amount to pay, if variant is "Donation" or "Credits"
      */
-    const startCheckout = async (variant: PaymentType, amount?: number) => {
+    async function startCheckout(variant: PaymentType, amount?: number) {
         // If not logged in and trying to get premium, redirect to signup page
         if (!currentUser.id && variant !== PaymentType.Donation) {
-            openLink(setLocation, LINKS.Signup, { redirect: window.location.pathname });
+            openLink(setLocation, UrlTools.linkWithSearchParams(LINKS.Signup, { redirect: window.location.pathname }));
             return;
         }
 
@@ -114,13 +114,13 @@ export function useStripe() {
         }).finally(() => {
             toggleLoading(false);
         });
-    };
+    }
 
     /** Creates stripe portal session and redirects to portal page */
-    const redirectToCustomerPortal = async () => {
+    async function redirectToCustomerPortal() {
         // If not logged in, redirect to login page
         if (!currentUser.id) {
-            openLink(setLocation, LINKS.Login, { redirect: window.location.pathname });
+            openLink(setLocation, UrlTools.linkWithSearchParams(LINKS.Login, { redirect: window.location.pathname }));
             return;
         }
 
@@ -145,13 +145,13 @@ export function useStripe() {
         }).finally(() => {
             toggleLoading(false);
         });
-    };
+    }
 
     /** Checks if the user has a subscription that never went through */
-    const checkFailedSubscription = async () => {
+    async function checkFailedSubscription() {
         // Must be logged in
         if (!currentUser.id) {
-            openLink(setLocation, LINKS.Signup, { redirect: window.location.pathname });
+            openLink(setLocation, UrlTools.linkWithSearchParams(LINKS.Signup, { redirect: window.location.pathname }));
             return;
         }
 
@@ -194,13 +194,13 @@ export function useStripe() {
         }).finally(() => {
             toggleLoading(false);
         });
-    };
+    }
 
     /** Checks if the user has a failed credits payment that never went through */
-    const checkFailedCredits = async () => {
+    async function checkFailedCredits() {
         // Must be logged in
         if (!currentUser.id) {
-            openLink(setLocation, LINKS.Signup, { redirect: window.location.pathname });
+            openLink(setLocation, UrlTools.linkWithSearchParams(LINKS.Signup, { redirect: window.location.pathname }));
             return;
         }
 
@@ -233,7 +233,7 @@ export function useStripe() {
         }).finally(() => {
             toggleLoading(false);
         });
-    };
+    }
 
     return {
         checkFailedCredits,
