@@ -1,7 +1,7 @@
-import { COOKIE, DAYS_30_MS, mergeDeep, uuidValidate } from "@local/shared";
+import { COOKIE, DAYS_30_MS, DEFAULT_LANGUAGE, SECONDS_1_MS, mergeDeep, uuidValidate } from "@local/shared";
 import cookie from "cookie";
 import { CookieOptions, NextFunction, Request, Response } from "express";
-import jwt from "jsonwebtoken";
+import jwt, { JwtPayload, TokenExpiredError } from "jsonwebtoken";
 import { Socket } from "socket.io";
 import { ExtendedError } from "socket.io/dist/namespace";
 import { DefaultEventsMap } from "socket.io/dist/typed-events";
@@ -47,10 +47,10 @@ function getJwtKeys(): JwtKeys {
  * @param req The request
  * @returns A list of languages without any subtags
  */
-function parseAcceptLanguage(req: { headers: Record<string, any> }): string[] {
+export function parseAcceptLanguage(req: { headers: Record<string, any> }): string[] {
     const acceptString = req.headers["accept-language"];
     // Default to english if not found or a wildcard
-    if (!acceptString || acceptString === "*") return ["en"];
+    if (!acceptString || typeof acceptString !== "string" || acceptString === "*") return [DEFAULT_LANGUAGE];
     // Strip q values
     let acceptValues = acceptString.split(",").map((lang: string) => lang.split(";")[0]);
     // Remove subtags
@@ -58,13 +58,30 @@ function parseAcceptLanguage(req: { headers: Record<string, any> }): string[] {
     return acceptValues;
 }
 
-function verifyJwt(token: string, publicKey: string): Promise<any> {
+type VerifiedJwt = JwtPayload & {
+    exp: number;
+};
+
+export function isJwtExpired(payload: JwtPayload): payload is VerifiedJwt {
+    const currentTimeInSeconds = Math.floor(Date.now() / SECONDS_1_MS);
+    console.log("in isJwtExpired", payload?.exp, currentTimeInSeconds);
+    return payload?.exp === undefined
+        || !isFinite(payload.exp)
+        || payload.exp <= 0
+        || payload.exp < currentTimeInSeconds;
+}
+
+export function verifyJwt(token: string, publicKey: string): Promise<VerifiedJwt> {
     return new Promise((resolve, reject) => {
-        jwt.verify(token, publicKey, { algorithms: ["RS256"] }, (error: any, payload: any) => {
+        jwt.verify(token, publicKey, { algorithms: ["RS256"] }, (error, payload) => {
             if (error) {
                 reject(error);
+            } else if (!payload || typeof payload === "string") {
+                reject(new Error("Unexpected undefined or string payload from jwt.verify"));
+            } else if (isJwtExpired(payload)) {
+                reject(new TokenExpiredError("jwt expired", new Date(payload.exp * SECONDS_1_MS)));
             } else {
-                resolve(payload);
+                resolve(payload as VerifiedJwt);
             }
         });
     });
@@ -100,10 +117,6 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
         }
         // Verify that the session token is valid and not expired
         const payload = await verifyJwt(token, getJwtKeys().publicKey);
-        if (!isFinite(payload.exp) || payload.exp < Date.now()) {
-            handleUnauthenticatedRequest(req, next);
-            return;
-        }
         // Set token and role variables for other middleware to use
         req.session.apiToken = payload.apiToken ?? false;
         req.session.isLoggedIn = payload.isLoggedIn === true && Array.isArray(payload.users) && payload.users.length > 0;
@@ -162,9 +175,6 @@ export async function authenticateSocket(
         }
         // Verify that the session token is valid and not expired
         const payload = await verifyJwt(token, getJwtKeys().publicKey);
-        if (!isFinite(payload.exp) || payload.exp < Date.now()) {
-            throw new Error("Token expiration is invalid");
-        }
         // Set token and role variables for other middleware to use
         socket.session.apiToken = payload.apiToken ?? false;
         socket.session.isLoggedIn = payload.isLoggedIn === true && Array.isArray(payload.users) && payload.users.length > 0;
@@ -202,8 +212,9 @@ const TOKEN_LENGTH_LIMIT = 4096;
 const TOKEN_BUFFER = 200;
 // Options for the jwt cookie
 const tokenOptions: CookieOptions = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    httpOnly: true, // Prevents client-side JavaScript from accessing the cookie
+    sameSite: "lax", // Prevents CSRF attacks
+    secure: process.env.NODE_ENV === "production", // Only send cookie over HTTPS in production
     maxAge: SESSION_MILLI,
 };
 // Size of the header and signature of a JWT token
@@ -314,11 +325,7 @@ export async function generateSessionJwt(
     }
     const token = jwt.sign(tokenContents, getJwtKeys().privateKey, { algorithm: "RS256" });
     if (!res.headersSent) {
-        res.cookie(COOKIE.Jwt, token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            maxAge: SESSION_MILLI,
-        });
+        res.cookie(COOKIE.Jwt, token, tokenOptions);
     }
 }
 
@@ -335,11 +342,7 @@ export async function generateApiJwt(res: Response, apiToken: string): Promise<v
     };
     const token = jwt.sign(tokenContents, getJwtKeys().privateKey, { algorithm: "RS256" });
     if (!res.headersSent) {
-        res.cookie(COOKIE.Jwt, token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            maxAge: SESSION_MILLI,
-        });
+        res.cookie(COOKIE.Jwt, token, tokenOptions);
     }
 }
 
@@ -357,20 +360,16 @@ export async function updateSessionTimeZone(req: Request, res: Response, timeZon
     }
     try {
         const payload = await verifyJwt(token, getJwtKeys().publicKey);
-        if (!isFinite(payload.exp) || payload.exp < Date.now()) {
-            throw new Error("Token expiration is invalid");
-        }
-        const tokenContents: SessionToken = {
+        const tokenContents = {
             ...payload,
             timeZone,
-        };
+        } as SessionToken;
         const newToken = jwt.sign(tokenContents, getJwtKeys().privateKey, { algorithm: "RS256" });
 
         if (!res.headersSent) {
             res.cookie(COOKIE.Jwt, newToken, {
-                httpOnly: true,
-                secure: process.env.NODE_ENV === "production",
-                maxAge: payload.exp - Date.now(),
+                ...tokenOptions,
+                maxAge: payload.exp - Date.now(), // Make sure token expires at the same time
             });
         }
     } catch (error) {
@@ -391,16 +390,13 @@ export async function updateSessionCurrentUser(req: Request, res: Response, user
     }
     try {
         const payload = await verifyJwt(token, getJwtKeys().publicKey);
-        if (!isFinite(payload.exp) || payload.exp < Date.now()) {
-            throw new Error("Token expiration is invalid");
-        }
         // Make token sizes and limits have been calculated
         calculateTokenSizes();
         // Start with minimal token data
-        const tokenContents: SessionToken = {
+        const tokenContents = {
             ...payload,
-            users: [],
-        };
+            users: [] as SessionUserToken[],
+        } as SessionToken;
         let currPayloadSize = calculateBase64Length(tokenContents);
         // If payload is too large, throw an error
         if (currPayloadSize > maxPayloadSize) {

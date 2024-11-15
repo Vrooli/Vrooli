@@ -1,4 +1,4 @@
-import { ActiveFocusMode, getActiveFocusMode, Session, SessionUser } from "@local/shared";
+import { ActiveFocusMode, getActiveFocusMode, Session, SessionUser, WEEKS_1_DAYS } from "@local/shared";
 import { Request } from "express";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
@@ -6,144 +6,147 @@ import { scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe
 import { SessionData, SessionUserToken } from "../types";
 import { getUser } from "./request";
 
-export const focusModeSelect = (startDate: Date, endDate: Date) => ({
-    id: true,
-    name: true,
-    description: true,
-    filters: {
-        select: {
-            id: true,
-            filterType: true,
-            tag: {
-                select: {
-                    id: true,
-                    tag: true,
+export function focusModeSelect(startDate: Date, endDate: Date) {
+    return {
+        id: true,
+        name: true,
+        description: true,
+        filters: {
+            select: {
+                id: true,
+                filterType: true,
+                tag: {
+                    select: {
+                        id: true,
+                        tag: true,
+                    },
                 },
             },
         },
-    },
-    labels: {
-        select: {
-            id: true,
-            label: {
-                select: {
-                    id: true,
-                    color: true,
-                    label: true,
+        labels: {
+            select: {
+                id: true,
+                label: {
+                    select: {
+                        id: true,
+                        color: true,
+                        label: true,
+                    },
                 },
             },
         },
-    },
-    reminderList: {
-        select: {
-            id: true,
-            created_at: true,
-            updated_at: true,
-            reminders: {
-                select: {
-                    id: true,
-                    created_at: true,
-                    updated_at: true,
-                    name: true,
-                    description: true,
-                    dueDate: true,
-                    index: true,
-                    isComplete: true,
-                    reminderItems: {
-                        select: {
-                            id: true,
-                            created_at: true,
-                            updated_at: true,
-                            name: true,
-                            description: true,
-                            dueDate: true,
-                            index: true,
-                            isComplete: true,
+        reminderList: {
+            select: {
+                id: true,
+                created_at: true,
+                updated_at: true,
+                reminders: {
+                    select: {
+                        id: true,
+                        created_at: true,
+                        updated_at: true,
+                        name: true,
+                        description: true,
+                        dueDate: true,
+                        index: true,
+                        isComplete: true,
+                        reminderItems: {
+                            select: {
+                                id: true,
+                                created_at: true,
+                                updated_at: true,
+                                name: true,
+                                description: true,
+                                dueDate: true,
+                                index: true,
+                                isComplete: true,
+                            },
                         },
                     },
                 },
             },
         },
-    },
-    resourceList: {
-        select: {
-            id: true,
-            created_at: true,
-            updated_at: true,
-            resources: {
-                select: {
-                    id: true,
-                    created_at: true,
-                    updated_at: true,
-                    index: true,
-                    link: true,
-                    usedFor: true,
-                    translations: {
-                        select: {
-                            id: true,
-                            description: true,
-                            language: true,
-                            name: true,
+        resourceList: {
+            select: {
+                id: true,
+                created_at: true,
+                updated_at: true,
+                resources: {
+                    select: {
+                        id: true,
+                        created_at: true,
+                        updated_at: true,
+                        index: true,
+                        link: true,
+                        usedFor: true,
+                        translations: {
+                            select: {
+                                id: true,
+                                description: true,
+                                language: true,
+                                name: true,
+                            },
                         },
                     },
                 },
-            },
-            translations: {
-                select: {
-                    id: true,
-                    description: true,
-                    language: true,
-                    name: true,
+                translations: {
+                    select: {
+                        id: true,
+                        description: true,
+                        language: true,
+                        name: true,
+                    },
                 },
             },
         },
-    },
-    schedule: {
-        select: {
-            id: true,
-            created_at: true,
-            updated_at: true,
-            startTime: true,
-            endTime: true,
-            timezone: true,
-            exceptions: {
-                where: scheduleExceptionsWhereInTimeframe(startDate, endDate),
-                select: {
-                    id: true,
-                    originalStartTime: true,
-                    newStartTime: true,
-                    newEndTime: true,
+        schedule: {
+            select: {
+                id: true,
+                created_at: true,
+                updated_at: true,
+                startTime: true,
+                endTime: true,
+                timezone: true,
+                exceptions: {
+                    where: scheduleExceptionsWhereInTimeframe(startDate, endDate),
+                    select: {
+                        id: true,
+                        originalStartTime: true,
+                        newStartTime: true,
+                        newEndTime: true,
+                    },
                 },
-            },
-            recurrences: {
-                where: scheduleRecurrencesWhereInTimeframe(startDate, endDate),
-                select: {
-                    id: true,
-                    recurrenceType: true,
-                    interval: true,
-                    dayOfWeek: true,
-                    dayOfMonth: true,
-                    month: true,
-                    endDate: true,
+                recurrences: {
+                    where: scheduleRecurrencesWhereInTimeframe(startDate, endDate),
+                    select: {
+                        id: true,
+                        recurrenceType: true,
+                        interval: true,
+                        dayOfWeek: true,
+                        dayOfMonth: true,
+                        month: true,
+                        endDate: true,
+                    },
                 },
             },
         },
-    },
-});
+    } as const;
+}
 
 /**
  * Creates SessionUser object from user.
  * @param user User object
  * @param req Express request object
  */
-export const toSessionUser = async (user: { id: string }, req: Partial<Request>): Promise<SessionUser> => {
+export async function toSessionUser(user: { id: string }, req: Partial<Request>): Promise<SessionUser> {
     if (!user.id)
         throw new CustomError("0064", "NotFound", req.session?.languages ?? ["en"]);
     // Create time frame to find schedule data for. 
     const now = new Date();
     const startDate = now;
-    const endDate = new Date(now.setDate(now.getDate() + 7));
+    const endDate = new Date(now.setDate(now.getDate() + WEEKS_1_DAYS));
     // Query for user data
+    const { reminderList, resourceList, ...focusModeSelection } = focusModeSelect(startDate, endDate);
     const userData = await prismaInstance.user.findUnique({
         where: { id: user.id },
         select: {
@@ -168,7 +171,7 @@ export const toSessionUser = async (user: { id: string }, req: Partial<Request>)
                     },
                 },
             },
-            focusModes: { select: focusModeSelect(startDate, endDate) },
+            focusModes: { select: focusModeSelection },
             _count: {
                 select: {
                     apis: true,
@@ -237,7 +240,7 @@ export const toSessionUser = async (user: { id: string }, req: Partial<Request>)
         updated_at: userData.updated_at,
     };
     return result;
-};
+}
 
 /**
  * Converts SessionUserToken object o SessionUser object, 
@@ -245,46 +248,48 @@ export const toSessionUser = async (user: { id: string }, req: Partial<Request>)
  * @param user SessionUserToken object
  * @returns SessionUser object
  */
-export const sessionUserTokenToUser = (user: SessionUserToken): SessionUser => ({
-    __typename: "SessionUser" as const,
-    apisCount: 0,
-    bookmarkLists: [],
-    codesCount: 0,
-    focusModes: [],
-    membershipsCount: 0,
-    notesCount: 0,
-    projectsCount: 0,
-    questionsAskedCount: 0,
-    routinesCount: 0,
-    standardsCount: 0,
-    ...user,
-    activeFocusMode: user.activeFocusMode ? {
-        __typename: "ActiveFocusMode" as const,
-        ...user.activeFocusMode,
-        mode: {
-            __typename: "FocusMode" as const,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            name: "",
-            description: undefined,
-            filters: [],
-            labels: [],
-            reminderList: user.activeFocusMode?.mode?.reminderList ? {
-                __typename: "ReminderList" as const,
-                ...user.activeFocusMode.mode.reminderList,
-            } as any : undefined,
-            resourceList: undefined,
-            schedule: undefined,
-            you: {
-                __typename: "FocusModeYou" as const,
-                canDelete: true,
-                canRead: true,
-                canUpdate: true,
+export function sessionUserTokenToUser(user: SessionUserToken): SessionUser {
+    return {
+        __typename: "SessionUser" as const,
+        apisCount: 0,
+        bookmarkLists: [],
+        codesCount: 0,
+        focusModes: [],
+        membershipsCount: 0,
+        notesCount: 0,
+        projectsCount: 0,
+        questionsAskedCount: 0,
+        routinesCount: 0,
+        standardsCount: 0,
+        ...user,
+        activeFocusMode: user.activeFocusMode ? {
+            __typename: "ActiveFocusMode" as const,
+            ...user.activeFocusMode,
+            mode: {
+                __typename: "FocusMode" as const,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                name: "",
+                description: undefined,
+                filters: [],
+                labels: [],
+                reminderList: user.activeFocusMode?.mode?.reminderList ? {
+                    __typename: "ReminderList" as const,
+                    ...user.activeFocusMode.mode.reminderList,
+                } as any : undefined,
+                resourceList: undefined,
+                schedule: undefined,
+                you: {
+                    __typename: "FocusModeYou" as const,
+                    canDelete: true,
+                    canRead: true,
+                    canUpdate: true,
+                },
+                ...user.activeFocusMode.mode,
             },
-            ...user.activeFocusMode.mode,
-        },
-    } : undefined,
-});
+        } : undefined,
+    } as const;
+}
 
 /**
  * Creates session object from user and existing session data
@@ -292,7 +297,7 @@ export const sessionUserTokenToUser = (user: SessionUserToken): SessionUser => (
  * @param req Express request object (with current session data)
  * @returns Updated session object, with user data added to the START of the users array
  */
-export const toSession = async (user: { id: string }, req: Partial<Request>): Promise<Session> => {
+export async function toSession(user: { id: string }, req: Partial<Request>): Promise<Session> {
     const sessionUser = await toSessionUser(user, req);
     return {
         __typename: "Session" as const,
@@ -300,4 +305,4 @@ export const toSession = async (user: { id: string }, req: Partial<Request>): Pr
         // Make sure users are unique by id
         users: [sessionUser, ...(req.session?.users ?? []).filter((u: SessionUserToken) => u.id !== sessionUser.id).map(sessionUserTokenToUser)],
     };
-};
+}
