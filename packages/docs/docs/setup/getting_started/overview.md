@@ -54,4 +54,11 @@ In these docs, we cover the following topics:
     </a>
   </div>
 
+  <div class="card">
+    <a href="oauth_setup.html">
+      <h3>OAuth Setup</h3>
+      <p>Setting up OAuth for authentication</p>
+    </a>
+  </div>
+
 </div>
