@@ -28,6 +28,7 @@ export const runProject: GqlPartial<RunProject> = {
         timeElapsed: true,
         completedAt: true,
         name: true,
+        projectVersion: async () => rel((await import("./projectVersion")).projectVersion, "nav", { omit: "you" }),
         status: true,
         stepsCount: true,
         schedule: async () => rel((await import("./schedule")).schedule, "full", { omit: "runProject" }),
@@ -42,6 +43,5 @@ export const runProject: GqlPartial<RunProject> = {
     },
     list: {
         lastStep: true,
-        projectVersion: async () => rel((await import("./projectVersion")).projectVersion, "nav", { omit: "you" }),
     },
 };

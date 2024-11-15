@@ -15,6 +15,30 @@ export const runRoutine_findMany = {
       "outputsCount": true,
       "stepsCount": true,
       "wasRunAutomatically": true,
+      "routineVersion": {
+        "id": true,
+        "complexity": true,
+        "isAutomatable": true,
+        "isComplete": true,
+        "isDeleted": true,
+        "isLatest": true,
+        "isPrivate": true,
+        "root": {
+          "id": true,
+          "isInternal": true,
+          "isPrivate": true
+        },
+        "routineType": true,
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true,
+          "instructions": true,
+          "name": true
+        },
+        "versionIndex": true,
+        "versionLabel": true
+      },
       "team": {
         "id": true,
         "bannerImage": true,
@@ -54,31 +78,7 @@ export const runRoutine_findMany = {
         "canUpdate": true,
         "canRead": true
       },
-      "lastStep": true,
-      "routineVersion": {
-        "id": true,
-        "complexity": true,
-        "isAutomatable": true,
-        "isComplete": true,
-        "isDeleted": true,
-        "isLatest": true,
-        "isPrivate": true,
-        "root": {
-          "id": true,
-          "isInternal": true,
-          "isPrivate": true
-        },
-        "routineType": true,
-        "translations": {
-          "id": true,
-          "language": true,
-          "description": true,
-          "instructions": true,
-          "name": true
-        },
-        "versionIndex": true,
-        "versionLabel": true
-      }
+      "lastStep": true
     }
   },
   "pageInfo": {

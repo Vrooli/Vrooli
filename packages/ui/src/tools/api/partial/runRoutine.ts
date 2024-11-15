@@ -33,6 +33,7 @@ export const runRoutine: GqlPartial<RunRoutine> = {
         outputsCount: true,
         stepsCount: true,
         wasRunAutomatically: true,
+        routineVersion: async () => rel((await import("./routineVersion")).routineVersion, "nav", { omit: "you" }),
         schedule: async () => rel((await import("./schedule")).schedule, "full", { omit: "runRoutine" }),
         team: { __use: 0 },
         user: { __use: 1 },
@@ -47,6 +48,5 @@ export const runRoutine: GqlPartial<RunRoutine> = {
     },
     list: {
         lastStep: true,
-        routineVersion: async () => rel((await import("./routineVersion")).routineVersion, "nav", { omit: "you" }),
     },
 };

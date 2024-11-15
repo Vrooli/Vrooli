@@ -10,6 +10,24 @@ export const runProject_findMany = {
       "timeElapsed": true,
       "completedAt": true,
       "name": true,
+      "projectVersion": {
+        "id": true,
+        "complexity": true,
+        "isLatest": true,
+        "isPrivate": true,
+        "versionIndex": true,
+        "versionLabel": true,
+        "root": {
+          "id": true,
+          "isPrivate": true
+        },
+        "translations": {
+          "id": true,
+          "language": true,
+          "description": true,
+          "name": true
+        }
+      },
       "status": true,
       "stepsCount": true,
       "team": {
@@ -51,25 +69,7 @@ export const runProject_findMany = {
         "canUpdate": true,
         "canRead": true
       },
-      "lastStep": true,
-      "projectVersion": {
-        "id": true,
-        "complexity": true,
-        "isLatest": true,
-        "isPrivate": true,
-        "versionIndex": true,
-        "versionLabel": true,
-        "root": {
-          "id": true,
-          "isPrivate": true
-        },
-        "translations": {
-          "id": true,
-          "language": true,
-          "description": true,
-          "name": true
-        }
-      }
+      "lastStep": true
     }
   },
   "pageInfo": {

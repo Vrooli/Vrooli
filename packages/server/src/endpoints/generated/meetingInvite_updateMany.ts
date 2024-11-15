@@ -383,50 +383,6 @@ export const meetingInvite_updateMany = {
         "timeElapsed": true,
         "completedAt": true,
         "name": true,
-        "status": true,
-        "stepsCount": true,
-        "team": {
-          "id": true,
-          "bannerImage": true,
-          "handle": true,
-          "profileImage": true,
-          "you": {
-            "canAddMembers": true,
-            "canDelete": true,
-            "canBookmark": true,
-            "canReport": true,
-            "canUpdate": true,
-            "canRead": true,
-            "isBookmarked": true,
-            "isViewed": true,
-            "yourMembership": {
-              "id": true,
-              "created_at": true,
-              "updated_at": true,
-              "isAdmin": true,
-              "permissions": true
-            }
-          },
-          "__typename": "Team"
-        },
-        "user": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "__typename": "User"
-        },
-        "you": {
-          "canDelete": true,
-          "canUpdate": true,
-          "canRead": true
-        },
-        "lastStep": true,
         "projectVersion": {
           "id": true,
           "complexity": true,
@@ -447,22 +403,8 @@ export const meetingInvite_updateMany = {
           },
           "__typename": "ProjectVersion"
         },
-        "__typename": "RunProject"
-      },
-      "runRoutines": {
-        "id": true,
-        "isPrivate": true,
-        "completedComplexity": true,
-        "contextSwitches": true,
-        "startedAt": true,
-        "timeElapsed": true,
-        "completedAt": true,
-        "name": true,
         "status": true,
-        "inputsCount": true,
-        "outputsCount": true,
         "stepsCount": true,
-        "wasRunAutomatically": true,
         "team": {
           "id": true,
           "bannerImage": true,
@@ -505,6 +447,22 @@ export const meetingInvite_updateMany = {
           "canRead": true
         },
         "lastStep": true,
+        "__typename": "RunProject"
+      },
+      "runRoutines": {
+        "id": true,
+        "isPrivate": true,
+        "completedComplexity": true,
+        "contextSwitches": true,
+        "startedAt": true,
+        "timeElapsed": true,
+        "completedAt": true,
+        "name": true,
+        "status": true,
+        "inputsCount": true,
+        "outputsCount": true,
+        "stepsCount": true,
+        "wasRunAutomatically": true,
         "routineVersion": {
           "id": true,
           "complexity": true,
@@ -531,6 +489,48 @@ export const meetingInvite_updateMany = {
           "versionLabel": true,
           "__typename": "RoutineVersion"
         },
+        "team": {
+          "id": true,
+          "bannerImage": true,
+          "handle": true,
+          "profileImage": true,
+          "you": {
+            "canAddMembers": true,
+            "canDelete": true,
+            "canBookmark": true,
+            "canReport": true,
+            "canUpdate": true,
+            "canRead": true,
+            "isBookmarked": true,
+            "isViewed": true,
+            "yourMembership": {
+              "id": true,
+              "created_at": true,
+              "updated_at": true,
+              "isAdmin": true,
+              "permissions": true
+            }
+          },
+          "__typename": "Team"
+        },
+        "user": {
+          "id": true,
+          "created_at": true,
+          "updated_at": true,
+          "bannerImage": true,
+          "handle": true,
+          "isBot": true,
+          "isBotDepictingPerson": true,
+          "name": true,
+          "profileImage": true,
+          "__typename": "User"
+        },
+        "you": {
+          "canDelete": true,
+          "canUpdate": true,
+          "canRead": true
+        },
+        "lastStep": true,
         "__typename": "RunRoutine"
       },
       "__typename": "Schedule"

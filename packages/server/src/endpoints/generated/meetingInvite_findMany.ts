@@ -342,48 +342,6 @@ export const meetingInvite_findMany = {
             "timeElapsed": true,
             "completedAt": true,
             "name": true,
-            "status": true,
-            "stepsCount": true,
-            "team": {
-              "id": true,
-              "bannerImage": true,
-              "handle": true,
-              "profileImage": true,
-              "you": {
-                "canAddMembers": true,
-                "canDelete": true,
-                "canBookmark": true,
-                "canReport": true,
-                "canUpdate": true,
-                "canRead": true,
-                "isBookmarked": true,
-                "isViewed": true,
-                "yourMembership": {
-                  "id": true,
-                  "created_at": true,
-                  "updated_at": true,
-                  "isAdmin": true,
-                  "permissions": true
-                }
-              }
-            },
-            "user": {
-              "id": true,
-              "created_at": true,
-              "updated_at": true,
-              "bannerImage": true,
-              "handle": true,
-              "isBot": true,
-              "isBotDepictingPerson": true,
-              "name": true,
-              "profileImage": true
-            },
-            "you": {
-              "canDelete": true,
-              "canUpdate": true,
-              "canRead": true
-            },
-            "lastStep": true,
             "projectVersion": {
               "id": true,
               "complexity": true,
@@ -401,22 +359,9 @@ export const meetingInvite_findMany = {
                 "description": true,
                 "name": true
               }
-            }
-          },
-          "runRoutines": {
-            "id": true,
-            "isPrivate": true,
-            "completedComplexity": true,
-            "contextSwitches": true,
-            "startedAt": true,
-            "timeElapsed": true,
-            "completedAt": true,
-            "name": true,
+            },
             "status": true,
-            "inputsCount": true,
-            "outputsCount": true,
             "stepsCount": true,
-            "wasRunAutomatically": true,
             "team": {
               "id": true,
               "bannerImage": true,
@@ -456,7 +401,22 @@ export const meetingInvite_findMany = {
               "canUpdate": true,
               "canRead": true
             },
-            "lastStep": true,
+            "lastStep": true
+          },
+          "runRoutines": {
+            "id": true,
+            "isPrivate": true,
+            "completedComplexity": true,
+            "contextSwitches": true,
+            "startedAt": true,
+            "timeElapsed": true,
+            "completedAt": true,
+            "name": true,
+            "status": true,
+            "inputsCount": true,
+            "outputsCount": true,
+            "stepsCount": true,
+            "wasRunAutomatically": true,
             "routineVersion": {
               "id": true,
               "complexity": true,
@@ -480,7 +440,47 @@ export const meetingInvite_findMany = {
               },
               "versionIndex": true,
               "versionLabel": true
-            }
+            },
+            "team": {
+              "id": true,
+              "bannerImage": true,
+              "handle": true,
+              "profileImage": true,
+              "you": {
+                "canAddMembers": true,
+                "canDelete": true,
+                "canBookmark": true,
+                "canReport": true,
+                "canUpdate": true,
+                "canRead": true,
+                "isBookmarked": true,
+                "isViewed": true,
+                "yourMembership": {
+                  "id": true,
+                  "created_at": true,
+                  "updated_at": true,
+                  "isAdmin": true,
+                  "permissions": true
+                }
+              }
+            },
+            "user": {
+              "id": true,
+              "created_at": true,
+              "updated_at": true,
+              "bannerImage": true,
+              "handle": true,
+              "isBot": true,
+              "isBotDepictingPerson": true,
+              "name": true,
+              "profileImage": true
+            },
+            "you": {
+              "canDelete": true,
+              "canUpdate": true,
+              "canRead": true
+            },
+            "lastStep": true
           }
         },
         "translations": {
