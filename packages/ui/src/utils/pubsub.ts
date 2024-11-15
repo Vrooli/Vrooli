@@ -23,6 +23,10 @@ export type SnackPub<KeyList = TranslationKeyCommon | TranslationKeyError> = Sna
     id?: string;
     severity: `${SnackSeverity}`;
 };
+export type ClearSnackPub = {
+    all?: boolean;
+    id?: string;
+}
 
 export type TaskConnect = {
     __type: "taskType";
@@ -194,6 +198,7 @@ export interface EventPayloads {
     banner: { isDisplayed: boolean };
     celebration: CelebrationPub;
     chatTask: ChatTaskPub;
+    clearSnack: ClearSnackPub;
     commandPalette: void;
     cookies: void;
     fastUpdate: { on?: boolean, duration?: number };

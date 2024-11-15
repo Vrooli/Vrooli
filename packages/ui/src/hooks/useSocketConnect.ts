@@ -2,20 +2,32 @@ import { socket } from "api/socket";
 import { useEffect } from "react";
 import { PubSub } from "utils/pubsub";
 
+export const SERVER_CONNECT_MESSAGE_ID = "AuthMessage";
+
+let wasDisconnected = false;
+
 export function useSocketConnect() {
     useEffect(() => {
         const events = [
             ["connect", () => {
                 console.info("Websocket connected to server");
+                PubSub.get().publish("clearSnack", { id: SERVER_CONNECT_MESSAGE_ID });
+                if (wasDisconnected) {
+                    PubSub.get().publish("snack", { messageKey: "ServerReconnected", severity: "Success" });
+                }
             }],
             ["disconnect", () => {
-                PubSub.get().publish("snack", { messageKey: "ServerDisconnected", severity: "Error", id: "ServerDisconnected", autoHideDuration: 15000 });
+                wasDisconnected = true;
+                console.info("Websocket disconnected from server");
+                PubSub.get().publish("snack", { messageKey: "ServerDisconnected", severity: "Error", id: SERVER_CONNECT_MESSAGE_ID, autoHideDuration: "persist" });
             }],
             ["reconnect_attempt", () => {
-                PubSub.get().publish("snack", { messageKey: "ServerReconnectAttempt", severity: "Warning", id: "ServerReconnectAttempt", autoHideDuration: 10000 });
+                console.info("Websocket attempting to reconnect to server");
+                PubSub.get().publish("snack", { messageKey: "ServerReconnectAttempt", severity: "Warning", id: SERVER_CONNECT_MESSAGE_ID, autoHideDuration: "persist" });
             }],
             ["reconnect", () => {
-                PubSub.get().publish("snack", { messageKey: "ServerReconnected", severity: "Success", id: "ServerReconnected" });
+                console.info("Websocket reconnected to server");
+                PubSub.get().publish("snack", { messageKey: "ServerReconnected", severity: "Success", id: SERVER_CONNECT_MESSAGE_ID });
             }],
         ] as const;
 
