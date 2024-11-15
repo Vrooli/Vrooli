@@ -2,8 +2,7 @@ import { DeleteOneInput, endpointPostDeleteOne, endpointPutWallet, Success, upda
 import { Box, Button, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { WalletInstallDialog } from "components/dialogs/WalletInstallDialog/WalletInstallDialog";
-import { WalletSelectDialog } from "components/dialogs/WalletSelectDialog/WalletSelectDialog";
+import { WalletInstallDialog, WalletSelectDialog } from "components/dialogs/auth";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { AddIcon, CompleteIcon, DeleteIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
@@ -103,11 +102,11 @@ export function WalletListItem({
 /**
  * Displays a list of wallets for the user to manage
  */
-export const WalletList = ({
+export function WalletList({
     handleUpdate,
     numOtherVerified,
     list,
-}: WalletListProps) => {
+}: WalletListProps) {
     const { t } = useTranslation();
 
     const [updateMutation, { loading: loadingUpdate }] = useLazyFetch<WalletUpdateInput, Wallet>(endpointPutWallet);
@@ -289,4 +288,4 @@ export const WalletList = ({
             </Box>
         </>
     );
-};
+}

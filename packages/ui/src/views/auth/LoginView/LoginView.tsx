@@ -1,7 +1,12 @@
-import { emailLogInFormValidation, EmailLogInInput, endpointPostAuthEmailLogin, LINKS, Session } from "@local/shared";
-import { Box, Button, InputAdornment } from "@mui/material";
+import { emailLogInFormValidation, EmailLogInInput, endpointPostAuthEmailLogin, getOAuthInitRoute, LINKS, OAUTH_PROVIDERS, Session } from "@local/shared";
+import { Box, Button, Divider, InputAdornment, styled } from "@mui/material";
 import { errorToMessage, hasErrorCode } from "api/errorParser";
 import { fetchLazyWrapper } from "api/fetchWrapper";
+import AppleIcon from "assets/img/apple.svg";
+import FacebookIcon from "assets/img/facebook.svg";
+import GitHubIcon from "assets/img/github.svg";
+import GoogleIcon from "assets/img/google.svg";
+import XIcon from "assets/img/x.svg";
 import { BreadcrumbsBase } from "components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase";
 import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";
@@ -27,10 +32,57 @@ interface LoginFormProps {
 }
 type FormValues = typeof initialValues;
 
+// Ordered by appearance
+const OAUTH_PROVIDERS_INFO = [
+    {
+        name: "X",
+        url: getOAuthInitRoute(OAUTH_PROVIDERS.X),
+        logo: XIcon,
+    },
+    {
+        name: "Google",
+        url: getOAuthInitRoute(OAUTH_PROVIDERS.Google),
+        logo: GoogleIcon,
+    },
+    {
+        name: "Apple",
+        url: getOAuthInitRoute(OAUTH_PROVIDERS.Apple),
+        logo: AppleIcon,
+    },
+    {
+        name: "GitHub",
+        url: getOAuthInitRoute(OAUTH_PROVIDERS.GitHub),
+        logo: GitHubIcon,
+    },
+    {
+        name: "Facebook",
+        url: getOAuthInitRoute(OAUTH_PROVIDERS.Facebook),
+        logo: FacebookIcon,
+    },
+    // Add more providers as needed
+] as const;
+
 const initialValues = {
     email: "",
     password: "",
 };
+
+const OrDivider = styled(Divider)(({ theme }) => ({
+    color: theme.palette.background.textSecondary,
+    width: "100%",
+}));
+const OAuthButton = styled(Button)(({ theme }) => ({
+    background: "white",
+    color: "black",
+    borderRadius: "16px",
+    textTransform: "none",
+    "& .MuiButton-icon": {
+        marginRight: "auto",
+    },
+    "&:hover": {
+        background: "#dcdcdc",
+    },
+}));
 
 const baseFormStyle = {
     ...formPaper,
@@ -39,6 +91,12 @@ const baseFormStyle = {
 } as const;
 const breadcrumbsStyle = {
     margin: "auto",
+} as const;
+const oAuthIconStyle = {
+    height: "24px",
+} as const;
+const oAuthSpanStyle = {
+    marginRight: "auto",
 } as const;
 
 const emailStartAdornment = {
@@ -167,7 +225,6 @@ function LoginForm({
                             <Field
                                 fullWidth
                                 autoComplete="email"
-                                autoFocus
                                 name="email"
                                 label={t("Email", { count: 1 })}
                                 placeholder={t("EmailPlaceholder")}
@@ -183,7 +240,7 @@ function LoginForm({
                             />
                         </FormSection>
                     </FormContainer>
-                    <Box width="100%" display="flex" flexDirection="column" p={2}>
+                    <Box width="100%" display="flex" flexDirection="column" p={2} pt={0}>
                         <Button
                             fullWidth
                             disabled={loading}
@@ -199,6 +256,22 @@ function LoginForm({
                             separator={"•"}
                             sx={breadcrumbsStyle}
                         />
+                    </Box>
+                    <OrDivider>or</OrDivider>
+                    <Box display="flex" flexDirection="column" width="100%" maxWidth="400px" gap={1} p={2}>
+                        {OAUTH_PROVIDERS_INFO.map((provider) => (
+                            <OAuthButton
+                                key={provider.name}
+                                onClick={() => (window.location.href = provider.url)}
+                                variant="contained"
+                                fullWidth
+                                startIcon={<img src={provider.logo} alt={`${provider.name} logo`} style={oAuthIconStyle} />}
+                            >
+                                <span style={oAuthSpanStyle}>
+                                    {t("SignInWith", { provider: provider.name })}
+                                </span>
+                            </OAuthButton>
+                        ))}
                     </Box>
                 </InnerForm>}
             </Formik>

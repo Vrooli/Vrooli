@@ -102,3 +102,21 @@ export const JOIN_USER_ROOM_ERRORS = {
 export const LEAVE_USER_ROOM_ERRORS = {
     ErrorUnknown: "ErrorUnknown",
 } as const;
+
+export const AUTH_ROUTE_PREFIX = "/auth";
+export const OAUTH_ROUTE_CALLBACK = "/callback";
+
+export function getOAuthInitRoute(provider: string) {
+    return `${AUTH_ROUTE_PREFIX}/${provider}`;
+}
+export function getOAuthCallbackRoute(provider: string) {
+    return `${AUTH_ROUTE_PREFIX}/${provider}${OAUTH_ROUTE_CALLBACK}`;
+}
+
+export const OAUTH_PROVIDERS = {
+    Apple: "apple",
+    Facebook: "facebook",
+    GitHub: "github",
+    Google: "google",
+    X: "x",
+} as const;
