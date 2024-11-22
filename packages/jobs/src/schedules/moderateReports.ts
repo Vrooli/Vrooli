@@ -30,7 +30,7 @@ const DEFAULT_TIMEOUT = 1000 * 60 * 60 * 24 * 7; // 1 week
  * @param list The list of [action, reputation] pairs
  * @returns The best action to pick or null if there is no best action
  */
-const bestAction = (list: [ReportSuggestedAction, number][]): ReportSuggestedAction | null => {
+function bestAction(list: [ReportSuggestedAction, number][]): ReportSuggestedAction | null {
     // Filter out actions that don't meet the minimum reputation
     const filtered = list.filter(([action, rep]) => rep >= MIN_REP[action]);
     // If there are no actions that meet the minimum reputation, return null
@@ -64,7 +64,7 @@ const bestAction = (list: [ReportSuggestedAction, number][]): ReportSuggestedAct
 /**
  * Maps ReportSuggestedAction to ReportStatus
  */
-const actionToStatus = (action: ReportSuggestedAction): ReportStatus => {
+function actionToStatus(action: ReportSuggestedAction): ReportStatus {
     switch (action) {
         case ReportSuggestedAction.Delete:
             return ReportStatus.ClosedDeleted;
@@ -105,11 +105,11 @@ const nonHideableTypes = [
  * Checks if a report should be closed, with its suggested actions executed.
  * If so, performs the moderation action and triggers appropriate event.
  */
-const moderateReport = async (
+async function moderateReport(
     report: pkg.report & {
         responses: (pkg.report_response & { createdBy: pkg.user })[]
     },
-): Promise<void> => {
+): Promise<void> {
     let acceptedAction: ReportSuggestedAction | null = null;
     // Group responses by action and sum reputation
     const sumsMap = report?.responses
@@ -323,7 +323,7 @@ const nonVersionedObjectQuery3 = {
  *   the report is automatically accepted and the object is moderated accordingly.
  * 4. Notifications are sent to the relevant users when a decision is made, and reputation scores are updated.
  */
-export const moderateReports = async () => {
+export async function moderateReports() {
     try {
         await batch<Prisma.reportFindManyArgs>({
             objectType: "Report",

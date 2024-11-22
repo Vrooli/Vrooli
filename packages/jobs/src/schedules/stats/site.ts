@@ -7,11 +7,11 @@ import { PeriodType, Prisma, QuizAttemptStatus } from "@prisma/client";
  * @param periodStart When the period started
  * @param periodEnd When the period ended
  */
-export const logSiteStats = async (
+export async function logSiteStats(
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) => {
+) {
     // Initialize stats object
     const data: Prisma.stats_siteCreateInput = {
         periodStart,

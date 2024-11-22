@@ -24,9 +24,9 @@ type BatchDirectoryRunCountsResult = Record<string, {
  * @param projectVersionIds The IDs of the project versions to collect directory counts for
  * @returns A map of project version IDs to various directory counts
  */
-const batchDirectoryCounts = async (
+async function batchDirectoryCounts(
     projectVersionIds: string[],
-): Promise<BatchDirectoryCountsResult> => {
+): Promise<BatchDirectoryCountsResult> {
     const initialResult = Object.fromEntries(projectVersionIds.map(id => [id, {
         directories: 0,
         apis: 0,
@@ -91,11 +91,11 @@ const batchDirectoryCounts = async (
  * @param periodEnd When the period ended
  * @returns A map of project version IDs to various run counts
  */
-const batchRunCounts = async (
+async function batchRunCounts(
     projectVersionIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchDirectoryRunCountsResult> => {
+): Promise<BatchDirectoryRunCountsResult> {
     const initialResult = Object.fromEntries(projectVersionIds.map(id => [id, {
         runsStarted: 0,
         runsCompleted: 0,
@@ -168,11 +168,11 @@ const batchRunCounts = async (
  * @param periodStart When the period started
  * @param periodEnd When the period ended
  */
-export const logProjectStats = async (
+export async function logProjectStats(
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) => {
+) {
     try {
         await batch<Prisma.project_versionFindManyArgs>({
             objectType: "ProjectVersion",

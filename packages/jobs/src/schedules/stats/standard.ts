@@ -7,11 +7,11 @@ import { PeriodType, Prisma } from "@prisma/client";
  * @param periodStart When the period started
  * @param periodEnd When the period ended
  */
-export const logStandardStats = async (
+export async function logStandardStats(
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) => {
+) {
     try {
         await batch<Prisma.standard_versionFindManyArgs>({
             objectType: "StandardVersion",

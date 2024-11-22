@@ -7,6 +7,6 @@
  * 2. If the pull request is references report or is on an object without an owner, users can vote on whether the pull request should be accepted or rejected.
  * 3. Once a pull request is accepted/rejected, a notification is sent to the requestor. The requestor's reputation is updated accordingly.
  */
-export const moderatePullRequests = () => {
+export function moderatePullRequests() {
     //TODO
 };

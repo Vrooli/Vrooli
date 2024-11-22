@@ -25,7 +25,7 @@ const BATCH_SIZE = 100; // How many objects to fetch at a time
 /**
  * Maps object types to their url base
  */
-const getLink = (objectType: typeof sitemapObjectTypes[number], properties: any): string => {
+function getLink(objectType: typeof sitemapObjectTypes[number], properties: any): string {
     switch (objectType) {
         case "CodeVersion":
             return properties.codeType === CodeType.DataConvert ? LINKS.DataConverter : LINKS.SmartContract;
@@ -61,9 +61,9 @@ const sitemapDir = `${sitemapIndexDir}/sitemaps`;
  * @param objectType The object type to collect sitemap entries for
  * @returns Names of the files that were generated
  */
-const genSitemapForObject = async (
+async function genSitemapForObject(
     objectType: typeof sitemapObjectTypes[number],
-): Promise<string[]> => {
+): Promise<string[]> {
     logger.info(`Generating sitemap for ${objectType}`);
     // Initialize return value
     const sitemapFileNames: string[] = [];
@@ -167,7 +167,7 @@ const genSitemapForObject = async (
 /**
  * Generates sitemap index file and calls genSitemapForObject for each object type
  */
-export const genSitemap = async (): Promise<void> => {
+export async function genSitemap(): Promise<void> {
     // Check if sitemap directory exists
     if (!fs.existsSync(sitemapDir)) {
         fs.mkdirSync(sitemapDir);
@@ -197,6 +197,6 @@ export const genSitemap = async (): Promise<void> => {
     }
 };
 
-export const isSitemapMissing = async (): Promise<boolean> => {
+export async function isSitemapMissing(): Promise<boolean> {
     return !fs.existsSync(`${sitemapIndexDir}/sitemap.xml`);
 };

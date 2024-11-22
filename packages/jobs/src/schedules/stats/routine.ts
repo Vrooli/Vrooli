@@ -15,11 +15,11 @@ type BatchRunCountsResult = Record<string, {
  * @param periodEnd When the period ended
  * @returns A map of routine version IDs to various run counts
  */
-const batchRunCounts = async (
+async function batchRunCounts(
     routineVersionIds: string[],
     periodStart: string,
     periodEnd: string,
-): Promise<BatchRunCountsResult> => {
+): Promise<BatchRunCountsResult> {
     const initialResult = Object.fromEntries(routineVersionIds.map(id => [id, {
         runsStarted: 0,
         runsCompleted: 0,
@@ -92,11 +92,11 @@ const batchRunCounts = async (
  * @param periodStart When the period started
  * @param periodEnd When the period ended
  */
-export const logRoutineStats = async (
+export async function logRoutineStats(
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) => {
+) {
     try {
         await batch<Prisma.routine_versionFindManyArgs>({
             objectType: "RoutineVersion",

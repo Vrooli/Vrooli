@@ -8,10 +8,10 @@ import { GqlModelType, camelCase, getReactionScore, uppercaseFirstLetter } from 
  * @param objectId - The unique identifier of the object.
  * @returns An object containing the total score and a map of reaction summaries.
  */
-const processReactionsForObject = async (
+async function processReactionsForObject(
     tableName: string,
     objectId: string,
-): Promise<{ totalScore: number, reactionSummaries: Map<string, number> }> => {
+): Promise<{ totalScore: number, reactionSummaries: Map<string, number> }> {
     let totalScore = 0;
     const reactionSummaries = new Map<string, number>();
 
@@ -47,7 +47,7 @@ type ReactionSummaryUpdateOperation = {
  * 
  * @param tableName - The name of the table to process.
  */
-const updateReactionsForTable = async (tableName: string): Promise<void> => {
+async function updateReactionsForTable(tableName: string): Promise<void> {
     try {
         await batch({
             objectType: uppercaseFirstLetter(camelCase(tableName)) as GqlModelType,
@@ -121,7 +121,7 @@ const updateReactionsForTable = async (tableName: string): Promise<void> => {
     }
 };
 
-export const countReacts = async (): Promise<void> => {
+export async function countReacts(): Promise<void> {
     const tableNames = [
         "api",
         "chat_message",

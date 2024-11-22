@@ -24,7 +24,7 @@ const commonWhere = {
 /**
  * Expires premium status for users and teams
  */
-export const paymentsExpirePremium = async () => {
+export async function paymentsExpirePremium() {
     // Expire for teams
     try {
         await batch<Prisma.teamFindManyArgs>({

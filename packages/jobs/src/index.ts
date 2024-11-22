@@ -1,6 +1,7 @@
 import { initSingletons, logger } from "@local/server";
 import cron from "node-cron";
 import { generateEmbeddings } from "./schedules";
+import { cleanupRevokedSessions } from "./schedules/cleanupRevokedSessions";
 import { countBookmarks } from "./schedules/countBookmarks";
 import { countReacts } from "./schedules/countReacts";
 import { genSitemap, isSitemapMissing } from "./schedules/genSitemap";
@@ -66,6 +67,11 @@ const cronJobs: Record<string, CronJobDefinition> = {
         schedule: "56 4 * * *", // Every day at 4:56am (UTC)
         jobFunction: moderateReports,
         description: "report moderation",
+    },
+    revokedSessions: {
+        schedule: "12 4 * * *", // Every day at 4:12am (UTC)
+        jobFunction: cleanupRevokedSessions,
+        description: "revoke sessions",
     },
     sitemaps: {
         schedule: "43 4 * * *", // Every day at 4:43am (UTC)

@@ -1,7 +1,7 @@
 import { FindManyArgs, batch, logger, prismaInstance } from "@local/server";
 import { GqlModelType, camelCase, uppercaseFirstLetter } from "@local/shared";
 
-const processTableInBatches = async (tableName: string): Promise<void> => {
+async function processTableInBatches(tableName: string): Promise<void> {
     try {
         await batch<FindManyArgs>({
             objectType: uppercaseFirstLetter(camelCase(tableName)) as GqlModelType,
@@ -32,7 +32,7 @@ const processTableInBatches = async (tableName: string): Promise<void> => {
     }
 };
 
-export const countBookmarks = async (): Promise<void> => {
+export async function countBookmarks(): Promise<void> {
     const tableNames = [
         "api",
         "bookmark_list",
