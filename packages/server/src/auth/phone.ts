@@ -6,12 +6,13 @@ import { randomString, validateCode } from "./codes";
 
 export const PHONE_VERIFICATION_TIMEOUT = 15 * 60 * 1000; // 15 minutes
 const PHONE_VERIFICATION_RATE_LIMIT = 2 * 60 * 1000; // 2 minutes
+const DEFAULT_PHONE_VERIFICATION_CODE_LENGTH = 8;
 
 /**
  * Generates code for phone number verification
  * @param length Length of code to generate
  */
-export const generatePhoneVerificationCode = (length = 8): string => {
+export function generatePhoneVerificationCode(length = DEFAULT_PHONE_VERIFICATION_CODE_LENGTH): string {
     return randomString(length, "0123456789");
 };
 
@@ -31,11 +32,10 @@ const phoneSelect = {
 * When the user enters the code in our UI, a mutation is sent to the server to verify the code.
 * @returns status of the operation
 */
-export const setupPhoneVerificationCode = async (
+export async function setupPhoneVerificationCode(
     phoneNumber: string,
     userId: string,
-    languages: string[],
-): Promise<void> => {
+): Promise<void> {
     // Find the phone
     let phone = await prismaInstance.phone.findUnique({
         where: { phoneNumber },
@@ -55,15 +55,15 @@ export const setupPhoneVerificationCode = async (
     }
     // Check if it belongs to the user
     if (phone.user && phone.user.id !== userId) {
-        throw new CustomError("0061", "PhoneNotYours", languages);
+        throw new CustomError("0061", "PhoneNotYours");
     }
     // Check if it's already verified
     if (phone.verified) {
-        throw new CustomError("0059", "PhoneAlreadyVerified", languages);
+        throw new CustomError("0059", "PhoneAlreadyVerified");
     }
     // Check if code was sent recently
     if (phone.lastVerificationCodeRequestAttempt && new Date().getTime() - new Date(phone.lastVerificationCodeRequestAttempt).getTime() < PHONE_VERIFICATION_RATE_LIMIT) {
-        throw new CustomError("0058", "PhoneCodeSentRecently", languages);
+        throw new CustomError("0058", "PhoneCodeSentRecently");
     }
     // Generate new code
     const verificationCode = generatePhoneVerificationCode();
@@ -82,15 +82,13 @@ export const setupPhoneVerificationCode = async (
  * @param phoneNumber Phone number string
  * @param userId ID of user who owns phone number
  * @param code Verification code
- * @param languages Preferred languages to display error messages in
  * @returns True if phone was is verified
  */
-export const validatePhoneVerificationCode = async (
+export async function validatePhoneVerificationCode(
     phoneNumber: string,
     userId: string,
     code: string,
-    languages: string[],
-): Promise<boolean> => {
+): Promise<boolean> {
     // Find data
     const phone = await prismaInstance.phone.findUnique({
         where: { phoneNumber },
@@ -106,10 +104,10 @@ export const validatePhoneVerificationCode = async (
     // Note if phone has been verified before, so we can determine if the user is eligible for free credits
     const hasPhoneBeenVerifiedBefore = phone?.lastVerifiedTime !== null;
     if (!phone)
-        throw new CustomError("0348", "PhoneNotFound", languages);
+        throw new CustomError("0348", "PhoneNotFound");
     // Check that userId matches phone's userId
     if (phone.userId !== userId)
-        throw new CustomError("0351", "PhoneNotYours", languages);
+        throw new CustomError("0351", "PhoneNotYours");
     // If phone already verified, remove old verification code
     if (phone.verified) {
         await prismaInstance.phone.update({
