@@ -2,10 +2,9 @@ import { Comment, CommentCreateInput, CommentSearchInput, CommentSearchResult, C
 import { createOneHelper } from "../../actions/creates";
 import { readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
-import { rateLimit } from "../../middleware/rateLimit";
+import { RequestService } from "../../auth/request";
 import { CommentModel } from "../../models/base/comment";
 import { CreateOneResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
-
 
 export type EndpointsComment = {
     Query: {
@@ -22,21 +21,21 @@ const objectType = "Comment";
 export const CommentEndpoints: EndpointsComment = {
     Query: {
         comment: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
+            await RequestService.get().rateLimit({ maxUser: 1000, req });
             return readOneHelper({ info, input, objectType, req });
         },
         comments: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
+            await RequestService.get().rateLimit({ maxUser: 1000, req });
             return CommentModel.query.searchNested(req, input, info);
         },
     },
     Mutation: {
         commentCreate: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 250, req });
+            await RequestService.get().rateLimit({ maxUser: 250, req });
             return createOneHelper({ info, input, objectType, req });
         },
         commentUpdate: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
+            await RequestService.get().rateLimit({ maxUser: 1000, req });
             return updateOneHelper({ info, input, objectType, req });
         },
     },

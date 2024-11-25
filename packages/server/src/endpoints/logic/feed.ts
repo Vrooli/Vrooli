@@ -1,12 +1,12 @@
 import { ApiSortBy, CodeSortBy, FocusModeStopCondition, HomeInput, HomeResult, NoteSortBy, PageInfo, Popular, PopularSearchInput, PopularSearchResult, ProjectSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RoutineSortBy, ScheduleSortBy, StandardSortBy, TeamSortBy, UserSortBy, VisibilityType } from "@local/shared";
 import { GraphQLResolveInfo } from "graphql";
 import { readManyAsFeedHelper } from "../../actions/reads";
-import { assertRequestFrom, getUser } from "../../auth/request";
+import { RequestService } from "../../auth/request";
+import { SessionService } from "../../auth/session";
 import { addSupplementalFieldsMultiTypes } from "../../builders/addSupplementalFieldsMultiTypes";
 import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { PartialGraphQLInfo } from "../../builders/types";
 import { schedulesWhereInTimeframe } from "../../events/schedule";
-import { rateLimit } from "../../middleware/rateLimit";
 import { GQLEndpoint } from "../../types";
 import { FocusModeEndpoints } from "./focusMode";
 
@@ -22,10 +22,10 @@ export type EndpointsFeed = {
 export const FeedEndpoints: EndpointsFeed = {
     Query: {
         home: async (_, { input }, { req, res }, info) => {
-            const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ maxUser: 5000, req });
+            const userData = RequestService.assertRequestFrom(req, { isUser: true });
+            await RequestService.get().rateLimit({ maxUser: 5000, req });
             // Find focus mode to use
-            const activeFocusModeId = input.activeFocusModeId ?? userData.activeFocusMode?.mode?.id;
+            const activeFocusModeId = input.activeFocusModeId ?? userData.activeFocusMode?.id;
             // If input provided the focus mode, update session
             if (input.activeFocusModeId) {
                 FocusModeEndpoints.Mutation.setActiveFocusMode(_,
@@ -40,7 +40,7 @@ export const FeedEndpoints: EndpointsFeed = {
                 reminders: "Reminder",
                 resources: "Resource",
                 schedules: "Schedule",
-            }, req.session.languages, true);
+            }, true);
             const take = 10;
             const commonReadParams = { req };
             // Query recommended TODO
@@ -93,7 +93,7 @@ export const FeedEndpoints: EndpointsFeed = {
                 reminders,
                 resources,
                 schedules,
-            }, partial as any, getUser(req.session));
+            }, partial as any, SessionService.getUser(req.session));
             // Return results
             return {
                 __typename: "HomeResult" as const,
@@ -101,7 +101,7 @@ export const FeedEndpoints: EndpointsFeed = {
             };
         },
         popular: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 5000, req });
+            await RequestService.get().rateLimit({ maxUser: 5000, req });
             const partial = toPartialGqlInfo(info, {
                 __typename: "PopularResult",
                 Api: "Api",
@@ -113,7 +113,7 @@ export const FeedEndpoints: EndpointsFeed = {
                 Standard: "Standard",
                 Team: "Team",
                 User: "User",
-            }, req.session.languages, true);
+            }, true);
             // If any "after" cursor is provided, we can assume that missing cursors mean that we've reached the end for that object type
             const aftersCount = Object.entries(input).filter(([key, value]) => key.endsWith("After") && typeof value === "string" && value.trim() !== "").length;
             const anyAfters = aftersCount > 0;
@@ -276,7 +276,7 @@ export const FeedEndpoints: EndpointsFeed = {
                 standards: { type: "Standard", ...(partial.Standard as PartialGraphQLInfo) },
                 teams: { type: "Team", ...(partial.Team as PartialGraphQLInfo) },
                 users: { type: "User", ...(partial.User as PartialGraphQLInfo) },
-            }, getUser(req.session));
+            }, SessionService.getUser(req.session));
             // Combine nodes, alternating between each type
             const properties = Object.values(withSupplemental);
             const maxLen = Math.max(...properties.map(arr => arr.length));

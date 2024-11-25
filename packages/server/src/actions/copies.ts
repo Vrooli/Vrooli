@@ -11,7 +11,7 @@ export async function copyHelper({
     req,
 }: CopyHelperProps): Promise<any> {
     return;
-    // const userData = assertRequestFrom(req, { isUser: true });
+    // const userData = RequestService.assertRequestFrom(req, { isUser: true });
     // // Find validator and prisma delegate for this object type. We will use these to 
     // // find the IDs which need to be authenticated. Other functions use getAuthenticatedIds, 
     // // but that function only looks at data being passed in, not data in the database.

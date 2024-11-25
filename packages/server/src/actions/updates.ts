@@ -1,4 +1,4 @@
-import { assertRequestFrom } from "../auth/request";
+import { RequestService } from "../auth/request";
 import { addSupplementalFields } from "../builders/addSupplementalFields";
 import { toPartialGqlInfo } from "../builders/toPartialGqlInfo";
 import { CustomError } from "../events/error";
@@ -18,11 +18,11 @@ export async function updateManyHelper<GraphQLModel>({
     objectType,
     req,
 }: UpdateManyHelperProps): Promise<RecursivePartial<GraphQLModel>[]> {
-    const userData = assertRequestFrom(req, { isUser: true });
+    const userData = RequestService.assertRequestFrom(req, { isUser: true });
     // Get formatter and id field
     const format = ModelMap.get(objectType).format;
     // Partially convert info type
-    const partialInfo = toPartialGqlInfo(info, format.gqlRelMap, req.session.languages, true);
+    const partialInfo = toPartialGqlInfo(info, format.gqlRelMap, true);
     // Create objects. cudHelper will check permissions
     const updated = await cudHelper({
         additionalData,
@@ -36,7 +36,7 @@ export async function updateManyHelper<GraphQLModel>({
     });
     // Make sure none of the items in the array are booleans
     if (updated.some(d => typeof d === "boolean")) {
-        throw new CustomError("0032", "ErrorUnknown", userData.languages);
+        throw new CustomError("0032", "ErrorUnknown");
     }
     // Handle new version trigger, if applicable
     //TODO might be done in shapeUpdate. Not sure yet

@@ -2,8 +2,8 @@ import { ChatInvite, ChatInviteCreateInput, ChatInviteSearchInput, ChatInviteUpd
 import { createManyHelper, createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateManyHelper, updateOneHelper } from "../../actions/updates";
+import { RequestService } from "../../auth/request";
 import { CustomError } from "../../events/error";
-import { rateLimit } from "../../middleware/rateLimit";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
 export type EndpointsChatInvite = {
@@ -25,38 +25,38 @@ const objectType = "ChatInvite";
 export const ChatInviteEndpoints: EndpointsChatInvite = {
     Query: {
         chatInvite: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
+            await RequestService.get().rateLimit({ maxUser: 1000, req });
             return readOneHelper({ info, input, objectType, req });
         },
         chatInvites: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
+            await RequestService.get().rateLimit({ maxUser: 1000, req });
             return readManyHelper({ info, input, objectType, req });
         },
     },
     Mutation: {
         chatInviteCreate: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 100, req });
+            await RequestService.get().rateLimit({ maxUser: 100, req });
             return createOneHelper({ info, input, objectType, req });
         },
         chatInvitesCreate: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 100, req });
+            await RequestService.get().rateLimit({ maxUser: 100, req });
             return createManyHelper({ info, input, objectType, req });
         },
         chatInviteUpdate: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 250, req });
+            await RequestService.get().rateLimit({ maxUser: 250, req });
             return updateOneHelper({ info, input, objectType, req });
         },
         chatInvitesUpdate: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 250, req });
+            await RequestService.get().rateLimit({ maxUser: 250, req });
             return updateManyHelper({ info, input, objectType, req });
         },
         chatInviteAccept: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 250, req });
-            throw new CustomError("0000", "NotImplemented", ["en"]);
+            await RequestService.get().rateLimit({ maxUser: 250, req });
+            throw new CustomError("0000", "NotImplemented");
         },
         chatInviteDecline: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 250, req });
-            throw new CustomError("0000", "NotImplemented", ["en"]);
+            await RequestService.get().rateLimit({ maxUser: 250, req });
+            throw new CustomError("0000", "NotImplemented");
         },
     },
 };

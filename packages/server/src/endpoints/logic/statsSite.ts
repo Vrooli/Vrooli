@@ -1,6 +1,6 @@
 import { StatsSiteSearchInput, StatsSiteSearchResult } from "@local/shared";
 import { readManyHelper } from "../../actions/reads";
-import { rateLimit } from "../../middleware/rateLimit";
+import { RequestService } from "../../auth/request";
 import { GQLEndpoint } from "../../types";
 
 export type EndpointsStatsSite = {
@@ -13,7 +13,7 @@ const objectType = "StatsSite";
 export const StatsSiteEndpoints: EndpointsStatsSite = {
     Query: {
         statsSite: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
+            await RequestService.get().rateLimit({ maxUser: 1000, req });
             return readManyHelper({ info, input, objectType, req });
         },
     },

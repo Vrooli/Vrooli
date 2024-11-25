@@ -2,8 +2,7 @@ import { Count, FindByIdInput, RunRoutine, RunRoutineCreateInput, RunRoutineSear
 import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
-import { assertRequestFrom } from "../../auth/request";
-import { rateLimit } from "../../middleware/rateLimit";
+import { RequestService } from "../../auth/request";
 import { RunRoutineModel } from "../../models/base/runRoutine";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
@@ -23,26 +22,26 @@ const objectType = "RunRoutine";
 export const RunRoutineEndpoints: EndpointsRunRoutine = {
     Query: {
         runRoutine: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
+            await RequestService.get().rateLimit({ maxUser: 1000, req });
             return readOneHelper({ info, input, objectType, req });
         },
         runRoutines: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
+            await RequestService.get().rateLimit({ maxUser: 1000, req });
             return readManyHelper({ info, input, objectType, req, visibility: VisibilityType.Own });
         },
     },
     Mutation: {
         runRoutineCreate: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
+            await RequestService.get().rateLimit({ maxUser: 1000, req });
             return createOneHelper({ info, input, objectType, req });
         },
         runRoutineUpdate: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 250, req });
+            await RequestService.get().rateLimit({ maxUser: 250, req });
             return updateOneHelper({ info, input, objectType, req });
         },
         runRoutineDeleteAll: async (_p, _d, { req }) => {
-            const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ maxUser: 25, req });
+            const userData = RequestService.assertRequestFrom(req, { isUser: true });
+            await RequestService.get().rateLimit({ maxUser: 25, req });
             return RunRoutineModel.danger.deleteAll({ __typename: "User", id: userData.id });
         },
     },

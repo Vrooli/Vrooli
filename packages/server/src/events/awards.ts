@@ -56,7 +56,7 @@ export const objectAwardCategory = <T extends keyof typeof GqlModelType>(objectT
  * Handles tracking awards for a user. If a new award is earned, a notification
  * can be sent to the user (push or email)
  */
-export const Award = (userId: string, languages: string[]) => ({
+export const Award = (userId: string, languages: string[] | undefined) => ({
     /**
      * Upserts an award into the database. If the award progress reaches a new goal,
      * the user is notified
@@ -78,7 +78,7 @@ export const Award = (userId: string, languages: string[]) => ({
         const isNewTier = shouldAward(category, award.progress - newProgress, award.progress);
         if (isNewTier) {
             // Get translated award name and body
-            const lng = languages.length > 0 ? languages[0] : "en";
+            const lng = languages && languages.length > 0 ? languages[0] : "en";
             const { name, nameVariables, body, bodyVariables } = awardNames[category](award.progress);
             const transTitle = name ? i18next.t(`award:${name}`, { lng, ...(nameVariables ?? {}) }) : null;
             const transBody = body ? i18next.t(`award:${body}`, { lng, ...(bodyVariables ?? {}) }) : null;

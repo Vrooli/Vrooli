@@ -13,7 +13,7 @@ export const TranslateEndpoints: EndpointsTranslate = {
     Query: {
         translate: async (_, { input }, { req }, info) => {
             return {} as any;
-            throw new CustomError("0328", "NotImplemented", req.session.languages);
+            throw new CustomError("0328", "NotImplemented");
             // Get IETF subtags for source and target languages
             const sourceTag = input.languageSource.split("-")[0];
             const targetTag = input.languageTarget.split("-")[0];
@@ -22,7 +22,7 @@ export const TranslateEndpoints: EndpointsTranslate = {
             try {
                 fields = JSON.parse(input.fields);
             } catch (e) {
-                throw new CustomError("0329", "InvalidArgs", req.session.languages);
+                throw new CustomError("0329", "InvalidArgs");
             }
             // Grab translatable values from input
             const filteredFields = Object.entries(fields).filter(([key, value]) => !["type", "id", "language"].includes(key) && typeof value === "string" && value.trim().length > 0);

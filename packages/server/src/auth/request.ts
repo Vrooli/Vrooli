@@ -1,11 +1,21 @@
-import { DEFAULT_LANGUAGE } from "@local/shared";
+import { DAYS_1_S, DEFAULT_LANGUAGE, SessionUser } from "@local/shared";
 import { type Request } from "express";
+import fs from "fs";
 import pkg from "lodash";
+import { RedisClientType } from "redis";
+import { Socket } from "socket.io";
 import { CustomError } from "../events/error";
-import { SessionData, SessionUserToken } from "../types";
+import { logger } from "../events/logger";
+import { initializeRedis } from "../redisConn";
+import { SessionData } from "../types";
 import { SessionService } from "./session";
 
 const { escapeRegExp } = pkg;
+
+const DEFAULT_RATE_LIMIT = 250;
+const DEFAULT_RATE_LIMIT_WINDOW_S = DAYS_1_S;
+
+const tokenBucketScriptFile = `${process.env.PROJECT_DIR}/packages/server/${process.env.NODE_ENV === "development" ? "src" : "dist"}/utils/tokenBucketScript.lua`;
 
 export type RequestConditions = {
     /**
@@ -24,7 +34,31 @@ export type RequestConditions = {
     isOfficialUser?: boolean;
 }
 
-type AssertRequestFromResult<T extends RequestConditions> = T extends { isUser: true } | { isOfficialUser: true } ? SessionUserToken : undefined;
+type AssertRequestFromResult<T extends RequestConditions> = T extends { isUser: true } | { isOfficialUser: true } ? SessionUser : undefined;
+
+export interface RateLimitProps {
+    /**
+     * Maximum number of requests allowed per window, tied to API key (if not made from a safe origin)
+     */
+    maxApi?: number;
+    /**
+     * Maximum number of requests allowed per window, tied to IP address (if API key is not supplied)
+     */
+    maxIp?: number;
+    /**
+     * Maximum number of requests allowed per window, tied to user (regardless of origin)
+     */
+    maxUser?: number;
+    req: Request;
+    window?: number;
+}
+
+interface SocketRateLimitProps {
+    maxIp?: number;
+    maxUser?: number;
+    window?: number;
+    socket: Socket;
+}
 
 export class RequestService {
     private static instance: RequestService;
@@ -57,11 +91,20 @@ export class RequestService {
     private static localhostRegex = /^http:\/\/localhost(?::[0-9]+)?$/;
     private static localhostIpRegex = /^http:\/\/192\.168\.[0-9]{1,3}\.[0-9]{1,3}(?::[0-9]+)?$/;
 
+
+    static tokenBucketScript = "";
+
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     private constructor() { }
     static get(): RequestService {
         if (!RequestService.instance) {
             RequestService.instance = new RequestService();
+            // Load the token bucket script
+            try {
+                RequestService.tokenBucketScript = fs.readFileSync(tokenBucketScriptFile, "utf8");
+            } catch (error) {
+                logger.error(`Could not find or read token bucket script file at ${tokenBucketScriptFile}`, { trace: "0369" });
+            }
         }
         return RequestService.instance;
     }
@@ -225,4 +268,211 @@ export class RequestService {
         }
         return conditions.isUser === true || conditions.isOfficialUser === true ? userData as any : undefined;
     }
+
+    /**
+     * Builds a key for rate limiting
+     * @param req The request to build the key from
+     * @returns The key base
+     */
+    private static buildKeyBase(req: Request): string {
+        let keyBase = "rate-limit:";
+
+        // For GraphQL requests, use the operation name
+        if (req.body?.operationName) {
+            keyBase += `${req.body.operationName}:`;
+        }
+        // For REST requests, use the route path and method
+        else if (req.route) {
+            keyBase += `${req.route.path}:${req.method}:`;
+        }
+        // For other requests (typically when req is mocked by a task queue), use the path
+        else {
+            keyBase += `${req.path}:`;
+        }
+
+        return keyBase;
+    }
+
+    /**
+     * Applies a rate limit check to keys in redis. 
+     * Throws an error if the limit is exceeded.
+     * @param client The redis client
+     * @param keys The keys to check
+     * @param maxTokensList The maximum number of tokens allowed in the bucket 
+     * for each key, in order
+     * @param refillRates The rate at which the bucket refills for each key, in order
+     */
+    async checkRateLimit(
+        client: RedisClientType | null,
+        keys: string[],
+        maxTokensList: number[],
+        refillRates: number[],
+    ) {
+        if (!client) {
+            return;
+        }
+
+        const nowMs = Date.now();
+
+        const args: string[] = [];
+
+        // Build ARGV
+        for (let i = 0; i < keys.length; i++) {
+            args.push(maxTokensList[i].toString());
+            args.push(refillRates[i].toString());
+        }
+
+        // Append nowMs
+        args.push(nowMs.toString());
+
+        const result = await client.eval(RequestService.tokenBucketScript, {
+            keys: keys,
+            arguments: args,
+        });
+
+        // Result is an array of [allowed1, waitTimeMs1, allowed2, waitTimeMs2, ...]
+        const results = result as number[];
+
+        // Check if any of the rate limits are exceeded
+        for (let i = 0; i < keys.length; i++) {
+            const allowed = results[2 * i];
+            const waitTimeMs = results[2 * i + 1];
+            if (allowed === 0) {
+                throw new CustomError("0017", "RateLimitExceeded", { retryAfterMs: waitTimeMs });
+            }
+        }
+    }
+
+    /**
+     * Middelware to rate limit the requests. 
+     * Limits requests based on API token, account, and IP address.
+     * Throws error if rate limit is exceeded.
+     */
+    async rateLimit({
+        maxApi,
+        maxIp,
+        maxUser = DEFAULT_RATE_LIMIT,
+        req,
+        window = DEFAULT_RATE_LIMIT_WINDOW_S,
+    }: RateLimitProps): Promise<void> {
+        // Create key that uniquely identifies the endpoint
+        const keyBase = RequestService.buildKeyBase(req)
+
+        // If maxApi not supplied, use maxUser * 1000
+        maxApi = maxApi ?? (maxUser * 1000);
+        // If maxIp not supplied, use maxUser
+        maxIp = maxIp ?? maxUser;
+
+        // Parse request
+        const hasApiToken = req.session.apiToken === true;
+        const userData = SessionService.getUser(req.session);
+        const hasUserData = req.session.isLoggedIn === true && userData !== null;
+
+        // Try connecting to redis
+        // TODO should use `withRedis` function to let users through if Redis fails, but that would 
+        // also catch the errors we want to throw
+        try {
+            const client = await initializeRedis();
+
+            // Calculate refill rates
+            const apiRefillRate = maxApi / window;
+            const ipRefillRate = maxIp / window;
+            const userRefillRate = maxUser / window;
+
+            // Build arrays
+            const keys: string[] = [];
+            const maxTokensList: number[] = [];
+            const refillRates: number[] = [];
+
+            // Apply rate limit to API
+            if (hasApiToken) {
+                const apiKey = `${keyBase}:api:${req.session.apiToken}`;
+                keys.push(apiKey);
+                maxTokensList.push(maxApi);
+                refillRates.push(apiRefillRate);
+            }
+            // Make sure that all non-API requests are from a safe origin
+            else if (req.session.fromSafeOrigin === false) {
+                throw new CustomError("0271", "MustUseApiToken", { keyBase });
+            }
+
+            // Apply rate limit to IP address
+            const ipKey = `${keyBase}:ip:${req.ip}`;
+            keys.push(ipKey);
+            maxTokensList.push(maxIp);
+            refillRates.push(ipRefillRate);
+
+            // Apply rate limit to user
+            if (hasUserData) {
+                const userKey = `${keyBase}:user:${userData.id}`;
+                keys.push(userKey);
+                maxTokensList.push(maxUser);
+                refillRates.push(userRefillRate);
+            }
+
+            // Call checkRateLimit with arrays
+            await this.checkRateLimit(client, keys, maxTokensList, refillRates);
+        }
+        // If Redis fails, let the user through. It's not their fault. 
+        catch (error) {
+            logger.error("Error occured while connecting or accessing redis server", { trace: "0168", error });
+            throw error;
+        }
+    }
+
+    /**
+     * Rate limit a socket handler. Similar to how you would rate limit an API endpoint. 
+     * Returns instead of throws an error if rate limit is exceeded.
+     */
+    async rateLimitSocket({
+        maxIp,
+        maxUser = DEFAULT_RATE_LIMIT,
+        window = DEFAULT_RATE_LIMIT_WINDOW_S,
+        socket,
+    }: SocketRateLimitProps): Promise<string | undefined> {
+        const keyBase = "rate-limit:";
+        // Retrieve user data from the socket
+        const userData = SessionService.getUser(socket.session);
+        const hasUserData = socket.session.isLoggedIn === true && userData !== null;
+        // If maxIp not supplied, use maxUser
+        maxIp = maxIp ?? maxUser;
+        // Parse socket
+        const keyBaseWithId = `${keyBase}:${socket.id}:`;
+        // Try connecting to redis
+        // TODO should use `withRedis` function to let users through if Redis fails, but that would 
+        // also catch the errors we want to throw
+        try {
+            const client = await initializeRedis();
+
+            // Calculate refill rates
+            const ipRefillRate = maxIp / window;
+            const userRefillRate = maxUser / window;
+
+            // Build arrays
+            const keys: string[] = [];
+            const maxTokensList: number[] = [];
+            const refillRates: number[] = [];
+
+            // Apply rate limit to IP address
+            const ipKey = `${keyBaseWithId}:ip:${socket.req.ip}`;
+            keys.push(ipKey);
+            maxTokensList.push(maxIp);
+            refillRates.push(ipRefillRate);
+
+            // Apply rate limit to user
+            if (hasUserData) {
+                const userKey = `${keyBaseWithId}:user:${userData.id}`;
+                keys.push(userKey);
+                maxTokensList.push(maxUser);
+                refillRates.push(userRefillRate);
+            }
+
+            // Call checkRateLimit with arrays
+            await this.checkRateLimit(client, keys, maxTokensList, refillRates);
+        } catch (error) {
+            console.error("Error occurred while connecting or accessing redis server", { trace: "0492", error });
+            return (error as any)?.message ?? "Rate limit exceeded";
+        }
+    }
+
 }

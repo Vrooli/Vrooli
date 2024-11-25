@@ -1,5 +1,5 @@
 import { GqlModelType, PageInfo, TimeFrame, ViewFor, camelCase } from "@local/shared";
-import { getUser } from "../auth/request";
+import { SessionService } from "../auth/session";
 import { addSupplementalFields } from "../builders/addSupplementalFields";
 import { combineQueries } from "../builders/combineQueries";
 import { modelToGql } from "../builders/modelToGql";
@@ -33,10 +33,10 @@ const MAX_TAKE = 100;
 /**
  * Finds the take to use for a readMany query
  */
-export function getDesiredTake(take: unknown, userLanguages?: string[], trace?: string): number {
+export function getDesiredTake(take: unknown, trace?: string): number {
     const desiredTake = Number.isInteger(take) ? take as number : DEFAULT_TAKE;
-    if (desiredTake < 1) throw new CustomError("0389", "InternalError", userLanguages ?? ["en"], { take, trace });
-    if (desiredTake > MAX_TAKE) throw new CustomError("0391", "InternalError", userLanguages ?? ["en"], { take, trace });
+    if (desiredTake < 1) throw new CustomError("0389", "InternalError", { take, trace });
+    if (desiredTake > MAX_TAKE) throw new CustomError("0391", "InternalError", { take, trace });
     return desiredTake;
 }
 
@@ -50,14 +50,14 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     objectType,
     req,
 }: ReadOneHelperProps): Promise<RecursivePartial<GraphQLModel>> {
-    const userData = getUser(req.session);
+    const userData = SessionService.getUser(req.session);
     const model = ModelMap.get(objectType);
     // Validate input. This can be of the form FindByIdInput, FindByIdOrHandleInput, or FindVersionInput
     // Between these, the possible fields are id, idRoot, handle, and handleRoot
     if (!input.id && !input.idRoot && !input.handle && !input.handleRoot)
-        throw new CustomError("0019", "IdOrHandleRequired", userData?.languages ?? req.session.languages);
+        throw new CustomError("0019", "IdOrHandleRequired");
     // Partially convert info
-    const partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, req.session.languages, true);
+    const partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, true);
     // If using idRoot or handleRoot, this means we are requesting a versioned object using data from the root object.
     // To query the version, we must find the latest completed version associated with the root object.
     let id: string | null | undefined;
@@ -73,11 +73,11 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
         id = input.id;
     }
     if (!id)
-        throw new CustomError("0434", "NotFound", userData?.languages ?? req.session.languages, { objectType });
+        throw new CustomError("0434", "NotFound", { objectType });
     // Query for all authentication data
     const authDataById = await getAuthenticatedData({ [model.__typename]: [id] }, userData ?? null);
     if (Object.keys(authDataById).length === 0) {
-        throw new CustomError("0021", "NotFound", userData?.languages ?? req.session.languages, { id, objectType });
+        throw new CustomError("0021", "NotFound", { id, objectType });
     }
     // Check permissions
     await permissionsCheck(authDataById, { ["Read"]: [id as string] }, {}, userData);
@@ -86,9 +86,9 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
     try {
         object = await (prismaInstance[model.dbTable] as PrismaDelegate).findUnique({ where: { id }, ...selectHelper(partialInfo) });
         if (!object)
-            throw new CustomError("0022", "NotFound", userData?.languages ?? req.session.languages, { objectType });
+            throw new CustomError("0022", "NotFound", { objectType });
     } catch (error) {
-        throw new CustomError("0435", "NotFound", userData?.languages ?? req.session.languages, { objectType, error });
+        throw new CustomError("0435", "NotFound", { objectType, error });
     }
     // Return formatted for GraphQL
     const formatted = modelToGql(object, partialInfo) as RecursivePartial<GraphQLModel>;
@@ -116,10 +116,10 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     req,
     visibility,
 }: ReadManyHelperProps<Input>): Promise<PaginatedSearchResult> {
-    const userData = getUser(req.session);
+    const userData = SessionService.getUser(req.session);
     const model = ModelMap.get(objectType);
     // Partially convert info type
-    const partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, req.session.languages, true);
+    const partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, true);
     // Make sure ID is in partialInfo, since this is required for cursor-based search
     partialInfo.id = true;
     const searcher: Searcher<any, any> | undefined = model.search;
@@ -150,7 +150,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     // Determine sortBy, orderBy, and take
     const sortBy = input.sortBy ?? searcher?.defaultSort;
     const orderBy = sortBy in SortMap ? SortMap[sortBy] : undefined;
-    const desiredTake = getDesiredTake(input.take, req.session.languages, objectType);
+    const desiredTake = getDesiredTake(input.take, objectType);
     // Find requested search array
     const select = selectHelper(partialInfo);
     // Search results have at least an id
@@ -168,7 +168,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
         });
     } catch (error) {
         logger.error("readManyHelper: Failed to find searchResults", { trace: "0383", error, objectType, select, where, orderBy });
-        throw new CustomError("0383", "InternalError", req.session.languages, { objectType });
+        throw new CustomError("0383", "InternalError", { objectType });
     }
     let hasNextPage = false;
     let endCursor: string | null = null;
@@ -217,6 +217,7 @@ export async function readManyAsFeedHelper<Input extends { [x: string]: any }>({
     input,
     objectType,
     req,
+    visibility,
 }: Omit<ReadManyHelperProps<Input>, "addSupplemental">): Promise<ReadManyAsFeedResult> {
     const readManyResult = await readManyHelper({
         additionalQueries,
@@ -225,10 +226,11 @@ export async function readManyAsFeedHelper<Input extends { [x: string]: any }>({
         input,
         objectType,
         req,
+        visibility,
     });
     const format = ModelMap.get(objectType).format;
     const nodes = readManyResult.edges.map(({ node }: any) =>
-        modelToGql(node, toPartialGqlInfo(info, format.gqlRelMap, req.session.languages, true))) as any[];
+        modelToGql(node, toPartialGqlInfo(info, format.gqlRelMap, true))) as any[];
     return {
         pageInfo: readManyResult.pageInfo,
         nodes,
@@ -250,9 +252,9 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
     req,
     visibility,
 }: ReadManyWithEmbeddingsHelperProps<Input>): Promise<PaginatedSearchResult> {
-    const userData = getUser(req.session);
+    const userData = SessionService.getUser(req.session);
     const model = ModelMap.get(objectType);
-    const desiredTake = getDesiredTake(input.take, req.session.languages, objectType);
+    const desiredTake = getDesiredTake(input.take, objectType);
     const searchStringTrimmed = (input.searchString ?? "").trim();
     // If there isn't a search string, we can perform non-embedding search
     if (searchStringTrimmed.length === 0) {
@@ -346,7 +348,7 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
             });
         } catch (error) {
             logger.error("readManyWithEmbeddingsHelper: Failed to execute raw query", { trace: "0384", error, objectType, rawQuery });
-            throw new CustomError("0384", "InternalError", req.session.languages, { objectType });
+            throw new CustomError("0384", "InternalError", { objectType });
         }
     }
 
@@ -375,7 +377,7 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
     }
 
     // Fetch additional data for the search results
-    const partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, req.session.languages, true);
+    const partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, true);
     const select = selectHelper(partialInfo);
     finalResults = await (prismaInstance[model.dbTable] as PrismaDelegate).findMany({
         where: { id: { in: finalResults.map(t => t.id) } },

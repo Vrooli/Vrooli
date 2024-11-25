@@ -1,6 +1,6 @@
 import { Count, DeleteManyInput, DeleteOneInput, Success } from "@local/shared";
 import { deleteManyHelper, deleteOneHelper } from "../../actions/deletes";
-import { rateLimit } from "../../middleware/rateLimit";
+import { RequestService } from "../../auth/request";
 import { GQLEndpoint } from "../../types";
 
 export type EndpointsDeleteOneOrMany = {
@@ -13,11 +13,11 @@ export type EndpointsDeleteOneOrMany = {
 export const DeleteOneOrManyEndpoints: EndpointsDeleteOneOrMany = {
     Mutation: {
         deleteOne: async (_, { input }, { req }) => {
-            await rateLimit({ maxUser: 1000, req });
+            await RequestService.get().rateLimit({ maxUser: 1000, req });
             return deleteOneHelper({ input, req });
         },
         deleteMany: async (_, { input }, { req }) => {
-            await rateLimit({ maxUser: 1000, req });
+            await RequestService.get().rateLimit({ maxUser: 1000, req });
             return deleteManyHelper({ input, req });
         },
     },

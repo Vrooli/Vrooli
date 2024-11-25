@@ -1,12 +1,14 @@
 import { PageInfo, ProjectOrRoutine, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrTeam, ProjectOrTeamSearchInput, ProjectOrTeamSearchResult, ProjectSortBy, RoutineSortBy, RunProjectOrRunRoutine, RunProjectOrRunRoutineSearchInput, RunProjectOrRunRoutineSearchResult, RunProjectOrRunRoutineSortBy, TeamSortBy, VisibilityType } from "@local/shared";
 import { readManyAsFeedHelper } from "../../actions/reads";
-import { getUser } from "../../auth/request";
+import { RequestService } from "../../auth/request";
+import { SessionService } from "../../auth/session";
 import { addSupplementalFieldsMultiTypes } from "../../builders/addSupplementalFieldsMultiTypes";
 import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { PartialGraphQLInfo } from "../../builders/types";
-import { rateLimit } from "../../middleware/rateLimit";
 import { FindManyResult, GQLEndpoint } from "../../types";
 import { SearchMap } from "../../utils";
+
+const DEFAULT_TAKE = 10;
 
 export type EndpointsUnions = {
     Query: {
@@ -19,13 +21,13 @@ export type EndpointsUnions = {
 export const UnionsEndpoints: EndpointsUnions = {
     Query: {
         projectOrRoutines: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 2000, req });
+            await RequestService.get().rateLimit({ maxUser: 2000, req });
             const partial = toPartialGqlInfo(info, {
                 __typename: "ProjectOrRoutineSearchResult",
                 Project: "Project",
                 Routine: "Routine",
-            }, req.session.languages, true);
-            const take = Math.ceil((input.take ?? 10) / 2);
+            }, true);
+            const take = Math.ceil((input.take ?? DEFAULT_TAKE) / 2);
             const commonReadParams = { req };
             // If any "after" cursor is provided, we can assume that missing cursors mean that we've reached the end for that object type
             const anyAfters = Object.entries(input).some(([key, value]) => key.endsWith("After") && typeof value === "string" && value.trim() !== "");
@@ -35,8 +37,9 @@ export const UnionsEndpoints: EndpointsUnions = {
                 return input.objectType ? input.objectType === objectType : true;
             }
             // Collect search data
-            const userData = getUser(req.session);
-            const searchData = { userData, visibility: input.visibility ?? VisibilityType.Public };
+            const userData = SessionService.getUser(req.session);
+            const visibility = input.visibility ?? VisibilityType.Public;
+            const searchData = { userData, visibility };
             const searchLanguageFunc = SearchMap.translationLanguagesLatestVersion;
             // Query projects
             const { nodes: projects, pageInfo: projectsInfo } = shouldInclude("Project") ? await readManyAsFeedHelper({
@@ -58,16 +61,16 @@ export const UnionsEndpoints: EndpointsUnions = {
                     parentId: input.parentId,
                     reportId: input.reportId,
                     resourceTypes: input.resourceTypes,
-                    searchString: input.searchString,
+                    searchString: input.searchString ? input.searchString : undefined,
                     sortBy: input.sortBy as ProjectSortBy | undefined,
                     tags: input.tags,
                     take,
                     teamId: input.teamId,
                     updatedTimeFrame: input.updatedTimeFrame,
                     userId: userData?.id,
-                    visibility: input.visibility,
                 },
                 objectType: "Project",
+                visibility,
             }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
             // Query routines
             const { nodes: routines, pageInfo: routinesInfo } = shouldInclude("Routine") ? await readManyAsFeedHelper({
@@ -96,16 +99,16 @@ export const UnionsEndpoints: EndpointsUnions = {
                     projectId: input.routineProjectId,
                     reportId: input.reportId,
                     resourceTypes: input.resourceTypes,
-                    searchString: input.searchString,
+                    searchString: input.searchString ? input.searchString : undefined,
                     sortBy: input.sortBy as unknown as RoutineSortBy,
                     tags: input.tags,
                     take,
                     teamId: input.teamId,
                     updatedTimeFrame: input.updatedTimeFrame,
                     userId: userData?.id,
-                    visibility: input.visibility,
                 },
                 objectType: "Routine",
+                visibility,
             }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes({ projects, routines }, {
@@ -132,13 +135,13 @@ export const UnionsEndpoints: EndpointsUnions = {
             return combined;
         },
         runProjectOrRunRoutines: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 2000, req });
+            await RequestService.get().rateLimit({ maxUser: 2000, req });
             const partial = toPartialGqlInfo(info, {
                 __typename: "RunProjectOrRunRoutineSearchResult",
                 RunProject: "RunProject",
                 RunRoutine: "RunRoutine",
-            }, req.session.languages, true);
-            const take = Math.ceil((input.take ?? 10) / 2);
+            }, true);
+            const take = Math.ceil((input.take ?? DEFAULT_TAKE) / 2);
             const commonReadParams = { req };
             // If any "after" cursor is provided, we can assume that missing cursors mean that we've reached the end for that object type
             const anyAfters = Object.entries(input).some(([key, value]) => key.endsWith("After") && typeof value === "string" && value.trim() !== "");
@@ -147,7 +150,8 @@ export const UnionsEndpoints: EndpointsUnions = {
                 if (anyAfters && (input[`${objectType.toLowerCase()}After`]?.trim() ?? "") === "") return false;
                 return input.objectType ? input.objectType === objectType : true;
             }
-            const userData = getUser(req.session);
+            const userData = SessionService.getUser(req.session);
+            const visibility = input.visibility ?? VisibilityType.Public;
             // Query run projects
             const { nodes: runProjects, pageInfo: runProjectsInfo } = shouldInclude("RunProject") ? await readManyAsFeedHelper({
                 ...commonReadParams,
@@ -162,14 +166,14 @@ export const UnionsEndpoints: EndpointsUnions = {
                     status: input.status,
                     statuses: input.statuses,
                     projectVersionId: input.projectVersionId,
-                    searchString: input.searchString,
+                    searchString: input.searchString ? input.searchString : undefined,
                     sortBy: input.sortBy as unknown as RunProjectOrRunRoutineSortBy,
                     take,
                     updatedTimeFrame: input.updatedTimeFrame,
                     userId: userData?.id,
-                    visibility: input.visibility,
                 },
                 objectType: "RunProject",
+                visibility,
             }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
             // Query routines
             const { nodes: runRoutines, pageInfo: runRoutinesInfo } = shouldInclude("RunRoutine") ? await readManyAsFeedHelper({
@@ -185,14 +189,14 @@ export const UnionsEndpoints: EndpointsUnions = {
                     status: input.status,
                     statuses: input.statuses,
                     projectVersionId: input.projectVersionId,
-                    searchString: input.searchString,
+                    searchString: input.searchString ? input.searchString : undefined,
                     sortBy: input.sortBy as unknown as RunProjectOrRunRoutineSortBy,
                     take,
                     updatedTimeFrame: input.updatedTimeFrame,
                     userId: userData?.id,
-                    visibility: input.visibility,
                 },
                 objectType: "RunRoutine",
+                visibility,
             }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes({ runProjects, runRoutines }, {
@@ -219,13 +223,13 @@ export const UnionsEndpoints: EndpointsUnions = {
             return combined;
         },
         projectOrTeams: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 2000, req });
+            await RequestService.get().rateLimit({ maxUser: 2000, req });
             const partial = toPartialGqlInfo(info, {
                 __typename: "ProjectOrTeamSearchResult",
                 Project: "Project",
                 Team: "Team",
-            }, req.session.languages, true);
-            const take = Math.ceil((input.take ?? 10) / 2);
+            }, true);
+            const take = Math.ceil((input.take ?? DEFAULT_TAKE) / 2);
             const commonReadParams = { req };
             // If any "after" cursor is provided, we can assume that missing cursors mean that we've reached the end for that object type
             const anyAfters = Object.entries(input).some(([key, value]) => key.endsWith("After") && typeof value === "string" && value.trim() !== "");
@@ -235,8 +239,9 @@ export const UnionsEndpoints: EndpointsUnions = {
                 return input.objectType ? input.objectType === objectType : true;
             }
             // Collect search data
-            const userData = getUser(req.session);
-            const searchData = { userData, visibility: input.visibility ?? VisibilityType.Public };
+            const userData = SessionService.getUser(req.session);
+            const visibility = input.visibility ?? VisibilityType.Public;
+            const searchData = { userData, visibility };
             const searchLanguageFunc = SearchMap.translationLanguagesLatestVersion;
             // Query projects
             const { nodes: projects, pageInfo: projectsInfo } = shouldInclude("Project") ? await readManyAsFeedHelper({
@@ -259,16 +264,16 @@ export const UnionsEndpoints: EndpointsUnions = {
                     parentId: input.projectParentId,
                     reportId: input.reportId,
                     resourceTypes: input.resourceTypes,
-                    searchString: input.searchString,
+                    searchString: input.searchString ? input.searchString : undefined,
                     sortBy: input.sortBy as unknown as ProjectSortBy,
                     tags: input.tags,
                     take,
                     teamId: input.projectTeamId,
                     updatedTimeFrame: input.updatedTimeFrame,
                     userId: userData?.id,
-                    visibility: input.visibility,
                 },
                 objectType: "Project",
+                visibility,
             }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
             // Query teams
             const { nodes: teams, pageInfo: teamsInfo } = shouldInclude("Team") ? await readManyAsFeedHelper({
@@ -289,15 +294,15 @@ export const UnionsEndpoints: EndpointsUnions = {
                     routineId: input.teamRoutineId,
                     reportId: input.reportId,
                     resourceTypes: input.resourceTypes,
-                    searchString: input.searchString,
+                    searchString: input.searchString ? input.searchString : undefined,
                     sortBy: input.sortBy as unknown as TeamSortBy,
                     tags: input.tags,
                     take,
                     updatedTimeFrame: input.updatedTimeFrame,
                     userId: userData?.id,
-                    visibility: input.visibility,
                 },
                 objectType: "Team",
+                visibility,
             }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes({ projects, teams }, {

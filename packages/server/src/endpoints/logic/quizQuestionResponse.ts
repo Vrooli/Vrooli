@@ -1,6 +1,6 @@
 import { FindByIdInput, QuizQuestionResponse, QuizQuestionResponseSearchInput } from "@local/shared";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
-import { rateLimit } from "../../middleware/rateLimit";
+import { RequestService } from "../../auth/request";
 import { FindManyResult, FindOneResult, GQLEndpoint } from "../../types";
 
 export type EndpointsQuizQuestionResponse = {
@@ -14,11 +14,11 @@ const objectType = "QuizQuestionResponse";
 export const QuizQuestionResponseEndpoints: EndpointsQuizQuestionResponse = {
     Query: {
         quizQuestionResponse: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
+            await RequestService.get().rateLimit({ maxUser: 1000, req });
             return readOneHelper({ info, input, objectType, req });
         },
         quizQuestionResponses: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
+            await RequestService.get().rateLimit({ maxUser: 1000, req });
             return readManyHelper({ info, input, objectType, req });
         },
     },

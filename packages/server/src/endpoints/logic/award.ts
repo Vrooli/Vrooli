@@ -1,6 +1,6 @@
 import { Award, AwardSearchInput } from "@local/shared";
 import { readManyHelper } from "../../actions/reads";
-import { rateLimit } from "../../middleware/rateLimit";
+import { RequestService } from "../../auth/request";
 import { FindManyResult, GQLEndpoint } from "../../types";
 
 export type EndpointsAward = {
@@ -13,7 +13,7 @@ const objectType = "Award";
 export const AwardEndpoints: EndpointsAward = {
     Query: {
         awards: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
+            await RequestService.get().rateLimit({ maxUser: 1000, req });
             return readManyHelper({ info, input, objectType, req });
         },
     },

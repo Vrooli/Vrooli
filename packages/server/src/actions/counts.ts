@@ -1,4 +1,4 @@
-import { getUser } from "../auth/request";
+import { SessionService } from "../auth/session";
 import { combineQueries } from "../builders/combineQueries";
 import { timeFrameToPrisma } from "../builders/timeFrame";
 import { CountInputBase, PrismaDelegate } from "../builders/types";
@@ -18,7 +18,7 @@ export async function countHelper<CountInput extends CountInputBase>({
     where,
     visibility,
 }: CountHelperProps<CountInput>): Promise<number> {
-    const userData = getUser(req.session);
+    const userData = SessionService.getUser(req.session);
     // Create query for created metric
     const createdQuery = timeFrameToPrisma("created_at", input.createdTimeFrame);
     // Create query for created metric

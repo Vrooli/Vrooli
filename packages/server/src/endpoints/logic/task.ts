@@ -1,6 +1,5 @@
 import { CancelTaskInput, CheckTaskStatusesInput, CheckTaskStatusesResult, RunFrom, StartLlmTaskInput, StartRunTaskInput, Success, TaskType, uuid } from "@local/shared";
-import { assertRequestFrom } from "../../auth/request";
-import { rateLimit } from "../../middleware/rateLimit";
+import { RequestService } from "../../auth/request";
 import { requestBotResponse } from "../../tasks/llm/queue";
 import { changeLlmTaskStatus, getLlmTaskStatuses } from "../../tasks/llmTask";
 import { changeRunTaskStatus, getRunTaskStatuses, processRunProject, processRunRoutine } from "../../tasks/run/queue";
@@ -21,7 +20,7 @@ export type EndpointsTask = {
 export const TaskEndpoints: EndpointsTask = {
     Query: {
         checkTaskStatuses: async (_, { input }, { req }) => {
-            await rateLimit({ maxUser: 1000, req });
+            await RequestService.get().rateLimit({ maxUser: 1000, req });
             const result: CheckTaskStatusesResult = {
                 __typename: "CheckTaskStatusesResult",
                 statuses: [],
@@ -42,8 +41,8 @@ export const TaskEndpoints: EndpointsTask = {
     },
     Mutation: {
         startLlmTask: async (_, { input }, { req }) => {
-            const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ maxUser: 1000, req });
+            const userData = RequestService.assertRequestFrom(req, { isUser: true });
+            await RequestService.get().rateLimit({ maxUser: 1000, req });
 
             return requestBotResponse({
                 ...input,
@@ -53,8 +52,8 @@ export const TaskEndpoints: EndpointsTask = {
             });
         },
         startRunTask: async (_, { input }, { req }) => {
-            const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ maxUser: 1000, req });
+            const userData = RequestService.assertRequestFrom(req, { isUser: true });
+            await RequestService.get().rateLimit({ maxUser: 1000, req });
 
             const taskId = `task-${uuid()}`;
             const projectVersionId = input.projectVerisonId;
@@ -84,8 +83,8 @@ export const TaskEndpoints: EndpointsTask = {
             }
         },
         cancelTask: async (_, { input }, { req }) => {
-            const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ maxUser: 1000, req });
+            const userData = RequestService.assertRequestFrom(req, { isUser: true });
+            await RequestService.get().rateLimit({ maxUser: 1000, req });
 
             switch (input.taskType) {
                 case TaskType.Llm:

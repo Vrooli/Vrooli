@@ -2,11 +2,11 @@ import { ActiveFocusMode, FindByIdInput, FocusMode, FocusModeCreateInput, FocusM
 import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
-import { assertRequestFrom, updateSessionCurrentUser } from "../../auth/request";
+import { updateSessionCurrentUser } from "../../auth/auth";
+import { RequestService } from "../../auth/request";
 import { focusModeSelect } from "../../auth/session";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
-import { rateLimit } from "../../middleware/rateLimit";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
 
 export type EndpointsFocusMode = {
@@ -25,27 +25,27 @@ const objectType = "FocusMode";
 export const FocusModeEndpoints: EndpointsFocusMode = {
     Query: {
         focusMode: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
+            await RequestService.get().rateLimit({ maxUser: 1000, req });
             return readOneHelper({ info, input, objectType, req });
         },
         focusModes: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 1000, req });
+            await RequestService.get().rateLimit({ maxUser: 1000, req });
             return readManyHelper({ info, input, objectType, req, visibility: VisibilityType.Own });
         },
     },
     Mutation: {
         focusModeCreate: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 100, req });
+            await RequestService.get().rateLimit({ maxUser: 100, req });
             return createOneHelper({ info, input, objectType, req });
         },
         focusModeUpdate: async (_, { input }, { req }, info) => {
-            await rateLimit({ maxUser: 250, req });
+            await RequestService.get().rateLimit({ maxUser: 250, req });
             return updateOneHelper({ info, input, objectType, req });
         },
         setActiveFocusMode: async (_, { input }, { req, res }) => {
             // Unlink other objects, active focus mode is only stored in the user's session. 
-            const userData = assertRequestFrom(req, { isUser: true });
-            await rateLimit({ maxUser: 500, req });
+            const userData = RequestService.assertRequestFrom(req, { isUser: true });
+            await RequestService.get().rateLimit({ maxUser: 500, req });
             // Create time frame to limit focus mode's schedule data
             const now = new Date();
             const startDate = now;
@@ -58,16 +58,20 @@ export const FocusModeEndpoints: EndpointsFocusMode = {
                 },
                 select: focusModeSelect(startDate, endDate),
             });
-            if (!focusMode) throw new CustomError("0448", "NotFound", userData.languages);
-            const activeFocusMode = {
+            if (!focusMode) throw new CustomError("0448", "NotFound");
+            // Set active focus mode in user's session token
+            updateSessionCurrentUser(req, res, {
+                activeFocusMode: {
+                    id: focusMode.id,
+                    reminderListId: focusMode.reminderList?.id,
+                }
+            });
+            return {
                 __typename: "ActiveFocusMode" as const,
                 mode: focusMode as unknown as FocusMode,
                 stopCondition: input.stopCondition,
                 stopTime: input.stopTime,
             };
-            // Set active focus mode in user's session token
-            updateSessionCurrentUser(req, res, { activeFocusMode });
-            return activeFocusMode;
         },
     },
 };
