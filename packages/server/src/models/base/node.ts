@@ -36,7 +36,7 @@ export const NodeModel: NodeModelLogic = ({
                     });
                     const totalCount = (existingCount?._count.nodes ?? 0) + deltaAdding;
                     if (totalCount > MAX_NODES_IN_ROUTINE) {
-                        throw new CustomError("0052", "MaxNodesReached", userData.languages, { totalCount });
+                        throw new CustomError("0052", "MaxNodesReached", { totalCount });
                     }
                 }
             },

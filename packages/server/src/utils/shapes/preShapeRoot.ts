@@ -1,10 +1,9 @@
-import { exists, GqlModelType } from "@local/shared";
+import { exists, GqlModelType, SessionUser } from "@local/shared";
 import { PrismaDelegate } from "../../builders/types";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { ModelMap } from "../../models/base";
 import { transfer } from "../../models/base/transfer";
-import { SessionUserToken } from "../../types";
 
 type HasCompleteVersionData = {
     hasCompleteVersion: boolean,
@@ -61,7 +60,7 @@ type PreShapeRootParams = {
         input: string;
     }[],
     objectType: GqlModelType | `${GqlModelType}`,
-    userData: SessionUserToken,
+    userData: SessionUser,
 };
 
 export type PreShapeRootResult = {
@@ -136,7 +135,7 @@ export async function preShapeRoot({
         for (const { input } of Update) {
             // Find original
             const original = originalData.find(r => r.id === input.id);
-            if (!original) throw new CustomError("0412", "InternalError", userData.languages, { id: input?.id });
+            if (!original) throw new CustomError("0412", "InternalError", { id: input?.id });
             const isRootPrivate = input.isPrivate ?? original.isPrivate;
             // Convert original versions to map for easy lookup
             const updatedWithOriginal = original.versions.reduce((acc, v) => ({ ...acc, [v.id]: v }), {} as Record<string, any>);
@@ -183,7 +182,7 @@ export async function preShapeRoot({
         for (const { input: id } of Delete) {
             // Find original
             const original = originalData.find(r => r.id === id);
-            if (!original) throw new CustomError("0413", "InternalError", userData.languages, { id });
+            if (!original) throw new CustomError("0413", "InternalError", { id });
             triggerMap[id] = {
                 wasCompleteAndPublic: !original.isPrivate && original.versions.some(v => v.isComplete && !v.isPrivate),
                 hasCompleteAndPublic: true, // Doesn't matter

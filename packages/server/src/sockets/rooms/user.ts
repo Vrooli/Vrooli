@@ -1,20 +1,19 @@
 import { JOIN_USER_ROOM_ERRORS, LEAVE_USER_ROOM_ERRORS } from "@local/shared";
 import { Socket } from "socket.io";
-import { assertRequestFrom } from "../../auth/request";
+import { RequestService } from "../../auth/request";
 import { logger } from "../../events/logger";
-import { rateLimitSocket } from "../../middleware";
 import { onSocketEvent } from "../events";
 
 /** Socket room for user-specific events */
 export function userSocketRoomHandlers(socket: Socket) {
     onSocketEvent(socket, "joinUserRoom", async ({ userId }, callback) => {
-        const rateLimitError = await rateLimitSocket({ maxUser: 1000, socket });
+        const rateLimitError = await RequestService.get().rateLimitSocket({ maxUser: 1000, socket });
         if (rateLimitError) {
             callback({ success: false, error: rateLimitError });
             return;
         }
         // Check if user is authenticated
-        const { id } = assertRequestFrom(socket, { isUser: true });
+        const { id } = RequestService.assertRequestFrom(socket, { isUser: true });
         // Check if user is joining their own room
         if (userId !== id) {
             const message = JOIN_USER_ROOM_ERRORS.UserNotFoundOrUnauthorized;

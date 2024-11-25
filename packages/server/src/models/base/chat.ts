@@ -29,7 +29,7 @@ export const ChatModel: ChatModelLogic = ({
                 return getEmbeddableString({
                     description: trans.description,
                     name: trans.name,
-                }, languages[0]);
+                }, languages?.[0]);
             },
         },
     }),

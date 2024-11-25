@@ -1,4 +1,4 @@
-import { API_CREDITS_MULTIPLIER, BotStyle, ConfigCallData, ConfigCallDataGenerate, DOLLARS_1_CENTS, FormElementBase, FormInputBase, MINUTES_5_MS, ProjectVersion, RoutineType, RoutineVersion, RunContext, RunProject, RunRequestLimits, RunRoutine, RunStatus, RunStatusChangeReason, TaskStatus, VALYXA_ID, generateRoutineInitialValues, getTranslation, parseBotInformation, parseConfigCallData, parseSchemaInput, parseSchemaOutput, saveRunProgress, shouldStopRun } from "@local/shared";
+import { API_CREDITS_MULTIPLIER, BotStyle, ConfigCallData, ConfigCallDataGenerate, DOLLARS_1_CENTS, FormElementBase, FormInputBase, MINUTES_5_MS, ProjectVersion, RoutineType, RoutineVersion, RunContext, RunProject, RunRequestLimits, RunRoutine, RunStatus, RunStatusChangeReason, TaskStatus, VALYXA_ID, generateRoutineInitialValues, getTranslation, parseBotInformation, parseConfigCallData, parseSchemaInput, parseSchemaOutput, saveRunProgress, shouldStopRun, type SessionUser } from "@local/shared";
 import { Job } from "bull";
 import { performance } from "perf_hooks";
 import { readOneHelper } from "../../actions/reads";
@@ -13,7 +13,7 @@ import { emitSocketEvent } from "../../sockets/events";
 import { getBotInfo } from "../../tasks/llm/context";
 import { calculateMaxCredits, generateResponseWithFallback } from "../../tasks/llm/service";
 import { runUserCode } from "../../tasks/sandbox";
-import { type RecursivePartial, type SessionUserToken } from "../../types";
+import { type RecursivePartial } from "../../types";
 import { reduceUserCredits } from "../../utils/reduceCredits";
 import { permissionsCheck } from "../../validators/permissions";
 import { type RunProjectPayload, type RunRequestPayload, type RunRoutinePayload } from "./queue";
@@ -462,7 +462,7 @@ type DoRoutineTypeProps = {
     remainingCredits: bigint;
     routineVersion: RecursivePartial<RoutineVersion>;
     run: RunRoutine;
-    userData: SessionUserToken;
+    userData: SessionUser;
 }
 
 type DoRoutineTypeResult = {
@@ -935,7 +935,7 @@ export async function doRunRoutine({
                         data,
                         select: runProjectSelect,
                     });
-                    const partialInfo = toPartialGqlInfo(runProjectSelect, format.gqlRelMap, userData.languages, true);
+                    const partialInfo = toPartialGqlInfo(runProjectSelect, format.gqlRelMap, true);
                     const converted = modelToGql(updateResult, partialInfo) as RunProject;
                     run = converted;
                 },
@@ -949,7 +949,7 @@ export async function doRunRoutine({
                         data,
                         select: runRoutineSelect,
                     });
-                    const partialInfo = toPartialGqlInfo(runRoutineSelect, format.gqlRelMap, userData.languages, true);
+                    const partialInfo = toPartialGqlInfo(runRoutineSelect, format.gqlRelMap, true);
                     const converted = modelToGql(updateResult, partialInfo) as RunRoutine;
                     run = converted;
                 },
@@ -1063,12 +1063,12 @@ export async function doRunRoutine({
             }
             const botInfo = await getBotInfo(botToUse);
             if (!botInfo) {
-                throw new CustomError("0599", "InternalError", userData.languages, { configCallData });
+                throw new CustomError("0599", "InternalError", { configCallData });
             }
             const participantsData = { [botInfo.id]: botInfo };
             const respondingBotConfig = parseBotInformation(participantsData, botInfo.id, logger);
             if (!respondingBotConfig) {
-                throw new CustomError("0619", "InternalError", userData.languages);
+                throw new CustomError("0619", "InternalError");
             }
             const { message, cost } = await generateResponseWithFallback({
                 force: true,
@@ -1104,7 +1104,7 @@ export async function doRunRoutine({
         // What we do depends on the routine type
         const routineFunction = runnableObject.routineType ? routineTypeToFunction[runnableObject.routineType] : undefined;
         if (!routineFunction) {
-            throw new CustomError("0593", "InternalError", userData.languages, { routineType: runnableObject.routineType });
+            throw new CustomError("0593", "InternalError", { routineType: runnableObject.routineType });
         }
         const { cost } = await routineFunction({
             configCallData,
@@ -1144,6 +1144,6 @@ export async function runProcess({ data }: Job<RunRequestPayload>) {
             logger.info("runProcess test triggered");
             return { __typename: "Success" as const, success: true };
         default:
-            throw new CustomError("0568", "InternalError", ["en"], { process: (data as { __process?: unknown }).__process });
+            throw new CustomError("0568", "InternalError", { process: (data as { __process?: unknown }).__process });
     }
 }

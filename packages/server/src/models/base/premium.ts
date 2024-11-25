@@ -1,4 +1,4 @@
-import { MaxObjects } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
 import { useVisibility } from "../../builders/visibilityBuilder";
@@ -14,7 +14,7 @@ export const PremiumModel: PremiumModelLogic = ({
         label: {
             select: () => ({ id: true, customPlan: true }),
             get: (select, languages) => {
-                const lng = languages[0];
+                const lng = languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE;
                 if (select.customPlan) return i18next.t("common:PaymentPlanCustom", { lng });
                 return i18next.t("common:PaymentPlanBasic", { lng });
             },

@@ -1,5 +1,4 @@
-import { SessionUserToken } from "@local/server";
-import { ChatMessage, GetValidTasksFromMessageParams, ServerLlmTaskInfo, getValidTasksFromMessage, importCommandToTask, parseBotInformation, uuid } from "@local/shared";
+import { ChatMessage, GetValidTasksFromMessageParams, ServerLlmTaskInfo, SessionUser, getValidTasksFromMessage, importCommandToTask, parseBotInformation, uuid } from "@local/shared";
 import { Job } from "bull";
 import i18next from "i18next";
 import { addSupplementalFields } from "../../builders/addSupplementalFields";
@@ -53,13 +52,12 @@ async function forceGetTaskHelper(params: ForceGetTaskHelperParams): Promise<For
 async function parseBotInformationOrThrow(
     participants: Record<string, { name: string, botSettings: string }>,
     respondingBotId: string,
-    language: string,
     throwCode: string,
 ) {
     console.log("in parseBotInformationOrThrow", respondingBotId, JSON.stringify(participants));
     const botSettings = parseBotInformation(participants, respondingBotId, logger);
     if (!botSettings) {
-        throw new CustomError(throwCode, "InternalError", [language]);
+        throw new CustomError(throwCode, "InternalError");
     }
     return botSettings;
 }
@@ -67,7 +65,7 @@ async function parseBotInformationOrThrow(
 type ProcessPotentialParentCommandsParams = Omit<GetValidTasksFromMessageParams, "existingData" | "logger" | "message"> & {
     chatId: string;
     parentMessage: string;
-    userData: SessionUserToken;
+    userData: SessionUser;
 };
 /**
  * Helper function to process any potential commands in the parent message
@@ -141,7 +139,7 @@ export async function llmProcessBotMessage({
         }
 
         // Parse bot information
-        const botSettings = await parseBotInformationOrThrow(preMapUserData, respondingBotId, language, "0176");
+        const botSettings = await parseBotInformationOrThrow(preMapUserData, respondingBotId, "0176");
         const commandToTask = await importCommandToTask(language, logger);
         const taskMessage = taskContexts.length > 0 ? stringifyTaskContexts(task, taskContexts, CONTEXT_TEMPLATE_DEFAULT) : null;
 
@@ -367,6 +365,6 @@ export async function llmProcess({ data }: Job<LlmRequestPayload>) {
             logger.info("llmProcess test triggered");
             return { __typename: "Success" as const, success: true };
         default:
-            throw new CustomError("0330", "InternalError", ["en"], { process: (data as { __process?: unknown }).__process });
+            throw new CustomError("0330", "InternalError", { process: (data as { __process?: unknown }).__process });
     }
 }

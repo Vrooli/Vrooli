@@ -1,4 +1,4 @@
-import { MaxObjects, StatsTeamSortBy } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects, StatsTeamSortBy } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
 import { useVisibility } from "../../builders/visibilityBuilder";
@@ -14,7 +14,7 @@ export const StatsTeamModel: StatsTeamModelLogic = ({
         label: {
             select: () => ({ id: true, team: { select: ModelMap.get<TeamModelLogic>("Team").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
-                lng: languages.length > 0 ? languages[0] : "en",
+                lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE,
                 objectName: ModelMap.get<TeamModelLogic>("Team").display().label.get(select.team as TeamModelInfo["PrismaModel"], languages),
             }),
         },

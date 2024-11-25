@@ -1,4 +1,4 @@
-import { GqlModelType, MaxObjects, ReactInput, ReactionFor, ReactionSearchInput, ReactionSortBy, camelCase, exists, getReactionScore, lowercaseFirstLetter, removeModifiers, uuid } from "@local/shared";
+import { GqlModelType, MaxObjects, ReactInput, ReactionFor, ReactionSearchInput, ReactionSortBy, SessionUser, camelCase, exists, getReactionScore, lowercaseFirstLetter, removeModifiers, uuid } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { ModelMap } from ".";
 import { onlyValidIds } from "../../builders/onlyValidIds";
@@ -9,7 +9,7 @@ import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
 import { Trigger } from "../../events/trigger";
 import { emitSocketEvent } from "../../sockets/events";
-import { PrismaDelegate, SessionUserToken } from "../../types";
+import { PrismaDelegate } from "../../types";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { calculatePermissions } from "../../validators/permissions";
 import { ReactionFormat } from "../formats";
@@ -36,7 +36,7 @@ const reversedForMapper = Object.fromEntries(
 
 function reactionForToRelation(reactionFor: keyof typeof ReactionFor): string {
     if (!ReactionFor[reactionFor]) {
-        throw new CustomError("0597", "InvalidArgs", ["en"], { reactionFor });
+        throw new CustomError("0597", "InvalidArgs", { reactionFor });
     }
     // Convert to camelCase and sanitize
     return camelCase(reactionFor);
@@ -99,7 +99,7 @@ export const ReactionModel: ReactionModelLogic = ({
      * A user may react on their own project/routine/etc.
      * @returns True if cast correctly (even if skipped because of duplicate)
      */
-    react: async (userData: SessionUserToken, input: ReactInput): Promise<boolean> => {
+    react: async (userData: SessionUser, input: ReactInput): Promise<boolean> => {
         const { dbTable: reactedOnDbTable, validate: reactedOnValidate } = ModelMap.getLogic(["dbTable", "validate"], input.reactionFor as string as GqlModelType, true, `ModelMap.react for ${input.reactionFor}`);
         const reactedOnValidator = reactedOnValidate();
         // Chat messages get additional treatment, as we need to send the updated reaction summaries to the chat room to update open clients
@@ -129,7 +129,7 @@ export const ReactionModel: ReactionModelLogic = ({
             },
         });
         if (!reactedOnObject) {
-            throw new CustomError("0118", "NotFound", userData.languages, { reactionFor: input.reactionFor, forId: input.forConnect });
+            throw new CustomError("0118", "NotFound", { reactionFor: input.reactionFor, forId: input.forConnect });
         }
         // Check if the user has permission to react on this object
         const authData = { __typename: input.reactionFor, ...reactedOnObject };
@@ -139,7 +139,7 @@ export const ReactionModel: ReactionModelLogic = ({
         const ownerData = reactedOnValidator.owner(authData, userData.id);
         const objectOwner = ownerData.Team ? { __typename: "Team" as const, id: ownerData.Team.id } : ownerData.User ? { __typename: "User" as const, id: ownerData.User.id } : null;
         if (!permissions.canReact) {
-            throw new CustomError("0637", "Unauthorized", userData.languages, { reactionFor: input.reactionFor, forId: input.forConnect });
+            throw new CustomError("0637", "Unauthorized", { reactionFor: input.reactionFor, forId: input.forConnect });
         }
         const reaction = Array.isArray(reactedOnObject.reactions) && reactedOnObject.reactions.length > 0
             ? reactedOnObject.reactions[0] as { id: string, emoji: string }

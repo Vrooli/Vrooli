@@ -27,7 +27,7 @@ export const EmailModel: EmailModelLogic = ({
                     const existingEmails = await prismaInstance.email.findMany({
                         where: { emailAddress: { in: emailAddresses } },
                     });
-                    if (existingEmails.length > 0) throw new CustomError("0044", "EmailInUse", userData.languages, { emailAddresses });
+                    if (existingEmails.length > 0) throw new CustomError("0044", "EmailInUse", { emailAddresses });
                 }
                 // Prevent deleting emails if it will leave you with less than one verified authentication method
                 if (Delete.length) {
@@ -43,7 +43,7 @@ export const EmailModel: EmailModelLogic = ({
                         where: { user: { id: userData.id }, verified: true },
                     });
                     if (remainingVerifiedEmailsCount + verifiedPhonesCount + verifiedWalletsCount < 1)
-                        throw new CustomError("0049", "MustLeaveVerificationMethod", userData.languages);
+                        throw new CustomError("0049", "MustLeaveVerificationMethod");
                 }
                 return {};
             },

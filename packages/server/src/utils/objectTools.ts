@@ -21,15 +21,14 @@ export const sortObjectKeys = (obj: unknown): any => {
 /**
  * Parses JSON string, recursively sorts all keys alphabetically, and restringifies
  * @param stringified The stringified JSON object
- * @param languages Preferred languages for error messages
  * @returns The sortified, stringified object
  */
-export const sortify = (stringified: string, languages: string[]): string => {
+export const sortify = (stringified: string): string => {
     try {
         const obj = JSON.parse(stringified);
         return JSON.stringify(sortObjectKeys(obj));
     } catch (error) {
-        throw new CustomError("0210", "InvalidArgs", languages);
+        throw new CustomError("0210", "InvalidArgs");
     }
 };
 

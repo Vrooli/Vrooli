@@ -40,7 +40,7 @@ export async function setupSmsQueue() {
 export function sendSms(to: string[], body: string): Promise<Success> {
     // Must include at least one "to" number
     if (to.length === 0) {
-        throw new CustomError("0353", "InternalError", ["en"]);
+        throw new CustomError("0353", "InternalError");
     }
     return addJobToQueue(smsQueue, { to, body }, {});
 }

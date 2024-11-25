@@ -1,12 +1,11 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { uuid } from "@local/shared";
+import { SessionUser, uuid } from "@local/shared";
 import { fileTypeFromBuffer } from "file-type";
 import https from "https";
 import sharp from "sharp";
 import { UploadConfig } from "../endpoints/rest";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
-import { SessionUserToken } from "../types";
 
 // Global S3 client variable
 let s3: S3Client | undefined;
@@ -18,7 +17,7 @@ const BUCKET_NAME = "vrooli-bucket";
  * the environment variables are loaded from the secrets location, so they're 
  * not available at startup.
  */
-const getS3Client = (): S3Client => {
+function getS3Client(): S3Client {
     if (!s3) {
         s3 = new S3Client({ region: REGION });
     }
@@ -36,7 +35,7 @@ interface NSFWCheckResult {
 
 // heic-convert has to defer initialization because (presumably) the wasm file messes up the compiler error logs
 let heicConvert;
-const getHeicConvert = async () => {
+async function getHeicConvert() {
     if (!heicConvert) {
         heicConvert = (await import("heic-convert")).default;
     }
@@ -74,7 +73,7 @@ interface NSFWCheckResponse {
  * @param hash The hash of the image data.
  * @returns The NSFW check result.
  */
-const checkNSFW = async (buffer: Buffer, hash: string): Promise<NSFWCheckResult> => {
+async function checkNSFW(buffer: Buffer, hash: string): Promise<NSFWCheckResult> {
     // Convert the image data to base64
     const base64Image = buffer.toString("base64");
 
@@ -120,7 +119,7 @@ const checkNSFW = async (buffer: Buffer, hash: string): Promise<NSFWCheckResult>
     });
 };
 
-const resizeImage = async (buffer: Buffer, width: number, height: number, format: "jpeg" | "png" | "webp" = "jpeg") => {
+async function resizeImage(buffer: Buffer, width: number, height: number, format: "jpeg" | "png" | "webp" = "jpeg") {
     return await sharp(buffer)
         // Don't enlarge the image if it's already smaller than the requested size.
         .resize(width, height, { withoutEnlargement: true })
@@ -132,7 +131,7 @@ const resizeImage = async (buffer: Buffer, width: number, height: number, format
         .toBuffer();
 };
 
-const convertHeicToJpeg = async (buffer: Buffer): Promise<Buffer> => {
+async function convertHeicToJpeg(buffer: Buffer): Promise<Buffer> {
     const convert = await getHeicConvert();
     const outputBuffer = await convert({
         buffer,  // the HEIC file buffer
@@ -146,12 +145,12 @@ const convertHeicToJpeg = async (buffer: Buffer): Promise<Buffer> => {
 const IMAGE_TYPES = ["jpeg", "jpg", "png", "gif", "webp", "tiff", "bmp"];
 
 /** Uploads a file to S3 */
-const uploadFile = async (
+async function uploadFile(
     s3: S3Client,
     key: string,
     body: Buffer,
     mimetype: string,
-) => {
+) {
     // Construct the PutObjectCommand with the necessary parameters.
     const command = new PutObjectCommand({
         Bucket: BUCKET_NAME,
@@ -168,12 +167,12 @@ const uploadFile = async (
 /**
  * Asynchronously processes and uploads files to an Amazon S3 bucket.
  */
-export const processAndStoreFiles = async <TInput extends object | undefined>(
+export async function processAndStoreFiles<TInput extends object | undefined>(
     files: Express.Multer.File[],
     input: TInput,
-    userData: SessionUserToken,
+    userData: SessionUser,
     config?: UploadConfig<TInput>,
-): Promise<{ [x: string]: string[] }> => {
+): Promise<{ [x: string]: string[] }> {
     const s3 = getS3Client();
 
     // Keep track of the number of files processed for each field, so 
@@ -192,12 +191,12 @@ export const processAndStoreFiles = async <TInput extends object | undefined>(
 
         // Check if the maximum number of files for this field has been exceeded
         if (fileConfig?.maxFiles !== undefined && fileCounts[file.fieldname] > fileConfig.maxFiles) {
-            throw new CustomError("0524", "MaxFilesExceeded", ["en"], { file: file.filename });
+            throw new CustomError("0524", "MaxFilesExceeded", { file: file.filename });
         }
 
         // Check if the file size exceeds the maximum allowed size
         if (fileConfig?.maxFileSize !== undefined && file.size > fileConfig.maxFileSize) {
-            throw new CustomError("0525", "MaxFileSizeExceeded", ["en"], { file: file.filename });
+            throw new CustomError("0525", "MaxFileSizeExceeded", { file: file.filename });
         }
 
         // Get the file name
@@ -209,13 +208,13 @@ export const processAndStoreFiles = async <TInput extends object | undefined>(
         const fileType = await fileTypeFromBuffer(file.buffer);
         let extension = fileType?.ext;
         if (!extension) {
-            throw new CustomError("0502", "InternalError", ["en"], { file: file.filename });
+            throw new CustomError("0502", "InternalError", { file: file.filename });
         }
 
         // Check if the file extension is allowed
         const allowedExtensions = fileConfig?.allowedExtensions ?? ["txt", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "heic", "heif", "png", "jpg", "jpeg", "gif", "webp", "tiff", "bmp"];
         if (!allowedExtensions.includes(extension)) {
-            throw new CustomError("0508", "InternalError", ["en"], { file: file.filename });
+            throw new CustomError("0508", "InternalError", { file: file.filename });
         }
 
         // Find other information about the file
@@ -235,7 +234,7 @@ export const processAndStoreFiles = async <TInput extends object | undefined>(
             // const classificationsMap = await checkNSFW(buffer, hash);
             // const isNsfw = classificationsMap[hash] ? classificationsMap[hash]["porn"] > 0.85 || classificationsMap[hash]["hentai"] > 0.85 : false;
             // if (isNsfw) {
-            //     throw new CustomError("0503", "InternalError", ["en"], { file: file.filename });
+            //     throw new CustomError("0503", "InternalError", { file: file.filename });
             // }
             // Upload image in various sizes, specified in fileConfig
             for (let i = 0; i < fileConfig.imageSizes.length; i++) {

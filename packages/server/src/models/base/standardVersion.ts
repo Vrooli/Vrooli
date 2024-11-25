@@ -1,10 +1,9 @@
-import { MaxObjects, StandardCreateInput, StandardVersionCreateInput, StandardVersionSortBy, StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput, getTranslation, standardVersionValidation } from "@local/shared";
+import { MaxObjects, SessionUser, StandardCreateInput, StandardVersionCreateInput, StandardVersionSortBy, StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput, getTranslation, standardVersionValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { randomString } from "../../auth/codes";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { useVisibility } from "../../builders/visibilityBuilder";
-import { SessionUserToken } from "../../types";
 import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
 import { sortify } from "../../utils/objectTools";
 import { PreShapeVersionResult, afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
@@ -43,14 +42,14 @@ function querier() {
          */
         async findMatchingStandardVersion(
             data: StandardCreateInput,
-            userData: SessionUserToken,
+            userData: SessionUser,
             uniqueToCreator: boolean,
             isInternal: boolean,
         ): Promise<{ [x: string]: any } | null> {
             return null;
             // // Sort all JSON properties that are part of the comparison
-            // const props = sortify(data.props, userData.languages);
-            // const yup = data.yup ? sortify(data.yup, userData.languages) : null;
+            // const props = sortify(data.props);
+            // const yup = data.yup ? sortify(data.yup) : null;
             // // Find all standards that match the given standard
             // const standards = await prismaInstance.standard_version.findMany({
             //     where: {
@@ -113,7 +112,7 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
                     name: trans.name,
                     tags: (root as any).tags.map(({ tag }) => tag),
                     description: trans.description,
-                }, languages[0]);
+                }, languages?.[0]);
             },
         },
     }),
@@ -127,9 +126,8 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
                     Delete,
                     objectType: __typename,
                     Update,
-                    userData,
                 });
-                [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
+                [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio"));
                 const maps = preShapeVersion<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
@@ -140,7 +138,7 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
                 const translations = await translationShapeHelper({ relTypes: ["Create"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest });
                 if (translations?.create?.length) {
                     translations.create = translations.create.map((t: StandardVersionTranslationCreateInput) => {
-                        if (t.jsonVariable) t.jsonVariable = sortify(t.jsonVariable, rest.userData.languages);
+                        if (t.jsonVariable) t.jsonVariable = sortify(t.jsonVariable);
                         return t;
                     });
                 }
@@ -151,11 +149,11 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
                     isPrivate: data.isPrivate,
                     isComplete: noNull(data.isComplete),
                     isFile: noNull(data.isFile),
-                    props: sortify(data.props, rest.userData.languages),
+                    props: sortify(data.props),
                     variant: data.variant,
                     versionLabel: data.versionLabel,
                     versionNotes: noNull(data.versionNotes),
-                    yup: data.yup ? sortify(data.yup, rest.userData.languages) : undefined,
+                    yup: data.yup ? sortify(data.yup) : undefined,
                     directoryListings: await shapeHelper({ relation: "directoryListings", relTypes: ["Connect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childStandardVersions", data, ...rest }),
                     resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "standardVersion", data, ...rest }),
                     root: await shapeHelper({ relation: "root", relTypes: ["Connect", "Create"], isOneToOne: true, objectType: "Standard", parentRelationshipName: "versions", data, ...rest }),
@@ -168,13 +166,13 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
                 const translations = await translationShapeHelper({ relTypes: ["Create", "Update", "Delete"], embeddingNeedsUpdate: preData.embeddingNeedsUpdateMap[data.id], data, ...rest });
                 if (translations?.update?.length) {
                     translations.update = translations.update.map((t: { where: { id: string }, data: StandardVersionTranslationUpdateInput }) => {
-                        if (t.data.jsonVariable) t.data.jsonVariable = sortify(t.data.jsonVariable, rest.userData.languages);
+                        if (t.data.jsonVariable) t.data.jsonVariable = sortify(t.data.jsonVariable);
                         return t;
                     });
                 }
                 if (translations?.create?.length) {
                     translations.create = translations.create.map((t: StandardVersionTranslationCreateInput) => {
-                        if (t.jsonVariable) t.jsonVariable = sortify(t.jsonVariable, rest.userData.languages);
+                        if (t.jsonVariable) t.jsonVariable = sortify(t.jsonVariable);
                         return t;
                     });
                 }
@@ -184,11 +182,11 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
                     isPrivate: noNull(data.isPrivate),
                     isComplete: noNull(data.isComplete),
                     isFile: noNull(data.isFile),
-                    props: data.props ? sortify(data.props, rest.userData.languages) : undefined,
+                    props: data.props ? sortify(data.props) : undefined,
                     variant: noNull(data.variant),
                     versionLabel: noNull(data.versionLabel),
                     versionNotes: noNull(data.versionNotes),
-                    yup: data.yup ? sortify(data.yup, rest.userData.languages) : undefined,
+                    yup: data.yup ? sortify(data.yup) : undefined,
                     directoryListings: await shapeHelper({ relation: "directoryListings", relTypes: ["Connect", "Disconnect"], isOneToOne: false, objectType: "ProjectVersionDirectory", parentRelationshipName: "childStandardVersions", data, ...rest }),
                     resourceList: await shapeHelper({ relation: "resourceList", relTypes: ["Create", "Update"], isOneToOne: true, objectType: "ResourceList", parentRelationshipName: "standardVersion", data, ...rest }),
                     root: await shapeHelper({ relation: "root", relTypes: ["Update"], isOneToOne: true, objectType: "Standard", parentRelationshipName: "versions", data, ...rest }),

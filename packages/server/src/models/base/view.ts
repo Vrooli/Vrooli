@@ -1,4 +1,4 @@
-import { Count, GqlModelType, HOURS_1_MS, MaxObjects, ViewFor, ViewSortBy, lowercaseFirstLetter } from "@local/shared";
+import { Count, DEFAULT_LANGUAGE, GqlModelType, HOURS_1_MS, MaxObjects, SessionUser, ViewFor, ViewSortBy, lowercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { ModelMap } from ".";
@@ -9,7 +9,6 @@ import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { getLabels } from "../../getters/getLabels";
 import { withRedis } from "../../redisConn";
-import { SessionUserToken } from "../../types";
 import { defaultPermissions } from "../../utils/defaultPermissions";
 import { ViewFormat } from "../formats";
 import { TeamModelLogic, ViewModelLogic } from "./types";
@@ -175,7 +174,7 @@ export const ViewModel: ViewModelLogic = ({
                 for (const [key, value] of Object.entries(displayMapper)) {
                     if (select[value]) return ModelMap.get(key as GqlModelType).display().label.get(select[value], languages);
                 }
-                return i18next.t("common:View", { lng: languages[0], count: 1 });
+                return i18next.t("common:View", { lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE, count: 1 });
             },
         },
     }),
@@ -264,7 +263,7 @@ export const ViewModel: ViewModelLogic = ({
      * A user may view their own objects, but it does not count towards its view count.
      * @returns True if view updated correctly
      */
-    view: async (userData: SessionUserToken, input: ViewInput): Promise<boolean> => {
+    view: async (userData: SessionUser, input: ViewInput): Promise<boolean> => {
         // Get db table for viewed object
         const { dbTable } = ModelMap.getLogic(["dbTable"], input.viewFor, true, "view 1");
         // Check if object being viewed on exists
@@ -273,7 +272,7 @@ export const ViewModel: ViewModelLogic = ({
             select: selectMapper[input.viewFor],
         });
         if (!objectToView)
-            throw new CustomError("0173", "NotFound", userData.languages);
+            throw new CustomError("0173", "NotFound");
         // Check if view exists
         let view = await prismaInstance.view.findFirst({
             where: {

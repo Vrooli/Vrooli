@@ -24,14 +24,14 @@ describe("CustomError", () => {
     });
 
     it("should generate an error with a correct message", () => {
-        const error = new CustomError("TEST", "CouldNotReadObject", ["en"]);
+        const error = new CustomError("TEST", "CouldNotReadObject");
 
         expect(error.message).toMatch(/CouldNotReadObject: TEST-/);
         expect(logger.error).toHaveBeenCalled();
     });
 
     it("should generate an error with a correct message", () => {
-        const error = new CustomError("TEST", "MaxFileSizeExceeded", ["en"]);
+        const error = new CustomError("TEST", "MaxFileSizeExceeded");
 
         expect(error.message).toMatch(/MaxFileSizeExceeded: TEST-/);
         expect(logger.error).toHaveBeenCalled();

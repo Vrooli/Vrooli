@@ -24,7 +24,7 @@ export const ProjectModel: ProjectModelLogic = ({
     mutate: {
         shape: {
             pre: async ({ Create, Update, Delete, userData }): Promise<ProjectPre> => {
-                await handlesCheck(__typename, Create, Update, userData.languages);
+                await handlesCheck(__typename, Create, Update);
                 const maps = await preShapeRoot({ Create, Update, Delete, userData, objectType: __typename });
                 return { ...maps };
             },

@@ -1,4 +1,4 @@
-import { GqlModelType, MaxObjects, ScheduleFor, ScheduleSortBy, scheduleValidation, uppercaseFirstLetter } from "@local/shared";
+import { DEFAULT_LANGUAGE, GqlModelType, MaxObjects, ScheduleFor, ScheduleSortBy, scheduleValidation, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { ModelMap } from ".";
@@ -33,7 +33,7 @@ export const ScheduleModel: ScheduleModelLogic = ({
                 for (const [key, value] of Object.entries(forMapper)) {
                     if (select[value]) return ModelMap.get(key as GqlModelType).display().label.get(select[value], languages);
                 }
-                return i18next.t("common:Schedule", { lng: languages[0], count: 1 });
+                return i18next.t("common:Schedule", { lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE, count: 1 });
             },
         },
     }),

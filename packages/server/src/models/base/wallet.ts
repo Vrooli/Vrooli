@@ -35,7 +35,7 @@ export const WalletModel: WalletModelLogic = ({
                         where: { user: { id: userData.id }, verified: true },
                     });
                     if (remainingVerifiedWalletsCount + verifiedPhonesCount + verifiedEmailsCount < 1)
-                        throw new CustomError("0275", "MustLeaveVerificationMethod", userData.languages);
+                        throw new CustomError("0275", "MustLeaveVerificationMethod");
                 }
             },
             update: async ({ data }) => data,

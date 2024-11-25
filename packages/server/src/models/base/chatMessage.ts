@@ -2,7 +2,7 @@ import { ChatCreateInput, ChatInviteCreateInput, ChatMessage, ChatMessageCreateI
 import { Request } from "express";
 import { InputNode } from "utils/inputNode";
 import { ModelMap } from ".";
-import { getUser } from "../../auth/request";
+import { SessionService } from "../../auth/session";
 import { addSupplementalFields } from "../../builders/addSupplementalFields";
 import { modelToGql } from "../../builders/modelToGql";
 import { selectHelper } from "../../builders/selectHelper";
@@ -268,7 +268,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                 for (const { node } of Create) {
                     const message = preMap.messageData[node.id] as PreMapMessageDataCreate | undefined;
                     if (message && message.userId !== userData.id && !Object.keys(preMap.userData).includes(message.userId ?? "")) {
-                        throw new CustomError("0526", "Unauthorized", userData.languages, { message });
+                        throw new CustomError("0526", "Unauthorized", { message });
                     }
                 }
 
@@ -424,19 +424,19 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             input: ChatMessageSearchTreeInput,
             info: GraphQLInfo | PartialGraphQLInfo,
         ): Promise<ChatMessageSearchTreeResult> {
-            if (!input.chatId) throw new CustomError("0531", "InvalidArgs", getUser(req.session)?.languages ?? ["en"], { input });
+            if (!input.chatId) throw new CustomError("0531", "InvalidArgs", { input });
             // Query for all authentication data
-            const userData = getUser(req.session);
+            const userData = SessionService.getUser(req.session);
             const authDataById = await getAuthenticatedData({ "Chat": [input.chatId] }, userData ?? null);
             if (Object.keys(authDataById).length === 0) {
-                throw new CustomError("0016", "NotFound", userData?.languages ?? req.session.languages, { input, userId: userData?.id });
+                throw new CustomError("0016", "NotFound", { input, userId: userData?.id });
             }
             await permissionsCheck(authDataById, { ["Read"]: [input.chatId] }, {}, userData);
             // Partially convert info type
             const partial = toPartialGqlInfo(info, {
                 __typename: "ChatMessageSearchTreeResult",
                 messages: "ChatMessage",
-            }, req.session.languages, true);
+            }, true);
             // Determine sort order. This is only used if startId is not provided, since the sort is used 
             // to determine the starting point of the search.
             const orderByField = input.sortBy ?? ModelMap.get<ChatMessageModelLogic>("ChatMessage").search.defaultSort;
@@ -455,7 +455,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     ...selectHelper(partial.messages as PartialGraphQLInfo),
                 });
                 messages = messages.map((c: any) => modelToGql(c, partial.messages as PartialGraphQLInfo));
-                messages = await addSupplementalFields(getUser(req.session), messages, partial.messages as PartialGraphQLInfo);
+                messages = await addSupplementalFields(SessionService.getUser(req.session), messages, partial.messages as PartialGraphQLInfo);
                 return {
                     __typename: "ChatMessageSearchTreeResult" as const,
                     hasMoreDown: false,

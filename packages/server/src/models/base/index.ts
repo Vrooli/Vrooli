@@ -104,7 +104,7 @@ export class ModelMap {
         if (!objectType) {
             if (throwErrorIfNotFound) {
                 const caller = errorTrace ?? getCallerFunctionName();
-                throw new CustomError("0023", "InternalError", ["en"], { caller });
+                throw new CustomError("0023", "InternalError", { caller });
             } else {
                 return {} as ThrowError extends true ? T : undefined;
             }
@@ -112,7 +112,7 @@ export class ModelMap {
         const isModelObject = this.isModel(objectType);
         if (!isModelObject && throwErrorIfNotFound) {
             const caller = errorTrace ?? getCallerFunctionName();
-            throw new CustomError("0024", "InternalError", ["en"], { caller, objectType });
+            throw new CustomError("0024", "InternalError", { caller, objectType });
         }
         return (isModelObject ? ModelMap.instance.map[objectType] : undefined) as ThrowError extends true ? T : (T | undefined);
     }
@@ -140,7 +140,7 @@ export class ModelMap {
             // Make sure logic function exists
             if (!logic && throwErrorIfNotFound) {
                 const caller = errorTrace ?? getCallerFunctionName();
-                throw new CustomError("0367", "InternalError", ["en"], { caller, objectType, field });
+                throw new CustomError("0367", "InternalError", { caller, objectType, field });
             }
         }
         return object as unknown as GetLogicReturn<Logic[number]>;

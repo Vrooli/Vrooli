@@ -1,4 +1,4 @@
-import { ApiCreateInput, ApiSearchInput, ApiUpdateInput, BotCreateInput, BotUpdateInput, CodeCreateInput, CodeSearchInput, CodeUpdateInput, DEFAULT_LANGUAGE, DeleteManyInput, DeleteOneInput, GqlModelType, LlmTask, MemberSearchInput, MemberUpdateInput, NavigableObject, NoteCreateInput, NoteSearchInput, NoteUpdateInput, ProjectCreateInput, ProjectSearchInput, ProjectUpdateInput, QuestionCreateInput, QuestionSearchInput, QuestionUpdateInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, RoleCreateInput, RoleSearchInput, RoleUpdateInput, RoutineCreateInput, RoutineSearchInput, RoutineUpdateInput, RunProjectCreateInput, RunRoutineCreateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, StandardCreateInput, StandardSearchInput, StandardUpdateInput, TeamCreateInput, TeamSearchInput, TeamUpdateInput, ToBotSettingsPropBot, UserSearchInput, getObjectSlug, getObjectUrlBase, uuidValidate } from "@local/shared";
+import { ApiCreateInput, ApiSearchInput, ApiUpdateInput, BotCreateInput, BotUpdateInput, CodeCreateInput, CodeSearchInput, CodeUpdateInput, DEFAULT_LANGUAGE, DeleteManyInput, DeleteOneInput, GqlModelType, LlmTask, MemberSearchInput, MemberUpdateInput, NavigableObject, NoteCreateInput, NoteSearchInput, NoteUpdateInput, ProjectCreateInput, ProjectSearchInput, ProjectUpdateInput, QuestionCreateInput, QuestionSearchInput, QuestionUpdateInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, RoleCreateInput, RoleSearchInput, RoleUpdateInput, RoutineCreateInput, RoutineSearchInput, RoutineUpdateInput, RunProjectCreateInput, RunRoutineCreateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, SessionUser, StandardCreateInput, StandardSearchInput, StandardUpdateInput, TeamCreateInput, TeamSearchInput, TeamUpdateInput, ToBotSettingsPropBot, UserSearchInput, getObjectSlug, getObjectUrlBase, uuidValidate } from "@local/shared";
 import { Request, Response } from "express";
 import { GraphQLResolveInfo } from "graphql";
 import path from "path";
@@ -10,7 +10,7 @@ import { CustomError } from "../../events/error";
 import { Context } from "../../middleware/context";
 import { ModelMap } from "../../models/base";
 import { processRunProject, processRunRoutine } from "../../tasks/run";
-import { CreateOneResult, FindOneResult, SessionUserToken, UpdateOneResult } from "../../types";
+import { CreateOneResult, FindOneResult, UpdateOneResult } from "../../types";
 
 type LlmTaskDataValue = string | number | boolean | null;
 export type LlmTaskData = Record<string, LlmTaskDataValue>;
@@ -127,7 +127,7 @@ type TaskHandlerHelperFuncs<Task extends Exclude<LlmTask, "Start">> = {
     getObjectLabel: GetObjectLabelFunc<{ __typename: string }>,
     getObjectLink: GetObjectLinkFunc<object>,
     task: Task,
-    userData: SessionUserToken,
+    userData: SessionUser,
     validateFields: ValidateFieldsFunc,
 };
 
@@ -257,7 +257,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
                 },
             });
             if (!existingUser) {
-                throw new CustomError("0276", "NotFound", userData.languages, { id: data.id, task });
+                throw new CustomError("0276", "NotFound", { id: data.id, task });
             }
             const input = converter[task](data, language, existingUser);
             const payload = await UserEndpoints.Mutation.botUpdate(undefined, { input }, context, info);
@@ -480,11 +480,11 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         return async (data) => {
             const input = converter[task](data, language);
             if (!input.reminderListConnect && !input.reminderListCreate) {
-                const activeReminderList = userData?.activeFocusMode?.mode?.reminderList?.id;
+                const activeReminderList = userData?.activeFocusMode?.reminderListId;
                 if (activeReminderList) {
                     input.reminderListConnect = activeReminderList;
                 } else {
-                    throw new CustomError("0555", "InternalError", userData.languages, { task, data, language });
+                    throw new CustomError("0555", "InternalError", { task, data, language });
                 }
             }
             const payload = await ReminderEndpoints.Mutation.reminderCreate(undefined, { input }, context, info);
@@ -817,7 +817,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
 export async function generateTaskExec<Task extends Exclude<LlmTask, "Start">>(
     task: Task,
     language: string,
-    userData: SessionUserToken,
+    userData: SessionUser,
 ): Promise<LlmTaskExec> {
     // Import converter, which shapes data for the task
     const converter = await importConverter(language);
@@ -843,7 +843,7 @@ export async function generateTaskExec<Task extends Exclude<LlmTask, "Start">>(
         return (data: LlmTaskData) => {
             for (const [field, validator] of validators) {
                 if (!validator(data)) {
-                    throw new CustomError("0047", "InvalidArgs", userData.languages, { field, task });
+                    throw new CustomError("0047", "InvalidArgs", { field, task });
                 }
             }
         };
@@ -880,6 +880,6 @@ export async function generateTaskExec<Task extends Exclude<LlmTask, "Start">>(
     if (taskHandlerMap[task]) {
         return taskHandlerMap[task](helperFuncs as TaskHandlerHelperFuncs<Task>);
     } else {
-        throw new CustomError("0043", "TaskNotSupported", userData.languages, { task });
+        throw new CustomError("0043", "TaskNotSupported", { task });
     }
 }

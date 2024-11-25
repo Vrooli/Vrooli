@@ -1,15 +1,14 @@
-import { GqlModelType } from "@local/shared";
+import { GqlModelType, SessionUser } from "@local/shared";
 import { PrismaDelegate } from "../../builders/types";
 import { prismaInstance } from "../../db/instance";
 import { Trigger } from "../../events/trigger";
 import { ModelMap } from "../../models/base";
-import { SessionUserToken } from "../../types";
 
 /**
  * Used in mutate.trigger.afterMutations of non-root and non-version objects. 
  * Calculate data for and calls objectCreated/Updated/Deleted triggers
  */
-export const afterMutationsPlain = async ({
+export async function afterMutationsPlain({
     createdIds,
     deletedIds,
     objectType,
@@ -24,8 +23,8 @@ export const afterMutationsPlain = async ({
     ownerTeamField?: string,
     ownerUserField?: string,
     updatedIds: string[]
-    userData: SessionUserToken,
-}) => {
+    userData: SessionUser,
+}) {
     // Find owners of created and updated items
     const ownerMap: { [key: string]: { id: string, __typename: "User" | "Team" } } = {};
     const createAndUpdateIds = [...createdIds, ...updatedIds];

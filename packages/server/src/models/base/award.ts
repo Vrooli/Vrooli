@@ -1,4 +1,4 @@
-import { AwardSortBy, MaxObjects, TranslationKeyAward, awardNames } from "@local/shared";
+import { AwardSortBy, DEFAULT_LANGUAGE, MaxObjects, TranslationKeyAward, awardNames } from "@local/shared";
 import i18next from "i18next";
 import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions } from "../../utils";
@@ -18,7 +18,7 @@ export const AwardModel: AwardModelLogic = ({
                 const { name, nameVariables } = awardNames[select.category](select.progress);
                 // If key is not found, return empty string
                 if (!name) return "";
-                return i18next.t(`award:${name}`, { lng: languages[0], ...(nameVariables ?? {}) });
+                return i18next.t(`award:${name}`, { lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE, ...(nameVariables ?? {}) });
             },
         },
     }),

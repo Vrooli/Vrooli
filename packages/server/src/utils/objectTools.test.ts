@@ -71,29 +71,29 @@ describe("sortify", () => {
     it("should parse, sort keys alphabetically, and restringify JSON", () => {
         const json = JSON.stringify({ b: 2, a: { d: 4, c: 3 } });
         const expected = JSON.stringify({ a: { c: 3, d: 4 }, b: 2 });
-        expect(sortify(json, ["en"])).toEqual(expected);
+        expect(sortify(json)).toEqual(expected);
     });
 
     it("should throw a CustomError with proper language and message on invalid JSON", () => {
         const invalidJson = "{\"a\":1,";
-        expect(() => sortify(invalidJson, ["en"])).toThrow();
+        expect(() => sortify(invalidJson)).toThrow();
     });
 
     it("should handle and sort nested objects correctly", () => {
         const nestedJson = JSON.stringify({ z: 1, y: { b: 2, a: 1 } });
         const expected = JSON.stringify({ y: { a: 1, b: 2 }, z: 1 });
-        expect(sortify(nestedJson, ["en"])).toEqual(expected);
+        expect(sortify(nestedJson)).toEqual(expected);
     });
 
     it("should correctly handle arrays without altering their order", () => {
         const arrayJson = JSON.stringify({ fruits: ["apple", "orange"], veggies: ["carrot", "beet"] });
         const expected = JSON.stringify({ fruits: ["apple", "orange"], veggies: ["carrot", "beet"] });
-        expect(sortify(arrayJson, ["en"])).toEqual(expected);
+        expect(sortify(arrayJson)).toEqual(expected);
     });
 
     it("should process empty objects and return an empty object string", () => {
         const emptyJson = JSON.stringify({});
-        expect(sortify(emptyJson, ["en"])).toEqual("{}");
+        expect(sortify(emptyJson)).toEqual("{}");
     });
 });
 

@@ -512,7 +512,7 @@ export function prepareChatMessageOperations(
             return parentId && createMessageMap.has(parentId);
         });
         if (!isEveryParentNew) {
-            throw new CustomError("0416", "InternalError", ["en"], { msg: "Cannot create nested messages in a branching chat. All messages must be sequential." });
+            throw new CustomError("0416", "InternalError", { msg: "Cannot create nested messages in a branching chat. All messages must be sequential." });
         }
 
         // Find messages without specified parents

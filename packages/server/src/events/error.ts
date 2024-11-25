@@ -1,5 +1,4 @@
-import type { TranslationKeyError } from "@local/shared";
-import i18next from "i18next";
+import { type TranslationKeyError } from "@local/shared";
 import { randomString } from "../auth/codes";
 import { logger } from "./logger";
 
@@ -26,23 +25,13 @@ export class CustomError extends Error {
     /** The base trace (unique identifier) for the error */
     public traceBase: string;
 
-    constructor(traceBase: string, errorCode: TranslationKeyError, languages: string[], data?: ErrorTrace) {
-        // Find message in user's language
-        const lng = languages.length > 0 ? languages[0] : "en";
-        const message = i18next.t(`error:${errorCode}`, { lng }) ?? errorCode;
+    constructor(traceBase: string, errorCode: TranslationKeyError, data?: ErrorTrace) {
         // Generate unique trace
         const trace = genTrace(traceBase);
-        // Generate display message by appending trace to message
-        // Remove period from message if it exists
-        const displayMessage = (message.endsWith(".") ? message.slice(0, -1) : message) + `: ${trace}`;
-        // Format error
-        super(displayMessage);
+        super(`${errorCode}: ${trace}`);
         this.code = errorCode;
         this.traceBase = traceBase;
         Object.defineProperty(this, "name", { value: errorCode });
-        // Log error, if trace is provided
-        if (trace) {
-            logger.error({ ...(data ?? {}), msg: message, trace });
-        }
+        logger.error({ ...(data ?? {}), msg: errorCode, trace });
     }
 }

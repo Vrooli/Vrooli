@@ -1,11 +1,10 @@
-import { DUMMY_ID, GqlModelType } from "@local/shared";
+import { DUMMY_ID, GqlModelType, SessionUser } from "@local/shared";
 import { permissionsSelectHelper } from "../builders/permissionsSelectHelper";
 import { PrismaDelegate } from "../builders/types";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
 import { Validator } from "../models/types";
-import { SessionUserToken } from "../types";
 import { AuthDataById, AuthDataItem } from "../utils/getAuthenticatedData";
 import { getParentInfo } from "../utils/getParentInfo";
 import { InputsById, QueryAction } from "../utils/types";
@@ -233,7 +232,7 @@ type ResolvedPermissions = { [x in Exclude<QueryAction, "Create"> as `can${x}`]:
  */
 export async function calculatePermissions(
     authData: AuthDataItem,
-    userData: SessionUserToken | null,
+    userData: SessionUser | null,
     validator: ReturnType<Validator<any>>,
     inputsById?: InputsById,
 ): Promise<ResolvedPermissions> {
@@ -263,7 +262,7 @@ export async function calculatePermissions(
 export async function getMultiTypePermissions(
     authDataById: AuthDataById,
     inputsById: InputsById,
-    userData: SessionUserToken | null,
+    userData: SessionUser | null,
 ): Promise<{ [id: string]: { [x: string]: any } }> {
     // Initialize result
     const permissionsById: { [id: string]: { [key in QueryAction as `can${key}`]?: boolean } } = {};
@@ -287,7 +286,7 @@ export async function getMultiTypePermissions(
 export async function getSingleTypePermissions<Permissions extends { [x: string]: any }>(
     type: `${GqlModelType}`,
     ids: string[],
-    userData: SessionUserToken | null,
+    userData: SessionUser | null,
 ): Promise<{ [K in keyof Permissions]: Permissions[K][] }> {
     // Initialize result
     const permissions: Partial<{ [K in keyof Permissions]: Permissions[K][] }> = {};
@@ -305,7 +304,7 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
         });
         dataById = Object.fromEntries(authData.map(item => [item.id, item]));
     } catch (error) {
-        throw new CustomError("0388", "InternalError", userData?.languages ?? ["en"], { ids, select, objectType: type });
+        throw new CustomError("0388", "InternalError", { ids, select, objectType: type });
     }
     // Loop through each id and calculate permissions
     for (const id of ids) {
@@ -332,7 +331,7 @@ export async function permissionsCheck(
     authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } },
     idsByAction: { [key in QueryAction]?: string[] },
     inputsById: InputsById,
-    userData: SessionUserToken | null,
+    userData: SessionUser | null,
     throwsOnError = true,
 ): Promise<boolean> {
     // Get permissions
@@ -357,7 +356,7 @@ export async function permissionsCheck(
             // If permissions doesn't exist, something went wrong.
             if (!permissions) {
                 if (throwsOnError) {
-                    throw new CustomError("0390", "CouldNotFindPermissions", userData?.languages ?? ["en"], { action, id, __typename: authDataById?.[id]?.__typename });
+                    throw new CustomError("0390", "CouldNotFindPermissions", { action, id, __typename: authDataById?.[id]?.__typename });
                 } else {
                     return false;
                 }
@@ -365,7 +364,7 @@ export async function permissionsCheck(
             // Check if permissions contains the current action. If so, make sure it's not false.
             if (`can${action}` in permissions && !permissions[`can${action}`]) {
                 if (throwsOnError) {
-                    throw new CustomError("0297", "Unauthorized", userData?.languages ?? ["en"], { action, id, __typename: authDataById[id].__typename });
+                    throw new CustomError("0297", "Unauthorized", { action, id, __typename: authDataById[id].__typename });
                 } else {
                     return false;
                 }

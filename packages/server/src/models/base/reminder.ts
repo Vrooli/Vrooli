@@ -19,7 +19,7 @@ export const ReminderModel: ReminderModelLogic = ({
         embed: {
             select: () => ({ id: true, embeddingNeedsUpdate: true, name: true, description: true }),
             get: ({ description, name }, languages) => {
-                return getEmbeddableString({ description, name }, languages[0]);
+                return getEmbeddableString({ description, name }, languages?.[0]);
             },
         },
     }),

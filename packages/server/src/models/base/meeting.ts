@@ -30,7 +30,7 @@ export const MeetingModel: MeetingModelLogic = ({
                 return getEmbeddableString({
                     description: trans.description,
                     name: trans.name,
-                }, languages[0]);
+                }, languages?.[0]);
             },
         },
     }),

@@ -34,7 +34,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
                     name: trans.name,
                     tags: (root as any).tags.map(({ tag }) => tag),
                     description: trans.description,
-                }, languages[0]);
+                }, languages?.[0]);
             },
         },
     }),
@@ -48,9 +48,8 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
                     Delete,
                     objectType: __typename,
                     Update,
-                    userData,
                 });
-                [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
+                [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio"));
                 const maps = preShapeVersion<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },
@@ -107,7 +106,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //             resources: 'Resource',
     //             runProjectSchedules: 'RunProjectSchedule',
     //             runRoutineSchedules: 'RunRoutineSchedule',
-    //         }, req.session.languages, true);
+    //         }, true);
     //         // Determine text search query
     //         const searchQuery = input.searchString ? getSearchStringQuery({ objectType: 'Comment', searchString: input.searchString }) : undefined;
     //         // Loop through search fields and add each to the search query, 

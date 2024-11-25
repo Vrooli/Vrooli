@@ -1,4 +1,4 @@
-import { MaxObjects, StatsStandardSortBy } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects, StatsStandardSortBy } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
 import { useVisibility } from "../../builders/visibilityBuilder";
@@ -14,7 +14,7 @@ export const StatsStandardModel: StatsStandardModelLogic = ({
         label: {
             select: () => ({ id: true, standard: { select: ModelMap.get<StandardModelLogic>("Standard").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
-                lng: languages.length > 0 ? languages[0] : "en",
+                lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE,
                 objectName: ModelMap.get<StandardModelLogic>("Standard").display().label.get(select.standard as StandardModelInfo["PrismaModel"], languages),
             }),
         },

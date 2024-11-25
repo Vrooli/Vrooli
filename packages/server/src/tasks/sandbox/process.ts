@@ -58,7 +58,7 @@ export async function doSandbox({
                     // Query for all authentication data
                     const authDataById = await getAuthenticatedData({ "CodeVersion": [codeVersionId] }, userData);
                     if (Object.keys(authDataById).length === 0) {
-                        throw new CustomError("0620", "NotFound", userData.languages, { codeVersionId });
+                        throw new CustomError("0620", "NotFound", { codeVersionId });
                     }
                     // Check permissions
                     await permissionsCheck(authDataById, { ["Read"]: [codeVersionId] }, {}, userData);
@@ -86,7 +86,7 @@ export async function doSandbox({
         });
 
         if (!result) {
-            throw new CustomError("0622", "InternalError", ["en"], { process: "doSandbox" });
+            throw new CustomError("0622", "InternalError", { process: "doSandbox" });
         }
         return result;
     } catch (error) {
@@ -103,6 +103,6 @@ export async function sandboxrocess({ data }: Job<SandboxRequestPayload>) {
             logger.info("sandboxProcess test triggered");
             return { __typename: "Success" as const, success: true };
         default:
-            throw new CustomError("0608", "InternalError", ["en"], { process: (data as { __process?: unknown }).__process });
+            throw new CustomError("0608", "InternalError", { process: (data as { __process?: unknown }).__process });
     }
 }

@@ -28,7 +28,7 @@ export function getVisibilityFunc<
 
     if (visibilityFunc === null || visibilityFunc === undefined) {
         if (throwIfNotFound) {
-            throw new CustomError("0680", "InternalError", ["en"], { objectType, funcName });
+            throw new CustomError("0680", "InternalError", { objectType, funcName });
         } else {
             null;
         }
@@ -66,7 +66,7 @@ export function useVisibility<T extends GenericModelLogic, Throw extends boolean
     const visibilityFunc = getVisibilityFunc<T, Throw>(objectType, which, throwIfNotFound);
     if (!visibilityFunc) {
         if (throwIfNotFound) {
-            throw new CustomError("0681", "InternalError", ["en"], { objectType, which });
+            throw new CustomError("0681", "InternalError", { objectType, which });
         } else {
             return null;
         }

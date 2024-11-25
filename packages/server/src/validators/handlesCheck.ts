@@ -111,14 +111,12 @@ const RESERVED_HANDLES = [
  * @param forType The type of object to check handles for
  * @param Create Handle and id pairs for new objects
  * @param Update Handle and id pairs for updated objects
- * @param languages Preferred languages for error messages
  */
-export const handlesCheck = async (
+export async function handlesCheck(
     forType: "User" | "Project" | "Team",
     Create: { input: { id: string, handle?: string | null | undefined } }[],
     Update: { input: { id: string, handle?: string | null | undefined } }[],
-    languages: string[],
-): Promise<void> => {
+): Promise<void> {
     // Filter out empty handles from createList and updateList
     const filteredCreateList = Create.filter(x => x.input.handle).map(x => x.input) as { id: string, handle: string }[];
     const filteredUpdateList = Update.filter(x => x.input.handle).map(x => x.input) as { id: string, handle: string }[];
@@ -139,15 +137,15 @@ export const handlesCheck = async (
             handleUsage[handle] = (handleUsage[handle] || 0) + 1;
             // If there is more than one use of a handle, throw an error
             if (handleUsage[handle] > 1) {
-                throw new CustomError("0019", "HandleTaken", languages);
+                throw new CustomError("0019", "HandleTaken");
             }
             // Also check for profanity while we're at it
             if (hasProfanity(handle)) {
-                throw new CustomError("0374", "BannedWord", languages);
+                throw new CustomError("0374", "BannedWord");
             }
             // Also check for reserved handles while we're at it
             if (RESERVED_HANDLES.includes(handle.toLowerCase())) {
-                throw new CustomError("0375", "HandleTaken", languages);
+                throw new CustomError("0375", "HandleTaken");
             }
         }
     }
@@ -160,7 +158,7 @@ export const handlesCheck = async (
         }
         // Check if a handle is taken
         if (handleUsage[handle] > 0) {
-            throw new CustomError("0019", "HandleTaken", languages);
+            throw new CustomError("0019", "HandleTaken");
         }
     }
 };

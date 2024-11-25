@@ -62,7 +62,7 @@ export class OpenAIService implements LanguageModelService<OpenAIModel, OpenAITo
                 const errorType = this.getErrorType(error);
                 LlmServiceRegistry.get().updateServiceState(this.__id, errorType);
                 logger.error("Failed to call OpenAI", { trace, error, errorType });
-                throw new CustomError(trace, "InternalError", userData.languages, { error, errorType });
+                throw new CustomError(trace, "InternalError", { error, errorType });
             });
         const message = completion.choices[0].message.content ?? "";
         const cost = this.getResponseCost({

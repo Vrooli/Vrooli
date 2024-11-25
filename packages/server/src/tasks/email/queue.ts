@@ -65,7 +65,7 @@ export function sendMail(
 ): Promise<Success> {
     // Must include at least one "to" email address
     if (to.length === 0) {
-        throw new CustomError("0354", "InternalError", ["en"]);
+        throw new CustomError("0354", "InternalError");
     }
     return addJobToQueue(emailQueue, {
         to,

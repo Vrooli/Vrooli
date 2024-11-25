@@ -39,7 +39,7 @@ export async function getLabels(
         });
     } catch (error) {
         logger.error("readManyHelper: Failed to find searchResults", { trace: "0385", error, objectType, where, select });
-        throw new CustomError("0387", "InternalError", languages, { objectType });
+        throw new CustomError("0387", "InternalError", { objectType });
     }
     // If no data, return empty strings
     if (!labelsData || labelsData.length <= 0) return new Array(objectsWithLanguages.length).fill("");

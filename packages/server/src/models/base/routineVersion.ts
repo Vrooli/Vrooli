@@ -20,7 +20,6 @@ type RoutineVersionPre = PreShapeVersionResult & {
  */
 async function validateNodePositions(
     input: RoutineVersionCreateInput | RoutineVersionUpdateInput,
-    languages: string[],
 ): Promise<void> {
     // // Check that node columnIndexes and rowIndexes are valid TODO query existing data to do this
     // let combinedNodes = [];
@@ -56,7 +55,7 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                     name: trans.name,
                     tags: (root as any).tags.map(({ tag }) => tag),
                     description: trans.description,
-                }, languages[0]);
+                }, languages?.[0]);
             },
         },
     }),
@@ -70,17 +69,15 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                     Delete,
                     objectType: __typename,
                     Update,
-                    userData,
                 });
                 const combinedInputs = [...Create, ...Update].map(d => d.input);
-                combinedInputs.forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
-                await Promise.all(combinedInputs.map(async (input) => { await validateNodePositions(input, userData.languages); }));
+                combinedInputs.forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio"));
+                await Promise.all(combinedInputs.map(async (input) => { await validateNodePositions(input); }));
                 // Calculate simplicity and complexity of all versions. Since these calculations 
                 // can depend on other versions, we need to do them all at once. 
                 // We exclude deleting versions to ensure that they don't affect the calculations. 
                 // If a deleting version appears in the calculations, an error will be thrown.
                 const { dataWeights } = await calculateWeightData(
-                    userData.languages,
                     combinedInputs,
                     Delete.map(d => d.input),
                 );

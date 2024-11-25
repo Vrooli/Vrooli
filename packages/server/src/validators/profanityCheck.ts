@@ -128,7 +128,7 @@ export const profanityCheck = (inputData: CudInputData[], inputsById: InputsById
     // Check each field for profanity
     for (const field in fieldsToCheck) {
         if (hasProfanity(...fieldsToCheck[field])) {
-            throw new CustomError("0115", "BannedWord", languages);
+            throw new CustomError("0115", "BannedWord");
         }
     }
 };

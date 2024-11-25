@@ -35,7 +35,7 @@ export const PhoneModel: PhoneModelLogic = ({
                         where: { phoneNumber: { in: phoneNumbers } },
                     });
                     if (existingPhones.length > 0) {
-                        throw new CustomError("0147", "PhoneInUse", userData.languages, { phoneNumbers });
+                        throw new CustomError("0147", "PhoneInUse", { phoneNumbers });
                     }
                 }
                 // Prevent deleting phones if it will leave you with less than one verified authentication method
@@ -52,7 +52,7 @@ export const PhoneModel: PhoneModelLogic = ({
                         where: { user: { id: userData.id }, verified: true },
                     });
                     if (remainingVerifiedPhonesCount + verifiedEmailsCount + verifiedWalletsCount < 1)
-                        throw new CustomError("0153", "MustLeaveVerificationMethod", userData.languages);
+                        throw new CustomError("0153", "MustLeaveVerificationMethod");
                 }
                 return {};
             },

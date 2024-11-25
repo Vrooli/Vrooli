@@ -1,8 +1,8 @@
-import { Comment, CommentFor, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, commentValidation, getTranslation, GqlModelType, lowercaseFirstLetter, MaxObjects, VisibilityType } from "@local/shared";
+import { Comment, CommentFor, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, GqlModelType, MaxObjects, SessionUser, VisibilityType, commentValidation, getTranslation, lowercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { ModelMap } from ".";
-import { getUser } from "../../auth/request";
+import { SessionService } from "../../auth/session";
 import { addSupplementalFields } from "../../builders/addSupplementalFields";
 import { combineQueries } from "../../builders/combineQueries";
 import { modelToGql } from "../../builders/modelToGql";
@@ -12,8 +12,7 @@ import { GraphQLInfo, PartialGraphQLInfo } from "../../builders/types";
 import { useVisibility, useVisibilityMapper, visibilityBuilderPrisma } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { getSearchStringQuery } from "../../getters";
-import { SessionUserToken } from "../../types";
-import { defaultPermissions, oneIsPublic, SearchMap } from "../../utils";
+import { SearchMap, defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
 import { SortMap } from "../../utils/sortMap";
 import { afterMutationsPlain } from "../../utils/triggers";
@@ -82,13 +81,13 @@ export const CommentModel: CommentModelLogic = ({
          * Custom search query for querying comment threads
          */
         async searchThreads(
-            userData: SessionUserToken | null,
+            userData: SessionUser | null,
             input: { ids: string[], take: number, sortBy: CommentSortBy },
             info: GraphQLInfo | PartialGraphQLInfo,
             nestLimit = 2,
         ): Promise<CommentThread[]> {
             // Partially convert info type
-            const partialInfo = toPartialGqlInfo(info, ModelMap.get<CommentModelLogic>("Comment").format.gqlRelMap, userData?.languages ?? ["en"], true);
+            const partialInfo = toPartialGqlInfo(info, ModelMap.get<CommentModelLogic>("Comment").format.gqlRelMap, true);
             const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
             // Combine queries
             const where = { ...idQuery };
@@ -158,9 +157,9 @@ export const CommentModel: CommentModelLogic = ({
             info: GraphQLInfo | PartialGraphQLInfo,
             nestLimit = 2,
         ): Promise<CommentSearchResult> {
-            const userData = getUser(req.session);
+            const userData = SessionService.getUser(req.session);
             // Partially convert info type
-            const partialInfo = toPartialGqlInfo(info, ModelMap.get<CommentModelLogic>("Comment").format.gqlRelMap, req.session.languages, true);
+            const partialInfo = toPartialGqlInfo(info, ModelMap.get<CommentModelLogic>("Comment").format.gqlRelMap, true);
             // Determine text search query
             const searchQuery = input.searchString ? getSearchStringQuery({ objectType: "Comment", searchString: input.searchString }) : undefined;
             const searchData = {

@@ -1,4 +1,4 @@
-import { MaxObjects, StatsRoutineSortBy } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects, StatsRoutineSortBy } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
 import { useVisibility } from "../../builders/visibilityBuilder";
@@ -14,7 +14,7 @@ export const StatsRoutineModel: StatsRoutineModelLogic = ({
         label: {
             select: () => ({ id: true, routine: { select: ModelMap.get<RoutineModelLogic>("Routine").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
-                lng: languages.length > 0 ? languages[0] : "en",
+                lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE,
                 objectName: ModelMap.get<RoutineModelLogic>("Routine").display().label.get(select.routine as RoutineModelInfo["PrismaModel"], languages),
             }),
         },

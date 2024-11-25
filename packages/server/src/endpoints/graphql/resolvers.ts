@@ -8,10 +8,10 @@ import { CustomError } from "../../events/error";
  * to determine the type of the object. We get around this by supplementing 
  * every object with our own type field
  */
-export const resolveUnion = (object: Record<string, unknown>): `${GqlModelType}` => {
+export function resolveUnion(object: Record<string, unknown>): `${GqlModelType}` {
     if (object.__typename) {
         return object.__typename as `${GqlModelType}`;
     } else {
-        throw new CustomError("0364", "InternalError", ["en"]);
+        throw new CustomError("0364", "InternalError");
     }
 };

@@ -1,4 +1,4 @@
-import { MaxObjects, StatsQuizSortBy } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects, StatsQuizSortBy } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
 import { useVisibility } from "../../builders/visibilityBuilder";
@@ -14,7 +14,7 @@ export const StatsQuizModel: StatsQuizModelLogic = ({
         label: {
             select: () => ({ id: true, quiz: { select: ModelMap.get<QuizModelLogic>("Quiz").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
-                lng: languages.length > 0 ? languages[0] : "en",
+                lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE,
                 objectName: ModelMap.get<QuizModelLogic>("Quiz").display().label.get(select.quiz as QuizModelInfo["PrismaModel"], languages),
             }),
         },

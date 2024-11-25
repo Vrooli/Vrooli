@@ -16,6 +16,12 @@ type UserPre = PreShapeEmbeddableTranslatableResult;
 
 const __typename = "User" as const;
 
+/**
+ * Length of random characters added to new user's name, 
+ * if not provided by OAuth provider or other means.
+ */
+export const DEFAULT_USER_NAME_LENGTH = 8;
+
 type UpdateProfileType = Exclude<Mutater<UserModelInfo & { GqlUpdate: ProfileUpdateInput }>["shape"]["update"], undefined>;
 async function updateProfile({ data, ...rest }: Parameters<UpdateProfileType>[0]): Promise<UserModelInfo["PrismaUpdate"]> {
     const preData = rest.preMap[__typename] as UserPre;
@@ -84,15 +90,15 @@ export const UserModel: UserModelLogic = ({
                     bio: trans.bio,
                     handle,
                     name,
-                }, languages[0]);
+                }, languages?.[0]);
             },
         },
     }),
     format: UserFormat,
     mutate: {
         shape: {
-            pre: async ({ Update, userData }): Promise<UserPre> => {
-                await handlesCheck(__typename, [], Update, userData.languages);
+            pre: async ({ Update }): Promise<UserPre> => {
+                await handlesCheck(__typename, [], Update);
                 const maps = preShapeEmbeddableTranslatable<"id">({ Create: [], Update, objectType: __typename });
                 return { ...maps };
             },

@@ -1,4 +1,4 @@
-import { GqlModelType, MaxObjects, ReportFor, ReportSearchInput, ReportSortBy, ReportStatus, reportValidation } from "@local/shared";
+import { DEFAULT_LANGUAGE, GqlModelType, MaxObjects, ReportFor, ReportSearchInput, ReportSortBy, ReportStatus, reportValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { ModelMap } from ".";
@@ -44,7 +44,7 @@ export const ReportModel: ReportModelLogic = ({
                 for (const [key, value] of Object.entries(forMapper)) {
                     if (select[value]) return ModelMap.get(key as GqlModelType).display().label.get(select[value], languages);
                 }
-                return i18next.t("common:Report", { lng: languages[0], count: 1 });
+                return i18next.t("common:Report", { lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE, count: 1 });
             },
         },
     }),
@@ -73,7 +73,7 @@ export const ReportModel: ReportModelLogic = ({
                     });
                     console.log("existing", existing);
                     if (existing.length > 0)
-                        throw new CustomError("0337", "MaxReportsReached", userData.languages);
+                        throw new CustomError("0337", "MaxReportsReached");
                 }
             },
             create: async ({ data, userData }) => {

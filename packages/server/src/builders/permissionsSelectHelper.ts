@@ -33,7 +33,7 @@ export function permissionsSelectHelper<Select extends { [x: string]: any }>(
 ): Select {
     // If recursion depth is too high, throw an error
     if (recursionDepth > MAX_RECURSION_DEPTH) {
-        throw new CustomError("0386", "InternalError", languages ?? ["en"], { userId, recursionDepth });
+        throw new CustomError("0386", "InternalError", { userId, recursionDepth });
     }
     const map = typeof mapResolver === "function" ? mapResolver(userId, languages) : mapResolver;
     // Initialize result

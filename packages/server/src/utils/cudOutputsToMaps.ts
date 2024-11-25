@@ -44,7 +44,7 @@ export const cudOutputsToMaps = <Model extends {
             const node = inputsById[createdId].node;
             if (node.action !== "Create") {
                 // If this error is thrown, there is a bug in cudInputsToMaps
-                throw new CustomError("0529", "InternalError", ["en"], { node, createdId });
+                throw new CustomError("0529", "InternalError", { node, createdId });
             }
             const type = node.__typename;
             initResult(type as GqlModelType);
@@ -57,7 +57,7 @@ export const cudOutputsToMaps = <Model extends {
             const node = inputsById[updatedId].node;
             if (node.action !== "Update") {
                 // If this error is thrown, there is a bug in cudInputsToMaps
-                throw new CustomError("0530", "InternalError", ["en"], { node, updatedId });
+                throw new CustomError("0530", "InternalError", { node, updatedId });
             }
             const type = node.__typename;
             initResult(type as GqlModelType);

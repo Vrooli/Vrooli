@@ -33,16 +33,16 @@ export const TeamModel: TeamModelLogic = ({
                 return getEmbeddableString({
                     bio: trans.bio,
                     name: trans.name,
-                }, languages[0]);
+                }, languages?.[0]);
             },
         },
     }),
     format: TeamFormat,
     mutate: {
         shape: {
-            pre: async ({ Create, Update, userData }): Promise<TeamPre> => {
-                [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["bio"], "LineBreaksBio", userData.languages));
-                await handlesCheck(__typename, Create, Update, userData.languages);
+            pre: async ({ Create, Update }): Promise<TeamPre> => {
+                [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["bio"], "LineBreaksBio"));
+                await handlesCheck(__typename, Create, Update);
                 // Find translations that need text embeddings
                 const maps = preShapeEmbeddableTranslatable<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };

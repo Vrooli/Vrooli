@@ -42,7 +42,7 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
                     name: trans.name,
                     summary: trans.summary,
                     tags: (root as any).tags.map(({ tag }) => tag),
-                }, languages[0]);
+                }, languages?.[0]);
             },
         },
     }),
@@ -56,9 +56,8 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
                     Delete,
                     objectType: __typename,
                     Update,
-                    userData,
                 });
-                [...Create, ...Update].forEach(input => lineBreaksCheck(input, ["summary"], "LineBreaksBio", userData.languages));
+                [...Create, ...Update].forEach(input => lineBreaksCheck(input, ["summary"], "LineBreaksBio"));
                 const maps = preShapeVersion<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },

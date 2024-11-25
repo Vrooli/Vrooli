@@ -81,7 +81,7 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
                 const errorType = this.getErrorType(error);
                 LlmServiceRegistry.get().updateServiceState(this.__id, errorType);
                 logger.error("Failed to call Anthropic", { trace, error, errorType });
-                throw new CustomError(trace, "InternalError", userData.languages, { error, errorType });
+                throw new CustomError(trace, "InternalError", { error, errorType });
             });
         const message = completion.content?.map(block => block.text).join("") ?? "";
         const cost = this.getResponseCost({
@@ -253,7 +253,7 @@ export class AnthropicService implements LanguageModelService<AnthropicModel, An
                     const errorType = this.getErrorType(error);
                     LlmServiceRegistry.get().updateServiceState(this.__id, errorType);
                     logger.error("Failed to perform content moderation", { trace, error, errorType });
-                    throw new CustomError(trace, "InternalError", ["en"], { error, errorType });
+                    throw new CustomError(trace, "InternalError", { error, errorType });
                 });
 
             const moderationResult = completion.content

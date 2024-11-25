@@ -24,7 +24,7 @@ export const RunProjectModel: RunProjectModelLogic = ({
         embed: {
             select: () => ({ id: true, embeddingNeedsUpdate: true, name: true }),
             get: ({ name }, languages) => {
-                return getEmbeddableString({ name }, languages[0]);
+                return getEmbeddableString({ name }, languages?.[0]);
             },
         },
     }),

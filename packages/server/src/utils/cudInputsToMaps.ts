@@ -339,7 +339,7 @@ export function determineModelType<
     // If we get here and there's no union data, something is wrong with either the input 
     // or the format. Throw an error.
     if (!format.unionFields) {
-        throw new CustomError("0525", "InternalError", ["en"], { field, fieldName });
+        throw new CustomError("0525", "InternalError", { field, fieldName });
     }
     // Loop through union fields
     for (const [unionField, unionFieldValue] of Object.entries(format.unionFields)) {
@@ -347,7 +347,7 @@ export function determineModelType<
         // The union field should always exist in gqlRelMap. If not, the format is configured incorrectly.
         const unionMap = format.gqlRelMap[unionField];
         if (!unionMap) {
-            throw new CustomError("0527", "InternalError", ["en"], { field, fieldName });
+            throw new CustomError("0527", "InternalError", { field, fieldName });
         }
         // There are two possible formats for the unionField data:
         // 1. An empty object - This means that everything we need is in the unionMap
@@ -369,14 +369,14 @@ export function determineModelType<
         if (unionFieldValue.connectField === field) {
             // Make sure that typeField is also in the input. If not, something is wrong with the input.
             if (!input[unionFieldValue.typeField as string]) {
-                throw new CustomError("0488", "InternalError", ["en"], { field, fieldName });
+                throw new CustomError("0488", "InternalError", { field, fieldName });
             }
             // If so, we found the union type
             return input[unionFieldValue.typeField as string] as `${GqlModelType}`;
         }
     }
     // If we get here, we couldn't find the union type. Throw an error.
-    throw new CustomError("0228", "InternalError", ["en"], { field, fieldName });
+    throw new CustomError("0228", "InternalError", { field, fieldName });
 }
 
 
@@ -406,7 +406,7 @@ export function processCreateOrUpdate<
     if (action === "Create" || action === "Update") {
         // Disallow Update if we're in a create mutation
         if (action === "Update" && closestWithId === null) {
-            throw new CustomError("0004", "InternalError", ["en"], { fieldName });
+            throw new CustomError("0004", "InternalError", { fieldName });
         }
         const childNode = inputToMaps(
             action,
@@ -423,7 +423,7 @@ export function processCreateOrUpdate<
         parentNode.children.push(childNode);
     } else {
         // If other functions are set up correctly, this should never happen
-        throw new CustomError("0110", "InternalError", ["en"], { action });
+        throw new CustomError("0110", "InternalError", { action });
     }
 }
 
@@ -450,7 +450,7 @@ export function processConnectDisconnectOrDelete(
     const isInCreate = closestWithId === null;
     // Disallow Disconnect and Delete if we're in a create mutation
     if (["Disconnect", "Delete"].includes(action) && isInCreate) {
-        throw new CustomError("0111", "InternalError", ["en"], { trace: "0124", id });
+        throw new CustomError("0111", "InternalError", { trace: "0124", id });
     }
     // Handle placeholders first.
     // Placeholders are only used for implicit disconnects/deletes on one-to-one and many-to-one relations.

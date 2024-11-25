@@ -98,7 +98,7 @@
 // const errorType = this.getErrorType(error);
 // LlmServiceRegistry.get().updateServiceState(this.__id, errorType)
 // logger.error("Failed to call Google", { trace, error, errorType });
-// throw new CustomError(trace, "InternalError", userData.languages, { error, errorType });
+// throw new CustomError(trace, "InternalError", { error, errorType });
 //             });
 //         return completion.choices[0].message.content ?? "";
 //     }

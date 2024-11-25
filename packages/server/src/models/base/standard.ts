@@ -1,10 +1,9 @@
-import { MaxObjects, StandardCreateInput, StandardSortBy, standardValidation } from "@local/shared";
+import { MaxObjects, SessionUser, StandardCreateInput, StandardSortBy, standardValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { useVisibility } from "../../builders/visibilityBuilder";
 import { getLabels } from "../../getters";
-import { SessionUserToken } from "../../types";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
 import { PreShapeRootResult, labelShapeHelper, ownerFields, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
@@ -123,14 +122,14 @@ export const StandardModel: StandardModelLogic = ({
          */
         async findMatchingStandardVersion(
             data: StandardCreateInput,
-            userData: SessionUserToken,
+            userData: SessionUser,
             uniqueToCreator: boolean,
             isInternal: boolean,
         ): Promise<{ [x: string]: any } | null> {
             return null;
             // // Sort all JSON properties that are part of the comparison
-            // const props = sortify(data.props, userData.languages);
-            // const yup = data.yup ? sortify(data.yup, userData.languages) : null;
+            // const props = sortify(data.props);
+            // const yup = data.yup ? sortify(data.yup) : null;
             // // Find all standards that match the given standard
             // const standards = await prismaInstance.standard_version.findMany({
             //     where: {

@@ -13,7 +13,6 @@ const cache = new LRUCache<string, PartialGraphQLInfo>(1000, 250_000);
  * Converts shapes 1 and 2 in a GraphQL to Prisma conversion to shape 2
  * @param info - GraphQL info object, or result of this function
  * @param gqlRelMap - Map of relationship names to typenames
- * @param languages - Preferred languages for error messages
  * @param throwIfNotPartial - Throw error if info is not partial
  * @returns Partial Prisma select. This can be passed into the function again without changing the result.
  */
@@ -25,13 +24,12 @@ export function toPartialGqlInfo<
 >(
     info: GraphQLInfo | PartialGraphQLInfo,
     gqlRelMap: GqlRelMap<Typename, GqlModel, PrismaModel>,
-    languages: string[],
     throwIfNotPartial: ThrowErrorIfNotPartial = false as ThrowErrorIfNotPartial,
 ): ThrowErrorIfNotPartial extends true ? PartialGraphQLInfo : (PartialGraphQLInfo | undefined) {
     // Return undefined if info not set
     if (!info) {
         if (throwIfNotPartial)
-            throw new CustomError("0345", "InternalError", languages);
+            throw new CustomError("0345", "InternalError");
         return undefined as any;
     }
     // Check if cached
@@ -59,7 +57,7 @@ export function toPartialGqlInfo<
     // Inject type fields
     select = injectTypenames(select, gqlRelMap);
     if (!select)
-        throw new CustomError("0346", "InternalError", languages);
+        throw new CustomError("0346", "InternalError");
     // Cache result
     cache.set(cacheKey, select);
     return select;

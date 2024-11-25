@@ -85,7 +85,7 @@ export class MistralService implements LanguageModelService<MistralModel, Mistra
                 const errorType = this.getErrorType(error);
                 LlmServiceRegistry.get().updateServiceState(this.__id, errorType);
                 logger.error("Failed to call Mistral", { trace, error, errorType });
-                throw new CustomError(trace, "InternalError", userData.languages, { error, errorType });
+                throw new CustomError(trace, "InternalError", { error, errorType });
             });
         const message = completion.choices[0].message.content ?? "";
         const cost = this.getResponseCost({
@@ -242,7 +242,7 @@ export class MistralService implements LanguageModelService<MistralModel, Mistra
                     const errorType = this.getErrorType(error);
                     LlmServiceRegistry.get().updateServiceState(this.__id, errorType);
                     logger.error("Failed to perform content moderation", { trace, error, errorType });
-                    throw new CustomError(trace, "InternalError", ["en"], { error, errorType });
+                    throw new CustomError(trace, "InternalError", { error, errorType });
                 });
 
             const moderationResult = completion.choices[0].message.content.trim().toLowerCase();

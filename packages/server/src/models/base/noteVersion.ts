@@ -34,7 +34,7 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
                     name: trans.name,
                     tags: (root as any).tags.map(({ tag }) => tag),
                     description: trans.description?.slice(0, 256),
-                }, languages[0]);
+                }, languages?.[0]);
             },
         },
     }),
@@ -48,9 +48,8 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
                     Delete,
                     objectType: __typename,
                     Update,
-                    userData,
                 });
-                [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio", userData.languages));
+                [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio"));
                 const maps = preShapeVersion<"id">({ Create, Update, objectType: __typename });
                 return { ...maps };
             },

@@ -88,7 +88,7 @@ export class SqlBuilder {
         const dbTable = ModelMap.get(objectType).dbTable;
         if (!this.tableToAliasMap[dbTable]) {
             if (Object.keys(this.tableToAliasMap).length >= 26) {
-                throw new CustomError("0422", "InternalError", ["en"], { message: "Alias overflow: More than 26 table aliases are not supported." });
+                throw new CustomError("0422", "InternalError", { message: "Alias overflow: More than 26 table aliases are not supported." });
             }
             // Move across unicode characters, starting at "a", to create a new alias
             const nextChar = String.fromCharCode("a".charCodeAt(0) + Object.keys(this.tableToAliasMap).length);

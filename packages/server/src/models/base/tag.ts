@@ -28,7 +28,7 @@ export const TagModel: TagModelLogic = ({
                 return getEmbeddableString({
                     description: trans.description,
                     tag,
-                }, languages[0]);
+                }, languages?.[0]);
             },
         },
     }),

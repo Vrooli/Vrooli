@@ -25,19 +25,17 @@ type LinkData = {
  * Each node has a weight that is the summation of its contained subroutines.
  * @param nodes A map of node IDs to their weight (simplicity/complexity)
  * @param edges The edges of the graph, with each object containing a fromId and toId
- * @param languages Preferred languages for error messages
  * @returns [shortestPath, longestPath] The shortest and longest weighted distance
  */
-export const calculateShortestLongestWeightedPath = (
+export function calculateShortestLongestWeightedPath(
     nodes: { [id: string]: SubroutineWeightData },
     edges: LinkData[],
-    languages: string[],
-): [number, number] => {
+): [number, number] {
     // First, check that all edges point to valid nodes. 
     // If this isn't the case, this algorithm could run into an error
     for (const edge of edges) {
         if (!nodes[edge.toId] || !nodes[edge.fromId]) {
-            throw new CustomError("0237", "UnlinkedNodes", languages, { failedEdge: edge });
+            throw new CustomError("0237", "UnlinkedNodes", { failedEdge: edge });
         }
     }
     // If no nodes or edges, return 1
@@ -153,7 +151,7 @@ type GroupRoutineVersionDataResult = {
  * @param ids The routine version IDs, and the id of the routine they're in, if they're a subroutine
  * @returns Object with linkData, nodeData, subroutineItemData, and input counts by routine version ID
  */
-const groupRoutineVersionData = async (ids: { id: string, parentId: string | null }[]): Promise<GroupRoutineVersionDataResult> => {
+async function groupRoutineVersionData(ids: { id: string, parentId: string | null }[]): Promise<GroupRoutineVersionDataResult> {
     // Initialize data
     const linkData: Pick<GroupRoutineVersionDataResult, "linkData">["linkData"] = {};
     const nodeData: Pick<GroupRoutineVersionDataResult, "nodeData">["nodeData"] = {};
@@ -224,21 +222,19 @@ type CalculateComplexityResult = {
  * routine versions based on the number of steps. 
  * Simplicity is a the minimum number of inputs and decisions required to complete the routine version, while 
  * complexity is the maximum. 
- * @param languages Preferred languages for error messages
  * @param inputs The routine version's create or update input
  * @param disallowIds IDs of routine versions that are not allowed to be used. This is used to 
  * prevent multiple updates of the same version.
  * @returns Data used for recursion, as well as an array of weightData (in same order as inputs)
  */
-export const calculateWeightData = async (
-    languages: string[],
+export async function calculateWeightData(
     inputs: (RoutineVersionUpdateInput | RoutineVersionCreateInput)[],
     disallowIds: string[],
-): Promise<CalculateComplexityResult> => {
+): Promise<CalculateComplexityResult> {
     // Make sure inputs do not contain disallowed IDs
     const inputIds = inputs.map(i => i.id);
     if (inputIds.some(id => disallowIds.includes(id))) {
-        throw new CustomError("0370", "InvalidArgs", languages);
+        throw new CustomError("0370", "InvalidArgs");
     }
     // Initialize data used to calculate complexity/simplicity
     const linkData: { [id: string]: LinkData } = {};
@@ -356,7 +352,7 @@ export const calculateWeightData = async (
         const {
             updatingSubroutineIds: recursedUpdatingSubroutineIds,
             dataWeights: recursedDataWeights,
-        } = await calculateWeightData(languages, updatingSubroutineData, [...disallowIds, ...inputIds]);
+        } = await calculateWeightData(updatingSubroutineData, [...disallowIds, ...inputIds]);
         updatingSubroutineIds.push(...recursedUpdatingSubroutineIds);
         for (let i = 0; i < recursedDataWeights.length; i++) {
             const currWeight = recursedDataWeights[i];
@@ -406,7 +402,7 @@ export const calculateWeightData = async (
             squishedNodes[node.nodeId] = squishedNode;
         }
         // Calculate shortest and longest weighted paths
-        const [shortest, longest] = calculateShortestLongestWeightedPath(squishedNodes, links, languages);
+        const [shortest, longest] = calculateShortestLongestWeightedPath(squishedNodes, links);
         // Add with +1, so that nesting routines has a small (but not zero) factor in determining weight
         dataWeights.push({
             id: versionId,

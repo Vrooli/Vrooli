@@ -1,4 +1,4 @@
-import { MaxObjects, StatsApiSortBy } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects, StatsApiSortBy } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
 import { useVisibility } from "../../builders/visibilityBuilder";
@@ -14,7 +14,7 @@ export const StatsApiModel: StatsApiModelLogic = ({
         label: {
             select: () => ({ id: true, api: { select: ModelMap.get<ApiModelLogic>("Api").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
-                lng: languages.length > 0 ? languages[0] : "en",
+                lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE,
                 objectName: ModelMap.get<ApiModelLogic>("Api").display().label.get(select.api as ApiModelInfo["PrismaModel"], languages),
             }),
         },

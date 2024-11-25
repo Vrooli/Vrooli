@@ -132,12 +132,12 @@ export class LlmServiceRegistry {
     getService = (serviceId: LlmServiceId) => {
         const state = this.getServiceState(serviceId);
         if (state !== LlmServiceState.Active) {
-            throw new CustomError("0652", "ServiceDisabled", ["en"], { serviceId });
+            throw new CustomError("0652", "ServiceDisabled", { serviceId });
         }
 
         const instance = serviceInstances[serviceId];
         if (!instance) {
-            throw new CustomError("0251", "InternalError", ["en"], { serviceId });
+            throw new CustomError("0251", "InternalError", { serviceId });
         }
         return instance;
     };

@@ -1,8 +1,7 @@
-import { GqlModelType, lowercaseFirstLetter, uuidValidate } from "@local/shared";
+import { GqlModelType, SessionUser, lowercaseFirstLetter, uuidValidate } from "@local/shared";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
 import { PreMap } from "../models/types";
-import { SessionUserToken } from "../types";
 import { IdsCreateToConnect } from "../utils/types";
 import { shapeRelationshipData } from "./shapeRelationshipData";
 import { RelationshipType } from "./types";
@@ -76,7 +75,7 @@ export type ShapeHelperProps<
      * Session data of the user performing the operation. Relationship building is only used when performing 
      * create, update, and delete operations, so id is always required
      */
-    userData: SessionUserToken,
+    userData: SessionUser,
 }
 /**
  * Creates the relationship operations for a mutater shape create or update function
@@ -247,9 +246,9 @@ export async function shapeHelper<
         // 2. Does not have both a disconnect and delete
         const isAdd = ("create" in result || "connect" in result) && !("delete" in result || "disconnect" in result || "update" in result);
         if (result.connect && result.create)
-            throw new CustomError("0342", "InvalidArgs", userData.languages, { relation });
+            throw new CustomError("0342", "InvalidArgs", { relation });
         if (result.disconnect && result.delete)
-            throw new CustomError("0343", "InvalidArgs", userData.languages, { relation });
+            throw new CustomError("0343", "InvalidArgs", { relation });
         // Remove arrays
         // one-to-one's disconnect/delete must be true or undefined
         if (result.disconnect) result.disconnect = true;

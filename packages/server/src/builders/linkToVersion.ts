@@ -1,5 +1,6 @@
 import { CustomError } from "../events/error";
 
+//TODO This isn't used anywhere. Not sure if it should be deleted or not
 /**
  * Versioned models shape create and update data from the perspective of the root object. 
  * When using this for relationships, sometimes we want to link to a version instead of
@@ -13,22 +14,20 @@ import { CustomError } from "../events/error";
  * @param shaped The shaped data to convert. Either single object or array
  * @param isAdd True if this is a create operation, false if update. This limits 
  * the types of operations allowed
- * @param languages Preferred languages for error messages
  * @returns The shaped data, with version as top-level and the previous top-level under "root"
  */
 export const linkToVersion = <T extends { [x: string]: any }>(
     shaped: T | T[],
     isAdd: boolean,
-    languages: string[],
 ) => {
     // If array, recursively call this function for each element
-    if (Array.isArray(shaped)) return shaped.map(e => linkToVersion(e, isAdd, languages));
+    if (Array.isArray(shaped)) return shaped.map(e => linkToVersion(e, isAdd));
     let version: { [x: string]: any };
     // Now we know it's a single object
     // Make sure there is exactly one version,
-    if (!shaped.versions) throw new CustomError("0356", "InvalidArgs", languages);
+    if (!shaped.versions) throw new CustomError("0356", "InvalidArgs");
     if (Array.isArray(shaped.versions)) {
-        if (shaped.versions.length !== 1) throw new CustomError("0357", "InvalidArgs", languages);
+        if (shaped.versions.length !== 1) throw new CustomError("0357", "InvalidArgs");
         version = shaped.versions[0];
     } else {
         version = shaped.versions;
@@ -37,9 +36,9 @@ export const linkToVersion = <T extends { [x: string]: any }>(
     // "create" or "update", but not both. Which one is defined depends on
     // whether this is a create or update operation
     if (isAdd) {
-        if (!version.create) throw new CustomError("0358", "InvalidArgs", languages);
+        if (!version.create) throw new CustomError("0358", "InvalidArgs");
         if (Array.isArray(version.create)) {
-            if (version.create.length !== 1) throw new CustomError("0359", "InvalidArgs", languages);
+            if (version.create.length !== 1) throw new CustomError("0359", "InvalidArgs");
             // Remove "create" wrapper
             version = version.create[0];
         } else {
@@ -47,9 +46,9 @@ export const linkToVersion = <T extends { [x: string]: any }>(
             version = version.create;
         }
     } else {
-        if (!version.update) throw new CustomError("0360", "InvalidArgs", languages);
+        if (!version.update) throw new CustomError("0360", "InvalidArgs");
         if (Array.isArray(version.update)) {
-            if (version.update.length !== 1) throw new CustomError("0361", "InvalidArgs", languages);
+            if (version.update.length !== 1) throw new CustomError("0361", "InvalidArgs");
             // Remove "update" wrapper
             version = version.update[0];
         } else {

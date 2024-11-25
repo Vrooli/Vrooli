@@ -6,16 +6,15 @@ import { CustomError } from "../events/error";
  * @param input The input to check
  * @param fields The field names to check
  * @param error - The error to throw if failed
- * @param languages The languages to use for error messages
  * @param k - The maximum number of line breaks allowed
  */
-export const lineBreaksCheck = (input: any, fields: string[], error: TranslationKeyError, languages: string[], k = 2): void => {
+export const lineBreaksCheck = (input: any, fields: string[], error: TranslationKeyError, k = 2): void => {
     // First, check translations
     const checkTranslations = (translations: any[], fields: string[]): void => {
         translations.forEach((x: any) => {
             fields.forEach(field => {
                 if (x[field] && x[field].split("\n").length > (k + 1)) {
-                    throw new CustomError("0116", error, languages);
+                    throw new CustomError("0116", error);
                 }
             });
         });
@@ -25,7 +24,7 @@ export const lineBreaksCheck = (input: any, fields: string[], error: Translation
     // Then, check the main object
     fields.forEach(field => {
         if (input[field] && input[field].split("\n").length > (k + 1)) {
-            throw new CustomError("0117", error, languages);
+            throw new CustomError("0117", error);
         }
     });
 };

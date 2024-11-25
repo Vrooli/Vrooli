@@ -26,10 +26,10 @@ export async function getLatestVersion({
     handleRoot?: string | null,
 }): Promise<string | undefined> {
     // Make sure either idRoot or handleRoot is provided
-    if (!idRoot && !handleRoot) throw new CustomError("0371", "InvalidArgs", ["en"], { objectType });
+    if (!idRoot && !handleRoot) throw new CustomError("0371", "InvalidArgs", { objectType });
     // Make sure handle is only supplied for objects that have handles
     const handleableObjects = ["ProjectVersion"];
-    if (handleRoot && !handleableObjects.includes(objectType)) throw new CustomError("0372", "InvalidArgs", ["en"], { objectType, handleRoot });
+    if (handleRoot && !handleableObjects.includes(objectType)) throw new CustomError("0372", "InvalidArgs", { objectType, handleRoot });
     // Create root select query
     const rootSelectQuery = idRoot ? { id: idRoot } : { handle: handleRoot };
     // Get model
