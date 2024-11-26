@@ -1,8 +1,8 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, Palette, useTheme } from "@mui/material";
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogProps, Palette, styled, useTheme } from "@mui/material";
 import { useZIndex } from "hooks/useZIndex";
 import i18next from "i18next";
 import { ErrorIcon, InfoIcon, SuccessIcon, WarningIcon } from "icons";
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { translateSnackMessage } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
@@ -27,11 +27,13 @@ export interface AlertDialogState {
     severity?: AlertDialogSeverity | `${AlertDialogSeverity}`;
 }
 
-const defaultState = (): AlertDialogState => ({
-    buttons: [{ label: i18next.t("Ok") }],
-});
+function defaultState(): AlertDialogState {
+    return {
+        buttons: [{ label: i18next.t("Ok") }],
+    } as const;
+}
 
-const iconColor = (severity: AlertDialogSeverity | `${AlertDialogSeverity}` | undefined, palette: Palette) => {
+function iconColor(severity: AlertDialogSeverity | `${AlertDialogSeverity}` | undefined, palette: Palette) {
     switch (severity) {
         case "Error":
             return palette.error.dark;
@@ -44,18 +46,41 @@ const iconColor = (severity: AlertDialogSeverity | `${AlertDialogSeverity}` | un
         default:
             return palette.primary.light;
     }
-};
+}
 
 const titleId = "alert-dialog-title";
 const descriptionAria = "alert-dialog-description";
+const Z_INDEX_OFFSET = 1000;
 
-export const AlertDialog = () => {
+interface StyledDialogProps extends Omit<DialogProps, "zIndex"> {
+    zIndex: number;
+}
+const StyledDialog = styled(Dialog, {
+    shouldForwardProp: (prop) => prop !== "zIndex",
+})<StyledDialogProps>(({ theme, zIndex }) => ({
+    zIndex,
+    "& > .MuiDialog-container": {
+        "& > .MuiPaper-root": {
+            zIndex,
+            borderRadius: 4,
+            background: theme.palette.background.paper,
+        },
+    },
+}));
+
+const dialogContextTextStyle = {
+    whiteSpace: "pre-wrap",
+    wordWrap: "break-word",
+    paddingTop: 2,
+} as const;
+
+export function AlertDialog() {
     const { t } = useTranslation();
     const { palette } = useTheme();
 
     const [state, setState] = useState<AlertDialogState>(defaultState());
     const [open, setOpen] = useState(false);
-    const zIndex = useZIndex(open, false, 1000);
+    const zIndex = useZIndex(open, false, Z_INDEX_OFFSET);
 
     // Determine the icon based on severity
     const Icon = state.severity ? {
@@ -84,7 +109,10 @@ export const AlertDialog = () => {
         return unsubscribe;
     }, [t]);
 
-    const handleClick = useCallback((event: any, action: ((e?: unknown) => unknown) | null | undefined) => {
+    const handleClick = useCallback((
+        event: React.MouseEvent<HTMLButtonElement>,
+        action: ((e?: unknown) => unknown) | null | undefined,
+    ) => {
         if (action) action(event);
         setOpen(false);
     }, []);
@@ -92,22 +120,13 @@ export const AlertDialog = () => {
     const resetState = useCallback(() => setOpen(false), []);
 
     return (
-        <Dialog
+        <StyledDialog
             open={open}
             disableScrollLock={true}
             onClose={resetState}
             aria-labelledby={state.title ? titleId : undefined}
             aria-describedby={descriptionAria}
-            sx={{
-                zIndex,
-                "& > .MuiDialog-container": {
-                    "& > .MuiPaper-root": {
-                        zIndex,
-                        borderRadius: 4,
-                        background: palette.background.paper,
-                    },
-                },
-            }}
+            zIndex={zIndex}
         >
             {state.title && <DialogTitle
                 id={titleId}
@@ -117,28 +136,30 @@ export const AlertDialog = () => {
             />}
             <DialogContent>
                 {!state.title && Icon !== null && <Icon fill={iconColor(state.severity, palette)} />}
-                <DialogContentText id={descriptionAria} sx={{
-                    whiteSpace: "pre-wrap",
-                    wordWrap: "break-word",
-                    paddingTop: 2,
-                }}>
+                <DialogContentText id={descriptionAria} sx={dialogContextTextStyle}>
                     {state.message}
                 </DialogContentText>
             </DialogContent>
             {/* Actions */}
             <DialogActions>
                 {state?.buttons && state.buttons.length > 0 ? (
-                    state.buttons.map((b: StateButton, index) => (
-                        <Button
-                            key={`alert-button-${index}`}
-                            onClick={(e) => handleClick(e, b.onClick)}
-                            variant="text"
-                        >
-                            {b.label}
-                        </Button>
-                    ))
+                    state.buttons.map((b: StateButton, index) => {
+                        function onClick(e: React.MouseEvent<HTMLButtonElement>) {
+                            handleClick(e, b.onClick);
+                        }
+
+                        return (
+                            <Button
+                                key={`alert-button-${index}`}
+                                onClick={onClick}
+                                variant="text"
+                            >
+                                {b.label}
+                            </Button>
+                        );
+                    })
                 ) : null}
             </DialogActions>
-        </Dialog >
+        </StyledDialog>
     );
-};
+}

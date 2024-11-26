@@ -1,7 +1,7 @@
 import { LINKS } from "@local/shared";
 import { Box } from "@mui/material";
-import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
 import { ScrollToTop } from "components/ScrollToTop";
+import { FullPageSpinner } from "components/Spinners/Spinners";
 import { NavbarProps } from "components/navigation/types";
 import { lazily } from "react-lazily";
 import { Route, RouteProps, Switch } from "route";

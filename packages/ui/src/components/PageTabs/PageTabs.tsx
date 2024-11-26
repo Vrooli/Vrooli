@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { Box, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { Box, BoxProps, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { PageTabsProps } from "components/types";
 import { useWindowSize } from "hooks/useWindowSize";
-import { createRef, useCallback, useEffect, useMemo, useRef } from "react";
+import { createRef, memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { TabStateColors, TabsInfo } from "utils/search/objectToSearch";
 
 const DRAG_END_DELAY_MS = 50;
@@ -23,6 +23,92 @@ const Underline = styled(Box)(({ theme }) => ({
     transition: "left 0.3s ease, width 0.3s ease",
 }));
 
+interface TabBoxProps extends BoxProps {
+    fullWidth: boolean;
+    isSelected: boolean;
+}
+const TabBox = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "fullWidth" && prop !== "isSelected",
+})<TabBoxProps>(({ fullWidth, isSelected }) => ({
+    padding: "4px 8px",
+    margin: fullWidth ? "0 auto" : "0",
+    cursor: "pointer",
+    textTransform: "uppercase",
+    // Darken non-selected tabs
+    filter: isSelected ? "none" : "brightness(0.8)",
+}));
+
+interface TabItemProps {
+    ariaLabel: string;
+    fullWidth: boolean;
+    index: number;
+    isSelected: boolean;
+    color?: string | TabStateColors;
+    href?: string;
+    Icon?: React.ComponentType<{ fill: string }>;
+    key: string;
+    label: string;
+    ignoreIcons: boolean;
+    onClick: (event: React.MouseEvent, index: number) => unknown;
+    tabColor: string;
+}
+
+const TabItem = memo(function TabItem({
+    ariaLabel,
+    fullWidth,
+    index,
+    isSelected,
+    href,
+    Icon,
+    label,
+    ignoreIcons,
+    onClick,
+    tabColor,
+}: TabItemProps) {
+    const handleClick = useCallback(
+        (event: React.MouseEvent) => {
+            onClick(event, index);
+        },
+        [onClick, index],
+    );
+
+    const labelStyle = useMemo(() => ({ color: tabColor }), [tabColor]);
+
+    return (
+        <Tooltip key={label} title={(Icon && !ignoreIcons) ? label : ""}>
+            <TabBox
+                id={`${ariaLabel}-${index}`}
+                aria-selected={isSelected}
+                aria-controls={`${ariaLabel}-tabpanel-${index}`}
+                component={href ? "a" : "div"}
+                fullWidth={fullWidth}
+                // @ts-ignore
+                // @eslint-disable-next-line
+                href={href}
+                isSelected={isSelected}
+                onClick={handleClick}
+                role="tab"
+            >
+                {
+                    (Icon && !ignoreIcons)
+                        ? <Icon fill={tabColor} />
+                        : <Typography variant="body2" style={labelStyle}>{label}</Typography>
+                }
+            </TabBox>
+        </Tooltip>
+    );
+}, (prevProps, nextProps) => {
+    return (
+        prevProps.isSelected === nextProps.isSelected &&
+        prevProps.color === nextProps.color &&
+        prevProps.href === nextProps.href &&
+        prevProps.Icon === nextProps.Icon &&
+        prevProps.label === nextProps.label &&
+        prevProps.ignoreIcons === nextProps.ignoreIcons &&
+        prevProps.tabColor === nextProps.tabColor
+    );
+});
+
 export function PageTabs<TabList extends TabsInfo>({
     ariaLabel,
     currTab,
@@ -38,6 +124,7 @@ export function PageTabs<TabList extends TabsInfo>({
 
     const tabsRef = useRef<HTMLDivElement>(null);
     const tabRefs = useRef(tabs.map(() => createRef<HTMLDivElement>()));
+
     const underlineRef = useRef<HTMLDivElement>(null);
 
     // Handle dragging of tabs
@@ -207,16 +294,22 @@ export function PageTabs<TabList extends TabsInfo>({
         } as const;
     }, [fullWidth, sx]);
 
-    const tabBoxStyle = useCallback(function tabBoxStyleCallback(isSelected: boolean) {
-        return {
-            padding: "4px 8px",
-            margin: fullWidth ? "0 auto" : "0",
-            cursor: "pointer",
-            textTransform: "uppercase",
-            // Darken non-selected tabs
-            filter: isSelected ? "none" : "brightness(0.8)",
-        } as const;
-    }, [fullWidth]);
+    const handleClickTab = useCallback((event: React.MouseEvent, index: number) => {
+        handleTabChange(event, index);
+    }, [handleTabChange]);
+
+    // Precompute tab colors to avoid recalculating on each render
+    const tabColors = useMemo(() => {
+        return tabs.map((tab, index) => {
+            const isSelected = currTab.index === index;
+            const providedColor = tab.color !== undefined ?
+                (typeof tab.color === "string" ? tab.color :
+                    isSelected ? (tab.color as TabStateColors).active :
+                        (tab.color as TabStateColors).inactive) :
+                undefined;
+            return providedColor ?? (isMobile ? palette.primary.contrastText : palette.primary.light);
+        });
+    }, [tabs, currTab.index, isMobile, palette.primary.contrastText, palette.primary.light]);
 
     return (
         <Box
@@ -226,44 +319,19 @@ export function PageTabs<TabList extends TabsInfo>({
             onMouseDown={handleMouseDown}
             sx={outerBoxStyle}
         >
-            {tabs.map(({ color, href, Icon, key, label }, index) => {
-                const isSelected = currTab.index === index;
-                const providedColor = color !== undefined ?
-                    typeof color === "string" ? color :
-                        isSelected ?
-                            (color as TabStateColors).active :
-                            (color as TabStateColors).inactive :
-                    undefined;
-                const tabColor = providedColor ?? (isMobile ?
-                    palette.primary.contrastText :
-                    palette.primary.light);
-                const labelStyle = { color: tabColor } as const;
-                function handleClick(event: React.MouseEvent) {
-                    handleTabChange(event, index);
-                }
-                return (
-                    <Tooltip key={key} title={(Icon && !ignoreIcons) ? label : ""}>
-                        <Box
-                            id={`${ariaLabel}-${index}`}
-                            ref={tabRefs.current[index]}
-                            role="tab"
-                            component={href ? "a" : "div"}
-                            href={href}
-                            aria-selected={isSelected}
-                            aria-controls={`${ariaLabel}-tabpanel-${index}`}
-                            onClick={handleClick}
-                            style={tabBoxStyle(isSelected)}
-                        >
-                            {
-                                (Icon && !ignoreIcons)
-                                    // @ts-ignore TypeScript being bitchy
-                                    ? <Icon fill={tabColor} />
-                                    : <Typography variant="body2" style={labelStyle}>{label}</Typography>
-                            }
-                        </Box>
-                    </Tooltip>
-                );
-            })}
+            {tabs.map((data, index) => (
+                <TabItem
+                    {...data}
+                    key={data.key}
+                    fullWidth={fullWidth}
+                    ariaLabel={ariaLabel}
+                    index={index}
+                    isSelected={currTab.index === index}
+                    ignoreIcons={ignoreIcons}
+                    onClick={handleClickTab}
+                    tabColor={tabColors[index]}
+                />
+            ))}
             <Underline ref={underlineRef} />
         </Box>
     );

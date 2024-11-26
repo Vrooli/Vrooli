@@ -116,7 +116,7 @@ export class RequestService {
      */
     static isValidIP(ip: string): boolean {
         return RequestService.ipv4Regex.test(ip) || RequestService.ipv6Regex.test(ip);
-    };
+    }
 
     /**
      * Validate if the given string is a valid domain name 
@@ -127,7 +127,7 @@ export class RequestService {
     static isValidDomain(domain: string): boolean {
         if (domain.length > 253) return false;
         return RequestService.domainRegex.test(domain);
-    };
+    }
 
     /**
      * Origins which are allowed to make requests without an API key.
@@ -154,7 +154,7 @@ export class RequestService {
 
         this.cachedOrigins = origins;
         return origins;
-    };
+    }
 
     /**
      * Checks if a request comes from a safe origin.
@@ -188,7 +188,7 @@ export class RequestService {
             }
         }
         return false;
-    };
+    }
 
     /**
      * WARNING: For testing purposes only
@@ -206,11 +206,11 @@ export class RequestService {
      */
     static getDeviceInfo(req: Request): string {
         // Retrieve the User-Agent header from the request
-        const userAgent = req.headers['user-agent'] || 'Unknown';
+        const userAgent = req.headers["user-agent"] || "Unknown";
 
         // Optionally, include other headers or information as needed
         // For example, you can include the Accept-Language header
-        const acceptLanguage = req.headers['accept-language'] || 'Unknown';
+        const acceptLanguage = req.headers["accept-language"] || "Unknown";
 
         // Combine the information into a single string
         const deviceInfo = `User-Agent: ${userAgent}; Accept-Language: ${acceptLanguage}`;
@@ -326,7 +326,7 @@ export class RequestService {
         args.push(nowMs.toString());
 
         const result = await client.eval(RequestService.tokenBucketScript, {
-            keys: keys,
+            keys,
             arguments: args,
         });
 
@@ -356,7 +356,7 @@ export class RequestService {
         window = DEFAULT_RATE_LIMIT_WINDOW_S,
     }: RateLimitProps): Promise<void> {
         // Create key that uniquely identifies the endpoint
-        const keyBase = RequestService.buildKeyBase(req)
+        const keyBase = RequestService.buildKeyBase(req);
 
         // If maxApi not supplied, use maxUser * 1000
         maxApi = maxApi ?? (maxUser * 1000);

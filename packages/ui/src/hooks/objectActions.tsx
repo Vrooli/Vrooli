@@ -1,4 +1,6 @@
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkSearchInput, BookmarkSearchResult, CopyInput, CopyResult, CopyType, Count, DeleteManyInput, DeleteOneInput, DeleteType, GqlModelType, LINKS, ListObject, ReactInput, ReactionFor, Role, Success, User, endpointGetBookmarks, endpointPostBookmark, endpointPostCopy, endpointPostDeleteMany, endpointPostDeleteOne, endpointPostReact, exists, getReactionScore, setDotNotationValue, shapeBookmark, uuid } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkListSearchInput, BookmarkListSearchResult, BookmarkSearchInput, BookmarkSearchResult, CopyInput, CopyResult, CopyType, Count, DeleteManyInput, DeleteOneInput, DeleteType, GqlModelType, LINKS, ListObject, ReactInput, ReactionFor, Role, Success, User, endpointGetBookmarkLists, endpointGetBookmarks, endpointPostBookmark, endpointPostCopy, endpointPostDeleteMany, endpointPostDeleteOne, endpointPostReact, exists, getReactionScore, setDotNotationValue, shapeBookmark, uuid } from "@local/shared";
+import { displayServerErrors } from "api/errorParser";
+import { fetchData } from "api/fetchData";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { BulkDeleteDialog } from "components/dialogs/BulkDeleteDialog/BulkDeleteDialog";
 import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
@@ -13,7 +15,50 @@ import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay, getYouDot } from "utils/display/listTools";
 import { openObject, openObjectEdit } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
+import { create } from "zustand";
 import { useLazyFetch } from "./useLazyFetch";
+
+const DEFAULT_BOOKMARK_LIST_LABEL = "Favorites";
+
+interface BookmarkListsState {
+    bookmarkLists: BookmarkList[];
+    isLoading: boolean;
+    fetchBookmarkLists: () => Promise<BookmarkList[]>;
+}
+
+export const useBookmarkListsStore = create<BookmarkListsState>((set, get) => ({
+    bookmarkLists: [],
+    isLoading: false,
+    fetchBookmarkLists: async () => {
+        if (get().bookmarkLists.length > 0 || get().isLoading) {
+            // Already fetched or currently fetching
+            return get().bookmarkLists;
+        }
+
+        set({ isLoading: true });
+
+        try {
+            const response = await fetchData<BookmarkListSearchInput, BookmarkListSearchResult>({
+                ...endpointGetBookmarkLists,
+                inputs: {},
+            });
+
+            if (response.errors) {
+                displayServerErrors(response.errors);
+                throw new Error("Failed to fetch bookmark lists");
+            }
+
+            const bookmarkLists = response.data?.edges.map(edge => edge.node) ?? [];
+
+            set({ bookmarkLists, isLoading: false });
+            return bookmarkLists;
+        } catch (error) {
+            console.error("Error fetching bookmark lists:", error);
+            set({ isLoading: false });
+            return [];
+        }
+    },
+}));
 
 type UseBookmarkerProps = {
     objectId: string | null | undefined;
@@ -29,8 +74,7 @@ export function useBookmarker({
     objectType,
     onActionComplete,
 }: UseBookmarkerProps) {
-    const session = useContext(SessionContext);
-    const { bookmarkLists } = useMemo(() => getCurrentUser(session), [session]);
+    const { fetchBookmarkLists } = useBookmarkListsStore();
 
     const [addBookmark] = useLazyFetch<BookmarkCreateInput, Bookmark>(endpointPostBookmark);
     const [deleteOne] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
@@ -44,22 +88,16 @@ export function useBookmarker({
     const [isBookmarkDialogOpen, setIsBookmarkDialogOpen] = useState<boolean>(false);
     const closeBookmarkDialog = useCallback(() => { setIsBookmarkDialogOpen(false); }, []);
 
-    const handleAdd = useCallback(() => {
+    const handleAdd = useCallback(async function handleAddCallback() {
         if (!objectType || !objectId) {
             PubSub.get().publish("snack", { messageKey: "NotFound", severity: "Error" });
             return;
         }
-        let bookmarkListId: string | undefined;
-        if (bookmarkLists && bookmarkLists.length) {
-            // Try to find "Favorites" bookmark list first
-            const favorites = bookmarkLists.find(list => list.label === "Favorites");
-            if (favorites) {
-                bookmarkListId = favorites.id;
-            } else {
-                // Otherwise, just use the first bookmark list
-                bookmarkListId = bookmarkLists[0].id;
-            }
-        }
+        // Find the best bookmark list to add to
+        const allBookmarkLists = await fetchBookmarkLists();
+        const bookmarkListId = allBookmarkLists.length === 1
+            ? allBookmarkLists[0].id
+            : allBookmarkLists.find(list => list.label === DEFAULT_BOOKMARK_LIST_LABEL)?.id;
         fetchLazyWrapper<BookmarkCreateInput, Bookmark>({
             fetch: addBookmark,
             inputs: shapeBookmark.create({
@@ -71,15 +109,14 @@ export function useBookmarker({
                 },
                 list: {
                     __typename: "BookmarkList",
+                    __connect: Boolean(bookmarkListId),
                     id: bookmarkListId ?? uuid(),
-                    // Setting label marks this as a create, 
-                    // which should only be done if there is no bookmarkListId
-                    label: bookmarkListId ? undefined : "Favorites",
+                    label: bookmarkListId ? undefined : DEFAULT_BOOKMARK_LIST_LABEL,
                 },
             }),
             onSuccess: (data) => { onActionComplete(ObjectActionComplete.Bookmark, data); },
         });
-    }, [bookmarkLists, addBookmark, objectType, objectId, onActionComplete]);
+    }, [objectType, objectId, addBookmark, fetchBookmarkLists, onActionComplete]);
 
     const isRemoveProcessingRef = useRef<boolean>(false);
     const handleRemove = useCallback(async () => {

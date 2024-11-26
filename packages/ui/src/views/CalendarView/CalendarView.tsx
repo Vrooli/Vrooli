@@ -1,9 +1,9 @@
 import { calculateOccurrences, CalendarEvent, Schedule } from "@local/shared";
 import { Box, BoxProps, IconButton, styled, Tooltip, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
-import { FullPageSpinner } from "components/FullPageSpinner/FullPageSpinner";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
+import { FullPageSpinner } from "components/Spinners/Spinners";
 import { SessionContext } from "contexts";
 import { add, endOfMonth, format, getDay, startOfMonth, startOfWeek } from "date-fns";
 import { useFindMany } from "hooks/useFindMany";

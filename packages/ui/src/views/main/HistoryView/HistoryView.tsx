@@ -7,6 +7,7 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useFindMany } from "hooks/useFindMany";
 import { useTabs } from "hooks/useTabs";
 import { AddIcon } from "icons";
+import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { SideActionsButton } from "styles";
@@ -17,7 +18,6 @@ const scrollContainerId = "history-search-scroll";
 
 export function HistoryView({
     display,
-    isOpen,
     onClose,
 }: HistoryViewProps) {
     const { t } = useTranslation();
@@ -38,6 +38,10 @@ export function HistoryView({
         take: 20,
         where: where(),
     });
+
+    const handleAddBookmarkListClick = useCallback(function handleAddBookmarkListClickCallback() {
+        setLocation(`${getObjectUrlBase({ __typename: GqlModelType.BookmarkList })}/add`);
+    }, [setLocation]);
 
     return (
         <SearchListScrollContainer id={scrollContainerId}>
@@ -65,7 +69,7 @@ export function HistoryView({
                 searchType === SearchType.BookmarkList && <SideActionsButtons display={display}>
                     <SideActionsButton
                         aria-label={t("Add")}
-                        onClick={() => { setLocation(`${getObjectUrlBase({ __typename: GqlModelType.BookmarkList })}/add`); }}
+                        onClick={handleAddBookmarkListClick}
                     >
                         <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                     </SideActionsButton>

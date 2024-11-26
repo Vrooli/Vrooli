@@ -1,5 +1,5 @@
 import { render, screen } from "../../__mocks__/testUtils";
-import { DiagonalWaveLoader } from "./DiagonalWaveLoader";
+import { DiagonalWaveLoader } from "./Spinners";
 
 describe("<DiagonalWaveLoader />", () => {
     // Test 1: Renders without crashing

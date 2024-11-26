@@ -220,7 +220,7 @@ export function NavigationArrows({
 type ChatBubbleReactionsProps = {
     activeIndex: number,
     handleActiveIndexChange: (newIndex: number) => unknown,
-    handleCopy,
+    handleCopy: () => unknown,
     handleReactionAdd: (emoji: string) => unknown,
     handleReply: () => unknown,
     handleRegenerateResponse: () => unknown,

@@ -1,43 +1,53 @@
 /**
  * Displays all search options for a team
  */
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkSearchInput, BookmarkSearchResult, Count, DeleteManyInput, DeleteType, endpointGetBookmarks, endpointPostBookmark, endpointPostDeleteMany, lowercaseFirstLetter, shapeBookmark, uuid } from "@local/shared";
-import { Checkbox, DialogTitle, FormControlLabel, IconButton, List, ListItem, useTheme } from "@mui/material";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkListCreateInput, BookmarkSearchInput, BookmarkSearchResult, Count, DeleteManyInput, DeleteType, endpointGetBookmarks, endpointPostBookmark, endpointPostBookmarkList, endpointPostDeleteMany, lowercaseFirstLetter, shapeBookmark, shapeBookmarkList, uuid } from "@local/shared";
+import { Box, Button, Checkbox, Divider, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, TextField, Typography, useTheme } from "@mui/material";
+import { fetchLazyWrapper } from "api/fetchWrapper";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { SessionContext } from "contexts";
+import { useBookmarkListsStore } from "hooks/objectActions";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { AddIcon } from "icons";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { AddIcon, ArrowLeftIcon } from "icons";
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getCurrentUser } from "utils/authentication/session";
-import { BookmarkListUpsert } from "views/objects/bookmarkList";
+import { ELEMENT_IDS } from "utils/consts";
 import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { SelectBookmarkListDialogProps } from "../types";
 
-const titleId = "select-bookmark-dialog-title";
+const createListIconButtonStyle = {
+    marginLeft: "auto",
+} as const;
+const bookmarkListStyle = {
+    // Make sure the list is display above both the BottomNav and any 
+    // snack messages
+    paddingBottom: "calc(128px + env(safe-area-inset-bottom))",
+} as const;
 
-export const SelectBookmarkListDialog = ({
+export function SelectBookmarkListDialog({
     objectId,
     objectType,
     onClose,
     isCreate,
     isOpen,
-}: SelectBookmarkListDialogProps) => {
+}: SelectBookmarkListDialogProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const [lists, setLists] = useState<BookmarkList[]>(getCurrentUser(session).bookmarkLists ?? []);
+    const { bookmarkLists } = useBookmarkListsStore();
+
+    const [lists, setLists] = useState<BookmarkList[]>(bookmarkLists);
     const [selectedLists, setSelectedLists] = useState<BookmarkList[]>([]);
 
     useEffect(() => {
-        setLists(getCurrentUser(session).bookmarkLists ?? []);
-    }, [session]);
+        setLists(bookmarkLists);
+    }, [bookmarkLists, session]);
 
     // Fetch all bookmarks for object
     const [refetch, { data, loading: isFindLoading }] = useLazyFetch<BookmarkSearchInput, BookmarkSearchResult>({
         ...endpointGetBookmarks,
-        inputs: { [`${lowercaseFirstLetter(objectType)}Id`]: objectId! },
+        inputs: { [`${lowercaseFirstLetter(objectType)}Id`]: objectId },
     });
     useEffect(() => {
         if (!isCreate && isOpen) {
@@ -98,71 +108,72 @@ export const SelectBookmarkListDialog = ({
         setLists([...lists, bookmarkList]);
         setSelectedLists([bookmarkList]);
     }, [lists]);
-    const onDeleted = useCallback((bookmarkList: BookmarkList) => {
-        setLists(lists.filter(l => l.id !== bookmarkList.id));
-        setSelectedLists([]);
-    }, [lists]);
 
-    const listItems = useMemo(() => lists.sort((a, b) => a.label.localeCompare(b.label)).map(list => (
-        <ListItem key={list.id} onClick={() => {
+    const handleClose = useCallback(() => {
+        const isObjectInABookmarkList = selectedLists.length > 0;
+        onClose(isObjectInABookmarkList);
+    }, [onClose, selectedLists]);
+
+    const listItems = useMemo(() => lists.sort((a, b) => a.label.localeCompare(b.label)).map(list => {
+        function handleClick() {
             if (selectedLists.some(l => l.id === list.id)) {
                 setSelectedLists(selectedLists.filter(l => l.id !== list.id));
             } else {
                 setSelectedLists([...selectedLists, list]);
             }
-        }}>
-            <FormControlLabel
-                control={
-                    <Checkbox
-                        checked={selectedLists.some(l => l.id === list.id)}
+        }
+
+        const isSelected = selectedLists.some(l => l.id === list.id);
+        const textId = `checkbox-list-label-${list.id}`;
+        const checkboxInputProps = { "aria-labelledby": textId } as const;
+
+        return (
+            <ListItem key={list.id} disablePadding>
+                <ListItemButton onClick={handleClick}>
+                    <ListItemIcon>
+                        <Checkbox
+                            edge="start"
+                            checked={isSelected}
+                            tabIndex={-1}
+                            disableRipple
+                            inputProps={checkboxInputProps}
+                        />
+                    </ListItemIcon>
+                    <ListItemText
+                        id={textId}
+                        primary={`${list.label} (${list.bookmarksCount})`}
                     />
-                }
-                label={`${list.label} (${list.bookmarksCount})`}
-            />
-        </ListItem>
-    )), [lists, selectedLists]);
+                </ListItemButton>
+            </ListItem>
+        );
+    }), [lists, selectedLists]);
 
     return (
         <>
-            <BookmarkListUpsert
-                display="dialog"
-                isCreate={true}
+            <CreateBookmarkListDialog
                 isOpen={isCreateOpen && isOpen}
-                onCancel={closeCreate}
                 onClose={closeCreate}
-                onCompleted={onCreated}
-                onDeleted={onDeleted}
-                overrideObject={{ __typename: "BookmarkList" }}
+                onCreated={onCreated}
             />
-            {/* Main dialog */}
             <LargeDialog
                 id="select-bookmark-list-dialog"
                 isOpen={isOpen}
-                onClose={() => onClose(selectedLists.length > 0)}
-                titleId={titleId}
+                onClose={handleClose}
+                titleId={ELEMENT_IDS.SelectBookmarkListDialog}
             >
-                {/* Top bar with title and add list button */}
-                <DialogTitle id={titleId} sx={{ display: "flex" }}>
-                    {t("SelectLists")}
+                <Box display="flex" flexDirection="row" alignItems="center" p={1}>
+                    <Typography variant="h6" ml="auto">{t("AddToList")}</Typography>
                     <IconButton
-                        edge="end"
                         onClick={openCreate}
-                        sx={{
-                            marginLeft: "auto",
-                        }}
+                        sx={createListIconButtonStyle}
                     >
                         <AddIcon fill={palette.secondary.main} />
                     </IconButton>
-                </DialogTitle>
-                {/* Checkmarked list (sorted alphabetically)  */}
-                <List sx={{
-                    // Make sure the list is display above both the BottomNav and any 
-                    // snack messages
-                    paddingBottom: "calc(128px + env(safe-area-inset-bottom))",
-                }}>
+                </Box>
+                <Divider />
+                <List sx={bookmarkListStyle}>
                     {listItems}
                 </List>
-                {/* Search/Cancel buttons */}
                 <BottomActionsButtons
                     display={"dialog"}
                     isCreate={false}
@@ -173,4 +184,102 @@ export const SelectBookmarkListDialog = ({
             </LargeDialog>
         </>
     );
-};
+}
+
+interface CreateBookmarkListDialogProps {
+    isOpen: boolean;
+    onClose: () => unknown;
+    onCreated: (bookmarkList: BookmarkList) => unknown;
+}
+
+function CreateBookmarkListDialog({
+    isOpen,
+    onClose,
+    onCreated,
+}: CreateBookmarkListDialogProps) {
+    const { t } = useTranslation();
+    const [name, setName] = useState("");
+    const nameInputRef = useRef<HTMLInputElement>(null);
+
+    const { palette } = useTheme();
+
+    // useLazyFetch for creating a BookmarkList
+    const [createList, { loading: isCreating }] = useLazyFetch<BookmarkListCreateInput, BookmarkList>(endpointPostBookmarkList);
+
+    useLayoutEffect(function autoFocusNameInputEffect() {
+        if (isOpen && nameInputRef.current) {
+            // Focus the input using ref for accessibility
+            nameInputRef.current.focus();
+        }
+    }, [isOpen]);
+
+    const handleCreate = useCallback(async () => {
+        if (name.trim() === "") {
+            return;
+        }
+        fetchLazyWrapper<BookmarkListCreateInput, BookmarkList>({
+            fetch: createList,
+            inputs: shapeBookmarkList.create({
+                __typename: "BookmarkList",
+                id: uuid(),
+                label: name.trim(),
+            }),
+            onSuccess: (data) => {
+                onCreated(data);
+                setName("");
+                onClose();
+            },
+        });
+    }, [name, createList, onCreated, onClose]);
+
+    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (e.key === "Enter") {
+            handleCreate();
+        }
+    }, [handleCreate]);
+    const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        setName(e.target.value);
+    }, []);
+
+    const handleBack = useCallback(() => {
+        onClose();
+    }, [onClose]);
+
+    return (
+        <LargeDialog
+            id="create-bookmark-list-dialog"
+            isOpen={isOpen}
+            onClose={onClose}
+            titleId="create-bookmark-list"
+        >
+            <Box display="flex" flexDirection="row" alignItems="center" p={1}>
+                <IconButton onClick={handleBack} aria-label={t("Back")}>
+                    <ArrowLeftIcon fill={palette.text.primary} />
+                </IconButton>
+                <Typography variant="h6" ml={2}>{t("CreateBookmarkList")}</Typography>
+            </Box>
+            <Divider />
+            <Box p={2} display="flex" flexDirection="column" gap={2}>
+                <TextField
+                    label={t("Name")}
+                    value={name}
+                    onChange={handleChange}
+                    inputRef={nameInputRef}
+                    onKeyDown={handleKeyDown}
+                    fullWidth
+                    disabled={isCreating}
+                />
+                <Box display="flex" justifyContent="flex-end">
+                    <Button
+                        onClick={handleCreate}
+                        color="primary"
+                        disabled={isCreating || name.trim() === ""}
+                        aria-label={t("Create")}
+                    >
+                        {t("Create")}
+                    </Button>
+                </Box>
+            </Box>
+        </LargeDialog>
+    );
+}

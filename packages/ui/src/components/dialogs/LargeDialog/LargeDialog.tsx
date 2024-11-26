@@ -26,7 +26,7 @@ export function LargeDialog({
                 "& > .MuiPaper-root": {
                     zIndex,
                     margin: { xs: 0, sm: 2, md: 4 },
-                    minWidth: { xs: "100vw", sm: "unset" },
+                    minWidth: { xs: "100vw", sm: "50%" },
                     maxWidth: { xs: "100vw", sm: "calc(100vw - 64px)" },
                     height: "100%",
                     overflow: "hidden",

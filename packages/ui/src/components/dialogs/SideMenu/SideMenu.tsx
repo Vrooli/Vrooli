@@ -142,7 +142,7 @@ export function SideMenu() {
         },
     });
 
-    const handleClose = useCallback((event: React.MouseEvent<HTMLElement>) => {
+    const handleClose = useCallback((_event: React.MouseEvent<HTMLElement>) => {
         formik.handleSubmit();
         close();
         closeAdditionalResources();
