@@ -1,6 +1,5 @@
-import { GqlModelType, OrArray, PageInfo, TimeFrame, VisibilityType } from "@local/shared";
+import { GqlModelType, OrArray, PageInfo, SessionUser, TimeFrame, VisibilityType } from "@local/shared";
 import { GraphQLResolveInfo } from "graphql";
-import { SessionUserToken } from "../types";
 
 /**
  * Shape 1 of 4 for GraphQL to Prisma conversion (i.e. GraphQL data before conversion)
@@ -190,7 +189,7 @@ export type RelDelete<IDField extends string> = { [key in IDField]: string }
 export type VisibilityBuilderProps = {
     objectType: `${GqlModelType}`,
     searchInput: { [x: string]: any };
-    userData: SessionUserToken | null | undefined,
+    userData: SessionUser | null | undefined,
     visibility?: VisibilityType | null | undefined,
 }
 

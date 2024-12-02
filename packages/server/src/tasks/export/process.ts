@@ -1,94 +1,94 @@
 //TODO!!!!
+import { SessionUser } from "@local/shared";
 import { Job } from "bull";
 import { logger } from "../../events/logger";
-import { SessionUserToken } from "../../types.js";
 import { ExportProcessPayload } from "./queue";
 
-const exportAccountData = async (userData: SessionUserToken) => {
+const exportAccountData = async (userData: SessionUser) => {
     return [];
 };
 
-const exportApisData = async (userData: SessionUserToken) => {
+const exportApisData = async (userData: SessionUser) => {
     return [];
 };
 
-const exportBookmarksData = async (userData: SessionUserToken) => {
+const exportBookmarksData = async (userData: SessionUser) => {
     return [];
 };
 
-const exportBotsData = async (userData: SessionUserToken) => {
+const exportBotsData = async (userData: SessionUser) => {
     return [];
 };
 
-const exportChatsData = async (userData: SessionUserToken) => {
+const exportChatsData = async (userData: SessionUser) => {
     return [];
 };
 
-const exportCodesData = async (userData: SessionUserToken) => {
+const exportCodesData = async (userData: SessionUser) => {
     return [];
 };
 
-const exportCommentsData = async (userData: SessionUserToken) => {
+const exportCommentsData = async (userData: SessionUser) => {
     return [];
 };
 
-const exportIssuesData = async (userData: SessionUserToken) => {
+const exportIssuesData = async (userData: SessionUser) => {
     return [];
 };
 
-const exportNotesData = async (userData: SessionUserToken) => {
+const exportNotesData = async (userData: SessionUser) => {
     return [];
 };
 
-const exportTeamsData = async (userData: SessionUserToken) => {
+const exportTeamsData = async (userData: SessionUser) => {
     return [];
 };
 
-const exportPullRequestsData = async (userData: SessionUserToken) => {
+const exportPullRequestsData = async (userData: SessionUser) => {
     return [];
 };
 
-const exportProjectsData = async (userData: SessionUserToken) => {
+const exportProjectsData = async (userData: SessionUser) => {
     return [];
 };
 
-const exportQuestionsData = async (userData: SessionUserToken) => {
+const exportQuestionsData = async (userData: SessionUser) => {
     return [];
 };
 
-const exportQuestionAnswersData = async (userData: SessionUserToken) => {
+const exportQuestionAnswersData = async (userData: SessionUser) => {
     return [];
 };
 
-const exportReactionsData = async (userData: SessionUserToken) => {
+const exportReactionsData = async (userData: SessionUser) => {
     return [];
 };
 
-const exportRemindersData = async (userData: SessionUserToken) => {
+const exportRemindersData = async (userData: SessionUser) => {
     return [];
 };
 
-const exportReportsData = async (userData: SessionUserToken) => {
+const exportReportsData = async (userData: SessionUser) => {
     return [];
 };
 
-const exportRoutinesData = async (userData: SessionUserToken) => {
+const exportRoutinesData = async (userData: SessionUser) => {
     return [];
 };
 
-const exportRunsData = async (userData: SessionUserToken) => {
+const exportRunsData = async (userData: SessionUser) => {
     return [];
 };
 
-const exportSchedulesData = async (userData: SessionUserToken) => {
+const exportSchedulesData = async (userData: SessionUser) => {
     return [];
 };
 
-const exportStandardsData = async (userData: SessionUserToken) => {
+const exportStandardsData = async (userData: SessionUser) => {
     return [];
 };
 
-const exportViewsData = async (userData: SessionUserToken) => {
+const exportViewsData = async (userData: SessionUser) => {
     return [];
 };
 

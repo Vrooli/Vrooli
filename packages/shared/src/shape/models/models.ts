@@ -362,12 +362,17 @@ export const shapeCommentTranslation: ShapeModel<CommentTranslationShape, Commen
     update: (o, u) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "text")),
 };
 export const shapeComment: ShapeModel<CommentShape, CommentCreateInput, CommentUpdateInput> = {
-    create: (d) => ({
-        ...createPrims(d, "id", "threadId"),
-        createdFor: d.commentedOn.__typename as CommentFor,
-        forConnect: d.commentedOn.id,
-        ...createRel(d, "translations", ["Create"], "many", shapeCommentTranslation),
-    }),
+    create: (d) => {
+        if (!Object.prototype.hasOwnProperty.call(d, "commentedOn")) {
+            console.error("Comment must have a commentedOn field");
+        }
+        return {
+            ...createPrims(d, "id", "threadId"),
+            createdFor: d.commentedOn ? (d.commentedOn.__typename as CommentFor) : CommentFor.RoutineVersion,
+            forConnect: d.commentedOn ? d.commentedOn.id : DUMMY_ID,
+            ...createRel(d, "translations", ["Create"], "many", shapeCommentTranslation),
+        };
+    },
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, "id"),
         ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeCommentTranslation),

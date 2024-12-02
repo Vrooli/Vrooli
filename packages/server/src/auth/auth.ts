@@ -1,4 +1,4 @@
-import { COOKIE, HttpStatus, mergeDeep } from "@local/shared";
+import { COOKIE, HttpStatus, mergeDeep, SECONDS_1_MS, SessionUser } from "@local/shared";
 import cookie from "cookie";
 import { NextFunction, Request, Response } from "express";
 import { type JwtPayload } from "jsonwebtoken";
@@ -8,8 +8,8 @@ import { DefaultEventsMap } from "socket.io/dist/typed-events";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
-import { ApiToken, RecursivePartial, RecursivePartialNullable, SessionData, SessionToken, SessionUserToken } from "../types";
-import { ACCESS_TOKEN_EXPIRATION_MS, JsonWebToken, REFRESH_TOKEN_EXPIRATION_MS } from "./jwt";
+import { ApiToken, RecursivePartial, SessionData, SessionToken } from "../types";
+import { JsonWebToken, REFRESH_TOKEN_EXPIRATION_MS } from "./jwt";
 import { RequestService } from "./request";
 import { SessionService } from "./session";
 
@@ -54,11 +54,11 @@ export class AuthTokensService {
     }
 
     /**
-     * Checks if a token can be refreshed
+     * Checks if a token can be refreshed.
      * @param payload The access token payload
      * @returns True if the token can be refreshed
      */
-    static async canRefreshToken(payload: SessionToken): Promise<boolean> {
+    static async canRefreshToken(payload: Pick<SessionToken, "users">): Promise<boolean> {
         // Check that payload has correct fields
         if (typeof payload !== "object") {
             return false;
@@ -76,6 +76,7 @@ export class AuthTokensService {
         const storedSession = await prismaInstance.session.findUnique({
             where: { id: sessionId },
             select: {
+                expires_at: true,
                 last_refresh_at: true,
                 revoked: true,
             },
@@ -90,17 +91,30 @@ export class AuthTokensService {
         }
         // Make sure refresh times match
         const storedLastRefreshAt = storedSession?.last_refresh_at?.getTime(); // Set using new Date() (i.e. a number)
-        // Compare the dates
         if (storedLastRefreshAt !== new Date(lastRefreshAt).getTime()) {
             return false;
         }
-        // Make sure stored refresh time is less than REFRESH_TOKEN_EXPIRATION_MS
-        const currentTime = Date.now();
-        const timeSinceRefresh = currentTime - storedLastRefreshAt;
-        if (timeSinceRefresh > REFRESH_TOKEN_EXPIRATION_MS) {
+        // Make sure we haven't passed the expiration time
+        const hasExpired = storedSession.expires_at < new Date();
+        if (hasExpired) {
             return false;
         }
         return true;
+    }
+
+    static isTokenCorrectType(token: unknown): token is string {
+        return typeof token === "string";
+    }
+
+    static isAccessTokenExpired(payload: Pick<SessionData, "accessExpiresAt">): boolean {
+        // If field is missing/invalid, assume it's expired
+        if (typeof payload.accessExpiresAt !== 'number') {
+            return true;
+        }
+
+        const accessExpiresAt = payload.accessExpiresAt * SECONDS_1_MS;
+        const currentTime = Date.now().valueOf();
+        return currentTime > accessExpiresAt;
     }
 
     /**
@@ -125,25 +139,15 @@ export class AuthTokensService {
         const hasAdditionalDataModifer = Boolean(config?.additionalData || config?.modifyPayload);
 
         // Check if token is the proper type
-        if (token === null || token === undefined || typeof token !== "string") {
+        // (typically because the user is not logged in, or the token fully expired)
+        if (!AuthTokensService.isTokenCorrectType(token)) {
             throw new Error("NoSessionToken");
         }
-        // Check the JWT signature
-        let payload: SessionToken | null = null;
-        let isExpired = false;
-        try {
-            // Attempt to verify the token
-            payload = (await JsonWebToken.get().verify(token)) as SessionToken;
-        } catch (error) {
-            const isTokenExpired = (error as { name: string })?.name === "TokenExpiredError";
-            if (isTokenExpired) {
-                isExpired = true;
-                payload = JsonWebToken.get().decode(token) as SessionToken;
-            }
-            if (!payload) {
-                throw new CustomError("0574", "ErrorUnknown");
-            }
-        }
+        // Verify the token. This will throw an error if the token is invalid or expired 
+        // (expired as in fully expired, not the accessExpiresAt part)
+        const payload = await JsonWebToken.get().verify(token) as SessionToken;
+        // Check if the token is expired
+        const isExpired = AuthTokensService.isAccessTokenExpired(payload);
         // Return early if the token is not expired
         if (!isExpired) {
             const maxAge = JsonWebToken.getMaxAge(payload);
@@ -155,14 +159,14 @@ export class AuthTokensService {
                     maxAge,
                     payload: withAdditionalData,
                     token: newToken,
-                }
+                };
             }
             // Otherwise, return the existing token
             return {
                 maxAge,
                 payload,
                 token,
-            }
+            };
         }
         // Try to refresh the token if it's expired
         const isRefreshable = await this.canRefreshToken(payload);
@@ -170,13 +174,17 @@ export class AuthTokensService {
             throw new CustomError("0573", "SessionExpired");
         }
         // Issue a new access token
-        const withAdditionalData = getPayloadWithAdditionalData(payload);
+        const withAdditionalData = {
+            ...getPayloadWithAdditionalData(payload),
+            ...JsonWebToken.createAccessExpiresAt(),
+        }
         const newToken = JsonWebToken.get().sign(withAdditionalData);
+        console.log('yeet generated new token');
         return {
-            maxAge: ACCESS_TOKEN_EXPIRATION_MS,
+            maxAge: REFRESH_TOKEN_EXPIRATION_MS,
             payload: withAdditionalData,
             token: newToken,
-        }
+        };
     }
 
     /**
@@ -187,12 +195,11 @@ export class AuthTokensService {
     static async generateApiToken(res: Response, apiToken: string): Promise<void> {
         const tokenContents: ApiToken = {
             ...JsonWebToken.get().basicToken(),
+            ...JsonWebToken.createAccessExpiresAt(),
             apiToken,
         };
         const token = JsonWebToken.get().sign(tokenContents);
-        if (!res.headersSent) {
-            res.cookie(COOKIE.Jwt, token, JsonWebToken.getJwtCookieOptions());
-        }
+        JsonWebToken.addToCookies(res, token, REFRESH_TOKEN_EXPIRATION_MS);
     }
 
     /**
@@ -203,11 +210,12 @@ export class AuthTokensService {
      */
     static async generateSessionToken(
         res: Response,
-        session: RecursivePartialNullable<Pick<SessionData, "isLoggedIn" | "languages" | "timeZone" | "users">>,
+        session: Pick<SessionData, "accessExpiresAt" | "isLoggedIn" | "languages" | "timeZone" | "users">,
     ): Promise<void> {
         // Start with minimal token data
         let payload: SessionToken = {
             ...JsonWebToken.get().basicToken(),
+            accessExpiresAt: session.accessExpiresAt ?? 0,
             isLoggedIn: session.isLoggedIn ?? false,
             timeZone: session.timeZone ?? undefined,
             users: [],
@@ -223,9 +231,7 @@ export class AuthTokensService {
         // Create token
         const token = JsonWebToken.get().sign(payload);
 
-        if (!res.headersSent) {
-            res.cookie(COOKIE.Jwt, token, JsonWebToken.getJwtCookieOptions());
-        }
+        JsonWebToken.addToCookies(res, token, REFRESH_TOKEN_EXPIRATION_MS);
     }
 }
 
@@ -245,42 +251,46 @@ export class AuthService {
      * Verifies if a user is authenticated, using an http cookie. 
      * Also populates helpful request properties, which can be used by endpoints
      * @param req The request object
-     * @param res The response object. Has to be passed in, but it's not used.
+     * @param res The response object
      * @param next The next function to call.
      */
     static async authenticateRequest(req: Request, res: Response, next: NextFunction) {
+        const { cookies } = req;
+        // Initialize session
+        req.session = {
+            fromSafeOrigin: RequestService.get().isSafeOrigin(req),
+            languages: RequestService.parseAcceptLanguage(req),
+        };
+        // If from unsafe origin, deny access.
+        if (!req.session.fromSafeOrigin) {
+            logger.error("Error authenticating request", { trace: "0451" });
+            return res.status(HttpStatus.Unauthorized).json({ error: "UnsafeOrigin" });
+        }
         try {
-            const { cookies } = req;
-            // Initialize session
-            req.session = {
-                fromSafeOrigin: RequestService.get().isSafeOrigin(req),
-                languages: RequestService.parseAcceptLanguage(req),
-            };
-            // Get token
-            const { payload } = await AuthTokensService.authenticateToken(cookies[COOKIE.Jwt]);
-            updateSessionWithTokenPayload(req, payload);
-            next();
+            // Authenticate token if it exists
+            const token = cookies[COOKIE.Jwt];
+            if (AuthTokensService.isTokenCorrectType(token)) {
+                const { maxAge, payload, token: authenticatedToken } = await AuthTokensService.authenticateToken(cookies[COOKIE.Jwt]);
+                updateSessionWithTokenPayload(req, payload);
+                // If the token changed, update the cookie
+                if (authenticatedToken !== token) {
+                    JsonWebToken.addToCookies(res, authenticatedToken, maxAge);
+                }
+            }
         } catch (error) {
             res.clearCookie(COOKIE.Jwt);
-            // If from unsafe origin, deny access.
-            if (!req.session.fromSafeOrigin) {
-                logger.error("Error authenticating request", { trace: "0451", error });
-                res.status(HttpStatus.Unauthorized).json({ error: "UnsafeOrigin" });
-            }
-            // Otherwise, we'll continue with the request. The endpoints themselves can 
-            // determine if they'll let a signed out user access them.
-            else {
-                next();
-            }
+        } finally {
+            // Always continue with the request. We'll let the endpoint handlers determine if they'll let a signed out user access them.
+            next();
         }
     }
 
     /**
      * Middleware to authenticate a user via JWT in a WebSocket handshake.
-     *
-     * This function parses the JWT from the cookies in the handshake, verifies it, 
-     * and if the verification is successful, attaches the decoded JWT payload 
-     * to the socket object as `socket.session`.
+     * 
+     * NOTE: This should only be called when first connecting to the socket. 
+     * And since this happens in a request (which is already authenticated), 
+     * the only thing we need to do is make sure the session is set up correctly.
      *
      * @param socket - The socket object
      * @param next - The next function to call
@@ -299,11 +309,26 @@ export class AuthService {
             };
             // Get token
             const cookies = cookie.parse(socket.handshake.headers.cookie ?? "");
-            const { payload } = await AuthTokensService.authenticateToken(cookies[COOKIE.Jwt])
+            const token = cookies[COOKIE.Jwt];
+            const { maxAge, payload } = await AuthTokensService.authenticateToken(token);
+
+            // Update socket.session with token payload
             updateSessionWithTokenPayload(socket, payload);
+            // Override access expiration time from short expiration (that we use to refresh the token) to 
+            // long expiration (the full expiration time of the token). This is done because we don't refresh 
+            // websocket connections. Instead, we:
+            // - Manually disconnect them when the session is revoked
+            // - Check the long expiration before emitting events to the socket.
+            // This combination gives the same functionality as refreshing the token, but without the need to
+            // actually change the http cookie (which we can't do in a socket handshake).
+            const expiresAt = Date.now() + maxAge;
+            socket.session.accessExpiresAt = expiresAt;
+            // No need to update the cookie here, as this is done by `authenticateRequest` 
+            // (and we can't set cookies in a socket handshake anyway)
             next();
         } catch (error) {
-            return next(new Error("Unauthorized"));
+            // Continue with the request. The socket handlers themselves can determine if they'll let a signed out user access them.
+            return next();
         }
     }
 }
@@ -325,8 +350,8 @@ export function modifyPayloadToFitUsers(payload: SessionToken): SessionToken {
     }
     // Check size of the minimal token data (just the current user)
     let currPayloadSize = JsonWebToken.calculateBase64Length(newPayload);
-    // If payload is too large, throw an error. We cannot return a token without at least one user.
-    if (currPayloadSize > JsonWebToken.get().getMaxPayloadSize() || users.length === 0) {
+    // If payload is too large, throw an error
+    if (currPayloadSize > JsonWebToken.get().getMaxPayloadSize()) {
         throw new CustomError("0545", "ErrorUnknown");
     }
     // Add the rest of the users until we run out of users or reach the limit
@@ -347,27 +372,23 @@ export function modifyPayloadToFitUsers(payload: SessionToken): SessionToken {
  * Updates one or more user properties in the session token.
  * Does not extend the max age of the token.
  */
-export async function updateSessionCurrentUser(req: Request, res: Response, user: RecursivePartial<SessionUserToken>): Promise<undefined> {
+export async function updateSessionCurrentUser(req: Request, res: Response, user: RecursivePartial<SessionUser>): Promise<undefined> {
+    function modifyPayload(payload: SessionToken) {
+        // Make sure users array is present
+        if (!Array.isArray(payload.users)) {
+            payload.users = [];
+        }
+        if (payload.users.length === 0) {
+            return payload;
+        }
+        // Update first user in the array with new data, making sure to strip any invalid data
+        payload.users[0] = mergeDeep(payload.users[0], user) as SessionUser;
+        // Add users until we run out of users or reach the limit
+        return modifyPayloadToFitUsers(payload);
+    }
     try {
         const { cookies } = req;
-        function modifyPayload(payload: SessionToken) {
-            // Make sure users array is present
-            if (!Array.isArray(payload.users)) {
-                payload.users = [];
-            }
-            // Update first user in the array with new data, making sure to strip any invalid data
-            const firstUser = payload.users.length > 0 ? payload.users[0] : undefined;
-            const firstUserPayload = SessionService.stripSessionUserToken(mergeDeep(firstUser, user) as SessionUserToken);
-            // Add first user to the array
-            if (payload.users.length === 0) {
-                payload.users.push(firstUserPayload);
-            } else {
-                payload.users[0] = firstUserPayload;
-            }
-            // Add users until we run out of users or reach the limit
-            return modifyPayloadToFitUsers(payload);
-        }
-        const { token, maxAge } = await AuthTokensService.authenticateToken(cookies[COOKIE.Jwt], { modifyPayload })
+        const { token, maxAge } = await AuthTokensService.authenticateToken(cookies[COOKIE.Jwt], { modifyPayload });
         JsonWebToken.addToCookies(res, token, maxAge);
     } catch (error) {
         logger.error("❗️ Session token is invalid", { trace: "0447" });
@@ -383,9 +404,9 @@ export function updateSessionWithTokenPayload(req: { session: SessionData }, pay
     // Set token and role variables for other middleware to use
     req.session.apiToken = payload.apiToken ?? false;
     req.session.isLoggedIn = payload.isLoggedIn === true && Array.isArray(payload.users) && payload.users.length > 0;
-    req.session.timeZone = payload.timeZone ?? "UTC";
+    req.session.timeZone = payload.timeZone ?? req.session.timeZone;
     // Keep session token users, but make sure they all have unique ids
-    req.session.users = [...new Map((payload.users ?? []).map((user: SessionUserToken) => [user.id, user])).values()] as SessionUserToken[];
+    req.session.users = [...new Map((payload.users ?? []).map((user: SessionUser) => [user.id, user])).values()] as SessionUser[];
     // Find preferred languages for first user. Combine with languages in request header
     const firstUser = req.session.users[0];
     const firstUserLanguages = firstUser?.languages ?? [];

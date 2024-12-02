@@ -1,7 +1,6 @@
-import { MINUTES_1_MS, ServerLlmTaskInfo, Success, TaskStatus, TaskStatusInfo } from "@local/shared";
+import { MINUTES_1_MS, ServerLlmTaskInfo, SessionUser, Success, TaskStatus, TaskStatusInfo } from "@local/shared";
 import Bull from "bull";
 import winston from "winston";
-import { SessionUserToken } from "../../types.js";
 import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, changeTaskStatus, getProcessPath, getTaskStatuses } from "../queueHelper";
 
 export type LlmTaskProcessPayload = {
@@ -15,7 +14,7 @@ export type LlmTaskProcessPayload = {
     /** The task to be run */
     taskInfo: ServerLlmTaskInfo;
     /** The user who's running the command (not the bot) */
-    userData: SessionUserToken;
+    userData: SessionUser;
 }
 
 let logger: winston.Logger;

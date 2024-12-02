@@ -69,11 +69,6 @@ export const typeDef = `#graphql
         stopCondition: FocusModeStopCondition!
         stopTime: Date
     }
-    type ActiveFocusMode {
-        mode: FocusMode!
-        stopCondition: FocusModeStopCondition!
-        stopTime: Date    
-    }
 
     input FocusModeSearchInput {
         after: String
@@ -87,6 +82,17 @@ export const typeDef = `#graphql
         take: Int
         timeZone: String
         updatedTimeFrame: TimeFrame
+    }
+
+    type ActiveFocusModeFocusMode {
+        id: String!
+        reminderListId: String
+    }
+
+    type ActiveFocusMode {
+        focusMode: ActiveFocusModeFocusMode!
+        stopCondition: FocusModeStopCondition!
+        stopTime: Date
     }
 
     type FocusModeSearchResult {

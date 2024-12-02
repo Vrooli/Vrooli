@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { LlmTask } from "@local/shared";
+import { LlmTask, SessionUser } from "@local/shared";
 import pkg from "../../__mocks__/@prisma/client";
 import { ModelMap } from "../../models";
-import { SessionUserToken } from "../../types";
 import { PreMapUserData } from "../../utils/chat";
 import { ChatContextCollector } from "./context";
 import { CreditValue, GenerateResponseParams, LanguageModelService, calculateMaxCredits, fetchMessagesFromDatabase, tokenEstimationDefault } from "./service";
@@ -319,7 +318,7 @@ describe("LanguageModelService lmServices", () => {
             chatId: string,
             participantsData: Record<string, PreMapUserData> | null | undefined,
             task: LlmTask | `${LlmTask}`,
-            userData: SessionUserToken,
+            userData: SessionUser,
             lmService: LanguageModelService<string, string>,
         ) {
             const model = lmService.getModel();

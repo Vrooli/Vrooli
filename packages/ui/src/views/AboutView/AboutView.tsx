@@ -158,6 +158,7 @@ export function AboutView({
                                         alignItems: "center",
                                         justifyContent: "space-between",
                                         backgroundColor: palette.primary.dark,
+                                        color: palette.primary.contrastText,
                                         borderRadius: 2,
                                         padding: 2,
                                         overflow: "overlay",

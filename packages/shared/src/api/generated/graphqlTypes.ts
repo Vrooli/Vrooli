@@ -27,9 +27,15 @@ export enum AccountStatus {
 
 export type ActiveFocusMode = {
   __typename: 'ActiveFocusMode';
-  mode: FocusMode;
+  focusMode: ActiveFocusModeFocusMode;
   stopCondition: FocusModeStopCondition;
   stopTime?: Maybe<Scalars['Date']>;
+};
+
+export type ActiveFocusModeFocusMode = {
+  __typename: 'ActiveFocusModeFocusMode';
+  id: Scalars['String'];
+  reminderListId?: Maybe<Scalars['String']>;
 };
 
 export type Api = {
@@ -2140,10 +2146,6 @@ export enum LlmTask {
   TeamUpdate = 'TeamUpdate'
 }
 
-export type LogOutInput = {
-  id?: InputMaybe<Scalars['ID']>;
-};
-
 export type Meeting = {
   __typename: 'Meeting';
   attendees: Array<User>;
@@ -2535,6 +2537,7 @@ export type Mutation = {
   labelCreate: Label;
   labelUpdate: Label;
   logOut: Session;
+  logOutAll: Session;
   meetingCreate: Meeting;
   meetingInviteAccept: MeetingInvite;
   meetingInviteCreate: MeetingInvite;
@@ -2886,11 +2889,6 @@ export type MutationLabelCreateArgs = {
 
 export type MutationLabelUpdateArgs = {
   input: LabelUpdateInput;
-};
-
-
-export type MutationLogOutArgs = {
-  input: LogOutInput;
 };
 
 
@@ -8657,10 +8655,8 @@ export type SessionUser = {
   __typename: 'SessionUser';
   activeFocusMode?: Maybe<ActiveFocusMode>;
   apisCount: Scalars['Int'];
-  bookmarkLists: Array<BookmarkList>;
   codesCount: Scalars['Int'];
   credits: Scalars['String'];
-  focusModes: Array<FocusMode>;
   handle?: Maybe<Scalars['String']>;
   hasPremium: Scalars['Boolean'];
   id: Scalars['String'];
@@ -8672,9 +8668,16 @@ export type SessionUser = {
   projectsCount: Scalars['Int'];
   questionsAskedCount: Scalars['Int'];
   routinesCount: Scalars['Int'];
+  session: SessionUserSession;
   standardsCount: Scalars['Int'];
   theme?: Maybe<Scalars['String']>;
   updated_at: Scalars['Date'];
+};
+
+export type SessionUserSession = {
+  __typename: 'SessionUserSession';
+  id: Scalars['String'];
+  lastRefreshAt: Scalars['Date'];
 };
 
 export type SetActiveFocusModeInput = {
@@ -10245,6 +10248,7 @@ export type DirectiveResolverFn<TResult = {}, TParent = {}, TContext = {}, TArgs
 export type ResolversTypes = {
   AccountStatus: AccountStatus;
   ActiveFocusMode: ResolverTypeWrapper<ActiveFocusMode>;
+  ActiveFocusModeFocusMode: ResolverTypeWrapper<ActiveFocusModeFocusMode>;
   Api: ResolverTypeWrapper<Omit<Api, 'owner'> & { owner?: Maybe<ResolversTypes['Owner']> }>;
   ApiCreateInput: ApiCreateInput;
   ApiEdge: ResolverTypeWrapper<ApiEdge>;
@@ -10435,7 +10439,6 @@ export type ResolversTypes = {
   LabelUpdateInput: LabelUpdateInput;
   LabelYou: ResolverTypeWrapper<LabelYou>;
   LlmTask: LlmTask;
-  LogOutInput: LogOutInput;
   Meeting: ResolverTypeWrapper<Meeting>;
   MeetingCreateInput: MeetingCreateInput;
   MeetingEdge: ResolverTypeWrapper<MeetingEdge>;
@@ -10896,6 +10899,7 @@ export type ResolversTypes = {
   SendVerificationTextInput: SendVerificationTextInput;
   Session: ResolverTypeWrapper<Session>;
   SessionUser: ResolverTypeWrapper<SessionUser>;
+  SessionUserSession: ResolverTypeWrapper<SessionUserSession>;
   SetActiveFocusModeInput: SetActiveFocusModeInput;
   Standard: ResolverTypeWrapper<Omit<Standard, 'owner'> & { owner?: Maybe<ResolversTypes['Owner']> }>;
   StandardCreateInput: StandardCreateInput;
@@ -11044,6 +11048,7 @@ export type ResolversTypes = {
 /** Mapping between all available schema types and the resolvers parents */
 export type ResolversParentTypes = {
   ActiveFocusMode: ActiveFocusMode;
+  ActiveFocusModeFocusMode: ActiveFocusModeFocusMode;
   Api: Omit<Api, 'owner'> & { owner?: Maybe<ResolversParentTypes['Owner']> };
   ApiCreateInput: ApiCreateInput;
   ApiEdge: ApiEdge;
@@ -11206,7 +11211,6 @@ export type ResolversParentTypes = {
   LabelTranslationUpdateInput: LabelTranslationUpdateInput;
   LabelUpdateInput: LabelUpdateInput;
   LabelYou: LabelYou;
-  LogOutInput: LogOutInput;
   Meeting: Meeting;
   MeetingCreateInput: MeetingCreateInput;
   MeetingEdge: MeetingEdge;
@@ -11599,6 +11603,7 @@ export type ResolversParentTypes = {
   SendVerificationTextInput: SendVerificationTextInput;
   Session: Session;
   SessionUser: SessionUser;
+  SessionUserSession: SessionUserSession;
   SetActiveFocusModeInput: SetActiveFocusModeInput;
   Standard: Omit<Standard, 'owner'> & { owner?: Maybe<ResolversParentTypes['Owner']> };
   StandardCreateInput: StandardCreateInput;
@@ -11721,9 +11726,15 @@ export type ResolversParentTypes = {
 };
 
 export type ActiveFocusModeResolvers<ContextType = any, ParentType extends ResolversParentTypes['ActiveFocusMode'] = ResolversParentTypes['ActiveFocusMode']> = {
-  mode?: Resolver<ResolversTypes['FocusMode'], ParentType, ContextType>;
+  focusMode?: Resolver<ResolversTypes['ActiveFocusModeFocusMode'], ParentType, ContextType>;
   stopCondition?: Resolver<ResolversTypes['FocusModeStopCondition'], ParentType, ContextType>;
   stopTime?: Resolver<Maybe<ResolversTypes['Date']>, ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ActiveFocusModeFocusModeResolvers<ContextType = any, ParentType extends ResolversParentTypes['ActiveFocusModeFocusMode'] = ResolversParentTypes['ActiveFocusModeFocusMode']> = {
+  id?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  reminderListId?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -12653,7 +12664,8 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   issueUpdate?: Resolver<ResolversTypes['Issue'], ParentType, ContextType, RequireFields<MutationIssueUpdateArgs, 'input'>>;
   labelCreate?: Resolver<ResolversTypes['Label'], ParentType, ContextType, RequireFields<MutationLabelCreateArgs, 'input'>>;
   labelUpdate?: Resolver<ResolversTypes['Label'], ParentType, ContextType, RequireFields<MutationLabelUpdateArgs, 'input'>>;
-  logOut?: Resolver<ResolversTypes['Session'], ParentType, ContextType, RequireFields<MutationLogOutArgs, 'input'>>;
+  logOut?: Resolver<ResolversTypes['Session'], ParentType, ContextType>;
+  logOutAll?: Resolver<ResolversTypes['Session'], ParentType, ContextType>;
   meetingCreate?: Resolver<ResolversTypes['Meeting'], ParentType, ContextType, RequireFields<MutationMeetingCreateArgs, 'input'>>;
   meetingInviteAccept?: Resolver<ResolversTypes['MeetingInvite'], ParentType, ContextType, RequireFields<MutationMeetingInviteAcceptArgs, 'input'>>;
   meetingInviteCreate?: Resolver<ResolversTypes['MeetingInvite'], ParentType, ContextType, RequireFields<MutationMeetingInviteCreateArgs, 'input'>>;
@@ -14578,10 +14590,8 @@ export type SessionResolvers<ContextType = any, ParentType extends ResolversPare
 export type SessionUserResolvers<ContextType = any, ParentType extends ResolversParentTypes['SessionUser'] = ResolversParentTypes['SessionUser']> = {
   activeFocusMode?: Resolver<Maybe<ResolversTypes['ActiveFocusMode']>, ParentType, ContextType>;
   apisCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
-  bookmarkLists?: Resolver<Array<ResolversTypes['BookmarkList']>, ParentType, ContextType>;
   codesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   credits?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
-  focusModes?: Resolver<Array<ResolversTypes['FocusMode']>, ParentType, ContextType>;
   handle?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   hasPremium?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
   id?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
@@ -14593,9 +14603,16 @@ export type SessionUserResolvers<ContextType = any, ParentType extends Resolvers
   projectsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   questionsAskedCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   routinesCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  session?: Resolver<ResolversTypes['SessionUserSession'], ParentType, ContextType>;
   standardsCount?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   theme?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
   updated_at?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type SessionUserSessionResolvers<ContextType = any, ParentType extends ResolversParentTypes['SessionUserSession'] = ResolversParentTypes['SessionUserSession']> = {
+  id?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  lastRefreshAt?: Resolver<ResolversTypes['Date'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
@@ -15380,6 +15397,7 @@ export type WalletCompleteResolvers<ContextType = any, ParentType extends Resolv
 
 export type Resolvers<ContextType = any> = {
   ActiveFocusMode?: ActiveFocusModeResolvers<ContextType>;
+  ActiveFocusModeFocusMode?: ActiveFocusModeFocusModeResolvers<ContextType>;
   Api?: ApiResolvers<ContextType>;
   ApiEdge?: ApiEdgeResolvers<ContextType>;
   ApiKey?: ApiKeyResolvers<ContextType>;
@@ -15656,6 +15674,7 @@ export type Resolvers<ContextType = any> = {
   ScheduleSearchResult?: ScheduleSearchResultResolvers<ContextType>;
   Session?: SessionResolvers<ContextType>;
   SessionUser?: SessionUserResolvers<ContextType>;
+  SessionUserSession?: SessionUserSessionResolvers<ContextType>;
   Standard?: StandardResolvers<ContextType>;
   StandardEdge?: StandardEdgeResolvers<ContextType>;
   StandardSearchResult?: StandardSearchResultResolvers<ContextType>;

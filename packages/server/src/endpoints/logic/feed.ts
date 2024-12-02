@@ -25,7 +25,7 @@ export const FeedEndpoints: EndpointsFeed = {
             const userData = RequestService.assertRequestFrom(req, { isUser: true });
             await RequestService.get().rateLimit({ maxUser: 5000, req });
             // Find focus mode to use
-            const activeFocusModeId = input.activeFocusModeId ?? userData.activeFocusMode?.id;
+            const activeFocusModeId = input.activeFocusModeId ?? userData.activeFocusMode?.focusMode?.id;
             // If input provided the focus mode, update session
             if (input.activeFocusModeId) {
                 FocusModeEndpoints.Mutation.setActiveFocusMode(_,

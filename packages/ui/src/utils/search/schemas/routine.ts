@@ -15,7 +15,7 @@ export const routineTypes = [
     {
         type: RoutineType.Informational,
         label: "Basic",
-        description: "Contains no additional data. Used to provide instructions, a way to prompt users for information, or as a placeholder.",
+        description: "Has no side effects. Used to collect information, provide instructions, or as a placeholder.",
         Icon: HelpIcon,
     }, {
         type: RoutineType.MultiStep,
@@ -40,7 +40,7 @@ export const routineTypes = [
     }, {
         type: RoutineType.Code,
         label: "Code",
-        description: "Runs sandboxed JavaScript code to convert inputs to outputs. Useful for converting plaintext to structured data. Does not have access to the internet.",
+        description: "Runs code to convert inputs to outputs. Useful for converting plaintext to structured data.",
         Icon: TerminalIcon,
     }, {
         type: RoutineType.Api,

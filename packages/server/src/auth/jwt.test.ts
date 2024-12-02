@@ -4,7 +4,7 @@ import { generateKeyPairSync } from "crypto";
 import { Response } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { UI_URL_REMOTE } from "../server";
-import { ACCESS_TOKEN_EXPIRATION_MS, JsonWebToken } from "./jwt";
+import { ACCESS_TOKEN_EXPIRATION_MS, JsonWebToken, REFRESH_TOKEN_EXPIRATION_MS } from "./jwt";
 
 describe("JsonWebToken", () => {
     let originalNodeEnv: string | undefined;
@@ -66,7 +66,7 @@ describe("JsonWebToken", () => {
 
         test("returns token with custom exp", () => {
             const instance = JsonWebToken.get();
-            const customExp = (Date.now() + 100000) / SECONDS_1_MS;
+            const customExp = JsonWebToken.createExpirationTime(100_000);
             const token = instance.basicToken(undefined, customExp);
             expect(token.exp).toBe(customExp);
         });
@@ -253,18 +253,18 @@ describe("JsonWebToken", () => {
         });
 
         test("signs token and keeps existing expiration", () => {
-            const payload = { foo: "bar", exp: Math.floor(Date.now() / SECONDS_1_MS) + 10000 };
+            const payload = { foo: "bar", exp: JsonWebToken.createExpirationTime(10_000) };
             const token = instance.sign(payload, true);
             const decoded = jwt.verify(token, privateKey, { algorithms: ["RS256"] });
             expect(decoded).toMatchObject(payload);
         });
 
         test("signs token and overrides expiration if keepExpiration is false", () => {
-            const payload = { foo: "bar", exp: Math.floor(Date.now() / SECONDS_1_MS) + 10000 };
+            const payload = { foo: "bar", exp: JsonWebToken.createExpirationTime(10_000) };
             const token = instance.sign(payload, false);
             const decoded = jwt.verify(token, privateKey, { algorithms: ["RS256"] }) as JwtPayload;
             expect(decoded.foo).toBe("bar");
-            const expectedExp = Math.floor(Date.now() / SECONDS_1_MS) + Math.floor(MINUTES_15_MS / SECONDS_1_MS);
+            const expectedExp = JsonWebToken.createExpirationTime(REFRESH_TOKEN_EXPIRATION_MS);
             expect(Math.abs(decoded.exp! - expectedExp)).toBeLessThanOrEqual(SECONDS_1_MS);
         });
 
@@ -298,7 +298,7 @@ describe("JsonWebToken", () => {
             expect(jwtSignSpy).toHaveBeenCalledWith(
                 {
                     ...payload,
-                    exp: Math.floor((Date.now() + MINUTES_15_MS) / SECONDS_1_MS),
+                    exp: JsonWebToken.createExpirationTime(REFRESH_TOKEN_EXPIRATION_MS),
                 },
                 privateKey,
                 {

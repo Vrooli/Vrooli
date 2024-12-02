@@ -27,7 +27,6 @@ const mockLocalStorage = {
         return key in store ? store[key] : null;
     },
     setItem(key: string, value: string) {
-        console.log("yeet set item", key, value);
         store[key] = value;
     },
     removeItem(key: string) {

@@ -1,5 +1,5 @@
 import { AwardCategory, BookmarkFor, ChatMessage, CopyType, GqlModelType, IssueStatus, PullRequestStatus, ReactionFor, ReportStatus } from "@local/shared";
-import { setupEmailVerificationCode } from "../auth/email";
+import { PasswordAuthService } from "../auth/email";
 import { prismaInstance } from "../db/instance";
 import { Notify, isObjectSubscribable } from "../notify";
 import { emitSocketEvent } from "../sockets/events";
@@ -37,11 +37,11 @@ type Owner = { __typename: "User" | "Team", id: string };
  * Some actions may also do nothing right now, but it's good to send them through this function
  * in case we want to add functionality later.
  */
-export function Trigger(languages: string[]) {
+export function Trigger(languages: string[] | undefined) {
     return {
         acountNew: async (userId: string, emailAddress?: string) => {
             // Send a welcome/verification email (if not created with wallet)
-            if (emailAddress) await setupEmailVerificationCode(emailAddress, userId, languages);
+            if (emailAddress) await PasswordAuthService.setupEmailVerificationCode(emailAddress, userId, languages);
             // Give the user an award
             Award(userId, languages).update("AccountNew", 1);
         },

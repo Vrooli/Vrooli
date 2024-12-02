@@ -20,7 +20,7 @@ export type ParticipantManageViewProps = ViewProps & {
     isEditing: boolean;
 }
 export type PrivacyPolicyViewProps = ViewProps
-export type PremiumViewProps = ViewProps
+export type ProViewProps = ViewProps
 export type ResetPasswordViewProps = ViewProps
 export type SearchViewProps = ViewProps
 export type SearchVersionViewProps = ViewProps

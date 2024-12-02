@@ -916,20 +916,20 @@ describe("updateRel function tests", () => {
         const original = { relation: [{ id: "123" }] };
         const updated = { relation: [{ id: "456", data: "newData" }] };
         function preShape(d) {
-            return { ...d, preShape: "yeet" };
+            return { ...d, preShape: "bloop" };
         }
         const result = updateRel(original, updated, "relation", ["Create"], "many", mockShapeUpdateModel, preShape);
-        expect(result).toEqual({ relationCreate: [{ id: "456", data: "newData", preShape: "yeet", shaped: "create" }] }); // Reflects changes from both preShape and shape (mockShapeUpdateModel)
+        expect(result).toEqual({ relationCreate: [{ id: "456", data: "newData", preShape: "bloop", shaped: "create" }] }); // Reflects changes from both preShape and shape (mockShapeUpdateModel)
     });
 
     test("update with preShape function", () => {
         const original = { relation: [{ id: "123" }] };
         const updated = { relation: [{ id: "123", data: "newData" }] };
         function preShape(d) {
-            return { ...d, preShape: "yeet" };
+            return { ...d, preShape: "bloop" };
         }
         const result = updateRel(original, updated, "relation", ["Update"], "many", mockShapeUpdateModel, preShape);
-        expect(result).toEqual({ relationUpdate: [{ id: "123", data: "newData", preShape: "yeet", shaped: "update" }] }); // Reflects changes from both preShape and shape (mockShapeUpdateModel)
+        expect(result).toEqual({ relationUpdate: [{ id: "123", data: "newData", preShape: "bloop", shaped: "update" }] }); // Reflects changes from both preShape and shape (mockShapeUpdateModel)
     });
 });
 

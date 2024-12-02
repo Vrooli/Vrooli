@@ -79,6 +79,7 @@ export const API_CREDITS_PREMIUM = BigInt(1_500) * API_CREDITS_MULTIPLIER;
 export const JOIN_CHAT_ROOM_ERRORS = {
     ChatNotFoundOrUnauthorized: "ChatNotFoundOrUnauthorized",
     ErrorUnknown: "ErrorUnknown",
+    SessionExpired: "SessionExpired",
 } as const;
 
 export const LEAVE_CHAT_ROOM_ERRORS = {
@@ -88,6 +89,7 @@ export const LEAVE_CHAT_ROOM_ERRORS = {
 export const JOIN_RUN_ROOM_ERRORS = {
     RunNotFoundOrUnauthorized: "RunNotFoundOrUnauthorized",
     ErrorUnknown: "ErrorUnknown",
+    SessionExpired: "SessionExpired",
 } as const;
 
 export const LEAVE_RUN_ROOM_ERRORS = {
@@ -97,6 +99,7 @@ export const LEAVE_RUN_ROOM_ERRORS = {
 export const JOIN_USER_ROOM_ERRORS = {
     UserNotFoundOrUnauthorized: "UserNotFoundOrUnauthorized",
     ErrorUnknown: "ErrorUnknown",
+    SessionExpired: "SessionExpired",
 } as const;
 
 export const LEAVE_USER_ROOM_ERRORS = {
@@ -119,4 +122,8 @@ export const OAUTH_PROVIDERS = {
     GitHub: "github",
     Google: "google",
     X: "x",
+} as const;
+export const AUTH_PROVIDERS = {
+    ...OAUTH_PROVIDERS,
+    Password: "password",
 } as const;

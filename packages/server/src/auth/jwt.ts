@@ -3,7 +3,7 @@ import { type Response } from "express";
 import jwt, { type JwtPayload } from "jsonwebtoken";
 import { logger } from "../events/logger";
 import { UI_URL_REMOTE } from "../server";
-import { BasicToken } from "../types";
+import { AccessToken, BasicToken } from "../types";
 
 /**
  * How long to treat a session as valid before checking 
@@ -195,6 +195,14 @@ export class JsonWebToken {
         return expirationTime - currentTime;
     }
 
+    static createExpirationTime(milliseconds: number) {
+        return Math.floor((Date.now() + milliseconds) / SECONDS_1_MS);
+    }
+
+    static createAccessExpiresAt(): Pick<AccessToken, "accessExpiresAt"> {
+        return { accessExpiresAt: JsonWebToken.createExpirationTime(ACCESS_TOKEN_EXPIRATION_MS) };
+    }
+
     /**
      * Signs a JWT token
      * @param payload The payload to sign
@@ -207,7 +215,7 @@ export class JsonWebToken {
         };
         // Add new expiration time if requested
         if (!keepExpiration) {
-            payload["exp"] = Math.floor((Date.now() + ACCESS_TOKEN_EXPIRATION_MS) / SECONDS_1_MS);
+            payload["exp"] = JsonWebToken.createExpirationTime(REFRESH_TOKEN_EXPIRATION_MS);
         }
         return jwt.sign(payload, this.keys.privateKey, options);
     }

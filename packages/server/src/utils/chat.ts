@@ -1,8 +1,7 @@
-import { ChatUpdateInput, getTranslation } from "@local/shared";
+import { ChatUpdateInput, getTranslation, SessionUser } from "@local/shared";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
-import { SessionUserToken } from "../types";
 import { PreShapeEmbeddableTranslatableResult } from "./shapes/preShapeEmbeddableTranslatable";
 
 export type PreMapMessageDataCreate = {
@@ -170,7 +169,7 @@ export type CollectParticipantDataParams = {
     /** Maps for collecting chat, message, and user data */
     preMap: ChatMessagePre,
     /** The current user's data */
-    userData: SessionUserToken,
+    userData: SessionUser,
 };
 
 type QueriedMessage = any;
@@ -256,7 +255,7 @@ export function buildChatParticipantMessageQuery(
 export function populateMessageDataMap(
     messageMap: Record<string, PreMapMessageData>,
     messages: QueriedMessage[],
-    userData: SessionUserToken,
+    userData: SessionUser,
 ): void {
     function populateMessage(message: QueriedMessage) {
         // If we've already populated this message, skip it
@@ -325,7 +324,6 @@ export async function getChatParticipantData({
     // Build message select query
     const notSelectingLastMessage = includeMessageInfo === true || includeMessageParentInfo === true;
     const messageQuery = buildChatParticipantMessageQuery(messageIds, includeMessageInfo == true, includeMessageParentInfo === true);
-    console.log("messageQuery", JSON.stringify(messageQuery, null, 2));
     // Query chat information from database
     const chatInfo = await prismaInstance.chat.findMany({
         where: chatSelect,

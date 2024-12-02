@@ -480,7 +480,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         return async (data) => {
             const input = converter[task](data, language);
             if (!input.reminderListConnect && !input.reminderListCreate) {
-                const activeReminderList = userData?.activeFocusMode?.reminderListId;
+                const activeReminderList = userData?.activeFocusMode?.focusMode?.reminderListId;
                 if (activeReminderList) {
                     input.reminderListConnect = activeReminderList;
                 } else {

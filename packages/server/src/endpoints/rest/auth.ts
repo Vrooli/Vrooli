@@ -21,6 +21,9 @@ export const AuthRest = setupRoutes({
     "/auth/logout": {
         post: [AuthEndpoints.Mutation.logOut, auth_logOut],
     },
+    "/auth/logoutAll": {
+        post: [AuthEndpoints.Mutation.logOutAll, auth_logOut],
+    },
     "/auth/validateSession": {
         post: [AuthEndpoints.Mutation.validateSession, auth_validateSession],
     },

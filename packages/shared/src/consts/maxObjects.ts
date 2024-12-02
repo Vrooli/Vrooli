@@ -395,6 +395,7 @@ export const MaxObjects = {
     },
     ScheduleException: 100000,
     ScheduleRecurrence: 100000,
+    Session: 1000,
     Standard: {
         private: {
             noPremium: 5,

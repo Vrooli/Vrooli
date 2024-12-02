@@ -1,4 +1,4 @@
-import { SessionUserToken } from "@local/server";
+import { SessionUser } from "@local/shared";
 import { ModelMap } from "../models/base/index";
 import { PreMap } from "../models/types";
 import { InputsById } from "../utils/types";
@@ -29,7 +29,7 @@ describe("calculatePreShapeData", () => {
                 Delete: [{ node: "TypeB", input: { /* ... */ } }],
             }
         };
-        const userData = {} as unknown as SessionUserToken;
+        const userData = {} as unknown as SessionUser;
         const inputsById: InputsById = {};
         const preMap: PreMap = {};
 
@@ -59,7 +59,7 @@ describe("calculatePreShapeData", () => {
                 Delete: [{ node: 'TypeA', input: { /* ... */ } }],
             },
         };
-        const userData = {} as unknown as SessionUserToken;
+        const userData = {} as unknown as SessionUser;
         const inputsById: InputsById = {};
         const preMap: PreMap = {};
 
@@ -88,7 +88,7 @@ describe("calculatePreShapeData", () => {
                 Delete: [],
             },
         };
-        const userData = {} as unknown as SessionUserToken;
+        const userData = {} as unknown as SessionUser;
         const inputsById: InputsById = {};
         const preMap: PreMap = {};
 

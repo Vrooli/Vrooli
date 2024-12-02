@@ -1,4 +1,4 @@
-import { FocusModeStopCondition, GqlModelType, SessionUser } from "@local/shared";
+import { GqlModelType, SessionUser } from "@local/shared";
 import pkg from "@prisma/client";
 import { GraphQLResolveInfo } from "graphql";
 import { Context } from "./middleware";
@@ -6,38 +6,38 @@ import { Context } from "./middleware";
 declare module "@local/server";
 export * from ".";
 
+/**
+ * Information required in any JWT token
+ */
 export interface BasicToken {
     iat: number;
     iss: string;
     exp: number;
 }
-export interface ApiToken extends BasicToken {
+export interface AccessToken extends BasicToken {
+    /** When we need to check the database to see if the token is still valid. */
+    accessExpiresAt: number;
+}
+export interface ApiToken extends AccessToken {
     apiToken: string;
 }
 
-// Tokens store more limited data than the session object returned by the API. 
-// This is because the maximum size of a cookie is 4kb
-export interface SessionToken extends BasicToken {
+/**
+ * Information stored in a session token.
+ * Contains less data than the full session object, since it is stored in a cookie 
+ * and the maximum size of a cookie is 4kb.
+ */
+export interface SessionToken extends AccessToken {
     isLoggedIn: boolean;
     timeZone?: string;
     // Supports logging in with multiple accounts
-    users: SessionUserToken[];
-}
-export type SessionUserToken = Pick<SessionUser, "id" | "credits" | "handle" | "hasPremium" | "languages" | "name" | "profileImage" | "updated_at"> & {
-    activeFocusMode?: {
-        mode: {
-            id: string,
-            reminderList?: {
-                id: string;
-            } | null,
-        },
-        stopCondition: FocusModeStopCondition,
-        stopTime?: Date | null,
-    } | null;
+    users: SessionUser[];
 }
 
 /** All data stored in session */
 export type SessionData = {
+    /** When we need to check the database to see if the token is still valid. */
+    accessExpiresAt?: number | null;
     /** Public API token, if present */
     apiToken?: boolean;
     /** True if the request is coming from a safe origin (e.g. our own frontend) */
@@ -48,11 +48,11 @@ export type SessionData = {
      * Preferred languages to display errors, push notifications, etc. in. 
      * Always has at least one language
      */
-    languages: string[];
+    languages?: string[];
     /** User's current time zone */
-    timeZone?: string;
+    timeZone?: string | null;
     /** Users logged in with this session (if isLoggedIn is true) */
-    users?: SessionUserToken[];
+    users?: SessionUser[] | null;
     validToken?: boolean;
 }
 

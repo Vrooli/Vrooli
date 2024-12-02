@@ -10,7 +10,8 @@ import i18next from "i18next";
 import path from "path";
 import { fileURLToPath } from "url";
 import { app } from "./app";
-import * as auth from "./auth/request";
+import { AuthService } from "./auth/auth";
+import { SessionService } from "./auth/session";
 import { schema } from "./endpoints";
 import * as restRoutes from "./endpoints/rest";
 import { logger } from "./events/logger";
@@ -19,7 +20,7 @@ import { ModelMap } from "./models/base";
 import { initializeRedis } from "./redisConn";
 import { SERVER_URL, server } from "./server";
 import { setupStripe } from "./services";
-import { io } from "./sockets/io";
+import { io, sessionSockets, userSockets } from "./sockets/io";
 import { chatSocketRoomHandlers } from "./sockets/rooms/chat";
 import { runSocketRoomHandlers } from "./sockets/rooms/run";
 import { userSocketRoomHandlers } from "./sockets/rooms/user";
@@ -100,7 +101,7 @@ async function main() {
         next();
     });
 
-    // Set up health check endpoint
+    // Set up health check endpoint before authentication
     app.get("/healthcheck", (_req, res) => {
         res.status(HttpStatus.Ok).send("OK");
     });
@@ -111,7 +112,8 @@ async function main() {
         if (req.originalUrl.startsWith("/webhooks")) {
             next();
         } else {
-            auth.authenticate(req, res, next);
+            // Include everything else, which should include REST, GraphQL, and websockets
+            AuthService.authenticateRequest(req, res, next);
         }
     });
 
@@ -154,7 +156,7 @@ async function main() {
             cache: "bounded",
             introspection: debug,
             schema,
-            plugins: [ApolloServerPluginDrainHttpServer({ httpServer: server })],
+            plugins: [ApolloServerPluginDrainHttpServer({ httpServer: server as any })], // https://github.com/apollographql/apollo-server/issues/7796
             validationRules: [depthLimit(QUERY_DEPTH_LIMIT)], // Prevents DoS attack from arbitrarily-nested query
         });
         // Start server
@@ -169,14 +171,37 @@ async function main() {
     }
 
     // Set up websocket server
-    // Pass the session to the socket, after it's been authenticated
-    io.use(auth.authenticateSocket);
-    // Listen for new WebSocket connections
+    // Authenticate new connections (this is not called for each event)
+    io.use(AuthService.authenticateSocket);
+    // Set up socket connection logic
     io.on("connection", (socket) => {
-        // Add handlers
+        // Keep track of sockets for each user and session, so that they can be 
+        // disconnected when the user logs out or revokes open sessions
+        const user = SessionService.getUser(socket.session);
+        const userId = user?.id;
+        const sessionId = user?.session.id;
+        if (userId && sessionId) {
+            if (!userSockets.has(userId)) {
+                userSockets.set(userId, new Set());
+            }
+            userSockets.get(userId)?.add(socket.id);
+
+            if (!sessionSockets.has(sessionId)) {
+                sessionSockets.set(sessionId, new Set());
+            }
+            sessionSockets.get(sessionId)?.add(socket.id);
+
+            socket.on("disconnect", () => {
+                userSockets.get(userId)?.delete(socket.id);
+                sessionSockets.get(sessionId)?.delete(socket.id);
+            });
+        }
+
+        // Add handlers for each room
         chatSocketRoomHandlers(socket);
         runSocketRoomHandlers(socket);
         userSocketRoomHandlers(socket);
+        // Add more room handlers as needed
     });
 
     // Unhandled Rejection Handler. This is a last resort for catching errors that were not caught by the application. 

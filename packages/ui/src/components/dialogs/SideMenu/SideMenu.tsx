@@ -1,7 +1,8 @@
-import { API_CREDITS_MULTIPLIER, ActionOption, HistoryPageTabOption, LINKS, LogOutInput, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User, endpointPostAuthLogout, endpointPostAuthSwitchCurrentAccount, endpointPutProfile, noop, profileValidation, shapeProfile } from "@local/shared";
+import { API_CREDITS_MULTIPLIER, ActionOption, HistoryPageTabOption, LINKS, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User, endpointPostAuthLogout, endpointPostAuthSwitchCurrentAccount, endpointPutProfile, noop, profileValidation, shapeProfile } from "@local/shared";
 import { Avatar, Box, Collapse, Divider, IconButton, Link, List, ListItem, ListItemIcon, ListItemText, Palette, SwipeableDrawer, Typography, styled, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
 import { fetchLazyWrapper } from "api/fetchWrapper";
+import { SocketService } from "api/socket";
 import { FocusModeSelector } from "components/inputs/FocusModeSelector/FocusModeSelector";
 import { LanguageSelector } from "components/inputs/LanguageSelector/LanguageSelector";
 import { LeftHandedCheckbox } from "components/inputs/LeftHandedCheckbox/LeftHandedCheckbox";
@@ -29,9 +30,12 @@ import { Actions, performAction, toActionOption } from "utils/navigation/quickAc
 import { NAV_ACTION_TAGS, NavAction, getUserActions } from "utils/navigation/userActions";
 import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID, SideMenuPayloads } from "utils/pubsub";
 
-// Maximum accounts to sign in with. 
-// Limited by cookie size (4kb)
+/**
+ * Maximum accounts to sign in with. 
+ * Limited by cookie size (4kb)
+ */
 const MAX_ACCOUNTS = 10;
+const AVATAR_SIZE_PX = 50;
 
 const drawerPaperProps = { id: SIDE_MENU_ID } as const;
 
@@ -63,6 +67,23 @@ const SizedDrawer = styled(SwipeableDrawer)(() => ({
         },
     },
 }));
+const StyledAvatar = styled(Avatar)(({ theme }) => ({
+    marginRight: theme.spacing(2),
+}));
+const SideMenuDisplaySettingsBox = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "column",
+    gap: theme.spacing(2),
+    minWidth: "fit-content",
+    height: "fit-content",
+    padding: theme.spacing(1),
+}));
+
+const profileListContainerStyle = {
+    overflow: "auto",
+    display: "grid",
+    overflowX: "hidden",
+} as const;
 
 export function SideMenu() {
     const session = useContext(SessionContext);
@@ -159,6 +180,7 @@ export function SideMenu() {
         }
         // Otherwise, switch to selected account
         else {
+            SocketService.get().disconnect();
             fetchLazyWrapper<SwitchCurrentAccountInput, Session>({
                 fetch: switchCurrentAccount,
                 inputs: { id: user.id },
@@ -166,6 +188,9 @@ export function SideMenu() {
                 onSuccess: (data) => {
                     PubSub.get().publish("session", data);
                     window.location.reload();
+                },
+                onCompleted: () => {
+                    SocketService.get().connect();
                 },
             });
         }
@@ -176,23 +201,27 @@ export function SideMenu() {
         if (isMobile) handleClose(event);
     }, [handleClose, isMobile, setLocation]);
 
-    const [logOut] = useLazyFetch<LogOutInput, Session>(endpointPostAuthLogout);
+    const [logOut] = useLazyFetch<undefined, Session>(endpointPostAuthLogout);
     const handleLogOut = useCallback((event: React.MouseEvent<HTMLElement>) => {
         if (isMobile) handleClose(event);
         const user = getCurrentUser(session);
-        fetchLazyWrapper<LogOutInput, Session>({
+        SocketService.get().disconnect();
+        fetchLazyWrapper<undefined, Session>({
             fetch: logOut,
-            inputs: { id: user.id },
             successMessage: () => ({ messageKey: "LoggedOutOf", messageVariables: { name: user.name ?? user.handle ?? "" } }),
             onSuccess: (data) => {
+                PubSub.get().publish("session", data);
+            },
+            onError: () => {
+                PubSub.get().publish("session", guestSession);
+            },
+            onCompleted: () => {
+                SocketService.get().connect();
                 removeCookie("FormData"); // Clear old form data cache
                 localStorage.removeItem("isLoggedIn");
-                PubSub.get().publish("session", data);
                 PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: false });
                 PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen: false });
             },
-            // If error, log out anyway
-            onError: () => { PubSub.get().publish("session", guestSession); },
         });
         setLocation(LINKS.Home);
     }, [handleClose, isMobile, session, logOut, setLocation]);
@@ -208,34 +237,37 @@ export function SideMenu() {
     }
 
     const accounts = useMemo(() => session?.users ?? [], [session?.users]);
-    const profileListItems = accounts.map((account) => (
-        <ListItem
-            button
-            key={account.id}
-            onClick={(event) => handleUserClick(event, account)}
-            sx={{
-                background: account.id === userId ? palette.secondary.light : palette.background.default,
-            }}
-        >
-            <Avatar
-                src={extractImageUrl(account.profileImage, account.updated_at, 50)}
+    const profileListItems = accounts.map((account) => {
+        function handleClick(event: React.MouseEvent<HTMLElement>) {
+            handleUserClick(event, account);
+        }
+
+        return (
+            <ListItem
+                button
+                key={account.id}
+                onClick={handleClick}
                 sx={{
-                    marginRight: 2,
+                    background: account.id === userId ? palette.secondary.light : palette.background.default,
                 }}
             >
-                <UserIcon
-                    width="75%"
-                    height="75%"
+                <StyledAvatar
+                    src={extractImageUrl(account.profileImage, account.updated_at, AVATAR_SIZE_PX)}
+                >
+                    <UserIcon
+                        width="75%"
+                        height="75%"
+                    />
+                </StyledAvatar>
+                <ListItemText
+                    primary={account.name ?? account.handle}
+                    // Credits are calculated in cents * 1 million. 
+                    // We'll convert it to dollars
+                    secondary={`${t("Credit", { count: 2 })}: $${(Number(BigInt(account.credits ?? "0") / BigInt(API_CREDITS_MULTIPLIER)) / 100).toFixed(2)}`}
                 />
-            </Avatar>
-            <ListItemText
-                primary={account.name ?? account.handle}
-                // Credits are calculated in cents * 1 million. 
-                // We'll convert it to dollars
-                secondary={`${t("Credit", { count: 2 })}: $${(Number(BigInt(account.credits ?? "0") / BigInt(API_CREDITS_MULTIPLIER)) / 100).toFixed(2)}`}
-            />
-        </ListItem>
-    ), [accounts, handleUserClick]);
+            </ListItem>
+        );
+    }, [accounts, handleUserClick]);
 
     return (
         <SizedDrawer
@@ -276,11 +308,7 @@ export function SideMenu() {
                     <CloseIcon fill={palette.primary.contrastText} width="40px" height="40px" />
                 </IconButton>
             </Box>
-            <Box sx={{
-                overflow: "auto",
-                display: "grid",
-                overflowX: "hidden",
-            }}>
+            <Box sx={profileListContainerStyle}>
                 {/* List of logged/in accounts and authentication-related actions */}
                 <List
                     id={ELEMENT_IDS.SideMenuAccountList}
@@ -320,22 +348,13 @@ export function SideMenu() {
                     {isDisplaySettingsOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} /> : <ExpandLessIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} />}
                 </Stack>
                 <Collapse in={isDisplaySettingsOpen} sx={{ display: "inline-block", minHeight: "auto!important" }}>
-                    <Box
-                        id={ELEMENT_IDS.SideMenuDisplaySettings}
-                        sx={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 2,
-                            minWidth: "fit-content",
-                            height: "fit-content",
-                            padding: 1,
-                        }}>
+                    <SideMenuDisplaySettingsBox id={ELEMENT_IDS.SideMenuDisplaySettings}>
                         <ThemeSwitch updateServer sx={{ justifyContent: "flex-start" }} />
                         <TextSizeButtons />
                         <LeftHandedCheckbox sx={{ justifyContent: "flex-start" }} />
                         <LanguageSelector />
                         <FocusModeSelector />
-                    </Box>
+                    </SideMenuDisplaySettingsBox>
                     <Link
                         href={LINKS.SettingsDisplay}
                         sx={{ textAlign: "right" }}

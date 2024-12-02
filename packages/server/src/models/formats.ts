@@ -1,5 +1,5 @@
 import { GqlModelType } from "@local/shared";
-import { ApiKeyModelInfo, ApiModelInfo, ApiVersionModelInfo, AwardModelInfo, BookmarkListModelInfo, BookmarkModelInfo, ChatInviteModelInfo, ChatMessageModelInfo, ChatModelInfo, ChatParticipantModelInfo, CodeModelInfo, CodeVersionModelInfo, CommentModelInfo, EmailModelInfo, FocusModeFilterModelInfo, FocusModeModelInfo, IssueModelInfo, LabelModelInfo, MeetingInviteModelInfo, MeetingModelInfo, MemberInviteModelInfo, MemberModelInfo, NodeEndModelInfo, NodeLinkModelInfo, NodeLinkWhenModelInfo, NodeLoopModelInfo, NodeLoopWhileModelInfo, NodeModelInfo, NodeRoutineListItemModelInfo, NodeRoutineListModelInfo, NoteModelInfo, NoteVersionModelInfo, NotificationModelInfo, NotificationSubscriptionModelInfo, PaymentModelInfo, PhoneModelInfo, PostModelInfo, PremiumModelInfo, ProjectModelInfo, ProjectVersionDirectoryModelInfo, ProjectVersionModelInfo, PullRequestModelInfo, PushDeviceModelInfo, QuestionAnswerModelInfo, QuestionModelInfo, QuizAttemptModelInfo, QuizModelInfo, QuizQuestionModelInfo, QuizQuestionResponseModelInfo, ReactionModelInfo, ReactionSummaryModelInfo, ReminderItemModelInfo, ReminderListModelInfo, ReminderModelInfo, ReportModelInfo, ReportResponseModelInfo, ResourceListModelInfo, ResourceModelInfo, RoleModelInfo, RoutineModelInfo, RoutineVersionInputModelInfo, RoutineVersionModelInfo, RoutineVersionOutputModelInfo, RunProjectModelInfo, RunProjectStepModelInfo, RunRoutineInputModelInfo, RunRoutineModelInfo, RunRoutineOutputModelInfo, RunRoutineStepModelInfo, ScheduleExceptionModelInfo, ScheduleModelInfo, ScheduleRecurrenceModelInfo, StandardModelInfo, StandardVersionModelInfo, StatsApiModelInfo, StatsCodeModelInfo, StatsProjectModelInfo, StatsQuizModelInfo, StatsRoutineModelInfo, StatsSiteModelInfo, StatsStandardModelInfo, StatsTeamModelInfo, StatsUserModelInfo, TagModelInfo, TeamModelInfo, TransferModelInfo, UserModelInfo, ViewModelInfo, WalletModelInfo } from "./base/types";
+import { ApiKeyModelInfo, ApiModelInfo, ApiVersionModelInfo, AwardModelInfo, BookmarkListModelInfo, BookmarkModelInfo, ChatInviteModelInfo, ChatMessageModelInfo, ChatModelInfo, ChatParticipantModelInfo, CodeModelInfo, CodeVersionModelInfo, CommentModelInfo, EmailModelInfo, FocusModeFilterModelInfo, FocusModeModelInfo, IssueModelInfo, LabelModelInfo, MeetingInviteModelInfo, MeetingModelInfo, MemberInviteModelInfo, MemberModelInfo, NodeEndModelInfo, NodeLinkModelInfo, NodeLinkWhenModelInfo, NodeLoopModelInfo, NodeLoopWhileModelInfo, NodeModelInfo, NodeRoutineListItemModelInfo, NodeRoutineListModelInfo, NoteModelInfo, NoteVersionModelInfo, NotificationModelInfo, NotificationSubscriptionModelInfo, PaymentModelInfo, PhoneModelInfo, PostModelInfo, PremiumModelInfo, ProjectModelInfo, ProjectVersionDirectoryModelInfo, ProjectVersionModelInfo, PullRequestModelInfo, PushDeviceModelInfo, QuestionAnswerModelInfo, QuestionModelInfo, QuizAttemptModelInfo, QuizModelInfo, QuizQuestionModelInfo, QuizQuestionResponseModelInfo, ReactionModelInfo, ReactionSummaryModelInfo, ReminderItemModelInfo, ReminderListModelInfo, ReminderModelInfo, ReportModelInfo, ReportResponseModelInfo, ResourceListModelInfo, ResourceModelInfo, RoleModelInfo, RoutineModelInfo, RoutineVersionInputModelInfo, RoutineVersionModelInfo, RoutineVersionOutputModelInfo, RunProjectModelInfo, RunProjectStepModelInfo, RunRoutineInputModelInfo, RunRoutineModelInfo, RunRoutineOutputModelInfo, RunRoutineStepModelInfo, ScheduleExceptionModelInfo, ScheduleModelInfo, ScheduleRecurrenceModelInfo, SessionModelInfo, StandardModelInfo, StandardVersionModelInfo, StatsApiModelInfo, StatsCodeModelInfo, StatsProjectModelInfo, StatsQuizModelInfo, StatsRoutineModelInfo, StatsSiteModelInfo, StatsStandardModelInfo, StatsTeamModelInfo, StatsUserModelInfo, TagModelInfo, TeamModelInfo, TransferModelInfo, UserModelInfo, ViewModelInfo, WalletModelInfo } from "./base/types";
 import { Formatter } from "./types";
 
 export const ApiFormat: Formatter<ApiModelInfo> = {
@@ -1849,6 +1849,16 @@ export const CodeVersionFormat: Formatter<CodeVersionModelInfo> = {
     },
 };
 
+export const SessionFormat: Formatter<SessionModelInfo> = {
+    gqlRelMap: {
+        __typename: "Session",
+    },
+    prismaRelMap: {
+        __typename: "Session",
+    },
+    countFields: {},
+};
+
 export const StandardFormat: Formatter<StandardModelInfo> = {
     gqlRelMap: {
         __typename: "Standard",
@@ -2314,6 +2324,7 @@ export const FormatMap: { [key in GqlModelType]?: Formatter<any> } = {
     Schedule: ScheduleFormat,
     ScheduleException: ScheduleExceptionFormat,
     ScheduleRecurrence: ScheduleRecurrenceFormat,
+    Session: SessionFormat,
     Standard: StandardFormat,
     StandardVersion: StandardVersionFormat,
     StatsApi: StatsApiFormat,

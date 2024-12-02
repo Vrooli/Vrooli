@@ -1,5 +1,6 @@
 import { JOIN_CHAT_ROOM_ERRORS, LEAVE_CHAT_ROOM_ERRORS } from "@local/shared";
 import { Socket } from "socket.io";
+import { AuthTokensService } from "../../auth/auth";
 import { RequestService } from "../../auth/request";
 import { prismaInstance } from "../../db/instance";
 import { logger } from "../../events/logger";
@@ -8,12 +9,15 @@ import { onSocketEvent } from "../../sockets/events";
 /** Socket room for chat events */
 export function chatSocketRoomHandlers(socket: Socket) {
     onSocketEvent(socket, "joinChatRoom", async ({ chatId }, callback) => {
-        const rateLimitError = await RequestService.get().rateLimitSocket({ maxUser: 1000, socket });
-        if (rateLimitError) {
-            callback({ success: false, error: rateLimitError });
-            return;
-        }
         try {
+            if (AuthTokensService.isAccessTokenExpired(socket.session)) {
+                callback({ success: false, error: JOIN_CHAT_ROOM_ERRORS.SessionExpired });
+            }
+            const rateLimitError = await RequestService.get().rateLimitSocket({ maxUser: 1000, socket });
+            if (rateLimitError) {
+                callback({ success: false, error: rateLimitError });
+                return;
+            }
             // Check if user is authenticated
             const { id } = RequestService.assertRequestFrom(socket, { isUser: true });
             // Find chat only if permitted

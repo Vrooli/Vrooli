@@ -71,7 +71,7 @@ check_var PORT_SERVER
 check_var SERVER_URL
 check_var SITE_IP
 check_var VAPID_PUBLIC_KEY
-chech_var STRIPE_PUBLISHABLE_KEY
+check_var STRIPE_PUBLISHABLE_KEY
 check_var GOOGLE_TRACKING_ID
 
 # Extract the current version number from the package.json file

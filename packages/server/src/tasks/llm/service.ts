@@ -1,10 +1,9 @@
-import { API_CREDITS_MULTIPLIER, BotSettings, BotSettingsTranslation, ChatSocketEventPayloads, CommandToTask, ExistingTaskData, LanguageModelResponseMode, LlmTask, LlmTaskStructuredConfig, ModelInfo, ServerLlmTaskInfo, getStructuredTaskConfig, getTranslation, getValidTasksFromMessage, toBotSettings } from "@local/shared";
+import { API_CREDITS_MULTIPLIER, BotSettings, BotSettingsTranslation, ChatSocketEventPayloads, CommandToTask, ExistingTaskData, LanguageModelResponseMode, LlmTask, LlmTaskStructuredConfig, ModelInfo, ServerLlmTaskInfo, SessionUser, getStructuredTaskConfig, getTranslation, getValidTasksFromMessage, toBotSettings } from "@local/shared";
 import { cudHelper } from "../../actions/cuds";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
 import { emitSocketEvent } from "../../sockets/events";
-import { SessionUserToken } from "../../types";
 import { objectToYaml } from "../../utils";
 import { PreMapUserData } from "../../utils/chat";
 import { ChatContextCollector, CollectMessageContextInfoParams, ContextInfo, MessageContextInfo } from "./context";
@@ -40,7 +39,7 @@ export type GetConfigObjectParams = {
     botSettings: BotSettings,
     includeInitMessage: boolean,
     mode: LanguageModelResponseMode,
-    userData: Pick<SessionUserToken, "languages">,
+    userData: Pick<SessionUser, "languages">,
     task: LlmTask | `${LlmTask}` | undefined,
     force: boolean,
 }
@@ -63,7 +62,7 @@ export type GenerateContextParams = {
     respondingBotId: string;
     task: LlmTask | `${LlmTask}` | undefined;
     taskMessage?: string | null;
-    userData: SessionUserToken;
+    userData: SessionUser;
 }
 export type GenerateResponseParams = {
     /**
@@ -94,7 +93,7 @@ export type GenerateResponseParams = {
     /**
      * Information about the user requesting the response.
      */
-    userData: Pick<SessionUserToken, "languages" | "name">;
+    userData: Pick<SessionUser, "languages" | "name">;
 }
 export type GenerateResponseResult = {
     /** How many attempts it took to generate a reponse */
@@ -521,7 +520,7 @@ type GenerateResponseWithFallbackParams = Pick<CollectMessageContextInfoParams, 
     /** If we should use a stream to show the response as its being generated */
     stream: boolean;
     task: LlmTask | `${LlmTask}` | undefined;
-    userData: SessionUserToken;
+    userData: SessionUser;
 }
 
 const UNSAFE_CONTENT_CODE = "0605";
@@ -557,7 +556,7 @@ export async function generateResponseWithFallback({
 
         const serviceId = LlmServiceRegistry.get().getBestService(respondingBotConfig.model);
         if (!serviceId) {
-            throw new CustomError("0252", "InternalError", userData.languages, { respondingBotConfig });
+            throw new CustomError("0252", "InternalError", { respondingBotConfig });
         }
 
         try {
@@ -608,7 +607,7 @@ export async function generateResponseWithFallback({
                     logger.error("Failed to delete unsafe message", { trace: "0607", chatId, respondingBotId, error });
                 }
                 const MAX_LOGGED_INPUT_LENGTH = 1000;
-                throw new CustomError(UNSAFE_CONTENT_CODE, "UnsafeContent", userData.languages, {
+                throw new CustomError(UNSAFE_CONTENT_CODE, "UnsafeContent", {
                     input: stringifiedInput.length > MAX_LOGGED_INPUT_LENGTH ? stringifiedInput.slice(0, MAX_LOGGED_INPUT_LENGTH) + "..." : stringifiedInput,
                     latestMessage,
                 });
@@ -627,7 +626,7 @@ export async function generateResponseWithFallback({
                 inputTokens,
             });
             if (maxOutputTokens !== null && maxOutputTokens <= 0) {
-                throw new CustomError("0604", "CostLimitExceeded", userData.languages, { maxCredits, accumulatedCost });
+                throw new CustomError("0604", "CostLimitExceeded", { maxCredits, accumulatedCost });
             }
 
             let responseMessage = "";
@@ -688,7 +687,7 @@ export async function generateResponseWithFallback({
         }
     }
 
-    throw new CustomError("0253", "InternalError", userData.languages, { respondingBotConfig });
+    throw new CustomError("0253", "InternalError", { respondingBotConfig });
 }
 
 export type ForceGetTaskParams = Pick<CollectMessageContextInfoParams, "chatId" | "latestMessage" | "taskMessage"> & {
@@ -703,7 +702,7 @@ export type ForceGetTaskParams = Pick<CollectMessageContextInfoParams, "chatId" 
     respondingBotConfig: BotSettings,
     respondingBotId: string,
     task: LlmTask | `${LlmTask}`,
-    userData: SessionUserToken,
+    userData: SessionUser,
 }
 
 /**

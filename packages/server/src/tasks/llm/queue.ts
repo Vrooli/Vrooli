@@ -1,7 +1,6 @@
-import { LanguageModelResponseMode, LlmTask, MINUTES_1_MS, RunContext, Success, TaskContextInfo } from "@local/shared";
+import { LanguageModelResponseMode, LlmTask, MINUTES_1_MS, RunContext, SessionUser, Success, TaskContextInfo } from "@local/shared";
 import Bull from "bull";
 import winston from "winston";
-import { SessionUserToken } from "../../types.js";
 import { PreMapUserData } from "../../utils/chat.js";
 import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, getProcessPath } from "../queueHelper";
 
@@ -63,7 +62,7 @@ export type RequestBotMessagePayload = {
     /**
      * The user data of the user who triggered the bot response
      */
-    userData: SessionUserToken;
+    userData: SessionUser;
 }
 // TODO can provide state management to bot message payload by adding a routineId field and some field that describes our spot in the routine. This plus passing in data (for autofilling forms, etc.) and passing data to the next step in the routine will allow us to automate routines. Then we can build all of the routines needed to build/improve routines, and we should be good to go!
 

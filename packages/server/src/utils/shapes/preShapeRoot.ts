@@ -101,7 +101,6 @@ export async function preShapeRoot({
 }: PreShapeRootParams): Promise<PreShapeRootResult> {
     // Get db table
     const { dbTable } = ModelMap.getLogic(["dbTable"], objectType);
-    console.log("dbTable", dbTable, "objectType", objectType);
     // Calculate hasCompleteVersion and hasCompleteAndPublic version flags
     const versionMap: Record<string, HasCompleteVersionData> = {};
     const triggerMap: Record<string, ObjectTriggerData> = {};

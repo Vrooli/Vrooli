@@ -1,6 +1,6 @@
-import { getDotNotationValue, GqlModelType, setDotNotationValue } from "@local/shared";
+import { GqlModelType, SessionUser, getDotNotationValue, setDotNotationValue } from "@local/shared";
 import { ModelMap } from "../models/base";
-import { RecursivePartial, SessionUserToken } from "../types";
+import { RecursivePartial } from "../types";
 import { PartialGraphQLInfo } from "./types";
 
 /**
@@ -37,7 +37,7 @@ export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: str
     objects: ({ id: string } & { [x: string]: any })[],
     objectType: `${GqlModelType}`,
     partial: PartialGraphQLInfo,
-    userData: SessionUserToken | null,
+    userData: SessionUser | null,
 }): Promise<RecursivePartial<GraphQLModel>[]> => {
     if (!objects || objects.length === 0) return [];
     // Get supplemental info for object

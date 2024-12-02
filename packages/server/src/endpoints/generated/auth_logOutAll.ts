@@ -1,14 +1,14 @@
-export const auth_logOut = {
-  "fieldName": "logOut",
+export const auth_logOutAll = {
+  "fieldName": "logOutAll",
   "fieldNodes": [
     {
       "kind": "Field",
       "name": {
         "kind": "Name",
-        "value": "logOut",
+        "value": "logOutAll",
         "loc": {
-          "start": 21,
-          "end": 27
+          "start": 24,
+          "end": 33
         }
       },
       "arguments": [],
@@ -22,15 +22,15 @@ export const auth_logOut = {
               "kind": "Name",
               "value": "isLoggedIn",
               "loc": {
-                "start": 34,
-                "end": 44
+                "start": 40,
+                "end": 50
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 34,
-              "end": 44
+              "start": 40,
+              "end": 50
             }
           },
           {
@@ -39,15 +39,15 @@ export const auth_logOut = {
               "kind": "Name",
               "value": "timeZone",
               "loc": {
-                "start": 49,
-                "end": 57
+                "start": 55,
+                "end": 63
               }
             },
             "arguments": [],
             "directives": [],
             "loc": {
-              "start": 49,
-              "end": 57
+              "start": 55,
+              "end": 63
             }
           },
           {
@@ -56,8 +56,8 @@ export const auth_logOut = {
               "kind": "Name",
               "value": "users",
               "loc": {
-                "start": 62,
-                "end": 67
+                "start": 68,
+                "end": 73
               }
             },
             "arguments": [],
@@ -71,15 +71,15 @@ export const auth_logOut = {
                     "kind": "Name",
                     "value": "apisCount",
                     "loc": {
-                      "start": 78,
-                      "end": 87
+                      "start": 84,
+                      "end": 93
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 78,
-                    "end": 87
+                    "start": 84,
+                    "end": 93
                   }
                 },
                 {
@@ -88,15 +88,15 @@ export const auth_logOut = {
                     "kind": "Name",
                     "value": "codesCount",
                     "loc": {
-                      "start": 96,
-                      "end": 106
+                      "start": 102,
+                      "end": 112
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 96,
-                    "end": 106
+                    "start": 102,
+                    "end": 112
                   }
                 },
                 {
@@ -105,15 +105,15 @@ export const auth_logOut = {
                     "kind": "Name",
                     "value": "handle",
                     "loc": {
-                      "start": 115,
-                      "end": 121
+                      "start": 121,
+                      "end": 127
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 115,
-                    "end": 121
+                    "start": 121,
+                    "end": 127
                   }
                 },
                 {
@@ -122,15 +122,15 @@ export const auth_logOut = {
                     "kind": "Name",
                     "value": "hasPremium",
                     "loc": {
-                      "start": 130,
-                      "end": 140
+                      "start": 136,
+                      "end": 146
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 130,
-                    "end": 140
+                    "start": 136,
+                    "end": 146
                   }
                 },
                 {
@@ -139,15 +139,15 @@ export const auth_logOut = {
                     "kind": "Name",
                     "value": "id",
                     "loc": {
-                      "start": 149,
-                      "end": 151
+                      "start": 155,
+                      "end": 157
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 149,
-                    "end": 151
+                    "start": 155,
+                    "end": 157
                   }
                 },
                 {
@@ -156,15 +156,15 @@ export const auth_logOut = {
                     "kind": "Name",
                     "value": "languages",
                     "loc": {
-                      "start": 160,
-                      "end": 169
+                      "start": 166,
+                      "end": 175
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 160,
-                    "end": 169
+                    "start": 166,
+                    "end": 175
                   }
                 },
                 {
@@ -173,15 +173,15 @@ export const auth_logOut = {
                     "kind": "Name",
                     "value": "membershipsCount",
                     "loc": {
-                      "start": 178,
-                      "end": 194
+                      "start": 184,
+                      "end": 200
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 178,
-                    "end": 194
+                    "start": 184,
+                    "end": 200
                   }
                 },
                 {
@@ -190,15 +190,15 @@ export const auth_logOut = {
                     "kind": "Name",
                     "value": "name",
                     "loc": {
-                      "start": 203,
-                      "end": 207
+                      "start": 209,
+                      "end": 213
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 203,
-                    "end": 207
+                    "start": 209,
+                    "end": 213
                   }
                 },
                 {
@@ -207,15 +207,15 @@ export const auth_logOut = {
                     "kind": "Name",
                     "value": "notesCount",
                     "loc": {
-                      "start": 216,
-                      "end": 226
+                      "start": 222,
+                      "end": 232
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 216,
-                    "end": 226
+                    "start": 222,
+                    "end": 232
                   }
                 },
                 {
@@ -224,15 +224,15 @@ export const auth_logOut = {
                     "kind": "Name",
                     "value": "projectsCount",
                     "loc": {
-                      "start": 235,
-                      "end": 248
+                      "start": 241,
+                      "end": 254
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 235,
-                    "end": 248
+                    "start": 241,
+                    "end": 254
                   }
                 },
                 {
@@ -241,15 +241,15 @@ export const auth_logOut = {
                     "kind": "Name",
                     "value": "questionsAskedCount",
                     "loc": {
-                      "start": 257,
-                      "end": 276
+                      "start": 263,
+                      "end": 282
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 257,
-                    "end": 276
+                    "start": 263,
+                    "end": 282
                   }
                 },
                 {
@@ -258,15 +258,15 @@ export const auth_logOut = {
                     "kind": "Name",
                     "value": "routinesCount",
                     "loc": {
-                      "start": 285,
-                      "end": 298
+                      "start": 291,
+                      "end": 304
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 285,
-                    "end": 298
+                    "start": 291,
+                    "end": 304
                   }
                 },
                 {
@@ -275,15 +275,15 @@ export const auth_logOut = {
                     "kind": "Name",
                     "value": "standardsCount",
                     "loc": {
-                      "start": 307,
-                      "end": 321
+                      "start": 313,
+                      "end": 327
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 307,
-                    "end": 321
+                    "start": 313,
+                    "end": 327
                   }
                 },
                 {
@@ -292,37 +292,37 @@ export const auth_logOut = {
                     "kind": "Name",
                     "value": "theme",
                     "loc": {
-                      "start": 330,
-                      "end": 335
+                      "start": 336,
+                      "end": 341
                     }
                   },
                   "arguments": [],
                   "directives": [],
                   "loc": {
-                    "start": 330,
-                    "end": 335
+                    "start": 336,
+                    "end": 341
                   }
                 }
               ],
               "loc": {
-                "start": 68,
-                "end": 341
+                "start": 74,
+                "end": 347
               }
             },
             "loc": {
-              "start": 62,
-              "end": 341
+              "start": 68,
+              "end": 347
             }
           }
         ],
         "loc": {
-          "start": 28,
-          "end": 345
+          "start": 34,
+          "end": 351
         }
       },
       "loc": {
-        "start": 21,
-        "end": 345
+        "start": 24,
+        "end": 351
       }
     }
   ],
@@ -336,10 +336,10 @@ export const auth_logOut = {
     "operation": "mutation",
     "name": {
       "kind": "Name",
-      "value": "logOut",
+      "value": "logOutAll",
       "loc": {
         "start": 10,
-        "end": 16
+        "end": 19
       }
     },
     "variableDefinitions": [],
@@ -351,10 +351,10 @@ export const auth_logOut = {
           "kind": "Field",
           "name": {
             "kind": "Name",
-            "value": "logOut",
+            "value": "logOutAll",
             "loc": {
-              "start": 21,
-              "end": 27
+              "start": 24,
+              "end": 33
             }
           },
           "arguments": [],
@@ -368,15 +368,15 @@ export const auth_logOut = {
                   "kind": "Name",
                   "value": "isLoggedIn",
                   "loc": {
-                    "start": 34,
-                    "end": 44
+                    "start": 40,
+                    "end": 50
                   }
                 },
                 "arguments": [],
                 "directives": [],
                 "loc": {
-                  "start": 34,
-                  "end": 44
+                  "start": 40,
+                  "end": 50
                 }
               },
               {
@@ -385,15 +385,15 @@ export const auth_logOut = {
                   "kind": "Name",
                   "value": "timeZone",
                   "loc": {
-                    "start": 49,
-                    "end": 57
+                    "start": 55,
+                    "end": 63
                   }
                 },
                 "arguments": [],
                 "directives": [],
                 "loc": {
-                  "start": 49,
-                  "end": 57
+                  "start": 55,
+                  "end": 63
                 }
               },
               {
@@ -402,8 +402,8 @@ export const auth_logOut = {
                   "kind": "Name",
                   "value": "users",
                   "loc": {
-                    "start": 62,
-                    "end": 67
+                    "start": 68,
+                    "end": 73
                   }
                 },
                 "arguments": [],
@@ -417,15 +417,15 @@ export const auth_logOut = {
                         "kind": "Name",
                         "value": "apisCount",
                         "loc": {
-                          "start": 78,
-                          "end": 87
+                          "start": 84,
+                          "end": 93
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 78,
-                        "end": 87
+                        "start": 84,
+                        "end": 93
                       }
                     },
                     {
@@ -434,15 +434,15 @@ export const auth_logOut = {
                         "kind": "Name",
                         "value": "codesCount",
                         "loc": {
-                          "start": 96,
-                          "end": 106
+                          "start": 102,
+                          "end": 112
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 96,
-                        "end": 106
+                        "start": 102,
+                        "end": 112
                       }
                     },
                     {
@@ -451,15 +451,15 @@ export const auth_logOut = {
                         "kind": "Name",
                         "value": "handle",
                         "loc": {
-                          "start": 115,
-                          "end": 121
+                          "start": 121,
+                          "end": 127
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 115,
-                        "end": 121
+                        "start": 121,
+                        "end": 127
                       }
                     },
                     {
@@ -468,15 +468,15 @@ export const auth_logOut = {
                         "kind": "Name",
                         "value": "hasPremium",
                         "loc": {
-                          "start": 130,
-                          "end": 140
+                          "start": 136,
+                          "end": 146
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 130,
-                        "end": 140
+                        "start": 136,
+                        "end": 146
                       }
                     },
                     {
@@ -485,15 +485,15 @@ export const auth_logOut = {
                         "kind": "Name",
                         "value": "id",
                         "loc": {
-                          "start": 149,
-                          "end": 151
+                          "start": 155,
+                          "end": 157
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 149,
-                        "end": 151
+                        "start": 155,
+                        "end": 157
                       }
                     },
                     {
@@ -502,15 +502,15 @@ export const auth_logOut = {
                         "kind": "Name",
                         "value": "languages",
                         "loc": {
-                          "start": 160,
-                          "end": 169
+                          "start": 166,
+                          "end": 175
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 160,
-                        "end": 169
+                        "start": 166,
+                        "end": 175
                       }
                     },
                     {
@@ -519,15 +519,15 @@ export const auth_logOut = {
                         "kind": "Name",
                         "value": "membershipsCount",
                         "loc": {
-                          "start": 178,
-                          "end": 194
+                          "start": 184,
+                          "end": 200
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 178,
-                        "end": 194
+                        "start": 184,
+                        "end": 200
                       }
                     },
                     {
@@ -536,15 +536,15 @@ export const auth_logOut = {
                         "kind": "Name",
                         "value": "name",
                         "loc": {
-                          "start": 203,
-                          "end": 207
+                          "start": 209,
+                          "end": 213
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 203,
-                        "end": 207
+                        "start": 209,
+                        "end": 213
                       }
                     },
                     {
@@ -553,15 +553,15 @@ export const auth_logOut = {
                         "kind": "Name",
                         "value": "notesCount",
                         "loc": {
-                          "start": 216,
-                          "end": 226
+                          "start": 222,
+                          "end": 232
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 216,
-                        "end": 226
+                        "start": 222,
+                        "end": 232
                       }
                     },
                     {
@@ -570,15 +570,15 @@ export const auth_logOut = {
                         "kind": "Name",
                         "value": "projectsCount",
                         "loc": {
-                          "start": 235,
-                          "end": 248
+                          "start": 241,
+                          "end": 254
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 235,
-                        "end": 248
+                        "start": 241,
+                        "end": 254
                       }
                     },
                     {
@@ -587,15 +587,15 @@ export const auth_logOut = {
                         "kind": "Name",
                         "value": "questionsAskedCount",
                         "loc": {
-                          "start": 257,
-                          "end": 276
+                          "start": 263,
+                          "end": 282
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 257,
-                        "end": 276
+                        "start": 263,
+                        "end": 282
                       }
                     },
                     {
@@ -604,15 +604,15 @@ export const auth_logOut = {
                         "kind": "Name",
                         "value": "routinesCount",
                         "loc": {
-                          "start": 285,
-                          "end": 298
+                          "start": 291,
+                          "end": 304
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 285,
-                        "end": 298
+                        "start": 291,
+                        "end": 304
                       }
                     },
                     {
@@ -621,15 +621,15 @@ export const auth_logOut = {
                         "kind": "Name",
                         "value": "standardsCount",
                         "loc": {
-                          "start": 307,
-                          "end": 321
+                          "start": 313,
+                          "end": 327
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 307,
-                        "end": 321
+                        "start": 313,
+                        "end": 327
                       }
                     },
                     {
@@ -638,52 +638,52 @@ export const auth_logOut = {
                         "kind": "Name",
                         "value": "theme",
                         "loc": {
-                          "start": 330,
-                          "end": 335
+                          "start": 336,
+                          "end": 341
                         }
                       },
                       "arguments": [],
                       "directives": [],
                       "loc": {
-                        "start": 330,
-                        "end": 335
+                        "start": 336,
+                        "end": 341
                       }
                     }
                   ],
                   "loc": {
-                    "start": 68,
-                    "end": 341
+                    "start": 74,
+                    "end": 347
                   }
                 },
                 "loc": {
-                  "start": 62,
-                  "end": 341
+                  "start": 68,
+                  "end": 347
                 }
               }
             ],
             "loc": {
-              "start": 28,
-              "end": 345
+              "start": 34,
+              "end": 351
             }
           },
           "loc": {
-            "start": 21,
-            "end": 345
+            "start": 24,
+            "end": 351
           }
         }
       ],
       "loc": {
-        "start": 17,
-        "end": 347
+        "start": 20,
+        "end": 353
       }
     },
     "loc": {
       "start": 1,
-      "end": 347
+      "end": 353
     }
   },
   "variableValues": {},
   "path": {
-    "key": "auth_logOut"
+    "key": "auth_logOutAll"
   }
 } as const;

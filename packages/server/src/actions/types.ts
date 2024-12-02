@@ -1,7 +1,7 @@
-import { CopyInput, DeleteManyInput, DeleteOneInput, GqlModelType, VisibilityType } from "@local/shared";
+import { CopyInput, DeleteManyInput, DeleteOneInput, GqlModelType, SessionUser, VisibilityType } from "@local/shared";
 import { Request } from "express";
 import { CountInputBase, GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
-import { SessionData, SessionUserToken } from "../types";
+import { SessionData } from "../types";
 import { EmbeddableType } from "../utils/embeddings/types";
 
 export type CudAdditionalData = Record<string, any>;
@@ -56,7 +56,7 @@ export type ReadManyHelperProps<
     info: GraphQLInfo | PartialGraphQLInfo;
     input: Input;
     objectType: `${GqlModelType}`;
-    req: { session: { languages: string[], users?: SessionUserToken[] } };
+    req: { session: Pick<SessionData, "languages" | "users"> };
     visibility?: VisibilityType;
 }
 
@@ -82,7 +82,7 @@ export type ReadOneHelperProps = {
     info: GraphQLInfo | PartialGraphQLInfo;
     input: FindUniqueInput;
     objectType: `${GqlModelType}`;
-    req: { session: { languages: string[], users?: SessionUserToken[] } };
+    req: { session: Pick<SessionData, "languages" | "users"> };
 }
 
 export type RelBuilderHelperProps<
@@ -99,7 +99,7 @@ export type RelBuilderHelperProps<
     linkVersion?: boolean,
     objectType: `${GqlModelType}`,
     relationshipName: RelName,
-    userData: SessionUserToken,
+    userData: SessionUser,
 }
 
 export type UpdateOneHelperProps = {

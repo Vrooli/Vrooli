@@ -1,6 +1,8 @@
-import { Email, endpointPostAuthLogout, endpointPutProfileEmail, LINKS, LogOutInput, Phone, profileEmailUpdateFormValidation, ProfileEmailUpdateInput, Session, User, Wallet } from "@local/shared";
+import { Email, endpointPostAuthLogout, endpointPostAuthLogoutAll, endpointPutProfileEmail, LINKS, Phone, profileEmailUpdateFormValidation, ProfileEmailUpdateInput, Session, User, Wallet } from "@local/shared";
 import { Box, Button, Divider, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
+import { SocketService } from "api/socket";
+import { LazyRequestWithResult } from "api/types";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
 import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
@@ -11,20 +13,27 @@ import { WalletList } from "components/lists/devices/WalletList/WalletList";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Title } from "components/text/Title/Title";
-import { SessionContext } from "contexts";
-import { Formik } from "formik";
+import { Formik, FormikHelpers } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useProfileQuery } from "hooks/useProfileQuery";
 import { DeleteIcon, EmailIcon, LogOutIcon, PhoneIcon, WalletIcon } from "icons";
-import { useCallback, useContext, useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { FormSection, ScrollBox } from "styles";
-import { getCurrentUser, guestSession } from "utils/authentication/session";
+import { guestSession } from "utils/authentication/session";
 import { removeCookie } from "utils/localStorage";
 import { PubSub, SIDE_MENU_ID } from "utils/pubsub";
-import { SettingsAuthenticationFormProps, SettingsAuthenticationViewProps } from "../types";
+import { SettingsAuthenticationFormProps, SettingsAuthenticationFormValues, SettingsAuthenticationViewProps } from "../types";
+
+const initialValues: SettingsAuthenticationFormValues = {
+    currentPassword: "",
+    newPassword: "",
+    newPasswordConfirmation: "",
+};
+
+const hiddenInputStyle = { display: "none" } as const;
 
 function SettingsAuthenticationForm({
     display,
@@ -42,12 +51,13 @@ function SettingsAuthenticationForm({
             <BaseForm
                 display={display}
                 isLoading={isLoading}
+                style={{ paddingBottom: 0 }}
             >
                 {/* Hidden username input because some password managers require it */}
                 <TextInput
                     name="username"
                     autoComplete="username"
-                    sx={{ display: "none" }}
+                    sx={hiddenInputStyle}
                 />
                 <FormSection>
                     <PasswordTextInput
@@ -83,61 +93,60 @@ function SettingsAuthenticationForm({
     );
 }
 
+const buttonStyles = {
+    display: "flex",
+    width: "min(100%, 400px)",
+    margin: "8px auto",
+    whiteSpace: "nowrap",
+};
+
 export function SettingsAuthenticationView({
     display,
     onClose,
 }: SettingsAuthenticationViewProps) {
-    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
 
-    const [logOut] = useLazyFetch<LogOutInput, Session>(endpointPostAuthLogout);
-    const onLogOut = useCallback(() => {
-        const { id } = getCurrentUser(session);
-        fetchLazyWrapper<LogOutInput, Session>({
-            fetch: logOut,
-            inputs: { id },
+    const [logOut] = useLazyFetch<undefined, Session>(endpointPostAuthLogout);
+    const [logOutAllDevices] = useLazyFetch<undefined, Session>(endpointPostAuthLogoutAll);
+    const handleLogout = useCallback((logoutEndpoint: LazyRequestWithResult<undefined, Session>) => {
+        SocketService.get().disconnect();
+        fetchLazyWrapper<undefined, Session>({
+            fetch: logoutEndpoint,
             onSuccess: (data) => {
+                PubSub.get().publish("session", data);
+            },
+            onError: () => {
+                PubSub.get().publish("session", guestSession);
+            },
+            onCompleted: () => {
+                SocketService.get().connect();
                 removeCookie("FormData"); // Clear old form data cache
                 localStorage.removeItem("isLoggedIn");
-                PubSub.get().publish("session", data);
                 PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: false });
+                setLocation(LINKS.Home);
             },
-            // If error, log out anyway
-            onError: () => { PubSub.get().publish("session", guestSession); },
         });
-        PubSub.get().publish("session", guestSession);
-        setLocation(LINKS.Home);
-    }, [logOut, session, setLocation]);
+    }, [setLocation]);
+    const onLogOut = useCallback(() => handleLogout(logOut), [handleLogout, logOut]);
+    const onLogOutAllDevices = useCallback(() => handleLogout(logOutAllDevices), [handleLogout, logOutAllDevices]);
 
-    const updatePhones = useCallback((updatedList: Phone[]) => {
+    const updateProfileField = useCallback((field: "phones" | "emails" | "wallets", updatedList: unknown[]) => {
         if (!profile) {
             PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
             return;
         }
-        onProfileUpdate({ ...profile, phones: updatedList });
+        onProfileUpdate({ ...profile, [field]: updatedList });
     }, [onProfileUpdate, profile]);
+    const updatePhones = useCallback((updatedList: Phone[]) => updateProfileField("phones", updatedList), [updateProfileField]);
+    const updateEmails = useCallback((updatedList: Email[]) => updateProfileField("emails", updatedList), [updateProfileField]);
+    const updateWallets = useCallback((updatedList: Wallet[]) => updateProfileField("wallets", updatedList), [updateProfileField]);
+
     const numVerifiedPhones = profile?.phones?.filter((phone) => phone.verified)?.length ?? 0;
-
-    const updateEmails = useCallback((updatedList: Email[]) => {
-        if (!profile) {
-            PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
-            return;
-        }
-        onProfileUpdate({ ...profile, emails: updatedList });
-    }, [onProfileUpdate, profile]);
     const numVerifiedEmails = profile?.emails?.filter((email) => email.verified)?.length ?? 0;
-
-    const updateWallets = useCallback((updatedList: Wallet[]) => {
-        if (!profile) {
-            PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
-            return;
-        }
-        onProfileUpdate({ ...profile, wallets: updatedList });
-    }, [onProfileUpdate, profile]);
     const numVerifiedWallets = profile?.wallets?.filter((wallet) => wallet.verified)?.length ?? 0;
 
     // Handle update
@@ -146,6 +155,29 @@ export function SettingsAuthenticationView({
     const [deleteOpen, setDeleteOpen] = useState<boolean>(false);
     const openDelete = useCallback(() => setDeleteOpen(true), [setDeleteOpen]);
     const closeDelete = useCallback(() => setDeleteOpen(false), [setDeleteOpen]);
+
+
+    const onSubmit = useCallback(function onSubmitCallback(values: SettingsAuthenticationFormValues, helpers: FormikHelpers<SettingsAuthenticationFormValues>) {
+        if (!profile) {
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
+            return;
+        }
+        if (typeof values.newPassword === "string" && values.newPassword.length > 0 && values.newPassword !== values.newPasswordConfirmation) {
+            PubSub.get().publish("snack", { messageKey: "PasswordsDontMatch", severity: "Error" });
+            helpers.setSubmitting(false);
+            return;
+        }
+        fetchLazyWrapper<ProfileEmailUpdateInput, User>({
+            fetch: update,
+            inputs: {
+                currentPassword: values.currentPassword,
+                newPassword: values.newPassword,
+            },
+            onSuccess: (data) => { onProfileUpdate(data); },
+            onCompleted: () => { helpers.setSubmitting(false); },
+            successMessage: () => ({ messageKey: "Success" }),
+        });
+    }, []);
 
     return (
         <ScrollBox>
@@ -178,7 +210,6 @@ export function SettingsAuthenticationView({
                             Icon={PhoneIcon}
                             title={t("Phone", { count: 2 })}
                             variant="subheader"
-                            sxs={{ stack: { marginBottom: 4 } }}
                         />
                         <PhoneList
                             handleUpdate={updatePhones}
@@ -193,7 +224,6 @@ export function SettingsAuthenticationView({
                             Icon={EmailIcon}
                             title={t("Email", { count: 2 })}
                             variant="subheader"
-                            sxs={{ stack: { marginBottom: 4 } }}
                         />
                         <EmailList
                             handleUpdate={updateEmails}
@@ -208,7 +238,6 @@ export function SettingsAuthenticationView({
                             Icon={WalletIcon}
                             title={t("Wallet", { count: 2 })}
                             variant="subheader"
-                            sxs={{ stack: { marginBottom: 4 } }}
                         />
                         <WalletList
                             handleUpdate={updateWallets}
@@ -222,36 +251,11 @@ export function SettingsAuthenticationView({
                             help={t("PasswordChangeHelp")}
                             title={t("ChangePassword")}
                             variant="subheader"
-                            sxs={{ stack: { marginBottom: 4 } }}
                         />
                         <Formik
                             enableReinitialize={true}
-                            initialValues={{
-                                currentPassword: "",
-                                newPassword: "",
-                                newPasswordConfirmation: "",
-                            }}
-                            onSubmit={(values, helpers) => {
-                                if (!profile) {
-                                    PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
-                                    return;
-                                }
-                                if (typeof values.newPassword === "string" && values.newPassword.length > 0 && values.newPassword !== values.newPasswordConfirmation) {
-                                    PubSub.get().publish("snack", { messageKey: "PasswordsDontMatch", severity: "Error" });
-                                    helpers.setSubmitting(false);
-                                    return;
-                                }
-                                fetchLazyWrapper<ProfileEmailUpdateInput, User>({
-                                    fetch: update,
-                                    inputs: {
-                                        currentPassword: values.currentPassword,
-                                        newPassword: values.newPassword,
-                                    },
-                                    onSuccess: (data) => { onProfileUpdate(data); },
-                                    onCompleted: () => { helpers.setSubmitting(false); },
-                                    successMessage: () => ({ messageKey: "Success" }),
-                                });
-                            }}
+                            initialValues={initialValues}
+                            onSubmit={onSubmit}
                             validationSchema={profileEmailUpdateFormValidation}
                         >
                             {(formik) => <SettingsAuthenticationForm
@@ -269,29 +273,25 @@ export function SettingsAuthenticationView({
                             onClick={onLogOut}
                             startIcon={<LogOutIcon />}
                             variant="outlined"
-                            sx={{
-                                display: "flex",
-                                width: "min(100%, 400px)",
-                                marginLeft: "auto",
-                                marginRight: "auto",
-                                marginTop: 5,
-                                marginBottom: 2,
-                                whiteSpace: "nowrap",
-                            }}
+                            sx={buttonStyles}
                         >{t("LogOut")}</Button>
+                        <Button
+                            color="secondary"
+                            onClick={onLogOutAllDevices}
+                            startIcon={<LogOutIcon />}
+                            variant="outlined"
+                            sx={buttonStyles}
+                        >
+                            {t("LogOutAllDevices")}
+                        </Button>
                         <Button
                             onClick={openDelete}
                             startIcon={<DeleteIcon />}
                             variant="text"
                             sx={{
+                                ...buttonStyles,
                                 background: palette.error.main,
                                 color: palette.error.contrastText,
-                                display: "flex",
-                                width: "min(100%, 400px)",
-                                marginLeft: "auto",
-                                marginRight: "auto",
-                                marginBottom: 2,
-                                whiteSpace: "nowrap",
                             }}
                         >{t("DeleteAccount")}</Button>
                     </Box>

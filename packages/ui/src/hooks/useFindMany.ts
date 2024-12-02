@@ -250,8 +250,7 @@ export function useFindMany<DataType extends Record<string, any>>({
         params.current.loading = loading;
     }, [loading]);
 
-    // Fetch data when canSearch changes to true
-    useEffect(() => {
+    useEffect(function fetchWhenCanSearchIsTrue() {
         const oldCanSearch = params.current.canSearch;
         const newCanSearch = typeof stableCanSearch === "function" ? stableCanSearch(stableWhere) : true;
         params.current.canSearch = newCanSearch;
@@ -304,11 +303,12 @@ export function useFindMany<DataType extends Record<string, any>>({
             ...newParams,
             sortBy,
             hasMore: true,
+            where: stableWhere ?? {},
         };
         setAllData([]);
         updateSearchUrl(controlsUrlRef.current, params.current, setLocation);
         getData();
-    }, [searchType, getData, setLocation]);
+    }, [searchType, stableWhere, getData, setLocation]);
 
     // Fetch more data by setting "after"
     const loadMore = useCallback(() => {

@@ -8,7 +8,7 @@ import { PasswordAuthService } from "../../auth/email";
 import { RequestService } from "../../auth/request";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
-import { FindManyResult, FindOneResult, GQLEndpoint, RecursivePartial, UpdateOneResult } from "../../types";
+import { FindManyResult, FindOneResult, GQLEndpoint, IWrap, RecursivePartial, UpdateOneResult } from "../../types";
 import { parseICalFile } from "../../utils";
 import { AuthEndpoints } from "./auth";
 
@@ -75,8 +75,9 @@ export const UserEndpoints: EndpointsUser = {
             if (!user)
                 throw new CustomError("0062", "InvalidCredentials"); // Purposefully vague with duplicate code for security
             // If user doesn't have a password, they must reset it first
-            const passwordHash = PasswordAuthService.getAuthPassword(user);
-            if (!passwordHash) {
+            const passwordAuth = user.auths.find((auth) => auth.provider === AUTH_PROVIDERS.Password);
+            const passwordHash = passwordAuth?.hashed_password ?? null;
+            if (!passwordAuth || !passwordHash) {
                 await PasswordAuthService.setupPasswordReset(user);
                 throw new CustomError("0125", "MustResetPassword");
             }
@@ -90,10 +91,7 @@ export const UserEndpoints: EndpointsUser = {
                 // Update password
                 await prismaInstance.user_auth.update({
                     where: {
-                        provider_provider_user_id: {
-                            provider: AUTH_PROVIDERS.Password,
-                            provider_user_id: userData.id,
-                        },
+                        id: passwordAuth.id,
                     },
                     data: {
                         hashed_password: PasswordAuthService.hashPassword(input.newPassword),
@@ -149,7 +147,7 @@ export const UserEndpoints: EndpointsUser = {
             if (result.success) {
                 // TODO this will only work if you're deleing yourself, since it clears your own session. 
                 // If there are cases like deleting a bot, or an admin deleting a user, this will need to be handled differently
-                return AuthEndpoints.Mutation.logOut(undefined, { input: { id } }, { req, res }, info) as any;
+                return AuthEndpoints.Mutation.logOut(undefined, undefined as unknown as IWrap<Record<string, never>>, { req, res }, info) as any;
             } else {
                 throw new CustomError("0123", "InternalError");
             }

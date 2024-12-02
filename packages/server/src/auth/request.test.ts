@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { SessionData, SessionUserToken } from "@local/server";
-import { DEFAULT_LANGUAGE } from "@local/shared";
+import { DEFAULT_LANGUAGE, SessionUser } from "@local/shared";
 import { Request } from "express";
+import { SessionData } from "../types";
 import { RequestService } from "./request";
 import { SessionService } from "./session";
 
@@ -258,7 +258,7 @@ describe("RequestService", () => {
 
     describe("assertRequestFrom", () => {
         let sessionData: SessionData;
-        let userData: SessionUserToken;
+        let userData: SessionUser;
 
         beforeEach(() => {
             sessionData = {
@@ -269,7 +269,7 @@ describe("RequestService", () => {
             userData = {
                 id: "user123",
                 username: "testuser",
-            } as unknown as SessionUserToken;
+            } as unknown as SessionUser;
 
             jest.spyOn(SessionService, 'getUser').mockReturnValue(userData);
         });

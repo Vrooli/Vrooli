@@ -4,6 +4,8 @@ import { useCallback } from "react";
 import { BottomActionsButtons } from "../BottomActionsButtons/BottomActionsButtons";
 import { BuildEditButtonsProps } from "../types";
 
+const SLIDER_CHANGE_THROTTLE_MS = 50;
+
 export function BuildEditButtons({
     canSubmitMutate,
     canCancelMutate,
@@ -19,7 +21,7 @@ export function BuildEditButtons({
 
     const handleSliderChangeThrottled = useThrottle<[number]>((delta) => {
         handleScaleChange(delta);
-    }, 50);
+    }, SLIDER_CHANGE_THROTTLE_MS);
 
     const handleSliderChange = useCallback((_event: Event, newValue: number | number[]) => {
         const delta = (newValue as number) - scale;
@@ -76,4 +78,4 @@ export function BuildEditButtons({
             </Grid>
         </Box>
     );
-};
+}

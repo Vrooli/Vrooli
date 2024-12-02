@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 HERE=$(dirname $0)
 . "${HERE}/utils.sh"
 

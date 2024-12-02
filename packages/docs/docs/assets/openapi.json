@@ -3972,9 +3972,9 @@
             ],
             "type": "string"
           },
-          "mode": {
-            "$ref": "#/components/schemas/FocusMode",
-            "title": "ActiveFocusMode.mode"
+          "focusMode": {
+            "$ref": "#/components/schemas/ActiveFocusModeFocusMode",
+            "title": "ActiveFocusMode.focusMode"
           },
           "stopCondition": {
             "enum": [
@@ -3994,11 +3994,38 @@
         },
         "required": [
           "__typename",
-          "mode",
+          "focusMode",
           "stopCondition"
         ],
         "additionalProperties": false,
         "title": "ActiveFocusMode",
+        "type": "object"
+      },
+      "ActiveFocusModeFocusMode": {
+        "properties": {
+          "__typename": {
+            "title": "ActiveFocusModeFocusMode.__typename",
+            "enum": [
+              "ActiveFocusModeFocusMode"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "title": "ActiveFocusModeFocusMode.id",
+            "type": "string"
+          },
+          "reminderListId": {
+            "title": "ActiveFocusModeFocusMode.reminderListId",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "__typename",
+          "id"
+        ],
+        "additionalProperties": false,
+        "title": "ActiveFocusModeFocusMode",
         "type": "object"
       },
       "Api": {
@@ -14913,18 +14940,6 @@
         ],
         "additionalProperties": false,
         "title": "LabelYou",
-        "type": "object"
-      },
-      "LogOutInput": {
-        "properties": {
-          "id": {
-            "title": "LogOutInput.id",
-            "nullable": true,
-            "type": "string"
-          }
-        },
-        "additionalProperties": false,
-        "title": "LogOutInput",
         "type": "object"
       },
       "Meeting": {
@@ -41835,13 +41850,6 @@
             "title": "SessionUser.apisCount",
             "type": "number"
           },
-          "bookmarkLists": {
-            "items": {
-              "$ref": "#/components/schemas/BookmarkList"
-            },
-            "title": "SessionUser.bookmarkLists",
-            "type": "array"
-          },
           "codesCount": {
             "title": "SessionUser.codesCount",
             "type": "number"
@@ -41849,13 +41857,6 @@
           "credits": {
             "title": "SessionUser.credits",
             "type": "string"
-          },
-          "focusModes": {
-            "items": {
-              "$ref": "#/components/schemas/FocusMode"
-            },
-            "title": "SessionUser.focusModes",
-            "type": "array"
           },
           "handle": {
             "title": "SessionUser.handle",
@@ -41907,6 +41908,10 @@
             "title": "SessionUser.routinesCount",
             "type": "number"
           },
+          "session": {
+            "$ref": "#/components/schemas/SessionUserSession",
+            "title": "SessionUser.session"
+          },
           "standardsCount": {
             "title": "SessionUser.standardsCount",
             "type": "number"
@@ -41924,10 +41929,8 @@
         "required": [
           "__typename",
           "apisCount",
-          "bookmarkLists",
           "codesCount",
           "credits",
-          "focusModes",
           "hasPremium",
           "id",
           "languages",
@@ -41936,11 +41939,39 @@
           "projectsCount",
           "questionsAskedCount",
           "routinesCount",
+          "session",
           "standardsCount",
           "updated_at"
         ],
         "additionalProperties": false,
         "title": "SessionUser",
+        "type": "object"
+      },
+      "SessionUserSession": {
+        "properties": {
+          "__typename": {
+            "title": "SessionUserSession.__typename",
+            "enum": [
+              "SessionUserSession"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "title": "SessionUserSession.id",
+            "type": "string"
+          },
+          "lastRefreshAt": {
+            "title": "SessionUserSession.lastRefreshAt",
+            "type": "string"
+          }
+        },
+        "required": [
+          "__typename",
+          "id",
+          "lastRefreshAt"
+        ],
+        "additionalProperties": false,
+        "title": "SessionUserSession",
         "type": "object"
       },
       "SetActiveFocusModeInput": {

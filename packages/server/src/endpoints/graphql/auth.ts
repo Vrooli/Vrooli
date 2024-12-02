@@ -36,10 +36,6 @@ export const typeDef = `#graphql
         newPassword: String!
     }
 
-    input LogOutInput {
-        id: ID
-    }
-
     input SwitchCurrentAccountInput {
         id: ID!
     }
@@ -64,13 +60,16 @@ export const typeDef = `#graphql
         wallet: Wallet
     }
 
+    type SessionUserSession {
+        id: String!
+        lastRefreshAt: Date!
+    }
+
     type SessionUser {
         activeFocusMode: ActiveFocusMode
         apisCount: Int!
-        bookmarkLists: [BookmarkList!]! # Will not include the bookmarks themselves, just info about the lists
         codesCount: Int!
         credits: String! # Stringified BigInt
-        focusModes: [FocusMode!]!
         handle: String
         hasPremium: Boolean!
         id: String!
@@ -82,6 +81,7 @@ export const typeDef = `#graphql
         projectsCount: Int!
         questionsAskedCount: Int!
         routinesCount: Int!
+        session: SessionUserSession!
         standardsCount: Int!
         theme: String
         updated_at: Date!
@@ -99,7 +99,8 @@ export const typeDef = `#graphql
         emailRequestPasswordChange(input: EmailRequestPasswordChangeInput!): Success!
         emailResetPassword(input: EmailResetPasswordInput!): Session!
         guestLogIn: Session!
-        logOut(input: LogOutInput!): Session!
+        logOut: Session!
+        logOutAll: Session!
         validateSession(input: ValidateSessionInput!): Session!
         switchCurrentAccount(input: SwitchCurrentAccountInput!): Session!
         walletInit(input: WalletInitInput!): String!

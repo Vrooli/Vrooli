@@ -1,4 +1,4 @@
-import { DUMMY_ID, GqlModelType } from "@local/shared";
+import { DUMMY_ID, GqlModelType, SessionUser } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
 import { modelToGql } from "../builders/modelToGql";
 import { selectHelper } from "../builders/selectHelper";
@@ -7,7 +7,6 @@ import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
 import { PreMap } from "../models/types";
-import { SessionUserToken } from "../types";
 import { CudInputsToMapsResult, cudInputsToMaps } from "../utils/cudInputsToMaps";
 import { cudOutputsToMaps } from "../utils/cudOutputsToMaps";
 import { getAuthenticatedData } from "../utils/getAuthenticatedData";
@@ -20,7 +19,7 @@ import { CudAdditionalData } from "./types";
 type CudHelperParams = {
     inputData: CudInputData[],
     partialInfo: PartialGraphQLInfo,
-    userData: SessionUserToken,
+    userData: SessionUser,
     /** Additional data that can be passed to ModelLogic functions */
     additionalData?: CudAdditionalData,
 }
@@ -54,31 +53,27 @@ function initializeResults(length: number): Array<boolean | Record<string, any>>
 /**
  * Validates and casts input data using the model's Yup schemas.
  * @param inputData The array of input data to validate and cast.
- * @param userData The session user data.
  * @throws CustomError if validation fails.
  */
-async function validateAndCastInputs(
-    inputData: CudInputData[],
-    userData: SessionUserToken
-): Promise<void> {
+async function validateAndCastInputs(inputData: CudInputData[]): Promise<void> {
     for (let i = 0; i < inputData.length; i++) {
         const { action, input, objectType } = inputData[i];
         const { mutate } = ModelMap.getLogic(["mutate"], objectType as GqlModelType, true, `cudHelper cast ${action.toLowerCase()}`);
         let transformedInput;
         if (action === "Create") {
             if (!mutate.yup.create) {
-                throw new CustomError("0559", "InternalError", userData.languages, { action, objectType });
+                throw new CustomError("0559", "InternalError", { action, objectType });
             }
             transformedInput = mutate.yup.create({ env: process.env.NODE_ENV }).cast(input, { stripUnknown: true });
         } else if (action === "Update") {
             if (!mutate.yup.update) {
-                throw new CustomError("0560", "InternalError", userData.languages, { action, objectType });
+                throw new CustomError("0560", "InternalError", { action, objectType });
             }
             transformedInput = mutate.yup.update({ env: process.env.NODE_ENV }).cast(input, { stripUnknown: true });
         } else if (action === "Delete") {
             continue;
         } else {
-            throw new CustomError("0558", "InternalError", userData.languages, { action });
+            throw new CustomError("0558", "InternalError", { action });
         }
         inputData[i].input = transformedInput;
     }
@@ -93,9 +88,9 @@ async function validateAndCastInputs(
  */
 export async function calculatePreShapeData(
     inputsByType: { [key: string]: any },
-    userData: SessionUserToken,
+    userData: SessionUser,
     inputsById: { [key: string]: any },
-    preMap: PreMap
+    preMap: PreMap,
 ): Promise<void> {
     for (const [type, inputs] of Object.entries(inputsByType)) {
         preMap[type] = {};
@@ -139,7 +134,7 @@ async function buildOperations(
     topInputsByType: TopLevelInputsByType,
     inputData: CudInputData[],
     partialInfo: PartialGraphQLInfo,
-    userData: SessionUserToken,
+    userData: SessionUser,
     maps: CudDataMaps,
 ): Promise<CudTransactionData> {
     const operations: PrismaPromise<object>[] = [];
@@ -157,7 +152,7 @@ async function buildOperations(
             // since they're typically used to satisfy validation for relationships that aren't needed for the create 
             // (e.g. `listConnect` on a resource item that's already being created in a list)
             if ((input as PrismaCreate)?.id === DUMMY_ID) {
-                throw new CustomError("0501", "InternalError", userData.languages, { input, objectType });
+                throw new CustomError("0501", "InternalError", { input, objectType });
             }
             const data = mutate.shape.create
                 ? await mutate.shape.create({ data: input, idsCreateToConnect: maps.idsCreateToConnect, preMap: maps.preMap, userData })
@@ -208,7 +203,7 @@ async function buildOperations(
                 }) as PrismaPromise<object>;
                 operations.push(deleteOperation);
             } catch (error) {
-                throw new CustomError("0417", "InternalError", userData.languages, { error, deletingIds, objectType });
+                throw new CustomError("0417", "InternalError", { error, deletingIds, objectType });
             }
         }
     }
@@ -223,15 +218,14 @@ async function buildOperations(
 /**
  * Executes all database operations in a transaction.
  * @param operations The array of database operation promises.
- * @param userData The session user data.
  * @returns The result of the transaction.
  * @throws CustomError if the transaction fails.
  */
-async function executeTransaction(operations: PrismaPromise<object>[], userData: SessionUserToken): Promise<object[]> {
+async function executeTransaction(operations: PrismaPromise<object>[]): Promise<object[]> {
     try {
         return await prismaInstance.$transaction(operations);
     } catch (error) {
-        throw new CustomError("0557", "InternalError", userData.languages, { error });
+        throw new CustomError("0557", "InternalError", { error });
     }
 }
 
@@ -252,7 +246,7 @@ function processTransactionResults(
     inputData: CudInputData[],
     partialInfo: PartialGraphQLInfo,
     maps: CudDataMaps,
-    result: Array<boolean | Record<string, any>>
+    result: Array<boolean | Record<string, any>>,
 ): void {
     let transactionIndex = 0;
     const { deletedIdsByType } = transactionData;
@@ -298,7 +292,7 @@ async function triggerAfterMutations(
     transactionData: CudTransactionData,
     maps: CudDataMaps,
     additionalData: CudAdditionalData,
-    userData: SessionUserToken,
+    userData: SessionUser,
 ): Promise<void> {
     const { deletedIdsByType, beforeDeletedData } = transactionData;
     const { idsByAction, inputsById, preMap, resultsById } = maps;
@@ -340,9 +334,9 @@ export async function cudHelper(params: CudHelperParams): Promise<CudHelperResul
     const { additionalData, inputData, partialInfo, userData } = params;
 
     const result = initializeResults(inputData.length);
-    await validateAndCastInputs(inputData, userData);
+    await validateAndCastInputs(inputData);
 
-    const maps = await cudInputsToMaps({ inputData })
+    const maps = await cudInputsToMaps({ inputData });
     await calculatePreShapeData(maps.inputsByType, userData, maps.inputsById, maps.preMap);
 
     const authDataById = await getAuthenticatedData(maps.idsByType, userData);
@@ -354,7 +348,7 @@ export async function cudHelper(params: CudHelperParams): Promise<CudHelperResul
 
     const transactionData = await buildOperations(topInputsByType, inputData, partialInfo, userData, maps);
 
-    const transactionResult = await executeTransaction(transactionData.operations, userData);
+    const transactionResult = await executeTransaction(transactionData.operations);
     processTransactionResults(transactionResult, transactionData, topInputsByType, inputData, partialInfo, maps, result);
     await triggerAfterMutations(transactionData, maps, additionalData || {}, userData);
 

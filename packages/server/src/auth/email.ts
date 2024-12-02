@@ -1,10 +1,9 @@
 import { AUTH_PROVIDERS, DAYS_2_MS, MINUTES_15_MS, Session, TranslationKeyError } from "@local/shared";
-import { AccountStatus, PrismaPromise, email, session, user_auth } from "@prisma/client";
+import { AccountStatus, PrismaPromise, active_focus_mode, email, focus_mode, premium, session, user_auth, user_language } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { Request } from "express";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
-import { UserModelInfo } from "../models/base/types";
 import { Notify } from "../notify/notify";
 import { sendResetPasswordLink, sendVerificationLink } from "../tasks/email/queue";
 import { randomString, validateCode } from "./codes";
@@ -12,23 +11,47 @@ import { REFRESH_TOKEN_EXPIRATION_MS } from "./jwt";
 import { RequestService } from "./request";
 import { SessionService } from "./session";
 
-export type UserDataForPasswordAuth = Pick<UserModelInfo["PrismaModel"], "id" | "lastLoginAttempt" | "logInAttempts" | "status"> & {
+export const EMAIL_VERIFICATION_TIMEOUT = DAYS_2_MS;
+const HASHING_ROUNDS = 8;
+const LOGIN_ATTEMPTS_TO_SOFT_LOCKOUT = 5;
+const LOGIN_ATTEMPTS_TO_HARD_LOCKOUT = 15;
+const SOFT_LOCKOUT_DURATION = MINUTES_15_MS;
+const EMAIL_VERIFICATION_CODE_LENGTH = 8;
+
+export type UserDataForPasswordAuth = {
+    id: string;
+    handle: string | null;
+    lastLoginAttempt: Date | null;
+    logInAttempts: number;
+    name: string;
+    profileImage: string | null;
+    theme: string;
+    status: AccountStatus;
+    updated_at: Date;
+    activeFocusMode: Pick<active_focus_mode, "stopCondition" | "stopTime"> & {
+        focusMode: Pick<focus_mode, "id" | "reminderListId">;
+    } | null;
     auths: Pick<user_auth, "id" | "provider" | "hashed_password">[];
     emails: Pick<email, "emailAddress">[];
-    sessions: (Pick<session, "id" | "device_info" | "ip_address"> & {
+    languages: Pick<user_language, "language">[];
+    premium: Pick<premium, "credits" | "expiresAt"> | null;
+    sessions: (Pick<session, "id" | "device_info" | "ip_address" | "last_refresh_at" | "revoked"> & {
         auth: Pick<user_auth, "id" | "provider">;
     })[];
+    _count: {
+        apis: number;
+        codes: number;
+        memberships: number;
+        notes: number;
+        projects: number;
+        questionsAsked: number;
+        routines: number;
+        standards: number;
+    }
 }
 
 export class PasswordAuthService {
     private static instance: PasswordAuthService;
-
-    public static EMAIL_VERIFICATION_TIMEOUT = DAYS_2_MS;
-    private static HASHING_ROUNDS = 8;
-    private static LOGIN_ATTEMPTS_TO_SOFT_LOCKOUT = 5;
-    private static LOGIN_ATTEMPTS_TO_HARD_LOCKOUT = 15;
-    private static SOFT_LOCKOUT_DURATION = MINUTES_15_MS;
-    private static EMAIL_VERIFICATION_CODE_LENGTH = 8;
 
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     private constructor() { }
@@ -42,9 +65,26 @@ export class PasswordAuthService {
     static selectUserForPasswordAuth() {
         return {
             id: true,
+            handle: true,
             lastLoginAttempt: true,
             logInAttempts: true,
+            name: true,
+            profileImage: true,
             status: true,
+            theme: true,
+            updated_at: true,
+            activeFocusMode: {
+                select: {
+                    stopCondition: true,
+                    stopTime: true,
+                    focusMode: {
+                        select: {
+                            id: true,
+                            reminderListId: true,
+                        },
+                    },
+                },
+            },
             auths: {
                 select: {
                     id: true,
@@ -59,17 +99,42 @@ export class PasswordAuthService {
                     emailAddress: true,
                 },
             },
+            languages: {
+                select: {
+                    language: true,
+                },
+            },
+            premium: {
+                select: {
+                    credits: true,
+                    expiresAt: true,
+                },
+            },
             sessions: {
                 select: {
                     id: true,
                     device_info: true,
                     ip_address: true,
+                    last_refresh_at: true,
+                    revoked: true,
                     auth: {
                         select: {
                             id: true,
                             provider: true,
                         },
                     },
+                },
+            },
+            _count: {
+                select: {
+                    apis: true,
+                    codes: true,
+                    memberships: true,
+                    notes: true,
+                    projects: true,
+                    questionsAsked: true,
+                    routines: true,
+                    standards: true,
                 },
             },
         } as const;
@@ -81,7 +146,7 @@ export class PasswordAuthService {
      * @returns Hashed password
      */
     static hashPassword(password: string): string {
-        return bcrypt.hashSync(password, this.HASHING_ROUNDS);
+        return bcrypt.hashSync(password, HASHING_ROUNDS);
     }
 
     static statusToError(status: AccountStatus): TranslationKeyError | null {
@@ -128,7 +193,7 @@ export class PasswordAuthService {
         if (!user.lastLoginAttempt) return false;
         // Can reset if last login attempt was more than SOFT_LOCKOUT_DURATION ago
         const timeSinceLastAttemptMs = Date.now() - new Date(user.lastLoginAttempt).getTime();
-        return timeSinceLastAttemptMs > this.SOFT_LOCKOUT_DURATION;
+        return timeSinceLastAttemptMs > SOFT_LOCKOUT_DURATION;
     }
 
     /**
@@ -167,6 +232,7 @@ export class PasswordAuthService {
         const matchingSession = user.sessions.find((s) =>
             s.device_info === deviceInfo
             && s.auth.provider === AUTH_PROVIDERS.Password
+            && s.revoked === false,
         );
 
         // Find matching auth
@@ -181,10 +247,7 @@ export class PasswordAuthService {
                 // Remove reset password reset code and log in attempts from auth row
                 prismaInstance.user_auth.update({
                     where: {
-                        provider_provider_user_id: {
-                            provider: AUTH_PROVIDERS.Password,
-                            provider_user_id: user.id,
-                        },
+                        id: passwordAuth.id,
                     },
                     data: {
                         resetPasswordCode: null,
@@ -211,7 +274,7 @@ export class PasswordAuthService {
                             ip_address: ipAddress,
                             last_refresh_at: new Date(),
                         },
-                        select: { id: true },
+                        select: this.selectUserForPasswordAuth().sessions.select,
                     }),
                 );
             } else {
@@ -230,23 +293,22 @@ export class PasswordAuthService {
                                 connect: { id: passwordAuth.id },
                             },
                         },
-                        select: { id: true },
+                        select: this.selectUserForPasswordAuth().sessions.select,
                     }),
-                )
+                );
             }
             const transactionResults = await prismaInstance.$transaction(transactions);
             // transactions[0]: user_auth.update
             // transactions[1]: user.update
             // transactions[2]: session.update/create
-            const userId = (transactionResults[1] as { id: string }).id;
-            const sessionId = (transactionResults[2] as { id: string }).id;
+            const sessionData = transactionResults[2] as UserDataForPasswordAuth["sessions"][0];
 
             // If session is new
             if (!matchingSession) {
                 // TODO When 2FA is ready, handle it here (if enabled by user)
             }
 
-            return await SessionService.createSession(userId, sessionId, req);
+            return await SessionService.createSession(user, sessionData, req);
         }
         // Reset log in fail counter if possible
         if (willResetLoginAttempts) {
@@ -259,9 +321,9 @@ export class PasswordAuthService {
         else {
             let new_status: AccountStatus = AccountStatus.Unlocked;
             const log_in_attempts = user.logInAttempts + 1;
-            if (log_in_attempts > this.LOGIN_ATTEMPTS_TO_HARD_LOCKOUT) {
+            if (log_in_attempts > LOGIN_ATTEMPTS_TO_HARD_LOCKOUT) {
                 new_status = AccountStatus.HardLocked;
-            } else if (log_in_attempts > this.LOGIN_ATTEMPTS_TO_SOFT_LOCKOUT) {
+            } else if (log_in_attempts > LOGIN_ATTEMPTS_TO_SOFT_LOCKOUT) {
                 new_status = AccountStatus.SoftLocked;
             }
             await prismaInstance.user.update({
@@ -269,7 +331,7 @@ export class PasswordAuthService {
                 data: {
                     status: new_status,
                     logInAttempts: log_in_attempts,
-                    lastLoginAttempt: new Date()
+                    lastLoginAttempt: new Date(),
                 },
             });
         }
@@ -281,7 +343,7 @@ export class PasswordAuthService {
      * @param length Length of code to generate
      */
     static generateEmailVerificationCode(length?: number): string {
-        return randomString(length ?? this.EMAIL_VERIFICATION_CODE_LENGTH);
+        return randomString(length ?? EMAIL_VERIFICATION_CODE_LENGTH);
     }
 
     /**
@@ -310,7 +372,7 @@ export class PasswordAuthService {
                     provider: AUTH_PROVIDERS.Password,
                     user: {
                         connect: { id: user.id },
-                    }
+                    },
                 },
             });
         }
@@ -318,10 +380,7 @@ export class PasswordAuthService {
         else {
             await prismaInstance.user_auth.update({
                 where: {
-                    provider_provider_user_id: {
-                        provider: AUTH_PROVIDERS.Password,
-                        provider_user_id: user.id,
-                    },
+                    id: passwordAuth.id,
                 },
                 data: commonAuthData,
             });
@@ -444,7 +503,7 @@ export class PasswordAuthService {
                 code = code.slice(colonIndex + 1);
             }
             // If code is correct and not expired
-            if (validateCode(code, email.verificationCode, email.lastVerificationCodeRequestAttempt, this.EMAIL_VERIFICATION_TIMEOUT)) {
+            if (validateCode(code, email.verificationCode, email.lastVerificationCodeRequestAttempt, EMAIL_VERIFICATION_TIMEOUT)) {
                 await prismaInstance.email.update({
                     where: { id: email.id },
                     data: {

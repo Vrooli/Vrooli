@@ -1,15 +1,14 @@
 /* eslint-disable no-magic-numbers */
-import { MINUTES_1_MS, RunFrom, RunRequestPayloadBase, Success, TaskStatus, TaskStatusInfo } from "@local/shared";
+import { MINUTES_1_MS, RunFrom, RunRequestPayloadBase, SessionUser, Success, TaskStatus, TaskStatusInfo } from "@local/shared";
 import Bull from "bull";
 import winston from "winston";
-import { SessionUserToken } from "../../types.js";
 import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, changeTaskStatus, getProcessPath, getTaskStatuses } from "../queueHelper";
 
 export type RunProjectPayload = RunRequestPayloadBase & {
     __process: "Project";
     projectVersionId: string;
     /** The user who's running the command (not the bot) */
-    userData: SessionUserToken;
+    userData: SessionUser;
 };
 
 export type RunRoutinePayload = RunRequestPayloadBase & {
@@ -18,7 +17,7 @@ export type RunRoutinePayload = RunRequestPayloadBase & {
     formValues?: Record<string, unknown>;
     routineVersionId: string;
     /** The user who's running the command (not the bot) */
-    userData: SessionUserToken;
+    userData: SessionUser;
 };
 
 export type RunTestPayload = {

@@ -1,5 +1,4 @@
-import { TaskStatus } from "@local/shared";
-import { SessionUserToken } from "../../types";
+import { SessionUser, TaskStatus } from "@local/shared";
 
 export type SandboxProcessPayload = {
     __process: "Sandbox";
@@ -23,7 +22,7 @@ export type SandboxProcessPayload = {
     /** The status of the job process */
     status: TaskStatus | `${TaskStatus}`;
     /** The user who's running the command (not the bot) */
-    userData: SessionUserToken;
+    userData: SessionUser;
 }
 
 export type RunUserCodeInput = Pick<SandboxProcessPayload, "input" | "shouldSpreadInput"> & {

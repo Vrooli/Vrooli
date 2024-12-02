@@ -3,21 +3,23 @@ import { Box, BoxProps, createTheme, CssBaseline, GlobalStyles, styled, StyledEn
 import { fetchAIConfig } from "api/ai";
 import { hasErrorCode } from "api/errorParser";
 import { fetchLazyWrapper } from "api/fetchWrapper";
+import { SERVER_CONNECT_MESSAGE_ID } from "api/socket";
 import { BannerChicken } from "components/BannerChicken/BannerChicken";
 import { Celebration } from "components/Celebration/Celebration";
-import { DiagonalWaveLoader } from "components/DiagonalWaveLoader/DiagonalWaveLoader";
 import { AlertDialog } from "components/dialogs/AlertDialog/AlertDialog";
 import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
-import { ImagePopup } from "components/dialogs/ImagePopup/ImagePopup";
+import { ImagePopup, VideoPopup } from "components/dialogs/media";
+import { ProDialog } from "components/dialogs/ProDialog/ProDialog";
 import { SideMenu } from "components/dialogs/SideMenu/SideMenu";
 import { TutorialDialog } from "components/dialogs/TutorialDialog/TutorialDialog";
-import { VideoPopup } from "components/dialogs/VideoPopup/VideoPopup";
 import { BottomNav } from "components/navigation/BottomNav/BottomNav";
 import { CommandPalette } from "components/navigation/CommandPalette/CommandPalette";
 import { FindInPage } from "components/navigation/FindInPage/FindInPage";
 import { PullToRefresh } from "components/PullToRefresh/PullToRefresh";
 import { SnackStack } from "components/snacks/SnackStack/SnackStack";
+import { FullPageSpinner } from "components/Spinners/Spinners";
 import { ActiveChatProvider, SessionContext, ZIndexProvider } from "contexts";
+import { useHashScroll } from "hooks/hash";
 import { useHotkeys } from "hooks/useHotkeys";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { useSideMenu } from "hooks/useSideMenu";
@@ -194,13 +196,6 @@ const ContentWrap = styled(Box, {
         },
     } as const;
 });
-const LoaderBox = styled(Box)(() => ({
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-    zIndex: 100000,
-}));
 
 export function App() {
     // Session cookie should automatically expire in time determined by server,
@@ -214,6 +209,7 @@ export function App() {
     const [isTutorialOpen, setIsTutorialOpen] = useState(false);
     const [openImageData, setOpenImageData] = useState<PopupImagePub | null>(null);
     const [openVideoData, setOpenVideoData] = useState<PopupVideoPub | null>(null);
+    const [isProDialogOpen, setIsProDialogOpen] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [validateSession] = useLazyFetch<ValidateSessionInput, Session>(endpointPostAuthValidateSession);
     const [setActiveFocusMode] = useLazyFetch<SetActiveFocusModeInput, ActiveFocusMode>(endpointPutFocusModeActive);
@@ -234,6 +230,11 @@ export function App() {
     const closePopupVideo = useCallback(function closePopupVideoCallback() {
         setOpenVideoData(null);
     }, []);
+    const closeProDialog = useCallback(function closeProDialogCallback() {
+        setIsProDialogOpen(false);
+    }, []);
+
+    useHashScroll();
 
     // Applies language change
     useEffect(() => {
@@ -341,19 +342,12 @@ https://github.com/Vrooli/Vrooli
         { keys: ["f"], ctrlKey: true, callback: () => { PubSub.get().publish("findInPage"); } },
     ]);
 
-    const checkSession = useCallback(function checkSessionCallback(data?: Session) {
-        if (data) {
-            setSession(data);
-            return;
-        }
+    useEffect(function checkSessionEffect() {
         // Check if previous log in exists
         fetchLazyWrapper<ValidateSessionInput, Session>({
             fetch: validateSession,
             inputs: { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
             onSuccess: (data) => {
-                //TODO store in local storage. validateSession will only return full data for the current user.
-                //Other logged in users will not have their full data returned (will be in shape SessionUserToken
-                //instead of SessionUser). Not sure if this is a problem yet.
                 localStorage.setItem("isLoggedIn", "true");
                 setSession(data);
             },
@@ -370,6 +364,7 @@ https://github.com/Vrooli/Vrooli
                 // If error is something else, notify user
                 if (!isInvalidSession) {
                     PubSub.get().publish("snack", {
+                        id: SERVER_CONNECT_MESSAGE_ID,
                         messageKey: "CannotConnectToServer",
                         autoHideDuration: "persist",
                         severity: "Error",
@@ -378,9 +373,7 @@ https://github.com/Vrooli/Vrooli
                     });
                 }
                 // If not logged in as guest and failed to log in as user, set guest session
-                if (!data) {
-                    setSession(guestSession);
-                }
+                setSession(guestSession);
             },
         });
     }, [validateSession]);
@@ -406,6 +399,8 @@ https://github.com/Vrooli/Vrooli
             }
             // Store user's focus modes in local storage
             const currentlyActiveFocusMode = getCurrentUser(session)?.activeFocusMode ?? null;
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore TODO 11/21
             const focusModes = getCurrentUser(session)?.focusModes ?? [];
             const activeFocusMode = await getActiveFocusMode(currentlyActiveFocusMode, focusModes);
             setCookie("FocusModeActive", activeFocusMode);
@@ -437,10 +432,10 @@ https://github.com/Vrooli/Vrooli
             });
             if (!isSettingActiveFocusMode.current) {
                 isSettingActiveFocusMode.current = true;
-                const { mode, ...rest } = data;
+                const { focusMode, ...rest } = data;
                 fetchLazyWrapper<SetActiveFocusModeInput, ActiveFocusMode>({
                     fetch: setActiveFocusMode,
-                    inputs: { ...rest, id: data.mode.id },
+                    inputs: { ...rest, id: data.focusMode.id },
                     successCondition: (data) => data !== null,
                     onSuccess: () => { isSettingActiveFocusMode.current = false; },
                     onError: (error) => {
@@ -475,6 +470,9 @@ https://github.com/Vrooli/Vrooli
         const popupVideoSub = PubSub.get().subscribe("popupVideo", data => {
             setOpenVideoData(data);
         });
+        const proDialogSub = PubSub.get().subscribe("proDialog", () => {
+            setIsProDialogOpen(true);
+        });
         return (() => {
             loadingSub();
             sessionSub();
@@ -486,8 +484,9 @@ https://github.com/Vrooli/Vrooli
             tutorialSub();
             popupImageSub();
             popupVideoSub();
+            proDialogSub();
         });
-    }, [checkSession, isLeftHanded, isMobile, setActiveFocusMode, setThemeAndMeta]);
+    }, [isLeftHanded, isMobile, setActiveFocusMode, setThemeAndMeta]);
 
     useSocketConnect();
     useSocketUser(session, setSession);
@@ -509,6 +508,10 @@ https://github.com/Vrooli/Vrooli
                                     <Celebration />
                                     <AlertDialog />
                                     <SnackStack />
+                                    <ProDialog
+                                        isOpen={isProDialogOpen}
+                                        onClose={closeProDialog}
+                                    />
                                     <TutorialDialog
                                         isOpen={isTutorialOpen}
                                         onClose={closeTutorial}
@@ -536,11 +539,7 @@ https://github.com/Vrooli/Vrooli
                                         isRightDrawerOpen={isRightDrawerOpen}
                                     >
                                         <ChatSideMenu />
-                                        {
-                                            isLoading && <LoaderBox>
-                                                <DiagonalWaveLoader size={100} />
-                                            </LoaderBox>
-                                        }
+                                        {isLoading && <FullPageSpinner />}
                                         <Routes sessionChecked={session !== undefined} />
                                         <SideMenu />
                                     </ContentWrap>

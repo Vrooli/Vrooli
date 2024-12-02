@@ -1,5 +1,5 @@
 import { DOCS_URL, LINKS, SOCIALS } from "@local/shared";
-import { Box, BoxProps, Button, ButtonProps, Grid, Tooltip, keyframes, styled, useTheme } from "@mui/material";
+import { Box, BoxProps, Button, ButtonProps, Grid, Stack, Tooltip, Typography, keyframes, styled, useTheme } from "@mui/material";
 import AiDrivenConvo from "assets/img/AiDrivenConvo.png";
 import CollaborativeRoutines from "assets/img/CollaborativeRoutines.webp";
 import Earth from "assets/img/Earth.svg";
@@ -11,12 +11,12 @@ import { Footer } from "components/navigation/Footer/Footer";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useWindowSize } from "hooks/useWindowSize";
 import { ArticleIcon, GitHubIcon, LogInIcon, PlayIcon, XIcon } from "icons";
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { openLink, useLocation } from "route";
-import { ScrollBox, SlideContainer, SlideContent, SlideIconButton, SlideImage, SlideImageContainer, SlideText, greenNeonText } from "styles";
+import { ScrollBox, SlideIconButton, SlideImage, SlideImageContainer, greenNeonText } from "styles";
 import { SvgComponent } from "types";
-import { PubSub } from "utils/pubsub";
-import { SlideTitle } from "../../../styles";
+import { ELEMENT_IDS } from "utils/consts";
+import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID } from "utils/pubsub";
 import { LandingViewProps } from "../types";
 
 const PAGE_LAYERS = {
@@ -664,20 +664,6 @@ type ScrollInfo = {
     scrollDirection: ScrollDirection;
 }
 
-// Used for scroll snapping and url hash
-const SLIDE_IDS = {
-    slide1: "revolutionize-workflow",
-    slide2: "chats",
-    slide3: "routines",
-    slide4: "teams",
-    slide5: "sky-is-limit",
-    slide6: "get-started",
-} as const;
-const SLIDE_CONTAINER_IDS = {
-    neon: "neon-container",
-    sky: "sky-container",
-};
-
 const externalLinks: [string, string, SvgComponent][] = [
     ["Read the docs", DOCS_URL, ArticleIcon],
     ["Check out our code", SOCIALS.GitHub, GitHubIcon],
@@ -750,6 +736,59 @@ const EarthBox = styled(Box, {
         ? "transform 0.2s ease-in-out"
         : "transform 1.5s ease-in-out",
     zIndex: PAGE_LAYERS.Earth,
+}));
+
+const SlideContainer = styled(Box)(() => ({
+    overflow: "hidden",
+    position: "relative",
+}));
+const SlideContent = styled(Stack)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    marginLeft: "auto",
+    marginRight: "auto",
+    maxWidth: "min(1000px, 120vh)",
+    minHeight: "100vh",
+    padding: theme.spacing(2),
+    textAlign: "center",
+    zIndex: 5,
+    gap: theme.spacing(8),
+    [theme.breakpoints.down("md")]: {
+        gap: theme.spacing(4),
+    },
+}));
+const SlideTitle = styled(Typography)(({ theme }) => ({
+    textAlign: "center",
+    wordBreak: "break-word",
+    zIndex: 10,
+    color: "white",
+    [theme.breakpoints.up("xs")]: {
+        fontSize: "2.4rem",
+    },
+    [theme.breakpoints.up("sm")]: {
+        fontSize: "3rem",
+    },
+    [theme.breakpoints.up("md")]: {
+        fontSize: "3.75rem",
+    },
+}));
+const SlideText = styled("h3")(({ theme }) => ({
+    zIndex: 10,
+    textAlign: "start",
+    textWrap: "balance",
+    maxWidth: "700px",
+    marginLeft: "auto",
+    marginRight: "auto",
+    background: "#00000055",
+    color: "white",
+    borderRadius: theme.spacing(1),
+    [theme.breakpoints.up("md")]: {
+        fontSize: "1.5rem",
+    },
+    [theme.breakpoints.down("md")]: {
+        fontSize: "1.25rem",
+    },
 }));
 
 const SlideContent1 = styled(SlideContent)(({ theme }) => ({
@@ -871,6 +910,7 @@ const ExternalLinksBox = styled(Box)(({ theme }) => ({
     marginLeft: "auto",
     marginRight: "auto",
 }));
+const pageContainerStyle = { background: "black" } as const;
 
 /**
  * View displayed for Home page when not logged in
@@ -882,6 +922,12 @@ export function LandingView({
     const [, setLocation] = useLocation();
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+
+    // Side menus are not supported in this page due to the way it's styled
+    useMemo(function hideSideMenusMemo() {
+        PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: false });
+        PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen: false });
+    }, []);
 
     function toSignUp() {
         openLink(setLocation, LINKS.Signup);
@@ -934,7 +980,7 @@ export function LandingView({
             }
 
             // Helper to check if an element is in view
-            function inView(element: HTMLElement | null) {
+            function isInView(element: HTMLElement | null) {
                 if (!element || !scrollBox) return false;
                 const rect = element.getBoundingClientRect();
                 const scrollBoxRect = scrollBox.getBoundingClientRect();
@@ -945,11 +991,11 @@ export function LandingView({
             }
 
             // Use slides 5 and 6 to determine Earth position
-            const earthHorizonSlide = document.getElementById(SLIDE_IDS.slide5);
-            const earthFullSlide = document.getElementById(SLIDE_IDS.slide6);
-            if (inView(earthFullSlide)) {
+            const earthHorizonSlide = document.getElementById(ELEMENT_IDS.LandingViewSlideSkyIsLimit);
+            const earthFullSlide = document.getElementById(ELEMENT_IDS.LandingViewSlideGetStarted);
+            if (isInView(earthFullSlide)) {
                 setEarthPosition("full");
-            } else if (inView(earthHorizonSlide)) {
+            } else if (isInView(earthHorizonSlide)) {
                 setEarthPosition("horizon");
             } else {
                 setEarthPosition("hidden");
@@ -963,7 +1009,7 @@ export function LandingView({
     }, []);
 
     return (
-        <PageContainer size="fullSize">
+        <PageContainer size="fullSize" sx={pageContainerStyle}>
             <NeonBackground isVisible={earthPosition === "hidden"} />
             <StarryBackground isVisible={earthPosition !== "hidden"} />
             <ScrollBox ref={scrollBoxRef}>
@@ -972,8 +1018,8 @@ export function LandingView({
                     onClose={onClose}
                     titleBehaviorMobile="ShowIn"
                 />
-                <SlideContainer id={SLIDE_CONTAINER_IDS.neon}>
-                    <SlideContent1 id={SLIDE_IDS.slide1}>
+                <SlideContainer id={ELEMENT_IDS.LandingViewSlideContainerNeon}>
+                    <SlideContent1 id={ELEMENT_IDS.LandingViewSlideWorkflow}>
                         <Slide1Title variant="h1">
                             Let AI Take the Wheel
                         </Slide1Title>
@@ -1005,7 +1051,7 @@ export function LandingView({
                             >View Site</Slide1ViewSiteButton>
                         </Slide1SiteNavBox>
                     </SlideContent1>
-                    <SlideContent id={SLIDE_IDS.slide2}>
+                    <SlideContent id={ELEMENT_IDS.LandingViewSlideChats}>
                         <SlideTitle variant='h2'>AI Coworkers, Ready on Demand</SlideTitle>
                         <Grid container spacing={2}>
                             <Grid item xs={12} sm={6} margin="auto">
@@ -1028,7 +1074,7 @@ export function LandingView({
                             </Grid>
                         </Grid>
                     </SlideContent>
-                    <SlideContent id={SLIDE_IDS.slide3}>
+                    <SlideContent id={ELEMENT_IDS.LandingViewSlideRoutines}>
                         <SlideTitle variant='h2'>Build Consistent, Automated Workflows</SlideTitle>
                         <Grid container spacing={2}>
                             <Grid item xs={12} sm={6} margin="auto">
@@ -1054,7 +1100,7 @@ export function LandingView({
                             </Grid>
                         </Grid>
                     </SlideContent>
-                    <SlideContent id={SLIDE_IDS.slide4}>
+                    <SlideContent id={ELEMENT_IDS.LandingViewSlideTeams}>
                         <SlideTitle variant='h2'>Manage Teams Like a Pro</SlideTitle>
                         <Grid container spacing={2}>
                             <Grid item xs={12} sm={6} margin="auto">
@@ -1078,7 +1124,7 @@ export function LandingView({
                         </Grid>
                     </SlideContent>
                 </SlideContainer>
-                <SlideContainer id={SLIDE_CONTAINER_IDS.sky}>
+                <SlideContainer id={ELEMENT_IDS.LandingViewSlideContainerSky}>
                     {/* Earth at bottom of page. Changes position depending on the slide  */}
                     <EarthBox
                         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -1090,13 +1136,13 @@ export function LandingView({
                         scrollDirection={scrollInfoRef.current.scrollDirection}
                         src={Earth}
                     />
-                    <SlideContent id={SLIDE_IDS.slide5}>
+                    <SlideContent id={ELEMENT_IDS.LandingViewSlideSkyIsLimit}>
                         <Slide5Title variant='h2'>The Sky is the Limit</Slide5Title>
                         <Slide5Text>
                             By combining bots, routines, and teams, we&apos;re paving the way for an automated and transparent economy - accessible to all.
                         </Slide5Text>
                     </SlideContent>
-                    <SlideContent id={SLIDE_IDS.slide6}>
+                    <SlideContent id={ELEMENT_IDS.LandingViewSlideGetStarted}>
                         <Slide6Title variant="h2">
                             Ready to Change the World?
                         </Slide6Title>

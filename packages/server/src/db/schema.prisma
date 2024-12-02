@@ -489,21 +489,22 @@ model email {
 }
 
 model focus_mode {
-    id             String              @id @default(uuid()) @db.Uuid
-    created_at     DateTime            @default(now()) @db.Timestamptz(6)
-    updated_at     DateTime            @default(now()) @db.Timestamptz(6)
-    name           String              @db.VarChar(128)
-    description    String?             @db.VarChar(2048)
-    reminderListId String?             @unique @db.Uuid
-    resourceListId String?             @unique @db.Uuid
-    scheduleId     String?             @db.Uuid
-    userId         String              @db.Uuid
-    reminderList   reminder_list?      @relation(fields: [reminderListId], references: [id], onDelete: SetNull)
-    resourceList   resource_list?      @relation("resource_list_focus_mode", fields: [resourceListId], references: [id], onDelete: SetNull)
-    schedule       schedule?           @relation("focus_mode_schedule", fields: [scheduleId], references: [id], onDelete: SetNull)
-    user           user                @relation(fields: [userId], references: [id], onDelete: Cascade)
-    labels         focus_mode_labels[]
-    filters        focus_mode_filter[]
+    id              String              @id @default(uuid()) @db.Uuid
+    created_at      DateTime            @default(now()) @db.Timestamptz(6)
+    updated_at      DateTime            @default(now()) @db.Timestamptz(6)
+    name            String              @db.VarChar(128)
+    description     String?             @db.VarChar(2048)
+    reminderListId  String?             @unique @db.Uuid
+    resourceListId  String?             @unique @db.Uuid
+    scheduleId      String?             @db.Uuid
+    userId          String              @db.Uuid
+    activeFocusMode active_focus_mode[]
+    reminderList    reminder_list?      @relation(fields: [reminderListId], references: [id], onDelete: SetNull)
+    resourceList    resource_list?      @relation("resource_list_focus_mode", fields: [resourceListId], references: [id], onDelete: SetNull)
+    schedule        schedule?           @relation("focus_mode_schedule", fields: [scheduleId], references: [id], onDelete: SetNull)
+    user            user                @relation(fields: [userId], references: [id], onDelete: Cascade)
+    labels          focus_mode_labels[]
+    filters         focus_mode_filter[]
 }
 
 model focus_mode_labels {
@@ -2614,6 +2615,7 @@ model user {
     premiumId                  String?                     @unique @db.Uuid
     stripeCustomerId           String?                     @unique @db.VarChar(255)
     status                     AccountStatus               @default(Unlocked)
+    activeFocusMode            active_focus_mode?
     apisCreated                api[]                       @relation("api_createdBy")
     apis                       api[]                       @relation("api_ownedByUser")
     apiKeys                    api_key[]
@@ -2677,6 +2679,19 @@ model user {
     sessions                   session[]
     stats                      stats_user[]
     wallets                    wallet[]
+}
+
+model active_focus_mode {
+    id            String                 @id @default(uuid()) @db.Uuid
+    userId        String                 @unique @db.Uuid
+    focusModeId   String                 @db.Uuid
+    stopCondition FocusModeStopCondition @default(Automatic)
+    stopTime      DateTime?              @db.Timestamptz(6)
+    created_at    DateTime               @default(now()) @db.Timestamptz(6)
+    updated_at    DateTime               @updatedAt @db.Timestamptz(6)
+
+    user      user       @relation(fields: [userId], references: [id], onDelete: Cascade)
+    focusMode focus_mode @relation(fields: [focusModeId], references: [id], onDelete: Cascade)
 }
 
 model user_auth {
@@ -2867,6 +2882,13 @@ enum FocusModeFilterType {
     Blur
     Hide
     ShowMore
+}
+
+enum FocusModeStopCondition {
+    AfterStopTime
+    Automatic
+    Never
+    NextBegins
 }
 
 enum IssueStatus {

@@ -3,7 +3,7 @@ import { generateKeyPairSync } from "crypto";
 import pkg from "../__mocks__/@prisma/client";
 import { SessionData, SessionToken } from "../types";
 import { AuthTokensService } from "./auth";
-import { ACCESS_TOKEN_EXPIRATION_MS, JsonWebToken, REFRESH_TOKEN_EXPIRATION_MS } from "./jwt";
+import { ACCESS_TOKEN_EXPIRATION_MS, JsonWebToken } from "./jwt";
 
 const { PrismaClient } = pkg;
 
@@ -27,9 +27,22 @@ describe("AuthTokensService", () => {
     });
 
     describe("canRefreshToken", () => {
+        const sessionId = uuid();
+        const expiresAt = new Date(Date.now() + DAYS_30_MS);
+        const lastRefreshAt = new Date(Date.now() - DAYS_1_MS);
 
         beforeEach(() => {
             jest.spyOn(Date, "now").mockReturnValue(1000000000000); // Mock Date.now()
+            PrismaClient.injectData({
+                session: [
+                    {
+                        id: sessionId,
+                        expires_at: expiresAt,
+                        last_refresh_at: lastRefreshAt,
+                        revoked: false,
+                    },
+                ],
+            });
         });
 
         afterEach(() => {
@@ -37,158 +50,210 @@ describe("AuthTokensService", () => {
             PrismaClient.clearData();
         });
 
-        test("returns false if payload is not an object", async () => {
-            // @ts-ignore Testing runtime scenario
-            expect(await AuthTokensService.canRefreshToken(null)).toBe(false);
-            // @ts-ignore Testing runtime scenario
-            expect(await AuthTokensService.canRefreshToken(undefined)).toBe(false);
-            // @ts-ignore Testing runtime scenario
-            expect(await AuthTokensService.canRefreshToken("string")).toBe(false);
-            // @ts-ignore Testing runtime scenario
-            expect(await AuthTokensService.canRefreshToken(123)).toBe(false);
-        });
-
-        test("returns false if user is not found", async () => {
-            const payload: SessionData = {};
-            expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
-        });
-
-        test("returns false if sessionId or lastRefreshAt is missing", async () => {
-            const payload: SessionData = {
-                users: [
-                    {
-                        id: uuid()
-                        // Omit session data
-                    },
-                ] as SessionUser[],
-            };
-            const user = { session: {} };
-            expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
-        });
-
-        test("returns false if session not found in database", async () => {
-            const sessionId = uuid();
-            const lastRefreshAt = new Date(Date.now() - DAYS_1_MS).toISOString();
-            const payload: SessionData = {
-                users: [
-                    {
-                        id: uuid(),
-                        session: {
-                            id: sessionId,
-                            lastRefreshAt,
-                        }
-                    },
-                ] as SessionUser[],
-            };
-            PrismaClient.injectData({
-                session: [],
+        describe("false", () => {
+            test("not an object", async () => {
+                // @ts-ignore Testing runtime scenario
+                expect(await AuthTokensService.canRefreshToken(null)).toBe(false);
+                // @ts-ignore Testing runtime scenario
+                expect(await AuthTokensService.canRefreshToken(undefined)).toBe(false);
+                // @ts-ignore Testing runtime scenario
+                expect(await AuthTokensService.canRefreshToken("string")).toBe(false);
+                // @ts-ignore Testing runtime scenario
+                expect(await AuthTokensService.canRefreshToken(123)).toBe(false);
             });
-            expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
-        });
 
-        test("returns false if session is revoked", async () => {
-            const sessionId = uuid();
-            const lastRefreshAt = new Date(Date.now() - DAYS_1_MS).toISOString();
-            const payload: SessionData = {
-                users: [
-                    {
-                        id: uuid(),
-                        session: {
+            test("user data not present", async () => {
+                const payload: SessionData = {};
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
+            });
+
+            test("user array empty", async () => {
+                const payload: SessionData = { users: [] };
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
+            });
+
+            test("missing session data", async () => {
+                const payload: SessionData = {
+                    users: [
+                        {
                             id: sessionId,
-                            lastRefreshAt,
-                        }
-                    },
-                ] as SessionUser[],
-            };
-            PrismaClient.injectData({
-                session: [
-                    {
+                        },
+                    ] as SessionUser[],
+                };
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
+            });
+
+            test("missing lastRefreshAt", async () => {
+                const payload: SessionData = {
+                    users: [
+                        {
+                            id: uuid(),
+                            session: {
+                                id: sessionId,
+                            }
+                        },
+                    ] as SessionUser[],
+                };
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
+            });
+
+            test("session not in database", async () => {
+                const payload: SessionData = {
+                    users: [
+                        {
+                            id: uuid(),
+                            session: {
+                                id: sessionId,
+                                lastRefreshAt,
+                            }
+                        },
+                    ] as SessionUser[],
+                };
+                PrismaClient.injectData({
+                    session: [],
+                });
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
+            });
+
+            test("session is revoked", async () => {
+                const payload: SessionData = {
+                    users: [
+                        {
+                            id: uuid(),
+                            session: {
+                                id: sessionId,
+                                lastRefreshAt,
+                            }
+                        },
+                    ] as SessionUser[],
+                };
+                PrismaClient.injectData({
+                    session: [{
                         id: sessionId,
-                        last_refresh_at: new Date(lastRefreshAt),
+                        expires_at: expiresAt,
+                        last_refresh_at: lastRefreshAt,
                         revoked: true,
-                    },
-                ],
+                    }],
+                });
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
             });
-            expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
+
+            test("session is expired", async () => {
+                const payload: SessionData = {
+                    users: [
+                        {
+                            id: uuid(),
+                            session: {
+                                id: sessionId,
+                                lastRefreshAt,
+                            }
+                        },
+                    ] as SessionUser[],
+                };
+                PrismaClient.injectData({
+                    session: [{
+                        id: sessionId,
+                        expires_at: new Date(Date.now() - 1_000),
+                        last_refresh_at: lastRefreshAt,
+                        revoked: false,
+                    }],
+                });
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
+            });
+
+            test("stored last_refresh_at does not match lastRefreshAt in payload", async () => {
+                const payload: SessionData = {
+                    users: [
+                        {
+                            id: uuid(),
+                            session: {
+                                id: sessionId,
+                                lastRefreshAt,
+                            }
+                        },
+                    ] as SessionUser[],
+                };
+                PrismaClient.injectData({
+                    session: [
+                        {
+                            id: sessionId,
+                            expires_at: expiresAt,
+                            last_refresh_at: new Date(Date.now() - 1_000),
+                            revoked: false,
+                        },
+                    ],
+                });
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
+            });
         });
 
-        test("returns false if stored last_refresh_at does not match lastRefreshAt in payload", async () => {
-            const sessionId = uuid();
-            const payload: SessionData = {
-                users: [
-                    {
-                        id: uuid(),
-                        session: {
-                            id: sessionId,
-                            lastRefreshAt: new Date(Date.now() - DAYS_1_MS).toISOString(),
-                        }
-                    },
-                ] as SessionUser[],
-            };
-            PrismaClient.injectData({
-                session: [
-                    {
-                        id: sessionId,
-                        last_refresh_at: new Date(Date.now() - DAYS_1_MS + 1_000),
-                        revoked: false,
-                    },
-                ],
+        describe("true", () => {
+            test("all conditions are met", async () => {
+                const payload: SessionData = {
+                    users: [
+                        {
+                            id: uuid(),
+                            session: {
+                                id: sessionId,
+                                lastRefreshAt,
+                            }
+                        },
+                    ] as SessionUser[],
+                };
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(true);
             });
-            expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
+        });
+    });
+
+    describe("isTokenCorrectType", () => {
+        test("returns false if token is null, undefined, or not a string", () => {
+            expect(AuthTokensService.isTokenCorrectType(null)).toBe(false);
+            expect(AuthTokensService.isTokenCorrectType(undefined)).toBe(false);
+            expect(AuthTokensService.isTokenCorrectType(123)).toBe(false);
         });
 
-        test("returns false if time since last refresh is greater than REFRESH_TOKEN_EXPIRATION_MS", async () => {
-            const sessionId = uuid();
-            // Last refreshed longer than REFRESH_TOKEN_EXPIRATION_MS
-            const lastRefreshAt = new Date(Date.now() - REFRESH_TOKEN_EXPIRATION_MS - DAYS_1_MS).toISOString();
-            const payload: SessionData = {
-                users: [
-                    {
-                        id: uuid(),
-                        session: {
-                            id: sessionId,
-                            lastRefreshAt,
-                        }
-                    },
-                ] as SessionUser[],
-            };
-            PrismaClient.injectData({
-                session: [
-                    {
-                        id: sessionId,
-                        last_refresh_at: new Date(lastRefreshAt),
-                        revoked: false,
-                    },
-                ],
+        test("returns true if token is a string", () => {
+            expect(AuthTokensService.isTokenCorrectType("string")).toBe(true);
+        });
+    })
+
+    describe("isAccessTokenExpired", () => {
+        describe("true", () => {
+            test("string", () => {
+                const payload = { accessExpiresAt: "string" };
+                expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(true);
             });
-            expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
+
+            test("undefined", () => {
+                const payload = {};
+                expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(true);
+            });
+
+            test("null", () => {
+                const payload = { accessExpiresAt: null };
+                expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(true);
+            });
+
+            test("in the past", () => {
+                const payload = JsonWebToken.createAccessExpiresAt();
+                payload.accessExpiresAt = payload.accessExpiresAt - SECONDS_1_MS;
+                expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(true);
+            });
+
+            test("negative number", () => {
+                // Picked a date that would be in the future if it was positive
+                const payload = JsonWebToken.createAccessExpiresAt();
+                payload.accessExpiresAt = -(payload.accessExpiresAt + SECONDS_1_MS);
+                expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(true);
+            });
         });
 
-        test("returns true when all conditions are met", async () => {
-            const sessionId = uuid();
-            const lastRefreshAt = new Date(Date.now() - DAYS_1_MS).toISOString();
-            const payload: SessionData = {
-                users: [
-                    {
-                        id: uuid(),
-                        session: {
-                            id: sessionId,
-                            lastRefreshAt,
-                        }
-                    },
-                ] as SessionUser[],
-            };
-            PrismaClient.injectData({
-                session: [
-                    {
-                        id: sessionId,
-                        last_refresh_at: new Date(lastRefreshAt),
-                        revoked: false,
-                    },
-                ],
+        describe("false", () => {
+            test("in the future", () => {
+                const payload = JsonWebToken.createAccessExpiresAt();
+                expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(false);
             });
-            expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(true);
-        });
+        })
     });
 
     describe("authenticateToken", () => {
@@ -219,20 +284,23 @@ describe("AuthTokensService", () => {
             PrismaClient.clearData();
         });
 
-        test("throws error if token is null, undefined, or not a string", async () => {
-            await expect(AuthTokensService.authenticateToken(null as any)).rejects.toThrow();
-            await expect(AuthTokensService.authenticateToken(undefined as any)).rejects.toThrow();
-            await expect(AuthTokensService.authenticateToken(123 as any)).rejects.toThrow();
-        });
+        describe("throws", () => {
+            test("token is null, undefined, or not a string", async () => {
+                await expect(AuthTokensService.authenticateToken(null as any)).rejects.toThrow();
+                await expect(AuthTokensService.authenticateToken(undefined as any)).rejects.toThrow();
+                await expect(AuthTokensService.authenticateToken(123 as any)).rejects.toThrow();
+            });
 
-        test("throws error if token has invalid signature", async () => {
-            const invalidToken = "invalid.token.here";
-            await expect(AuthTokensService.authenticateToken(invalidToken)).rejects.toThrow();
+            test("token has invalid signature", async () => {
+                const invalidToken = "invalid.token.here";
+                await expect(AuthTokensService.authenticateToken(invalidToken)).rejects.toThrow();
+            });
         });
 
         test("returns existing token and payload if token is valid and unexpired", async () => {
             const payload: SessionToken = {
                 ...JsonWebToken.get().basicToken(),
+                ...JsonWebToken.createAccessExpiresAt(),
                 isLoggedIn: false,
                 timeZone: "UTC",
                 users: [],
@@ -249,6 +317,7 @@ describe("AuthTokensService", () => {
         test("returns new token with additional data if token is valid and unexpired, and config has additionalData", async () => {
             const payload: SessionToken = {
                 ...JsonWebToken.get().basicToken(),
+                ...JsonWebToken.createAccessExpiresAt(),
                 isLoggedIn: false,
                 timeZone: "UTC",
                 users: [],
@@ -263,15 +332,13 @@ describe("AuthTokensService", () => {
             expect(Math.abs(result.maxAge - JsonWebToken.getMaxAge(result.payload))).toBeLessThanOrEqual(SECONDS_1_MS);
         });
 
-        test("refreshes the token if expired and can be refreshed", async () => {
-            const initialTime = 1000000000000;
-            jest.spyOn(Date, "now").mockReturnValue(initialTime);
-
+        test("refreshes the token if access token expired and can be refreshed", async () => {
             const sessionId = uuid();
-            const lastRefreshAt = new Date(initialTime - DAYS_30_MS).toISOString();
+            const lastRefreshAt = new Date();
 
             const payload: SessionToken = {
                 ...JsonWebToken.get().basicToken(),
+                accessExpiresAt: 0, // Expired
                 isLoggedIn: false,
                 timeZone: "UTC",
                 users: [
@@ -279,7 +346,7 @@ describe("AuthTokensService", () => {
                         id: uuid(),
                         session: {
                             id: sessionId,
-                            lastRefreshAt,
+                            lastRefreshAt: lastRefreshAt.toISOString(),
                         },
                     },
                 ] as SessionUser[],
@@ -287,16 +354,13 @@ describe("AuthTokensService", () => {
 
             const token = JsonWebToken.get().sign(payload);
 
-            // Advance time to simulate token expiration
-            const expiredTime = initialTime + (5 * ACCESS_TOKEN_EXPIRATION_MS);
-            jest.spyOn(Date, "now").mockReturnValue(expiredTime);
-
             // Inject session data
             PrismaClient.injectData({
                 session: [
                     {
                         id: sessionId,
-                        last_refresh_at: new Date(lastRefreshAt),
+                        expires_at: new Date(Date.now() + DAYS_30_MS), // Not expired
+                        last_refresh_at: lastRefreshAt, // Matches payload
                         revoked: false,
                     },
                 ],
@@ -307,11 +371,26 @@ describe("AuthTokensService", () => {
             expect(result.token).not.toBe(token);
             expect(result.payload).toEqual({
                 ...payload,
+                accessExpiresAt: expect.any(Number),
                 exp: expect.any(Number),
             });
-            // "exp" should be around ACCESS_TOKEN_EXPIRATION_MS from now
-            expect(Math.abs((result.payload.exp * SECONDS_1_MS) - ACCESS_TOKEN_EXPIRATION_MS - Date.now())).toBeLessThanOrEqual(SECONDS_1_MS);
-            expect(Math.abs(result.maxAge - ACCESS_TOKEN_EXPIRATION_MS)).toBeLessThanOrEqual(SECONDS_1_MS);
+            expect(result.payload.exp).toBeGreaterThan(new Date().getTime() / SECONDS_1_MS);
+            expect(result.payload.accessExpiresAt).toBeGreaterThan(new Date().getTime() / SECONDS_1_MS);
+            expect(result.maxAge).toBeGreaterThan(0);
+
+            // Move time forward to simulate token expiration, and check if it can be refreshed again
+            jest.spyOn(Date, "now").mockReturnValue(new Date().getTime() + 2 * ACCESS_TOKEN_EXPIRATION_MS);
+            const result2 = await AuthTokensService.authenticateToken(result.token);
+
+            expect(result2.token).not.toBe(result.token);
+            expect(result2.payload).toEqual({
+                ...result.payload,
+                accessExpiresAt: expect.any(Number),
+                exp: expect.any(Number),
+            });
+            expect(result2.payload.exp).toBeGreaterThan(new Date().getTime() / SECONDS_1_MS);
+            expect(result2.payload.accessExpiresAt).toBeGreaterThan(new Date().getTime() / SECONDS_1_MS);
+            expect(result2.maxAge).toBeGreaterThan(0);
         });
 
         test("throws 'SessionExpired' error if token is expired and cannot be refreshed", async () => {
@@ -323,6 +402,7 @@ describe("AuthTokensService", () => {
 
             const payload: SessionToken = {
                 ...JsonWebToken.get().basicToken(),
+                ...JsonWebToken.createAccessExpiresAt(),
                 isLoggedIn: false,
                 timeZone: "UTC",
                 users: [
@@ -330,7 +410,7 @@ describe("AuthTokensService", () => {
                         id: uuid(),
                         session: {
                             id: sessionId,
-                            lastRefreshAt,
+                            lastRefreshAt: lastRefreshAt,
                         },
                     },
                 ] as SessionUser[],

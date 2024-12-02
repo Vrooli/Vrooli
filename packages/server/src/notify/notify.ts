@@ -1,4 +1,4 @@
-import { DAYS_1_MS, GqlModelType, HOURS_1_MS, IssueStatus, LINKS, MINUTES_1_MS, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, ReportStatus, SubscribableObject, Success } from "@local/shared";
+import { DAYS_1_MS, GqlModelType, HOURS_1_MS, IssueStatus, LINKS, MINUTES_1_MS, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, ReportStatus, SessionUser, SubscribableObject, Success } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next, { TFuncKey } from "i18next";
 import { selectHelper } from "../builders/selectHelper";
@@ -14,7 +14,6 @@ import { TeamModelLogic } from "../models/base/types";
 import { withRedis } from "../redisConn";
 import { sendMail } from "../tasks/email/queue";
 import { sendPush } from "../tasks/push/queue";
-import { SessionUserToken } from "../types";
 import { batch } from "../utils/batch";
 import { findRecipientsAndLimit, updateNotificationSettings } from "./notificationSettings";
 
@@ -47,7 +46,7 @@ type TransKey = TFuncKey<"notify", undefined>
 type PushToUser = {
     delays?: number[],
     bodyVariables?: { [key: string]: string | number }, // Variables can change depending on recipient's language
-    languages: string[],
+    languages: string[] | undefined,
     silent?: boolean,
     titleVariables?: { [key: string]: string | number }, // Variables can change depending on recipient's language
     userId: string,
@@ -65,7 +64,7 @@ type NotifyResultParams = {
     bodyKey?: TransKey,
     bodyVariables?: { [key: string]: string | number },
     category: NotificationCategory,
-    languages: string[],
+    languages: string[] | undefined,
     link?: string,
     silent?: boolean,
     titleKey?: TransKey,
@@ -100,11 +99,11 @@ async function push({
     const userTitles: { [userId: string]: string } = {};
     const userBodies: { [userId: string]: string } = {};
     for (const user of users) {
-        const lng = user.languages.length > 0 ? user.languages[0] : "en";
+        const lng = user.languages && user.languages.length > 0 ? user.languages[0] : "en";
         const title: string | undefined = titleKey ? i18next.t(`notify:${titleKey}`, { lng, ...(user.titleVariables ?? {}) }) : undefined;
         const body: string | undefined = bodyKey ? i18next.t(`notify:${bodyKey}`, { lng, ...(user.bodyVariables ?? {}) }) : undefined;
         // At least one of title or body must be defined
-        if (!title && !body) throw new CustomError("0362", "InternalError", user.languages);
+        if (!title && !body) throw new CustomError("0362", "InternalError");
         userTitles[user.userId] = title ?? `${body!.substring(0, 10)}...`; // If no title, use shortened body
         userBodies[user.userId] = body ?? title!;
     }
@@ -201,7 +200,6 @@ type NotifyResultType = {
  * @param bodyVariables The variables for the body
  * @param titleVariables The variables for the title
  * @param silent Whether the notification is silent
- * @param languages Preferred languages for error messages
  * @param users List of userIds and their languages
  * @returns PushToUser list with the variables replaced
  */
@@ -209,7 +207,6 @@ async function replaceLabels(
     bodyVariables: { [key: string]: string | number } | undefined,
     titleVariables: { [key: string]: string | number } | undefined,
     silent: boolean | undefined,
-    languages: string[],
     users: Pick<PushToUser, "languages" | "userId" | "delays">[],
 ): Promise<PushToUser[]> {
     const labelRegex = /<Label\|([A-z]+):([0-9-]+)>/;
@@ -285,7 +282,7 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
         toUser: async (userId) => {
             const { bodyKey, bodyVariables, category, link, titleKey, titleVariables, silent, languages } = notification;
             // Shape and translate the notification for the user
-            const users = await replaceLabels(bodyVariables, titleVariables, silent, languages, [{ languages, userId }]);
+            const users = await replaceLabels(bodyVariables, titleVariables, silent, [{ languages, userId }]);
             // Send the notification
             await push({ bodyKey, category, link, titleKey, users });
         },
@@ -300,7 +297,6 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
                 bodyVariables,
                 titleVariables,
                 silent,
-                languages,
                 userIds.map(data => ({
                     languages,
                     userId: typeof data === "string" ? data : data.userId,
@@ -320,7 +316,7 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
             // Find every admin of the team, excluding the user who triggered the notification
             const adminData = await ModelMap.get<TeamModelLogic>("Team").query.findAdminInfo(teamId, excludedUsers);
             // Shape and translate the notification for each admin
-            const users = await replaceLabels(bodyVariables, titleVariables, silent, languages, adminData.map(({ id, languages }) => ({
+            const users = await replaceLabels(bodyVariables, titleVariables, silent, adminData.map(({ id, languages }) => ({
                 languages,
                 userId: id,
             })));
@@ -352,7 +348,7 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
                     objectType: "NotificationSubscription",
                     processBatch: async (batch: { subscriberId: string, silent: boolean }[]) => {
                         // Shape and translate the notification for each subscriber
-                        const users = await replaceLabels(bodyVariables, titleVariables, silent, languages, batch.map(({ subscriberId, silent }) => ({
+                        const users = await replaceLabels(bodyVariables, titleVariables, silent, batch.map(({ subscriberId, silent }) => ({
                             languages,
                             silent,
                             userId: subscriberId,
@@ -389,7 +385,7 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
                     objectType: "ChatParticipant",
                     processBatch: async (batch: { user: { id: string } }[]) => {
                         // Shape and translate the notification for each participant
-                        const users = await replaceLabels(bodyVariables, titleVariables, silent, languages, batch.map(({ user }) => ({
+                        const users = await replaceLabels(bodyVariables, titleVariables, silent, batch.map(({ user }) => ({
                             languages: ["en"], //TODO need to store user languages in db , then can update this
                             userId: user.id,
                         })));
@@ -443,7 +439,7 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
  * Notifications settings and devices are queried from the main database.
  * Notification limits are tracked using Redis.
  */
-export function Notify(languages: string[]) {
+export function Notify(languages: string[] | undefined) {
     return {
         /** Sets up a push device to receive notifications */
         registerPushDevice: async ({ endpoint, p256dh, auth, expires, userData, info }: {
@@ -452,10 +448,10 @@ export function Notify(languages: string[]) {
             auth: string,
             expires?: Date,
             name?: string,
-            userData: SessionUserToken,
+            userData: SessionUser,
             info: GraphQLInfo | PartialGraphQLInfo,
         }): Promise<PushDevice> => {
-            const partialInfo = toPartialGqlInfo(info, PushDeviceModel.format.gqlRelMap, userData.languages, true);
+            const partialInfo = toPartialGqlInfo(info, PushDeviceModel.format.gqlRelMap, true);
             let select: { [key: string]: any } | undefined;
             let result: any = {};
             try {
@@ -490,7 +486,7 @@ export function Notify(languages: string[]) {
                 }
                 return result;
             } catch (error) {
-                throw new CustomError("0452", "InternalError", userData.languages, { error, select, result });
+                throw new CustomError("0452", "InternalError", { error, select, result });
             }
         },
         /**
@@ -505,7 +501,7 @@ export function Notify(languages: string[]) {
                 select: { userId: true },
             });
             if (!device || device.userId !== userId)
-                throw new CustomError("0307", "PushDeviceNotFound", languages);
+                throw new CustomError("0307", "PushDeviceNotFound");
             // If it is, delete it  
             const deletedDevice = await prismaInstance.push_device.delete({ where: { id: deviceId } });
             return { __typename: "Success" as const, success: Boolean(deletedDevice) };

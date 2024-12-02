@@ -1,7 +1,6 @@
-import { Success } from "@local/shared";
+import { SessionUser, Success } from "@local/shared";
 import Bull from "bull";
 import winston from "winston";
-import { SessionUserToken } from "../../types.js";
 import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, getProcessPath } from "../queueHelper";
 
 export type ExportProcessPayload = {
@@ -39,7 +38,7 @@ export type ExportProcessPayload = {
     /** What should happen to the exported data */
     requestType: "Delete" | "Download" | "DownloadAndDelete";
     /** The user who's running the command (not the bot) */
-    userData: SessionUserToken;
+    userData: SessionUser;
 };
 
 let logger: winston.Logger;

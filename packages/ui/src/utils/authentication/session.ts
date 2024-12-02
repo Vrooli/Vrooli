@@ -72,6 +72,8 @@ export function getFocusModeInfo(session: Session | null | undefined): {
     all: FocusMode[]
 } {
     // Try to find focus modes user from session
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore TODO 11/21
     const { activeFocusMode, focusModes } = getCurrentUser(session);
 
     const active = activeFocusMode ?? getCookie("FocusModeActive") ?? null;
@@ -79,8 +81,8 @@ export function getFocusModeInfo(session: Session | null | undefined): {
 
     // If there is an active focus mode, move it to the first position in the 'all' array
     if (active) {
-        all = all.filter(focusMode => focusMode.id !== active.mode.id);
-        all.unshift(active.mode);
+        all = all.filter(focusMode => focusMode.id !== active.focusMode.id);
+        all.unshift(active.focusMode);
     }
 
     return { active, all };

@@ -8,7 +8,6 @@ export * from "./fileStorage";
 export * from "./getAuthenticatedData";
 export * from "./objectTools";
 export * from "./oneIsPublic";
-export * from "./origin";
 export * from "./routineComplexity";
 export * from "./searchMap";
 export * from "./searchStringMap";

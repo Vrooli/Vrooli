@@ -1,6 +1,5 @@
-import { GqlModelType, OrArray } from "@local/shared";
+import { GqlModelType, OrArray, SessionUser } from "@local/shared";
 import { ModelMap } from "../models/base";
-import { SessionUserToken } from "../types";
 import { addSupplementalFieldsHelper } from "./addSupplementalFieldsHelper";
 import { combineSupplements } from "./combineSupplements";
 import { groupPrismaData } from "./groupPrismaData";
@@ -14,11 +13,11 @@ import { PartialGraphQLInfo } from "./types";
  * @param partialInfo PartialGraphQLInfo object
  * @returns data array with supplemental fields added to each object
  */
-export const addSupplementalFields = async (
-    userData: SessionUserToken | null,
+export async function addSupplementalFields(
+    userData: SessionUser | null,
     data: ({ [x: string]: any } | null | undefined)[],
     partialInfo: OrArray<PartialGraphQLInfo>,
-): Promise<{ [x: string]: any }[]> => {
+): Promise<{ [x: string]: any }[]> {
     if (data.length === 0) return [];
     // Group data into dictionaries, which will make later operations easier
     const { objectTypesIdsDict, selectFieldsDict, objectIdsDataDict } = groupPrismaData(data, partialInfo);

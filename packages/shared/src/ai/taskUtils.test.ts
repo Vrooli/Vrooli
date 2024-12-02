@@ -3774,7 +3774,6 @@ describe("extractTasksFromJson", () => {
                         },
                     };
                     const taskMode = "Start";
-                    console.log("yeet before");
                     extractTasksFromJsonTester({
                         input,
                         expected: [{
@@ -3951,7 +3950,6 @@ describe("extractTasksFromJson", () => {
                         },
                     };
                     const taskMode = "Start";
-                    console.log("yeet before");
                     extractTasksFromJsonTester({
                         input,
                         expected: [{

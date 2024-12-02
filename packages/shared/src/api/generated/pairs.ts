@@ -106,6 +106,12 @@ export const endpointPostAuthLogout = {
     tag: "auth",
 } as const;
 
+export const endpointPostAuthLogoutAll = {
+    endpoint: "/auth/logoutAll",
+    method: "POST",
+    tag: "auth",
+} as const;
+
 export const endpointPostAuthValidateSession = {
     endpoint: "/auth/validateSession",
     method: "POST",

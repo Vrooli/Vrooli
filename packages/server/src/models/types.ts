@@ -1,7 +1,7 @@
-import { DotNotation, GqlModelType, ObjectLimit, YupMutateParams } from "@local/shared";
+import { DotNotation, GqlModelType, ObjectLimit, SessionUser, YupMutateParams } from "@local/shared";
 import { AnyObjectSchema } from "yup";
 import { PartialGraphQLInfo, PartialPrismaSelect } from "../builders/types";
-import { PromiseOrValue, SessionUserToken } from "../types";
+import { PromiseOrValue } from "../types";
 import { SearchMap, SearchStringMap } from "../utils";
 import { InputNode } from "../utils/inputNode";
 import { SortMap } from "../utils/sortMap";
@@ -142,10 +142,10 @@ export interface SupplementalConverter<
      */
     toGraphQL: ({ ids, objects, partial, userData }: {
         ids: string[],
-        languages: string[],
+        languages: string[] | undefined,
         objects: ({ id: string } & DbObject)[],
         partial: PartialGraphQLInfo,
-        userData: SessionUserToken | null,
+        userData: SessionUser | null,
     }) => Promise<{ [key in SuppFields[number]]: any[] | { [x: string]: any[] } }>;
 }
 
@@ -326,7 +326,7 @@ export type Validator<
      * conjunction with the parent object's permissions (also queried in this field) - to determine if you 
      * are allowed to perform the mutation
      */
-    permissionsSelect: (userId: string | null, languages: string[]) => PermissionsMap<Model["PrismaSelect"]>;
+    permissionsSelect: (userId: string | null, languages: string[] | undefined) => PermissionsMap<Model["PrismaSelect"]>;
     /**
      * Key/value pair of permission fields and resolvers to calculate them.
      */
@@ -383,7 +383,7 @@ export type Validator<
     /**
      * Uses query result to determine if the object is soft-deleted
      */
-    isDeleted: (data: Model["PrismaModel"], languages: string[]) => boolean;
+    isDeleted: (data: Model["PrismaModel"], languages: string[] | undefined) => boolean;
     /**
      * Uses query result to determine if the object is public. This typically means "isPrivate" and "isDeleted" are false. 
      * @param data The data used to determine if the object is public
@@ -485,7 +485,7 @@ export type Mutater<Model extends {
             Create: { node: InputNode, input: Model["GqlCreate"] }[],
             Update: { node: InputNode, input: (Model["GqlUpdate"] & { id: string }) }[],
             Delete: { node: InputNode, input: string }[],
-            userData: SessionUserToken,
+            userData: SessionUser,
             inputsById: InputsById,
         }) => PromiseOrValue<object>,
         /**
@@ -508,7 +508,7 @@ export type Mutater<Model extends {
             data: Model["GqlCreate"],
             idsCreateToConnect: IdsCreateToConnect,
             preMap: PreMap;
-            userData: SessionUserToken,
+            userData: SessionUser,
         }) => PromiseOrValue<Model["PrismaCreate"]> : never : never,
         /** Shapes data for update mutations */
         update?: Model["GqlUpdate"] extends GqlObject ?
@@ -516,7 +516,7 @@ export type Mutater<Model extends {
             data: Model["GqlUpdate"],
             idsCreateToConnect: IdsCreateToConnect,
             preMap: PreMap,
-            userData: SessionUserToken,
+            userData: SessionUser,
         }) => PromiseOrValue<Model["PrismaUpdate"]> : never : never
     }
     /**
@@ -534,7 +534,7 @@ export type Mutater<Model extends {
             /** Result is added to this object */
             beforeDeletedData: { [key in `${GqlModelType}`]?: object },
             deletingIds: string[],
-            userData: SessionUserToken,
+            userData: SessionUser,
         }) => PromiseOrValue<void>,
         /**
          * A trigger that includes create, update, and delete mutations. This can be used to 
@@ -552,7 +552,7 @@ export type Mutater<Model extends {
             updatedIds: string[],
             updateInputs: Model["GqlUpdate"][],
             preMap: PreMap,
-            userData: SessionUserToken,
+            userData: SessionUser,
         }) => PromiseOrValue<void>,
     }
     /** Create and update validations. Share these with UI to make forms more reliable */
@@ -574,14 +574,14 @@ export type Displayer<
         /** Prisma selection for the label */
         select: () => Model["PrismaSelect"],
         /** Converts the selection to a string */
-        get: (select: Model["PrismaModel"], languages: string[]) => string,
+        get: (select: Model["PrismaModel"], languages: string[] | undefined) => string,
     }
     /** Object representation for text embedding, which is used for search */
     embed?: {
         /** Prisma selection for the embed */
         select: () => Model["PrismaSelect"],
         /** Converts the selection to a string */
-        get: (select: Model["PrismaModel"], languages: string[]) => string,
+        get: (select: Model["PrismaModel"], languages: string[] | undefined) => string,
     }
 })
 

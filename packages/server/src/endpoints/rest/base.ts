@@ -1,13 +1,13 @@
-import { HttpStatus, decodeValue } from "@local/shared";
+import { HttpStatus, SessionUser, decodeValue } from "@local/shared";
 import { NextFunction, Request, Response, Router } from "express";
 import { GraphQLResolveInfo } from "graphql";
 import i18next from "i18next";
 import multer, { Options as MulterOptions } from "multer";
-import { getUser } from "../../auth/request";
+import { SessionService } from "../../auth/session";
 import { PartialGraphQLInfo } from "../../builders/types";
 import { CustomError } from "../../events/error";
 import { Context, context } from "../../middleware";
-import { GQLEndpoint, IWrap, SessionUserToken } from "../../types";
+import { GQLEndpoint, IWrap } from "../../types";
 import { processAndStoreFiles } from "../../utils/fileStorage";
 
 export type EndpointFunction<TInput extends object | undefined, TResult extends object> = (
@@ -20,7 +20,7 @@ export type FileConfig<TInput extends object | undefined> = {
     readonly allowedExtensions?: Array<"txt" | "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" | "heic" | "heif" | "png" | "jpg" | "jpeg" | "gif" | "webp" | "tiff" | "bmp" | string>;
     fieldName: string;
     /** Creates the base name for the file */
-    fileNameBase?: (input: TInput, currentUser: SessionUserToken) => string;
+    fileNameBase?: (input: TInput, currentUser: SessionUser) => string;
     /** Max file size, in bytes */
     maxFileSize?: number;
     maxFiles?: number;
@@ -78,7 +78,7 @@ export async function handleEndpoint<TInput extends object | undefined, TResult 
             message = error.message;
         } else if ((error as Error).name === "ValidationError") {
             // Handle ValidationError from Yup
-            const languages = getUser(req.session)?.languages ?? ["en"];
+            const languages = SessionService.getUser(req.session)?.languages ?? ["en"];
             const lng = languages.length > 0 ? languages[0] : "en";
             message = i18next.t("error:ValidationFailed", {
                 lng,
@@ -172,16 +172,16 @@ export function setupRoutes(restEndpoints: Record<string, EndpointGroup>) {
                     if (Array.isArray(files) && files.length > 0 && (method === "post" || method === "put")) {
                         try {
                             // Must be logged in to upload files
-                            const userData = getUser(req.session);
+                            const userData = SessionService.getUser(req.session);
                             if (!userData) {
-                                const languages = getUser(req.session)?.languages ?? ["en"];
+                                const languages = SessionService.getUser(req.session)?.languages ?? ["en"];
                                 const lng = languages.length > 0 ? languages[0] : "en";
                                 res.status(HttpStatus.Unauthorized).json({ errors: [{ code: "0509", message: i18next.t("error:NotLoggedIn", { lng, defaultValue: "Not logged in." }) }], version });
                                 return;
                             }
                             fileNames = await processAndStoreFiles(files, input, userData, config);
                         } catch (error) {
-                            const languages = getUser(req.session)?.languages ?? ["en"];
+                            const languages = SessionService.getUser(req.session)?.languages ?? ["en"];
                             const lng = languages.length > 0 ? languages[0] : "en";
                             res.status(HttpStatus.InternalServerError).json({ errors: [{ code: "0506", message: i18next.t("error:InternalError", { lng, defaultValue: "Internal error." }) }], version });
                             return;

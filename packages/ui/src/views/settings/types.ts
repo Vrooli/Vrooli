@@ -28,11 +28,12 @@ interface SettingsFormBaseProps {
     isLoading: boolean;
     onCancel: () => unknown;
 }
-export interface SettingsAuthenticationFormProps extends FormikProps<{
+export type SettingsAuthenticationFormValues = {
     currentPassword: string;
     newPassword: string;
     newPasswordConfirmation: string;
-}>, SettingsFormBaseProps { }
+};
+export interface SettingsAuthenticationFormProps extends FormikProps<SettingsAuthenticationFormValues>, SettingsFormBaseProps { }
 export interface SettingsDataFormProps extends FormikProps<any>, SettingsFormBaseProps { } //TODO
 export interface SettingsDisplayFormProps extends FormikProps<ProfileUpdateInput>, SettingsFormBaseProps { }
 export interface SettingsNotificationFormProps extends FormikProps<NotificationSettingsUpdateInput>, SettingsFormBaseProps { }

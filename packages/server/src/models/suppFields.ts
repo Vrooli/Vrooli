@@ -71,6 +71,7 @@ export const SuppFields = {
     Schedule: [],
     ScheduleException: [],
     ScheduleRecurrence: [],
+    Session: [],
     Standard: ["you", "translatedName"],
     StandardVersion: ["you"],
     StatsApi: [],

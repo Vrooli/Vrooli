@@ -29,7 +29,7 @@ export type UseLazyFetchProps<TInput extends Record<string, any> | undefined> = 
  */
 export function useLazyFetch<TInput extends Record<string, any> | undefined, TData>({
     endpoint,
-    inputs = {} as TInput,
+    inputs,
     method = "GET",
     options = {} as RequestInit,
 }: UseLazyFetchProps<TInput>): [

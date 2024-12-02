@@ -69,11 +69,12 @@ const ChatViewOptionsBox = styled(Box)(({ theme }) => ({
     alignItems: "center",
     maxWidth: "min(100vw, 1000px)",
     margin: "auto",
-    background: theme.palette.primary.main,
+    background: "none",
 }));
 
 const NewChatButton = styled(Button)(({ theme }) => ({
     margin: theme.spacing(1),
+    // eslint-disable-next-line no-magic-numbers
     borderRadius: theme.spacing(8),
     padding: "4px 8px",
 }));
@@ -145,9 +146,8 @@ export function DashboardView({
     }, [chat, languages, fetchCreate, session, t]);
     const resetChat = useCallback(() => { createChat(true); }, [createChat]);
 
-    // Create chats automatically
     const chatCreateStatus = useRef<"notStarted" | "inProgress" | "complete">("notStarted");
-    useEffect(() => {
+    useEffect(function autoCreateMatchingChatEffect() {
         const userId = getCurrentUser(session).id;
         if (!userId) return;
         // Unlike the chat view, we look for the chat by local storage data rather than the ID in the URL
@@ -181,7 +181,7 @@ export function DashboardView({
         const inactiveColor = isMobile ? palette.primary.contrastText : palette.background.textSecondary;
         return [
             ...allFocusModes.map((mode, index) => ({
-                color: mode.id === activeFocusMode?.mode?.id ? activeColor : inactiveColor,
+                color: mode.id === activeFocusMode?.focusMode?.id ? activeColor : inactiveColor,
                 data: mode,
                 index,
                 key: mode.id,
@@ -198,10 +198,10 @@ export function DashboardView({
                 searchPlaceholder: "",
             },
         ];
-    }, [activeFocusMode?.mode?.id, allFocusModes, isMobile, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText]);
+    }, [activeFocusMode?.focusMode?.id, allFocusModes, isMobile, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText]);
     const currTab = useMemo(() => {
         if (typeof activeFocusMode === "string") return "Add";
-        const match = tabs.find(tab => typeof tab.data === "object" && tab.data.id === activeFocusMode?.mode?.id);
+        const match = tabs.find(tab => typeof tab.data === "object" && tab.data.id === activeFocusMode?.focusMode?.id);
         if (match) return match;
         if (tabs.length) return tabs[0];
         return null;
@@ -216,12 +216,15 @@ export function DashboardView({
         // Otherwise, publish the focus mode
         PubSub.get().publish("focusMode", {
             __typename: "ActiveFocusMode" as const,
-            mode: tab.data,
+            focusMode: {
+                ...tab.data,
+                __typename: "ActiveFocusModeFocusMode" as const,
+            },
             stopCondition: FocusModeStopCondition.NextBegins,
         });
     }, [setLocation]);
     useEffect(() => {
-        refetch({ activeFocusModeId: activeFocusMode?.mode?.id });
+        refetch({ activeFocusModeId: activeFocusMode?.focusMode?.id });
     }, [activeFocusMode, refetch]);
 
     // Converts resources to a resource list
@@ -239,18 +242,19 @@ export function DashboardView({
         }
     }, [data]);
     useEffect(() => {
-        // Resources are added to the focus mode's resource list
-        if (activeFocusMode?.mode?.resourceList?.id && activeFocusMode.mode?.resourceList.id !== DUMMY_ID) {
-            setResourceList({
-                ...activeFocusMode.mode.resourceList,
-                __typename: "ResourceList" as const,
-                listFor: {
-                    ...activeFocusMode.mode,
-                    __typename: "FocusMode" as const,
-                    resourceList: undefined, // Avoid circular reference
-                },
-            });
-        }
+        // TODO 11/21
+        // // Resources are added to the focus mode's resource list
+        // if (activeFocusMode?.focusMode?.resourceList?.id && activeFocusMode.focusMode?.resourceList.id !== DUMMY_ID) {
+        //     setResourceList({
+        //         ...activeFocusMode.focusMode.resourceList,
+        //         __typename: "ResourceList" as const,
+        //         listFor: {
+        //             ...activeFocusMode.focusMode,
+        //             __typename: "FocusMode" as const,
+        //             resourceList: undefined, // Avoid circular reference
+        //         },
+        //     });
+        // }
     }, [activeFocusMode]);
 
     const openSchedule = useCallback(() => {
@@ -455,9 +459,9 @@ export function DashboardView({
                             horizontal
                             loading={isFeedLoading}
                             mutate={true}
-                            parent={activeFocusMode?.mode ?
+                            parent={activeFocusMode?.focusMode ?
                                 {
-                                    ...activeFocusMode.mode,
+                                    ...activeFocusMode.focusMode,
                                     __typename: "FocusMode" as const,
                                     resourceList: undefined,
                                 } as FocusMode : // Avoid circular reference

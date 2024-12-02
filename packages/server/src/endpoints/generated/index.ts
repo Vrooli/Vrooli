@@ -16,6 +16,7 @@ export * from "./auth_emailRequestPasswordChange";
 export * from "./auth_emailResetPassword";
 export * from "./auth_guestLogIn";
 export * from "./auth_logOut";
+export * from "./auth_logOutAll";
 export * from "./auth_validateSession";
 export * from "./auth_switchCurrentAccount";
 export * from "./auth_walletInit";

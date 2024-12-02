@@ -1,4 +1,4 @@
-import { ActiveFocusMode, FindByIdInput, FocusMode, FocusModeCreateInput, FocusModeSearchInput, FocusModeUpdateInput, SetActiveFocusModeInput, VisibilityType } from "@local/shared";
+import { ActiveFocusMode, FindByIdInput, FocusMode, FocusModeCreateInput, FocusModeSearchInput, FocusModeUpdateInput, SetActiveFocusModeInput, VisibilityType, WEEKS_1_DAYS } from "@local/shared";
 import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
@@ -49,7 +49,7 @@ export const FocusModeEndpoints: EndpointsFocusMode = {
             // Create time frame to limit focus mode's schedule data
             const now = new Date();
             const startDate = now;
-            const endDate = new Date(now.setDate(now.getDate() + 7));
+            const endDate = new Date(now.setDate(now.getDate() + WEEKS_1_DAYS));
             // Find focus mode data & verify that it belongs to the user
             const focusMode = await prismaInstance.focus_mode.findFirst({
                 where: {
@@ -62,13 +62,22 @@ export const FocusModeEndpoints: EndpointsFocusMode = {
             // Set active focus mode in user's session token
             updateSessionCurrentUser(req, res, {
                 activeFocusMode: {
-                    id: focusMode.id,
-                    reminderListId: focusMode.reminderList?.id,
-                }
+                    __typename: "ActiveFocusMode" as const,
+                    focusMode: {
+                        __typename: "ActiveFocusModeFocusMode" as const,
+                        id: focusMode.id,
+                        reminderListId: focusMode.reminderList?.id,
+                    },
+                    stopCondition: input.stopCondition,
+                    stopTime: input.stopTime,
+                },
             });
             return {
                 __typename: "ActiveFocusMode" as const,
-                mode: focusMode as unknown as FocusMode,
+                focusMode: {
+                    __typename: "ActiveFocusModeFocusMode" as const,
+                    ...focusMode,
+                },
                 stopCondition: input.stopCondition,
                 stopTime: input.stopTime,
             };

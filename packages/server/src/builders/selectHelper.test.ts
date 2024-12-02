@@ -25,7 +25,7 @@ describe("selPad", () => {
                     boop: {}, // Should omit fields with empty objects
                     beep: {
                         select: { // Shouldn't add additional "select"
-                            data: "yeet", // Should convert to true
+                            data: "bloop", // Should convert to true
                         },
                     },
                     bop: {

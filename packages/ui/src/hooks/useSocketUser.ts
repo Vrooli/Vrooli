@@ -1,5 +1,5 @@
 import { Session } from "@local/shared";
-import { emitSocketEvent, onSocketEvent } from "api/socket";
+import { SocketService } from "api/socket";
 import { useEffect } from "react";
 import { getCurrentUser } from "utils/authentication/session";
 
@@ -12,14 +12,14 @@ export function useSocketUser(
         const { id } = getCurrentUser(session);
         if (!id) return;
 
-        emitSocketEvent("joinUserRoom", { userId: id }, (response) => {
+        SocketService.get().emitEvent("joinUserRoom", { userId: id }, (response) => {
             if (response.error) {
                 console.error("Failed to join user room", response.error);
             }
         });
 
         return () => {
-            emitSocketEvent("leaveUserRoom", { userId: id }, (response) => {
+            SocketService.get().emitEvent("leaveUserRoom", { userId: id }, (response) => {
                 if (response.error) {
                     console.error("Failed to leave user room", response.error);
                 }
@@ -29,10 +29,10 @@ export function useSocketUser(
 
     // Handle incoming data
     useEffect(() => {
-        const cleanupNotification = onSocketEvent("notification", (data) => {
+        const cleanupNotification = SocketService.get().onEvent("notification", (data) => {
             console.log("got notification", data); //TODO
         });
-        const cleanupApiCredits = onSocketEvent("apiCredits", ({ credits }) => {
+        const cleanupApiCredits = SocketService.get().onEvent("apiCredits", ({ credits }) => {
             const { id } = getCurrentUser(session);
             if (!id) return;
             setSession({

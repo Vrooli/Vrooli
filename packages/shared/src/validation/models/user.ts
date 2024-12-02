@@ -115,9 +115,23 @@ export const emailRequestPasswordChangeSchema = yup.object().shape({
 });
 
 /** Schema for resetting your password */
-export const emailResetPasswordSchema = yup.object().shape({
+export const emailResetPasswordFormSchema = yup.object().shape({
     newPassword: req(password),
     confirmNewPassword: req(password).oneOf([yup.ref("newPassword")], "Passwords must match"),
+});
+
+export const emailResetPasswordSchema = yup.object().shape({
+    id: req(id),
+    code: req(yup.string().trim().removeEmptyString().max(128, maxStrErr)),
+    newPassword: req(password),
+});
+
+export const validateSessionSchema = yup.object().shape({
+    timeZone: req(yup.string().trim().removeEmptyString().max(128, maxStrErr)),
+});
+
+export const switchCurrentAccountSchema = yup.object().shape({
+    id: req(id),
 });
 
 export const profileEmailUpdateValidation: YupModel<["update"]> = {

@@ -2,6 +2,7 @@ import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, endpointPos
 import { Box, BoxProps, Button, Checkbox, FormControl, FormControlLabel, FormHelperText, InputAdornment, Link, styled, useTheme } from "@mui/material";
 import { hasErrorCode } from "api/errorParser";
 import { fetchLazyWrapper } from "api/fetchWrapper";
+import { SocketService } from "api/socket";
 import { BreadcrumbsBase } from "components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase";
 import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";
@@ -93,6 +94,7 @@ function SignupForm() {
                 theme: palette.mode ?? "light",
             },
             onSuccess: (data) => {
+                SocketService.get().disconnect();
                 removeCookie("FormData"); // Clear old form data cache
                 setupPush(false);
                 PubSub.get().publish("session", data);
@@ -107,6 +109,7 @@ function SignupForm() {
                         },
                     }],
                 });
+                SocketService.get().connect();
             },
             onError: (response) => {
                 if (hasErrorCode(response, "EmailInUse")) {

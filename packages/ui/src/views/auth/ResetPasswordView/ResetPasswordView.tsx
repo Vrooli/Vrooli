@@ -1,4 +1,4 @@
-import { EmailResetPasswordInput, LINKS, Session, emailResetPasswordSchema, endpointPostAuthEmailResetPassword, parseSearchParams, uuidValidate } from "@local/shared";
+import { EmailResetPasswordInput, LINKS, Session, UrlTools, emailResetPasswordFormSchema, endpointPostAuthEmailResetPassword, uuidValidate } from "@local/shared";
 import { Box, Button } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
@@ -40,7 +40,7 @@ function ResetPasswordForm({
 
     // Get userId and code from url. Should be set if coming from email link
     const { userId, code } = useMemo(() => {
-        const params = parseSearchParams();
+        const params = UrlTools.parseSearchParams(LINKS.ResetPassword);
         if (typeof params.code !== "string" || !params.code.includes(":")) return { userId: undefined, code: undefined };
         const [userId, code] = params.code.split(":");
         if (!uuidValidate(userId)) return { userId: undefined, code: undefined };
@@ -75,7 +75,7 @@ function ResetPasswordForm({
             <Formik
                 initialValues={initialValues}
                 onSubmit={onSubmit}
-                validationSchema={emailResetPasswordSchema}
+                validationSchema={emailResetPasswordFormSchema}
             >
                 {(formik) => <InnerForm
                     display={"dialog"}

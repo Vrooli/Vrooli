@@ -2,6 +2,7 @@ import { emailLogInFormValidation, EmailLogInInput, endpointPostAuthEmailLogin, 
 import { Box, Button, Divider, InputAdornment, styled } from "@mui/material";
 import { errorToMessage, hasErrorCode } from "api/errorParser";
 import { fetchLazyWrapper } from "api/fetchWrapper";
+import { SocketService } from "api/socket";
 import AppleIcon from "assets/img/apple.svg";
 import FacebookIcon from "assets/img/facebook.svg";
 import GitHubIcon from "assets/img/github.svg";
@@ -134,9 +135,12 @@ function LoginForm({
                     fetch: emailLogIn,
                     inputs: { verificationCode },
                     onSuccess: (data) => {
+                        SocketService.get().disconnect();
+                        removeCookie("FormData"); // Clear old form data cache
                         PubSub.get().publish("snack", { messageKey: "EmailVerified", severity: "Success" });
                         PubSub.get().publish("session", data);
                         localStorage.setItem("isLoggedIn", "true");
+                        SocketService.get().connect();
                         setLocation(redirect ?? LINKS.Home);
                     },
                     onError: (response) => {
@@ -160,9 +164,12 @@ function LoginForm({
             inputs: { ...values, verificationCode },
             successCondition: (data) => data !== null,
             onSuccess: (data) => {
+                SocketService.get().disconnect();
                 removeCookie("FormData"); // Clear old form data cache
                 if (verificationCode) PubSub.get().publish("snack", { messageKey: "EmailVerified", severity: "Success" });
                 PubSub.get().publish("session", data);
+                localStorage.setItem("isLoggedIn", "true");
+                SocketService.get().connect();
                 setLocation(redirect ?? LINKS.Home);
             },
             showDefaultErrorSnack: false,
@@ -176,10 +183,10 @@ function LoginForm({
                         ],
                     });
                 }
-                // Custom snack for invalid email, that has sign up link
-                else if (hasErrorCode(response, "EmailNotFound")) {
+                // Custom snack for signing up
+                else if (hasErrorCode(response, "InvalidCredentials")) {
                     PubSub.get().publish("snack", {
-                        messageKey: "EmailNotFound",
+                        messageKey: "InvalidCredentials",
                         severity: "Error",
                         buttonKey: "SignUp",
                         buttonClicked: () => { setLocation(LINKS.Signup); },
@@ -259,19 +266,25 @@ function LoginForm({
                     </Box>
                     <OrDivider>or</OrDivider>
                     <Box display="flex" flexDirection="column" width="100%" maxWidth="400px" gap={1} p={2}>
-                        {OAUTH_PROVIDERS_INFO.map((provider) => (
-                            <OAuthButton
-                                key={provider.name}
-                                onClick={() => (window.location.href = provider.url)}
-                                variant="contained"
-                                fullWidth
-                                startIcon={<img src={provider.logo} alt={`${provider.name} logo`} style={oAuthIconStyle} />}
-                            >
-                                <span style={oAuthSpanStyle}>
-                                    {t("SignInWith", { provider: provider.name })}
-                                </span>
-                            </OAuthButton>
-                        ))}
+                        {OAUTH_PROVIDERS_INFO.map((provider) => {
+                            function handleOAuthClick() {
+                                window.location.href = provider.url;
+                            }
+
+                            return (
+                                <OAuthButton
+                                    key={provider.name}
+                                    onClick={handleOAuthClick}
+                                    variant="contained"
+                                    fullWidth
+                                    startIcon={<img src={provider.logo} alt={`${provider.name} logo`} style={oAuthIconStyle} />}
+                                >
+                                    <span style={oAuthSpanStyle}>
+                                        {t("SignInWith", { provider: provider.name })}
+                                    </span>
+                                </OAuthButton>
+                            );
+                        })}
                     </Box>
                 </InnerForm>}
             </Formik>
