@@ -71,6 +71,7 @@
         "workbox-routing": "^7.0.0",
         "workbox-strategies": "^7.0.0",
         "workbox-streams": "^7.0.0",
+        "zustand": "^5.0.1",
         "zxcvbn": "^4.4.2"
     },
     "scripts": {
