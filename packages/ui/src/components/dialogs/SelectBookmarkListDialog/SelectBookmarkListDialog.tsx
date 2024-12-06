@@ -35,7 +35,7 @@ export function SelectBookmarkListDialog({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const { bookmarkLists } = useBookmarkListsStore();
+    const bookmarkLists = useBookmarkListsStore(state => state.bookmarkLists);
 
     const [lists, setLists] = useState<BookmarkList[]>(bookmarkLists);
     const [selectedLists, setSelectedLists] = useState<BookmarkList[]>([]);

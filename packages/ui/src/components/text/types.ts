@@ -28,6 +28,10 @@ export interface StatsCompactProps<T extends ListObject> {
 }
 
 export interface TitleProps {
+    /**
+     * If true, adds padding to the left and right of the title
+     */
+    addSidePadding?: boolean;
     /** Informational icons displayed to the right of the title */
     adornments?: DisplayAdornment[];
     help?: string;

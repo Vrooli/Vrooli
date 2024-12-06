@@ -1,20 +1,94 @@
-import { DeleteOneInput, DeleteType, endpointPostDeleteOne, FocusMode, LINKS, MaxObjects, noop, SessionUser, Success } from "@local/shared";
-import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, useTheme } from "@mui/material";
+import { DeleteOneInput, DeleteType, endpointPostDeleteOne, FocusMode, FocusModeFilterType, FocusModeStopCondition, LINKS, MaxObjects, noop, SessionUser, Success } from "@local/shared";
+import { Box, Button, Chip, Divider, IconButton, ListItem, ListItemProps, ListItemText, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
+import { FocusModeInfo, useFocusModesStore } from "components/inputs/FocusModeSelector/FocusModeSelector";
+import { TagSelectorBase } from "components/inputs/TagSelector/TagSelector";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
+import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { AddIcon, DeleteIcon, EditIcon, FocusModeIcon } from "icons";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { AddIcon, DeleteIcon, FocusModeIcon, SaveIcon, WarningIcon } from "icons";
+import { memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { multiLineEllipsis, ScrollBox } from "styles";
+import { FormSection, multiLineEllipsis, ScrollBox } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
+import { getDisplay } from "utils/display/listTools";
 import { PubSub } from "utils/pubsub";
 import { FocusModeUpsert } from "views/objects/focusMode";
 import { SettingsFocusModesViewProps } from "../types";
+
+const TitleStack = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingTop: theme.spacing(2),
+}));
+const AddIconButton = styled(IconButton)(({ theme }) => ({
+    padding: theme.spacing(1),
+}));
+interface StyledFocusModeListItemProps extends ListItemProps {
+    isActive: boolean;
+}
+const StyledFocusModeListItem = styled(ListItem, {
+    shouldForwardProp: (prop) => prop !== "isActive",
+})<StyledFocusModeListItemProps>(({ isActive, theme }) => ({
+    backgroundColor: isActive ? theme.palette.action.selected : "inherit",
+    cursor: "pointer",
+}));
+const FocusModeListItemInner = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "column",
+    gap: theme.spacing(0.5),
+    width: "100%",
+    pointerEvents: "none",
+}));
+const FocusModeNameContainer = styled(Box)(() => ({
+    display: "flex",
+    alignItems: "center",
+}));
+const FocusModeName = styled(Typography)(({ theme }) => ({
+    ...multiLineEllipsis(1),
+    lineBreak: "anywhere",
+    pointerEvents: "none",
+    paddingRight: theme.spacing(1),
+}));
+const FocusModeDescription = styled(ListItemText)(({ theme }) => ({
+    ...multiLineEllipsis(2),
+    color: theme.palette.text.secondary,
+    pointerEvents: "none",
+}));
+const DeleteFocusModeBox = styled(Box)(({ theme }) => ({
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    cursor: "pointer",
+    pointerEvents: "all",
+    paddingLeft: theme.spacing(1),
+}));
+const IsActiveChip = styled(Chip)(() => ({
+    pointerEvents: "auto",
+    width: "fit-content",
+}));
+const StyledDivider = styled(Divider)(({ theme }) => ({
+    // eslint-disable-next-line no-magic-numbers
+    margin: theme.spacing(4, 2),
+}));
+const WarningBox = styled(Box)(({ theme }) => ({
+    display: "flex",
+    alignItems: "center",
+    color: theme.palette.warning.main,
+    marginBottom: theme.spacing(2),
+}));
+
+const focusModeIconStyle = { width: "40px", height: "40px", marginRight: 8 } as const;
+const fallbackOverrideObject = { __typename: "FocusMode" } as const;
+const listContainerStyle = { maxWidth: "500px" } as const;
+const warningIconStyle = { fontSize: 20, marginRight: "8px" } as const;
+const updateActiveFocusModeButtonStyle = { marginTop: "16px" } as const;
 
 export function SettingsFocusModesView({
     display,
@@ -25,24 +99,35 @@ export function SettingsFocusModesView({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const [focusModes, setFocusModes] = useState<FocusMode[]>([]);
-    useEffect(() => {
-        if (session) {
-            setFocusModes(getCurrentUser(session).focusModes ?? []);
+    const getFocusModeInfo = useFocusModesStore(state => state.getFocusModeInfo);
+    const setFocusModes = useFocusModesStore(state => state.setFocusModes);
+    const putActiveFocusMode = useFocusModesStore(state => state.putActiveFocusMode);
+    const [focusModeInfo, setFocusModeInfo] = useState<FocusModeInfo>({ active: null, all: [] });
+    useEffect(function fetchFocusModeInfoEffect() {
+        const abortController = new AbortController();
+
+        async function fetchFocusModeInfo() {
+            const info = await getFocusModeInfo(session, abortController.signal);
+            setFocusModeInfo(info);
         }
-    }, [session]);
+
+        fetchFocusModeInfo();
+
+        return () => {
+            abortController.abort();
+        };
+    }, [getFocusModeInfo, session]);
 
     const { canAdd, hasPremium } = useMemo(() => {
         const { hasPremium } = getCurrentUser(session);
         const max = hasPremium ? MaxObjects.FocusMode.User.premium : MaxObjects.FocusMode.User.noPremium;
-        return { canAdd: focusModes.length < max, hasPremium };
-    }, [focusModes.length, session]);
+        return { canAdd: focusModeInfo.all.length < max, hasPremium };
+    }, [focusModeInfo.all.length, session]);
 
-    // Handle delete
     const [deleteMutation] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
     const handleDelete = useCallback((focusMode: FocusMode) => {
         // Don't delete if there is only one focus mode left
-        if (focusModes.length === 1) {
+        if (focusModeInfo.all.length === 1) {
             PubSub.get().publish("snack", { messageKey: "MustHaveFocusMode", severity: "Error" });
             return;
         }
@@ -66,43 +151,26 @@ export function SettingsFocusModesView({
                 { labelKey: "Cancel" },
             ],
         });
-    }, [deleteMutation, focusModes.length]);
+    }, [deleteMutation, focusModeInfo.all.length, setFocusModes]);
 
-    // // Handle filters
-    // const [filters, setFilters] = useState<FocusModeFilterShape[]>([]);
-    // const handleFiltersUpdate = useCallback((updatedList: FocusModeFilterShape[], filterType: FocusModeFilterType) => {
-    //     // Hidden tags are wrapped in a shape that includes an isBlur flag. 
-    //     // Because of this, we must loop through the updatedList to see which tags have been added or removed.
-    //     // const updatedFilters = updatedList.map((tag) => {
-    //     //     const existingTag = filters.find((filter) => filter.tag.id === tag.id);
-    //     //     return existingTag ?? {
-    //     //         id: uuid(),
-    //     //         filterType,
-    //     //         tag,
-    //     //     }
-    //     // });
-    //     // setFilters(updatedFilters);
-    // }, [filters]);
-    // const { blurs, hides, showMores } = useMemo(() => {
-    //     const blurs: TagShape[] = [];
-    //     const hides: TagShape[] = [];
-    //     const showMores: TagShape[] = [];
-    //     filters.forEach((filter) => {
-    //         if (filter.filterType === FocusModeFilterType.Blur) {
-    //             blurs.push(filter.tag);
-    //         } else if (filter.filterType === FocusModeFilterType.Hide) {
-    //             hides.push(filter.tag);
-    //         } else if (filter.filterType === FocusModeFilterType.ShowMore) {
-    //             showMores.push(filter.tag);
-    //         }
-    //     });
-    //     return { blurs, hides, showMores };
-    // }, [filters]);
+    const handleActivate = useCallback((focusMode: FocusMode) => {
+        putActiveFocusMode({
+            __typename: "ActiveFocusMode" as const,
+            focusMode: {
+                ...focusMode,
+                __typename: "ActiveFocusModeFocusMode" as const,
+            },
+            stopCondition: FocusModeStopCondition.NextBegins,
+        }, session);
+    }, [putActiveFocusMode, session]);
+    const handleDeactivate = useCallback(() => {
+        putActiveFocusMode(null, session);
+    }, [putActiveFocusMode, session]);
 
     // Handle dialog for adding new focus mode
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingFocusMode, setEditingFocusMode] = useState<FocusMode | null>(null);
-    const handleAdd = () => {
+    function handleAdd() {
         if (!canAdd) {
             // If you don't have premium, open premium page
             if (!hasPremium) {
@@ -114,25 +182,25 @@ export function SettingsFocusModesView({
             return;
         }
         setIsDialogOpen(true);
-    };
-    const handleUpdate = (focusMode: FocusMode) => {
+    }
+    function handleUpdate(focusMode: FocusMode) {
         setEditingFocusMode(focusMode);
         setIsDialogOpen(true);
-    };
-    const handleCloseDialog = () => {
+    }
+    function handleCloseDialog() {
         setIsDialogOpen(false);
-    };
+    }
     const handleCompleted = useCallback((focusMode: FocusMode) => {
         let updatedFocusModes: FocusMode[];
         // Check if focus mode is already in list (i.e. updated instead of created)
-        const existingFocusMode = focusModes.find((existingFocusMode) => existingFocusMode.id === focusMode.id);
+        const existingFocusMode = focusModeInfo.all.find((existingFocusMode) => existingFocusMode.id === focusMode.id);
         if (existingFocusMode) {
-            updatedFocusModes = focusModes.map((existingFocusMode) => existingFocusMode.id === focusMode.id ? focusMode : existingFocusMode);
+            updatedFocusModes = focusModeInfo.all.map((existingFocusMode) => existingFocusMode.id === focusMode.id ? focusMode : existingFocusMode);
             setFocusModes(updatedFocusModes);
         }
         // Otherwise, add to list
         else {
-            updatedFocusModes = [...focusModes, focusMode];
+            updatedFocusModes = [...focusModeInfo.all, focusMode];
             setFocusModes(updatedFocusModes);
         }
         // Publish updated focus mode list. This should also update the active focus mode, if necessary.
@@ -151,7 +219,23 @@ export function SettingsFocusModesView({
         });
         // Close dialog
         setIsDialogOpen(false);
-    }, [focusModes, session]);
+    }, [focusModeInfo.all, session, setFocusModes]);
+
+    const canDelete = focusModeInfo.all.length > 1;
+
+    const [showMoreTags, setShowMoreTags] = useState<any[]>([]);
+    const handleShowMoreTagsUpdate = useCallback(function handleShowMoreTagsUpdateCallback(tags: any[]) {
+        setShowMoreTags(tags);
+    }, []);
+    useEffect(function updateActiveFocusModeState() {
+        const fullInfo = focusModeInfo.all.find((focusMode) => focusMode.id === focusModeInfo.active?.focusMode?.id);
+        if (fullInfo) {
+            const showMoreFilters = fullInfo.filters?.filter((filter) => filter.filterType === FocusModeFilterType.ShowMore) ?? [];
+            setShowMoreTags(showMoreFilters);
+        } else {
+            setShowMoreTags([]);
+        }
+    }, [focusModeInfo.active, focusModeInfo.all]);
 
     return (
         <ScrollBox>
@@ -163,7 +247,7 @@ export function SettingsFocusModesView({
                 onClose={handleCloseDialog}
                 onCompleted={handleCompleted}
                 onDeleted={noop}
-                overrideObject={editingFocusMode ?? { __typename: "FocusMode" }}
+                overrideObject={editingFocusMode ?? fallbackOverrideObject}
             />
             <SettingsTopBar
                 display={display}
@@ -173,96 +257,148 @@ export function SettingsFocusModesView({
             <SettingsContent>
                 <SettingsList />
                 <Box m="auto" mt={2}>
-                    <Stack direction="row" alignItems="center" justifyContent="center" sx={{ paddingTop: 2 }}>
-                        <FocusModeIcon fill={palette.background.textPrimary} style={{ width: "40px", height: "40px", marginRight: 8 }} />
+                    <TitleStack>
+                        <FocusModeIcon fill={palette.background.textPrimary} style={focusModeIconStyle} />
                         <Typography component="h2" variant="h4">{t("FocusMode", { count: 2 })}</Typography>
                         <Tooltip title={canAdd ? "Add new" : "Max focus modes reached. Upgrade to premium to add more, or edit/delete an existing focus mode."} placement="top">
-                            <IconButton
+                            <AddIconButton
                                 size="medium"
                                 onClick={handleAdd}
-                                sx={{
-                                    padding: 1,
-                                }}
                             >
                                 <AddIcon fill={canAdd ? palette.secondary.main : palette.grey[500]} width='1.5em' height='1.5em' />
-                            </IconButton>
+                            </AddIconButton>
                         </Tooltip>
-                    </Stack>
+                    </TitleStack>
                     <ListContainer
                         emptyText={t("NoFocusModes", { ns: "error" })}
-                        isEmpty={focusModes.length === 0}
-                        sx={{ maxWidth: "500px" }}
+                        isEmpty={focusModeInfo.all.length === 0}
+                        sx={listContainerStyle}
                     >
-                        {focusModes.map((focusMode) => (
-                            <ListItem key={focusMode.id}>
-                                <Stack
-                                    direction="column"
-                                    spacing={1}
-                                    pl={2}
-                                    sx={{
-                                        width: "-webkit-fill-available",
-                                        display: "grid",
-                                        pointerEvents: "none",
-                                    }}
-                                >
-                                    {/* Name */}
-                                    <ListItemText
-                                        primary={focusMode.name}
-                                        sx={{
-                                            ...multiLineEllipsis(1),
-                                            lineBreak: "anywhere",
-                                            pointerEvents: "none",
-                                        }}
-                                    />
-                                    {/* Description */}
-                                    <ListItemText
-                                        primary={focusMode.description}
-                                        sx={{ ...multiLineEllipsis(2), color: palette.text.secondary, pointerEvents: "none" }}
-                                    />
-                                </Stack>
-                                <Stack
-                                    direction="column"
-                                    spacing={1}
-                                    sx={{
-                                        pointerEvents: "none",
-                                        justifyContent: "center",
-                                        alignItems: "start",
-                                    }}
-                                >
-                                    {/* Edit */}
-                                    <Box
-                                        component="a"
-                                        onClick={() => handleUpdate(focusMode)}
-                                        sx={{
-                                            display: "flex",
-                                            justifyContent: "center",
-                                            alignItems: "center",
-                                            cursor: "pointer",
-                                            pointerEvents: "all",
-                                            paddingBottom: "4px",
-                                        }}>
-                                        <EditIcon fill={palette.secondary.main} />
-                                    </Box>
-                                    {/* Delete */}
-                                    {focusModes.length > 1 && <Box
-                                        component="a"
-                                        onClick={() => handleDelete(focusMode)}
-                                        sx={{
-                                            display: "flex",
-                                            justifyContent: "center",
-                                            alignItems: "center",
-                                            cursor: "pointer",
-                                            pointerEvents: "all",
-                                            paddingBottom: "4px",
-                                        }}>
-                                        <DeleteIcon fill={palette.secondary.main} />
-                                    </Box>}
-                                </Stack>
-                            </ListItem>
+                        {focusModeInfo.all.map((focusMode) => (
+                            <FocusModeListItem
+                                key={focusMode.id}
+                                focusMode={focusMode}
+                                isActive={focusMode.id === focusModeInfo.active?.focusMode?.id}
+                                canDelete={canDelete}
+                                onActivate={handleActivate}
+                                onDeactivate={handleDeactivate}
+                                onDelete={handleDelete}
+                                onEdit={handleUpdate}
+                            />
                         ))}
                     </ListContainer>
+                    <StyledDivider />
+                    {!focusModeInfo.active ? (
+                        <Typography variant="h6" align="center">
+                            No focus mode selected.
+                        </Typography>
+                    ) : (
+                        <Box>
+                            <Title
+                                addSidePadding={false}
+                                title={getDisplay(focusModeInfo.active).title}
+                                variant="subheader"
+                            />
+                            <FormSection variant="card">
+                                <Typography variant="body1">
+                                    Use the tag selector below to pick topics that you&apos;d like to see more when in this focus mode.
+                                </Typography>
+                                <WarningBox>
+                                    <WarningIcon style={warningIconStyle} />
+                                    <Typography variant="body2">In the future, this will be used to customize the upcoming <i>Explore</i> page.</Typography>
+                                </WarningBox>
+                                <TagSelectorBase handleTagsUpdate={handleShowMoreTagsUpdate} tags={showMoreTags} />
+                            </FormSection>
+                            {/* Disabled update button */}
+                            <Button
+                                variant="contained"
+                                disabled
+                                fullWidth
+                                onClick={noop}
+                                startIcon={<SaveIcon />}
+                                sx={updateActiveFocusModeButtonStyle}
+                            >
+                                Update
+                            </Button>
+                            <WarningBox>
+                                <WarningIcon style={warningIconStyle} />
+                                <Typography variant="body2">This feature is not yet implemented.</Typography>
+                            </WarningBox>
+                        </Box>
+                    )}
                 </Box>
             </SettingsContent>
         </ScrollBox>
     );
 }
+
+type FocusModeListItemProps = {
+    focusMode: FocusMode;
+    isActive: boolean;
+    canDelete: boolean;
+    onActivate: (focusMode: FocusMode) => unknown;
+    onDeactivate: (focusMode: FocusMode) => unknown;
+    onDelete: (focusMode: FocusMode) => unknown;
+    onEdit: (focusMode: FocusMode) => unknown;
+}
+
+const FocusModeListItem = memo(function FocusModeListItem({
+    focusMode,
+    isActive,
+    canDelete,
+    onActivate,
+    onDeactivate,
+    onDelete,
+    onEdit,
+}: FocusModeListItemProps) {
+    const { palette } = useTheme();
+
+    const handleEdit = useCallback(() => {
+        onEdit(focusMode);
+    }, [onEdit, focusMode]);
+
+    const handleDeleteClick = useCallback((event: React.MouseEvent) => {
+        event.stopPropagation();
+        event.preventDefault();
+        onDelete(focusMode);
+    }, [onDelete, focusMode]);
+
+    const handleToggleActive = useCallback((event: React.MouseEvent) => {
+        event.stopPropagation();
+        event.preventDefault();
+        if (isActive) {
+            onDeactivate(focusMode);
+        } else {
+            onActivate(focusMode);
+        }
+    }, [isActive, onActivate, onDeactivate, focusMode]);
+
+    return (
+        <StyledFocusModeListItem
+            isActive={isActive}
+            onClick={handleEdit}
+        >
+            <FocusModeListItemInner>
+                <FocusModeNameContainer>
+                    <FocusModeName variant="h6">{focusMode.name}</FocusModeName>
+                    <IsActiveChip
+                        label={isActive ? "Active" : "Inactive"}
+                        size="small"
+                        color="primary"
+                        variant={isActive ? "filled" : "outlined"}
+                        onClick={handleToggleActive}
+                    />
+                </FocusModeNameContainer>
+                <FocusModeDescription primary={focusMode.description} />
+            </FocusModeListItemInner>
+            {canDelete && (
+                <DeleteFocusModeBox
+                    component="a"
+                    onClick={handleDeleteClick}
+                >
+                    <DeleteIcon fill={palette.secondary.main} />
+                </DeleteFocusModeBox>
+            )}
+        </StyledFocusModeListItem>
+    );
+});

@@ -8,22 +8,27 @@ import { fontSizeToPixels } from "utils/display/stringTools";
 import { TitleProps } from "../types";
 
 interface OuterBoxProps extends BoxProps {
+    addSidePadding: boolean;
     numberOfLines: number;
     stackSx?: SxType;
 }
 const OuterBox = styled(Box, {
-    shouldForwardProp: (prop) => prop !== "numberOfLines" && prop !== "stackSx",
-})<OuterBoxProps>(({ numberOfLines, stackSx, theme }) => ({
+    shouldForwardProp: (prop) => prop !== "addSidePadding" && prop !== "numberOfLines" && prop !== "stackSx",
+})<OuterBoxProps>(({ addSidePadding, numberOfLines, stackSx, theme }) => ({
     display: "flex",
     flexDirection: numberOfLines >= 2 ? "column" : "row",
-    justifyContent: "center",
+    justifyContent: "flex-start",
     alignItems: "center",
-    padding: theme.spacing(1),
+    paddingTop: theme.spacing(1),
+    paddingBottom: theme.spacing(1),
+    paddingLeft: addSidePadding ? theme.spacing(2) : 0,
+    paddingRight: addSidePadding ? theme.spacing(2) : 0,
     wordBreak: "break-word",
     ...(stackSx as object),
 }));
 
 export function Title({
+    addSidePadding = true,
     adornments,
     help,
     Icon,
@@ -65,7 +70,7 @@ export function Title({
     }
 
     return (
-        <OuterBox numberOfLines={numberOfLines} stackSx={sxs?.stack}>
+        <OuterBox addSidePadding={addSidePadding} numberOfLines={numberOfLines} stackSx={sxs?.stack}>
             <Box display="flex" alignItems="center">
                 {/* Icon */}
                 {Icon && <Icon fill={palette.background.textPrimary} style={{ width: "30px", height: "30px", marginRight: 8 }} />}

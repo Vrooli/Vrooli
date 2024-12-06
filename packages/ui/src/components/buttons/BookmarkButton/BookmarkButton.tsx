@@ -1,15 +1,20 @@
 import { Bookmark, BookmarkFor, uuidValidate } from "@local/shared";
-import { IconButton, Tooltip, useTheme } from "@mui/material";
+import { Box, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { SelectBookmarkListDialog } from "components/dialogs/SelectBookmarkListDialog/SelectBookmarkListDialog";
 import { SessionContext } from "contexts";
-import { useBookmarker } from "hooks/objectActions";
+import { useBookmarkListsStore, useBookmarker } from "hooks/objectActions";
 import { BookmarkFilledIcon, BookmarkOutlineIcon } from "icons";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActionCompletePayloads, ObjectActionComplete } from "utils/actions/objectActions";
 import { getCurrentUser } from "utils/authentication/session";
 import { PubSub } from "utils/pubsub";
 import { BookmarkButtonProps } from "../types";
+
+const BookmarksLabel = styled(Typography)(({ theme }) => ({
+    color: theme.palette.background.textSecondary,
+    marginLeft: theme.spacing(0.5),
+}));
 
 export function BookmarkButton({
     disabled = false,
@@ -31,8 +36,18 @@ export function BookmarkButton({
     const [internalIsBookmarked, setInternalIsBookmarked] = useState<boolean | null>(isBookmarked ?? null);
     useEffect(() => setInternalIsBookmarked(isBookmarked ?? false), [isBookmarked]);
 
+    const bookmarkLists = useBookmarkListsStore(state => state.bookmarkLists);
+    const fetchBookmarkLists = useBookmarkListsStore(state => state.fetchBookmarkLists);
+    const isBookmarkListsLoading = useBookmarkListsStore(state => state.isLoading);
+
     const [isSelectOpen, setIsSelectOpen] = useState(false);
-    const openSelect = useCallback(() => { setIsSelectOpen(true); }, []);
+    const openSelect = useCallback(async function openSelectCallback() {
+        // If the bookmark lists are not loaded yet, fetch them
+        if (bookmarkLists.length === 0 && !isBookmarkListsLoading) {
+            await fetchBookmarkLists();
+        }
+        setIsSelectOpen(true);
+    }, [bookmarkLists.length, isBookmarkListsLoading, fetchBookmarkLists]);
     const closeSelect = useCallback(() => { setIsSelectOpen(false); }, []);
 
     const onActionComplete = useCallback(<T extends keyof ActionCompletePayloads>(action: T, data: ActionCompletePayloads[T]) => {
@@ -67,10 +82,11 @@ export function BookmarkButton({
         onActionComplete,
     });
 
-    const handleClick = useCallback((event: any) => {
+    const handleClick = useCallback(function handleClickCallback(event: React.MouseEvent<HTMLButtonElement>) {
         if (!userId) return;
         const isBookmarked = !internalIsBookmarked;
         setInternalIsBookmarked(isBookmarked);
+        onChange?.(isBookmarked);
         // Prevent propagation of normal click event
         event.stopPropagation();
         event.preventDefault();
@@ -78,37 +94,55 @@ export function BookmarkButton({
         if (!uuidValidate(objectId)) return;
         // Call handleBookmark
         handleBookmark(isBookmarked);
-    }, [objectId, internalIsBookmarked, userId, handleBookmark]);
+    }, [userId, internalIsBookmarked, onChange, objectId, handleBookmark]);
+
+    const handleCloseList = useCallback(function handleCloseListCallback() {
+        closeSelect();
+        closeBookmarkDialog();
+    }, [closeSelect, closeBookmarkDialog]);
 
     const Icon = internalIsBookmarked ? BookmarkFilledIcon : BookmarkOutlineIcon;
     const fill = useMemo<string>(() => {
-        if (!userId || disabled) return "rgb(189 189 189)";
-        if (internalIsBookmarked) return "#cbae30";
-        return palette.secondary.main;
+        if (userId && !disabled && internalIsBookmarked) return "#cbae30";
+        return palette.background.textSecondary;
     }, [userId, disabled, internalIsBookmarked, palette]);
+
+    const bookmarkButtonStyle = useMemo(function bookmarkButtonStyleMemo() {
+        return {
+            display: "flex",
+            flexDirection: "row",
+            border: "none",
+            background: "transparent",
+            cursor: disabled ? "not-allowed" : "pointer",
+            pointerEvents: disabled ? "none" : "auto",
+            ...sxs?.root,
+        } as const;
+    }, [disabled, sxs?.root]);
 
     return (
         <>
-            {/* Dialog to select/deselect bookmark lists */}
             <SelectBookmarkListDialog
                 objectId={objectId}
                 objectType={bookmarkFor}
-                onClose={(inList: boolean) => { closeSelect(); closeBookmarkDialog(); }}
+                onClose={handleCloseList}
                 isCreate={!isBookmarkDialogOpen} // Hook only sets bookmark dialog when updating
                 isOpen={isSelectOpen || isBookmarkDialogOpen}
             />
             {/* Main content */}
             <Tooltip title={t("Bookmark", { count: 1 })}>
-                <IconButton
+                <Box
+                    component="button"
                     aria-label={t("Bookmark", { count: 1 })}
-                    size="small"
                     onClick={handleClick}
-                    sx={{
-                        pointerEvents: disabled ? "none" : "auto",
-                    }}
+                    sx={bookmarkButtonStyle}
                 >
                     <Icon fill={fill} />
-                </IconButton>
+                    {showBookmarks && typeof bookmarks === "number" && (
+                        <BookmarksLabel>
+                            {bookmarks}
+                        </BookmarksLabel>
+                    )}
+                </Box>
             </Tooltip>
         </>
     );
