@@ -69,6 +69,7 @@ async function scheduleNotifications(
                         // Filter out subscribers who have already been notified
                         const filteredSubscriberDelaysList = redisGetResults ? subscriberDelaysList.filter((_, index) => !redisGetResults[index]) : subscriberDelaysList;
                         // Send push notifications to each subscriber
+                        //TODO should add to bull queue to notify at correct time
                         await Notify(["en"]).pushScheduleReminder(scheduleForId, scheduleForType, occurrence.start).toUsers(filteredSubscriberDelaysList);
 
                         // Set Redis keys for the subscribers who just received the notification, with an expiration time of 25 hours

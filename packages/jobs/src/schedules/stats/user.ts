@@ -626,11 +626,11 @@ const batchStandards = async (
  * @param periodStart When the period started
  * @param periodEnd When the period ended
  */
-export const logUserStats = async (
+export async function logUserStats(
     periodType: PeriodType,
     periodStart: string,
     periodEnd: string,
-) => {
+) {
     try {
         await batch<Prisma.userFindManyArgs>({
             objectType: "User",

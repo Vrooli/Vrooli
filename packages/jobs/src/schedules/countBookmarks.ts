@@ -1,16 +1,16 @@
 import { FindManyArgs, batch, logger, prismaInstance } from "@local/server";
 import { GqlModelType, camelCase, uppercaseFirstLetter } from "@local/shared";
 
-async function processTableInBatches(tableName: string): Promise<void> {
+async function processTableInBatches(tableName: keyof typeof prismaInstance): Promise<void> {
     try {
         await batch<FindManyArgs>({
-            objectType: uppercaseFirstLetter(camelCase(tableName)) as GqlModelType,
+            objectType: uppercaseFirstLetter(camelCase(tableName as string)) as GqlModelType,
             processBatch: async (batch) => {
                 for (const item of batch) {
                     const actualCount = item._count.bookmarkedBy;
                     if (item.bookmarks !== actualCount) {
-                        logger.warning(`Updating ${tableName} ${item.id} bookmarks from ${item.bookmarks} to ${actualCount}.`, { trace: "0165" });
-                        await prismaInstance[tableName].update({
+                        logger.warning(`Updating ${tableName as string} ${item.id} bookmarks from ${item.bookmarks} to ${actualCount}.`, { trace: "0165" });
+                        await (prismaInstance[tableName] as { update: any }).update({
                             where: { id: item.id },
                             data: { bookmarks: actualCount },
                         });
@@ -50,7 +50,7 @@ export async function countBookmarks(): Promise<void> {
         "tag",
         "team",
         "user",
-    ];
+    ] as const;
 
     for (const tableName of tableNames) {
         await processTableInBatches(tableName);

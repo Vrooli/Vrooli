@@ -1,3 +1,4 @@
+import { DAYS_1_HOURS, MONTHS_1_DAYS, WEEKS_1_DAYS, YEARS_1_DAYS } from "@local/shared";
 import { PeriodType } from "@prisma/client";
 import { logApiStats } from "./api";
 import { logCodeStats } from "./code";
@@ -8,11 +9,6 @@ import { logSiteStats } from "./site";
 import { logStandardStats } from "./standard";
 import { logTeamStats } from "./team";
 import { logUserStats } from "./user";
-
-const HOURS_IN_DAY = 24;
-const DAYS_IN_WEEK = 7;
-const DAYS_IN_MONTH = 30;
-const DAYS_IN_YEAR = 365;
 
 /**
  * Calculates the unix timestamp of periodStart (earliest data to include) 
@@ -31,46 +27,27 @@ function getPeriodStart(period: PeriodType) {
         case PeriodType.Hourly:
             return now.setHours(now.getHours() - 1);
         case PeriodType.Daily:
-            return now.setHours(now.getHours() - HOURS_IN_DAY);
+            return now.setHours(now.getHours() - DAYS_1_HOURS);
         case PeriodType.Weekly:
-            return now.setDate(now.getDate() - DAYS_IN_WEEK);
+            return now.setDate(now.getDate() - WEEKS_1_DAYS);
         case PeriodType.Monthly:
-            return now.setDate(now.getDate() - DAYS_IN_MONTH);
+            return now.setDate(now.getDate() - MONTHS_1_DAYS);
         case PeriodType.Yearly:
-            return now.setDate(now.getDate() - DAYS_IN_YEAR);
+            return now.setDate(now.getDate() - YEARS_1_DAYS);
     }
 }
 
-
-// Cron syntax created using this website: https://crontab.guru/
-// NOTE: Cron jobs start at weird times because: 
-// 1. We stagger them to avoid overloading the database
-// 2. We assume that users may be triggering routines on the hour/day/etc., 
-// and ideally we want to run these jobs while there is less activity
 /**
- * Maps PeriodTypes to their corresponding cron jobs
+ * Cron times for generating statistics of each period type. 
+ * We don't use random off-peak times here because we want to ensure that the stats are generated at the same time every period, 
+ * even across server restarts.
  */
 export const statsPeriodCron = {
-    /**
-     * Hourly, at minute 3
-     */
-    [PeriodType.Hourly]: "3 * * * *",
-    /**
-     * Daily, at 5:07am (UTC)
-     */
-    [PeriodType.Daily]: "7 5 * * *",
-    /**
-     * Weekly, at 5:11am (UTC) on Sunday
-     */
-    [PeriodType.Weekly]: "11 5 * * 0",
-    /**
-     * Monthly, at 5:17am (UTC) on the 1st
-     */
-    [PeriodType.Monthly]: "17 5 1 * *",
-    /**
-     * Yearly, at 5:21am (UTC) on January 1st
-     */
-    [PeriodType.Yearly]: "21 5 1 1 *",
+    [PeriodType.Hourly]: "3 * * * *", // Hourly, at minute 3
+    [PeriodType.Daily]: "7 5 * * *", // Daily, at 5:07am (UTC)
+    [PeriodType.Weekly]: "11 5 * * 0", // Weekly, at 5:11am (UTC) on Sunday
+    [PeriodType.Monthly]: "17 5 1 * *", // Monthly, at 5:17am (UTC) on the 1st
+    [PeriodType.Yearly]: "21 5 1 1 *", // Yearly, at 5:21am (UTC) on January 1st
 } as const;
 
 /**
