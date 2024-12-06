@@ -62,9 +62,6 @@ export const typeDef = `#graphql
         cursor: String!
         node: Popular!
     }
-    input HomeInput {
-        activeFocusModeId: ID # Updates active focus mode when provided
-    }
 
     type HomeResult {
         recommended: [Resource!]! # Not real resources (i.e. pulled from a feed instead of queried from database), but mimics the Resource shape
@@ -74,7 +71,7 @@ export const typeDef = `#graphql
     }
 
     type Query {
-        home(input: HomeInput!): HomeResult!
+        home: HomeResult!
         popular(input: PopularSearchInput!): PopularSearchResult!
     }
  `;

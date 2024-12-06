@@ -7,42 +7,11 @@ export const feed_home = {
         "kind": "Name",
         "value": "home",
         "loc": {
-          "start": 8419,
-          "end": 8423
+          "start": 8399,
+          "end": 8403
         }
       },
-      "arguments": [
-        {
-          "kind": "Argument",
-          "name": {
-            "kind": "Name",
-            "value": "input",
-            "loc": {
-              "start": 8424,
-              "end": 8429
-            }
-          },
-          "value": {
-            "kind": "Variable",
-            "name": {
-              "kind": "Name",
-              "value": "input",
-              "loc": {
-                "start": 8432,
-                "end": 8437
-              }
-            },
-            "loc": {
-              "start": 8431,
-              "end": 8437
-            }
-          },
-          "loc": {
-            "start": 8424,
-            "end": 8437
-          }
-        }
-      ],
+      "arguments": [],
       "directives": [],
       "selectionSet": {
         "kind": "SelectionSet",
@@ -53,8 +22,8 @@ export const feed_home = {
               "kind": "Name",
               "value": "recommended",
               "loc": {
-                "start": 8445,
-                "end": 8456
+                "start": 8410,
+                "end": 8421
               }
             },
             "arguments": [],
@@ -68,25 +37,25 @@ export const feed_home = {
                     "kind": "Name",
                     "value": "Resource_list",
                     "loc": {
-                      "start": 8470,
-                      "end": 8483
+                      "start": 8435,
+                      "end": 8448
                     }
                   },
                   "directives": [],
                   "loc": {
-                    "start": 8467,
-                    "end": 8483
+                    "start": 8432,
+                    "end": 8448
                   }
                 }
               ],
               "loc": {
-                "start": 8457,
-                "end": 8489
+                "start": 8422,
+                "end": 8454
               }
             },
             "loc": {
-              "start": 8445,
-              "end": 8489
+              "start": 8410,
+              "end": 8454
             }
           },
           {
@@ -95,8 +64,8 @@ export const feed_home = {
               "kind": "Name",
               "value": "reminders",
               "loc": {
-                "start": 8494,
-                "end": 8503
+                "start": 8459,
+                "end": 8468
               }
             },
             "arguments": [],
@@ -110,25 +79,25 @@ export const feed_home = {
                     "kind": "Name",
                     "value": "Reminder_full",
                     "loc": {
-                      "start": 8517,
-                      "end": 8530
+                      "start": 8482,
+                      "end": 8495
                     }
                   },
                   "directives": [],
                   "loc": {
-                    "start": 8514,
-                    "end": 8530
+                    "start": 8479,
+                    "end": 8495
                   }
                 }
               ],
               "loc": {
-                "start": 8504,
-                "end": 8536
+                "start": 8469,
+                "end": 8501
               }
             },
             "loc": {
-              "start": 8494,
-              "end": 8536
+              "start": 8459,
+              "end": 8501
             }
           },
           {
@@ -137,8 +106,8 @@ export const feed_home = {
               "kind": "Name",
               "value": "resources",
               "loc": {
-                "start": 8541,
-                "end": 8550
+                "start": 8506,
+                "end": 8515
               }
             },
             "arguments": [],
@@ -152,25 +121,25 @@ export const feed_home = {
                     "kind": "Name",
                     "value": "Resource_list",
                     "loc": {
-                      "start": 8564,
-                      "end": 8577
+                      "start": 8529,
+                      "end": 8542
                     }
                   },
                   "directives": [],
                   "loc": {
-                    "start": 8561,
-                    "end": 8577
+                    "start": 8526,
+                    "end": 8542
                   }
                 }
               ],
               "loc": {
-                "start": 8551,
-                "end": 8583
+                "start": 8516,
+                "end": 8548
               }
             },
             "loc": {
-              "start": 8541,
-              "end": 8583
+              "start": 8506,
+              "end": 8548
             }
           },
           {
@@ -179,8 +148,8 @@ export const feed_home = {
               "kind": "Name",
               "value": "schedules",
               "loc": {
-                "start": 8588,
-                "end": 8597
+                "start": 8553,
+                "end": 8562
               }
             },
             "arguments": [],
@@ -194,36 +163,36 @@ export const feed_home = {
                     "kind": "Name",
                     "value": "Schedule_list",
                     "loc": {
-                      "start": 8611,
-                      "end": 8624
+                      "start": 8576,
+                      "end": 8589
                     }
                   },
                   "directives": [],
                   "loc": {
-                    "start": 8608,
-                    "end": 8624
+                    "start": 8573,
+                    "end": 8589
                   }
                 }
               ],
               "loc": {
-                "start": 8598,
-                "end": 8630
+                "start": 8563,
+                "end": 8595
               }
             },
             "loc": {
-              "start": 8588,
-              "end": 8630
+              "start": 8553,
+              "end": 8595
             }
           }
         ],
         "loc": {
-          "start": 8439,
-          "end": 8634
+          "start": 8404,
+          "end": 8599
         }
       },
       "loc": {
-        "start": 8419,
-        "end": 8634
+        "start": 8399,
+        "end": 8599
       }
     },
     {
@@ -15592,53 +15561,7 @@ export const feed_home = {
         "end": 8394
       }
     },
-    "variableDefinitions": [
-      {
-        "kind": "VariableDefinition",
-        "variable": {
-          "kind": "Variable",
-          "name": {
-            "kind": "Name",
-            "value": "input",
-            "loc": {
-              "start": 8396,
-              "end": 8401
-            }
-          },
-          "loc": {
-            "start": 8395,
-            "end": 8401
-          }
-        },
-        "type": {
-          "kind": "NonNullType",
-          "type": {
-            "kind": "NamedType",
-            "name": {
-              "kind": "Name",
-              "value": "HomeInput",
-              "loc": {
-                "start": 8403,
-                "end": 8412
-              }
-            },
-            "loc": {
-              "start": 8403,
-              "end": 8412
-            }
-          },
-          "loc": {
-            "start": 8403,
-            "end": 8413
-          }
-        },
-        "directives": [],
-        "loc": {
-          "start": 8395,
-          "end": 8413
-        }
-      }
-    ],
+    "variableDefinitions": [],
     "directives": [],
     "selectionSet": {
       "kind": "SelectionSet",
@@ -15649,42 +15572,11 @@ export const feed_home = {
             "kind": "Name",
             "value": "home",
             "loc": {
-              "start": 8419,
-              "end": 8423
+              "start": 8399,
+              "end": 8403
             }
           },
-          "arguments": [
-            {
-              "kind": "Argument",
-              "name": {
-                "kind": "Name",
-                "value": "input",
-                "loc": {
-                  "start": 8424,
-                  "end": 8429
-                }
-              },
-              "value": {
-                "kind": "Variable",
-                "name": {
-                  "kind": "Name",
-                  "value": "input",
-                  "loc": {
-                    "start": 8432,
-                    "end": 8437
-                  }
-                },
-                "loc": {
-                  "start": 8431,
-                  "end": 8437
-                }
-              },
-              "loc": {
-                "start": 8424,
-                "end": 8437
-              }
-            }
-          ],
+          "arguments": [],
           "directives": [],
           "selectionSet": {
             "kind": "SelectionSet",
@@ -15695,8 +15587,8 @@ export const feed_home = {
                   "kind": "Name",
                   "value": "recommended",
                   "loc": {
-                    "start": 8445,
-                    "end": 8456
+                    "start": 8410,
+                    "end": 8421
                   }
                 },
                 "arguments": [],
@@ -15710,25 +15602,25 @@ export const feed_home = {
                         "kind": "Name",
                         "value": "Resource_list",
                         "loc": {
-                          "start": 8470,
-                          "end": 8483
+                          "start": 8435,
+                          "end": 8448
                         }
                       },
                       "directives": [],
                       "loc": {
-                        "start": 8467,
-                        "end": 8483
+                        "start": 8432,
+                        "end": 8448
                       }
                     }
                   ],
                   "loc": {
-                    "start": 8457,
-                    "end": 8489
+                    "start": 8422,
+                    "end": 8454
                   }
                 },
                 "loc": {
-                  "start": 8445,
-                  "end": 8489
+                  "start": 8410,
+                  "end": 8454
                 }
               },
               {
@@ -15737,8 +15629,8 @@ export const feed_home = {
                   "kind": "Name",
                   "value": "reminders",
                   "loc": {
-                    "start": 8494,
-                    "end": 8503
+                    "start": 8459,
+                    "end": 8468
                   }
                 },
                 "arguments": [],
@@ -15752,25 +15644,25 @@ export const feed_home = {
                         "kind": "Name",
                         "value": "Reminder_full",
                         "loc": {
-                          "start": 8517,
-                          "end": 8530
+                          "start": 8482,
+                          "end": 8495
                         }
                       },
                       "directives": [],
                       "loc": {
-                        "start": 8514,
-                        "end": 8530
+                        "start": 8479,
+                        "end": 8495
                       }
                     }
                   ],
                   "loc": {
-                    "start": 8504,
-                    "end": 8536
+                    "start": 8469,
+                    "end": 8501
                   }
                 },
                 "loc": {
-                  "start": 8494,
-                  "end": 8536
+                  "start": 8459,
+                  "end": 8501
                 }
               },
               {
@@ -15779,8 +15671,8 @@ export const feed_home = {
                   "kind": "Name",
                   "value": "resources",
                   "loc": {
-                    "start": 8541,
-                    "end": 8550
+                    "start": 8506,
+                    "end": 8515
                   }
                 },
                 "arguments": [],
@@ -15794,25 +15686,25 @@ export const feed_home = {
                         "kind": "Name",
                         "value": "Resource_list",
                         "loc": {
-                          "start": 8564,
-                          "end": 8577
+                          "start": 8529,
+                          "end": 8542
                         }
                       },
                       "directives": [],
                       "loc": {
-                        "start": 8561,
-                        "end": 8577
+                        "start": 8526,
+                        "end": 8542
                       }
                     }
                   ],
                   "loc": {
-                    "start": 8551,
-                    "end": 8583
+                    "start": 8516,
+                    "end": 8548
                   }
                 },
                 "loc": {
-                  "start": 8541,
-                  "end": 8583
+                  "start": 8506,
+                  "end": 8548
                 }
               },
               {
@@ -15821,8 +15713,8 @@ export const feed_home = {
                   "kind": "Name",
                   "value": "schedules",
                   "loc": {
-                    "start": 8588,
-                    "end": 8597
+                    "start": 8553,
+                    "end": 8562
                   }
                 },
                 "arguments": [],
@@ -15836,47 +15728,47 @@ export const feed_home = {
                         "kind": "Name",
                         "value": "Schedule_list",
                         "loc": {
-                          "start": 8611,
-                          "end": 8624
+                          "start": 8576,
+                          "end": 8589
                         }
                       },
                       "directives": [],
                       "loc": {
-                        "start": 8608,
-                        "end": 8624
+                        "start": 8573,
+                        "end": 8589
                       }
                     }
                   ],
                   "loc": {
-                    "start": 8598,
-                    "end": 8630
+                    "start": 8563,
+                    "end": 8595
                   }
                 },
                 "loc": {
-                  "start": 8588,
-                  "end": 8630
+                  "start": 8553,
+                  "end": 8595
                 }
               }
             ],
             "loc": {
-              "start": 8439,
-              "end": 8634
+              "start": 8404,
+              "end": 8599
             }
           },
           "loc": {
-            "start": 8419,
-            "end": 8634
+            "start": 8399,
+            "end": 8599
           }
         }
       ],
       "loc": {
-        "start": 8415,
-        "end": 8636
+        "start": 8395,
+        "end": 8601
       }
     },
     "loc": {
       "start": 8384,
-      "end": 8636
+      "end": 8601
     }
   },
   "variableValues": {},

@@ -1,10 +1,11 @@
-import { calculateOccurrences, CalendarEvent, Chat, ChatCreateInput, ChatParticipantShape, ChatShape, ChatUpdateInput, DAYS_30_MS, deleteArrayIndex, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeInput, HomeResult, LINKS, MyStuffPageTabOption, Reminder, ResourceList as ResourceListType, Schedule, updateArray, uuid, VALYXA_ID } from "@local/shared";
+import { calculateOccurrences, CalendarEvent, Chat, ChatCreateInput, ChatParticipantShape, ChatShape, ChatUpdateInput, DAYS_30_MS, deleteArrayIndex, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeResult, LINKS, MyStuffPageTabOption, Reminder, Resource, ResourceList as ResourceListType, Schedule, updateArray, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Button, styled, useTheme } from "@mui/material";
-import { hasErrorCode } from "api/errorParser";
 import { fetchLazyWrapper } from "api/fetchWrapper";
+import { ServerResponseParser } from "api/responseParser";
 import { ChatBubbleTree } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { ChatMessageInput } from "components/inputs/ChatMessageInput/ChatMessageInput";
+import { FocusModeInfo, useFocusModesStore } from "components/inputs/FocusModeSelector/FocusModeSelector";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ResourceList } from "components/lists/ResourceList/ResourceList";
 import { ObjectListActions } from "components/lists/types";
@@ -23,12 +24,11 @@ import { AddIcon, ChevronLeftIcon, MonthIcon, OpenInNewIcon, ReminderIcon } from
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { getCurrentUser, getFocusModeInfo } from "utils/authentication/session";
+import { getCurrentUser } from "utils/authentication/session";
 import { DUMMY_LIST_LENGTH, ELEMENT_IDS } from "utils/consts";
 import { getDisplay } from "utils/display/listTools";
 import { getUserLanguages } from "utils/display/translationTools";
 import { getCookieMatchingChat, setCookieMatchingChat } from "utils/localStorage";
-import { PubSub } from "utils/pubsub";
 import { CHAT_DEFAULTS, chatInitialValues, transformChatValues, withModifiableMessages, withYourMessages } from "views/objects/chat";
 import { DashboardViewProps } from "../types";
 
@@ -83,6 +83,16 @@ const pageTabsStyle = { width: "min(700px, 100%)", minWidth: undefined, margin: 
 const exitChatButtonStyle = { margin: 1, borderRadius: 8, padding: "4px 8px" } as const;
 const resourceListStyle = { list: { justifyContent: "flex-start" } } as const;
 
+const activeFocusModeFallback = { __typename: "FocusMode", id: DUMMY_ID } as const;
+const resourceListFallback = {
+    __typename: "ResourceList",
+    created_at: 0,
+    updated_at: 0,
+    id: DUMMY_ID,
+    resources: [],
+    translations: [],
+} as unknown as ResourceListType;
+
 /** View displayed for Home page when logged in */
 export function DashboardView({
     display,
@@ -98,10 +108,9 @@ export function DashboardView({
 
     const [participants, setParticipants] = useState<Omit<ChatParticipantShape, "chat">[]>([]);
     const [usersTyping, setUsersTyping] = useState<Omit<ChatParticipantShape, "chat">[]>([]);
-    const [refetch, { data, loading: isFeedLoading }] = useLazyFetch<HomeInput, HomeResult>(endpointGetFeedHome);
+    const [refetch, { data: feedData, loading: isFeedLoading }] = useLazyFetch<Record<string, never>, HomeResult>(endpointGetFeedHome);
 
     const {
-        fetch,
         fetchCreate,
         isCreateLoading,
         isUpdateLoading,
@@ -161,7 +170,7 @@ export function DashboardView({
                     setChat({ ...data, messages: [] });
                 },
                 onError: (response) => {
-                    if (hasErrorCode(response, "NotFound")) {
+                    if (ServerResponseParser.hasErrorCode(response, "NotFound")) {
                         createChat();
                     }
                 },
@@ -173,15 +182,31 @@ export function DashboardView({
     }, [chat, createChat, display, fetchCreate, getChat, isOpen, session, setLocation]);
 
     // Handle focus modes
-    const { active: activeFocusMode, all: allFocusModes } = useMemo(() => getFocusModeInfo(session), [session]);
+    const getFocusModeInfo = useFocusModesStore(state => state.getFocusModeInfo);
+    const putActiveFocusMode = useFocusModesStore(state => state.putActiveFocusMode);
+    const [focusModeInfo, setFocusModeInfo] = useState<FocusModeInfo>({ active: null, all: [] });
+    useEffect(function fetchFocusModeInfoEffect() {
+        const abortController = new AbortController();
+
+        async function fetchFocusModeInfo() {
+            const info = await getFocusModeInfo(session, abortController.signal);
+            setFocusModeInfo(info);
+        }
+
+        fetchFocusModeInfo();
+
+        return () => {
+            abortController.abort();
+        };
+    }, [getFocusModeInfo, session]);
 
     // Handle tabs
     const tabs = useMemo<PageTab<DashboardTabsInfo>[]>(() => {
         const activeColor = isMobile ? palette.primary.contrastText : palette.background.textPrimary;
         const inactiveColor = isMobile ? palette.primary.contrastText : palette.background.textSecondary;
         return [
-            ...allFocusModes.map((mode, index) => ({
-                color: mode.id === activeFocusMode?.focusMode?.id ? activeColor : inactiveColor,
+            ...focusModeInfo.all.map((mode, index) => ({
+                color: mode.id === focusModeInfo.active?.focusMode?.id ? activeColor : inactiveColor,
                 data: mode,
                 index,
                 key: mode.id,
@@ -192,20 +217,19 @@ export function DashboardView({
                 color: inactiveColor,
                 data: undefined,
                 Icon: AddIcon,
-                index: allFocusModes.length,
+                index: focusModeInfo.all.length,
                 key: "Add",
                 label: "Add",
                 searchPlaceholder: "",
             },
         ];
-    }, [activeFocusMode?.focusMode?.id, allFocusModes, isMobile, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText]);
-    const currTab = useMemo(() => {
-        if (typeof activeFocusMode === "string") return "Add";
-        const match = tabs.find(tab => typeof tab.data === "object" && tab.data.id === activeFocusMode?.focusMode?.id);
+    }, [focusModeInfo.active?.focusMode?.id, focusModeInfo.all, isMobile, palette.background.textPrimary, palette.background.textSecondary, palette.primary.contrastText]);
+    const currTab = useMemo(function calculateCurrTabMemo() {
+        const match = tabs.find(tab => typeof tab.data === "object" && tab.data.id === focusModeInfo.active?.focusMode?.id);
         if (match) return match;
         if (tabs.length) return tabs[0];
         return null;
-    }, [tabs, activeFocusMode]);
+    }, [tabs, focusModeInfo.active]);
     const handleTabChange = useCallback((e: any, tab: PageTab<DashboardTabsInfo>) => {
         e.preventDefault();
         // If "Add", go to the add focus mode page
@@ -214,59 +238,98 @@ export function DashboardView({
             return;
         }
         // Otherwise, publish the focus mode
-        PubSub.get().publish("focusMode", {
+        putActiveFocusMode({
             __typename: "ActiveFocusMode" as const,
             focusMode: {
                 ...tab.data,
                 __typename: "ActiveFocusModeFocusMode" as const,
             },
             stopCondition: FocusModeStopCondition.NextBegins,
-        });
-    }, [setLocation]);
+        }, session);
+    }, [putActiveFocusMode, session, setLocation]);
     useEffect(() => {
-        refetch({ activeFocusModeId: activeFocusMode?.focusMode?.id });
-    }, [activeFocusMode, refetch]);
+        refetch({});
+    }, [focusModeInfo.active, refetch]);
 
-    // Converts resources to a resource list
-    const [resourceList, setResourceList] = useState<ResourceListType>({
-        __typename: "ResourceList",
-        created_at: 0,
-        updated_at: 0,
-        id: DUMMY_ID,
-        resources: [],
-        translations: [],
-    } as unknown as ResourceListType);
-    useEffect(() => {
-        if (data?.resources) {
-            setResourceList(r => ({ ...r, resources: data.resources }));
+    const [resourceList, setResourceList] = useState<ResourceListType>(resourceListFallback);
+    const feedResourcesRef = useRef<Resource[]>([]);
+
+    const [reminders, setReminders] = useState<Reminder[]>([]);
+    const feedRemindersRef = useRef<Reminder[]>([]);
+
+    const [schedules, setSchedules] = useState<Schedule[]>([]);
+    const feedSchedulesRef = useRef<Schedule[]>([]);
+
+    useEffect(function parseFeedData() {
+        const feedResources = feedData?.resources;
+        if (feedResources) {
+            feedResourcesRef.current = feedResources;
+            setResourceList(r => {
+                // Add feed resources without duplicates
+                const newResources = feedResources.filter(resource => !r.resources.some(r => r.id === resource.id));
+                return {
+                    ...r,
+                    resources: [...r.resources, ...newResources],
+                };
+            });
         }
-    }, [data]);
-    useEffect(() => {
-        // TODO 11/21
-        // // Resources are added to the focus mode's resource list
-        // if (activeFocusMode?.focusMode?.resourceList?.id && activeFocusMode.focusMode?.resourceList.id !== DUMMY_ID) {
-        //     setResourceList({
-        //         ...activeFocusMode.focusMode.resourceList,
-        //         __typename: "ResourceList" as const,
-        //         listFor: {
-        //             ...activeFocusMode.focusMode,
-        //             __typename: "FocusMode" as const,
-        //             resourceList: undefined, // Avoid circular reference
-        //         },
-        //     });
-        // }
-    }, [activeFocusMode]);
+
+        const feedReminders = feedData?.reminders;
+        if (feedReminders) {
+            feedRemindersRef.current = feedReminders;
+            setReminders(feedReminders);
+        }
+
+        const feedSchedules = feedData?.schedules;
+        if (feedSchedules) {
+            feedSchedulesRef.current = feedSchedules;
+            setSchedules(feedSchedules);
+        }
+    }, [feedData?.reminders, feedData?.resources, feedData?.schedules]);
+
+    useEffect(function setActiveFocusModeData() {
+        const activeFocusModeId = focusModeInfo.active?.focusMode?.id;
+        const fullActiveFocusModeInfo = focusModeInfo.all.find(focusMode => focusMode.id === activeFocusModeId);
+        // If no active focus mode set
+        if (!fullActiveFocusModeInfo || !fullActiveFocusModeInfo.resourceList) {
+            // Use feed resources only
+            setResourceList({
+                ...resourceListFallback,
+                resources: feedResourcesRef.current,
+            });
+            // Use feed reminders only
+            setReminders(feedRemindersRef.current);
+        }
+        // If active mode set
+        else {
+            // Override full resource list, while combining resources from feed without duplicates
+            setResourceList(r => {
+                // Add feed resources without duplicates
+                const newResources = feedResourcesRef.current.filter(resource => !r.resources.some(r => r.id === resource.id));
+                return {
+                    ...fullActiveFocusModeInfo.resourceList,
+                    __typename: "ResourceList" as const,
+                    listFor: {
+                        ...fullActiveFocusModeInfo,
+                        __typename: "FocusMode" as const,
+                        resourceList: undefined, // Avoid circular reference
+                    },
+                    resources: [...r.resources, ...newResources],
+                } as ResourceListType;
+            });
+            // Combine feed reminders with active mode reminders without duplicates
+            setReminders(r => {
+                // Add feed reminders without duplicates
+                const newReminders = feedRemindersRef.current.filter(reminder => !r.some(r => r.id === reminder.id));
+                return [...r, ...newReminders];
+            });
+        }
+    }, [focusModeInfo, focusModeInfo.active, focusModeInfo.all]);
 
     const openSchedule = useCallback(() => {
         setLocation(LINKS.Calendar);
     }, [setLocation]);
 
-    const [reminders, setReminders] = useState<Reminder[]>([]);
-    useEffect(() => {
-        if (data?.reminders) {
-            setReminders(data.reminders);
-        }
-    }, [data]);
     const onReminderAction = useCallback((action: keyof ObjectListActions<Reminder>, ...data: unknown[]) => {
         switch (action) {
             case "Deleted": {
@@ -282,13 +345,6 @@ export function DashboardView({
         }
     }, []);
 
-    // Calculate upcoming events using schedules 
-    const [schedules, setSchedules] = useState<Schedule[]>([]);
-    useEffect(() => {
-        if (data?.schedules) {
-            setSchedules(data.schedules);
-        }
-    }, [data]);
     const [upcomingEvents, setUpcomingEvents] = useState<CalendarEvent[]>([]);
     useEffect(() => {
         let isCancelled = false;
@@ -354,7 +410,7 @@ export function DashboardView({
         setView("home");
     }, []);
 
-    const showTabs = useMemo(() => view === "home" && Boolean(getCurrentUser(session).id) && allFocusModes.length > 1 && currTab !== null, [session, allFocusModes.length, currTab, view]);
+    const showTabs = useMemo(() => view === "home" && Boolean(getCurrentUser(session).id) && focusModeInfo.all.length > 1 && currTab !== null, [session, focusModeInfo.all.length, currTab, view]);
 
     const [message, setMessage] = useHistoryState<string>(`${MESSAGE_LIST_ID}-message`, "");
     const messageTree = useMessageTree(chat.id);
@@ -459,13 +515,13 @@ export function DashboardView({
                             horizontal
                             loading={isFeedLoading}
                             mutate={true}
-                            parent={activeFocusMode?.focusMode ?
+                            parent={focusModeInfo.active?.focusMode ?
                                 {
-                                    ...activeFocusMode.focusMode,
+                                    ...focusModeInfo.active.focusMode,
                                     __typename: "FocusMode" as const,
-                                    resourceList: undefined,
-                                } as FocusMode : // Avoid circular reference
-                                { __typename: "FocusMode", id: DUMMY_ID }
+                                    resourceList: undefined, // Avoid circular reference
+                                } as FocusMode
+                                : activeFocusModeFallback
                             }
                             title={t("Resource", { count: 2 })}
                             sxs={resourceListStyle}

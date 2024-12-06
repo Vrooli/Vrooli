@@ -65,8 +65,8 @@ export const typeDef = `#graphql
     }
 
     input SetActiveFocusModeInput {
-        id: ID!
-        stopCondition: FocusModeStopCondition!
+        id: ID
+        stopCondition: FocusModeStopCondition
         stopTime: Date
     }
 
@@ -113,7 +113,7 @@ export const typeDef = `#graphql
     extend type Mutation {
         focusModeCreate(input: FocusModeCreateInput!): FocusMode!
         focusModeUpdate(input: FocusModeUpdateInput!): FocusMode!
-        setActiveFocusMode(input: SetActiveFocusModeInput!): ActiveFocusMode!
+        setActiveFocusMode(input: SetActiveFocusModeInput!): ActiveFocusMode
     }
 `;
 

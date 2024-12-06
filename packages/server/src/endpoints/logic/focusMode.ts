@@ -1,10 +1,10 @@
-import { ActiveFocusMode, FindByIdInput, FocusMode, FocusModeCreateInput, FocusModeSearchInput, FocusModeUpdateInput, SetActiveFocusModeInput, VisibilityType, WEEKS_1_DAYS } from "@local/shared";
+import { ActiveFocusMode, FindByIdInput, FocusMode, FocusModeCreateInput, FocusModeSearchInput, FocusModeUpdateInput, SetActiveFocusModeInput, VisibilityType, setActiveFocusModeValidation } from "@local/shared";
+import { PrismaPromise } from "@prisma/client";
 import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { updateSessionCurrentUser } from "../../auth/auth";
 import { RequestService } from "../../auth/request";
-import { focusModeSelect } from "../../auth/session";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
@@ -17,7 +17,7 @@ export type EndpointsFocusMode = {
     Mutation: {
         focusModeCreate: GQLEndpoint<FocusModeCreateInput, CreateOneResult<FocusMode>>;
         focusModeUpdate: GQLEndpoint<FocusModeUpdateInput, UpdateOneResult<FocusMode>>;
-        setActiveFocusMode: GQLEndpoint<SetActiveFocusModeInput, ActiveFocusMode>;
+        setActiveFocusMode: GQLEndpoint<SetActiveFocusModeInput, ActiveFocusMode | null>;
     }
 }
 
@@ -43,44 +43,74 @@ export const FocusModeEndpoints: EndpointsFocusMode = {
             return updateOneHelper({ info, input, objectType, req });
         },
         setActiveFocusMode: async (_, { input }, { req, res }) => {
-            // Unlink other objects, active focus mode is only stored in the user's session. 
             const userData = RequestService.assertRequestFrom(req, { isUser: true });
             await RequestService.get().rateLimit({ maxUser: 500, req });
-            // Create time frame to limit focus mode's schedule data
-            const now = new Date();
-            const startDate = now;
-            const endDate = new Date(now.setDate(now.getDate() + WEEKS_1_DAYS));
-            // Find focus mode data & verify that it belongs to the user
-            const focusMode = await prismaInstance.focus_mode.findFirst({
-                where: {
-                    id: input.id,
-                    user: { id: userData.id },
-                },
-                select: focusModeSelect(startDate, endDate),
-            });
-            if (!focusMode) throw new CustomError("0448", "NotFound");
-            // Set active focus mode in user's session token
-            updateSessionCurrentUser(req, res, {
-                activeFocusMode: {
+            setActiveFocusModeValidation.validateSync(input, { abortEarly: false });
+            const userId = userData.id;
+            console.log("yeet in setActiveFocusMode", JSON.stringify(input));
+
+            let activeFocusMode: ActiveFocusMode | null = null;
+
+            // If input has an id, activate focus mode
+            if (input.id) {
+                // Before activating focus mode, ensure it exists and belongs to the user
+                const focusMode = await prismaInstance.focus_mode.findFirst({
+                    where: { id: input.id, user: { id: userId } },
+                });
+                if (!focusMode) {
+                    throw new CustomError("0448", "NotFound");
+                }
+                const transactions: PrismaPromise<object>[] = [
+                    // Delete all active focus modes for the user
+                    prismaInstance.active_focus_mode.deleteMany({
+                        where: { user: { id: userId } },
+                    }),
+                    // Create new active focus mode
+                    prismaInstance.active_focus_mode.create({
+                        data: {
+                            user: { connect: { id: userId } },
+                            focusMode: { connect: { id: input.id } },
+                            stopCondition: input.stopCondition ?? undefined,
+                            stopTime: input.stopTime,
+                        },
+                        select: {
+                            focusMode: {
+                                select: {
+                                    id: true,
+                                    reminderList: { select: { id: true } },
+                                },
+                            },
+                            stopCondition: true,
+                            stopTime: true,
+                        },
+                    }),
+                ];
+                const transactionResults = await prismaInstance.$transaction(transactions);
+                // transactions[0]: active_focus_mode.deleteMany
+                // transactions[1]: active_focus_mode.create
+                const activeFocusModeData = transactionResults[1] as Record<string, any>;
+                activeFocusMode = {
                     __typename: "ActiveFocusMode" as const,
                     focusMode: {
                         __typename: "ActiveFocusModeFocusMode" as const,
-                        id: focusMode.id,
-                        reminderListId: focusMode.reminderList?.id,
+                        id: activeFocusModeData.focusMode.id,
+                        reminderListId: activeFocusModeData.focusMode.reminderList?.id,
                     },
-                    stopCondition: input.stopCondition,
-                    stopTime: input.stopTime,
-                },
-            });
-            return {
-                __typename: "ActiveFocusMode" as const,
-                focusMode: {
-                    __typename: "ActiveFocusModeFocusMode" as const,
-                    ...focusMode,
-                },
-                stopCondition: input.stopCondition,
-                stopTime: input.stopTime,
-            };
+                    stopCondition: activeFocusModeData.stopCondition,
+                    stopTime: activeFocusModeData.stopTime,
+                };
+            }
+            // Otherwise, deactivate focus mode
+            else {
+                await prismaInstance.active_focus_mode.deleteMany({
+                    where: { user: { id: userId } },
+                });
+            }
+
+            // Set active focus mode in user's session token
+            updateSessionCurrentUser(req, res, { activeFocusMode });
+
+            return activeFocusMode;
         },
     },
 };

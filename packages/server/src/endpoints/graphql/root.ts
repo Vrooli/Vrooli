@@ -8,6 +8,7 @@ import { resolveUnion } from "./resolvers";
 // Defines common inputs, outputs, and types for all GraphQL queries and mutations.
 export const typeDef = `#graphql
     enum GqlModelType {
+        ActiveFocusMode
         Api
         ApiKey
         ApiVersion

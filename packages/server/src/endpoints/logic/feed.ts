@@ -1,5 +1,4 @@
-import { ApiSortBy, CodeSortBy, FocusModeStopCondition, HomeInput, HomeResult, NoteSortBy, PageInfo, Popular, PopularSearchInput, PopularSearchResult, ProjectSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RoutineSortBy, ScheduleSortBy, StandardSortBy, TeamSortBy, UserSortBy, VisibilityType } from "@local/shared";
-import { GraphQLResolveInfo } from "graphql";
+import { ApiSortBy, CodeSortBy, HomeResult, NoteSortBy, PageInfo, Popular, PopularSearchInput, PopularSearchResult, ProjectSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RoutineSortBy, ScheduleSortBy, StandardSortBy, TeamSortBy, UserSortBy, VisibilityType } from "@local/shared";
 import { readManyAsFeedHelper } from "../../actions/reads";
 import { RequestService } from "../../auth/request";
 import { SessionService } from "../../auth/session";
@@ -8,32 +7,20 @@ import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
 import { PartialGraphQLInfo } from "../../builders/types";
 import { schedulesWhereInTimeframe } from "../../events/schedule";
 import { GQLEndpoint } from "../../types";
-import { FocusModeEndpoints } from "./focusMode";
 
 const SCHEDULES_DAYS_TO_LOOK_AHEAD = 7;
 
 export type EndpointsFeed = {
     Query: {
-        home: GQLEndpoint<HomeInput, HomeResult>;
+        home: GQLEndpoint<Record<string, never>, HomeResult>;
         popular: GQLEndpoint<PopularSearchInput, PopularSearchResult>;
     }
 }
 
 export const FeedEndpoints: EndpointsFeed = {
     Query: {
-        home: async (_, { input }, { req, res }, info) => {
-            const userData = RequestService.assertRequestFrom(req, { isUser: true });
+        home: async (_p, _i, { req }, info) => {
             await RequestService.get().rateLimit({ maxUser: 5000, req });
-            // Find focus mode to use
-            const activeFocusModeId = input.activeFocusModeId ?? userData.activeFocusMode?.focusMode?.id;
-            // If input provided the focus mode, update session
-            if (input.activeFocusModeId) {
-                FocusModeEndpoints.Mutation.setActiveFocusMode(_,
-                    { input: { id: input.activeFocusModeId, stopCondition: FocusModeStopCondition.NextBegins } },
-                    { req, res },
-                    {} as unknown as GraphQLResolveInfo,
-                );
-            }
             const partial = toPartialGqlInfo(info, {
                 __typename: "HomeResult",
                 recommended: "Resource",
@@ -48,29 +35,27 @@ export const FeedEndpoints: EndpointsFeed = {
             // Query reminders
             const { nodes: reminders } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: activeFocusModeId ? {
+                additionalQueries: {
+                    // Don't include reminders associated with a focus mode. These are handled separately.
                     reminderList: {
-                        focusMode: {
-                            id: activeFocusModeId,
-                        },
+                        focusMode: null,
                     },
-                } : undefined,
+                },
                 info: partial.reminders as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: ReminderSortBy.DateCreatedAsc, isComplete: false, visibility: VisibilityType.Own },
+                input: { take, sortBy: ReminderSortBy.DateCreatedAsc, isComplete: false, visibility: VisibilityType.Own },
                 objectType: "Reminder",
             });
             // Query resources
             const { nodes: resources } = await readManyAsFeedHelper({
                 ...commonReadParams,
-                additionalQueries: activeFocusModeId ? {
+                additionalQueries: {
+                    // Don't include reminders associated with a focus mode. These are handled separately.
                     list: {
-                        focusMode: {
-                            id: activeFocusModeId,
-                        },
+                        focusMode: null,
                     },
-                } : undefined,
+                },
                 info: partial.resources as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: ResourceSortBy.IndexAsc, visibility: VisibilityType.Own },
+                input: { take, sortBy: ResourceSortBy.IndexAsc, visibility: VisibilityType.Own },
                 objectType: "Resource",
             });
             // Query schedules that might occur in the next 7 days. 
@@ -84,7 +69,7 @@ export const FeedEndpoints: EndpointsFeed = {
                     ...schedulesWhereInTimeframe(startDate, endDate),
                 },
                 info: partial.schedules as PartialGraphQLInfo,
-                input: { ...input, take, sortBy: ScheduleSortBy.EndTimeAsc, visibility: VisibilityType.Own },
+                input: { take, sortBy: ScheduleSortBy.EndTimeAsc, visibility: VisibilityType.Own },
                 objectType: "Schedule",
             });
             // Add supplemental fields to every result

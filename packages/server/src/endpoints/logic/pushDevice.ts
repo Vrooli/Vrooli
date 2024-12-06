@@ -9,7 +9,7 @@ import { CreateOneResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "..
 
 export type EndpointsPushDevice = {
     Query: {
-        pushDevices: GQLEndpoint<never, FindOneResult<PushDevice>[]>;
+        pushDevices: GQLEndpoint<undefined, FindOneResult<PushDevice>[]>;
     }
     Mutation: {
         pushDeviceCreate: GQLEndpoint<PushDeviceCreateInput, CreateOneResult<PushDevice>>;

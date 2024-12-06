@@ -13,7 +13,7 @@ export const FocusModeRest = setupRoutes({
     "/focusMode": {
         post: [FocusModeEndpoints.Mutation.focusModeCreate, focusMode_create],
     },
-    "/focusMode/active": {
+    "/focusMode/active/:id": {
         put: [FocusModeEndpoints.Mutation.setActiveFocusMode, focusMode_setActive],
     },
 });

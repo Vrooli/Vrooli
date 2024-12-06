@@ -1,9 +1,7 @@
-import { View, ViewSearchInput, ViewSearchResult } from "@local/shared";
-import { GraphQLResolveInfo } from "graphql";
+import { View, ViewSearchInput } from "@local/shared";
 import { readManyHelper } from "../../actions/reads";
 import { RequestService } from "../../auth/request";
-import { Context } from "../../middleware";
-import { FindManyResult, GQLEndpoint, IWrap } from "../../types";
+import { FindManyResult, GQLEndpoint } from "../../types";
 
 export type EndpointsView = {
     Query: {
@@ -14,7 +12,7 @@ export type EndpointsView = {
 const objectType = "View";
 export const ViewEndpoints: EndpointsView = {
     Query: {
-        views: async (_parent: undefined, { input }: IWrap<ViewSearchInput>, { req }: Context, info: GraphQLResolveInfo): Promise<ViewSearchResult> => {
+        views: async (_parent, { input }, { req }, info) => {
             const userData = RequestService.assertRequestFrom(req, { isUser: true });
             await RequestService.get().rateLimit({ maxUser: 2000, req });
             return readManyHelper({ info, input, objectType, req, additionalQueries: { byId: userData.id } });
