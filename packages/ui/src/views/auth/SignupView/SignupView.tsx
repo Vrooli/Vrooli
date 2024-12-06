@@ -1,7 +1,7 @@
 import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, endpointPostAuthEmailSignup, LINKS, Session, SignUpPageTabOption } from "@local/shared";
 import { Box, BoxProps, Button, Checkbox, FormControl, FormControlLabel, FormHelperText, InputAdornment, Link, styled, useTheme } from "@mui/material";
-import { hasErrorCode } from "api/errorParser";
 import { fetchLazyWrapper } from "api/fetchWrapper";
+import { ServerResponseParser } from "api/responseParser";
 import { SocketService } from "api/socket";
 import { BreadcrumbsBase } from "components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase";
 import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
@@ -9,18 +9,21 @@ import { TextInput } from "components/inputs/TextInput/TextInput";
 import { Footer } from "components/navigation/Footer/Footer";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { PageTabs } from "components/PageTabs/PageTabs";
+import { SessionContext } from "contexts";
 import { Field, Formik, FormikHelpers } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
 import { formSubmit } from "forms/styles";
 import { useIsLeftHanded } from "hooks/subscriptions";
 import { useLazyFetch } from "hooks/useLazyFetch";
+import { useReactSearch } from "hooks/useReactSearch";
 import { useTabs } from "hooks/useTabs";
 import { useWindowSize } from "hooks/useWindowSize";
 import { EmailIcon, UserIcon } from "icons";
-import { useCallback, useMemo } from "react";
+import { useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { FormContainer, FormSection } from "styles";
+import { getCurrentUser } from "utils/authentication/session";
 import { removeCookie } from "utils/localStorage";
 import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID } from "utils/pubsub";
 import { setupPush } from "utils/push";
@@ -72,10 +75,34 @@ const emailInputProps = {
 } as const;
 
 function SignupForm() {
+    const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
     const [emailSignUp, { loading }] = useLazyFetch<EmailSignUpInput, Session>(endpointPostAuthEmailSignup);
+    const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
+
+    const search = useReactSearch();
+    const { redirect } = useMemo(function parseUrlSearch() {
+        return {
+            redirect: typeof search.redirect === "string" ? search.redirect : undefined,
+        } as const;
+    }, [search]);
+
+    // If already logged in and there's a redirect, show a snack to let user go to the redirect. 
+    // This is particularly useful during development when the server is restarted.
+    useEffect(function checkAlreadyLoggedIn() {
+        if (userId && redirect) {
+            PubSub.get().publish("snack", {
+                message: "Logged in. Go to redirect?",
+                severity: "Info",
+                buttonKey: "GoBack",
+                buttonClicked: () => {
+                    setLocation(redirect);
+                },
+            });
+        }
+    }, [userId, redirect, setLocation]);
 
     const handleSubmit = useCallback(function handleSubmitCallback(values: FormInput, helpers: FormikHelpers<FormInput>) {
         if (values.password !== values.confirmPassword) {
@@ -104,15 +131,19 @@ function SignupForm() {
                     messageVariables: { appName: BUSINESS_NAME },
                     buttons: [{
                         labelKey: "Ok", onClick: () => {
-                            setLocation(LINKS.Home);
-                            PubSub.get().publish("tutorial");
+                            if (redirect) {
+                                setLocation(redirect);
+                            } else {
+                                setLocation(LINKS.Home);
+                                PubSub.get().publish("tutorial");
+                            }
                         },
                     }],
                 });
                 SocketService.get().connect();
             },
             onError: (response) => {
-                if (hasErrorCode(response, "EmailInUse")) {
+                if (ServerResponseParser.hasErrorCode(response, "EmailInUse")) {
                     PubSub.get().publish("alertDialog", {
                         messageKey: "EmailInUseWrongPassword",
                         buttons: [

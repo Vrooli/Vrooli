@@ -1,7 +1,7 @@
 import { emailLogInFormValidation, EmailLogInInput, endpointPostAuthEmailLogin, getOAuthInitRoute, LINKS, OAUTH_PROVIDERS, Session } from "@local/shared";
 import { Box, Button, Divider, InputAdornment, styled } from "@mui/material";
-import { errorToMessage, hasErrorCode } from "api/errorParser";
 import { fetchLazyWrapper } from "api/fetchWrapper";
+import { ServerResponseParser } from "api/responseParser";
 import { SocketService } from "api/socket";
 import AppleIcon from "assets/img/apple.svg";
 import FacebookIcon from "assets/img/facebook.svg";
@@ -117,10 +117,27 @@ function LoginForm({
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
     const search = useReactSearch();
-    const { redirect, verificationCode } = useMemo(() => ({
-        redirect: typeof search.redirect === "string" ? search.redirect : undefined,
-        verificationCode: typeof search.verificationCode === "string" ? search.verificationCode : undefined,
-    }), [search]);
+    const { redirect, verificationCode } = useMemo(function parseUrlSearch() {
+        return {
+            redirect: typeof search.redirect === "string" ? search.redirect : undefined,
+            verificationCode: typeof search.verificationCode === "string" ? search.verificationCode : undefined,
+        } as const;
+    }, [search]);
+
+    // If already logged in and there's a redirect, show a snack to let user go to the redirect. 
+    // This is particularly useful during development when the server is restarted.
+    useEffect(function checkAlreadyLoggedIn() {
+        if (userId && redirect) {
+            PubSub.get().publish("snack", {
+                message: "Logged in. Go to redirect?",
+                severity: "Info",
+                buttonKey: "GoBack",
+                buttonClicked: () => {
+                    setLocation(redirect);
+                },
+            });
+        }
+    }, [userId, redirect, setLocation]);
 
     const [emailLogIn, { loading }] = useLazyFetch<EmailLogInInput, Session>(endpointPostAuthEmailLogin);
 
@@ -144,7 +161,7 @@ function LoginForm({
                         setLocation(redirect ?? LINKS.Home);
                     },
                     onError: (response) => {
-                        if (hasErrorCode(response, "MustResetPassword")) {
+                        if (ServerResponseParser.hasErrorCode(response, "MustResetPassword")) {
                             PubSub.get().publish("alertDialog", {
                                 messageKey: "ChangePasswordBeforeLogin",
                                 buttons: [
@@ -175,7 +192,7 @@ function LoginForm({
             showDefaultErrorSnack: false,
             onError: (response) => {
                 // Custom dialog for changing password
-                if (hasErrorCode(response, "MustResetPassword")) {
+                if (ServerResponseParser.hasErrorCode(response, "MustResetPassword")) {
                     PubSub.get().publish("alertDialog", {
                         messageKey: "ChangePasswordBeforeLogin",
                         buttons: [
@@ -184,7 +201,7 @@ function LoginForm({
                     });
                 }
                 // Custom snack for signing up
-                else if (hasErrorCode(response, "InvalidCredentials")) {
+                else if (ServerResponseParser.hasErrorCode(response, "InvalidCredentials")) {
                     PubSub.get().publish("snack", {
                         messageKey: "InvalidCredentials",
                         severity: "Error",
@@ -192,7 +209,7 @@ function LoginForm({
                         buttonClicked: () => { setLocation(LINKS.Signup); },
                     });
                 } else {
-                    PubSub.get().publish("snack", { message: errorToMessage(response, ["en"]), severity: "Error", data: response });
+                    ServerResponseParser.displayErrors(response.errors);
                 }
                 helpers.setSubmitting(false);
             },
