@@ -1,8 +1,8 @@
-import { ActiveFocusMode, endpointPostAuthValidateSession, endpointPutFocusModeActive, getActiveFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
+import { ActiveFocusMode, endpointPostAuthValidateSession, endpointPutFocusModeActive, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
 import { Box, BoxProps, createTheme, CssBaseline, GlobalStyles, styled, StyledEngineProvider, Theme, ThemeProvider } from "@mui/material";
 import { fetchAIConfig } from "api/ai";
-import { hasErrorCode } from "api/errorParser";
 import { fetchLazyWrapper } from "api/fetchWrapper";
+import { ServerResponseParser } from "api/responseParser";
 import { SERVER_CONNECT_MESSAGE_ID } from "api/socket";
 import { BannerChicken } from "components/BannerChicken/BannerChicken";
 import { Celebration } from "components/Celebration/Celebration";
@@ -30,7 +30,7 @@ import i18next from "i18next";
 import { vrooliIconPath } from "icons/common";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Routes } from "Routes";
-import { getCurrentUser, getSiteLanguage, guestSession } from "utils/authentication/session";
+import { getSiteLanguage, guestSession } from "utils/authentication/session";
 import { LEFT_DRAWER_WIDTH, RIGHT_DRAWER_WIDTH } from "utils/consts";
 import { getDeviceInfo } from "utils/display/device";
 import { DEFAULT_THEME, themes } from "utils/display/theme";
@@ -356,7 +356,7 @@ https://github.com/Vrooli/Vrooli
                 let isInvalidSession = false;
                 localStorage.removeItem("isLoggedIn");
                 // Check if error is expired/invalid session
-                if (hasErrorCode(error, "SessionExpired")) {
+                if (ServerResponseParser.hasErrorCode(error, "SessionExpired")) {
                     isInvalidSession = true;
                     // Log in development mode
                     if (process.env.DEV) console.error("Error: failed to verify session", error);
@@ -397,53 +397,11 @@ https://github.com/Vrooli/Vrooli
             else {
                 setSession(s => ({ ...s, ...session }));
             }
-            // Store user's focus modes in local storage
-            const currentlyActiveFocusMode = getCurrentUser(session)?.activeFocusMode ?? null;
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore TODO 11/21
-            const focusModes = getCurrentUser(session)?.focusModes ?? [];
-            const activeFocusMode = await getActiveFocusMode(currentlyActiveFocusMode, focusModes);
-            setCookie("FocusModeActive", activeFocusMode);
-            setCookie("FocusModeAll", focusModes);
         });
         // Handle theme updates
         const themeSub = PubSub.get().subscribe("theme", (data) => {
             const newTheme = themes[data] ?? themes[DEFAULT_THEME];
             setThemeAndMeta(newTheme);
-        });
-        // Handle focus mode updates
-        const focusModeSub = PubSub.get().subscribe("focusMode", (data) => {
-            setCookie("FocusModeActive", data);
-            setSession((prevState) => {
-                if (!prevState) return prevState;
-                const updatedUsers = prevState?.users?.map((user, index) => {
-                    if (index === 0) {
-                        return {
-                            ...user,
-                            activeFocusMode: data,
-                        };
-                    }
-                    return user;
-                });
-                return {
-                    ...prevState,
-                    users: updatedUsers ?? [],
-                };
-            });
-            if (!isSettingActiveFocusMode.current) {
-                isSettingActiveFocusMode.current = true;
-                const { focusMode, ...rest } = data;
-                fetchLazyWrapper<SetActiveFocusModeInput, ActiveFocusMode>({
-                    fetch: setActiveFocusMode,
-                    inputs: { ...rest, id: data.focusMode.id },
-                    successCondition: (data) => data !== null,
-                    onSuccess: () => { isSettingActiveFocusMode.current = false; },
-                    onError: (error) => {
-                        isSettingActiveFocusMode.current = false;
-                        console.error("Failed to set active focus mode", error);
-                    },
-                });
-            }
         });
         // Handle font size updates
         const fontSizeSub = PubSub.get().subscribe("fontSize", (data) => {
@@ -477,7 +435,6 @@ https://github.com/Vrooli/Vrooli
             loadingSub();
             sessionSub();
             themeSub();
-            focusModeSub();
             fontSizeSub();
             languageSub();
             isLeftHandedSub();

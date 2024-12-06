@@ -10,9 +10,7 @@ import { StatsCompactProps } from "../types";
 const OuterBox = styled(Box)(({ theme }) => ({
     display: "flex",
     flexDirection: "row",
-    gap: theme.spacing(1),
-    marginTop: theme.spacing(1),
-    marginBottom: theme.spacing(1),
+    gap: theme.spacing(2),
     alignItems: "center",
     color: theme.palette.background.textSecondary,
 }));
@@ -40,6 +38,15 @@ export function StatsCompact<T extends ListObject>({
 
     return (
         <OuterBox>
+            {/* Views */}
+            <Box display="flex" alignItems="center">
+                <VisibleIcon width={32} height={32} />
+                <Typography variant="body2">
+                    {(object as any)?.views ?? 1}
+                </Typography>
+            </Box>
+            {/* Reports */}
+            {object?.id && <ReportsLink object={object as any} />}
             {/* Votes. Show even if you can't vote */}
             {object && object.__typename.replace("Version", "") in ReactionFor && <VoteButton
                 disabled={!you.canReact}
@@ -49,15 +56,6 @@ export function StatsCompact<T extends ListObject>({
                 score={counts.score}
                 onChange={handleChange}
             />}
-            {/* Views */}
-            <Box display="flex" alignItems="center">
-                <VisibleIcon />
-                <Typography variant="body2">
-                    {(object as any)?.views ?? 1}
-                </Typography>
-            </Box>
-            {/* Reports */}
-            {object?.id && <ReportsLink object={object as any} />}
         </OuterBox>
     );
 }

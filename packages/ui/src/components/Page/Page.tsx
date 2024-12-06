@@ -1,4 +1,4 @@
-import { LINKS, stringifySearchParams } from "@local/shared";
+import { LINKS, UrlTools } from "@local/shared";
 import { Box, BoxProps, styled, useTheme } from "@mui/material";
 import { SessionContext } from "contexts";
 import { useElementDimensions } from "hooks/useDimensions";
@@ -140,7 +140,7 @@ export function Page({
         }
         if (sessionChecked && pathname !== LINKS.Signup) {
             PubSub.get().publish("snack", { messageKey: "PageRestricted", severity: "Error" });
-            return <Redirect to={`${LINKS.Signup}${stringifySearchParams({ redirect: pathname })}`} />;
+            return <Redirect to={UrlTools.linkWithSearchParams(LINKS.Signup, { redirect: pathname })} />;
         }
         return null;
     }

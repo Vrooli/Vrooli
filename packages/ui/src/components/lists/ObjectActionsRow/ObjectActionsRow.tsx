@@ -1,5 +1,5 @@
 import { ListObject } from "@local/shared";
-import { Box, IconButton, Palette, Tooltip, styled, useTheme } from "@mui/material";
+import { Box, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { ObjectActionDialogs } from "components/dialogs/ObjectActionDialogs/ObjectActionDialogs";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { SessionContext } from "contexts";
@@ -13,10 +13,10 @@ import { ObjectActionsRowProps } from "../types";
 
 const MAX_ACTIONS_BEFORE_OVERFLOW = 5;
 
-function commonIconProps(palette: Palette) {
+function commonIconProps() {
     return {
-        width: "30px",
-        height: "30px",
+        width: "24px",
+        height: "24px",
     };
 }
 
@@ -24,16 +24,24 @@ const OuterBox = styled(Box)(({ theme }) => ({
     display: "flex",
     flexDirection: "row",
     gap: theme.spacing(1),
-    marginTop: theme.spacing(1),
-    marginBottom: theme.spacing(1),
     alignItems: "center",
     justifyContent: "space-between",
 }));
 
 const ActionIconButton = styled(IconButton)(({ theme }) => ({
-    color: "inherit",
-    width: "48px",
+    color: theme.palette.background.textSecondary,
+    width: "32px",
     height: "100%",
+    padding: 0,
+}));
+
+const ActionIconWithLabelBox = styled(Box)(({ theme }) => ({
+    display: "flex",
+    flexDirection: "row",
+    gap: theme.spacing(1),
+    alignItems: "center",
+    cursor: "pointer",
+    color: theme.palette.background.textSecondary,
 }));
 
 /**
@@ -89,18 +97,21 @@ export function ObjectActionsRow<T extends ListObject>({
                 actionData.onActionStart(value);
             }
 
-            return <Tooltip title={labelKey && t(labelKey, { count: 1 })} key={index}>
-                <ActionIconButton onClick={handleClick}>
-                    <Icon {...commonIconProps(palette)} fill={iconColor === "default" ? palette.secondary.main : iconColor} />
-                </ActionIconButton>
-            </Tooltip>;
+            return (
+                <ActionIconWithLabelBox key={index} onClick={handleClick}>
+                    <Icon {...commonIconProps()} fill={iconColor === "default" ? "currentColor" : iconColor} />
+                    <Typography variant="body2">
+                        {labelKey && t(labelKey, { count: 1 })}
+                    </Typography>
+                </ActionIconWithLabelBox>
+            );
         });
         // If there are extra actions, display an ellipsis button
         if (actionsExtra.length > 0) {
             displayedActions.push(
                 <Tooltip title="More" key={displayedActions.length}>
                     <ActionIconButton onClick={openOverflowMenu}>
-                        <EllipsisIcon {...commonIconProps(palette)} fill={palette.secondary.main} />
+                        <EllipsisIcon {...commonIconProps()} fill={palette.secondary.main} />
                     </ActionIconButton>
                 </Tooltip>,
             );

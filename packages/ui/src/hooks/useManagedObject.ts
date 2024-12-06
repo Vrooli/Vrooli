@@ -10,6 +10,7 @@ import {
     isEqual,
     parseSearchParams,
 } from "@local/shared";
+import { ServerResponseParser } from "api/responseParser";
 import { FetchInputOptions } from "api/types";
 import { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "route";
@@ -153,7 +154,7 @@ export function useManagedObject<
             // If data was fetched, cache it and update the object
             setCookiePartialData(fetchResult.data, "full");
             setObject(applyDataTransform(fetchResult.data, transformRef.current) as ObjectReturnType<TData, TFunc>);
-        } else if (fetchResult.errors?.some((e) => e.code === "Unauthorized")) {
+        } else if (ServerResponseParser.hasErrorCode(fetchResult, "Unauthorized")) {
             // If unauthorized error, clear cache and reset object
             removeCookiePartialData({ __typename: objectType, ...urlParams });
             setObject(applyDataTransform({}, transformRef.current) as ObjectReturnType<TData, TFunc>);

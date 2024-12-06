@@ -10,7 +10,7 @@ import { QuestionForButton } from "components/buttons/relationships/QuestionForB
 import { useMemo } from "react";
 import { formSection, noSelect } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
-import { RelationshipButtonType } from "utils/consts";
+import { ELEMENT_IDS, RelationshipButtonType } from "utils/consts";
 import { RelationshipListProps } from "../types";
 
 /**
@@ -83,7 +83,7 @@ export function RelationshipList({
         return null;
     }
     return (
-        <Box sx={outerStyle}>
+        <Box id={ELEMENT_IDS.RelationshipList} sx={outerStyle}>
             {visibleButtons.includes(RelationshipButtonType.IsPrivate) && <IsPrivateButton {...props} />}
             {visibleButtons.includes(RelationshipButtonType.IsComplete) && <IsCompleteButton {...props} />}
             {visibleButtons.includes(RelationshipButtonType.Owner) && <OwnerButton {...props} />}

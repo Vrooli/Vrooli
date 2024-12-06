@@ -1,6 +1,7 @@
-import { displayServerErrors } from "api/errorParser";
+import { HttpMethod, ServerResponse } from "@local/shared";
 import { fetchData } from "api/fetchData";
-import { LazyRequestWithResult, Method, ServerResponse, ServerResponseWithTimestamp } from "api/types";
+import { ServerResponseParser } from "api/responseParser";
+import { LazyRequestWithResult, ServerResponseWithTimestamp } from "api/types";
 import { useCallback, useRef, useState } from "react";
 
 type RequestState<TData> = {
@@ -14,7 +15,7 @@ export type UseLazyFetchProps<TInput extends Record<string, any> | undefined> = 
     endpoint?: string | undefined;
     inputs?: TInput;
     /** The HTTP method to use for the request (defaults to 'GET') */
-    method?: Method;
+    method?: HttpMethod;
     /** Additional options to pass to the `fetch` function */
     options?: RequestInit;
 };
@@ -60,9 +61,10 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
         const { endpoint, method, options, inputs } = fetchParamsRef.current;
         // Cancel if no endpoint is provided
         if (!endpoint && !inputOptions?.endpointOverride) {
+            const trace = "0692";
             const message = "No endpoint provided to useLazyFetch";
             console.error(message);
-            stateRef.current.errors = [{ message }];
+            stateRef.current.errors = [{ trace, message }];
             setState(stateRef.current);
             return stateRef.current;
         }
@@ -87,7 +89,7 @@ export function useLazyFetch<TInput extends Record<string, any> | undefined, TDa
                     inputOptions.onError(errors);
                 }
                 if (inputOptions?.displayError !== false) {
-                    displayServerErrors(errors);
+                    ServerResponseParser.displayErrors(errors);
                 }
             }
             return stateRef.current;

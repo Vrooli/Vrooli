@@ -1,4 +1,4 @@
-import { AITaskInfo, ActiveFocusMode, ChatPageTabOption, LlmTask, Session, TaskContextInfo, TranslationKeyCommon, TranslationKeyError } from "@local/shared";
+import { AITaskInfo, ChatPageTabOption, LlmTask, Session, TaskContextInfo, TranslationKeyCommon, TranslationKeyError } from "@local/shared";
 import { AlertDialogSeverity } from "components/dialogs/AlertDialog/AlertDialog";
 import { SnackSeverity } from "components/snacks/BasicSnack/BasicSnack";
 import { ThemeType } from "./localStorage";
@@ -203,7 +203,6 @@ export interface EventPayloads {
     cookies: void;
     fastUpdate: { on?: boolean, duration?: number };
     findInPage: void;
-    focusMode: ActiveFocusMode;
     fontSize: number;
     isLeftHanded: boolean;
     language: string;

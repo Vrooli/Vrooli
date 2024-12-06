@@ -1,5 +1,5 @@
-import { endpointPutProfile, ProfileUpdateInput, profileValidation, User } from "@local/shared";
-import { Box, Button, Divider, Grid, styled, Typography, useTheme } from "@mui/material";
+import { endpointPutProfile, LINKS, ProfileUpdateInput, profileValidation, User } from "@local/shared";
+import { Box, Button, Divider, Grid, Link, styled, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { FocusModeSelector } from "components/inputs/FocusModeSelector/FocusModeSelector";
@@ -11,7 +11,7 @@ import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts";
-import { Formik } from "formik";
+import { Formik, FormikHelpers } from "formik";
 import { InnerForm, OuterForm } from "forms/BaseForm/BaseForm";
 import { useShowBotWarning } from "hooks/subscriptions";
 import { useLazyFetch } from "hooks/useLazyFetch";
@@ -57,6 +57,8 @@ const dividerStyle = {
     width: "100%",
     paddingTop: 2,
 } as const;
+const seeAllLinkStyle = { textAlign: "right" } as const;
+const seeAllLinkTextStyle = { marginRight: "12px", marginBottom: "8px" } as const;
 
 function SettingsDisplayForm({
     display,
@@ -91,6 +93,12 @@ function SettingsDisplayForm({
                     />
                     <LanguageSelector />
                     <FocusModeSelector />
+                    <Link
+                        href={LINKS.SettingsFocusModes}
+                        sx={seeAllLinkStyle}
+                    >
+                        <Typography variant="body2" sx={seeAllLinkTextStyle}>See all focus modes</Typography>
+                    </Link>
                 </FormSection>
                 <Divider sx={dividerStyle} />
                 <FormSection variant="transparent">
@@ -150,6 +158,22 @@ export function SettingsDisplayView({
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
     const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);
 
+    const onSubmit = useCallback(function onSubmitCallback(values: ProfileUpdateInput, helpers: FormikHelpers<ProfileUpdateInput>) {
+        if (!profile) {
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
+            return;
+        }
+        fetchLazyWrapper<ProfileUpdateInput, User>({
+            fetch,
+            inputs: {
+                ...values,
+                languages: [getSiteLanguage(session)],
+            },
+            onSuccess: (data) => { onProfileUpdate(data); },
+            onCompleted: () => { helpers.setSubmitting(false); },
+        });
+    }, [fetch, onProfileUpdate, profile, session]);
+
     return (
         <ScrollBox>
             <SettingsTopBar
@@ -166,21 +190,7 @@ export function SettingsDisplayView({
                         initialValues={{
                             theme: palette.mode === "dark" ? "dark" : "light",
                         } as ProfileUpdateInput}
-                        onSubmit={(values, helpers) => {
-                            if (!profile) {
-                                PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
-                                return;
-                            }
-                            fetchLazyWrapper<ProfileUpdateInput, User>({
-                                fetch,
-                                inputs: {
-                                    ...values,
-                                    languages: [getSiteLanguage(session)],
-                                },
-                                onSuccess: (data) => { onProfileUpdate(data); },
-                                onCompleted: () => { helpers.setSubmitting(false); },
-                            });
-                        }}
+                        onSubmit={onSubmit}
                         validationSchema={profileValidation.update({ env: process.env.NODE_ENV })}
                     >
                         {(formik) => <SettingsDisplayForm

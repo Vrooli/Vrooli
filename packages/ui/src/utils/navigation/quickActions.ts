@@ -1,8 +1,6 @@
 import { ActionOption, endpointPutProfile, HistoryPageTabOption, LINKS, ProfileUpdateInput, SearchPageTabOption, Session, User } from "@local/shared";
-import { errorToMessage } from "api/errorParser";
 import { fetchWrapper } from "api/fetchWrapper";
 import { getCurrentUser } from "utils/authentication/session";
-import { getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { clearSearchHistory } from "utils/search/clearSearchHistory";
 import { PreSearchItem } from "utils/search/siteToSearch";
@@ -264,7 +262,6 @@ export async function performAction(option: ActionOption, session: Session | nul
                     ...endpointPutProfile,
                     inputs: { theme: "dark" },
                     onSuccess: () => { PubSub.get().publish("theme", "dark"); },
-                    onError: (error) => { PubSub.get().publish("snack", { message: errorToMessage(error, getUserLanguages(session)), severity: "Error", data: error }); },
                 });
             }
             // Otherwise, just publish theme change.
@@ -277,7 +274,6 @@ export async function performAction(option: ActionOption, session: Session | nul
                     ...endpointPutProfile,
                     inputs: { theme: "light" },
                     onSuccess: () => { PubSub.get().publish("theme", "light"); },
-                    onError: (error) => { PubSub.get().publish("snack", { message: errorToMessage(error, getUserLanguages(session)), severity: "Error", data: error }); },
                 });
             }
             // Otherwise, just publish theme change.

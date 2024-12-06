@@ -1,6 +1,6 @@
 import { Chat, ChatCreateInput, ChatParticipantShape, ChatShape, DUMMY_ID, FindByIdInput, Session, VALYXA_ID, endpointGetChat, endpointPostChat, noop, uuidValidate } from "@local/shared";
-import { hasErrorCode } from "api/errorParser";
 import { fetchLazyWrapper } from "api/fetchWrapper";
+import { ServerResponseParser } from "api/responseParser";
 import { useLazyFetch } from "hooks/useLazyFetch";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -154,7 +154,7 @@ export function ActiveChatProvider({ children }) {
     const setActiveChat = useCallback((newChat: ChatShape | null) => {
         setChat(newChat);
         // Update the cache
-        if (!newChat) return
+        if (!newChat) return;
         const userId = getCurrentUser(session).id;
         const participantIds = newChat.participants?.map(p => p.user?.id) ?? [];
         if (userId && participantIds.length > 1 && participantIds.includes(userId)) { // Must have more than yourself
@@ -182,7 +182,7 @@ export function ActiveChatProvider({ children }) {
                     },
                     onError: (response) => {
                         // If we get an error indicating that the stored chat doesn't exist, create a new chat
-                        if (hasErrorCode(response, "NotFound") && !hasTriedCreatingNewChat.current) {
+                        if (ServerResponseParser.hasErrorCode(response, "NotFound") && !hasTriedCreatingNewChat.current) {
                             hasTriedCreatingNewChat.current = true;
                             resetActiveChat();
                         }

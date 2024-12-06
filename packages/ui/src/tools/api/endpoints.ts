@@ -165,7 +165,7 @@ export const endpoints = {
     feed: async () => {
         const { homeResult } = await import("./partial/feed");
         return {
-            home: toQuery("home", "HomeInput", homeResult, "list"),
+            home: toQuery("home", null, homeResult, "list"),
         };
     },
     issue: async () => {

@@ -1,5 +1,6 @@
 import { FindByIdInput, FindVersionInput, LINKS, ListObject, Report, ReportFor, ReportSearchInput, ReportStatus, VisibilityType, endpointGetApiVersion, endpointGetChatMessage, endpointGetCodeVersion, endpointGetComment, endpointGetIssue, endpointGetNoteVersion, endpointGetPost, endpointGetProjectVersion, endpointGetRoutineVersion, endpointGetStandardVersion, endpointGetTag, endpointGetTeam, endpointGetUser, getObjectUrl, noop, uuidValidate } from "@local/shared";
 import { Box, Button, Typography, styled, useTheme } from "@mui/material";
+import { ServerResponseParser } from "api/responseParser";
 import { SortButton } from "components/buttons/SortButton/SortButton";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
@@ -170,7 +171,7 @@ export function ReportsView() {
         if (fetchedData) setCookiePartialData(fetchedData, "full");
         // If we didn't receive fetched data, and we received an "Unauthorized" error, 
         // we should clear the cookie data and set the object to its default value
-        else if (fetchedErrors?.some(e => e.code === "Unauthorized")) {
+        else if (ServerResponseParser.hasErrorCode({ errors: fetchedErrors }, "Unauthorized")) {
             removeCookiePartialData({ __typename: objectType, ...urlInfo });
             setObject(null);
             return;

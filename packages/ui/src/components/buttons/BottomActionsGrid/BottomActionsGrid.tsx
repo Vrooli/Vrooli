@@ -3,7 +3,6 @@
  */
 import { Grid, useTheme } from "@mui/material";
 import { useKeyboardOpen } from "hooks/useKeyboardOpen";
-import { useWindowSize } from "hooks/useWindowSize";
 import { useMemo } from "react";
 import { pagePaddingBottom } from "styles";
 import { BottomActionsGridProps } from "../types";
@@ -13,9 +12,8 @@ export function BottomActionsGrid({
     display,
     sx,
 }: BottomActionsGridProps) {
-    const { breakpoints, palette } = useTheme();
+    const { palette } = useTheme();
     const isKeyboardOpen = useKeyboardOpen();
-    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
     const gridStyle = useMemo(function gridStyleMemo() {
         return {

@@ -1,8 +1,7 @@
-import { Chat, ChatCreateInput, ChatInviteShape, ChatInviteStatus, ChatMessageShape, ChatParticipantShape, ChatShape, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPutChat, exists, getObjectUrl, LINKS, noopSubmit, orDefault, parseSearchParams, Session, shapeChat, uuid, uuidToBase36, VALYXA_ID } from "@local/shared";
+import { Chat, ChatCreateInput, ChatInviteShape, ChatInviteStatus, ChatMessageShape, ChatParticipantShape, ChatShape, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPutChat, exists, getObjectUrl, LINKS, noopSubmit, orDefault, parseSearchParams, ServerResponse, Session, shapeChat, uuid, uuidToBase36, VALYXA_ID } from "@local/shared";
 import { Box, Button, Checkbox, IconButton, InputAdornment, Stack, styled, Typography } from "@mui/material";
-import { errorToMessage, hasErrorCode } from "api/errorParser";
 import { fetchLazyWrapper } from "api/fetchWrapper";
-import { ServerResponse } from "api/types";
+import { ServerResponseParser } from "api/responseParser";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { ChatBubbleTree } from "components/ChatBubbleTree/ChatBubbleTree";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -359,7 +358,7 @@ function ChatForm({
                     // Put typed message back if there was a problem
                     setMessage(oldMessage ?? "");
                     PubSub.get().publish("snack", {
-                        message: errorToMessage(data as ServerResponse, getUserLanguages(session)),
+                        message: ServerResponseParser.errorToMessage(data as ServerResponse, getUserLanguages(session)),
                         severity: "Error",
                         data,
                     });
@@ -586,7 +585,7 @@ export function ChatCrud({
         ...endpointGetChat,
         onError: function onLoadError(errors) {
             // If the chat doesn't exist, switch to create mode
-            if (hasErrorCode({ errors }, "NotFound")) {
+            if (ServerResponseParser.hasErrorCode({ errors }, "NotFound")) {
                 if (display === "page") setLocation(`${LINKS.Chat}/add`, { replace: true, searchParams: parseSearchParams() });
                 setExisting(chatInitialValues(session, t, getUserLanguages(session)[0]));
             }

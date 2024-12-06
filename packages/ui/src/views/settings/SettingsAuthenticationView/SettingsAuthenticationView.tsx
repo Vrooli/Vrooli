@@ -177,7 +177,7 @@ export function SettingsAuthenticationView({
             onCompleted: () => { helpers.setSubmitting(false); },
             successMessage: () => ({ messageKey: "Success" }),
         });
-    }, []);
+    }, [onProfileUpdate, profile, update]);
 
     return (
         <ScrollBox>

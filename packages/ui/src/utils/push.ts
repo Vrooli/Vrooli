@@ -1,6 +1,6 @@
 import { endpointPostPushDevice, PushDevice, PushDeviceCreateInput } from "@local/shared";
-import { errorToMessage } from "api/errorParser";
 import { fetchData } from "api/fetchData";
+import { ServerResponseParser } from "api/responseParser";
 import { requestNotificationPermission, subscribeUserToPush } from "serviceWorkerRegistration";
 import { getDeviceInfo } from "./display/device";
 import { PubSub } from "./pubsub";
@@ -58,7 +58,7 @@ export async function setupPush(showErrorWhenNotSupported = true): Promise<PushD
                 PubSub.get().publish("snack", { messageKey: "PushDeviceCreated", severity: "Success" });
                 return response.data;
             } else if (response.errors) {
-                PubSub.get().publish("snack", { message: errorToMessage(response, ["en"]), severity: "Error", data: response });
+                ServerResponseParser.displayErrors(response.errors);
             } else {
                 PubSub.get().publish("snack", { messageKey: "ErrorUnknown", severity: "Error" });
             }

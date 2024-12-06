@@ -17,6 +17,16 @@ interface UsePopoverMenuReturn {
     Popover: () => JSX.Element;
 }
 
+const arrowPopoverStyle = {
+    root: {
+        // Remove horizontal spacing for list items
+        "& ul": {
+            paddingInlineStart: "20px",
+            margin: "8px",
+        },
+    },
+} as const;
+
 export function useErrorPopover({
     errors,
     onSetSubmitting,
@@ -42,14 +52,16 @@ export function useErrorPopover({
         const formError = filteredErrors.find(([key]) => key === "_form");
         if (formError) return uppercaseFirstLetter(formError[1] as string);
         // Helper to convert string to markdown list item
-        const toListItem = (str: string, level: number) => { return `${"  ".repeat(level)}* ${str}`; };
+        function toListItem(str: string, level: number) {
+            return `${"  ".repeat(level)}* ${str}`;
+        }
         // Convert errors to markdown list
         const errorList = filteredErrors.map(([key, value]) => {
             if (Array.isArray(value)) {
                 return toListItem(uppercaseFirstLetter(key), 0) + ": \n" + value.map((str) => toListItem(str, 1)).join("\n");
             }
             else {
-                return toListItem(uppercaseFirstLetter(key + ": " + value), 0);
+                return toListItem(uppercaseFirstLetter(value), 0);
             }
         }).join("\n");
         return errorList;
@@ -62,15 +74,7 @@ export function useErrorPopover({
             <PopoverWithArrow
                 anchorEl={errorAnchorEl}
                 handleClose={closePopover}
-                sxs={{
-                    root: {
-                        // Remove horizontal spacing for list items
-                        "& ul": {
-                            paddingInlineStart: "20px",
-                            margin: "8px",
-                        },
-                    },
-                }}
+                sxs={arrowPopoverStyle}
             >
                 <MarkdownDisplay content={errorMessage} />
             </PopoverWithArrow>

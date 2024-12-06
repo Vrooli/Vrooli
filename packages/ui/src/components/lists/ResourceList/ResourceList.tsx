@@ -24,7 +24,7 @@ import { openLink, useLocation } from "route";
 import { CardBox, multiLineEllipsis } from "styles";
 import { ArgsType } from "types";
 import { ObjectAction } from "utils/actions/objectActions";
-import { DUMMY_LIST_LENGTH, DUMMY_LIST_LENGTH_SHORT } from "utils/consts";
+import { DUMMY_LIST_LENGTH, DUMMY_LIST_LENGTH_SHORT, ELEMENT_IDS } from "utils/consts";
 import { getResourceIcon } from "utils/display/getResourceIcon";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
@@ -364,7 +364,7 @@ export function ResourceListHorizontal({
         return (
             <>
                 <Box
-                    id={id}
+                    id={id ?? ELEMENT_IDS.ResourceCards}
                     justifyContent="center"
                     alignItems="center"
                     sx={boxSx}

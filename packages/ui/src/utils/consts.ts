@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { InputType, NodeType, ValueOf } from "@local/shared";
+import { InputType, NodeType, SERVER_VERSION, ValueOf } from "@local/shared";
 
 export const Forms = {
     ForgotPassword: "forgot-password",
@@ -150,7 +150,7 @@ export const apiUrlBase: string = isLocalhost ?
     serverUrlProvided ?
         `${process.env.VITE_SERVER_URL}` :
         `http://${process.env.VITE_SITE_IP}:${portServer}/api`;
-export const restBase = "/v2/rest";
+export const restBase = `/${SERVER_VERSION}/rest`;
 export const webSocketUrlBase: string = isLocalhost ?
     `http://${window.location.hostname}:${portServer}` :
     serverUrlProvided ?

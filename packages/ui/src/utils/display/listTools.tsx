@@ -1,4 +1,4 @@
-import { Api, ApiVersion, AutocompleteOption, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, Code, CodeVersion, CommentFor, CopyType, DUMMY_ID, DeleteType, DotNotation, ListObject, Meeting, Member, MemberInvite, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Resource, ResourceList, Routine, RoutineVersion, RunProject, RunRoutine, Standard, StandardVersion, User, View, YouInflated, exists, getTranslation, isOfType, valueFromDot } from "@local/shared";
+import { ActiveFocusMode, Api, ApiVersion, AutocompleteOption, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, Code, CodeVersion, CommentFor, CopyType, DUMMY_ID, DeleteType, DotNotation, ListObject, Meeting, Member, MemberInvite, NodeRoutineListItem, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Resource, ResourceList, Routine, RoutineVersion, RunProject, RunRoutine, Standard, StandardVersion, User, View, YouInflated, exists, getTranslation, isOfType, valueFromDot } from "@local/shared";
 import { Chip, Palette } from "@mui/material";
 import { BotIcon } from "icons";
 import { routineTypes } from "utils/search/schemas/routine";
@@ -284,6 +284,8 @@ type GetDisplayResult = {
     adornments: DisplayAdornment[],
 };
 
+const botAdornmentStyle = { padding: "1px" } as const;
+
 /**
  * Gets the name and subtitle of a list object
  * @param object A list object
@@ -345,6 +347,8 @@ export function getDisplay(
     }
     // If a member or chat participant, use the user's display
     if (isOfType(object, "Member", "MemberInvite", "ChatParticipant", "ChatInvite")) return getDisplay({ __typename: "User", ...(object as Partial<ChatParticipant | ChatInvite | Member | MemberInvite>).user } as ListObject);
+    // If it's an active focus mode, use the focus mode's title
+    if (isOfType(object, "ActiveFocusMode")) return getDisplay({ ...(object as Partial<ActiveFocusMode>).focusMode, __typename: "FocusMode" } as ListObject, langs);
     // For all other objects, fields may differ. 
     const { title, subtitle } = tryVersioned(object, langs);
     // If a NodeRoutineListItem, use the routine version's display if title or subtitle is empty
@@ -363,7 +367,7 @@ export function getDisplay(
                 fill={palette?.mode === "light" ? "#521f81" : "#a979d5"}
                 width="100%"
                 height="100%"
-                style={{ padding: "1px" }}
+                style={botAdornmentStyle}
             />,
             key: "bot",
         });

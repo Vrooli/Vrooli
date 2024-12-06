@@ -67,6 +67,20 @@ const SizedDrawer = styled(SwipeableDrawer)(() => ({
         },
     },
 }));
+const SideTopBar = styled(Box)(({ theme }) => ({
+    ...noSelect,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: theme.spacing(1),
+    background: theme.palette.primary.dark,
+    color: theme.palette.primary.contrastText,
+    textAlign: "center",
+    height: "64px", // Matches Navbar height
+    // eslint-disable-next-line no-magic-numbers
+    paddingRight: theme.spacing(3), // Matches navbar padding
+}));
 const StyledAvatar = styled(Avatar)(({ theme }) => ({
     marginRight: theme.spacing(2),
 }));
@@ -84,6 +98,8 @@ const profileListContainerStyle = {
     display: "grid",
     overflowX: "hidden",
 } as const;
+const seeAllLinkStyle = { textAlign: "right" } as const;
+const seeAllLinkTextStyle = { marginRight: "12px", marginBottom: "8px" } as const;
 
 export function SideMenu() {
     const session = useContext(SessionContext);
@@ -269,6 +285,27 @@ export function SideMenu() {
         );
     }, [accounts, handleUserClick]);
 
+    const navItems = useMemo(function navItemsMemo() {
+        return [
+            { label: t("Bookmark", { count: 2 }), Icon: BookmarkFilledIcon, link: `${LINKS.History}?type="${HistoryPageTabOption.Bookmarked}"`, action: null },
+            { label: t("Calendar", { count: 2 }), Icon: MonthIcon, link: LINKS.Calendar, action: null },
+            { label: t("View", { count: 2 }), Icon: HistoryIcon, link: `${LINKS.History}?type="${HistoryPageTabOption.Viewed}"`, action: null },
+            { label: t("Run", { count: 2 }), Icon: RoutineActiveIcon, link: `${LINKS.History}?type="${HistoryPageTabOption.RunsActive}"`, action: null },
+            { label: t("Award", { count: 2 }), Icon: AwardIcon, link: LINKS.Awards, action: null },
+            { label: t("Pro"), Icon: PremiumIcon, link: LINKS.Pro, action: null },
+            { label: t("Settings"), Icon: SettingsIcon, link: LINKS.Settings, action: null },
+            { label: t("Tutorial"), Icon: HelpIcon, action: toActionOption(Actions.tutorial) },
+        ] as const;
+    }, [t]);
+
+    const handleNavItemClick = useCallback(function handleNavItemClickCallback(event: React.MouseEvent<HTMLElement>, item: typeof navItems[number]) {
+        if (item.action) {
+            handleAction(event, item.action);
+        } else if (item.link) {
+            handleOpen(event, item.link);
+        }
+    }, [handleAction, handleOpen]);
+
     return (
         <SizedDrawer
             anchor={isLeftHanded ? "left" : "right"}
@@ -278,23 +315,7 @@ export function SideMenu() {
             PaperProps={drawerPaperProps}
             variant={isMobile ? "temporary" : "persistent"}
         >
-            {/* Menu title with close icon */}
-            <Box
-                onClick={handleClose}
-                sx={{
-                    ...noSelect,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: 1,
-                    background: palette.primary.dark,
-                    color: palette.primary.contrastText,
-                    textAlign: "center",
-                    height: "64px", // Matches Navbar height
-                    paddingRight: 3, // Matches navbar padding
-                }}
-            >
+            <SideTopBar onClick={handleClose}>
                 {/* Close icon */}
                 <IconButton
                     aria-label="close"
@@ -307,7 +328,7 @@ export function SideMenu() {
                 >
                     <CloseIcon fill={palette.primary.contrastText} width="40px" height="40px" />
                 </IconButton>
-            </Box>
+            </SideTopBar>
             <Box sx={profileListContainerStyle}>
                 {/* List of logged/in accounts and authentication-related actions */}
                 <List
@@ -357,32 +378,46 @@ export function SideMenu() {
                     </SideMenuDisplaySettingsBox>
                     <Link
                         href={LINKS.SettingsDisplay}
-                        sx={{ textAlign: "right" }}
+                        sx={seeAllLinkStyle}
                     >
-                        <Typography variant="body2" sx={{ marginRight: "12px", marginBottom: 1 }}>{t("SeeAll")}</Typography>
+                        <Typography variant="body2" sx={seeAllLinkTextStyle}>{t("SeeAll")}</Typography>
                     </Link>
                 </Collapse>
                 <Divider sx={{ background: palette.background.textSecondary }} />
                 {/* List of quick links */}
                 <List id={ELEMENT_IDS.SideMenuQuickLinks}>
                     {/* Main navigation links, if not mobile */}
-                    {!isMobile && navActions.map((action) => (
-                        <NavListItem
-                            key={action.value}
-                            label={t(action.label, { count: action.numNotifications })}
-                            Icon={action.Icon}
-                            onClick={(event) => handleOpen(event, action.link)}
-                            palette={palette}
-                        />
-                    ))}
-                    <NavListItem label={t("Bookmark", { count: 2 })} Icon={BookmarkFilledIcon} onClick={(event) => handleOpen(event, `${LINKS.History}?type="${HistoryPageTabOption.Bookmarked}"`)} palette={palette} />
-                    <NavListItem label={t("Calendar", { count: 2 })} Icon={MonthIcon} onClick={(event) => handleOpen(event, LINKS.Calendar)} palette={palette} />
-                    <NavListItem label={t("View", { count: 2 })} Icon={HistoryIcon} onClick={(event) => handleOpen(event, `${LINKS.History}?type="${HistoryPageTabOption.Viewed}"`)} palette={palette} />
-                    <NavListItem label={t("Run", { count: 2 })} Icon={RoutineActiveIcon} onClick={(event) => handleOpen(event, `${LINKS.History}?type="${HistoryPageTabOption.RunsActive}"`)} palette={palette} />
-                    <NavListItem label={t("Award", { count: 2 })} Icon={AwardIcon} onClick={(event) => handleOpen(event, LINKS.Awards)} palette={palette} />
-                    <NavListItem label={t("Pro")} Icon={PremiumIcon} onClick={(event) => handleOpen(event, LINKS.Pro)} palette={palette} />
-                    <NavListItem label={t("Settings")} Icon={SettingsIcon} onClick={(event) => handleOpen(event, LINKS.Settings)} palette={palette} />
-                    <NavListItem label={t("Tutorial")} Icon={HelpIcon} onClick={(event) => handleAction(event, toActionOption(Actions.tutorial))} palette={palette} />
+                    {!isMobile && navActions.map((action) => {
+                        function handleClick(event: React.MouseEvent<HTMLElement>) {
+                            handleOpen(event, action.link);
+                        }
+
+                        return (
+                            <NavListItem
+                                key={action.value}
+                                label={t(action.label, { count: action.numNotifications })}
+                                Icon={action.Icon}
+                                onClick={handleClick}
+                                palette={palette}
+                            />
+                        );
+                    })}
+                    {/* Other navigation links */}
+                    {navItems.map((item, index) => {
+                        function handleClick(event: React.MouseEvent<HTMLElement>) {
+                            handleNavItemClick(event, item);
+                        }
+
+                        return (
+                            <NavListItem
+                                key={index}
+                                label={item.label}
+                                Icon={item.Icon}
+                                onClick={handleClick}
+                                palette={palette}
+                            />
+                        );
+                    })}
                 </List>
                 <Divider sx={{ background: palette.background.textSecondary }} />
                 {/* Additional Resources */}

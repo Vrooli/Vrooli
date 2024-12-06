@@ -1,4 +1,4 @@
-import { ActiveFocusMode, FocusMode, Session, SessionUser, uuidValidate } from "@local/shared";
+import { Session, SessionUser, uuidValidate } from "@local/shared";
 import { getUserLanguages } from "utils/display/translationTools";
 import { getCookie } from "utils/localStorage";
 
@@ -65,25 +65,4 @@ export function getSiteLanguage(session: Session | null | undefined): string {
     if (storedLanguage && siteLanguages.includes(storedLanguage)) return storedLanguage;
     // Otherwise, return default (first in array)
     return siteLanguages[0];
-}
-
-export function getFocusModeInfo(session: Session | null | undefined): {
-    active: ActiveFocusMode | null,
-    all: FocusMode[]
-} {
-    // Try to find focus modes user from session
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore TODO 11/21
-    const { activeFocusMode, focusModes } = getCurrentUser(session);
-
-    const active = activeFocusMode ?? getCookie("FocusModeActive") ?? null;
-    let all = focusModes ?? getCookie("FocusModeAll") ?? [];
-
-    // If there is an active focus mode, move it to the first position in the 'all' array
-    if (active) {
-        all = all.filter(focusMode => focusMode.id !== active.focusMode.id);
-        all.unshift(active.focusMode);
-    }
-
-    return { active, all };
 }

@@ -1,7 +1,7 @@
 import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkListSearchInput, BookmarkListSearchResult, BookmarkSearchInput, BookmarkSearchResult, CopyInput, CopyResult, CopyType, Count, DeleteManyInput, DeleteOneInput, DeleteType, GqlModelType, LINKS, ListObject, ReactInput, ReactionFor, Role, Success, User, endpointGetBookmarkLists, endpointGetBookmarks, endpointPostBookmark, endpointPostCopy, endpointPostDeleteMany, endpointPostDeleteOne, endpointPostReact, exists, getReactionScore, setDotNotationValue, shapeBookmark, uuid } from "@local/shared";
-import { displayServerErrors } from "api/errorParser";
 import { fetchData } from "api/fetchData";
 import { fetchLazyWrapper } from "api/fetchWrapper";
+import { ServerResponseParser } from "api/responseParser";
 import { BulkDeleteDialog } from "components/dialogs/BulkDeleteDialog/BulkDeleteDialog";
 import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
 import { DeleteDialog } from "components/dialogs/DeleteDialog/DeleteDialog";
@@ -26,7 +26,7 @@ interface BookmarkListsState {
     fetchBookmarkLists: () => Promise<BookmarkList[]>;
 }
 
-export const useBookmarkListsStore = create<BookmarkListsState>((set, get) => ({
+export const useBookmarkListsStore = create<BookmarkListsState>()((set, get) => ({
     bookmarkLists: [],
     isLoading: false,
     fetchBookmarkLists: async () => {
@@ -44,7 +44,7 @@ export const useBookmarkListsStore = create<BookmarkListsState>((set, get) => ({
             });
 
             if (response.errors) {
-                displayServerErrors(response.errors);
+                ServerResponseParser.displayErrors(response.errors);
                 throw new Error("Failed to fetch bookmark lists");
             }
 
@@ -74,7 +74,7 @@ export function useBookmarker({
     objectType,
     onActionComplete,
 }: UseBookmarkerProps) {
-    const { fetchBookmarkLists } = useBookmarkListsStore();
+    const fetchBookmarkLists = useBookmarkListsStore(state => state.fetchBookmarkLists);
 
     const [addBookmark] = useLazyFetch<BookmarkCreateInput, Bookmark>(endpointPostBookmark);
     const [deleteOne] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);

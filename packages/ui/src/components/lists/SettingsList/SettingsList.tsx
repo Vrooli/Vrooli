@@ -111,7 +111,6 @@ export function SettingsList() {
 
     const dimensions = useElementDimensions({ id: "settings-page" });
     const viewSize = useMemo<"minimal" | "full">(() => {
-        console.log("checking dimensions", dimensions);
         if (dimensions.width <= MINIMIZE_AT_PX) return "minimal";
         return "full";
     }, [dimensions]);

@@ -45,6 +45,7 @@ export function commentInitialValues(
 }
 
 export function transformCommentValues(values: CommentShape, existing: CommentShape, isCreate: boolean) {
+    console.log("in transformCommentValues", values, existing, isCreate);
     return isCreate ? shapeComment.create(values) : shapeComment.update(existing, values);
 }
 
@@ -218,6 +219,31 @@ export function CommentDialog({
         onCompleted: () => { props.setSubmitting(false); },
     });
 
+    const inputStyle = useMemo(function inputStyleMemo() {
+        return {
+            topBar: {
+                borderRadius: 0,
+                background: palette.primary.main,
+                position: "sticky",
+                top: 0,
+            },
+            root: {
+                height: "100%",
+                position: "relative",
+                maxWidth: "800px",
+                marginBottom: "64px",
+            },
+            textArea: {
+                borderRadius: 0,
+                resize: "none",
+                height: "100%",
+                overflow: "hidden", // Container handles scrolling
+                background: palette.background.paper,
+                border: "none",
+            },
+        } as const;
+    }, [palette]);
+
     return (
         <LargeDialog
             id="comment-dialog"
@@ -252,28 +278,7 @@ export function CommentDialog({
                         name="text"
                         placeholder={t("PleaseBeNice")}
                         minRows={10}
-                        sxs={{
-                            topBar: {
-                                borderRadius: 0,
-                                background: palette.primary.main,
-                                position: "sticky",
-                                top: 0,
-                            },
-                            root: {
-                                height: "100%",
-                                position: "relative",
-                                maxWidth: "800px",
-                                marginBottom: "64px",
-                            },
-                            textArea: {
-                                borderRadius: 0,
-                                resize: "none",
-                                height: "100%",
-                                overflow: "hidden", // Container handles scrolling
-                                background: palette.background.paper,
-                                border: "none",
-                            },
-                        }}
+                        sxs={inputStyle}
                     />
                 </Box>
                 <BottomActionsButtons
