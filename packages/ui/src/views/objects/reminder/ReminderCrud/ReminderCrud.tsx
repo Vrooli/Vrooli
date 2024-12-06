@@ -1,11 +1,12 @@
-import { DeleteOneInput, DeleteType, DUMMY_ID, endpointGetReminder, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, LlmTask, noopSubmit, Reminder, ReminderCreateInput, ReminderItemShape, ReminderShape, ReminderUpdateInput, reminderValidation, Session, shapeReminder, Success, uuid } from "@local/shared";
-import { Box, Button, Checkbox, Divider, FormControlLabel, IconButton, Stack, useTheme } from "@mui/material";
+import { DeleteOneInput, DeleteType, DUMMY_ID, endpointGetReminder, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, LlmTask, noopSubmit, Reminder, ReminderCreateInput, ReminderItemShape, ReminderShape, ReminderUpdateInput, reminderValidation, shapeReminder, Success, uuid } from "@local/shared";
+import { Box, Button, Checkbox, Divider, FormControlLabel, IconButton, Stack, styled, useTheme } from "@mui/material";
 import { fetchLazyWrapper, useSubmitHelper } from "api/fetchWrapper";
 import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { DateInput } from "components/inputs/DateInput/DateInput";
+import { FocusModeInfo, useFocusModesStore } from "components/inputs/FocusModeSelector/FocusModeSelector";
 import { RichInput } from "components/inputs/RichInput/RichInput";
 import { TextInput } from "components/inputs/TextInput/TextInput";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
@@ -20,19 +21,18 @@ import { useSaveToCache } from "hooks/useSaveToCache";
 import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
 import { AddIcon, DeleteIcon, DragIcon } from "icons";
-import { useCallback, useContext, useMemo } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
-import { getFocusModeInfo } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
 import { validateFormValues } from "utils/validateFormValues";
 import { ReminderCrudProps, ReminderFormProps } from "../types";
 
-function getFallbackReminderList(session: Session | undefined, existing: Partial<ReminderShape> | null | undefined) {
-    const { active: activeFocusMode, all: allFocusModes } = getFocusModeInfo(session);
-    const activeMode = activeFocusMode?.mode;
+function getFallbackReminderList(focusModeInfo: FocusModeInfo, existing: Partial<ReminderShape> | null | undefined) {
+    const { active: activeFocusMode, all: allFocusModes } = focusModeInfo;
+    const activeMode = activeFocusMode?.focusMode;
 
     // If reminderList exists, return it
     if (existing?.reminderList) {
@@ -48,8 +48,7 @@ function getFallbackReminderList(session: Session | undefined, existing: Partial
     else if (activeMode?.id) {
         return {
             __typename: "ReminderList" as const,
-            ...activeMode.reminderList,
-            id: activeMode.reminderList?.id ?? DUMMY_ID,
+            id: activeMode.reminderListId ?? DUMMY_ID,
             focusMode: activeMode,
         };
     }
@@ -63,7 +62,7 @@ function getFallbackReminderList(session: Session | undefined, existing: Partial
 }
 
 function reminderInitialValues(
-    session: Session | undefined,
+    focusModeInfo: FocusModeInfo,
     existing?: Partial<ReminderShape> | null | undefined,
 ): ReminderShape {
     return {
@@ -74,7 +73,7 @@ function reminderInitialValues(
         isComplete: false,
         reminderItems: [],
         ...existing,
-        reminderList: existing?.reminderList || getFallbackReminderList(session, existing),
+        reminderList: existing?.reminderList || getFallbackReminderList(focusModeInfo, existing),
         description: existing?.description ?? "",
         name: existing?.name ?? "",
     };
@@ -83,6 +82,11 @@ function reminderInitialValues(
 function transformReminderValues(values: ReminderShape, existing: ReminderShape, isCreate: boolean) {
     return isCreate ? shapeReminder.create(values) : shapeReminder.update(existing, values);
 }
+
+const AddStepButton = styled(Button)(({ theme }) => ({
+    alignSelf: "center",
+    marginTop: theme.spacing(1),
+}));
 
 const relationshipListStyle = { marginBottom: 4 } as const;
 const formSectionStyle = { overflowX: "hidden" } as const;
@@ -255,6 +259,14 @@ function ReminderForm({
         reminderItemsHelpers.setValue(newReminderItems);
     }
 
+    const topBarOptions = useMemo(function topBarOptionsMemo() {
+        return !isCreate ? [{
+            Icon: DeleteIcon,
+            label: t("Delete"),
+            onClick: handleDelete,
+        }] : [];
+    }, [handleDelete, isCreate, t]);
+
     return (
         <MaybeLargeDialog
             display={display}
@@ -266,11 +278,7 @@ function ReminderForm({
                 display={display}
                 onClose={onClose}
                 title={firstString(getDisplay(values).title, t(isCreate ? "CreateReminder" : "UpdateReminder"))}
-                options={!isCreate ? [{
-                    Icon: DeleteIcon,
-                    label: t("Delete"),
-                    onClick: handleDelete,
-                }] : []}
+                options={topBarOptions}
             />
             <DragDropContext onDragEnd={onDragEnd}>
                 <BaseForm
@@ -394,14 +402,13 @@ function ReminderForm({
                                     </div>
                                 )}
                             </Droppable>
-                            <Button
+                            <AddStepButton
                                 startIcon={<AddIcon />}
                                 onClick={handleAddStep}
                                 variant="outlined"
-                                sx={{ alignSelf: "center", mt: 1 }}
                             >
                                 {t("StepAdd")}
-                            </Button>
+                            </AddStepButton>
                         </ContentCollapse>
                     </FormContainer>
                 </BaseForm>
@@ -438,8 +445,41 @@ export function ReminderCrud({
         isCreate,
         objectType: "Reminder",
         overrideObject: overrideObject as Reminder,
-        transform: (existing) => reminderInitialValues(session, existing),
+        // Initially, don't transform. We'll transform after we have focusModeInfo.
+        transform: (existing) => existing as ReminderShape,
     });
+
+    const [focusModeInfo, setFocusModeInfo] = useState<FocusModeInfo | null>(null);
+    const getFocusModeInfo = useFocusModesStore((state) => state.getFocusModeInfo);
+    const hasUpdatedFocusModeInfo = useRef(false);
+
+    useEffect(function loadFocusModeINfoEffect() {
+        let abortController = new AbortController();
+        async function loadFocusModeInfo() {
+            if (!hasUpdatedFocusModeInfo.current && session && session.isLoggedIn && (display !== "dialog" || isOpen)) {
+                const info = await getFocusModeInfo(session, abortController.signal);
+                setFocusModeInfo(info);
+            }
+        }
+        loadFocusModeInfo();
+        return () => {
+            abortController.abort();
+        };
+    }, [session, isOpen, getFocusModeInfo]);
+
+    useEffect(function setFocusModeInfoEffect() {
+        if (hasUpdatedFocusModeInfo.current || !focusModeInfo) {
+            return;
+        }
+        hasUpdatedFocusModeInfo.current = true;
+
+        if (existing && focusModeInfo && !isCreate) {
+            setExisting(reminderInitialValues(focusModeInfo, existing));
+        } else if (existing && focusModeInfo && isCreate) {
+            // For create mode, just call again
+            setExisting(reminderInitialValues(focusModeInfo, existing));
+        }
+    }, [existing, focusModeInfo, setExisting, isCreate]);
 
     async function validateValues(values: ReminderShape) {
         return await validateFormValues(values, existing, isCreate, transformReminderValues, reminderValidation);
