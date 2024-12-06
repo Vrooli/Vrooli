@@ -1,4 +1,4 @@
-import { MaxObjects, TeamSortBy, exists, getTranslation, teamValidation, uuid } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects, TeamSortBy, exists, getTranslation, teamValidation, uuid } from "@local/shared";
 import { role } from "@prisma/client";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
@@ -171,7 +171,7 @@ export const TeamModel: TeamModelLogic = ({
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
                     },
-                    translatedName: await getLabels(ids, __typename, userData?.languages ?? ["en"], "team.translatedName"),
+                    translatedName: await getLabels(ids, __typename, userData?.languages ?? [DEFAULT_LANGUAGE], "team.translatedName"),
                 };
             },
         },
@@ -301,7 +301,7 @@ export const TeamModel: TeamModelLogic = ({
         }),
         visibility: {
             own: function getOwn(data) {
-                return ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId)
+                return ModelMap.get<TeamModelLogic>("Team").query.hasRoleQuery(data.userId);
             },
             ownOrPublic: function getOwnOrPublic(data) {
                 return {

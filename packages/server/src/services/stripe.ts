@@ -8,6 +8,7 @@ import { withRedis } from "../redisConn";
 import { UI_URL } from "../server";
 import { emitSocketEvent } from "../sockets/events";
 import { sendCreditCardExpiringSoon, sendPaymentFailed, sendPaymentThankYou, sendSubscriptionCanceled, sendTrialEndingSoon } from "../tasks/email/queue";
+import { ResponseService } from "../utils/response";
 
 const STORED_PRICE_EXPIRATION = DAYS_1_S;
 
@@ -957,10 +958,12 @@ export async function checkSubscriptionPrices(stripe: Stripe, res: Response): Pr
             await storePrice(PaymentType.PremiumYearly, data.yearly);
         }
         // Send result
-        res.status(HttpStatus.Ok).json({ data });
+        ResponseService.sendSuccess(res, data);
     } catch (error) {
-        logger.error("Caught error while checking subscription prices", { trace: "0392", error });
-        res.status(HttpStatus.InternalServerError).json({ error });
+        const trace = "0392";
+        const message = "Caught error while checking subscription prices.";
+        logger.error(message, { trace, error });
+        ResponseService.sendError(res, { trace, message }, HttpStatus.InternalServerError);
     }
 }
 
@@ -972,8 +975,10 @@ async function createCheckoutSession(stripe: Stripe, req: Request, res: Response
     const priceId = getPriceIds()[variant];
     const paymentType = variant as PaymentType;
     if (!priceId) {
-        logger.error("Invalid variant", { trace: "0436", userId, variant });
-        res.status(HttpStatus.BadRequest).json({ error: "Invalid variant" });
+        const trace = "0450";
+        const message = "Invalid variant.";
+        logger.error(message, { trace, userId, variant });
+        ResponseService.sendError(res, { trace, message }, HttpStatus.BadRequest);
         return;
     }
     try {
@@ -981,7 +986,10 @@ async function createCheckoutSession(stripe: Stripe, req: Request, res: Response
         // We typically need the user to exist, but not always
         const paymentsThatDontNeedUser = [PaymentType.Donation];
         if (!customerInfo.userId && !paymentsThatDontNeedUser.includes(paymentType)) {
-            res.status(HttpStatus.InternalServerError).json({ error: "User not found." });
+            const trace = "0667";
+            const message = "User not found.";
+            logger.error(message, { trace, userId, variant });
+            ResponseService.sendError(res, { trace, message }, HttpStatus.InternalServerError);
             return;
         }
         // Create customer ID if it doesn't exist
@@ -1014,8 +1022,10 @@ async function createCheckoutSession(stripe: Stripe, req: Request, res: Response
         } else {
             const priceId = getPriceIds()[variant];
             if (!priceId) {
-                logger.error("Invalid variant", { trace: "0436", userId, variant });
-                res.status(HttpStatus.BadRequest).json({ error: "Invalid variant" });
+                const trace = "0436";
+                const message = "Invalid variant.";
+                logger.error(message, { trace, userId, variant });
+                ResponseService.sendError(res, { trace, message }, HttpStatus.BadRequest);
                 return;
             }
             // For non-credit variants or credits without a specified amount, use predefined priceId
@@ -1040,13 +1050,15 @@ async function createCheckoutSession(stripe: Stripe, req: Request, res: Response
         // Redirect to checkout page
         if (session.url) {
             const data: CreateCheckoutSessionResponse = { url: session.url };
-            res.status(HttpStatus.Ok).json({ data });
+            ResponseService.sendSuccess(res, data);
         } else {
             throw new Error("No session URL returned from Stripe");
         }
     } catch (error) {
-        logger.error("Caught error in create-checkout-session", { trace: "0437", error, userId, variant });
-        res.status(HttpStatus.InternalServerError).json({ error });
+        const trace = "0437";
+        const message = "Caught error in create-checkout-session";
+        logger.error(message, { trace, error, userId, variant });
+        ResponseService.sendError(res, { trace, message }, HttpStatus.InternalServerError);
     }
 }
 
@@ -1058,7 +1070,9 @@ async function createPortalSession(stripe: Stripe, req: Request, res: Response):
     try {
         const customerInfo = await getVerifiedCustomerInfo({ userId, stripe, validateSubscription: false });
         if (!customerInfo.userId) {
-            res.status(HttpStatus.InternalServerError).json({ error: "User not found." });
+            const trace = "0676";
+            const message = "User not found.";
+            ResponseService.sendError(res, { trace, message }, HttpStatus.InternalServerError);
             return;
         }
         // Create customer ID if it doesn't exist
@@ -1076,10 +1090,12 @@ async function createPortalSession(stripe: Stripe, req: Request, res: Response):
         });
         // Redirect to portal page
         const data: CreateCheckoutSessionResponse = { url: session.url };
-        res.status(HttpStatus.Ok).json({ data });
+        ResponseService.sendSuccess(res, data);
     } catch (error) {
-        logger.error("Caught error in create-portal-session", { trace: "0520", error, userId, returnUrl });
-        res.status(HttpStatus.InternalServerError).json({ error });
+        const trace = "0520";
+        const message = "Caught error in create-portal-session";
+        logger.error(message, { trace, error, userId, returnUrl });
+        ResponseService.sendError(res, { trace, message }, HttpStatus.InternalServerError);
     }
 }
 
@@ -1098,7 +1114,7 @@ async function checkSubscription(stripe: Stripe, req: Request, res: Response): P
         // If already active, return
         if (customerInfo.hasPremium) {
             data.status = "already_subscribed";
-            res.status(HttpStatus.Ok).json({ data });
+            ResponseService.sendSuccess(res, data);
             return;
         }
         // Return found subscription info
@@ -1109,11 +1125,13 @@ async function checkSubscription(stripe: Stripe, req: Request, res: Response): P
             };
             // Process payment so the user gets their subscription
             await processPayment(stripe, customerInfo.subscriptionInfo.session, customerInfo.subscriptionInfo.subscription);
-            res.status(HttpStatus.Ok).json({ data });
+            ResponseService.sendSuccess(res, data);
         }
     } catch (error) {
-        logger.error("Caught error checking subscription status", { trace: "0430", error, userId });
-        res.status(HttpStatus.InternalServerError).json({ error });
+        const trace = "0430";
+        const message = "Caught error checking subscription status";
+        logger.error(message, { trace, error, userId });
+        ResponseService.sendError(res, { trace, message }, HttpStatus.InternalServerError);
     }
 }
 
@@ -1126,7 +1144,7 @@ export function isStripeObjectOlderThan(
     ageDifferenceMs: number,
 ) {
     const now = Date.now();
-    return (stripeObject.created * 1000) + ageDifferenceMs < now;
+    return (stripeObject.created * SECONDS_1_MS) + ageDifferenceMs < now;
 }
 
 /**
@@ -1142,7 +1160,7 @@ async function checkCreditsPayment(stripe: Stripe, req: Request, res: Response):
         }
         if (!customerInfo.stripeCustomerId) {
             data.status = "already_received_all_credits";
-            res.status(HttpStatus.Ok).json({ data });
+            ResponseService.sendSuccess(res, data);
             return;
         }
         // Find checkout sessions associated with the user
@@ -1230,14 +1248,16 @@ async function checkCreditsPayment(stripe: Stripe, req: Request, res: Response):
             // Execute all operations in one transaction
             await prismaInstance.$transaction([updateUserCredits, ...upsertOperations] as PrismaPromise<object>[]);
             data.status = "new_credits_received";
-            res.status(HttpStatus.Ok).json({ data });
+            ResponseService.sendSuccess(res, data);
         } else {
             data.status = "already_received_all_credits";
-            res.status(HttpStatus.Ok).json({ data });
+            ResponseService.sendSuccess(res, data);
         }
     } catch (error) {
-        logger.error("Caught error checking credits payment status", { trace: "0439", error, userId });
-        res.status(HttpStatus.InternalServerError).json({ error });
+        const trace = "0439";
+        const message = "Caught error checking credits payment status";
+        logger.error(message, { trace, error, userId });
+        ResponseService.sendError(res, { trace, message }, HttpStatus.InternalServerError);
     }
 }
 

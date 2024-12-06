@@ -455,7 +455,7 @@ export const endpointPostFocusMode = {
 } as const;
 
 export const endpointPutFocusModeActive = {
-    endpoint: "/focusMode/active",
+    endpoint: "/focusMode/active/:id",
     method: "PUT",
     tag: "focusMode",
 } as const;

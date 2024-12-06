@@ -4,93 +4,93 @@ import { Job } from "bull";
 import { logger } from "../../events/logger";
 import { ExportProcessPayload } from "./queue";
 
-const exportAccountData = async (userData: SessionUser) => {
+async function exportAccountData(userData: SessionUser) {
     return [];
-};
+}
 
-const exportApisData = async (userData: SessionUser) => {
+async function exportApisData(userData: SessionUser) {
     return [];
-};
+}
 
-const exportBookmarksData = async (userData: SessionUser) => {
+async function exportBookmarksData(userData: SessionUser) {
     return [];
-};
+}
 
-const exportBotsData = async (userData: SessionUser) => {
+async function exportBotsData(userData: SessionUser) {
     return [];
-};
+}
 
-const exportChatsData = async (userData: SessionUser) => {
+async function exportChatsData(userData: SessionUser) {
     return [];
-};
+}
 
-const exportCodesData = async (userData: SessionUser) => {
+async function exportCodesData(userData: SessionUser) {
     return [];
-};
+}
 
-const exportCommentsData = async (userData: SessionUser) => {
+async function exportCommentsData(userData: SessionUser) {
     return [];
-};
+}
 
-const exportIssuesData = async (userData: SessionUser) => {
+async function exportIssuesData(userData: SessionUser) {
     return [];
-};
+}
 
-const exportNotesData = async (userData: SessionUser) => {
+async function exportNotesData(userData: SessionUser) {
     return [];
-};
+}
 
-const exportTeamsData = async (userData: SessionUser) => {
+async function exportTeamsData(userData: SessionUser) {
     return [];
-};
+}
 
-const exportPullRequestsData = async (userData: SessionUser) => {
+async function exportPullRequestsData(userData: SessionUser) {
     return [];
-};
+}
 
-const exportProjectsData = async (userData: SessionUser) => {
+async function exportProjectsData(userData: SessionUser) {
     return [];
-};
+}
 
-const exportQuestionsData = async (userData: SessionUser) => {
+async function exportQuestionsData(userData: SessionUser) {
     return [];
-};
+}
 
-const exportQuestionAnswersData = async (userData: SessionUser) => {
+async function exportQuestionAnswersData(userData: SessionUser) {
     return [];
-};
+}
 
-const exportReactionsData = async (userData: SessionUser) => {
+async function exportReactionsData(userData: SessionUser) {
     return [];
-};
+}
 
-const exportRemindersData = async (userData: SessionUser) => {
+async function exportRemindersData(userData: SessionUser) {
     return [];
-};
+}
 
-const exportReportsData = async (userData: SessionUser) => {
+async function exportReportsData(userData: SessionUser) {
     return [];
-};
+}
 
-const exportRoutinesData = async (userData: SessionUser) => {
+async function exportRoutinesData(userData: SessionUser) {
     return [];
-};
+}
 
-const exportRunsData = async (userData: SessionUser) => {
+async function exportRunsData(userData: SessionUser) {
     return [];
-};
+}
 
-const exportSchedulesData = async (userData: SessionUser) => {
+async function exportSchedulesData(userData: SessionUser) {
     return [];
-};
+}
 
-const exportStandardsData = async (userData: SessionUser) => {
+async function exportStandardsData(userData: SessionUser) {
     return [];
-};
+}
 
-const exportViewsData = async (userData: SessionUser) => {
+async function exportViewsData(userData: SessionUser) {
     return [];
-};
+}
 
 const handlerMap = {
     account: exportAccountData,
@@ -117,7 +117,7 @@ const handlerMap = {
     views: exportViewsData,
 };
 
-export const exportProcess = async ({ data }: Job<ExportProcessPayload>) => {
+export async function exportProcess({ data }: Job<ExportProcessPayload>) {
     const { flags, requestType, userData } = data;
     try {
         const results: object[] = [];
@@ -153,4 +153,4 @@ export const exportProcess = async ({ data }: Job<ExportProcessPayload>) => {
     } catch (err) {
         logger.error("Error exporting data", { trace: "0499" });
     }
-};
+}

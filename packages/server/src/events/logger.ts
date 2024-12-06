@@ -7,9 +7,9 @@ const MAX_LOG_SIZE = 5_242_880; // 5MB
 /**
  * @returns Array of transports to use for logging, depending on environment
  */
-const getTransports = () => {
+function getTransports() {
 
-    const transports: (FileTransportInstance | ConsoleTransportInstance)[] = []
+    const transports: (FileTransportInstance | ConsoleTransportInstance)[] = [];
     const isTest = process.env.JEST_WORKER_ID !== undefined;
 
     // Add file transports when in development or production
@@ -23,7 +23,7 @@ const getTransports = () => {
             new winston.transports.File({
                 filename: `${LOG_DIR}/combined.log`,
                 maxsize: MAX_LOG_SIZE,
-            })
+            }),
         );
     }
 
@@ -32,7 +32,7 @@ const getTransports = () => {
         transports.push(
             new winston.transports.Console({
                 format: winston.format.simple(),
-            })
+            }),
         );
     }
 
@@ -41,12 +41,12 @@ const getTransports = () => {
         transports.push(
             new winston.transports.Console({
                 silent: true,
-            })
+            }),
         );
     }
 
     return transports;
-};
+}
 
 /**
  * Preferred logging method. Allows you to specify 

@@ -9,6 +9,7 @@ import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
 import { ApiToken, RecursivePartial, SessionData, SessionToken } from "../types";
+import { ResponseService } from "../utils/response";
 import { JsonWebToken, REFRESH_TOKEN_EXPIRATION_MS } from "./jwt";
 import { RequestService } from "./request";
 import { SessionService } from "./session";
@@ -108,7 +109,7 @@ export class AuthTokensService {
 
     static isAccessTokenExpired(payload: Pick<SessionData, "accessExpiresAt">): boolean {
         // If field is missing/invalid, assume it's expired
-        if (typeof payload.accessExpiresAt !== 'number') {
+        if (typeof payload.accessExpiresAt !== "number") {
             return true;
         }
 
@@ -177,9 +178,9 @@ export class AuthTokensService {
         const withAdditionalData = {
             ...getPayloadWithAdditionalData(payload),
             ...JsonWebToken.createAccessExpiresAt(),
-        }
+        };
         const newToken = JsonWebToken.get().sign(withAdditionalData);
-        console.log('yeet generated new token');
+        console.log("yeet generated new token");
         return {
             maxAge: REFRESH_TOKEN_EXPIRATION_MS,
             payload: withAdditionalData,
@@ -263,8 +264,9 @@ export class AuthService {
         };
         // If from unsafe origin, deny access.
         if (!req.session.fromSafeOrigin) {
-            logger.error("Error authenticating request", { trace: "0451" });
-            return res.status(HttpStatus.Unauthorized).json({ error: "UnsafeOrigin" });
+            const trace = "0451";
+            logger.error("Error authenticating request", { trace });
+            return ResponseService.sendError(res, { trace, code: "UnsafeOrigin" }, HttpStatus.Unauthorized);
         }
         try {
             // Authenticate token if it exists

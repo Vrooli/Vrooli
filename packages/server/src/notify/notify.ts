@@ -1,4 +1,4 @@
-import { DAYS_1_MS, GqlModelType, HOURS_1_MS, IssueStatus, LINKS, MINUTES_1_MS, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, ReportStatus, SessionUser, SubscribableObject, Success } from "@local/shared";
+import { DAYS_1_MS, DEFAULT_LANGUAGE, GqlModelType, HOURS_1_MS, IssueStatus, LINKS, MINUTES_1_MS, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, ReportStatus, SessionUser, SubscribableObject, Success } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next, { TFuncKey } from "i18next";
 import { selectHelper } from "../builders/selectHelper";
@@ -99,7 +99,7 @@ async function push({
     const userTitles: { [userId: string]: string } = {};
     const userBodies: { [userId: string]: string } = {};
     for (const user of users) {
-        const lng = user.languages && user.languages.length > 0 ? user.languages[0] : "en";
+        const lng = user.languages && user.languages.length > 0 ? user.languages[0] : DEFAULT_LANGUAGE;
         const title: string | undefined = titleKey ? i18next.t(`notify:${titleKey}`, { lng, ...(user.titleVariables ?? {}) }) : undefined;
         const body: string | undefined = bodyKey ? i18next.t(`notify:${bodyKey}`, { lng, ...(user.bodyVariables ?? {}) }) : undefined;
         // At least one of title or body must be defined

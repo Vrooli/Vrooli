@@ -1,6 +1,7 @@
 import { GqlModelType, SessionUser } from "@local/shared";
 import pkg from "@prisma/client";
 import { GraphQLResolveInfo } from "graphql";
+import { PartialGraphQLInfo } from ".";
 import { Context } from "./middleware";
 
 declare module "@local/server";
@@ -130,7 +131,7 @@ export type CreateManyResult<T> = FindOneResult<T>[]
 export type UpdateOneResult<T> = FindOneResult<T>
 export type UpdateManyResult<T> = FindOneResult<T>[]
 
-export type GQLEndpoint<T, U> = (parent: undefined, data: IWrap<T>, context: Context, info: GraphQLResolveInfo) => Promise<U>;
+export type GQLEndpoint<T, U> = (parent: undefined, data: T extends undefined ? undefined : IWrap<T>, context: Context, info: GraphQLResolveInfo | PartialGraphQLInfo) => Promise<U>;
 
 export type UnionResolver = { __resolveType: (obj: any) => `${GqlModelType}` };
 

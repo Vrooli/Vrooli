@@ -1,5 +1,6 @@
 /* eslint-disable no-magic-numbers */
 import { ValueOf } from ".";
+import { TranslationKeyError } from "../types";
 
 export const COOKIE = {
     Jwt: "XNVj2", // Random string
@@ -52,6 +53,41 @@ export enum HttpStatus {
     NotExtended = 510,
     NetworkAuthenticationRequired = 511
 }
+
+export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
+
+type ServerErrorBase = {
+    /**
+     * A unique code for the error for identifying it in the codebase.
+     * Typically a 4-digit string.
+     */
+    trace: string;
+}
+export type ServerErrorTranslated = ServerErrorBase & {
+    /**
+     * The translation key for the error message.
+     */
+    code: TranslationKeyError;
+}
+export type ServerErrorUntranslated = ServerErrorBase & {
+    /**
+     * The error message. Use sparingly, since translation is preferred.
+     */
+    message: string;
+}
+export type ServerError = ServerErrorTranslated | ServerErrorUntranslated;
+
+export type ServerResponse<Output = any> = {
+    errors?: ServerError[];
+    data?: Output;
+    version?: string;
+};
+
+/**
+ * The version of the API that the server is running, 
+ * or that UI expects the server to be running.
+ */
+export const SERVER_VERSION = "v2";
 
 /**
  * The multiplier to convert USD cents to API credits. 

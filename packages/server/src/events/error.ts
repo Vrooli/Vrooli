@@ -1,4 +1,4 @@
-import { type TranslationKeyError } from "@local/shared";
+import { ServerError, type TranslationKeyError } from "@local/shared";
 import { randomString } from "../auth/codes";
 import { logger } from "./logger";
 
@@ -22,16 +22,20 @@ function genTrace(locationCode: string): string {
 export class CustomError extends Error {
     /** The translation key for the error message */
     public code: TranslationKeyError;
-    /** The base trace (unique identifier) for the error */
-    public traceBase: string;
+    /** The full trace (unique identifier for spot in codebase + random string to locate in logs) */
+    public trace: string;
 
     constructor(traceBase: string, errorCode: TranslationKeyError, data?: ErrorTrace) {
         // Generate unique trace
         const trace = genTrace(traceBase);
         super(`${errorCode}: ${trace}`);
         this.code = errorCode;
-        this.traceBase = traceBase;
+        this.trace = trace;
         Object.defineProperty(this, "name", { value: errorCode });
         logger.error({ ...(data ?? {}), msg: errorCode, trace });
+    }
+
+    toServerError(): ServerError {
+        return { trace: this.trace, code: this.code };
     }
 }

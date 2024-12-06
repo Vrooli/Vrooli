@@ -1675,6 +1675,7 @@ export type FocusModeYou = {
 };
 
 export enum GqlModelType {
+  ActiveFocusMode = 'ActiveFocusMode',
   Api = 'Api',
   ApiKey = 'ApiKey',
   ApiVersion = 'ApiVersion',
@@ -1778,10 +1779,6 @@ export enum GqlModelType {
   View = 'View',
   Wallet = 'Wallet'
 }
-
-export type HomeInput = {
-  activeFocusModeId?: InputMaybe<Scalars['ID']>;
-};
 
 export type HomeResult = {
   __typename: 'HomeResult';
@@ -2625,7 +2622,7 @@ export type Mutation = {
   scheduleUpdate: Schedule;
   sendVerificationEmail: Success;
   sendVerificationText: Success;
-  setActiveFocusMode: ActiveFocusMode;
+  setActiveFocusMode?: Maybe<ActiveFocusMode>;
   standardCreate: Standard;
   standardUpdate: Standard;
   standardVersionCreate: StandardVersion;
@@ -5521,11 +5518,6 @@ export type QueryFocusModeArgs = {
 
 export type QueryFocusModesArgs = {
   input: FocusModeSearchInput;
-};
-
-
-export type QueryHomeArgs = {
-  input: HomeInput;
 };
 
 
@@ -8681,8 +8673,8 @@ export type SessionUserSession = {
 };
 
 export type SetActiveFocusModeInput = {
-  id: Scalars['ID'];
-  stopCondition: FocusModeStopCondition;
+  id?: InputMaybe<Scalars['ID']>;
+  stopCondition?: InputMaybe<FocusModeStopCondition>;
   stopTime?: InputMaybe<Scalars['Date']>;
 };
 
@@ -10406,7 +10398,6 @@ export type ResolversTypes = {
   FocusModeUpdateInput: FocusModeUpdateInput;
   FocusModeYou: ResolverTypeWrapper<FocusModeYou>;
   GqlModelType: GqlModelType;
-  HomeInput: HomeInput;
   HomeResult: ResolverTypeWrapper<HomeResult>;
   ID: ResolverTypeWrapper<Scalars['ID']>;
   ImportCalendarInput: ImportCalendarInput;
@@ -11183,7 +11174,6 @@ export type ResolversParentTypes = {
   FocusModeSearchResult: FocusModeSearchResult;
   FocusModeUpdateInput: FocusModeUpdateInput;
   FocusModeYou: FocusModeYou;
-  HomeInput: HomeInput;
   HomeResult: HomeResult;
   ID: Scalars['ID'];
   ImportCalendarInput: ImportCalendarInput;
@@ -12753,7 +12743,7 @@ export type MutationResolvers<ContextType = any, ParentType extends ResolversPar
   scheduleUpdate?: Resolver<ResolversTypes['Schedule'], ParentType, ContextType, RequireFields<MutationScheduleUpdateArgs, 'input'>>;
   sendVerificationEmail?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationSendVerificationEmailArgs, 'input'>>;
   sendVerificationText?: Resolver<ResolversTypes['Success'], ParentType, ContextType, RequireFields<MutationSendVerificationTextArgs, 'input'>>;
-  setActiveFocusMode?: Resolver<ResolversTypes['ActiveFocusMode'], ParentType, ContextType, RequireFields<MutationSetActiveFocusModeArgs, 'input'>>;
+  setActiveFocusMode?: Resolver<Maybe<ResolversTypes['ActiveFocusMode']>, ParentType, ContextType, RequireFields<MutationSetActiveFocusModeArgs, 'input'>>;
   standardCreate?: Resolver<ResolversTypes['Standard'], ParentType, ContextType, RequireFields<MutationStandardCreateArgs, 'input'>>;
   standardUpdate?: Resolver<ResolversTypes['Standard'], ParentType, ContextType, RequireFields<MutationStandardUpdateArgs, 'input'>>;
   standardVersionCreate?: Resolver<ResolversTypes['StandardVersion'], ParentType, ContextType, RequireFields<MutationStandardVersionCreateArgs, 'input'>>;
@@ -13507,7 +13497,7 @@ export type QueryResolvers<ContextType = any, ParentType extends ResolversParent
   comments?: Resolver<ResolversTypes['CommentSearchResult'], ParentType, ContextType, RequireFields<QueryCommentsArgs, 'input'>>;
   focusMode?: Resolver<Maybe<ResolversTypes['FocusMode']>, ParentType, ContextType, RequireFields<QueryFocusModeArgs, 'input'>>;
   focusModes?: Resolver<ResolversTypes['FocusModeSearchResult'], ParentType, ContextType, RequireFields<QueryFocusModesArgs, 'input'>>;
-  home?: Resolver<ResolversTypes['HomeResult'], ParentType, ContextType, RequireFields<QueryHomeArgs, 'input'>>;
+  home?: Resolver<ResolversTypes['HomeResult'], ParentType, ContextType>;
   issue?: Resolver<Maybe<ResolversTypes['Issue']>, ParentType, ContextType, RequireFields<QueryIssueArgs, 'input'>>;
   issues?: Resolver<ResolversTypes['IssueSearchResult'], ParentType, ContextType, RequireFields<QueryIssuesArgs, 'input'>>;
   label?: Resolver<Maybe<ResolversTypes['Label']>, ParentType, ContextType, RequireFields<QueryLabelArgs, 'input'>>;

@@ -1,4 +1,4 @@
-import { MaxObjects, ProjectSortBy, projectValidation } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects, ProjectSortBy, projectValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
@@ -107,7 +107,7 @@ export const ProjectModel: ProjectModelLogic = ({
                         isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
                         reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
-                    translatedName: await getLabels(ids, __typename, userData?.languages ?? ["en"], "project.translatedName"),
+                    translatedName: await getLabels(ids, __typename, userData?.languages ?? [DEFAULT_LANGUAGE], "project.translatedName"),
                 };
             },
         },

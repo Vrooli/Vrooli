@@ -1,4 +1,6 @@
-import { description, id, name, opt, req, YupModel, yupObj } from "../utils";
+import * as yup from "yup";
+import { FocusModeStopCondition } from "../../api/generated/graphqlTypes";
+import { YupModel, description, enumToYup, id, name, opt, req, yupObj } from "../utils";
 import { focusModeFilterValidation } from "./focusModeFilter";
 import { labelValidation } from "./label";
 import { reminderListValidation } from "./reminderList";
@@ -29,3 +31,11 @@ export const focusModeValidation: YupModel<["create", "update"]> = {
         ["schedule", ["Create", "Update"], "one", "opt", scheduleValidation],
     ], [], d),
 };
+
+const stopCondition = enumToYup(FocusModeStopCondition);
+
+export const setActiveFocusModeValidation = yup.object().shape({
+    id: opt(id),
+    stopCondition: opt(stopCondition),
+    stopTime: opt(yup.date()),
+});

@@ -1,7 +1,7 @@
 import { ApolloServer } from "@apollo/server";
 import { expressMiddleware } from "@apollo/server/express4";
 import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHttpServer";
-import { HttpStatus, i18nConfig } from "@local/shared";
+import { HttpStatus, SERVER_VERSION, i18nConfig } from "@local/shared";
 import cookie from "cookie";
 import cors from "cors";
 import express from "express";
@@ -143,11 +143,11 @@ async function main() {
 
     // Set up REST API
     Object.keys(restRoutes).forEach((key) => {
-        app.use("/api/v2/rest", restRoutes[key]);
+        app.use(`/api/${SERVER_VERSION}/rest`, restRoutes[key]);
     });
 
     // Set up image uploading for GraphQL
-    app.use("/api/v2/graphql", graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }));
+    app.use(`/api/${SERVER_VERSION}/graphql`, graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }));
 
     // GraphQL server for latest API version, if needed. We use GraphQL to generate 
     // types, so this needs to run at least in development.
@@ -163,7 +163,7 @@ async function main() {
         await apolloServerLatest.start();
         // Configure server with ExpressJS settings and path
         app.use(
-            "/api/v2/graphql",
+            `/api/${SERVER_VERSION}/graphql`,
             expressMiddleware(apolloServerLatest, {
                 context: async ({ req, res }) => context({ req, res }), // Pass req and res to your context function
             }),

@@ -2692,6 +2692,8 @@ model active_focus_mode {
 
     user      user       @relation(fields: [userId], references: [id], onDelete: Cascade)
     focusMode focus_mode @relation(fields: [focusModeId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, focusModeId])
 }
 
 model user_auth {

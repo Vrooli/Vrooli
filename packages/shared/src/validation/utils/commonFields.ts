@@ -18,7 +18,7 @@ import { meetsMinVersion } from "./versions";
 /**
  * Test for minimum version
  */
-export const minVersionTest = (minVersion: string): [string, string, (value: string | undefined) => boolean] => {
+export function minVersionTest(minVersion: string): [string, string, (value: string | undefined) => boolean] {
     const versionRegex = /^\d+\.\d+\.\d+$/;
     return [
         "version",
@@ -28,15 +28,15 @@ export const minVersionTest = (minVersion: string): [string, string, (value: str
             return versionRegex.test(value) && meetsMinVersion(value, minVersion);
         },
     ];
-};
+}
 
-yup.addMethod(yup.string, "removeEmptyString", function () {
+yup.addMethod(yup.string, "removeEmptyString", function transformRemoveEmptyString() {
     return this.transform((value: unknown) => {
         return typeof value === "string" && value.trim() !== "" ? value : undefined;
     });
 });
 
-yup.addMethod(yup.bool, "toBool", function () {
+yup.addMethod(yup.bool, "toBool", function transformToBool() {
     return this.transform((value: unknown) => {
         if (typeof value === "boolean") return value;
         if (typeof value === "string") return value.trim() === "true" || value.trim() === "yes" || value.trim() === "1";
@@ -61,8 +61,8 @@ export const pushNotificationKeys = yup.object().shape({
     p256dh: yup.string().trim().removeEmptyString().max(256, maxStrErr).required(reqErr),
     auth: yup.string().trim().removeEmptyString().max(256, maxStrErr).required(reqErr),
 });
-export const url = ({ env = "production" }: { env?: YupMutateParams["env"] }) =>
-    yup.string().trim().removeEmptyString().max(1024, maxStrErr).test(
+export function url({ env = "production" }: { env?: YupMutateParams["env"] }) {
+    return yup.string().trim().removeEmptyString().max(1024, maxStrErr).test(
         "link",
         "Must be a URL",
         (value: string | undefined) => {
@@ -73,6 +73,7 @@ export const url = ({ env = "production" }: { env?: YupMutateParams["env"] }) =>
                 true;
         },
     );
+}
 
 export const bool = yup.boolean().toBool();
 
@@ -95,7 +96,7 @@ export const endTime = yup.date()
     .test(
         "is-greater",
         "End time must be at least a second after start time",
-        function (value) {
+        function testEndTime(value) {
             const startTime = this.resolve(yup.ref("startTime"));
 
             if (startTime === null || startTime === undefined) {
@@ -125,7 +126,7 @@ export const newEndTime = yup.date()
     .test(
         "is-greater",
         "End time must be at least a second after start time",
-        function (value) {
+        function testEndTime(value) {
             const startTime = this.resolve(yup.ref("newStartTime"));
 
             if (startTime === null || startTime === undefined) {
@@ -159,7 +160,9 @@ export const referencing = yup.string().trim().removeEmptyString().max(2048, max
 export const language = yup.string().trim().removeEmptyString().min(2, minStrErr).max(3, maxStrErr); // Language code
 export const name = yup.string().trim().removeEmptyString().min(3, minStrErr).max(50, maxStrErr);
 export const tag = yup.string().trim().removeEmptyString().min(2, minStrErr).max(64, maxStrErr);
-export const versionLabel = ({ minVersion = "0.0.1" }: { minVersion?: string }) => yup.string().trim().removeEmptyString().max(16, maxStrErr).test(...minVersionTest(minVersion));
+export function versionLabel({ minVersion = "0.0.1" }: { minVersion?: string }) {
+    return yup.string().trim().removeEmptyString().max(16, maxStrErr).test(...minVersionTest(minVersion));
+}
 export const versionNotes = yup.string().trim().removeEmptyString().max(4092, maxStrErr);
 export const idArray = yup.array().of(id.required(reqErr));
 export const tagArray = yup.array().of(tag.required(reqErr));

@@ -30,3 +30,5 @@ export const YEARS_1_DAYS = 365;
 export const YEARS_1_MS = YEARS_1_DAYS * DAYS_1_MS;
 
 export const DOLLARS_1_CENTS = 100;
+
+export const MB_10_BYTES = 10 * 1024 * 1024;

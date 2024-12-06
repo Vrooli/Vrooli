@@ -22,7 +22,7 @@ function getS3Client(): S3Client {
         s3 = new S3Client({ region: REGION });
     }
     return s3 as S3Client;
-};
+}
 interface NSFWCheckResult {
     [key: string]: {
         drawings: number,
@@ -40,7 +40,7 @@ async function getHeicConvert() {
         heicConvert = (await import("heic-convert")).default;
     }
     return heicConvert;
-};
+}
 /** Common configuration for profile images */
 export const profileImageConfig = {
     allowedExtensions: ["png", "jpg", "jpeg", "webp", "svg", "gif", "heic", "heif"], // gif will lose animation
@@ -117,7 +117,7 @@ async function checkNSFW(buffer: Buffer, hash: string): Promise<NSFWCheckResult>
         apiRequest.write(data);
         apiRequest.end();
     });
-};
+}
 
 async function resizeImage(buffer: Buffer, width: number, height: number, format: "jpeg" | "png" | "webp" = "jpeg") {
     return await sharp(buffer)
@@ -129,7 +129,7 @@ async function resizeImage(buffer: Buffer, width: number, height: number, format
         .toFormat(format)
         // Convert to a buffer.
         .toBuffer();
-};
+}
 
 async function convertHeicToJpeg(buffer: Buffer): Promise<Buffer> {
     const convert = await getHeicConvert();
@@ -139,7 +139,7 @@ async function convertHeicToJpeg(buffer: Buffer): Promise<Buffer> {
         quality: 1, // the jpeg compression quality, between 0 and 1
     });
     return Buffer.from(outputBuffer);
-};
+}
 
 /** Supported image types/extensions */
 const IMAGE_TYPES = ["jpeg", "jpg", "png", "gif", "webp", "tiff", "bmp"];
@@ -162,12 +162,12 @@ async function uploadFile(
     await s3.send(command);
     // Return the URL of the uploaded file.
     return `https://${BUCKET_NAME}.s3.${REGION}.amazonaws.com/${key}`;
-};
+}
 
 /**
  * Asynchronously processes and uploads files to an Amazon S3 bucket.
  */
-export async function processAndStoreFiles<TInput extends object | undefined>(
+export async function processAndStoreFiles<TInput>(
     files: Express.Multer.File[],
     input: TInput,
     userData: SessionUser,
@@ -272,4 +272,4 @@ export async function processAndStoreFiles<TInput extends object | undefined>(
     const fileUrls = Object.assign({}, ...fileUrlsArr);
 
     return fileUrls;
-};
+}
