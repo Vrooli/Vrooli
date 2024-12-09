@@ -103,7 +103,7 @@ export function VersionDisplay({
             <Tooltip title={versions.length > 1 ? "Press to change version" : ""}>
                 <Typography
                     {...pressEvents}
-                    variant="body1"
+                    variant="body2"
                     sx={{
                         cursor: listItems.length > 1 ? "pointer" : "default",
                         color: palette.background.textSecondary,

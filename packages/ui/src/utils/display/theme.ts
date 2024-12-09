@@ -51,17 +51,6 @@ const lightTheme = createTheme({
     ...commonTheme,
     palette: lightPalette,
     components: {
-        // Override the default MuiTextField background color
-        MuiTextField: {
-            styleOverrides: {
-                root: {
-                    "& .MuiOutlinedInput-root": {
-                        // backgroundColor: lightPalette.background.paper,
-                        color: lightPalette.background.textPrimary,
-                    },
-                },
-            },
-        },
         MuiButton: {
             variants: [
                 {
@@ -94,6 +83,15 @@ const lightTheme = createTheme({
                 disableRipple: true, // GlobalStyles overrides highlighting behavior
             },
         },
+        MuiTextField: {
+            styleOverrides: {
+                root: {
+                    "& .MuiOutlinedInput-root": {
+                        color: lightPalette.background.textPrimary,
+                    },
+                },
+            },
+        },
     },
 });
 
@@ -124,17 +122,6 @@ const darkTheme = createTheme({
     ...commonTheme,
     palette: darkPalette,
     components: {
-        // Override the default MuiTextField background color
-        MuiTextField: {
-            styleOverrides: {
-                root: {
-                    "& .MuiOutlinedInput-root": {
-                        // backgroundColor: darkPalette.background.paper,
-                        color: darkPalette.background.textPrimary,
-                    },
-                },
-            },
-        },
         MuiButton: {
             variants: [
                 {
@@ -165,6 +152,15 @@ const darkTheme = createTheme({
         MuiIconButton: {
             defaultProps: {
                 disableRipple: true, // GlobalStyles overrides highlighting behavior
+            },
+        },
+        MuiTextField: {
+            styleOverrides: {
+                root: {
+                    "& .MuiOutlinedInput-root": {
+                        color: darkPalette.background.textPrimary,
+                    },
+                },
             },
         },
     },

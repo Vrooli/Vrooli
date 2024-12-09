@@ -1,20 +1,20 @@
-import { DecisionStep, DetectSubstepLoadResult, FindByIdInput, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, RootStep, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunProjectStep, RunProjectUpdateInput, RunRoutine, RunRoutineStep, RunRoutineUpdateInput, RunStatus, RunStep, RunStepType, SingleRoutineStep, addSubdirectoriesToStep, addSubroutinesToStep, base36ToUuid, detectSubstepLoad, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointGetRunProject, endpointGetRunRoutine, endpointPutRunProject, endpointPutRunRoutine, generateRoutineInitialValues, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, getTranslation, locationArraysMatch, noop, parseSchemaInput, parseSchemaOutput, parseSearchParams, runnableObjectToStep, saveRunProgress, siblingsAtLocation, stepFromLocation, uuidValidate } from "@local/shared";
-import { Box, Button, Grid, IconButton, LinearProgress, Stack, Typography, styled } from "@mui/material";
+import { DecisionStep, DetectSubstepLoadResult, FindByIdInput, LINKS, ProjectVersionDirectorySearchInput, ProjectVersionDirectorySearchResult, RootStep, RoutineVersionSearchInput, RoutineVersionSearchResult, RunProject, RunProjectStep, RunProjectUpdateInput, RunRoutine, RunRoutineStep, RunRoutineUpdateInput, RunStatus, RunStep, RunStepType, RunTypeInPath, RunnableProjectVersion, RunnableRoutineVersion, SingleRoutineStep, UrlTools, addSubdirectoriesToStep, addSubroutinesToStep, base36ToUuid, detectSubstepLoad, endpointGetProjectVersionDirectories, endpointGetRoutineVersions, endpointGetRunProject, endpointGetRunRoutine, endpointPutRunProject, endpointPutRunRoutine, generateRoutineInitialValues, getNextLocation, getPreviousLocation, getRunPercentComplete, getStepComplexity, getTranslation, locationArraysMatch, noop, parseSchemaInput, parseSchemaOutput, runnableObjectToStep, saveRunProgress, siblingsAtLocation, stepFromLocation, uuidToBase36, uuidValidate } from "@local/shared";
+import { Box, Button, Grid, LinearProgress, Stack, Typography, styled } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { AutoSaveIndicator } from "components/AutoSaveIndicator/AutoSaveIndicator";
+import { BottomActionsGrid } from "components/buttons/BottomActionsGrid/BottomActionsGrid";
 import { HelpButton } from "components/buttons/HelpButton/HelpButton";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
 import { RunStepsDialog } from "components/dialogs/RunStepsDialog/RunStepsDialog";
 import { SessionContext } from "contexts";
 import { FormikProps } from "formik";
+import { useSocketRun } from "hooks/runs";
 import { useAutoSave } from "hooks/useAutoSave";
 import { useLazyFetch } from "hooks/useLazyFetch";
-import { useSocketRun } from "hooks/useSocketRun";
-import { ArrowLeftIcon, ArrowRightIcon, CloseIcon, SuccessIcon } from "icons";
+import { ArrowLeftIcon, ArrowRightIcon, SuccessIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { addSearchParams, removeSearchParams, useLocation } from "route";
-import { pagePaddingBottom } from "styles";
+import { addSearchParams, getLastPathnamePart, removeSearchParams, useLocation } from "route";
 import { getUserLanguages } from "utils/display/translationTools";
 import { tryOnClose } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
@@ -22,10 +22,23 @@ import { DecisionView } from "../DecisionView/DecisionView";
 import { SubroutineView } from "../SubroutineView/SubroutineView";
 import { RunViewProps } from "../types";
 
-interface StepRunData {
+type StepRunData = {
     contextSwitches?: number;
     elapsedTime?: number;
     // Add other properties of currentStepRunData if needed
+}
+
+type RunUrlData = {
+    runId: string | undefined;
+    runType: RunTypeInPath | undefined;
+    startingStepLocation: number[];
+    testMode: boolean;
+}
+
+export function createRunPath(runIdOrTest: string, runnableObject: { __typename: "ProjectVersion" | "RoutineVersion" }): string {
+    const runId = uuidValidate(runIdOrTest) ? uuidToBase36(runIdOrTest) : "test";
+    const runType = runnableObject.__typename === "ProjectVersion" ? RunTypeInPath.Project : RunTypeInPath.Routine;
+    return `${LINKS.Run}/${runType}/${runId}`;
 }
 
 export function useStepMetrics(
@@ -102,6 +115,7 @@ const TopBar = styled(Box)(({ theme }) => ({
     justifyContent: "space-between",
     padding: "0.5rem",
     width: "100%",
+    height: "64px",
     backgroundColor: theme.palette.primary.dark,
     color: theme.palette.primary.contrastText,
 }));
@@ -120,18 +134,6 @@ const ContentBox = styled(Box)(({ theme }) => ({
     overflowY: "auto",
     minHeight: "100vh",
 }));
-const ActionBar = styled(Box)(({ theme }) => ({
-    position: "fixed",
-    bottom: "0",
-    paddingBottom: "env(safe-area-inset-bottom)",
-    height: pagePaddingBottom,
-    width: "-webkit-fill-available",
-    zIndex: 4,
-    background: theme.palette.primary.dark,
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-}));
 
 const dialogStyle = {
     paper: {
@@ -143,10 +145,6 @@ const dialogStyle = {
         margin: 0,
     },
 } as const;
-const actionBarGridStyle = {
-    width: "min(100%, 700px)",
-    margin: 0,
-} as const;
 const progressBarStyle = { height: "15px" } as const;
 
 //TODO: implement `handleGenerateOutputs`, and soft disable (confirmation dialog) next button when there are missing required fields
@@ -155,30 +153,32 @@ export function RunView({
     display,
     isOpen,
     onClose,
-    runnableObject,
 }: RunViewProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
     // Find data in URL (e.g. current step, runID, whether or not this is a test run)
-    const { runId, startingStepLocation, testMode } = useMemo(function parseUrlMemo() {
-        const params = parseSearchParams();
+    const { runId, runType, startingStepLocation, testMode } = useMemo<RunUrlData>(function parseUrlMemo() {
+        const searchParams = UrlTools.parseSearchParams(LINKS.Run);
+        const runId = getLastPathnamePart({ offset: 0 });
+        const runType = getLastPathnamePart({ offset: 1 });
         return {
-            runId: (typeof params.run === "string" && uuidValidate(base36ToUuid(params.run))) ? base36ToUuid(params.run) : undefined,
+            runId: (typeof runId === "string" && uuidValidate(base36ToUuid(runId))) ? base36ToUuid(runId) : undefined,
+            runType: Object.values(RunTypeInPath).includes(runType as RunTypeInPath) ? runType as RunTypeInPath : undefined,
             startingStepLocation:
-                Array.isArray(params.step) &&
-                    params.step.length > 0 &&
-                    params.step.every(n => typeof n === "number")
-                    ? params.step as number[]
+                Array.isArray(searchParams.step) &&
+                    searchParams.step.length > 0 &&
+                    searchParams.step.every(n => typeof n === "number")
+                    ? searchParams.step as number[]
                     : [...ROOT_LOCATION],
-            testMode: params.run === "test",
+            testMode: runId === "test",
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
 
     const lastQueriedRunId = useRef<string | null>(null);
-    const [getRun, { data: runData, loading: isRunLoading }] = useLazyFetch<FindByIdInput, RunProject | RunRoutine>(runnableObject?.__typename === "ProjectVersion" ? endpointGetRunProject : endpointGetRunRoutine);
+    const [getRun, { data: runData, loading: isRunLoading }] = useLazyFetch<FindByIdInput, RunProject | RunRoutine>(runType === RunTypeInPath.Project ? endpointGetRunProject : endpointGetRunRoutine);
     useEffect(function fetchRunEffect() {
         if (runId && runId !== lastQueriedRunId.current) {
             lastQueriedRunId.current = runId;
@@ -188,6 +188,16 @@ export function RunView({
     const [run, setRun] = useState<RunProject | RunRoutine | undefined>(undefined);
     useEffect(function updateRunDataEffect() {
         if (runData) setRun(runData);
+    }, [runData]);
+    const runnableObject = useMemo<RunnableProjectVersion | RunnableRoutineVersion | null>(function runnableObjectMemo() {
+        if (!runData) return null;
+        if (runData.__typename === "RunProject" && Object.prototype.hasOwnProperty.call(runData, "projectVersion")) {
+            return (runData as RunProject).projectVersion as RunnableProjectVersion;
+        }
+        if (runData.__typename === "RunRoutine" && Object.prototype.hasOwnProperty.call(runData, "routineVersion")) {
+            return (runData as RunRoutine).routineVersion as RunnableRoutineVersion;
+        }
+        return null;
     }, [runData]);
 
     const [currentLocation, setCurrentLocation] = useState<number[]>([...startingStepLocation]);
@@ -210,6 +220,7 @@ export function RunView({
      */
     const [rootStep, setRootStep] = useState<RootStep | null>(null);
     useEffect(function convertRunnableObjectToStepTreeEffect() {
+        if (!runnableObject) return;
         setRootStep(runnableObjectToStep(runnableObject, [...ROOT_LOCATION], languages, console));
     }, [languages, runnableObject]);
 
@@ -367,7 +378,7 @@ export function RunView({
      * @param nextStep The step to navigate to, or null if the run is completed
      */
     const toStep = useCallback(function toStepCallback(nextStep: RunStep) {
-        if (!rootStep) return;
+        if (!rootStep || !runnableObject) return;
 
         // Find step data
         const currentStep = stepFromLocation(currentLocation, rootStep);
@@ -443,7 +454,7 @@ export function RunView({
     }, [previousLocation, rootStep, toStep]);
 
     const handleAutoSave = useCallback(function handleAutoSaveCallback() {
-        if (testMode || !run || !rootStep) return;
+        if (testMode || !run || !rootStep || !runnableObject) return;
 
         // Find step data
         const currentStep = stepFromLocation(currentLocation, rootStep);
@@ -484,25 +495,26 @@ export function RunView({
 
     useAutoSave({ formikRef, handleSave: handleAutoSave });
 
-    /**
-     * End routine early
-     */
-    const toFinishNotComplete = useCallback(function toFinishNotCompleteCallback() {
-        handleAutoSave();
-        removeSearchParams(setLocation, ["run", "step"]);
-        tryOnClose(onClose, setLocation);
-    }, [handleAutoSave, onClose, setLocation]);
+    useEffect(function autosaveOnUnloadEffect() {
+        window.addEventListener("beforeunload", handleAutoSave);
+        return () => {
+            window.removeEventListener("beforeunload", handleAutoSave);
+        };
+    }, [handleAutoSave]);
 
     const handleLoadSubroutine = useCallback(function handleLoadSubroutineCallback(id: string) {
         getSubroutines({ ids: [id] });
     }, [getSubroutines]);
 
+    const getFormValues = useCallback(function getFormValuesCallback() {
+        return formikRef.current?.values ?? {};
+    }, []);
     const {
         handleRunSubroutine,
         isGeneratingOutputs,
         subroutineTaskInfo,
     } = useSocketRun({
-        formikRef,
+        getFormValues,
         handleRunUpdate: setRun,
         run,
         runnableObject,
@@ -551,15 +563,6 @@ export function RunView({
                     {/* Contains name bar and progress bar */}
                     <Stack direction="column" spacing={0}>
                         <TopBar>
-                            {/* Close Icon */}
-                            <IconButton
-                                edge="end"
-                                aria-label="close"
-                                onClick={toFinishNotComplete}
-                                color="inherit"
-                            >
-                                <CloseIcon width='32px' height='32px' />
-                            </IconButton>
                             {/* Title */}
                             <TitleStepsStack direction="row" spacing={1}>
                                 <Typography variant="h5" component="h2">{name}</Typography>
@@ -590,32 +593,30 @@ export function RunView({
                     <ContentBox>
                         {childView}
                     </ContentBox>
-                    <ActionBar>
-                        <Grid container spacing={2} sx={actionBarGridStyle}>
-                            <Grid item xs={6} p={1}>
-                                <Button
-                                    disabled={!previousLocation || unsavedChanges || isRunLoading}
-                                    fullWidth
-                                    startIcon={<ArrowLeftIcon />}
-                                    onClick={toPrevious}
-                                    variant="outlined"
-                                >
-                                    {t("Previous")}
-                                </Button>
-                            </Grid>
-                            <Grid item xs={6} p={1}>
-                                <Button
-                                    disabled={unsavedChanges || isRunLoading}
-                                    fullWidth
-                                    startIcon={!nextLocation && currentStep?.__type !== RunStepType.Decision ? <SuccessIcon /> : <ArrowRightIcon />}
-                                    onClick={toNext}
-                                    variant="contained"
-                                >
-                                    {!nextLocation && currentStep?.__type !== RunStepType.Decision ? t("Complete") : t("Next")}
-                                </Button>
-                            </Grid>
+                    <BottomActionsGrid display={display}>
+                        <Grid item xs={6} p={1}>
+                            <Button
+                                disabled={!previousLocation || unsavedChanges || isRunLoading}
+                                fullWidth
+                                startIcon={<ArrowLeftIcon />}
+                                onClick={toPrevious}
+                                variant="outlined"
+                            >
+                                {t("Previous")}
+                            </Button>
                         </Grid>
-                    </ActionBar>
+                        <Grid item xs={6} p={1}>
+                            <Button
+                                disabled={unsavedChanges || isRunLoading}
+                                fullWidth
+                                startIcon={!nextLocation && currentStep?.__type !== RunStepType.Decision ? <SuccessIcon /> : <ArrowRightIcon />}
+                                onClick={toNext}
+                                variant="contained"
+                            >
+                                {!nextLocation && currentStep?.__type !== RunStepType.Decision ? t("Complete") : t("Next")}
+                            </Button>
+                        </Grid>
+                    </BottomActionsGrid>
                 </Box>
             </Box>
         </MaybeLargeDialog>

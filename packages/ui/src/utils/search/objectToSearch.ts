@@ -358,25 +358,31 @@ export const historyTabParams: TabParam<HistoryTabsInfo>[] = [
         key: "Viewed",
         titleKey: "View",
         searchType: "View",
-        where: () => ({}),
+        where: () => ({ visibility: VisibilityType.Own }),
     },
     {
         key: "Bookmarked",
         titleKey: "Bookmark",
         searchType: "BookmarkList",
-        where: () => ({}),
+        where: () => ({ visibility: VisibilityType.Own }),
     },
     {
         key: "RunsActive",
         titleKey: "Active",
         searchType: "RunProjectOrRunRoutine",
-        where: () => ({ statuses: [RunStatus.InProgress, RunStatus.Scheduled] }),
+        where: () => ({
+            statuses: [RunStatus.InProgress, RunStatus.Scheduled],
+            visibility: VisibilityType.Own,
+        }),
     },
     {
         key: "RunsCompleted",
         titleKey: "Complete",
         searchType: "RunProjectOrRunRoutine",
-        where: () => ({ statuses: [RunStatus.Cancelled, RunStatus.Completed, RunStatus.Failed] }),
+        where: () => ({
+            statuses: [RunStatus.Cancelled, RunStatus.Completed, RunStatus.Failed],
+            visibility: VisibilityType.Own,
+        }),
     },
 ];
 

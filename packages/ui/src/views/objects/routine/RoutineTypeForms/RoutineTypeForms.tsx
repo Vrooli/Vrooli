@@ -1,42 +1,95 @@
-import { BotShape, BotStyle, BotStyleOption, CodeLanguage, CodeVersionShape, CodeVersionTranslationShape, ConfigCallData, ConfigCallDataGenerate, DEFAULT_MODEL, DUMMY_ID, FormSchema, LlmModel, Node, NodeLink, NodeLinkShape, NodeShape, User, getAvailableModels, getModelDescription, getModelName, getTranslation, noop, uuidValidate } from "@local/shared";
+import { BotShape, BotStyle, BotStyleOption, CodeLanguage, CodeVersionShape, CodeVersionTranslationShape, ConfigCallData, ConfigCallDataGenerate, DEFAULT_MODEL, DUMMY_ID, FormSchema, FormStructureType, LlmModel, Node, NodeLink, NodeLinkShape, NodeShape, RunProject, RunRoutine, RunStatus, User, getAvailableModels, getModelDescription, getModelName, getTranslation, noop, uuid, uuidValidate } from "@local/shared";
 import { Box, Button, Card, Divider, Grid, Typography, styled, useTheme } from "@mui/material";
 import { getExistingAIConfig } from "api/ai";
 import { LoadableButton } from "components/buttons/LoadableButton/LoadableButton";
+import { RunPickerMenu } from "components/buttons/RunButton/RunButton";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
 import { CodeInputBase } from "components/inputs/CodeInput/CodeInput";
 import { SelectorBase } from "components/inputs/Selector/Selector";
+import { FormTip } from "components/inputs/form/FormTip/FormTip";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts";
 import { FormView } from "forms/FormView/FormView";
-import { AddIcon, ApiIcon, BotIcon, MagicIcon, MinusIcon, OpenInNewIcon, RoutineIcon, SmartContractIcon, TerminalIcon } from "icons";
+import { usePopover } from "hooks/usePopover";
+import { AddIcon, ApiIcon, BotIcon, CancelIcon, LockIcon, MagicIcon, MinusIcon, OpenInNewIcon, PlayIcon, RoutineIcon, SaveIcon, SmartContractIcon, SuccessIcon, TerminalIcon } from "icons";
 import { memo, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ProfileAvatar } from "styles";
 import { PartialWithType } from "types";
 import { getCurrentUser } from "utils/authentication/session";
+import { ELEMENT_IDS } from "utils/consts";
 import { extractImageUrl } from "utils/display/imageTools";
 import { placeholderColor } from "utils/display/listTools";
 import { getCookiePartialData } from "utils/localStorage";
 import { openObject } from "utils/navigation/openObject";
+import { PubSub } from "utils/pubsub";
 import { BuildView } from "views/objects/routine/BuildView/BuildView";
 import { BuildRoutineVersion, BuildViewProps } from "../types";
 
 const PREFIX_INPUT = "input";
 const PREFIX_OUTPUT = "output";
 
+/**
+ * The context in which the routine form is displayed. 
+ * For most purposes, non-edit modes should be the same.
+ */
 type RoutineFormDisplayType = "edit" | "view" | "run";
 
-type RoutineFormPropsBase = {
+export type RoutineFormPropsBase = {
     configCallData: ConfigCallData;
     disabled: boolean;
     display: RoutineFormDisplayType;
-    handleGenerateOutputs: () => unknown;
-    isGeneratingOutputs: boolean;
+    /**
+     * Clears the run when viewing a single-step routine. Useful for creating a new run 
+     * without having to refresh the page.
+     */
+    handleClearRun: () => unknown;
+    /**
+     * Completes the routine. Used when not in a multi-step form.
+     */
+    handleCompleteStep: (event: React.MouseEvent | React.TouchEvent) => unknown;
+    /** 
+     * Performs the action associated with the routine 
+     * (e.g. runs sandboxed code, calls API
+     */
+    handleRunStep: (event: React.MouseEvent | React.TouchEvent) => unknown;
+    /**
+     * True if there are errors preventing the step from being completed.
+     */
+    hasErrors: boolean;
+    /**
+     * True if the submit button is disabled, either from 
+     * not being in a multi-step form, from the form being invalid, 
+     * or from the routine being deleted/private/etc.
+     */
+    isCompleteStepDisabled: boolean;
+    /**
+     * True if we are in a multi-step routine.
+     */
+    isPartOfMultiStepRoutine: boolean;
+    /**
+     * True if the run button is disabled, either from 
+     * an inapplicable display type, the form being invalid, 
+     * or from the routine being deleted/private/etc.
+     */
+    isRunStepDisabled: boolean;
+    /**
+     * True if we are currently running the action associated with the routine, 
+     * which happens asynchronously.
+     */
+    isRunningStep: boolean;
     onConfigCallDataChange: (configCallData: ConfigCallData) => unknown;
+    onRunChange: (run: RunRoutine | null) => unknown;
     onSchemaInputChange: (schema: FormSchema) => unknown;
     onSchemaOutputChange: (schema: FormSchema) => unknown;
+    routineId: string;
+    routineName: string;
+    /**
+     * If in a single-step routine, the current run object
+     */
+    run: RunRoutine | null | undefined;
     schemaInput: FormSchema;
     schemaOutput: FormSchema;
 }
@@ -59,7 +112,6 @@ type RoutineFormTypeMultiStep = Pick<RoutineFormPropsBase, "display"> & {
 type RoutineFormTypeSmartContract = RoutineFormPropsBase;
 
 const routineTypeTitleSxs = { stack: { paddingLeft: 0 } } as const;
-const aiButtonStyle = { marginTop: 4 } as const;
 
 export const RoutineApiForm = memo(function RoutineApiFormMemo({
     disabled,
@@ -70,12 +122,13 @@ export const RoutineApiForm = memo(function RoutineApiFormMemo({
     schemaOutput,
 }: RoutineFormTypeApi) {
     const { t } = useTranslation();
+    const isEditing = display === "edit";
 
     return (
         <>
             <Title
                 Icon={ApiIcon}
-                title={display === "edit" ? "Connect API" : "Connected API"}
+                title={isEditing ? "Connect API" : "Connected API"}
                 help={"Connect API that will receive the defined inputs and is expected to return the defined outputs.\n\nIf the API fails or does not return the expected data, the routine will fail."}
                 variant="subsection"
                 sxs={routineTypeTitleSxs}
@@ -89,7 +142,7 @@ export const RoutineApiForm = memo(function RoutineApiFormMemo({
                 <FormView
                     disabled={disabled}
                     fieldNamePrefix={PREFIX_INPUT}
-                    isEditing={display === "edit"}
+                    isEditing={isEditing}
                     onSchemaChange={onSchemaInputChange}
                     schema={schemaInput}
                 />
@@ -103,7 +156,7 @@ export const RoutineApiForm = memo(function RoutineApiFormMemo({
                 <FormView
                     disabled={disabled}
                     fieldNamePrefix={PREFIX_OUTPUT}
-                    isEditing={display === "edit"}
+                    isEditing={isEditing}
                     onSchemaChange={onSchemaOutputChange}
                     schema={schemaOutput}
                 />
@@ -131,6 +184,7 @@ export const RoutineDataConverterForm = memo(function RoutineDataConverterFormMe
     const session = useContext(SessionContext);
     const [codeObject, setCodeObject] = useState<CodeObjectInfo | null>(null);
     const [isCodeSearchOpen, setIsCodeSearchOpen] = useState(false);
+    const isEditing = display === "edit";
 
     const closeCodeSearch = useCallback((selected?: CodeObjectInfo) => {
         setIsCodeSearchOpen(false);
@@ -148,12 +202,12 @@ export const RoutineDataConverterForm = memo(function RoutineDataConverterFormMe
         <>
             <Title
                 Icon={TerminalIcon}
-                title={display === "edit" ? "Connect code" : "Connected code"}
+                title={isEditing ? "Connect code" : "Connected code"}
                 help={"Connect or create a data converter function to this routine.\n\nThe code will be passed all non-file inputs, and is expected to return all non-file outputs.\n\nIf the code fails or does not return the expected data, the routine will fail."}
                 variant="subsection"
                 sxs={routineTypeTitleSxs}
             />
-            {display === "edit" && (
+            {isEditing && (
                 <Button
                     fullWidth
                     color="secondary"
@@ -198,7 +252,7 @@ export const RoutineDataConverterForm = memo(function RoutineDataConverterFormMe
                 <FormView
                     disabled={disabled}
                     fieldNamePrefix={PREFIX_INPUT}
-                    isEditing={display === "edit"}
+                    isEditing={isEditing}
                     onSchemaChange={onSchemaInputChange}
                     schema={schemaInput}
                 />
@@ -212,7 +266,7 @@ export const RoutineDataConverterForm = memo(function RoutineDataConverterFormMe
                 <FormView
                     disabled={disabled}
                     fieldNamePrefix={PREFIX_OUTPUT}
-                    isEditing={display === "edit"}
+                    isEditing={isEditing}
                     onSchemaChange={onSchemaOutputChange}
                     schema={schemaOutput}
                 />
@@ -227,11 +281,13 @@ export const RoutineDataForm = memo(function RoutineDataFormMemo({
     onSchemaOutputChange,
     schemaOutput,
 }: RoutineFormTypeData) {
+    const isEditing = display === "edit";
+
     return (
         <FormView
             disabled={disabled}
             fieldNamePrefix={PREFIX_OUTPUT}
-            isEditing={display === "edit"}
+            isEditing={isEditing}
             onSchemaChange={onSchemaOutputChange}
             schema={schemaOutput}
         />
@@ -327,20 +383,23 @@ const BotCard = memo(function BotCardMemo({ bot }: { bot: BotInfo }) {
     );
 });
 
-const dividerStyle = { marginTop: 4, marginBottom: 2 } as const;
+const inputsDividerStyle = { marginTop: 2, marginBottom: 2 } as const;
+const outputsDividerStyle = { marginTop: 4, marginBottom: 2 } as const;
 
 export const RoutineGenerateForm = memo(function RoutineGenerateFormMemo({
     configCallData,
     disabled,
     display,
-    handleGenerateOutputs,
-    isGeneratingOutputs,
+    handleRunStep,
+    isRunStepDisabled,
+    isRunningStep,
     onConfigCallDataChange,
     onSchemaInputChange,
     schemaInput,
     schemaOutput,
 }: RoutineFormTypeGenerate) {
     const { t } = useTranslation();
+    const isEditing = display === "edit";
 
     const [botStyle, setBotStyle] = useState<BotStyleOption>(function initBotStyleState() {
         const style = configCallData.botStyle || BotStyle.Default;
@@ -382,62 +441,79 @@ export const RoutineGenerateForm = memo(function RoutineGenerateFormMemo({
         setIsBotSearchOpen(true);
     }, []);
 
+    const modelTipElement = useMemo(function modelTipElementMemo() {
+        return {
+            type: FormStructureType.Tip,
+            icon: "Info",
+            id: uuid(),
+            label: `Generating with ${configCallData?.model?.name ?? `${DEFAULT_MODEL} (default)`}`,
+        } as const;
+    }, [configCallData.model]);
+
     return (
         <>
-            <Title
-                title={display === "edit" ? "Choose AI model" : `Generating with ${configCallData?.model?.name ?? `${DEFAULT_MODEL} (default)`}`}
-                help={display === "edit" ? "Connect API that will receive the defined inputs and is expected to return the defined outputs.\n\nIf the API fails or does not return the expected data, the routine will fail." : undefined}
-                variant="subsection"
-                sxs={routineTypeTitleSxs}
-            />
-            {display === "edit" && <SelectorBase
-                name="model"
-                options={getAvailableModels(getExistingAIConfig()?.service?.config)}
-                getOptionLabel={getModelName}
-                getOptionDescription={getModelDescription}
-                fullWidth={true}
-                inputAriaLabel="Model"
-                label={t("Model", { count: 1 })}
-                noneOption={true}
-                noneText="default"
-                onChange={handleModelChange}
-                value={configCallData.model ?? null}
-            />}
-            {display === "edit" && <Title
-                title={!bot ? "Choose style" : `Using style of ${bot.name}`}
-                help={display === "edit" ? "Connecting a bot allows you to generate data using the bot's personality and style.\n\nYou can choose whichever bot runs the routine, a specific bot, or *none* if you don't want to add personality/style to the response." : undefined}
-                variant="subsection"
-                sxs={routineTypeTitleSxs}
-            />}
-            {display === "edit" && <SelectorBase
-                name="style"
-                options={botStyleOptions}
-                getOptionDescription={getBotStyleDescription}
-                getOptionLabel={getBotStyleLabel}
-                fullWidth={true}
-                inputAriaLabel="Bot style"
-                label="Bot style"
-                onChange={handleBotStyleChange}
-                value={botStyle}
+            <Box id={ELEMENT_IDS.RoutineGenerateSettings}>
+                {isEditing && <Title
+                    title={"Choose AI model"}
+                    help={"Connect API that will receive the defined inputs and is expected to return the defined outputs.\n\nIf the API fails or does not return the expected data, the routine will fail."}
+                    variant="subsection"
+                    sxs={routineTypeTitleSxs}
+                />}
+                {display !== "edit" && <FormTip
+                    element={modelTipElement}
+                    isEditing={false}
+                    onDelete={noop}
+                    onUpdate={noop}
+                />}
+                {isEditing && <SelectorBase
+                    name="model"
+                    options={getAvailableModels(getExistingAIConfig()?.service?.config)}
+                    getOptionLabel={getModelName}
+                    getOptionDescription={getModelDescription}
+                    fullWidth={true}
+                    inputAriaLabel="Model"
+                    label={t("Model", { count: 1 })}
+                    noneOption={true}
+                    noneText="default"
+                    onChange={handleModelChange}
+                    value={configCallData.model ?? null}
+                />}
+                {isEditing && <Title
+                    title={!bot ? "Choose style" : `Using style of ${bot.name}`}
+                    help={isEditing ? "Connecting a bot allows you to generate data using the bot's personality and style.\n\nYou can choose whichever bot runs the routine, a specific bot, or *none* if you don't want to add personality/style to the response." : undefined}
+                    variant="subsection"
+                    sxs={routineTypeTitleSxs}
+                />}
+                {isEditing && <SelectorBase
+                    name="style"
+                    options={botStyleOptions}
+                    getOptionDescription={getBotStyleDescription}
+                    getOptionLabel={getBotStyleLabel}
+                    fullWidth={true}
+                    inputAriaLabel="Bot style"
+                    label="Bot style"
+                    onChange={handleBotStyleChange}
+                    value={botStyle}
 
-            />}
-            {display === "edit" && botStyle.value === BotStyle.Specific && <FindObjectDialog
-                find="List"
-                isOpen={isBotSearchOpen}
-                limitTo={findBotLimitTo}
-                handleCancel={closeBotSearch}
-                handleComplete={closeBotSearch as (item: object) => unknown}
-                where={findBotWhere}
-            />}
-            {bot && <BotCard bot={bot} />}
-            {display === "edit" && botStyle.value === BotStyle.Specific && <Button
-                fullWidth
-                color="secondary"
-                onClick={handleBotButtonClick}
-                startIcon={!bot ? <AddIcon /> : null}
-                variant={bot ? "outlined" : "contained"}
-            >{bot ? "Change bot" : "Choose bot"}</Button>}
-            <Divider sx={dividerStyle} />
+                />}
+                {isEditing && botStyle.value === BotStyle.Specific && <FindObjectDialog
+                    find="List"
+                    isOpen={isBotSearchOpen}
+                    limitTo={findBotLimitTo}
+                    handleCancel={closeBotSearch}
+                    handleComplete={closeBotSearch as (item: object) => unknown}
+                    where={findBotWhere}
+                />}
+                {bot && <BotCard bot={bot} />}
+                {isEditing && botStyle.value === BotStyle.Specific && <Button
+                    fullWidth
+                    color="secondary"
+                    onClick={handleBotButtonClick}
+                    startIcon={!bot ? <AddIcon /> : null}
+                    variant={bot ? "outlined" : "contained"}
+                >{bot ? "Change bot" : "Choose bot"}</Button>}
+            </Box>
+            <Divider sx={inputsDividerStyle} />
             <ContentCollapse
                 helpText={"Inputs are passed in sequential order to the AI model, within the same request message.\n\nYou may define help text, limits, etc. for each input, though the AI model may not always decide to follow them.\n\nAny input without a default value will be entered by the user at runtime, or the specified bot."}
                 title={t("Input", { count: schemaInput.elements.length })}
@@ -447,20 +523,23 @@ export const RoutineGenerateForm = memo(function RoutineGenerateFormMemo({
                 <FormView
                     disabled={disabled}
                     fieldNamePrefix={PREFIX_INPUT}
-                    isEditing={display === "edit"}
+                    isEditing={isEditing}
                     onSchemaChange={onSchemaInputChange}
                     schema={schemaInput}
                 />
-                {display === "run" && <LoadableButton
-                    fullWidth
-                    isLoading={isGeneratingOutputs}
-                    onClick={handleGenerateOutputs}
-                    sx={aiButtonStyle}
-                    startIcon={<MagicIcon />}
-                    variant="contained"
-                >Generate</LoadableButton>}
+                {display !== "edit" && (
+                    <Box onClick={handleRunStep}>
+                        <LoadableButton
+                            disabled={isRunStepDisabled}
+                            fullWidth
+                            isLoading={isRunningStep}
+                            startIcon={<MagicIcon />}
+                            variant="contained"
+                        >Generate</LoadableButton>
+                    </Box>
+                )}
             </ContentCollapse>
-            <Divider sx={dividerStyle} />
+            <Divider sx={outputsDividerStyle} />
             <ContentCollapse
                 title={t("Output", { count: schemaOutput.elements.length })}
                 isOpen={!disabled}
@@ -481,17 +560,106 @@ export const RoutineGenerateForm = memo(function RoutineGenerateFormMemo({
 export const RoutineInformationalForm = memo(function RoutineInformationalFormMemo({
     disabled,
     display,
+    handleClearRun,
+    handleCompleteStep,
+    hasErrors,
+    isCompleteStepDisabled,
+    isPartOfMultiStepRoutine,
+    isRunningStep,
+    onRunChange,
     onSchemaInputChange,
+    routineId,
+    routineName,
+    run,
     schemaInput,
 }: RoutineFormTypeInformational) {
+    const { t } = useTranslation();
+    const session = useContext(SessionContext);
+    const isLoggedIn = uuidValidate(getCurrentUser(session).id);
+    console.log("ghgh isLoggedIn", isLoggedIn, session);
+    const isEditing = display === "edit";
+
+    const showRunButtons = !isPartOfMultiStepRoutine && display !== "edit";
+
+    const showComplete = showRunButtons && (!run || run.status !== RunStatus.Completed) && !hasErrors;
+    const showUpdate = showRunButtons && !showComplete;
+    const showFirstButton = showComplete || showUpdate;
+
+    const showClearRun = showRunButtons && run;
+    const showPickRun = showRunButtons && !run;
+    const showSecondButton = showClearRun || showPickRun;
+
+    // eslint-disable-next-line no-magic-numbers
+    const gridItemSm = showFirstButton && showSecondButton ? 6 : 12;
+
+    const [selectRunAnchor, openSelectRunDialog, closeSelectRunDialog] = usePopover();
+    const handleOpenSelectRunDialog = useCallback((event: React.MouseEvent<HTMLElement, MouseEvent>) => {
+        if (!isLoggedIn) {
+            PubSub.get().publish("proDialog");
+            return;
+        }
+        openSelectRunDialog(event);
+    }, [isLoggedIn, openSelectRunDialog]);
+    const handleRunSelect = useCallback((run: RunProject | RunRoutine | null) => {
+        if (!showRunButtons) return;
+        onRunChange(run as RunRoutine | null);
+    }, [onRunChange, showRunButtons]);
+
     return (
-        <FormView
-            disabled={disabled}
-            fieldNamePrefix={PREFIX_INPUT}
-            isEditing={display === "edit"}
-            onSchemaChange={onSchemaInputChange}
-            schema={schemaInput}
-        />
+        <>
+            <FormView
+                disabled={disabled}
+                fieldNamePrefix={PREFIX_INPUT}
+                isEditing={isEditing}
+                onSchemaChange={onSchemaInputChange}
+                schema={schemaInput}
+            />
+            {
+                showRunButtons && (
+                    <RunPickerMenu
+                        anchorEl={selectRunAnchor}
+                        handleClose={closeSelectRunDialog}
+                        objectId={routineId}
+                        objectName={routineName}
+                        objectType={"RoutineVersion"}
+                        onSelect={handleRunSelect}
+                    />
+                )
+            }
+            {
+                (showFirstButton || showSecondButton) && (
+                    <Grid container spacing={2} marginTop={4}>
+                        {showFirstButton && (
+                            <Grid item xs={12} sm={gridItemSm}>
+                                <Box onClick={handleCompleteStep}>
+                                    <LoadableButton
+                                        aria-label={showComplete ? t("Complete") : t("Update")}
+                                        disabled={showComplete && isCompleteStepDisabled}
+                                        fullWidth
+                                        isLoading={isRunningStep}
+                                        startIcon={!isLoggedIn ? <LockIcon /> : showComplete ? <SuccessIcon /> : <SaveIcon />}
+                                        variant="contained"
+                                    >{showComplete ? t("Complete") : t("Update")}</LoadableButton>
+                                </Box>
+                            </Grid>
+                        )}
+                        {showSecondButton && (
+                            <Grid item xs={12} sm={gridItemSm}>
+                                <Box>
+                                    <Button
+                                        fullWidth
+                                        color="secondary"
+                                        onClick={showClearRun ? handleClearRun : handleOpenSelectRunDialog}
+                                        startIcon={!isLoggedIn ? <LockIcon /> : showClearRun ? <CancelIcon /> : <PlayIcon />}
+                                        variant="outlined"
+                                    >{showClearRun ? t("Clear") : t("SelectRun")}</Button>
+                                </Box>
+                            </Grid>
+                        )}
+                    </Grid>
+                )
+            }
+        </>
     );
 });
 
@@ -507,6 +675,8 @@ export const RoutineMultiStepForm = memo(function RoutineMultiStepFormMemo({
     translations,
     translationData,
 }: RoutineFormTypeMultiStep) {
+    const isEditing = display === "edit";
+
     const routineVersion = useMemo(() => ({
         id: routineId ?? DUMMY_ID,
         nodeLinks: (nodeLinks ?? []) as NodeLink[],
@@ -521,7 +691,7 @@ export const RoutineMultiStepForm = memo(function RoutineMultiStepFormMemo({
                 handleCancel={handleGraphClose}
                 onClose={handleGraphClose}
                 handleSubmit={handleGraphSubmit}
-                isEditing={display === "edit"}
+                isEditing={isEditing}
                 isOpen={isGraphOpen}
                 loading={false}
                 routineVersion={routineVersion}
@@ -533,7 +703,7 @@ export const RoutineMultiStepForm = memo(function RoutineMultiStepFormMemo({
                     startIcon={<RoutineIcon />}
                     fullWidth color="secondary"
                     onClick={handleGraphOpen}
-                    variant={display === "edit" ? "contained" : "outlined"}
+                    variant={isEditing ? "contained" : "outlined"}
                 >View Graph</Button>
             </Grid>
             {/* # nodes, # links, Simplicity, complexity & other graph stats */}
@@ -551,12 +721,13 @@ export const RoutineSmartContractForm = memo(function RoutineSmartContractFormMe
     schemaOutput,
 }: RoutineFormTypeSmartContract) {
     const { t } = useTranslation();
+    const isEditing = display === "edit";
 
     return (
         <>
             <Title
                 Icon={SmartContractIcon}
-                title={display === "edit" ? "Connect smart contract" : "Connected smart contract"}
+                title={isEditing ? "Connect smart contract" : "Connected smart contract"}
                 help={"Connect or create a smart contract to this routine.\n\nThe contract will be passed all non-file inputs, and is expected to return all non-file outputs.\n\nIf the contract fails or does not return the expected data, the routine will fail."}
                 variant="subsection"
                 sxs={routineTypeTitleSxs}
@@ -570,7 +741,7 @@ export const RoutineSmartContractForm = memo(function RoutineSmartContractFormMe
                 <FormView
                     disabled={disabled}
                     fieldNamePrefix={PREFIX_INPUT}
-                    isEditing={display === "edit"}
+                    isEditing={isEditing}
                     onSchemaChange={onSchemaInputChange}
                     schema={schemaInput}
                 />
@@ -584,7 +755,7 @@ export const RoutineSmartContractForm = memo(function RoutineSmartContractFormMe
                 <FormView
                     disabled={disabled}
                     fieldNamePrefix={PREFIX_OUTPUT}
-                    isEditing={display === "edit"}
+                    isEditing={isEditing}
                     onSchemaChange={onSchemaOutputChange}
                     schema={schemaOutput}
                 />

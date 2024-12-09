@@ -32,7 +32,7 @@ import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/t
 import { PubSub } from "utils/pubsub";
 import { getRoutineTypeDescription, getRoutineTypeIcon, getRoutineTypeLabel, routineTypes } from "utils/search/schemas/routine";
 import { validateFormValues } from "utils/validateFormValues";
-import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineGenerateForm, RoutineInformationalForm, RoutineMultiStepForm, RoutineSmartContractForm } from "../RoutineTypeForms/RoutineTypeForms";
+import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineFormPropsBase, RoutineGenerateForm, RoutineInformationalForm, RoutineMultiStepForm, RoutineSmartContractForm } from "../RoutineTypeForms/RoutineTypeForms";
 import { BuildRoutineVersion, RoutineFormProps, RoutineUpsertProps } from "../types";
 
 export function routineInitialValues(
@@ -432,23 +432,31 @@ function RoutineForm({
         onCompleted: () => { props.setSubmitting(false); },
     });
 
-    const routineTypeBaseProps = useMemo(function routineTypeBasePropsMemo() {
-        return {
+    // Type-specific components
+    const routineTypeComponents = useMemo(function routineTypeComponentsMemo() {
+        const routineTypeBaseProps: RoutineFormPropsBase = {
             configCallData,
             disabled,
             display: "edit",
-            handleGenerateOutputs: noop,
-            isGeneratingOutputs: false,
+            handleClearRun: noop, // Not available in edit mode
+            handleCompleteStep: noop, // Not available in edit mode
+            handleRunStep: noop, // Not available in edit mode
+            hasErrors: false, // Not available in edit mode
+            isCompleteStepDisabled: true, // Not available in edit mode
+            isPartOfMultiStepRoutine: false,
+            isRunStepDisabled: true, // Not available in edit mode
+            isRunningStep: false, // Not available in edit mode
             onConfigCallDataChange,
+            onRunChange: noop, // Not available in edit mode
             onSchemaInputChange,
             onSchemaOutputChange,
             schemaInput,
             schemaOutput,
-        } as const;
-    }, [configCallData, disabled, onConfigCallDataChange, onSchemaInputChange, onSchemaOutputChange, schemaInput, schemaOutput]);
+            routineId: "", // Not needed in edit mode
+            routineName: "", // Not needed in edit mode
+            run: null, // Not available in edit mode
+        };
 
-    // Type-specific components
-    const routineTypeComponents = useMemo(function routineTypeComponentsMemo() {
         switch (routineTypeField.value) {
             case RoutineType.Api:
                 return <RoutineApiForm {...routineTypeBaseProps} />;
@@ -476,7 +484,7 @@ function RoutineForm({
             case RoutineType.SmartContract:
                 return <RoutineSmartContractForm {...routineTypeBaseProps} />;
         }
-    }, [handleGraphClose, handleGraphOpen, handleGraphSubmit, idField.value, isGraphOpen, nodeLinksField.value, nodesField.value, routineTypeField.value, routineTypeBaseProps, translationData, translationsField.value]);
+    }, [configCallData, disabled, onConfigCallDataChange, onSchemaInputChange, onSchemaOutputChange, schemaInput, schemaOutput, routineTypeField.value, isGraphOpen, handleGraphClose, handleGraphOpen, handleGraphSubmit, nodeLinksField.value, nodesField.value, idField.value, translationsField.value, translationData]);
 
     const resourceListParent = useMemo(function resourceListParent() {
         return { __typename: "RoutineVersion", id: values.id } as const;

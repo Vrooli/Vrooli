@@ -1,4 +1,4 @@
-import { ResourceListShape, ResourceList as ResourceListType, RoutineShape, RoutineType, Tag, TagShape, exists, generateYupSchema, getTranslation, noop, noopSubmit, parseConfigCallData, parseSchemaInput, parseSchemaOutput } from "@local/shared";
+import { ResourceListShape, ResourceList as ResourceListType, RoutineShape, RoutineType, RoutineVersion, Tag, TagShape, exists, generateYupSchema, getTranslation, noop, noopSubmit, parseConfigCallData, parseSchemaInput, parseSchemaOutput, uuidValidate } from "@local/shared";
 import { Box, Stack } from "@mui/material";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
@@ -10,11 +10,12 @@ import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { SessionContext } from "contexts";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { FormSection } from "styles";
+import { getCurrentUser } from "utils/authentication/session";
+import { getDisplay } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
 import { routineInitialValues } from "views/objects/routine";
-import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "views/objects/routine/RoutineTypeForms/RoutineTypeForms";
+import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineFormPropsBase, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "views/objects/routine/RoutineTypeForms/RoutineTypeForms";
 import { SubroutineViewProps } from "../types";
 
 const EMPTY_OBJECT = {};
@@ -25,6 +26,7 @@ const basicInfoStackStyle = {
     width: "min(100%, 700px)",
     padding: 2,
 } as const;
+const tagListStyle = { marginTop: 4 } as const;
 
 export function SubroutineView({
     formikRef,
@@ -34,8 +36,7 @@ export function SubroutineView({
     routineVersion,
 }: SubroutineViewProps) {
     const session = useContext(SessionContext);
-    const { t } = useTranslation();
-    const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
+    const [, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     const [internalRoutineVersion, setInternalRoutineVersion] = useState(routineVersion);
     useEffect(() => {
@@ -57,6 +58,8 @@ export function SubroutineView({
         };
     }, [internalRoutineVersion, session]);
 
+    const hasFormErrors = useMemo(() => Object.values(formikRef.current?.errors ?? {}).some((value) => exists(value)), []);
+
     const configCallData = useMemo(function configCallDataMemo() {
         return parseConfigCallData(routineVersion.configCallData, routineVersion.routineType, console);
     }, [routineVersion.configCallData, routineVersion.routineType]);
@@ -67,23 +70,36 @@ export function SubroutineView({
         return parseSchemaOutput(routineVersion.configFormOutput, routineVersion.routineType, console);
     }, [routineVersion.configFormOutput, routineVersion.routineType]);
 
-    const routineTypeBaseProps = useMemo(function routineTypeBasePropsMemo() {
-        return {
-            configCallData,
-            disabled: false,
-            display: "run",
-            handleGenerateOutputs,
-            isGeneratingOutputs,
-            onConfigCallDataChange: noop,
-            onSchemaInputChange: noop,
-            onSchemaOutputChange: noop,
-            schemaInput,
-            schemaOutput,
-        } as const;
-    }, [configCallData, handleGenerateOutputs, isGeneratingOutputs, schemaInput, schemaOutput]);
-
     // Type-specific components
     const routineTypeComponents = useMemo(function routineTypeComponentsMemo() {
+        const loading = isGeneratingOutputs || isLoading;
+        const isLoggedIn = uuidValidate(getCurrentUser(session).id);
+        const isDeleted = (routineVersion as RoutineVersion).isDeleted ?? routineVersion.root?.isDeleted ?? false;
+        const canRun = routineVersion.you?.canRun ?? false;
+        const hasErrors = hasFormErrors;
+        const routineTypeBaseProps: RoutineFormPropsBase = {
+            configCallData,
+            disabled: false,
+            display: "view",
+            handleClearRun: noop, // Only used in single-step routines, which we are not in
+            handleCompleteStep: noop, // Only used in single-step routines, which we are not in
+            handleRunStep: handleGenerateOutputs,
+            hasErrors,
+            isCompleteStepDisabled: true, // Not in a single-step routine
+            isPartOfMultiStepRoutine: true,
+            isRunStepDisabled: loading || !isLoggedIn || isDeleted || !canRun || hasFormErrors,
+            isRunningStep: isGeneratingOutputs,
+            onConfigCallDataChange: noop, // Only used in edit mode
+            onRunChange: noop, // Not in a single-step routine
+            onSchemaInputChange: noop, // Only used in edit mode
+            onSchemaOutputChange: noop, // Only used in edit mode
+            schemaInput,
+            schemaOutput,
+            routineId: internalRoutineVersion?.id ?? "",
+            routineName: getDisplay(internalRoutineVersion).title,
+            run: null, // Not in a single-step routine
+        };
+
         switch (routineVersion.routineType) {
             case RoutineType.Api:
                 return <RoutineApiForm {...routineTypeBaseProps} />;
@@ -101,7 +117,7 @@ export function SubroutineView({
                 // NOTE: We don't display the multi-step form, as its data should be coverted into smaller steps
                 return null;
         }
-    }, [routineTypeBaseProps, routineVersion.routineType]);
+    }, [configCallData, handleGenerateOutputs, hasFormErrors, isGeneratingOutputs, isLoading, routineVersion, schemaInput, schemaOutput, session]);
 
     const inputValidationSchema = useMemo(function inputValidationSchemaMemo() {
         // TODO might need to do output validation as well
@@ -171,7 +187,7 @@ export function SubroutineView({
                                 maxCharacters={30}
                                 parentId={internalRoutineVersion?.id ?? ""}
                                 tags={tags as Tag[]}
-                                sx={{ marginTop: 4 }}
+                                sx={tagListStyle}
                             />}
                             {/* Date and version labels */}
                             <Stack direction="row" spacing={1} mt={2} mb={1}>
