@@ -90,9 +90,19 @@ export function SnackStack() {
         const cookiesSub = PubSub.get().subscribe("cookies", () => {
             setIsCookieSnackOpen(true);
         });
+        // Subscribe to clear snacks event
+        const clearSub = PubSub.get().subscribe("clearSnack", (data) => {
+            if (data.all) {
+                setSnacks([]);
+            }
+            if (data.id) {
+                handleClose(data.id);
+            }
+        });
         return () => {
             snackSub();
             cookiesSub();
+            clearSub();
         };
     }, [t]);
 
