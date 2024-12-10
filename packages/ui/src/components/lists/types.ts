@@ -227,14 +227,16 @@ export interface LineGraphCardProps extends Omit<LineGraphProps, "dims"> {
     index: number;
 }
 
+export type TIDCardSize = "default" | "small";
 export interface TIDCardProps {
     below?: ReactNode;
     buttonText?: string;
     description: string;
     key: string | number;
-    Icon: SvgComponent | null | undefined;
+    Icon?: SvgComponent | null | undefined;
     id?: string;
     onClick?: (event: React.MouseEvent<HTMLDivElement, MouseEvent>) => unknown;
+    size?: TIDCardSize;
     title: string;
     warning?: string;
 }
