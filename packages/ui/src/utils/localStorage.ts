@@ -38,18 +38,19 @@ export type ThemeType = "light" | "dark";
 
 type SimpleStoragePayloads = {
     CreateOrder: string[],
-    Preferences: CookiePreferences,
-    Theme: ThemeType,
-    FontSize: number,
-    Language: string,
-    LastTab: string | null,
-    IsLeftHanded: boolean,
     FocusModeActive: ActiveFocusMode | null,
     FocusModeAll: FocusMode[],
+    FontSize: number,
+    IsLeftHanded: boolean,
+    Language: string,
+    LastTab: string | null,
+    Preferences: CookiePreferences,
     RichInputToolbarViewSize: RichInputToolbarViewSize,
     ShowBotWarning: boolean,
     ShowMarkdown: boolean,
     SideMenuState: boolean,
+    SingleStepRoutineOrder: string[],
+    Theme: ThemeType,
 }
 type SimpleStorageType = keyof SimpleStoragePayloads;
 
@@ -162,6 +163,11 @@ export const cookies: { [T in SimpleStorageType]: SimpleStorageInfo<T> } = {
         __type: "strictlyNecessary",
         check: (value) => typeof value === "boolean",
         fallback: false,
+    },
+    SingleStepRoutineOrder: {
+        __type: "functional",
+        check: (value) => Array.isArray(value) && value.every(v => typeof v === "string"),
+        fallback: [],
     },
     Theme: {
         __type: "functional",
