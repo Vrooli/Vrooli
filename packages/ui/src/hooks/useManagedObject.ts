@@ -1,29 +1,14 @@
-import {
-    DUMMY_ID,
-    FindByIdInput,
-    FindByIdOrHandleInput,
-    FindVersionInput,
-    GqlModelType,
-    ParseSearchParamsResult,
-    YouInflated,
-    exists,
-    isEqual,
-    parseSearchParams,
-} from "@local/shared";
+import { DUMMY_ID, FindByIdInput, FindByIdOrHandleInput, FindVersionInput, GqlModelType, ParseSearchParamsResult, YouInflated, exists, isEqual, parseSearchParams } from "@local/shared";
 import { ServerResponseParser } from "api/responseParser";
 import { FetchInputOptions } from "api/types";
 import { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "route";
 import { PartialWithType } from "types";
 import { defaultYou, getYou } from "utils/display/listTools";
-import {
-    getCookieFormData,
-    getCookiePartialData,
-    removeCookiePartialData,
-    setCookiePartialData,
-} from "utils/localStorage";
+import { getCookiePartialData, removeCookiePartialData, setCookiePartialData } from "utils/localStorage";
 import { UrlInfo, parseSingleItemUrl } from "utils/navigation/urlTools";
 import { PubSub } from "utils/pubsub";
+import { useFormCacheStore } from "./forms";
 import { useLazyFetch } from "./useLazyFetch";
 
 type UrlObject = { __typename: GqlModelType | `${GqlModelType}`; id?: string };
@@ -98,6 +83,8 @@ export function useManagedObject<
     const onInvalidUrlParamsRef = useRef(onInvalidUrlParams);
     const transformRef = useRef(transform);
 
+    const getFormCacheData = useFormCacheStore(state => state.getCacheData);
+
     // Initialize fetch function
     const [fetchData, fetchResult] = useLazyFetch<FetchInput, PData>({ endpoint });
 
@@ -108,6 +95,7 @@ export function useManagedObject<
         storedFormData,
     } = initializeObjectState<PData, TData, TFunc>({
         disabled,
+        getFormCacheData,
         isCreate,
         objectType,
         overrideObject,
@@ -188,6 +176,7 @@ export function initializeObjectState<
     TFunc extends (data: Partial<PData>) => TData
 >({
     disabled,
+    getFormCacheData,
     isCreate,
     objectType,
     overrideObject,
@@ -195,6 +184,7 @@ export function initializeObjectState<
     urlParams,
 }: {
     disabled: boolean;
+    getFormCacheData: ((objectType: GqlModelType | `${GqlModelType}`, id: string) => object | null),
     isCreate: boolean;
     objectType: GqlModelType | `${GqlModelType}`;
     overrideObject?: Partial<PData>;
@@ -220,7 +210,8 @@ export function initializeObjectState<
     const transformedData = applyDataTransform(cachedData, transform);
 
     // **Priority 4: Stored Form Data**
-    const storedFormData = getStoredFormData<PData>({ objectType, isCreate, urlParams });
+    const objectId = isCreate ? DUMMY_ID : urlParams.id;
+    const storedFormData = objectId ? getFormCacheData(objectType, objectId) as PData : undefined;
     if (storedFormData) {
         if (isCreate) {
             return { initialObject: applyDataTransform(storedFormData, transform), hasStoredFormDataConflict: false };
@@ -332,23 +323,6 @@ type GetCachedDataProps = {
  */
 export function getCachedData<PData extends UrlObject>({ objectType, urlParams }: GetCachedDataProps): Partial<PData> | null {
     return getCookiePartialData<PartialWithType<PData>>({ __typename: objectType, ...urlParams });
-}
-
-/**
- * Retrieves stored form data if available.
- */
-export function getStoredFormData<PData extends UrlObject>({
-    objectType,
-    isCreate,
-    urlParams,
-}: {
-    objectType: GqlModelType | `${GqlModelType}`;
-    isCreate: boolean;
-    urlParams: UrlInfo;
-}): Partial<PData> | undefined {
-    const objectId = isCreate ? DUMMY_ID : urlParams.id;
-    if (!objectId) return undefined;
-    return getCookieFormData(objectType, objectId) as Partial<PData> | undefined;
 }
 
 /**
