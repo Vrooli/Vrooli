@@ -910,6 +910,7 @@ describe("RunStepNavigator", () => {
                                 ],
                                 nodeLinks: [],
                                 routineVersionId: "multiRoutine123",
+                                startNodeIndexes: [],
                             },
                         ],
                     },
@@ -925,6 +926,7 @@ describe("RunStepNavigator", () => {
                 ],
                 nodeLinks: [],
                 routineVersionId: "rootRoutine",
+                startNodeIndexes: [0],
             };
             const result1 = new RunStepNavigator(logger).stepFromLocation([1], rootStep);
             expect(result1).toEqual(rootStep);
@@ -1104,6 +1106,7 @@ describe("RunStepNavigator", () => {
                                 ],
                                 nodeLinks: [],
                                 routineVersionId: "multiRoutine123",
+                                startNodeIndexes: [],
                             },
                         ],
                     },
@@ -1121,6 +1124,7 @@ describe("RunStepNavigator", () => {
                 ],
                 nodeLinks: [],
                 routineVersionId: "rootRoutine",
+                startNodeIndexes: [0],
             };
             // Root step to first node
             expect(new RunStepNavigator(logger).getNextLocation([1], rootStep)).toEqual([1, 1]);
@@ -1272,6 +1276,7 @@ describe("RunStepNavigator", () => {
                                 ],
                                 nodeLinks: [],
                                 routineVersionId: "multiRoutine123",
+                                startNodeIndexes: [],
                             },
                         ],
                     },
@@ -1287,6 +1292,7 @@ describe("RunStepNavigator", () => {
                 ],
                 nodeLinks: [],
                 routineVersionId: "rootRoutine",
+                startNodeIndexes: [0],
             };
             // To `nextLocation`
             expect(new RunStepNavigator(logger).getNextLocation([1, 1], rootStep)).toEqual([1, 2]);
@@ -1545,6 +1551,7 @@ describe("RunStepNavigator", () => {
                     },
                 ],
                 nodeLinks: [],
+                startNodeIndexes: [0],
             };
 
             const result = new RunStepNavigator(logger).findStep(rootStep, step => step.name === "Target");
@@ -1620,6 +1627,7 @@ describe("RunStepNavigator", () => {
                 routineVersionId: "emptyMultiRoutine123",
                 nodes: [],
                 nodeLinks: [],
+                startNodeIndexes: [],
             };
 
             expect(new RunStepNavigator(logger).findStep(emptyDirectory, () => true)).toEqual(emptyDirectory);
@@ -1951,6 +1959,7 @@ describe("getStepComplexity", () => {
             ],
             nodeLinks: [],
             routineVersionId: "1",
+            startNodeIndexes: [0],
         };
         expect(getStepComplexity(multiRoutineStep, console)).toBe(11);
     });
@@ -2084,6 +2093,7 @@ describe("getStepComplexity", () => {
                                     ],
                                     nodeLinks: [],
                                     routineVersionId: "multiRoutine123",
+                                    startNodeIndexes: [],
                                 },
                             ],
                         },
@@ -2099,6 +2109,7 @@ describe("getStepComplexity", () => {
                     ],
                     nodeLinks: [],
                     routineVersionId: "rootRoutine",
+                    startNodeIndexes: [0],
                 },
             ],
         };
@@ -2495,6 +2506,7 @@ describe("RunStepBuilder", () => {
                     nodeId: routineVersion.nodes[2].id,
                     wasSuccessful: true,
                 }],
+                startNodeIndexes: [0],
             });
         });
 
@@ -2559,7 +2571,7 @@ describe("RunStepBuilder", () => {
     });
 
     describe("multiRoutineToStep", () => {
-        it("should convert a RoutineVersion to a MultiRoutineStep", () => {
+        it("Single swim lane (one start node)", () => {
             const startId = uuid();
             const routineListId = uuid();
             const endId = uuid();
@@ -2717,6 +2729,187 @@ describe("RunStepBuilder", () => {
                     nodeId: routineVersion.nodes[2].id,
                     wasSuccessful: true,
                 }],
+                startNodeIndexes: [0],
+            });
+        });
+        it("Multiple swim lanes (two start nodes)", () => {
+            // Generate unique IDs
+            const startId1 = uuid();
+            const routineListId1 = uuid();
+            const endId1 = uuid();
+
+            const startId2 = uuid();
+            const endId2 = uuid();
+
+            // Construct a routineVersion representing two separate lanes:
+            // Lane 1: Start (startId1) -> RoutineList (routineListId1) -> End (endId1)
+            // Lane 2: Start (startId2) -> End (endId2)
+            const routineVersion: RunnableRoutineVersion = {
+                __typename: "RoutineVersion",
+                id: uuid(),
+                created_at: new Date().toISOString(),
+                complexity: 2,
+                configCallData: "{}",
+                configFormInput: "{}",
+                configFormOutput: "{}",
+                inputs: [],
+                nodeLinks: [
+                    {
+                        __typename: "NodeLink",
+                        id: uuid(),
+                        from: { id: startId1 },
+                        to: { id: routineListId1 },
+                    } as NodeLink,
+                    {
+                        __typename: "NodeLink",
+                        id: uuid(),
+                        from: { id: routineListId1 },
+                        to: { id: endId1 },
+                    } as NodeLink,
+                    {
+                        __typename: "NodeLink",
+                        id: uuid(),
+                        from: { id: startId2 },
+                        to: { id: endId2 },
+                    } as NodeLink,
+                ],
+                nodes: [
+                    {
+                        __typename: "Node",
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        id: startId1,
+                        columnIndex: 0,
+                        rowIndex: 0,
+                        nodeType: NodeType.Start,
+                    } as Node,
+                    {
+                        __typename: "Node",
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        id: routineListId1,
+                        columnIndex: 1,
+                        rowIndex: 0,
+                        nodeType: NodeType.RoutineList,
+                        routineList: {
+                            __typename: "NodeRoutineList",
+                            id: uuid(),
+                            isOptional: true,
+                            isOrdered: false,
+                            items: [
+                                {
+                                    __typename: "NodeRoutineListItem",
+                                    id: uuid(),
+                                    index: 0,
+                                    routineVersion: {
+                                        __typename: "RoutineVersion",
+                                        id: uuid(),
+                                        complexity: 3,
+                                    },
+                                },
+                            ],
+                        },
+                    } as Node,
+                    {
+                        __typename: "Node",
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        id: endId1,
+                        columnIndex: 2,
+                        rowIndex: 0,
+                        nodeType: NodeType.End,
+                        end: {
+                            __typename: "NodeEnd",
+                            id: uuid(),
+                            wasSuccessful: true,
+                        },
+                    } as Node,
+
+                    // Second lane's nodes
+                    {
+                        __typename: "Node",
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        id: startId2,
+                        columnIndex: 0,
+                        rowIndex: 1,
+                        nodeType: NodeType.Start,
+                    } as Node,
+                    {
+                        __typename: "Node",
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        id: endId2,
+                        columnIndex: 1,
+                        rowIndex: 1,
+                        nodeType: NodeType.End,
+                        end: {
+                            __typename: "NodeEnd",
+                            id: uuid(),
+                            wasSuccessful: false,
+                        },
+                    } as Node,
+                ],
+                outputs: [],
+                root: {
+                    __typename: "Routine",
+                    id: uuid(),
+                } as Routine,
+                routineType: RoutineType.MultiStep, // Important: multi-step routine
+                translations: [{
+                    __typename: "RoutineVersionTranslation",
+                    id: uuid(),
+                    language: "en",
+                    name: "multi-lane routine",
+                    description: "A routine with multiple start nodes",
+                }],
+                versionLabel: "1.0.0",
+                you: {} as RoutineVersionYou,
+            };
+
+            const result = new RunStepBuilder(languages, logger).multiRoutineToStep(routineVersion, [1, 2]);
+
+            // We expect two start nodes. Each will yield a separate subtree in the final nodes array.
+            // The first start node encountered will have startNodeIndexes[0] = 0 (the first node in result.nodes)
+            // The second start node encountered will be appended after the first lane's nodes have been processed.
+            // Since lane 1 has 3 steps: Start, RoutineList, End => indexes: 0,1,2
+            // Lane 2 will start at index 3.
+
+            expect(result).toBeTruthy();
+            expect(result!.__type).toBe(RunStepType.MultiRoutine);
+            expect(result!.startNodeIndexes).toEqual([0, 3]); // Lane 1 starts at nodes[0], Lane 2 at nodes[3]
+
+            expect(result!.nodes.length).toBe(5);
+
+            // Lane 1 steps:
+            // 0: Start
+            expect(result!.nodes[0]).toMatchObject({
+                __type: RunStepType.Start,
+                nodeId: startId1,
+            });
+            // 1: RoutineList
+            expect(result!.nodes[1]).toMatchObject({
+                __type: RunStepType.RoutineList,
+                nodeId: routineListId1,
+            });
+            // 2: End
+            expect(result!.nodes[2]).toMatchObject({
+                __type: RunStepType.End,
+                nodeId: endId1,
+                wasSuccessful: true,
+            });
+
+            // Lane 2 steps:
+            // 3: Start
+            expect(result!.nodes[3]).toMatchObject({
+                __type: RunStepType.Start,
+                nodeId: startId2,
+            });
+            // 4: End
+            expect(result!.nodes[4]).toMatchObject({
+                __type: RunStepType.End,
+                nodeId: endId2,
+                wasSuccessful: false,
             });
         });
     });
@@ -2731,6 +2924,7 @@ describe("RunStepBuilder", () => {
                 routineVersionId: uuid(),
                 nodeLinks: [],
                 nodes: [],
+                startNodeIndexes: [],
             } as MultiRoutineStep;
             const result = new RunStepBuilder(languages, logger).addSubroutinesToStep([], rootStep);
             expect(result).toEqual(rootStep);
@@ -2782,6 +2976,7 @@ describe("RunStepBuilder", () => {
                         }],
                         nodeLinks: [],
                         routineVersionId: "level2Routine",
+                        startNodeIndexes: [],
                     }],
                 }, {
                     __type: RunStepType.End,
@@ -2794,6 +2989,7 @@ describe("RunStepBuilder", () => {
                 }],
                 nodeLinks: [],
                 routineVersionId: "rootRoutine",
+                startNodeIndexes: [0],
             };
             const subroutines: RunnableRoutineVersion[] = [{
                 __typename: "RoutineVersion",
@@ -2841,6 +3037,7 @@ describe("RunStepBuilder", () => {
                                 nodeLinks: [],
                                 nodes: [],
                                 routineVersionId: "deepRoutineVersion",
+                                startNodeIndexes: [],
                             }],
                         }],
                     }],
@@ -3150,7 +3347,8 @@ describe("RunStepBuilder", () => {
             ];
             const nodeLinks = [] as NodeLink[];
             const result = new RunStepBuilder(languages, logger).sortStepsAndAddDecisions(steps, nodeLinks);
-            expect(result).toEqual(steps); // Result should be unchanged
+            expect(result.sorted).toEqual(steps); // Result should be unchanged
+            expect(result.startNodeIndexes).toEqual([]); // No start node
         });
 
         it("should sort steps in correct order for a linear path", () => {
@@ -3182,7 +3380,8 @@ describe("RunStepBuilder", () => {
                 { from: { id: "2" }, to: { id: "3" } },
             ] as NodeLink[];
             const result = new RunStepBuilder(languages, logger).sortStepsAndAddDecisions(steps, nodeLinks);
-            expect(result.map(step => (step as { nodeId: string | null }).nodeId)).toEqual(["1", "2", "3"]);
+            expect(result.sorted.map(step => (step as { nodeId: string | null }).nodeId)).toEqual(["1", "2", "3"]);
+            expect(result.startNodeIndexes).toEqual([0]);
         });
 
         it("should add a decision step when there are multiple outgoing links", () => {
@@ -3227,8 +3426,9 @@ describe("RunStepBuilder", () => {
                 { from: { id: "3" }, to: { id: "4" } },
             ] as NodeLink[];
             const result = new RunStepBuilder(languages, logger).sortStepsAndAddDecisions(steps, nodeLinks);
-            expectValidStepSequence(result, nodeLinks);
-            expect(result.length).toBe(steps.length + 1); // One decision step
+            expectValidStepSequence(result.sorted, nodeLinks);
+            expect(result.sorted.length).toBe(steps.length + 1); // One decision step
+            expect(result.startNodeIndexes).toEqual([0]);
         });
 
         it("should handle cycles in the graph", () => {
@@ -3285,8 +3485,9 @@ describe("RunStepBuilder", () => {
                 { from: { id: "4" }, to: { id: "2" } },
             ] as NodeLink[];
             const result = new RunStepBuilder(languages, logger).sortStepsAndAddDecisions(steps, nodeLinks);
-            expectValidStepSequence(result, nodeLinks);
-            expect(result.length).toBe(steps.length + 1); // One decision step
+            expectValidStepSequence(result.sorted, nodeLinks);
+            expect(result.sorted.length).toBe(steps.length + 1); // One decision step
+            expect(result.startNodeIndexes).toEqual([0]);
         });
 
         it("should handle complex graphs with multiple decision points", () => {
@@ -3363,8 +3564,9 @@ describe("RunStepBuilder", () => {
                 { from: { id: "6" }, to: { id: "7" } },
             ] as NodeLink[];
             const result = new RunStepBuilder(languages, logger).sortStepsAndAddDecisions(steps, nodeLinks);
-            expectValidStepSequence(result, nodeLinks);
-            expect(result.length).toBe(steps.length + 4); // Four decision steps
+            expectValidStepSequence(result.sorted, nodeLinks);
+            expect(result.sorted.length).toBe(steps.length + 4); // Four decision steps
+            expect(result.startNodeIndexes).toEqual([0]);
         });
 
         it("should ignore unlinked steps", () => {
@@ -3408,7 +3610,8 @@ describe("RunStepBuilder", () => {
                 // Second RoutineList has no links
             ] as NodeLink[];
             const result = new RunStepBuilder(languages, logger).sortStepsAndAddDecisions(steps, nodeLinks);
-            expect(result.map(step => (step as { nodeId: string | null }).nodeId)).toEqual(["1", "2", "3"]);
+            expect(result.sorted.map(step => (step as { nodeId: string | null }).nodeId)).toEqual(["1", "2", "3"]);
+            expect(result.startNodeIndexes).toEqual([0]);
         });
 
         it("should update the location of steps within a RoutineListStep", () => {
@@ -3456,9 +3659,10 @@ describe("RunStepBuilder", () => {
                 { from: { id: "2" }, to: { id: "3" } },
             ] as NodeLink[];
             const result = new RunStepBuilder(languages, logger).sortStepsAndAddDecisions(steps, nodeLinks);
-            const routineListStep = result.find(step => step.__type === RunStepType.RoutineList) as RoutineListStep;
+            const routineListStep = result.sorted.find(step => step.__type === RunStepType.RoutineList) as RoutineListStep;
             expect(routineListStep.steps[0].location).toEqual([...routineListStep.location, 1]);
             expect(routineListStep.steps[1].location).toEqual([...routineListStep.location, 2]);
+            expect(result.startNodeIndexes).toEqual([0]);
         });
     });
 
@@ -3520,6 +3724,7 @@ describe("RunStepBuilder", () => {
                 nodes: [],
                 nodeLinks: [],
                 routineVersionId: "routineVersion999",
+                startNodeIndexes: [],
             };
             const mockRootStep: MultiRoutineStep = {
                 __type: RunStepType.MultiRoutine,
@@ -3560,6 +3765,7 @@ describe("RunStepBuilder", () => {
                 }],
                 nodeLinks: [],
                 routineVersionId: "routineVersion123",
+                startNodeIndexes: [0],
             };
             const result = new RunStepBuilder(languages, logger).insertStep(mockStepData, mockRootStep);
             expect(((result as MultiRoutineStep).nodes[1] as RoutineListStep).steps[0]).toEqual({ ...mockStepData, location: [1, 2, 1] });
@@ -3574,6 +3780,7 @@ describe("RunStepBuilder", () => {
                 nodes: [],
                 nodeLinks: [],
                 routineVersionId: "routineVersion999",
+                startNodeIndexes: [],
             };
             const mockRootStep: SingleRoutineStep = {
                 __type: RunStepType.SingleRoutine,
@@ -3661,6 +3868,7 @@ describe("RunStepBuilder", () => {
                 nodes: [],
                 nodeLinks: [],
                 routineVersionId: "deepRoutineVersion",
+                startNodeIndexes: [],
             };
 
             const mockRootStep: MultiRoutineStep = {
@@ -3708,6 +3916,7 @@ describe("RunStepBuilder", () => {
                         }],
                         nodeLinks: [],
                         routineVersionId: "level2Routine",
+                        startNodeIndexes: [],
                     }],
                 }, {
                     __type: RunStepType.End,
@@ -3720,6 +3929,7 @@ describe("RunStepBuilder", () => {
                 }],
                 nodeLinks: [],
                 routineVersionId: "rootRoutine",
+                startNodeIndexes: [0],
             };
 
             const result = new RunStepBuilder(languages, logger).insertStep(mockStepData, mockRootStep);
@@ -3737,6 +3947,7 @@ describe("RunStepBuilder", () => {
                 nodes: [],
                 nodeLinks: [],
                 routineVersionId: "nonMatchingRoutineVersion",
+                startNodeIndexes: [],
             };
 
             const mockRootStep: MultiRoutineStep = {
@@ -3770,6 +3981,7 @@ describe("RunStepBuilder", () => {
                 }],
                 nodeLinks: [],
                 routineVersionId: "rootRoutine",
+                startNodeIndexes: [0],
             };
 
             const result = new RunStepBuilder(languages, logger).insertStep(mockStepData, mockRootStep);

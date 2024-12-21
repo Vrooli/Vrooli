@@ -60,7 +60,8 @@ export type FindObjectType = |
     "Prompt" |
     "Question" |
     "Reminder" |
-    "Routine" |
+    "RoutineMultiStep" |
+    "RoutineSingleStep" |
     "RunProject" |
     "RunRoutine" |
     "SmartContract" |
@@ -109,7 +110,7 @@ export interface ListMenuItemData<T> {
     value: T;
 }
 export interface ListMenuProps<T> {
-    anchorEl: HTMLElement | null;
+    anchorEl: Element | null;
     data?: ListMenuItemData<T>[];
     id: string;
     onSelect: (value: T) => unknown;
@@ -160,8 +161,8 @@ export type ObjectActionDialogsProps = UseObjectActionsReturn & {
 
 export interface ObjectActionMenuProps {
     actionData: UseObjectActionsReturn;
-    anchorEl: HTMLElement | null;
-    exclude?: ObjectAction[];
+    anchorEl: Element | null;
+    exclude?: readonly ObjectAction[];
     object: ListObject | null | undefined;
     onClose: () => unknown;
 }
@@ -204,15 +205,6 @@ export interface SubroutineInfoDialogProps {
     isEditing: boolean;
     open: boolean;
     onClose: () => unknown;
-}
-
-export interface UnlinkedNodesDialogProps {
-    handleNodeDelete: (nodeId: string) => unknown;
-    /** Expand/shrink dialog */
-    handleToggleOpen: () => unknown;
-    language: string;
-    nodes: Node[];
-    open: boolean;
 }
 
 export interface RunStepsDialogProps {
@@ -285,7 +277,7 @@ export interface WalletSelectDialogProps {
 }
 
 export interface PopoverWithArrowProps extends Omit<PopoverProps, "open" | "sx"> {
-    anchorEl: HTMLElement | null;
+    anchorEl: Element | null;
     children: ReactNode;
     handleClose?: () => unknown;
     placement?: "auto" | "top" | "right" | "bottom" | "left";

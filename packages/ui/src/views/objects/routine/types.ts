@@ -1,32 +1,16 @@
 import { RoutineVersion, RoutineVersionShape } from "@local/shared";
-import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps, ViewProps } from "../../../types";
+import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps } from "../../../types";
 
-/** RoutineVersion with fields required for the build view */
-export type BuildRoutineVersion = Pick<RoutineVersion, "id" | "nodes" | "nodeLinks" | "translations">
+export type RoutineMultiStepCrudProps = CrudPropsPage;
 
-export type BuildViewProps = ViewProps & {
-    handleCancel: () => unknown;
-    handleSubmit: (updatedRoutineVersion: BuildRoutineVersion) => unknown;
-    isEditing: boolean;
-    loading: boolean;
-    routineVersion: BuildRoutineVersion;
-    translationData: {
-        language: string;
-        setLanguage: (language: string) => unknown;
-        handleAddLanguage: (language: string) => unknown;
-        handleDeleteLanguage: (language: string) => unknown;
-        languages: string[];
-    };
-};
-
-type RoutineUpsertPropsPage = CrudPropsPage & {
+type RoutineSingleStepUpsertPropsPage = CrudPropsPage & {
     isSubroutine?: boolean;
 }
-type RoutineUpsertPropsDialog = CrudPropsDialog<RoutineVersion> & {
+type RoutineSingleStepUpsertPropsDialog = CrudPropsDialog<RoutineVersion> & {
     isSubroutine?: boolean;
 };
-export type RoutineUpsertProps = RoutineUpsertPropsPage | RoutineUpsertPropsDialog;
-export type RoutineFormProps = FormProps<RoutineVersion, RoutineVersionShape> & Pick<RoutineUpsertProps, "isSubroutine"> & {
+export type RoutineSingleStepUpsertProps = RoutineSingleStepUpsertPropsPage | RoutineSingleStepUpsertPropsDialog;
+export type RoutineSingleStepFormProps = FormProps<RoutineVersion, RoutineVersionShape> & Pick<RoutineSingleStepUpsertProps, "isSubroutine"> & {
     versions: string[];
 }
-export type RoutineViewProps = ObjectViewProps<RoutineVersion>
+export type RoutineSingleStepViewProps = ObjectViewProps<RoutineVersion>

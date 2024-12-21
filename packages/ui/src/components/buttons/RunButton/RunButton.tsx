@@ -1,36 +1,27 @@
-import { HistoryPageTabOption, LINKS, ListObject, ProjectVersion, ProjectVersionTranslation, RoutineVersion, RoutineVersionTranslation, RunProject, RunProjectCreateInput, RunRoutine, RunRoutineCreateInput, RunStatus, Status, base36ToUuid, camelCase, endpointPostRunProject, endpointPostRunRoutine, funcFalse, getTranslation, isOfType, noop, parseSearchParams, projectVersionStatus, routineVersionStatus, uuid, uuidToBase36, uuidValidate } from "@local/shared";
+import { HistoryPageTabOption, LINKS, ListObject, ProjectVersionTranslation, RoutineType, RoutineVersionTranslation, RunProject, RunRoutine, RunStatus, RunStepBuilder, RunViewSearchParams, Status, camelCase, funcFalse, getTranslation, isOfType, noop, projectVersionStatus, routineVersionStatusMultiStep } from "@local/shared";
 import { Box, Button, Menu, Tooltip, styled, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { MenuTitle } from "components/dialogs/MenuTitle/MenuTitle";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { ObjectListActions } from "components/lists/types";
 import { SessionContext } from "contexts";
+import { useUpsertRunProject, useUpsertRunRoutine } from "hooks/runs";
 import { useFindMany } from "hooks/useFindMany";
-import { useLazyFetch } from "hooks/useLazyFetch";
 import { usePopover } from "hooks/usePopover";
 import { ArrowRightIcon, PlayIcon } from "icons";
-import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { setSearchParams, useLocation } from "route";
+import { useLocation } from "route";
 import { SideActionsButton } from "styles";
 import { ArgsType } from "types";
 import { getDummyListLength } from "utils/consts";
 import { getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
-import { RunView } from "views/runs/RunView/RunView";
+import { ROOT_LOCATION, createRunPath } from "views/runs/RunView/RunView";
 import { RunButtonProps } from "../types";
 
 const emptyArray = [];
-
-function getRunIdFromUrl(): string | null {
-    const searchParams = parseSearchParams();
-    if (!searchParams.run || typeof searchParams.run !== "string") return null;
-    const runId = searchParams.run === "test" ? "test" : base36ToUuid(searchParams.run);
-    if (runId === "test" || uuidValidate(runId)) return runId;
-    return null;
-}
 
 const titleId = "run-picker-dialog-title";
 const anchorOrigin = {
@@ -43,13 +34,12 @@ const transformOrigin = {
 } as const;
 
 export interface RunPickerMenuProps {
-    anchorEl: HTMLElement | null;
+    anchorEl: Element | null;
     handleClose: () => unknown;
     objectId: string | null;
     objectName: string | null;
     objectType: "ProjectVersion" | "RoutineVersion";
     onSelect: (run: RunProject | RunRoutine | null) => unknown;
-    runnableObject?: Partial<RoutineVersion | ProjectVersion> | null;
 }
 
 const RunMenu = styled(Menu)(({ theme }) => ({
@@ -96,10 +86,6 @@ export function RunPickerMenu({
     const lastRunSelected = useRef<string | null>(null);
     const where = useMemo(function whereMemo() {
         const result: object = {};
-        const runId = getRunIdFromUrl();
-        if (runId) {
-            result["ids"] = [runId];
-        }
         if (objectId) {
             result[`${camelCase(objectType)}Id`] = objectId;
         }
@@ -116,27 +102,16 @@ export function RunPickerMenu({
         where,
     });
 
-    // If runId is in the URL, select that run automatically
-    useEffect(function selectRunFromUrl() {
-        if (allData.length === 0) return;
-        const runId = getRunIdFromUrl();
-        const run = allData.find(run => run.id === runId);
-        if (run && run.id !== lastRunSelected.current) {
-            lastRunSelected.current = run.id ?? null;
-            onSelect(run as RunProject | RunRoutine);
-            handleClose();
-        }
-    }, [allData, onSelect, handleClose]);
+    const { createRun: createRunProject } = useUpsertRunProject();
+    const { createRun: createRunRoutine } = useUpsertRunRoutine();
 
-    const [createRunProject] = useLazyFetch<RunProjectCreateInput, RunProject>(endpointPostRunProject);
-    const [createRunRoutine] = useLazyFetch<RunRoutineCreateInput, RunRoutine>(endpointPostRunRoutine);
     const createNewRun = useCallback(() => {
         if (!objectId) {
             PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });
             return;
         }
 
-        function handleSuccess(data: RunProject | RunRoutine) {
+        function onSuccess(data: RunProject | RunRoutine) {
             lastRunSelected.current = data.id;
             setAllData(list => [data, ...list]);
             onSelect(data);
@@ -144,45 +119,23 @@ export function RunPickerMenu({
         }
 
         if (objectType === "ProjectVersion") {
-            fetchLazyWrapper<RunProjectCreateInput, RunProject>({
-                fetch: createRunProject,
-                inputs: {
-                    id: uuid(),
-                    isPrivate: true,
-                    name: objectName ?? "Unnamed Project",
-                    projectVersionConnect: objectId,
-                    status: RunStatus.InProgress,
-                },
-                successCondition: (data) => data !== null,
-                onSuccess: handleSuccess,
-                errorMessage: () => ({ messageKey: "FailedToCreateRun" }),
-            });
+            createRunProject({ objectId, objectName, onSuccess });
         }
         else {
-            fetchLazyWrapper<RunRoutineCreateInput, RunRoutine>({
-                fetch: createRunRoutine,
-                inputs: {
-                    id: uuid(),
-                    isPrivate: true,
-                    name: objectName ?? "Unnamed Routine",
-                    routineVersionConnect: objectId,
-                    status: RunStatus.InProgress,
-                },
-                successCondition: (data) => data !== null,
-                onSuccess: handleSuccess,
-                errorMessage: () => ({ messageKey: "FailedToCreateRun" }),
-            });
+            createRunRoutine({ objectId, objectName, onSuccess });
         }
     }, [handleClose, onSelect, setAllData, createRunProject, createRunRoutine, objectId, objectName, objectType]);
 
-    useEffect(() => {
+    useEffect(function checkLoggedIn() {
         if (!open) return;
         // If not logged in, open without creating a new run
         if (session?.isLoggedIn !== true) {
+            console.warn("User not logged in. Cannot create new run");
+            console.log("session", session);
             onSelect(null);
             handleClose();
         }
-    }, [open, createNewRun, onSelect, session?.isLoggedIn, handleClose]);
+    }, [open, createNewRun, onSelect, session, handleClose]);
 
     const handleOpen = useCallback(function selectItem(data: ListObject) {
         onSelect(data as RunProject | RunRoutine);
@@ -270,6 +223,7 @@ export function RunButton({
     runnableObject,
 }: RunButtonProps) {
     const session = useContext(SessionContext);
+    const languages = useMemo(() => getUserLanguages(session), [session]);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -281,48 +235,45 @@ export function RunButton({
         }
         if (isOfType(runnableObject, "RoutineVersion")) {
             const routineType = runnableObject.routineType;
-            if (!routineType) return Status.Invalid;
-            return routineVersionStatus(routineType, runnableObject).status;
+            if (!routineType || routineType !== RoutineType.MultiStep) return Status.Invalid;
+            const rootStep = new RunStepBuilder(languages, console).runnableObjectToStep(runnableObject, [...ROOT_LOCATION]);
+            const { messages } = routineVersionStatusMultiStep(runnableObject, rootStep);
+            if (messages.some(({ status }) => status === Status.Incomplete)) return Status.Incomplete;
+            if (messages.some(({ status }) => status === Status.Invalid)) return Status.Invalid;
+            return Status.Valid;
         }
         return Status.Invalid;
-    }, [runnableObject]);
+    }, [languages, runnableObject]);
 
-    const [isRunOpen, setIsRunOpen] = useState(() => {
-        const params = parseSearchParams();
-        return typeof params.run === "string" && uuidValidate(params.run);
-    });
     const [selectRunAnchor, openSelectRunDialog, closeSelectRunDialog] = usePopover();
     const handleRunSelect = useCallback((run: RunProject | RunRoutine | null) => {
+        if (!runnableObject) return;
         // If run is null, it means the routine will be opened without a run
         if (!run) {
-            setSearchParams(setLocation, {
-                run: "test",
-                step: [1],
-            });
+            const searchParams: RunViewSearchParams = { step: [1] };
+            const path = createRunPath("test", runnableObject);
+            setLocation(path, { searchParams });
         }
         // Otherwise, open routine where last left off in run
         else {
-            setSearchParams(setLocation, {
-                run: uuidToBase36(run.id),
-                step: run.lastStep ?? undefined,
-            });
+            const searchParams: RunViewSearchParams = { step: run.lastStep ?? undefined };
+            const path = createRunPath(run.id, runnableObject);
+            setLocation(path, { searchParams });
         }
-        setIsRunOpen(true);
-    }, [setLocation]);
+    }, [runnableObject, setLocation]);
 
     const startRun = useCallback((event: React.MouseEvent<HTMLElement>) => {
+        if (!runnableObject) return;
         // If editing, don't use a real run
         if (isEditing) {
-            setSearchParams(setLocation, {
-                run: "test",
-                step: [1],
-            });
-            setIsRunOpen(true);
+            const searchParams: RunViewSearchParams = { step: [1] };
+            const path = createRunPath("test", runnableObject);
+            setLocation(path, { searchParams });
         }
         else {
             openSelectRunDialog(event);
         }
-    }, [isEditing, openSelectRunDialog, setLocation]);
+    }, [isEditing, openSelectRunDialog, runnableObject, setLocation]);
 
     // Invalid message popup
     const [errorAnchorEl, openErrorPopup, closeErrorPopup] = usePopover();
@@ -353,11 +304,6 @@ export function RunButton({
         }
     }, [openError, startRun, status]);
 
-    const runStop = useCallback(function runStopCallback() {
-        setLocation(window.location.pathname, { replace: true });
-        setIsRunOpen(false);
-    }, [setLocation]);
-
     return (
         <>
             {/* Invalid routine popup */}
@@ -365,13 +311,6 @@ export function RunButton({
                 anchorEl={errorAnchorEl}
                 handleClose={closeErrorPopup}
             >{t("RoutineCannotRunInvalid", { ns: "error" })}</PopoverWithArrow>
-            {/* Run dialog */}
-            {runnableObject && <RunView
-                display="dialog"
-                isOpen={isRunOpen}
-                onClose={runStop}
-                runnableObject={runnableObject}
-            />}
             {/* Chooses which run to use */}
             <RunPickerMenu
                 anchorEl={selectRunAnchor}
@@ -380,7 +319,6 @@ export function RunButton({
                 objectName={getTranslation<ProjectVersionTranslation | RoutineVersionTranslation>(runnableObject, getUserLanguages(session)).name ?? null}
                 objectType={objectType}
                 onSelect={handleRunSelect}
-                runnableObject={runnableObject}
             />
             {/* Run button */}
             <Tooltip title="Run Routine" placement="top">

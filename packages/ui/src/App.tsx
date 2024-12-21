@@ -33,6 +33,7 @@ import { Routes } from "Routes";
 import { getSiteLanguage, guestSession } from "utils/authentication/session";
 import { LEFT_DRAWER_WIDTH, RIGHT_DRAWER_WIDTH } from "utils/consts";
 import { getDeviceInfo } from "utils/display/device";
+import { NODE_HIGHLIGHT_ERROR, NODE_HIGHLIGHT_SELECTED, NODE_HIGHLIGHT_WARNING, SEARCH_HIGHLIGHT_CURRENT, SEARCH_HIGHLIGHT_WRAPPER, SNACK_HIGHLIGHT, TUTORIAL_HIGHLIGHT } from "utils/display/documentTools";
 import { DEFAULT_THEME, themes } from "utils/display/theme";
 import { getCookie, getStorageItem, setCookie, ThemeType } from "utils/localStorage";
 import { CHAT_SIDE_MENU_ID, PopupImagePub, PopupVideoPub, PubSub, SIDE_MENU_ID } from "utils/pubsub";
@@ -83,19 +84,34 @@ function getGlobalStyles(theme: Theme) {
             listStyle: "circle",
         },
         // Search highlight classes
-        ".search-highlight": {
+        [`.${SEARCH_HIGHLIGHT_WRAPPER}`]: {
             backgroundColor: "#ff0",
             color: "#000",
         },
-        ".search-highlight-current": {
+        [`.${SEARCH_HIGHLIGHT_CURRENT}`]: {
             backgroundColor: "#3f0",
             color: "#000",
         },
-        ".tutorial-highlight": {
+        [`.${TUTORIAL_HIGHLIGHT}`]: {
             boxShadow: theme.palette.mode === "light"
                 ? "inset 0 0 5px #339358, 0 0 10px #009e15"
                 : "inset 0 0 5px #00cbff, 0 0 10px #00cbff",
             transition: "box-shadow 0.3s ease-in-out",
+        },
+        [`.${SNACK_HIGHLIGHT}`]: {
+            boxShadow: theme.palette.mode === "light"
+                ? "inset 0 0 3px #339358, 0 0 6px #009e15"
+                : "inset 0 0 3px #00cbff, 0 0 6px #00cbff",
+            transition: "box-shadow 0.2s ease-in-out",
+        },
+        [`.${NODE_HIGHLIGHT_ERROR}`]: {
+            boxShadow: "0 0 6px 2px #f00",
+        },
+        [`.${NODE_HIGHLIGHT_WARNING}`]: {
+            boxShadow: "0 0 6px 2px #ff0",
+        },
+        [`.${NODE_HIGHLIGHT_SELECTED}`]: {
+            boxShadow: `0 0 6px 2px ${theme.palette.primary.main}`,
         },
         // Add custom fonts
         "@font-face": [

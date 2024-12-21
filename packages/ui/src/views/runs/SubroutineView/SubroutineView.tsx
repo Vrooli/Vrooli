@@ -14,7 +14,7 @@ import { FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
 import { getDisplay } from "utils/display/listTools";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
-import { routineInitialValues } from "views/objects/routine";
+import { routineSingleStepInitialValues } from "views/objects/routine";
 import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineFormPropsBase, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "views/objects/routine/RoutineTypeForms/RoutineTypeForms";
 import { SubroutineViewProps } from "../types";
 
@@ -117,14 +117,14 @@ export function SubroutineView({
                 // NOTE: We don't display the multi-step form, as its data should be coverted into smaller steps
                 return null;
         }
-    }, [configCallData, handleGenerateOutputs, hasFormErrors, isGeneratingOutputs, isLoading, routineVersion, schemaInput, schemaOutput, session]);
+    }, [configCallData, handleGenerateOutputs, hasFormErrors, internalRoutineVersion, isGeneratingOutputs, isLoading, routineVersion, schemaInput, schemaOutput, session]);
 
     const inputValidationSchema = useMemo(function inputValidationSchemaMemo() {
         // TODO might need to do output validation as well
         return schemaInput ? generateYupSchema(schemaInput, "input") : undefined;
     }, [schemaInput]);
 
-    const initialValues = useMemo(() => routineInitialValues(session, internalRoutineVersion), [internalRoutineVersion, session]);
+    const initialValues = useMemo(() => routineSingleStepInitialValues(session, internalRoutineVersion), [internalRoutineVersion, session]);
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 

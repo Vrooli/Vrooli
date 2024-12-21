@@ -561,9 +561,9 @@ export type NodeTranslationShape = Pick<NodeTranslation, "id" | "language" | "de
 }
 export type NodeShape = Pick<Node, "id" | "columnIndex" | "rowIndex" | "nodeType"> & {
     __typename: "Node";
-    // loop?: LoopShape | null
-    end?: NodeEndShape | null;
-    routineList?: NodeRoutineListShape | null;
+    // loop?: Omit<LoopShape, "node"> | null
+    end?: Omit<NodeEndShape, "node"> | null;
+    routineList?: Omit<NodeRoutineListShape, "node"> | null;
     routineVersion: CanConnect<Omit<RoutineVersionShape, "nodes">>;
     translations: NodeTranslationShape[];
 }
@@ -660,7 +660,7 @@ export const shapeNodeLinkWhen: ShapeModel<NodeLinkWhenShape, NodeLinkWhenCreate
 
 export type NodeRoutineListShape = Pick<NodeRoutineList, "id" | "isOptional" | "isOrdered"> & {
     __typename: "NodeRoutineList";
-    items: NodeRoutineListItemShape[];
+    items: Omit<NodeRoutineListItemShape, "list">[];
     node: CanConnect<Omit<NodeShape, "routineList">>;
 }
 export const shapeNodeRoutineList: ShapeModel<NodeRoutineListShape, NodeRoutineListCreateInput, NodeRoutineListUpdateInput> = {
@@ -1236,8 +1236,8 @@ export type RoutineVersionShape = Pick<RoutineVersion, "id" | "configCallData" |
     codeVersion?: CanConnect<CodeVersionShape> | null;
     directoryListings?: CanConnect<ProjectVersionDirectoryShape>[] | null;
     inputs?: RoutineVersionInputShape[] | null;
-    nodes?: NodeShape[] | null;
-    nodeLinks?: NodeLinkShape[] | null;
+    nodes?: Omit<NodeShape, "routineVersion">[] | null;
+    nodeLinks?: Omit<NodeLinkShape, "routineVersion">[] | null;
     outputs?: RoutineVersionOutputShape[] | null;
     resourceList?: ResourceListShape | null;
     root?: CanConnect<RoutineShape> | null;

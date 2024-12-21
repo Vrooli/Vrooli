@@ -3,7 +3,7 @@ import { FieldHelperProps } from "formik";
 import { FormSchema } from "../../../../forms/types";
 import { RoutineVersionInputShape } from "../../../../utils/shape/models/routineVersionInput";
 import { RoutineVersionOutputShape } from "../../../../utils/shape/models/routineVersionOutput";
-import { UpdateSchemaElementsProps, updateSchemaElements } from "./RoutineUpsert";
+import { UpdateSchemaElementsProps, updateSchemaElements } from "./RoutineSingleStepUpsert";
 
 // Mock data
 const mockInputs: RoutineVersionInputShape[] = [

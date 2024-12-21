@@ -334,6 +334,13 @@ export interface MultiRoutineStep extends BaseStep {
     nodeLinks: NodeLink[],
     /** The ID of this routine version */
     routineVersionId: string,
+    /** 
+     * Indexes for each start node in the `nodes` array. 
+     * Each start node corresponds to a different tree/swimlane in the routine.
+     * 
+     * The list is ordered by the order the start nodes appear in the `nodes` array.
+     */
+    startNodeIndexes: number[],
 }
 export interface DirectoryStep extends BaseStep {
     __type: RunStepType.Directory,
@@ -672,48 +679,46 @@ export function routineVersionStatusMultiStep(
 
     const nodes = routineVersion?.nodes;
     const nodeLinks = routineVersion?.nodeLinks;
+
     if (!rootStep || !nodeLinks || !nodes) {
         messages.push({ message: "No node or link data found", status: Status.Invalid });
         return { messages, nodesOffGraph, nodesOnGraph };
     }
 
     const nodesById: { [id: string]: DefinedArrayElement<RoutineVersionShape["nodes"]> } = {};
-    // Loop through nodes and add to appropriate array (and also populate nodesById dictionary)
+    // Determine which nodes are represented in the graph structure
     for (const node of nodes) {
         // Check if node is in the graph
         const stepType = node.nodeType === NodeType.RoutineList ? RunStepType.RoutineList : RunStepType.End;
-        const isNodeInGraph = Boolean(new RunStepNavigator(console).findStep(rootStep, (step) => step.__type === stepType && step.nodeId === node.id));
+        const isNodeInGraph = Boolean(new RunStepNavigator(console).findStep(
+            rootStep,
+            (step) => step.__type === stepType && step.nodeId === node.id,
+        ));
         if (isNodeInGraph) {
             nodesOnGraph.push(node);
         } else {
             nodesOffGraph.push(node);
         }
-        // For routine lists, check if the list is empty
+
+        // Check if RoutineList node is empty
         if (node.nodeType === NodeType.RoutineList && !node.routineList?.items?.length) {
             const name = getTranslation(node, null, true).name;
             const message = name ? `Node "${name}" is empty` : "Node is empty";
             messages.push({ message, status: Status.Incomplete, nodeId: node.id });
         }
+
         nodesById[node.id] = node;
     }
-    // Now perform checks to see if the routine can be run
-    // 1. There is only one start node
-    // 2. There is only one linked node which has no incoming edges, and it is the start node
-    // 3. Every node that has no outgoing edges is an end node
-    // 4. There is at least one end node that's marked as a successful end
-    // 5. Validate loop TODO
-    // 6. Validate redirects TODO
-    // Check 1
+
+    // Validation Checks
+
+    // Check 1: Ensure at least one start node is present
     const startNodes = nodes.filter(node => node.nodeType === NodeType.Start);
     if (startNodes.length === 0) {
-        // statuses.push([Status.Invalid, "No start node found"]);
         messages.push({ message: "No start node found", status: Status.Invalid });
     }
-    else if (startNodes.length > 1) {
-        // statuses.push([Status.Invalid, "More than one start node found"]);
-        messages.push({ message: "More than one start node found", status: Status.Invalid });
-    }
-    // Check 2
+
+    // Check 2: Any node without incoming edges must be a start node
     const nodesWithoutIncomingEdges = nodesOnGraph.filter(node =>
         node.nodeType !== NodeType.Start &&
         nodeLinks.every(link => link.to.id !== node.id),
@@ -723,7 +728,8 @@ export function routineVersionStatusMultiStep(
         const message = name ? `Node "${name}" has no incoming links` : "Node has no incoming links";
         messages.push({ message, status: Status.Invalid, nodeId: node.id });
     }
-    // Check 3
+
+    // Check 3: Any node that has no outgoing edges but is not an end node is incomplete
     const nodesWithoutOutgoingEdges = nodesOnGraph.filter(node =>
         node.nodeType !== NodeType.End &&
         nodeLinks.every(link => link.from.id !== node.id),
@@ -733,27 +739,28 @@ export function routineVersionStatusMultiStep(
         const message = name ? `Node "${name}" has no outgoing links` : "Node has no outgoing links";
         messages.push({ message, status: Status.Incomplete, nodeId: node.id });
     }
-    // Check 4
+
+    // Check 4: At least one end node must be a successful end
     const allEndNodes = nodesOnGraph.filter(node => node.nodeType === NodeType.End);
     const unsuccessfulEndNodes = allEndNodes.filter(node => node?.end?.wasSuccessful !== true);
     if (unsuccessfulEndNodes.length >= allEndNodes.length) {
-        // statuses.push([Status.Invalid, "No successful end node(s) found"]);
         messages.push({ message: "No successful end node(s) found", status: Status.Invalid });
     }
-    // Performs checks which make the routine incomplete, but not invalid
-    // 1. There are unpositioned nodes
-    // 2. Every routine list has at least one subroutine
-    // Check 1
+
+    // Additional Incomplete Checks
+    // Check if there are unlinked nodes
     if (nodesOffGraph.length > 0) {
-        // statuses.push([Status.Incomplete, "Some nodes are not linked"]);
         messages.push({ message: "Some nodes are not linked", status: Status.Incomplete });
     }
-    // Add success message if no errors
+
+    // If no issues, the routine is fully connected and valid
     if (messages.length === 0) {
         messages.push({ message: "Routine is fully connected", status: Status.Valid });
     }
+
     return { messages, nodesOffGraph, nodesOnGraph };
 }
+
 
 type GetProjectVersionStatusResult = {
     status: Status;
@@ -844,7 +851,6 @@ export class RunStepBuilder {
         location: number[],
     ): RootStep | null {
         if (isOfType(runnableObject, "RoutineVersion")) {
-            console.log("qqqq in runnableObjectToStep", runnableObject);
             if (runnableObject.routineType === RoutineType.MultiStep) {
                 return this.multiRoutineToStep(runnableObject, [...location]);
             } else {
@@ -926,16 +932,20 @@ export class RunStepBuilder {
                     return null;
             }
         }).filter(Boolean) as UnsortedSteps;
+
+        const nodeLinks = routineVersion.nodeLinks || [];
         // Sort steps by visitation order and add DecisionSteps where needed
-        const sorted = this.sortStepsAndAddDecisions(unsorted, routineVersion.nodeLinks || []);
+        const { sorted, startNodeIndexes } = this.sortStepsAndAddDecisions(unsorted, nodeLinks);
+
         return {
             __type: RunStepType.MultiRoutine,
             description: getTranslation(routineVersion, this.languages, true).description || null,
             location: [...location],
             name: getTranslation(routineVersion, this.languages, true).name || "Untitled",
-            nodeLinks: routineVersion.nodeLinks || [],
+            nodeLinks,
             nodes: sorted,
             routineVersionId: routineVersion.id,
+            startNodeIndexes,
         };
     }
 
@@ -1129,44 +1139,46 @@ export class RunStepBuilder {
     }
 
     /**
-     * Traverses the routine graph using Depth-First Search (DFS) and sorts steps by visitation order. 
-     * Adds DecisionSteps where multiple outgoing links are found. These are used to move the run pointer 
-     * to a different part of the steps array, ensuring that we can handle multiple paths and cycles 
-     * when running the routine.
+     * Sorts steps and creates DecisionSteps where needed.
+     * We do this by:
+     * - Identifying all StartSteps as entry points.
+     * - Performing a Depth-First Search (DFS) from each StartStep in order, collecting visited steps.
+     * - Adding DecisionSteps where multiple outgoing links are found.
+     * - Returning a combined list of all steps and `startNodeIndexes`, which indicate where each swim lane begins.
+     * 
      * @param steps The nodes in the routine version, represented as steps
      * @param nodeLinks The links connecting the nodes in the routine graph.
-     * @returns An array of nodes sorted by the order they were visited.
+     * @returns An object containing the sorted steps and the indexes of the start nodes
      */
     public sortStepsAndAddDecisions(
         steps: UnsortedSteps,
         nodeLinks: NodeLink[],
-    ): SortedStepsWithDecisions {
-        const startStep = steps.find(step => step.__type === RunStepType.Start);
-        if (!startStep) {
-            this.logger.error("Routine does not have a StartStep. Cannot sort steps or generate DecisionSteps");
-            return steps;
+    ): { sorted: SortedStepsWithDecisions, startNodeIndexes: number[] } {
+        const startSteps = steps.filter(step => step.__type === RunStepType.Start) as StartStep[];
+
+        if (startSteps.length === 0) {
+            this.logger.error("Routine does not have any StartStep. Cannot sort steps or generate DecisionSteps");
+            return { sorted: steps, startNodeIndexes: [] };
         }
 
         const visited: { [nodeId: string]: boolean } = {};
         let lastEndLocation = 1;
-        const result: SortedStepsWithDecisions = [];
+        const result: (DecisionStep | EndStep | RoutineListStep | StartStep)[] = [];
+        const startNodeIndexes: number[] = [];
 
-        // Get all but the last element
-        const baseLocation = [...startStep.location].slice(0, -1);
+        // We'll use the location array based on the first start step's base location
+        // All steps will share the same baseLocation prefix.
+        // Just use the location from the first start step as a template:
+        const baseLocation = startSteps[0]!.location.slice(0, -1);
 
-        // Helper function to perform DFS
         function dfs(currentStep: StartStep | EndStep | RoutineListStep) {
             if (visited[currentStep.nodeId]) return;
 
-            // Mark the current step as visited
             visited[currentStep.nodeId] = true;
-            // Update location for the current step
             currentStep.location = [...baseLocation, lastEndLocation];
             lastEndLocation++;
 
-            // Get all outgoing links from the current step's node
             const outgoingLinks = nodeLinks.filter(link => link.from?.id === currentStep.nodeId);
-            // If there's one outgoing link, set the nextLocation to the next node's location
             if (outgoingLinks.length === 1 && outgoingLinks[0]!.to?.id) {
                 const nextNode = steps.find((step) => step.nodeId === outgoingLinks[0]!.to!.id);
                 if (nextNode) {
@@ -1174,25 +1186,20 @@ export class RunStepBuilder {
                         ? [...nextNode.location]
                         : [...baseLocation, lastEndLocation];
                 }
-            }
-            // If there are multiple outgoing links, set the nextLocation to the DecisionStep we're about to create
-            else if (outgoingLinks.length > 1) {
+            } else if (outgoingLinks.length > 1) {
                 currentStep.nextLocation = [...baseLocation, lastEndLocation];
             } else {
                 currentStep.nextLocation = null;
             }
 
-            // If the step is a RoutineListStep, update its steps' locations
             if (currentStep.__type === RunStepType.RoutineList) {
-                (currentStep as RoutineListStep).steps.forEach((step, index) => {
-                    step.location = [...currentStep.location, index + 1];
+                (currentStep as RoutineListStep).steps.forEach((subStep, index) => {
+                    subStep.location = [...currentStep.location, index + 1];
                 });
             }
 
-            // Add current step to result
             result.push(currentStep);
 
-            // If there is more than one outgoing link, generate a DecisionStep
             if (outgoingLinks.length > 1) {
                 const decisionStep: DecisionStep = {
                     __type: RunStepType.Decision,
@@ -1201,24 +1208,16 @@ export class RunStepBuilder {
                     name: "Decision",
                     options: outgoingLinks.map(link => {
                         const nextStep = steps.find(step => step.nodeId === link.to?.id);
-                        if (
-                            nextStep !== null &&
-                            nextStep !== undefined &&
-                            nextStep.__type !== RunStepType.Start
-                        ) {
-                            return {
-                                link,
-                                step: nextStep,
-                            } as DecisionStep["options"][0];
+                        if (nextStep && nextStep.__type !== RunStepType.Start) {
+                            return { link, step: nextStep } as DecisionStep["options"][0];
                         }
                         return null;
-                    }).filter(Boolean) as unknown as DecisionStep["options"],
+                    }).filter(Boolean) as DecisionStep["options"],
                 };
                 lastEndLocation++;
-                // Add DecisionStep to result
                 result.push(decisionStep);
             }
-            // Traverse all outgoing links
+
             outgoingLinks.forEach(link => {
                 const nextNode = steps.find(step => step.nodeId === link.to?.id);
                 if (nextNode) {
@@ -1227,10 +1226,14 @@ export class RunStepBuilder {
             });
         }
 
-        // Start DFS from the start node
-        dfs(startStep as StartStep);
+        // Run DFS for each start step in order
+        for (const startStep of startSteps) {
+            const laneStartIndex = result.length;
+            dfs(startStep);
+            startNodeIndexes.push(laneStartIndex);
+        }
 
-        return result;
+        return { sorted: result, startNodeIndexes };
     }
 
     /**
@@ -1374,7 +1377,6 @@ export class RunStepNavigator {
                 if (node) {
                     currentStep = node;
                 } else {
-                    console.log("qqqq step not found in multi routine", currentStep, index);
                     return null; // Node not found
                 }
             } else if (currentStep.__type === RunStepType.Decision) {
@@ -1384,7 +1386,6 @@ export class RunStepNavigator {
                     return null; // Invalid index
                 }
             } else {
-                console.log("qqqq step not found in other", currentStep, index);
                 return null; // Cannot navigate further
             }
         }
@@ -1485,32 +1486,55 @@ export class RunStepNavigator {
         const currentStep = this.stepFromLocation(location, rootStep);
         if (!currentStep) return null;
 
-        // If the first location points to a DecisionStep, return null. 
-        // DecisionSteps don't have a determined next step, since the user has to choose
-        const firstStep = this.stepFromLocation(currentLocation, rootStep);
-        if (firstStep?.__type === RunStepType.Decision) {
+        // If it's a DecisionStep, we must choose, so no automatic next location
+        if (currentStep?.__type === RunStepType.Decision) {
             return null;
         }
 
-        // Attempt to go to the first child if present
+        // Try first child
         const childLocation = [...location, 1];
         const childStep = this.stepFromLocation(childLocation, rootStep);
-        console.log("qqqq childStep", childStep, childLocation);
         if (childStep) return childLocation;
 
         // If the current step has a defined next location, return that location (even if it's null)
         if (Object.prototype.hasOwnProperty.call(currentStep, "nextLocation")) {
             const nextLocation = (currentStep as NodeStep).nextLocation;
-            console.log("qqqq defined nextLocation", nextLocation);
             if (nextLocation) return [...nextLocation];
         }
 
-        // Attempt to navigate to the next sibling if available
+        // Try first sibling
         const nextSiblingLocation = [...location];
         nextSiblingLocation[nextSiblingLocation.length - 1]++;
         const siblingStep = this.stepFromLocation(nextSiblingLocation, rootStep);
-        console.log("qqqq siblingStep", siblingStep, nextSiblingLocation);
         if (siblingStep) return nextSiblingLocation;
+
+        // Check if we're at the end of a swimlane in a multi-step routine
+        if (currentStep.__type === RunStepType.End && rootStep.__type === RunStepType.MultiRoutine) {
+            // Determine which lane we are currently in
+            const currentNodeIndex = rootStep.nodes.indexOf(currentStep);
+            if (currentNodeIndex !== -1) {
+                const laneIndex = rootStep.startNodeIndexes.findIndex(
+                    (startIdx, idx, arr) => {
+                        // A lane is defined by a range: from startNodeIndexes[i] to startNodeIndexes[i+1]-1 (or end of nodes)
+                        const start = startIdx;
+                        const end = (idx < arr.length - 1) ? arr[idx + 1]! - 1 : rootStep.nodes.length - 1;
+                        return currentNodeIndex >= start && currentNodeIndex <= end;
+                    },
+                );
+
+                if (laneIndex !== -1) {
+                    // If there's another lane after this one, jump to that lane's start node
+                    if (laneIndex < rootStep.startNodeIndexes.length - 1) {
+                        const nextLaneStartIndex = rootStep.startNodeIndexes[laneIndex + 1]!;
+                        // The start node of the next lane
+                        const nextLaneStartNode = rootStep.nodes[nextLaneStartIndex];
+                        if (nextLaneStartNode) {
+                            return [...nextLaneStartNode.location];
+                        }
+                    }
+                }
+            }
+        }
 
         // Start backtracking to find a valid next location from parents
         while (currentLocation.length > 0) {

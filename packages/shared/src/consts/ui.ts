@@ -5,18 +5,17 @@ export const LINKS = {
     Api: "/api",
     Awards: "/awards",
     BookmarkList: "/bookmarks",
-    Calendar: "/calendar",
+    Calendar: "/cal",
     Chat: "/chat",
-    ChatMessage: "/chat-message",
+    ChatMessage: "/message",
     Comment: "/comment",
     Create: "/create",
     DataConverter: "/code",
     DataStructure: "/ds",
-    Example: "/routine/5f0f8f9b-f8f9-4f9b-8f9b-f8f9b8f9b8f9", // Links to example routine that is designed to showcase the UI. See ID of routine set in init seed file
     ForgotPassword: "/auth/forgot-password",
     History: "/history",
     Home: "/", // Main dashboard for logged in users
-    Inbox: "/inbox",
+    Inbox: "/in",
     Issue: "/issue",
     Login: "/auth/login",
     MyStuff: "/my",
@@ -24,7 +23,7 @@ export const LINKS = {
     Post: "/post",
     Pro: "/pro",
     Privacy: "/privacy", // Privacy policy
-    Profile: "/profile",
+    Profile: "/u",
     Project: "/project",
     Prompt: "/prompt",
     Question: "/question",
@@ -33,7 +32,8 @@ export const LINKS = {
     Report: "/report",
     Reports: "/reports",
     ResetPassword: "/auth/password-reset",
-    Routine: "/routine",
+    RoutineSingleStep: "/action",
+    RoutineMultiStep: "/flow",
     Run: "/run",
     Search: "/search",
     SearchVersion: "/search/version",
@@ -53,7 +53,7 @@ export const LINKS = {
     Tag: "/tag",
     Team: "/team",
     Terms: "/terms", // Terms and conditions
-    User: "/profile",
+    User: "/u",
 } as const;
 export type LINKS = ValueOf<typeof LINKS>;
 

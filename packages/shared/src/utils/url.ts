@@ -1,4 +1,4 @@
-import { ApiVersion, Bookmark, ChatParticipant, Code, CodeType, CodeVersion, GqlModelType, Member, NoteVersion, Notification, ProjectVersion, Reaction, RoutineVersion, RunProject, RunRoutine, Schedule, Session, Standard, StandardType, StandardVersion, View } from "../api/generated/graphqlTypes";
+import { ApiVersion, Bookmark, ChatParticipant, Code, CodeType, CodeVersion, GqlModelType, Member, NoteVersion, Notification, ProjectVersion, Reaction, Routine, RoutineType, RoutineVersion, RunProject, RunRoutine, Schedule, Session, Standard, StandardType, StandardVersion, View } from "../api/generated/graphqlTypes";
 import { LINKS } from "../consts/ui";
 import { isOfType } from "./objects";
 
@@ -108,6 +108,12 @@ export type CalendarEvent = {
     allDay: boolean;
     schedule: Schedule;
 };
+
+
+export enum RunTypeInPath {
+    Project = "p",
+    Routine = "r",
+}
 
 /**
  * Recursively encodes values in preparation for JSON serialization and URL encoding.
@@ -257,19 +263,27 @@ export function getObjectUrlBase(object: Omit<NavigableObject, "id">): string {
     // If object is a code, base URL on its type
     if (isOfType(object, "CodeVersion")) return (object as CodeVersion).codeType === CodeType.DataConvert ? LINKS.DataConverter : LINKS.SmartContract;
     if (isOfType(object, "Code")) return (object as Code).versions?.find(v => v.isLatest === true)?.codeType === CodeType.DataConvert ? LINKS.DataConverter : LINKS.SmartContract;
+    // If object is a routine, base URL on its type
+    if (isOfType(object, "RoutineVersion")) return (object as RoutineVersion).routineType === RoutineType.MultiStep ? LINKS.RoutineMultiStep : LINKS.RoutineSingleStep;
+    if (isOfType(object, "Routine")) return (object as Routine).versions?.find(v => v.isLatest === true)?.routineType === RoutineType.MultiStep ? LINKS.RoutineMultiStep : LINKS.RoutineSingleStep;
     // If object is a standard, base URL on its type
     if (isOfType(object, "StandardVersion")) return (object as StandardVersion).variant === StandardType.Prompt ? LINKS.Prompt : LINKS.DataStructure;
     if (isOfType(object, "Standard")) return (object as Standard).versions?.find(v => v.isLatest === true)?.variant === StandardType.Prompt ? LINKS.Prompt : LINKS.DataStructure;
     // If object is a star/vote/some other type that links to a main object, use the "to" property
     if (isOfType(object, "Bookmark", "Reaction", "View")) return getObjectUrlBase((object as Bookmark | Reaction | View).to as NavigableObject);
-    // If the object is a run routine, use the routine version
-    if (isOfType(object, "RunRoutine")) return getObjectUrlBase((object as RunRoutine).routineVersion as NavigableObject);
-    // If the object is a run project, use the project version
-    if (isOfType(object, "RunProject")) return getObjectUrlBase((object as RunProject).projectVersion as NavigableObject);
     // If the object is a member or participant, use the user
     if (isOfType(object, "Member", "ChatParticipant")) return getObjectUrlBase((object as Member | ChatParticipant).user as NavigableObject);
     // If the object is a notification, use the "link" property
     if (isOfType(object, "Notification")) return (object as Notification).link ?? "";
+    // If the object is a run
+    if (isOfType(object, "RunProject", "RunRoutine")) {
+        // Use run page for multi-step routines
+        if (isOfType(object, "RunProject") || (object as RunRoutine).routineVersion?.routineType === RoutineType.MultiStep) {
+            return LINKS.Run;
+        }
+        // Otherwise, use routine view page
+        return LINKS.RoutineSingleStep;
+    }
     // Otherwise, use __typename (or root if versioned object)
     return LINKS[object.__typename.replace("Version", "")];
 }
@@ -286,10 +300,6 @@ export function getObjectSlug(object: NavigableObject | null | undefined, prefer
     if (isOfType(object, "Action", "Shortcut", "CalendarEvent")) return "";
     // If object is a star/vote/some other __typename that links to a main object, use that object's slug
     if (isOfType(object, "Bookmark", "Reaction", "View")) return getObjectSlug((object as Partial<Bookmark | Reaction | View>).to);
-    // If the object is a run routine, use the routine version
-    if (isOfType(object, "RunRoutine")) return getObjectSlug((object as Partial<RunRoutine>).routineVersion);
-    // If the object is a run project, use the project version
-    if (isOfType(object, "RunProject")) return getObjectSlug((object as Partial<RunProject>).projectVersion);
     // If object has root, use the root and version
     if ((object as Partial<ApiVersion | CodeVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion>).root) {
         const root = getObjectSlug((object as Partial<ApiVersion | CodeVersion | NoteVersion | ProjectVersion | RoutineVersion | StandardVersion>).root);
@@ -301,6 +311,17 @@ export function getObjectSlug(object: NavigableObject | null | undefined, prefer
     if (isOfType(object, "Member", "ChatParticipant")) return getObjectSlug((object as Partial<ChatParticipant | Member>).user);
     // If the object is a notification, return an empty string
     if (isOfType(object, "Notification")) return "";
+    // Handle run slugs
+    if (isOfType(object, "RunProject")) {
+        return `${RunTypeInPath.Project}/${uuidToBase36((object as RunProject).id)}`;
+    }
+    if (isOfType(object, "RunRoutine")) {
+        if ((object as RunRoutine).routineVersion?.routineType === RoutineType.MultiStep) {
+            return `${RunTypeInPath.Routine}/${uuidToBase36((object as RunRoutine).id)}`;
+        }
+        // Use routine id for single-step routines (run id will be in search params)
+        return getObjectSlug((object as RunRoutine).routineVersion);
+    }
     // Otherwise, use object's handle or id
     const id = uuidToBase36((object as { id?: string }).id ?? "");
     return prefersId ? id : (object as { handle?: string }).handle ?? id;
@@ -312,12 +333,19 @@ export function getObjectSlug(object: NavigableObject | null | undefined, prefer
  * @returns Stringified search params for object
  */
 export function getObjectSearchParams(object: NavigableObject): string | null {
-    // If object is an action/shortcut, return blank
-    if (isOfType(object, "Action", "Shortcut")) return "";
     // If object is an event, add start time to search params
-    if (isOfType(object, "CalendarEvent")) return stringifySearchParams({ start: (object as CalendarEvent).start });
+    if (isOfType(object, "CalendarEvent")) {
+        return UrlTools.stringifySearchParams(LINKS.Calendar, { start: (object as CalendarEvent).start });
+    }
     // If object is a run
-    if (isOfType(object, "RunProject", "RunRoutine")) return stringifySearchParams({ run: uuidToBase36((object as Partial<RunProject | RunRoutine>).id ?? "") });
+    if (isOfType(object, "RunProject", "RunRoutine")) {
+        // Use run page for multi-step routines
+        if (isOfType(object, "RunProject") || (object as RunRoutine).routineVersion?.routineType === RoutineType.MultiStep) {
+            return UrlTools.stringifySearchParams(LINKS.Run, { step: (object as RunProject | RunRoutine).lastStep ?? undefined });
+        }
+        // Otherwise, use routine view page
+        return UrlTools.stringifySearchParams(LINKS.RoutineSingleStep, { runId: uuidToBase36((object as RunRoutine).id) });
+    }
     return "";
 }
 
@@ -328,5 +356,90 @@ export function getObjectSearchParams(object: NavigableObject): string | null {
 export function getObjectUrl(object: NavigableObject): string {
     if (isOfType(object, "Action")) return "";
     if (isOfType(object, "Shortcut", "CalendarEvent")) return (object as ShortcutOption | CalendarEventOption).id ?? "";
-    return `${getObjectUrlBase(object)}/${getObjectSlug(object)}${getObjectSearchParams(object)}`;
+    const base = getObjectUrlBase(object);
+    let slug = getObjectSlug(object);
+    if (slug.length > 0 && !slug.startsWith("/")) slug = `/${slug}`;
+    const search = getObjectSearchParams(object);
+    return `${base}${slug}${search}`;
+}
+
+
+export type CalendarViewSearchParams = {
+    start?: Date | undefined;
+    end?: Date | undefined;
+}
+
+export type LoginViewSearchParams = {
+    redirect?: string | undefined;
+}
+
+export type ResetPasswordViewSearchParams = {
+    code?: string | undefined;
+}
+
+export type RunViewSearchParams = {
+    step?: number[] | undefined;
+}
+
+export type RoutineSingleStepViewSearchParams = {
+    runId?: string | undefined;
+}
+
+export type RoutineMultiStepViewSearchParams = {
+    runId?: string | undefined;
+}
+
+export type SignUpViewSearchParams = {
+    redirect?: string | undefined;
+}
+
+export type TutorialViewSearchParams = {
+    tutorial_section?: number | undefined;
+    tutorial_step?: number | undefined;
+}
+
+export interface SearchParamsPayloads {
+    [LINKS.Calendar]: CalendarViewSearchParams;
+    [LINKS.Login]: LoginViewSearchParams;
+    [LINKS.ResetPassword]: ResetPasswordViewSearchParams;
+    [LINKS.Run]: RunViewSearchParams;
+    [LINKS.RoutineSingleStep]: RoutineSingleStepViewSearchParams;
+    [LINKS.RoutineMultiStep]: RoutineMultiStepViewSearchParams;
+    [LINKS.Signup]: SignUpViewSearchParams;
+    Tutorial: TutorialViewSearchParams;
+}
+
+const defaultSearchParams: Partial<{ [K in keyof SearchParamsPayloads]: SearchParamsPayloads[K] }> = {
+    // Add default search params here
+};
+
+export type SearchParamsType = keyof SearchParamsPayloads;
+
+export class UrlTools {
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    private constructor() { }
+
+    /**
+     * Enforces that the provided search params match the type
+     */
+    static stringifySearchParams<T extends SearchParamsType>(
+        link: T,
+        searchParams: SearchParamsPayloads[T] = defaultSearchParams[link] as SearchParamsPayloads[T],
+    ): string {
+        return stringifySearchParams(searchParams);
+    }
+
+    static parseSearchParams<T extends SearchParamsType>(link: T): SearchParamsPayloads[T] {
+        return parseSearchParams() as SearchParamsPayloads[T];
+    }
+
+    /**
+     * Creates a URL with search params
+     */
+    static linkWithSearchParams<T extends SearchParamsType>(
+        link: T,
+        searchParams: SearchParamsPayloads[T] = defaultSearchParams[link] as SearchParamsPayloads[T],
+    ): string {
+        return `${link}${UrlTools.stringifySearchParams(link, searchParams)}`;
+    }
 }

@@ -1,4 +1,4 @@
-import { CommentFor, FindByIdInput, FormSchema, LINKS, ResourceListShape, ResourceList as ResourceListType, RoutineShape, RoutineType, RoutineVersion, RoutineViewSearchParams, RunProject, RunRoutine, RunStatus, RunnableRoutineVersion, Tag, TagShape, UrlTools, base36ToUuid, endpointGetRoutineVersion, endpointGetRunRoutine, exists, generateInitialValues, generateRoutineInitialValues, generateYupSchema, getTranslation, noop, noopSubmit, parseConfigCallData, parseSchemaInput, parseSchemaOutput, runInputsUpdate, uuid, uuidToBase36, uuidValidate } from "@local/shared";
+import { CommentFor, FindByIdInput, FormSchema, LINKS, ResourceListShape, ResourceList as ResourceListType, RoutineShape, RoutineSingleStepViewSearchParams, RoutineType, RoutineVersion, RunIOManager, RunProject, RunRoutine, RunStatus, RunnableRoutineVersion, Tag, TagShape, UrlTools, base36ToUuid, endpointGetRoutineVersion, endpointGetRunRoutine, exists, generateInitialValues, generateRoutineInitialValues, generateYupSchema, getTranslation, noop, noopSubmit, parseConfigCallData, parseSchemaInput, parseSchemaOutput, uuid, uuidToBase36, uuidValidate } from "@local/shared";
 import { Box, Divider, Stack, Typography, styled, useTheme } from "@mui/material";
 import { RunButton } from "components/buttons/RunButton/RunButton";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -36,9 +36,9 @@ import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils
 import { openObject } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
 import { routineTypes } from "utils/search/schemas/routine";
-import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineFormPropsBase, RoutineGenerateForm, RoutineInformationalForm, RoutineMultiStepForm, RoutineSmartContractForm } from "../RoutineTypeForms/RoutineTypeForms";
-import { routineInitialValues } from "../RoutineUpsert/RoutineUpsert";
-import { RoutineViewProps } from "../types";
+import { routineSingleStepInitialValues } from "../RoutineSingleStepUpsert/RoutineSingleStepUpsert";
+import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineFormPropsBase, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "../RoutineTypeForms/RoutineTypeForms";
+import { RoutineSingleStepViewProps } from "../types";
 
 /**
  * If no existing routine found, consider it an error if we are not creating a new routine
@@ -47,17 +47,11 @@ function handleInvalidUrlParams() {
     PubSub.get().publish("snack", { messageKey: "InvalidUrlId", severity: "Error" });
 }
 
-type RoutineTypeViewProps = {
-    availableLanguages: string[];
-    closeGraph: () => unknown;
+type RoutineSingleStepTypeViewProps = {
     existing: PartialWithType<RoutineVersion>;
     isGetRoutineLoading: boolean;
-    isGraphOpen: boolean;
-    language: string;
-    openGraph: () => unknown;
     schemaInput: FormSchema;
     schemaOutput: FormSchema;
-    setLanguage: (language: string) => unknown;
 }
 
 const IncompleteWarningLabel = styled(Typography)(({ theme }) => ({
@@ -65,18 +59,12 @@ const IncompleteWarningLabel = styled(Typography)(({ theme }) => ({
     fontStyle: "italic",
 }));
 
-function RoutineTypeView({
-    availableLanguages,
-    closeGraph,
+function RoutineSingleStepTypeView({
     existing,
     isGetRoutineLoading,
-    isGraphOpen,
-    language,
-    openGraph,
     schemaInput,
     schemaOutput,
-    setLanguage,
-}: RoutineTypeViewProps) {
+}: RoutineSingleStepTypeViewProps) {
     const [, setLocation] = useLocation();
     const session = useContext(SessionContext);
     const { errors, isSubmitting, isValidating, resetForm, setSubmitting, setValues, values } = useFormikContext<FormErrors>();
@@ -84,14 +72,6 @@ function RoutineTypeView({
     const routineTypeOption = useMemo(function routineTypeMemo() {
         return routineTypes.find((option) => option.type === existing.routineType);
     }, [existing.routineType]);
-
-    const translationData = useMemo(() => ({
-        language,
-        languages: availableLanguages,
-        setLanguage,
-        handleAddLanguage: noop,
-        handleDeleteLanguage: noop,
-    }), [availableLanguages, language, setLanguage]);
 
     const configCallData = useMemo(function configCallDataMemo() {
         return parseConfigCallData(existing.configCallData, existing.routineType, console);
@@ -101,7 +81,7 @@ function RoutineTypeView({
     const [run, setRun] = useState<RunRoutine | null>(null);
     useEffect(function updateUrlOnRunChange() {
         if (run) {
-            addSearchParams(setLocation, { runId: uuidToBase36(run.id) } as RoutineViewSearchParams);
+            addSearchParams(setLocation, { runId: uuidToBase36(run.id) } as RoutineSingleStepViewSearchParams);
         }
     }, [run, setLocation]);
 
@@ -124,7 +104,7 @@ function RoutineTypeView({
 
     const [getRun, { data: runData, loading: isLoadingGetRun }] = useLazyFetch<FindByIdInput, RunRoutine>(endpointGetRunRoutine);
     useEffect(function fetchRunFromUrl() {
-        const searchParams = UrlTools.parseSearchParams(LINKS.Routine);
+        const searchParams = UrlTools.parseSearchParams(LINKS.RoutineSingleStep);
         if (searchParams.runId) {
             const runId = base36ToUuid(searchParams.runId);
             if (uuidValidate(runId)) {
@@ -166,10 +146,9 @@ function RoutineTypeView({
         // Create run if it doesn't exist
         if (!run) {
             const runRoutineId = uuid();
-            const { inputsCreate } = runInputsUpdate({
+            const { inputsCreate } = new RunIOManager(console).runInputsUpdate({
                 existingIO: [],
                 formData: values as object,
-                logger: console,
                 routineIO: existing.inputs ?? [],
                 runRoutineId,
             });
@@ -195,10 +174,9 @@ function RoutineTypeView({
         // Update run if it does exist
         else {
             const runRoutineId = run.id;
-            const { inputsCreate, inputsUpdate, inputsDelete } = runInputsUpdate({
+            const { inputsCreate, inputsUpdate, inputsDelete } = new RunIOManager(console).runInputsUpdate({
                 existingIO: run.inputs,
                 formData: values as object,
-                logger: console,
                 routineIO: existing.inputs ?? [],
                 runRoutineId,
             });
@@ -287,25 +265,12 @@ function RoutineTypeView({
                 return <RoutineGenerateForm {...routineTypeBaseProps} />;
             case RoutineType.Informational:
                 return <RoutineInformationalForm {...routineTypeBaseProps} />;
-            case RoutineType.MultiStep:
-                return <RoutineMultiStepForm
-                    {...routineTypeBaseProps}
-                    isGraphOpen={isGraphOpen}
-                    handleGraphClose={closeGraph}
-                    handleGraphOpen={openGraph}
-                    handleGraphSubmit={noop}
-                    nodeLinks={existing.nodeLinks}
-                    nodes={existing.nodes}
-                    routineId={existing.id}
-                    translations={existing.translations}
-                    translationData={translationData}
-                />;
             case RoutineType.SmartContract:
                 return <RoutineSmartContractForm {...routineTypeBaseProps} />;
             default:
                 return null;
         }
-    }, [closeGraph, configCallData, existing, handleClearRun, handleCompleteStep, handleRunStep, hasFormErrors, isCreatingRunRoutine, isGeneratingOutputs, isGetRoutineLoading, isGraphOpen, isLoadingGetRun, isSubmitting, isUpdatingRunRoutine, isValidating, onRunChange, openGraph, run, schemaInput, schemaOutput, session, translationData]);
+    }, [configCallData, existing, handleClearRun, handleCompleteStep, handleRunStep, hasFormErrors, isCreatingRunRoutine, isGeneratingOutputs, isGetRoutineLoading, isLoadingGetRun, isSubmitting, isUpdatingRunRoutine, isValidating, onRunChange, run, schemaInput, schemaOutput, session]);
 
     return (
         <>
@@ -340,10 +305,10 @@ const basicInfoStackStyle = {
 } as const;
 const tagListStyle = { marginTop: 4 } as const;
 
-export function RoutineView({
+export function RoutineSingleStepView({
     display,
     onClose,
-}: RoutineViewProps) {
+}: RoutineSingleStepViewProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
@@ -392,7 +357,7 @@ export function RoutineView({
         actionData.onActionStart(ObjectAction.Edit);
     }, [actionData]);
 
-    const initialValues = useMemo(() => routineInitialValues(session, existing), [existing, session]);
+    const initialValues = useMemo(() => routineSingleStepInitialValues(session, existing), [existing, session]);
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);
     const tags = useMemo<TagShape[] | null | undefined>(() => (initialValues.root as RoutineShape)?.tags as TagShape[] | null | undefined, [initialValues]);
 
@@ -466,17 +431,11 @@ export function RoutineView({
                             onSubmit={noop}
                             validationSchema={inputValidationSchema}
                         >
-                            <RoutineTypeView
-                                availableLanguages={availableLanguages}
-                                closeGraph={closeGraph}
+                            <RoutineSingleStepTypeView
                                 existing={existing}
                                 isGetRoutineLoading={isGetRoutineLoading}
-                                isGraphOpen={isGraphOpen}
-                                language={language}
-                                openGraph={openGraph}
                                 schemaInput={schemaInput}
                                 schemaOutput={schemaOutput}
-                                setLanguage={setLanguage}
                             />
                         </Formik>
                     )}

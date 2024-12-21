@@ -24,7 +24,7 @@ type YAxisLabelsProps = {
     width: number;
 };
 
-const getRoundingPrecision = (minValue: number, maxValue: number, numOfLines: number) => {
+function getRoundingPrecision(minValue: number, maxValue: number, numOfLines: number) {
     const range = maxValue - minValue;
     const increment = range / (numOfLines - 1);
 
@@ -33,7 +33,7 @@ const getRoundingPrecision = (minValue: number, maxValue: number, numOfLines: nu
     } else {
         return Math.ceil(-Math.log10(increment));
     }
-};
+}
 
 // const XAxisLabels: React.FC<XAxisLabelsProps> = ({ data, xScale, height }) => {
 //     return (
@@ -53,7 +53,11 @@ const getRoundingPrecision = (minValue: number, maxValue: number, numOfLines: nu
 //     );
 // };
 
-const YAxisLabels: React.FC<YAxisLabelsProps> = ({ yScale, numOfHorizontalLines, width }) => {
+function YAxisLabels({
+    yScale,
+    numOfHorizontalLines,
+    width,
+}: YAxisLabelsProps) {
     const minValue = yScale.domain()[0];
     const maxValue = yScale.domain()[1];
 
@@ -81,18 +85,18 @@ const YAxisLabels: React.FC<YAxisLabelsProps> = ({ yScale, numOfHorizontalLines,
     });
 
     return <g>{labels}</g>;
-};
+}
 
 // Function to extract the label from a data point
-const toLabel = (datum: any): string => {
+function toLabel(datum: any): string {
     if (typeof datum === "object" && datum !== null && "label" in datum) {
         return datum.label;
     }
     return "";
-};
+}
 
 // Function to extract the value from a data point
-const toValue = (datum: any): number => {
+function toValue(datum: any): number {
     if (typeof datum === "number") {
         return datum;
     }
@@ -100,20 +104,20 @@ const toValue = (datum: any): number => {
         return datum.value;
     }
     return 0;
-};
+}
 
 const padding = { top: 10, right: 35, bottom: 10, left: 10 };
 
 /**
  * A line graph component to represent a list of numerical data as a line.
  */
-export const LineGraph = ({
+export function LineGraph({
     dims,
     data,
     lineColor = "#000",
     lineWidth = 2,
     yAxisLabel,
-}: LineGraphProps) => {
+}: LineGraphProps) {
     // Find the maximum and minimum value in the data array
     const maxData = Math.max(...data.map(toValue));
     const minData = Math.min(...data.map(toValue));
@@ -151,7 +155,7 @@ export const LineGraph = ({
     }, [selectedPoint]);
 
     // Anchor for popover that displays a point's label/value
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+    const [anchorEl, setAnchorEl] = useState<Element | null>(null);
 
 
     const grid = useMemo(() => {
@@ -317,4 +321,4 @@ export const LineGraph = ({
 
         </>
     );
-};
+}

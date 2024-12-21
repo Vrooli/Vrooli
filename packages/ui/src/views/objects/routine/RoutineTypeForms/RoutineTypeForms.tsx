@@ -1,4 +1,4 @@
-import { BotShape, BotStyle, BotStyleOption, CodeLanguage, CodeVersionShape, CodeVersionTranslationShape, ConfigCallData, ConfigCallDataGenerate, DEFAULT_MODEL, DUMMY_ID, FormSchema, FormStructureType, LlmModel, Node, NodeLink, NodeLinkShape, NodeShape, RunProject, RunRoutine, RunStatus, User, getAvailableModels, getModelDescription, getModelName, getTranslation, noop, uuid, uuidValidate } from "@local/shared";
+import { BotShape, BotStyle, BotStyleOption, CodeLanguage, CodeVersionShape, CodeVersionTranslationShape, ConfigCallData, ConfigCallDataGenerate, DEFAULT_MODEL, FormSchema, FormStructureType, LlmModel, RunProject, RunRoutine, RunStatus, User, getAvailableModels, getModelDescription, getModelName, getTranslation, noop, uuid, uuidValidate } from "@local/shared";
 import { Box, Button, Card, Divider, Grid, Typography, styled, useTheme } from "@mui/material";
 import { getExistingAIConfig } from "api/ai";
 import { LoadableButton } from "components/buttons/LoadableButton/LoadableButton";
@@ -12,7 +12,7 @@ import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts";
 import { FormView } from "forms/FormView/FormView";
 import { usePopover } from "hooks/usePopover";
-import { AddIcon, ApiIcon, BotIcon, CancelIcon, LockIcon, MagicIcon, MinusIcon, OpenInNewIcon, PlayIcon, RoutineIcon, SaveIcon, SmartContractIcon, SuccessIcon, TerminalIcon } from "icons";
+import { AddIcon, ApiIcon, BotIcon, CancelIcon, LockIcon, MagicIcon, MinusIcon, OpenInNewIcon, PlayIcon, SaveIcon, SmartContractIcon, SuccessIcon, TerminalIcon } from "icons";
 import { memo, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
@@ -25,8 +25,6 @@ import { placeholderColor } from "utils/display/listTools";
 import { getCookiePartialData } from "utils/localStorage";
 import { openObject } from "utils/navigation/openObject";
 import { PubSub } from "utils/pubsub";
-import { BuildView } from "views/objects/routine/BuildView/BuildView";
-import { BuildRoutineVersion, BuildViewProps } from "../types";
 
 const PREFIX_INPUT = "input";
 const PREFIX_OUTPUT = "output";
@@ -98,17 +96,6 @@ type RoutineFormTypeCode = RoutineFormPropsBase;
 type RoutineFormTypeData = RoutineFormPropsBase;
 type RoutineFormTypeGenerate = RoutineFormPropsBase;
 type RoutineFormTypeInformational = Omit<RoutineFormPropsBase, "onSchemaOutputChange" | "schemaOutput">;
-type RoutineFormTypeMultiStep = Pick<RoutineFormPropsBase, "display"> & {
-    isGraphOpen: boolean;
-    handleGraphClose: () => unknown;
-    handleGraphOpen: () => unknown;
-    handleGraphSubmit: BuildViewProps["handleSubmit"];
-    nodeLinks: NodeLinkShape[] | undefined;
-    nodes: NodeShape[] | undefined;
-    routineId: string | undefined;
-    translations: BuildRoutineVersion["translations"] | undefined;
-    translationData: BuildViewProps["translationData"];
-}
 type RoutineFormTypeSmartContract = RoutineFormPropsBase;
 
 const routineTypeTitleSxs = { stack: { paddingLeft: 0 } } as const;
@@ -659,55 +646,6 @@ export const RoutineInformationalForm = memo(function RoutineInformationalFormMe
                     </Grid>
                 )
             }
-        </>
-    );
-});
-
-export const RoutineMultiStepForm = memo(function RoutineMultiStepFormMemo({
-    display,
-    isGraphOpen,
-    handleGraphClose,
-    handleGraphOpen,
-    handleGraphSubmit,
-    nodeLinks,
-    nodes,
-    routineId,
-    translations,
-    translationData,
-}: RoutineFormTypeMultiStep) {
-    const isEditing = display === "edit";
-
-    const routineVersion = useMemo(() => ({
-        id: routineId ?? DUMMY_ID,
-        nodeLinks: (nodeLinks ?? []) as NodeLink[],
-        nodes: (nodes ?? []) as Node[],
-        translations: (translations ?? []) as BuildRoutineVersion["translations"],
-    }), [nodeLinks, nodes, routineId, translations]);
-
-    return (
-        <>
-            <BuildView
-                display="dialog"
-                handleCancel={handleGraphClose}
-                onClose={handleGraphClose}
-                handleSubmit={handleGraphSubmit}
-                isEditing={isEditing}
-                isOpen={isGraphOpen}
-                loading={false}
-                routineVersion={routineVersion}
-                translationData={translationData}
-            />
-            {/* Button to display graph */}
-            <Grid item xs={12} mb={4}>
-                <Button
-                    startIcon={<RoutineIcon />}
-                    fullWidth color="secondary"
-                    onClick={handleGraphOpen}
-                    variant={isEditing ? "contained" : "outlined"}
-                >View Graph</Button>
-            </Grid>
-            {/* # nodes, # links, Simplicity, complexity & other graph stats */}
-            {/* TODO */}
         </>
     );
 });

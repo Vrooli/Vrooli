@@ -1,4 +1,4 @@
-import { ConfigCallData, DUMMY_ID, FormInputBase, FormSchema, LINKS, LlmModel, LlmTask, NodeLinkShape, NodeShape, RoutineShape, RoutineType, RoutineVersion, RoutineVersionCreateInput, RoutineVersionInputShape, RoutineVersionOutputShape, RoutineVersionShape, RoutineVersionUpdateInput, SearchPageTabOption, Session, defaultConfigCallDataMap, defaultConfigFormInputMap, defaultConfigFormOutputMap, endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, initializeRoutineGraph, noop, noopSubmit, orDefault, parseConfigCallData, parseSchemaInput, parseSchemaOutput, routineVersionTranslationValidation, routineVersionValidation, shapeRoutineVersion, uuid, uuidValidate } from "@local/shared";
+import { ConfigCallData, DUMMY_ID, FormInputBase, FormSchema, LINKS, LlmTask, RoutineShape, RoutineType, RoutineVersion, RoutineVersionCreateInput, RoutineVersionInputShape, RoutineVersionOutputShape, RoutineVersionShape, RoutineVersionUpdateInput, SearchPageTabOption, Session, defaultConfigCallDataMap, defaultConfigFormInputMap, defaultConfigFormOutputMap, endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, noop, noopSubmit, orDefault, parseConfigCallData, parseSchemaInput, parseSchemaOutput, routineVersionTranslationValidation, routineVersionValidation, shapeRoutineVersion, uuid, uuidValidate } from "@local/shared";
 import { Checkbox, Divider, FormControlLabel, Grid, Tooltip } from "@mui/material";
 import { useSubmitHelper } from "api/fetchWrapper";
 import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
@@ -18,24 +18,24 @@ import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts";
 import { FieldHelperProps, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm";
+import { useSaveToCache, useUpsertActions } from "hooks/forms";
 import { UseAutoFillProps, getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
 import { useManagedObject } from "hooks/useManagedObject";
-import { useSaveToCache } from "hooks/useSaveToCache";
 import { useTranslatedFields } from "hooks/useTranslatedFields";
-import { useUpsertActions } from "hooks/useUpsertActions";
 import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { useCallback, useContext, useMemo, useState } from "react";
+import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getCurrentUser } from "utils/authentication/session";
+import { ELEMENT_IDS } from "utils/consts";
 import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
 import { PubSub } from "utils/pubsub";
 import { getRoutineTypeDescription, getRoutineTypeIcon, getRoutineTypeLabel, routineTypes } from "utils/search/schemas/routine";
 import { validateFormValues } from "utils/validateFormValues";
-import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineFormPropsBase, RoutineGenerateForm, RoutineInformationalForm, RoutineMultiStepForm, RoutineSmartContractForm } from "../RoutineTypeForms/RoutineTypeForms";
-import { BuildRoutineVersion, RoutineFormProps, RoutineUpsertProps } from "../types";
+import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineFormPropsBase, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "../RoutineTypeForms/RoutineTypeForms";
+import { RoutineSingleStepFormProps, RoutineSingleStepUpsertProps } from "../types";
 
-export function routineInitialValues(
+export function routineSingleStepInitialValues(
     session: Session | undefined,
     existing?: Partial<RoutineVersion> | null | undefined,
 ): RoutineVersionShape {
@@ -195,11 +195,10 @@ const basicInfoCollapseStyle = { titleContainer: { marginBottom: 1 } } as const;
 const formSectionStyle = { overflowX: "hidden", marginBottom: 2 } as const;
 const relationshipListStyle = { marginBottom: 2 } as const;
 const resourceListStyle = { list: { marginBottom: 2 } } as const;
-const languageInputStyle = { flexDirection: "row-reverse" } as const;
 const tagSelectorStyle = { marginBottom: 2 } as const;
 const versionInputStyle = { marginBottom: 2 } as const;
 
-function RoutineForm({
+function RoutineSingleStepForm({
     disabled,
     display,
     existing,
@@ -212,7 +211,7 @@ function RoutineForm({
     values,
     versions,
     ...props
-}: RoutineFormProps) {
+}: RoutineSingleStepFormProps) {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
 
@@ -228,20 +227,10 @@ function RoutineForm({
         defaultLanguage: getUserLanguages(session)[0],
         validationSchema: routineVersionTranslationValidation.create({ env: process.env.NODE_ENV }),
     });
-    const translationData = useMemo(() => ({
-        language,
-        setLanguage,
-        handleAddLanguage,
-        handleDeleteLanguage,
-        languages,
-    }), [language, languages, setLanguage, handleAddLanguage, handleDeleteLanguage]);
 
     // Formik fields we need to access and/or set values for
     const [idField] = useField<string>("id");
-    const [translationsField, , translationsHelpers] = useField<RoutineVersion["translations"]>("translations");
     const [routineTypeField, , routineTypeHelpers] = useField<RoutineVersion["routineType"]>("routineType");
-    const [nodesField, , nodesHelpers] = useField<NodeShape[]>("nodes");
-    const [nodeLinksField, , nodeLinksHelpers] = useField<NodeLinkShape[]>("nodeLinks");
     const [inputsField, , inputsHelpers] = useField<RoutineVersionInputShape[]>("inputs");
     const [outputsField, , outputsHelpers] = useField<RoutineVersionOutputShape[]>("outputs");
     const [configCallDataField, , configCallDataHelpers] = useField<RoutineVersion["configCallData"]>("configCallData");
@@ -286,31 +275,6 @@ function RoutineForm({
         });
     }, [configFormOutputHelpers, idField.value, language, outputsField.value, outputsHelpers]);
 
-    // Multi-step routine data
-    const [isGraphOpen, setIsGraphOpen] = useState(false);
-    const handleGraphOpen = useCallback(() => {
-        // Create initial nodes/links, if not already created
-        if (
-            (!Array.isArray(nodesField.value) || nodesField.value.length === 0) &&
-            (!Array.isArray(nodeLinksField.value) || nodeLinksField.value.length === 0)
-        ) {
-            const { nodes, nodeLinks } = initializeRoutineGraph(language, idField.value);
-            nodesHelpers.setValue(nodes);
-            nodeLinksHelpers.setValue(nodeLinks);
-        }
-        setIsGraphOpen(true);
-    }, [idField.value, language, nodeLinksField.value, nodeLinksHelpers, nodesField.value, nodesHelpers]);
-    const handleGraphClose = useCallback(() => { setIsGraphOpen(false); }, [setIsGraphOpen]);
-    const handleGraphSubmit = useCallback(({ nodes, nodeLinks, translations }: BuildRoutineVersion) => {
-        nodesHelpers.setValue(nodes);
-        nodeLinksHelpers.setValue(nodeLinks);
-        translationsHelpers.setValue(translations);
-        setIsGraphOpen(false);
-    }, [nodeLinksHelpers, nodesHelpers, translationsHelpers]);
-
-    // Generate AI routine data
-    const [model, setModel] = useState<LlmModel | null>(null);
-
     // Handle routine type
     const routineTypeValue = useMemo(function routineTypeValueMemo() {
         return routineTypes.find(r => r.type === routineTypeField.value) ?? routineTypes[0];
@@ -340,8 +304,6 @@ function RoutineForm({
             [RoutineType.Generate]: hasData(configCallDataField.value, configFormInputField.value, configFormOutputField.value),
             // Has input data
             [RoutineType.Informational]: hasData(configFormInputField.value),
-            // Has graph information
-            [RoutineType.MultiStep]: hasData(nodesField.value, nodeLinksField.value),
             // Also uses code information
             [RoutineType.SmartContract]: hasData(configCallDataField.value, configFormInputField.value, configFormOutputField.value, codeVersionField.value),
         };
@@ -351,14 +313,10 @@ function RoutineForm({
             codeVersionHelpers.setValue(null);
             inputsHelpers.setValue([]);
             outputsHelpers.setValue([]);
-            nodesHelpers.setValue([]);
-            nodeLinksHelpers.setValue([]);
             routineTypeHelpers.setValue(type);
             onConfigCallDataChange(defaultConfigCallDataMap[type]());
             onSchemaInputChange(defaultConfigFormInputMap[type]());
             onSchemaOutputChange(defaultConfigFormOutputMap[type]());
-            // If we switch to a multi-step routine, open the graph
-            if (type === RoutineType.MultiStep) handleGraphOpen();
         }
         // If we're losing data, confirm with user
         const losingData = loseDataCheck[routineTypeField.value];
@@ -377,7 +335,7 @@ function RoutineForm({
         else {
             performSwitch();
         }
-    }, [routineTypeField.value, configCallDataField.value, configFormInputField.value, configFormOutputField.value, apiVersionField.value, codeVersionField.value, nodesField.value, nodeLinksField.value, apiVersionHelpers, codeVersionHelpers, inputsHelpers, outputsHelpers, nodesHelpers, nodeLinksHelpers, routineTypeHelpers, onConfigCallDataChange, onSchemaInputChange, onSchemaOutputChange, handleGraphOpen]);
+    }, [routineTypeField.value, configCallDataField.value, configFormInputField.value, configFormOutputField.value, apiVersionField.value, codeVersionField.value, apiVersionHelpers, codeVersionHelpers, inputsHelpers, outputsHelpers, routineTypeHelpers, onConfigCallDataChange, onSchemaInputChange, onSchemaOutputChange]);
 
     const { handleCancel, handleCompleted } = useUpsertActions<RoutineVersion>({
         display,
@@ -468,23 +426,12 @@ function RoutineForm({
                 return <RoutineGenerateForm {...routineTypeBaseProps} />;
             case RoutineType.Informational:
                 return <RoutineInformationalForm {...routineTypeBaseProps} />;
-            case RoutineType.MultiStep:
-                return <RoutineMultiStepForm
-                    {...routineTypeBaseProps}
-                    isGraphOpen={isGraphOpen}
-                    handleGraphClose={handleGraphClose}
-                    handleGraphOpen={handleGraphOpen}
-                    handleGraphSubmit={handleGraphSubmit}
-                    nodeLinks={nodeLinksField.value}
-                    nodes={nodesField.value}
-                    routineId={idField.value}
-                    translations={translationsField.value}
-                    translationData={translationData}
-                />;
             case RoutineType.SmartContract:
                 return <RoutineSmartContractForm {...routineTypeBaseProps} />;
+            default:
+                return null;
         }
-    }, [configCallData, disabled, onConfigCallDataChange, onSchemaInputChange, onSchemaOutputChange, schemaInput, schemaOutput, routineTypeField.value, isGraphOpen, handleGraphClose, handleGraphOpen, handleGraphSubmit, nodeLinksField.value, nodesField.value, idField.value, translationsField.value, translationData]);
+    }, [configCallData, disabled, onConfigCallDataChange, onSchemaInputChange, onSchemaOutputChange, schemaInput, schemaOutput, routineTypeField.value]);
 
     const resourceListParent = useMemo(function resourceListParent() {
         return { __typename: "RoutineVersion", id: values.id } as const;
@@ -493,7 +440,7 @@ function RoutineForm({
     return (
         <MaybeLargeDialog
             display={display}
-            id="routine-upsert-dialog"
+            id={ELEMENT_IDS.RoutineSingleStepUpsertDialog}
             isOpen={isOpen}
             onClose={onClose}
         >
@@ -503,7 +450,7 @@ function RoutineForm({
                 title={t(isCreate ? "CreateRoutine" : "UpdateRoutine")}
             />
             <SearchExistingButton
-                href={`${LINKS.Search}?type="${SearchPageTabOption.Routine}"`}
+                href={`${LINKS.Search}?type="${SearchPageTabOption.RoutineSingleStep}"`}
                 text="Search existing routines"
             />
             <BaseForm
@@ -618,14 +565,14 @@ function RoutineForm({
     );
 }
 
-export function RoutineUpsert({
+export function RoutineSingleStepUpsert({
     display,
     isCreate,
     isOpen,
     isSubroutine = false,
     overrideObject,
     ...props
-}: RoutineUpsertProps) {
+}: RoutineSingleStepUpsertProps) {
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<RoutineVersion, RoutineVersionShape>({
@@ -634,7 +581,7 @@ export function RoutineUpsert({
         isCreate,
         objectType: "RoutineVersion",
         overrideObject,
-        transform: (existing) => routineInitialValues(session, existing),
+        transform: (existing) => routineSingleStepInitialValues(session, existing),
     });
 
     async function validateValues(values: RoutineVersionShape) {
@@ -650,7 +597,7 @@ export function RoutineUpsert({
             onSubmit={noopSubmit}
             validate={validateValues}
         >
-            {(formik) => <RoutineForm
+            {(formik) => <RoutineSingleStepForm
                 disabled={!(isCreate || permissions.canUpdate)}
                 display={display}
                 existing={existing}
