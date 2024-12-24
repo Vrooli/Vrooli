@@ -1,6 +1,5 @@
 {
     "recommendations": [
-        "apollographql.vscode-apollo",
         "dbaeumer.vscode-eslint",
         "github.copilot",
         "prisma.prisma",
