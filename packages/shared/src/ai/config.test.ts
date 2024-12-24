@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import fs from "fs";
-import { LlmTask } from "../api/generated/graphqlTypes";
+import { LlmTask } from "../api/types";
 import { DEFAULT_LANGUAGE } from "../consts/ui";
 import { getAIConfigLocation, getStructuredTaskConfig, getUnstructuredTaskConfig, importAITaskBuilder, importAITaskConfig, importCommandToTask } from "./config";
 

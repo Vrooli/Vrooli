@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { LlmTask } from "../api/generated/graphqlTypes";
+import { LlmTask } from "../api/types";
 import { pascalCase } from "../utils/casing";
 import { importCommandToTask } from "./config";
 import { detectWrappedTasks, extractTasksFromJson, extractTasksFromText, filterInvalidTasks, findCharWithLimit, getValidTasksFromMessage, handleTaskTransitionAction, handleTaskTransitionCode, handleTaskTransitionCommand, handleTaskTransitionOutside, handleTaskTransitionPropName, handleTaskTransitionPropValue, isAlphaNum, isNewline, isWhitespace, removeTasks } from "./taskUtils";

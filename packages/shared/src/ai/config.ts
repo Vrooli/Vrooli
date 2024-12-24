@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { LlmTask } from "../api/generated/graphqlTypes";
+import { LlmTask } from "../api/types";
 import { PassableLogger } from "../consts/commonTypes";
 import { DEFAULT_LANGUAGE } from "../consts/ui";
 import { pascalCase } from "../utils/casing";

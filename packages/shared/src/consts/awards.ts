@@ -1,4 +1,4 @@
-import { AwardCategory } from "../api/generated/graphqlTypes";
+import { AwardCategory } from "../api/types";
 import { type TranslationKeyAward } from "../types";
 
 /**

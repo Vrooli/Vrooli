@@ -1,5 +1,5 @@
 import { uuid } from "@local/shared";
-import { LlmTask } from "../api/generated/graphqlTypes";
+import { LlmTask } from "../api/types";
 import { PassableLogger } from "../consts/commonTypes";
 import { getUnstructuredTaskConfig, importAITaskConfig } from "./config";
 import { AITaskProperty, CommandSection, CommandToTask, CommandTransitionTrack, ExistingTaskData, LanguageModelResponseMode, MaybeLlmTaskInfo, PartialTaskInfo, ServerLlmTaskInfo } from "./types";

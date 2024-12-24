@@ -1,2 +1,2 @@
 export * from "./generated";
-export * from "./resolveGQLInfo";
+export * from "./types";
