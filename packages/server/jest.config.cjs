@@ -7,7 +7,7 @@ module.exports = {
         "!src/**/*.d.ts",
         "!src/mocks/**",
     ],
-    coveragePathIgnorePatterns: ["/node_modules/", "/dist/", "/rust/", "/generated/", "/endpoints/graphql/"],
+    coveragePathIgnorePatterns: ["/node_modules/", "/dist/", "/rust/", "/generated/"],
     setupFilesAfterEnv: ["./config/jest/setupTests.js", "jest-27-expect-message"],
     testEnvironment: "node",
     testPathIgnorePatterns: ["/node_modules/", "/dist/", "/rust/", "/generated/"],

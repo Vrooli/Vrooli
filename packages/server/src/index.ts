@@ -1,21 +1,15 @@
-import { ApolloServer } from "@apollo/server";
-import { expressMiddleware } from "@apollo/server/express4";
-import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHttpServer";
 import { HttpStatus, SERVER_VERSION, i18nConfig } from "@local/shared";
 import cookie from "cookie";
 import cors from "cors";
 import express from "express";
-import { graphqlUploadExpress } from "graphql-upload";
 import i18next from "i18next";
 import path from "path";
 import { fileURLToPath } from "url";
 import { app } from "./app";
 import { AuthService } from "./auth/auth";
 import { SessionService } from "./auth/session";
-import { schema } from "./endpoints";
 import * as restRoutes from "./endpoints/rest";
 import { logger } from "./events/logger";
-import { context, depthLimit } from "./middleware";
 import { ModelMap } from "./models/base";
 import { initializeRedis } from "./redisConn";
 import { SERVER_URL, server } from "./server";
@@ -112,7 +106,7 @@ async function main() {
         if (req.originalUrl.startsWith("/webhooks")) {
             next();
         } else {
-            // Include everything else, which should include REST, GraphQL, and websockets
+            // Include everything else, which should include REST endpoints and websockets
             AuthService.authenticateRequest(req, res, next);
         }
     });
@@ -145,30 +139,6 @@ async function main() {
     Object.keys(restRoutes).forEach((key) => {
         app.use(`/api/${SERVER_VERSION}/rest`, restRoutes[key]);
     });
-
-    // Set up image uploading for GraphQL
-    app.use(`/api/${SERVER_VERSION}/graphql`, graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }));
-
-    // GraphQL server for latest API version, if needed. We use GraphQL to generate 
-    // types, so this needs to run at least in development.
-    if (debug) {
-        const apolloServerLatest = new ApolloServer({
-            cache: "bounded",
-            introspection: debug,
-            schema,
-            plugins: [ApolloServerPluginDrainHttpServer({ httpServer: server as any })], // https://github.com/apollographql/apollo-server/issues/7796
-            validationRules: [depthLimit(QUERY_DEPTH_LIMIT)], // Prevents DoS attack from arbitrarily-nested query
-        });
-        // Start server
-        await apolloServerLatest.start();
-        // Configure server with ExpressJS settings and path
-        app.use(
-            `/api/${SERVER_VERSION}/graphql`,
-            expressMiddleware(apolloServerLatest, {
-                context: async ({ req, res }) => context({ req, res }), // Pass req and res to your context function
-            }),
-        );
-    }
 
     // Set up websocket server
     // Authenticate new connections (this is not called for each event)
