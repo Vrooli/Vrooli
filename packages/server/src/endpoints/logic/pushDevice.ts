@@ -5,16 +5,16 @@ import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
 import { Notify } from "../../notify";
-import { CreateOneResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsPushDevice = {
     Query: {
-        pushDevices: GQLEndpoint<undefined, FindOneResult<PushDevice>[]>;
+        pushDevices: ApiEndpoint<undefined, FindOneResult<PushDevice>[]>;
     }
     Mutation: {
-        pushDeviceCreate: GQLEndpoint<PushDeviceCreateInput, CreateOneResult<PushDevice>>;
-        pushDeviceTest: GQLEndpoint<PushDeviceTestInput, Success>;
-        pushDeviceUpdate: GQLEndpoint<PushDeviceUpdateInput, UpdateOneResult<PushDevice>>;
+        pushDeviceCreate: ApiEndpoint<PushDeviceCreateInput, CreateOneResult<PushDevice>>;
+        pushDeviceTest: ApiEndpoint<PushDeviceTestInput, Success>;
+        pushDeviceUpdate: ApiEndpoint<PushDeviceUpdateInput, UpdateOneResult<PushDevice>>;
     }
 }
 

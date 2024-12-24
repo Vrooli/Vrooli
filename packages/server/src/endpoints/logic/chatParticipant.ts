@@ -2,15 +2,15 @@ import { ChatParticipant, ChatParticipantSearchInput, ChatParticipantUpdateInput
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
-import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsChatParticipant = {
     Query: {
-        chatParticipant: GQLEndpoint<FindByIdInput, FindOneResult<ChatParticipant>>;
-        chatParticipants: GQLEndpoint<ChatParticipantSearchInput, FindManyResult<ChatParticipant>>;
+        chatParticipant: ApiEndpoint<FindByIdInput, FindOneResult<ChatParticipant>>;
+        chatParticipants: ApiEndpoint<ChatParticipantSearchInput, FindManyResult<ChatParticipant>>;
     },
     Mutation: {
-        chatParticipantUpdate: GQLEndpoint<ChatParticipantUpdateInput, UpdateOneResult<ChatParticipant>>;
+        chatParticipantUpdate: ApiEndpoint<ChatParticipantUpdateInput, UpdateOneResult<ChatParticipant>>;
     }
 }
 

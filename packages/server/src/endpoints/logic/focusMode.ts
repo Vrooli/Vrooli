@@ -7,17 +7,17 @@ import { updateSessionCurrentUser } from "../../auth/auth";
 import { RequestService } from "../../auth/request";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsFocusMode = {
     Query: {
-        focusMode: GQLEndpoint<FindByIdInput, FindOneResult<FocusMode>>;
-        focusModes: GQLEndpoint<FocusModeSearchInput, FindManyResult<FocusMode>>;
+        focusMode: ApiEndpoint<FindByIdInput, FindOneResult<FocusMode>>;
+        focusModes: ApiEndpoint<FocusModeSearchInput, FindManyResult<FocusMode>>;
     },
     Mutation: {
-        focusModeCreate: GQLEndpoint<FocusModeCreateInput, CreateOneResult<FocusMode>>;
-        focusModeUpdate: GQLEndpoint<FocusModeUpdateInput, UpdateOneResult<FocusMode>>;
-        setActiveFocusMode: GQLEndpoint<SetActiveFocusModeInput, ActiveFocusMode | null>;
+        focusModeCreate: ApiEndpoint<FocusModeCreateInput, CreateOneResult<FocusMode>>;
+        focusModeUpdate: ApiEndpoint<FocusModeUpdateInput, UpdateOneResult<FocusMode>>;
+        setActiveFocusMode: ApiEndpoint<SetActiveFocusModeInput, ActiveFocusMode | null>;
     }
 }
 

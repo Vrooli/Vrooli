@@ -3,16 +3,16 @@ import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsReportResponse = {
     Query: {
-        reportResponse: GQLEndpoint<FindByIdInput, FindOneResult<ReportResponse>>;
-        reportResponses: GQLEndpoint<ReportResponseSearchInput, FindManyResult<ReportResponse>>;
+        reportResponse: ApiEndpoint<FindByIdInput, FindOneResult<ReportResponse>>;
+        reportResponses: ApiEndpoint<ReportResponseSearchInput, FindManyResult<ReportResponse>>;
     },
     Mutation: {
-        reportResponseCreate: GQLEndpoint<ReportResponseCreateInput, CreateOneResult<ReportResponse>>;
-        reportResponseUpdate: GQLEndpoint<ReportResponseUpdateInput, UpdateOneResult<ReportResponse>>;
+        reportResponseCreate: ApiEndpoint<ReportResponseCreateInput, CreateOneResult<ReportResponse>>;
+        reportResponseUpdate: ApiEndpoint<ReportResponseUpdateInput, UpdateOneResult<ReportResponse>>;
     }
 }
 

@@ -1,11 +1,11 @@
 import { Translate, TranslateInput } from "@local/shared";
 import fetch from "node-fetch";
 import { CustomError } from "../../events/error";
-import { GQLEndpoint } from "../../types";
+import { ApiEndpoint } from "../../types";
 
 export type EndpointsTranslate = {
     Query: {
-        translate: GQLEndpoint<TranslateInput, Translate>;
+        translate: ApiEndpoint<TranslateInput, Translate>;
     },
 }
 

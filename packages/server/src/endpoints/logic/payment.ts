@@ -1,12 +1,12 @@
 import { FindByIdInput, Payment, PaymentSearchInput } from "@local/shared";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { RequestService } from "../../auth/request";
-import { FindManyResult, FindOneResult, GQLEndpoint } from "../../types";
+import { ApiEndpoint, FindManyResult, FindOneResult } from "../../types";
 
 export type EndpointsPayment = {
     Query: {
-        payment: GQLEndpoint<FindByIdInput, FindOneResult<Payment>>;
-        payments: GQLEndpoint<PaymentSearchInput, FindManyResult<Payment>>;
+        payment: ApiEndpoint<FindByIdInput, FindOneResult<Payment>>;
+        payments: ApiEndpoint<PaymentSearchInput, FindManyResult<Payment>>;
     },
 }
 

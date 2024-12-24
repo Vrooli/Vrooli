@@ -2,12 +2,12 @@ import { ReminderList, ReminderListCreateInput, ReminderListUpdateInput } from "
 import { createOneHelper } from "../../actions/creates";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
-import { CreateOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsReminderList = {
     Mutation: {
-        reminderListCreate: GQLEndpoint<ReminderListCreateInput, CreateOneResult<ReminderList>>;
-        reminderListUpdate: GQLEndpoint<ReminderListUpdateInput, UpdateOneResult<ReminderList>>;
+        reminderListCreate: ApiEndpoint<ReminderListCreateInput, CreateOneResult<ReminderList>>;
+        reminderListUpdate: ApiEndpoint<ReminderListUpdateInput, UpdateOneResult<ReminderList>>;
     }
 }
 

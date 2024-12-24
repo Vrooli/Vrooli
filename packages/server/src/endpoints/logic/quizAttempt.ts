@@ -3,16 +3,16 @@ import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsQuizAttempt = {
     Query: {
-        quizAttempt: GQLEndpoint<FindByIdInput, FindOneResult<QuizAttempt>>;
-        quizAttempts: GQLEndpoint<QuizAttemptSearchInput, FindManyResult<QuizAttempt>>;
+        quizAttempt: ApiEndpoint<FindByIdInput, FindOneResult<QuizAttempt>>;
+        quizAttempts: ApiEndpoint<QuizAttemptSearchInput, FindManyResult<QuizAttempt>>;
     },
     Mutation: {
-        quizAttemptCreate: GQLEndpoint<QuizAttemptCreateInput, CreateOneResult<QuizAttempt>>;
-        quizAttemptUpdate: GQLEndpoint<QuizAttemptUpdateInput, UpdateOneResult<QuizAttempt>>;
+        quizAttemptCreate: ApiEndpoint<QuizAttemptCreateInput, CreateOneResult<QuizAttempt>>;
+        quizAttemptUpdate: ApiEndpoint<QuizAttemptUpdateInput, UpdateOneResult<QuizAttempt>>;
     }
 }
 

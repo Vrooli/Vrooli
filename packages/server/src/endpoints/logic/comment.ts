@@ -4,16 +4,16 @@ import { readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
 import { CommentModel } from "../../models/base/comment";
-import { CreateOneResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsComment = {
     Query: {
-        comment: GQLEndpoint<FindByIdInput, FindOneResult<Comment>>;
-        comments: GQLEndpoint<CommentSearchInput, CommentSearchResult>;
+        comment: ApiEndpoint<FindByIdInput, FindOneResult<Comment>>;
+        comments: ApiEndpoint<CommentSearchInput, CommentSearchResult>;
     },
     Mutation: {
-        commentCreate: GQLEndpoint<CommentCreateInput, CreateOneResult<Comment>>;
-        commentUpdate: GQLEndpoint<CommentUpdateInput, UpdateOneResult<Comment>>;
+        commentCreate: ApiEndpoint<CommentCreateInput, CreateOneResult<Comment>>;
+        commentUpdate: ApiEndpoint<CommentUpdateInput, UpdateOneResult<Comment>>;
     }
 }
 

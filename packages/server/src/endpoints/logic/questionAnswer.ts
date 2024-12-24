@@ -4,17 +4,17 @@ import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
 import { CustomError } from "../../events/error";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsQuestionAnswer = {
     Query: {
-        questionAnswer: GQLEndpoint<FindByIdInput, FindOneResult<QuestionAnswer>>;
-        questionAnswers: GQLEndpoint<QuestionAnswerSearchInput, FindManyResult<QuestionAnswer>>;
+        questionAnswer: ApiEndpoint<FindByIdInput, FindOneResult<QuestionAnswer>>;
+        questionAnswers: ApiEndpoint<QuestionAnswerSearchInput, FindManyResult<QuestionAnswer>>;
     },
     Mutation: {
-        questionAnswerCreate: GQLEndpoint<QuestionAnswerCreateInput, CreateOneResult<QuestionAnswer>>;
-        questionAnswerUpdate: GQLEndpoint<QuestionAnswerUpdateInput, UpdateOneResult<QuestionAnswer>>;
-        questionAnswerMarkAsAccepted: GQLEndpoint<FindByIdInput, UpdateOneResult<QuestionAnswer>>;
+        questionAnswerCreate: ApiEndpoint<QuestionAnswerCreateInput, CreateOneResult<QuestionAnswer>>;
+        questionAnswerUpdate: ApiEndpoint<QuestionAnswerUpdateInput, UpdateOneResult<QuestionAnswer>>;
+        questionAnswerMarkAsAccepted: ApiEndpoint<FindByIdInput, UpdateOneResult<QuestionAnswer>>;
     }
 }
 

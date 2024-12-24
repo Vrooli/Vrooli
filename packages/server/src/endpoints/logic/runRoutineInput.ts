@@ -1,11 +1,11 @@
 import { RunRoutineInput, RunRoutineInputSearchInput } from "@local/shared";
 import { readManyHelper } from "../../actions/reads";
 import { RequestService } from "../../auth/request";
-import { FindManyResult, GQLEndpoint } from "../../types";
+import { ApiEndpoint, FindManyResult } from "../../types";
 
 export type EndpointsRunRoutineInput = {
     Query: {
-        runRoutineInputs: GQLEndpoint<RunRoutineInputSearchInput, FindManyResult<RunRoutineInput>>;
+        runRoutineInputs: ApiEndpoint<RunRoutineInputSearchInput, FindManyResult<RunRoutineInput>>;
     },
 }
 

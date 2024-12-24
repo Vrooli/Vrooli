@@ -4,17 +4,17 @@ import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
 import { RunProjectModel } from "../../models/base/runProject";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsRunProject = {
     Query: {
-        runProject: GQLEndpoint<FindByIdInput, FindOneResult<RunProject>>;
-        runProjects: GQLEndpoint<RunProjectSearchInput, FindManyResult<RunProject>>;
+        runProject: ApiEndpoint<FindByIdInput, FindOneResult<RunProject>>;
+        runProjects: ApiEndpoint<RunProjectSearchInput, FindManyResult<RunProject>>;
     },
     Mutation: {
-        runProjectCreate: GQLEndpoint<RunProjectCreateInput, CreateOneResult<RunProject>>;
-        runProjectUpdate: GQLEndpoint<RunProjectUpdateInput, UpdateOneResult<RunProject>>;
-        runProjectDeleteAll: GQLEndpoint<Record<string, never>, Count>;
+        runProjectCreate: ApiEndpoint<RunProjectCreateInput, CreateOneResult<RunProject>>;
+        runProjectUpdate: ApiEndpoint<RunProjectUpdateInput, UpdateOneResult<RunProject>>;
+        runProjectDeleteAll: ApiEndpoint<Record<string, never>, Count>;
     }
 }
 

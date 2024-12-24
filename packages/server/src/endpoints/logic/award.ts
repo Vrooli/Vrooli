@@ -1,11 +1,11 @@
 import { Award, AwardSearchInput } from "@local/shared";
 import { readManyHelper } from "../../actions/reads";
 import { RequestService } from "../../auth/request";
-import { FindManyResult, GQLEndpoint } from "../../types";
+import { ApiEndpoint, FindManyResult } from "../../types";
 
 export type EndpointsAward = {
     Query: {
-        awards: GQLEndpoint<AwardSearchInput, FindManyResult<Award>>;
+        awards: ApiEndpoint<AwardSearchInput, FindManyResult<Award>>;
     },
 }
 

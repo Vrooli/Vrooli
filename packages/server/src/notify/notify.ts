@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import i18next, { TFuncKey } from "i18next";
 import { selectHelper } from "../builders/selectHelper";
 import { toPartialGqlInfo } from "../builders/toPartialGqlInfo";
-import { GraphQLInfo, PartialGraphQLInfo, PrismaDelegate } from "../builders/types";
+import { ApiEndpointInfo, PrismaDelegate } from "../builders/types";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
@@ -449,7 +449,7 @@ export function Notify(languages: string[] | undefined) {
             expires?: Date,
             name?: string,
             userData: SessionUser,
-            info: GraphQLInfo | PartialGraphQLInfo,
+            info: ApiEndpointInfo,
         }): Promise<PushDevice> => {
             const partialInfo = toPartialGqlInfo(info, PushDeviceModel.format.gqlRelMap, true);
             let select: { [key: string]: any } | undefined;

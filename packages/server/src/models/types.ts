@@ -1,6 +1,6 @@
 import { DotNotation, GqlModelType, ObjectLimit, SessionUser, YupMutateParams } from "@local/shared";
 import { AnyObjectSchema } from "yup";
-import { PartialGraphQLInfo, PartialPrismaSelect } from "../builders/types";
+import { ApiEndpointInfo, PartialPrismaSelect } from "../builders/types";
 import { PromiseOrValue } from "../types";
 import { SearchMap, SearchStringMap } from "../utils";
 import { InputNode } from "../utils/inputNode";
@@ -144,7 +144,7 @@ export interface SupplementalConverter<
         ids: string[],
         languages: string[] | undefined,
         objects: ({ id: string } & DbObject)[],
-        partial: PartialGraphQLInfo,
+        partial: ApiEndpointInfo,
         userData: SessionUser | null,
     }) => Promise<{ [key in SuppFields[number]]: any[] | { [x: string]: any[] } }>;
 }
@@ -191,11 +191,11 @@ export interface Formatter<
     /** List of fields to always exclude from GraphQL results */
     hiddenFields?: string[];
     /** Add join tables which are not present in GraphQL object */
-    addJoinTables?: (partial: PartialGraphQLInfo | PartialPrismaSelect) => any;
+    addJoinTables?: (partial: ApiEndpointInfo | PartialPrismaSelect) => any;
     /** Remove join tables which are not present in GraphQL object */
     removeJoinTables?: (data: GqlObject) => GqlObject;
     /** Add _count fields */
-    addCountFields?: (partial: PartialGraphQLInfo | PartialPrismaSelect) => any;
+    addCountFields?: (partial: ApiEndpointInfo | PartialPrismaSelect) => any;
     /** Remove _count fields */
     removeCountFields?: (data: GqlObject) => GqlObject;
 }

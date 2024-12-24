@@ -1,9 +1,9 @@
 import { ApiCreateInput, ApiSearchInput, ApiUpdateInput, BotCreateInput, BotUpdateInput, CodeCreateInput, CodeSearchInput, CodeUpdateInput, DEFAULT_LANGUAGE, DeleteManyInput, DeleteOneInput, GqlModelType, LlmTask, MemberSearchInput, MemberUpdateInput, NavigableObject, NoteCreateInput, NoteSearchInput, NoteUpdateInput, ProjectCreateInput, ProjectSearchInput, ProjectUpdateInput, QuestionCreateInput, QuestionSearchInput, QuestionUpdateInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, RoleCreateInput, RoleSearchInput, RoleUpdateInput, RoutineCreateInput, RoutineSearchInput, RoutineUpdateInput, RunProjectCreateInput, RunRoutineCreateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, SessionUser, StandardCreateInput, StandardSearchInput, StandardUpdateInput, TeamCreateInput, TeamSearchInput, TeamUpdateInput, ToBotSettingsPropBot, UserSearchInput, getObjectSlug, getObjectUrlBase, uuidValidate } from "@local/shared";
 import { Request, Response } from "express";
-import { GraphQLResolveInfo } from "graphql";
 import path from "path";
 import { fileURLToPath } from "url";
 import { readManyWithEmbeddingsHelper } from "../../actions/reads";
+import { ApiEndpointInfo } from "../../builders/types";
 import { prismaInstance } from "../../db/instance";
 import { logger } from "../../events";
 import { CustomError } from "../../events/error";
@@ -153,7 +153,7 @@ export async function importConverter(language: string): Promise<LlmTaskConverte
  * @param moduleName The name of the module to import
  * @returns The exported shape from the module
  */
-async function loadInfo(moduleName: string): Promise<GraphQLResolveInfo> {
+async function loadInfo(moduleName: string): Promise<ApiEndpointInfo> {
     // Construct the path to the module based on the provided module name
     const path = `../../endpoints/generated/${moduleName}`;
 
@@ -161,13 +161,13 @@ async function loadInfo(moduleName: string): Promise<GraphQLResolveInfo> {
     const module = await import(path);
 
     // Access the export using the same name as the module name
-    const exportedValue = module[moduleName] as unknown as GraphQLResolveInfo;
+    const exportedValue = module[moduleName] as ApiEndpointInfo;
 
     return exportedValue;
 }
 
-const SuccessInfo = { __typename: "Success" as const, success: true } as unknown as GraphQLResolveInfo;
-const CountInfo = { __typename: "Count" as const, count: true } as unknown as GraphQLResolveInfo;
+const SuccessInfo = { __typename: "Success" as const, success: true } as unknown as ApiEndpointInfo;
+const CountInfo = { __typename: "Count" as const, count: true } as unknown as ApiEndpointInfo;
 
 const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskHandlerHelperFuncs<Task>) => Promise<LlmTaskExec> } = {
     "ApiAdd": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {

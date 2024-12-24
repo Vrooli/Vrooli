@@ -1,31 +1,24 @@
 import { GqlModelType, OrArray, PageInfo, SessionUser, TimeFrame, VisibilityType } from "@local/shared";
-import { GraphQLResolveInfo } from "graphql";
 
 /**
- * Shape 1 of 4 for GraphQL to Prisma conversion (i.e. GraphQL data before conversion)
- */
-export type GraphQLInfo = GraphQLResolveInfo | { [x: string]: any } | null;
-
-/**
- * Shape 2 of 4 for GraphQL to Prisma converstion. Used by many functions because it is more 
- * convenient than straight up GraphQL request data. Each level contains a __typename field. 
+ * Shape 1 of 3 for API endpoint to Prisma converstion. Each level contains a __typename field. 
  * This type of data is also easier to hard-code in a pinch.
  */
-export interface PartialGraphQLInfo {
-    [x: string]: `${GqlModelType}` | undefined | boolean | PartialGraphQLInfo;
+export interface ApiEndpointInfo {
+    [x: string]: `${GqlModelType}` | undefined | boolean | ApiEndpointInfo;
     __typename?: `${GqlModelType}`;
 }
 
 /**
- * Shape 3 of 4 for GraphQL to Prisma conversion. Still contains the type fields, 
+ * Shape 2 of 3 for API endpoint to Prisma conversion. Still contains the type fields, 
  * but does not pad objects with a "select" field. Calculated fields, join tables, and other 
- * data transformations from the GraphqL shape are removed. This is useful when checking 
+ * data transformations are removed. This is useful when checking 
  * which fields are requested from a Prisma query.
  */
 export type PartialPrismaSelect = { __typename?: `${GqlModelType}` } & { [x: string]: boolean | PartialPrismaSelect };
 
 /**
- * Shape 4 of 4 for GraphQL to Prisma conversion. This is the final shape of the requested data 
+ * Shape 3 of 3 for API endpoint to Prisma conversion. This is the final shape of the requested data 
  * as it will be sent to the database. It is has type fields removed, and objects padded with "select"
  */
 export type PrismaSelect = {

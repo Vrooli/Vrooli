@@ -2,12 +2,12 @@ import { Node, NodeCreateInput, NodeUpdateInput } from "@local/shared";
 import { createOneHelper } from "../../actions/creates";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
-import { CreateOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsNode = {
     Mutation: {
-        nodeCreate: GQLEndpoint<NodeCreateInput, CreateOneResult<Node>>;
-        nodeUpdate: GQLEndpoint<NodeUpdateInput, UpdateOneResult<Node>>;
+        nodeCreate: ApiEndpoint<NodeCreateInput, CreateOneResult<Node>>;
+        nodeUpdate: ApiEndpoint<NodeUpdateInput, UpdateOneResult<Node>>;
     }
 }
 

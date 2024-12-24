@@ -4,16 +4,16 @@ import { RequestService } from "../../auth/request";
 import { SessionService } from "../../auth/session";
 import { addSupplementalFieldsMultiTypes } from "../../builders/addSupplementalFieldsMultiTypes";
 import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
-import { PartialGraphQLInfo } from "../../builders/types";
+import { ApiEndpointInfo } from "../../builders/types";
 import { schedulesWhereInTimeframe } from "../../events/schedule";
-import { GQLEndpoint } from "../../types";
+import { ApiEndpoint } from "../../types";
 
 const SCHEDULES_DAYS_TO_LOOK_AHEAD = 7;
 
 export type EndpointsFeed = {
     Query: {
-        home: GQLEndpoint<Record<string, never>, HomeResult>;
-        popular: GQLEndpoint<PopularSearchInput, PopularSearchResult>;
+        home: ApiEndpoint<Record<string, never>, HomeResult>;
+        popular: ApiEndpoint<PopularSearchInput, PopularSearchResult>;
     }
 }
 
@@ -41,7 +41,7 @@ export const FeedEndpoints: EndpointsFeed = {
                         focusMode: null,
                     },
                 },
-                info: partial.reminders as PartialGraphQLInfo,
+                info: partial.reminders as ApiEndpointInfo,
                 input: { take, sortBy: ReminderSortBy.DateCreatedAsc, isComplete: false, visibility: VisibilityType.Own },
                 objectType: "Reminder",
             });
@@ -54,7 +54,7 @@ export const FeedEndpoints: EndpointsFeed = {
                         focusMode: null,
                     },
                 },
-                info: partial.resources as PartialGraphQLInfo,
+                info: partial.resources as ApiEndpointInfo,
                 input: { take, sortBy: ResourceSortBy.IndexAsc, visibility: VisibilityType.Own },
                 objectType: "Resource",
             });
@@ -68,7 +68,7 @@ export const FeedEndpoints: EndpointsFeed = {
                 additionalQueries: {
                     ...schedulesWhereInTimeframe(startDate, endDate),
                 },
-                info: partial.schedules as PartialGraphQLInfo,
+                info: partial.schedules as ApiEndpointInfo,
                 input: { take, sortBy: ScheduleSortBy.EndTimeAsc, visibility: VisibilityType.Own },
                 objectType: "Schedule",
             });
@@ -124,7 +124,7 @@ export const FeedEndpoints: EndpointsFeed = {
             const { nodes: apis, pageInfo: apisInfo } = shouldInclude("Api") ? await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { isPrivate: false },
-                info: partial.Api as PartialGraphQLInfo,
+                info: partial.Api as ApiEndpointInfo,
                 input: {
                     ...commonInputParams,
                     after: input.apiAfter,
@@ -136,7 +136,7 @@ export const FeedEndpoints: EndpointsFeed = {
             const { nodes: notes, pageInfo: notesInfo } = shouldInclude("Note") ? await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { isPrivate: false },
-                info: partial.Note as PartialGraphQLInfo,
+                info: partial.Note as ApiEndpointInfo,
                 input: {
                     ...commonInputParams,
                     after: input.noteAfter,
@@ -148,7 +148,7 @@ export const FeedEndpoints: EndpointsFeed = {
             const { nodes: teams, pageInfo: teamsInfo } = shouldInclude("Team") ? await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { isPrivate: false },
-                info: partial.Team as PartialGraphQLInfo,
+                info: partial.Team as ApiEndpointInfo,
                 input: {
                     ...commonInputParams,
                     after: input.teamAfter,
@@ -160,7 +160,7 @@ export const FeedEndpoints: EndpointsFeed = {
             const { nodes: projects, pageInfo: projectsInfo } = shouldInclude("Project") ? await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { isPrivate: false },
-                info: partial.Project as PartialGraphQLInfo,
+                info: partial.Project as ApiEndpointInfo,
                 input: {
                     ...commonInputParams,
                     after: input.projectAfter,
@@ -181,7 +181,7 @@ export const FeedEndpoints: EndpointsFeed = {
                     standard: null,
                     team: null,
                 },
-                info: partial.Question as PartialGraphQLInfo,
+                info: partial.Question as ApiEndpointInfo,
                 input: {
                     ...commonInputParams,
                     after: input.questionAfter,
@@ -193,7 +193,7 @@ export const FeedEndpoints: EndpointsFeed = {
             const { nodes: routines, pageInfo: routinesInfo } = shouldInclude("Routine") ? await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { isPrivate: false },
-                info: partial.Routine as PartialGraphQLInfo,
+                info: partial.Routine as ApiEndpointInfo,
                 input: {
                     ...commonInputParams,
                     after: input.routineAfter,
@@ -206,7 +206,7 @@ export const FeedEndpoints: EndpointsFeed = {
             const { nodes: codes, pageInfo: codesInfo } = shouldInclude("Code") ? await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { isPrivate: false },
-                info: partial.Code as PartialGraphQLInfo,
+                info: partial.Code as ApiEndpointInfo,
                 input: {
                     ...commonInputParams,
                     after: input.codeAfter,
@@ -218,7 +218,7 @@ export const FeedEndpoints: EndpointsFeed = {
             const { nodes: standards, pageInfo: standardsInfo } = shouldInclude("Standard") ? await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { isPrivate: false },
-                info: partial.Standard as PartialGraphQLInfo,
+                info: partial.Standard as ApiEndpointInfo,
                 input: {
                     ...commonInputParams,
                     after: input.standardAfter,
@@ -232,7 +232,7 @@ export const FeedEndpoints: EndpointsFeed = {
             const { nodes: users, pageInfo: usersInfo } = shouldInclude("User") ? await readManyAsFeedHelper({
                 ...commonReadParams,
                 additionalQueries: { isPrivate: false },
-                info: partial.User as PartialGraphQLInfo,
+                info: partial.User as ApiEndpointInfo,
                 input: {
                     ...commonInputParams,
                     after: input.userAfter,
@@ -252,15 +252,15 @@ export const FeedEndpoints: EndpointsFeed = {
                 teams,
                 users,
             }, {
-                apis: { type: "Api", ...(partial.Api as PartialGraphQLInfo) },
-                codes: { type: "Code", ...(partial.Code as PartialGraphQLInfo) },
-                notes: { type: "Note", ...(partial.Note as PartialGraphQLInfo) },
-                projects: { type: "Project", ...(partial.Project as PartialGraphQLInfo) },
-                questions: { type: "Question", ...(partial.Question as PartialGraphQLInfo) },
-                routines: { type: "Routine", ...(partial.Routine as PartialGraphQLInfo) },
-                standards: { type: "Standard", ...(partial.Standard as PartialGraphQLInfo) },
-                teams: { type: "Team", ...(partial.Team as PartialGraphQLInfo) },
-                users: { type: "User", ...(partial.User as PartialGraphQLInfo) },
+                apis: { type: "Api", ...(partial.Api as ApiEndpointInfo) },
+                codes: { type: "Code", ...(partial.Code as ApiEndpointInfo) },
+                notes: { type: "Note", ...(partial.Note as ApiEndpointInfo) },
+                projects: { type: "Project", ...(partial.Project as ApiEndpointInfo) },
+                questions: { type: "Question", ...(partial.Question as ApiEndpointInfo) },
+                routines: { type: "Routine", ...(partial.Routine as ApiEndpointInfo) },
+                standards: { type: "Standard", ...(partial.Standard as ApiEndpointInfo) },
+                teams: { type: "Team", ...(partial.Team as ApiEndpointInfo) },
+                users: { type: "User", ...(partial.User as ApiEndpointInfo) },
             }, SessionService.getUser(req.session));
             // Combine nodes, alternating between each type
             const properties = Object.values(withSupplemental);

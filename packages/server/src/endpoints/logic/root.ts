@@ -1,11 +1,11 @@
-import { GQLEndpoint } from "../../types";
+import { ApiEndpoint } from "../../types";
 
 export type EndpointsRoot = {
     Query: {
-        _empty: GQLEndpoint<Record<string, never>, string>;
+        _empty: ApiEndpoint<Record<string, never>, string>;
     },
     Mutation: {
-        _empty: GQLEndpoint<Record<string, never>, string>;
+        _empty: ApiEndpoint<Record<string, never>, string>;
     }
 }
 

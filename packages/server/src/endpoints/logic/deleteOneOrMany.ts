@@ -1,12 +1,12 @@
 import { Count, DeleteManyInput, DeleteOneInput, Success } from "@local/shared";
 import { deleteManyHelper, deleteOneHelper } from "../../actions/deletes";
 import { RequestService } from "../../auth/request";
-import { GQLEndpoint } from "../../types";
+import { ApiEndpoint } from "../../types";
 
 export type EndpointsDeleteOneOrMany = {
     Mutation: {
-        deleteOne: GQLEndpoint<DeleteOneInput, Success>;
-        deleteMany: GQLEndpoint<DeleteManyInput, Count>;
+        deleteOne: ApiEndpoint<DeleteOneInput, Success>;
+        deleteMany: ApiEndpoint<DeleteManyInput, Count>;
     }
 }
 

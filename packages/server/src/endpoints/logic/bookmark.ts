@@ -3,16 +3,16 @@ import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsBookmark = {
     Query: {
-        bookmark: GQLEndpoint<FindByIdInput, FindOneResult<Bookmark>>;
-        bookmarks: GQLEndpoint<BookmarkSearchInput, FindManyResult<Bookmark>>;
+        bookmark: ApiEndpoint<FindByIdInput, FindOneResult<Bookmark>>;
+        bookmarks: ApiEndpoint<BookmarkSearchInput, FindManyResult<Bookmark>>;
     },
     Mutation: {
-        bookmarkCreate: GQLEndpoint<BookmarkCreateInput, CreateOneResult<Bookmark>>;
-        bookmarkUpdate: GQLEndpoint<BookmarkUpdateInput, UpdateOneResult<Bookmark>>;
+        bookmarkCreate: ApiEndpoint<BookmarkCreateInput, CreateOneResult<Bookmark>>;
+        bookmarkUpdate: ApiEndpoint<BookmarkUpdateInput, UpdateOneResult<Bookmark>>;
     }
 }
 

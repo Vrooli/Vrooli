@@ -4,16 +4,16 @@ import { requestBotResponse } from "../../tasks/llm/queue";
 import { changeLlmTaskStatus, getLlmTaskStatuses } from "../../tasks/llmTask";
 import { changeRunTaskStatus, getRunTaskStatuses, processRunProject, processRunRoutine } from "../../tasks/run/queue";
 import { changeSandboxTaskStatus, getSandboxTaskStatuses } from "../../tasks/sandbox/queue";
-import { GQLEndpoint } from "../../types";
+import { ApiEndpoint } from "../../types";
 
 export type EndpointsTask = {
     Query: {
-        checkTaskStatuses: GQLEndpoint<CheckTaskStatusesInput, CheckTaskStatusesResult>;
+        checkTaskStatuses: ApiEndpoint<CheckTaskStatusesInput, CheckTaskStatusesResult>;
     },
     Mutation: {
-        startLlmTask: GQLEndpoint<StartLlmTaskInput, Success>;
-        startRunTask: GQLEndpoint<StartRunTaskInput, Success>;
-        cancelTask: GQLEndpoint<CancelTaskInput, Success>;
+        startLlmTask: ApiEndpoint<StartLlmTaskInput, Success>;
+        startRunTask: ApiEndpoint<StartRunTaskInput, Success>;
+        cancelTask: ApiEndpoint<CancelTaskInput, Success>;
     }
 }
 
@@ -48,7 +48,7 @@ export const TaskEndpoints: EndpointsTask = {
                 ...input,
                 mode: "json",
                 parentMessage: null,
-                userData
+                userData,
             });
         },
         startRunTask: async (_, { input }, { req }) => {

@@ -8,20 +8,20 @@ import { ModelMap } from "../../models/base";
 import { ChatMessageModelLogic, ChatModelInfo } from "../../models/base/types";
 import { emitSocketEvent } from "../../sockets/events";
 import { requestBotResponse } from "../../tasks/llm/queue";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 import { ChatMessagePre, PreMapChatData, PreMapMessageDataUpdate, PreMapUserData, getChatParticipantData } from "../../utils/chat";
 import { getSingleTypePermissions } from "../../validators/permissions";
 
 export type EndpointsChatMessage = {
     Query: {
-        chatMessage: GQLEndpoint<FindByIdInput, FindOneResult<ChatMessage>>;
-        chatMessages: GQLEndpoint<ChatMessageSearchInput, FindManyResult<ChatMessage>>;
-        chatMessageTree: GQLEndpoint<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>;
+        chatMessage: ApiEndpoint<FindByIdInput, FindOneResult<ChatMessage>>;
+        chatMessages: ApiEndpoint<ChatMessageSearchInput, FindManyResult<ChatMessage>>;
+        chatMessageTree: ApiEndpoint<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>;
     },
     Mutation: {
-        chatMessageCreate: GQLEndpoint<ChatMessageCreateWithTaskInfoInput, CreateOneResult<ChatMessage>>;
-        chatMessageUpdate: GQLEndpoint<ChatMessageUpdateWithTaskInfoInput, UpdateOneResult<ChatMessage>>;
-        regenerateResponse: GQLEndpoint<RegenerateResponseInput, Success>;
+        chatMessageCreate: ApiEndpoint<ChatMessageCreateWithTaskInfoInput, CreateOneResult<ChatMessage>>;
+        chatMessageUpdate: ApiEndpoint<ChatMessageUpdateWithTaskInfoInput, UpdateOneResult<ChatMessage>>;
+        regenerateResponse: ApiEndpoint<RegenerateResponseInput, Success>;
     }
 }
 

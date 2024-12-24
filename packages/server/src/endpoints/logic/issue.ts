@@ -4,17 +4,17 @@ import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
 import { CustomError } from "../../events/error";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsIssue = {
     Query: {
-        issue: GQLEndpoint<FindByIdInput, FindOneResult<Issue>>;
-        issues: GQLEndpoint<IssueSearchInput, FindManyResult<Issue>>;
+        issue: ApiEndpoint<FindByIdInput, FindOneResult<Issue>>;
+        issues: ApiEndpoint<IssueSearchInput, FindManyResult<Issue>>;
     },
     Mutation: {
-        issueCreate: GQLEndpoint<IssueCreateInput, CreateOneResult<Issue>>;
-        issueUpdate: GQLEndpoint<IssueUpdateInput, UpdateOneResult<Issue>>;
-        issueClose: GQLEndpoint<IssueCloseInput, UpdateOneResult<Issue>>;
+        issueCreate: ApiEndpoint<IssueCreateInput, CreateOneResult<Issue>>;
+        issueUpdate: ApiEndpoint<IssueUpdateInput, UpdateOneResult<Issue>>;
+        issueClose: ApiEndpoint<IssueCloseInput, UpdateOneResult<Issue>>;
     }
 }
 

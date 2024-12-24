@@ -1,12 +1,12 @@
 import { FindByIdInput, QuizQuestionResponse, QuizQuestionResponseSearchInput } from "@local/shared";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { RequestService } from "../../auth/request";
-import { FindManyResult, FindOneResult, GQLEndpoint } from "../../types";
+import { ApiEndpoint, FindManyResult, FindOneResult } from "../../types";
 
 export type EndpointsQuizQuestionResponse = {
     Query: {
-        quizQuestionResponse: GQLEndpoint<FindByIdInput, FindOneResult<QuizQuestionResponse>>;
-        quizQuestionResponses: GQLEndpoint<QuizQuestionResponseSearchInput, FindManyResult<QuizQuestionResponse>>;
+        quizQuestionResponse: ApiEndpoint<FindByIdInput, FindOneResult<QuizQuestionResponse>>;
+        quizQuestionResponses: ApiEndpoint<QuizQuestionResponseSearchInput, FindManyResult<QuizQuestionResponse>>;
     },
 }
 

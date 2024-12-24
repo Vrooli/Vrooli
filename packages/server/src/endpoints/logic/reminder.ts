@@ -3,16 +3,16 @@ import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsReminder = {
     Query: {
-        reminder: GQLEndpoint<FindByIdInput, FindOneResult<Reminder>>;
-        reminders: GQLEndpoint<ReminderSearchInput, FindManyResult<Reminder>>;
+        reminder: ApiEndpoint<FindByIdInput, FindOneResult<Reminder>>;
+        reminders: ApiEndpoint<ReminderSearchInput, FindManyResult<Reminder>>;
     },
     Mutation: {
-        reminderCreate: GQLEndpoint<ReminderCreateInput, CreateOneResult<Reminder>>;
-        reminderUpdate: GQLEndpoint<ReminderUpdateInput, UpdateOneResult<Reminder>>;
+        reminderCreate: ApiEndpoint<ReminderCreateInput, CreateOneResult<Reminder>>;
+        reminderUpdate: ApiEndpoint<ReminderUpdateInput, UpdateOneResult<Reminder>>;
     }
 }
 

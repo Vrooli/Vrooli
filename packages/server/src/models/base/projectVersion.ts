@@ -94,7 +94,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //     async searchContents(
     //         req: Request,
     //         input: ProjectVersionContentsSearchInput,
-    //         info: GraphQLInfo | PartialGraphQLInfo,
+    //         info: ApiEndpointInfo,
     //         nestLimit: number = 2,
     //     ): Promise<ProjectVersionContentsSearchResult> {
     //         // Partially convert info type
@@ -166,7 +166,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //         }
     //         let comments: any = flattenThreads(childThreads);
     //         // Shape comments and add supplemental fields
-    //         comments = comments.map((c: any) => modelToGql(c, partialInfo as PartialGraphQLInfo));
+    //         comments = comments.map((c: any) => modelToGql(c, partialInfo as ApiEndpointInfo));
     //         comments = await addSupplementalFields(getUser(req.session), comments, partialInfo);
     //         // Put comments back into "threads" object, using another helper function. 
     //         // Comments can be matched by their ID

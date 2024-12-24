@@ -1,7 +1,7 @@
 import { GqlModelType, omit } from "@local/shared";
 import pkg from "lodash";
 import { ModelMap } from "../models/base";
-import { PartialGraphQLInfo, PartialPrismaSelect } from "./types";
+import { ApiEndpointInfo, PartialPrismaSelect } from "./types";
 
 const { merge } = pkg;
 
@@ -13,7 +13,7 @@ const { merge } = pkg;
  * @param partial Select fields object
  * @returns partial with supplemental fields removed, and maybe additional fields added
  */
-export const removeSupplementalFields = (objectType: `${GqlModelType}`, partial: PartialGraphQLInfo | PartialPrismaSelect) => {
+export const removeSupplementalFields = (objectType: `${GqlModelType}`, partial: ApiEndpointInfo | PartialPrismaSelect) => {
     // Get supplemental info for object
     const supplementer = ModelMap.get(objectType, false)?.search?.supplemental;
     if (!supplementer) return partial;

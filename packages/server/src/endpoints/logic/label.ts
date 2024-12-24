@@ -3,16 +3,16 @@ import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsLabel = {
     Query: {
-        label: GQLEndpoint<FindByIdInput, FindOneResult<Label>>;
-        labels: GQLEndpoint<LabelSearchInput, FindManyResult<Label>>;
+        label: ApiEndpoint<FindByIdInput, FindOneResult<Label>>;
+        labels: ApiEndpoint<LabelSearchInput, FindManyResult<Label>>;
     },
     Mutation: {
-        labelCreate: GQLEndpoint<LabelCreateInput, CreateOneResult<Label>>;
-        labelUpdate: GQLEndpoint<LabelUpdateInput, UpdateOneResult<Label>>;
+        labelCreate: ApiEndpoint<LabelCreateInput, CreateOneResult<Label>>;
+        labelUpdate: ApiEndpoint<LabelUpdateInput, UpdateOneResult<Label>>;
     }
 }
 

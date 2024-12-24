@@ -2,14 +2,14 @@ import { ReactInput, Reaction, ReactionSearchInput, Success } from "@local/share
 import { readManyHelper } from "../../actions/reads";
 import { RequestService } from "../../auth/request";
 import { ReactionModel } from "../../models/base/reaction";
-import { FindManyResult, GQLEndpoint } from "../../types";
+import { ApiEndpoint, FindManyResult } from "../../types";
 
 export type EndpointsReaction = {
     Query: {
-        reactions: GQLEndpoint<ReactionSearchInput, FindManyResult<Reaction>>;
+        reactions: ApiEndpoint<ReactionSearchInput, FindManyResult<Reaction>>;
     },
     Mutation: {
-        react: GQLEndpoint<ReactInput, Success>;
+        react: ApiEndpoint<ReactInput, Success>;
     }
 }
 

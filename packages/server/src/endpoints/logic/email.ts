@@ -2,12 +2,12 @@ import { Email, EmailCreateInput, SendVerificationEmailInput, Success } from "@l
 import { createOneHelper } from "../../actions/creates";
 import { PasswordAuthService } from "../../auth/email";
 import { RequestService } from "../../auth/request";
-import { CreateOneResult, GQLEndpoint } from "../../types";
+import { ApiEndpoint, CreateOneResult } from "../../types";
 
 export type EndpointsEmail = {
     Mutation: {
-        emailCreate: GQLEndpoint<EmailCreateInput, CreateOneResult<Email>>;
-        sendVerificationEmail: GQLEndpoint<SendVerificationEmailInput, Success>;
+        emailCreate: ApiEndpoint<EmailCreateInput, CreateOneResult<Email>>;
+        sendVerificationEmail: ApiEndpoint<SendVerificationEmailInput, Success>;
     }
 }
 

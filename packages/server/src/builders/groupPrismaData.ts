@@ -1,7 +1,7 @@
 import { GqlModelType, isObject, OrArray } from "@local/shared";
 import pkg from "lodash";
 import { isRelationshipObject } from "./isOfType";
-import { PartialGraphQLInfo } from "./types";
+import { ApiEndpointInfo } from "./types";
 
 const { merge } = pkg;
 
@@ -41,11 +41,11 @@ const combineDicts = (dict1: GroupPrismaDataReturn, dict2: GroupPrismaDataReturn
  *     a. Finding the data for a given object, when we use the ID to look it up
  *     b. Combining known data if the same object appears in multiple places in the data
  * @param data GraphQL-shaped data, where each object contains at least an ID
- * @param partialInfo PartialGraphQLInfo object
+ * @param partialInfo API endpoint info object
  */
 export const groupPrismaData = (
     data: OrArray<{ [x: string]: any }>,
-    partialInfo: OrArray<PartialGraphQLInfo>,
+    partialInfo: OrArray<ApiEndpointInfo>,
 ): GroupPrismaDataReturn => {
     // Check for valid input
     if (!data || !partialInfo) return {
@@ -70,7 +70,7 @@ export const groupPrismaData = (
     }
     // Loop through each key/value pair in data
     for (const [key, value] of Object.entries(data)) {
-        let childPartialInfo: PartialGraphQLInfo = partialInfo[key] as any;
+        let childPartialInfo: ApiEndpointInfo = partialInfo[key] as any;
         if (childPartialInfo && value) {
             // If every key in childPartialInfo starts with a capital letter, then it is a union.
             // In this case, we must determine which union to use based on the shape of value
@@ -90,7 +90,7 @@ export const groupPrismaData = (
                 // If no union type matches, skip
                 if (!matchingType) continue;
                 // If union type, update child partial
-                childPartialInfo = childPartialInfo[matchingType] as PartialGraphQLInfo;
+                childPartialInfo = childPartialInfo[matchingType] as ApiEndpointInfo;
             }
         }
         // If value is an array
@@ -110,15 +110,15 @@ export const groupPrismaData = (
             result = combineDicts(result, childDicts);
         }
         // If key is 'id'
-        else if (key === "id" && (partialInfo as PartialGraphQLInfo).__typename) {
-            const type = (partialInfo as PartialGraphQLInfo).__typename as `${GqlModelType}`;
+        else if (key === "id" && (partialInfo as ApiEndpointInfo).__typename) {
+            const type = (partialInfo as ApiEndpointInfo).__typename as `${GqlModelType}`;
             // Add to objectTypesIdsDict
             result.objectTypesIdsDict[type] = result.objectTypesIdsDict[type] ?? [];
             result.objectTypesIdsDict[type].push(value);
         }
     }
     // Add keys to selectFieldsDict
-    const currType = (partialInfo as PartialGraphQLInfo)?.__typename as `${GqlModelType}`;
+    const currType = (partialInfo as ApiEndpointInfo)?.__typename as `${GqlModelType}`;
     if (currType) {
         result.selectFieldsDict[currType] = merge(result.selectFieldsDict[currType] ?? {}, partialInfo);
     }

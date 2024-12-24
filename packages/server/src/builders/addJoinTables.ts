@@ -1,6 +1,6 @@
 import { JoinMap } from "../models/types";
 import { isRelationshipArray, isRelationshipObject } from "./isOfType";
-import { PartialGraphQLInfo } from "./types";
+import { ApiEndpointInfo } from "./types";
 
 /**
  * Idempotent helper function for adding join tables between 
@@ -8,7 +8,7 @@ import { PartialGraphQLInfo } from "./types";
  * @param partialInfo - GraphQL-shaped object
  * @param map - Mapping of many-to-many relationship names to join table names
  */
-export const addJoinTables = (partialInfo: PartialGraphQLInfo, map: JoinMap | undefined): any => {
+export const addJoinTables = (partialInfo: ApiEndpointInfo, map: JoinMap | undefined): any => {
     if (!map) return partialInfo;
     // Create result object
     const result: any = {};

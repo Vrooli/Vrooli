@@ -3,7 +3,7 @@ import { addCountFields } from "./addCountFields";
 import { addJoinTables } from "./addJoinTables";
 import { isRelationshipObject } from "./isOfType";
 import { removeSupplementalFields } from "./removeSupplementalFields";
-import { PartialGraphQLInfo, PartialPrismaSelect } from "./types";
+import { ApiEndpointInfo, PartialPrismaSelect } from "./types";
 import { deconstructUnions } from "./unions";
 
 /**
@@ -14,14 +14,14 @@ import { deconstructUnions } from "./unions";
  * @returns Prisma select object with calculated fields, unions and join tables removed, 
  * and count fields and types added
  */
-export const toPartialPrismaSelect = (partial: PartialGraphQLInfo | PartialPrismaSelect): PartialPrismaSelect => {
+export function toPartialPrismaSelect(partial: ApiEndpointInfo | PartialPrismaSelect): PartialPrismaSelect {
     // Create result object
     let result: { [x: string]: any } = {};
     // Loop through each key/value pair in partial
     for (const [key, value] of Object.entries(partial)) {
         // If value is an object (and not date), recurse
         if (isRelationshipObject(value)) {
-            result[key] = toPartialPrismaSelect(value as PartialGraphQLInfo | PartialPrismaSelect);
+            result[key] = toPartialPrismaSelect(value as ApiEndpointInfo | PartialPrismaSelect);
         }
         // Otherwise, add key/value pair to result
         else {

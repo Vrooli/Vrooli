@@ -2,15 +2,15 @@ import { FindByIdInput, Member, MemberSearchInput, MemberUpdateInput } from "@lo
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
-import { FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsMember = {
     Query: {
-        member: GQLEndpoint<FindByIdInput, FindOneResult<Member>>;
-        members: GQLEndpoint<MemberSearchInput, FindManyResult<Member>>;
+        member: ApiEndpoint<FindByIdInput, FindOneResult<Member>>;
+        members: ApiEndpoint<MemberSearchInput, FindManyResult<Member>>;
     },
     Mutation: {
-        memberUpdate: GQLEndpoint<MemberUpdateInput, UpdateOneResult<Member>>;
+        memberUpdate: ApiEndpoint<MemberUpdateInput, UpdateOneResult<Member>>;
     }
 }
 

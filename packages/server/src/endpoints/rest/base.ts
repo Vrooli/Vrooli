@@ -1,9 +1,8 @@
 import { HttpStatus, MB_10_BYTES, ServerError, SessionUser, decodeValue } from "@local/shared";
 import { NextFunction, Request, Response, Router } from "express";
-import { GraphQLResolveInfo } from "graphql";
 import multer, { Options as MulterOptions } from "multer";
 import { SessionService } from "../../auth/session";
-import { PartialGraphQLInfo } from "../../builders/types";
+import { ApiEndpointInfo } from "../../builders/types";
 import { CustomError } from "../../events/error";
 import { Context, context } from "../../middleware";
 import { processAndStoreFiles } from "../../utils/fileStorage";
@@ -17,7 +16,7 @@ export type EndpointFunction = (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     data: any,
     context: Context,
-    info: GraphQLResolveInfo | PartialGraphQLInfo,
+    info: ApiEndpointInfo,
 ) => Promise<unknown>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type FileConfig<TInput = any> = {
@@ -38,7 +37,7 @@ export type UploadConfig<TInput = any> = {
 }
 export type EndpointTuple = readonly [
     EndpointFunction,
-    GraphQLResolveInfo | PartialGraphQLInfo | Record<string, unknown>,
+    ApiEndpointInfo | Record<string, unknown>,
     UploadConfig?
 ];
 export type EndpointType = "get" | "post" | "put" | "delete";
@@ -64,7 +63,7 @@ function parseInput(input: Record<string, unknown>): Record<string, unknown> {
 
 export async function handleEndpoint(
     endpoint: EndpointFunction,
-    selection: GraphQLResolveInfo | PartialGraphQLInfo,
+    selection: ApiEndpointInfo,
     input: unknown,
     req: Request,
     res: Response,
@@ -205,7 +204,7 @@ export function setupRoutes(restEndpoints: Record<string, EndpointGroup>) {
                             input[fieldname] = { sizes, file };
                         }
                     }
-                    handleEndpoint(endpoint, selection as GraphQLResolveInfo, input, req, res);
+                    handleEndpoint(endpoint, selection as ApiEndpointInfo, input, req, res);
                 });
         });
     });

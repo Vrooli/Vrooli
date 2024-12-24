@@ -3,16 +3,16 @@ import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsChat = {
     Query: {
-        chat: GQLEndpoint<FindByIdInput, FindOneResult<Chat>>;
-        chats: GQLEndpoint<ChatSearchInput, FindManyResult<Chat>>;
+        chat: ApiEndpoint<FindByIdInput, FindOneResult<Chat>>;
+        chats: ApiEndpoint<ChatSearchInput, FindManyResult<Chat>>;
     },
     Mutation: {
-        chatCreate: GQLEndpoint<ChatCreateInput, CreateOneResult<Chat>>;
-        chatUpdate: GQLEndpoint<ChatUpdateInput, UpdateOneResult<Chat>>;
+        chatCreate: ApiEndpoint<ChatCreateInput, CreateOneResult<Chat>>;
+        chatUpdate: ApiEndpoint<ChatUpdateInput, UpdateOneResult<Chat>>;
     }
 }
 

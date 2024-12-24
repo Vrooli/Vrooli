@@ -1,12 +1,12 @@
 import { FindByIdInput, ReputationHistory, ReputationHistorySearchInput } from "@local/shared";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { RequestService } from "../../auth/request";
-import { FindManyResult, FindOneResult, GQLEndpoint } from "../../types";
+import { ApiEndpoint, FindManyResult, FindOneResult } from "../../types";
 
 export type EndpointsReputationHistory = {
     Query: {
-        reputationHistory: GQLEndpoint<FindByIdInput, FindOneResult<ReputationHistory>>;
-        reputationHistories: GQLEndpoint<ReputationHistorySearchInput, FindManyResult<ReputationHistory>>;
+        reputationHistory: ApiEndpoint<FindByIdInput, FindOneResult<ReputationHistory>>;
+        reputationHistories: ApiEndpoint<ReputationHistorySearchInput, FindManyResult<ReputationHistory>>;
     },
 }
 

@@ -3,16 +3,16 @@ import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsNotificationSubscription = {
     Query: {
-        notificationSubscription: GQLEndpoint<FindByIdInput, FindOneResult<NotificationSubscription>>;
-        notificationSubscriptions: GQLEndpoint<NotificationSubscriptionSearchInput, FindManyResult<NotificationSubscription>>;
+        notificationSubscription: ApiEndpoint<FindByIdInput, FindOneResult<NotificationSubscription>>;
+        notificationSubscriptions: ApiEndpoint<NotificationSubscriptionSearchInput, FindManyResult<NotificationSubscription>>;
     },
     Mutation: {
-        notificationSubscriptionCreate: GQLEndpoint<NotificationSubscriptionCreateInput, CreateOneResult<NotificationSubscription>>;
-        notificationSubscriptionUpdate: GQLEndpoint<NotificationSubscriptionUpdateInput, UpdateOneResult<NotificationSubscription>>;
+        notificationSubscriptionCreate: ApiEndpoint<NotificationSubscriptionCreateInput, CreateOneResult<NotificationSubscription>>;
+        notificationSubscriptionUpdate: ApiEndpoint<NotificationSubscriptionUpdateInput, UpdateOneResult<NotificationSubscription>>;
     }
 }
 

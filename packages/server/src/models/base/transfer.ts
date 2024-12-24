@@ -1,10 +1,9 @@
 import { DEFAULT_LANGUAGE, GqlModelType, SessionUser, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSortBy, transferValidation } from "@local/shared";
-import { GraphQLResolveInfo } from "graphql";
 import i18next from "i18next";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { permissionsSelectHelper } from "../../builders/permissionsSelectHelper";
-import { PartialGraphQLInfo, PrismaDelegate } from "../../builders/types";
+import { ApiEndpointInfo, PrismaDelegate } from "../../builders/types";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { Notify } from "../../notify";
@@ -109,7 +108,7 @@ export function transfer() {
          * Initiates a transfer request from an object someone else owns, to you
          */
         requestReceive: async (
-            info: GraphQLResolveInfo | PartialGraphQLInfo,
+            info: ApiEndpointInfo,
             input: TransferRequestReceiveInput,
             userData: SessionUser,
         ): Promise<string> => {

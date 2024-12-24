@@ -4,19 +4,19 @@ import { RequestService } from "../../auth/request";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { defaultNotificationSettings, updateNotificationSettings } from "../../notify/notificationSettings";
-import { FindManyResult, FindOneResult, GQLEndpoint } from "../../types";
+import { ApiEndpoint, FindManyResult, FindOneResult } from "../../types";
 import { parseJsonOrDefault } from "../../utils/objectTools";
 
 export type EndpointsNotification = {
     Query: {
-        notification: GQLEndpoint<FindByIdInput, FindOneResult<Notification>>;
-        notifications: GQLEndpoint<NotificationSearchInput, FindManyResult<Notification>>;
-        notificationSettings: GQLEndpoint<undefined, NotificationSettings>;
+        notification: ApiEndpoint<FindByIdInput, FindOneResult<Notification>>;
+        notifications: ApiEndpoint<NotificationSearchInput, FindManyResult<Notification>>;
+        notificationSettings: ApiEndpoint<undefined, NotificationSettings>;
     },
     Mutation: {
-        notificationMarkAsRead: GQLEndpoint<FindByIdInput, Success>;
-        notificationMarkAllAsRead: GQLEndpoint<undefined, Success>;
-        notificationSettingsUpdate: GQLEndpoint<NotificationSettingsUpdateInput, NotificationSettings>;
+        notificationMarkAsRead: ApiEndpoint<FindByIdInput, Success>;
+        notificationMarkAllAsRead: ApiEndpoint<undefined, Success>;
+        notificationSettingsUpdate: ApiEndpoint<NotificationSettingsUpdateInput, NotificationSettings>;
     }
 }
 

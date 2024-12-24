@@ -8,7 +8,7 @@ import { combineQueries } from "../../builders/combineQueries";
 import { modelToGql } from "../../builders/modelToGql";
 import { selectHelper } from "../../builders/selectHelper";
 import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
-import { GraphQLInfo, PartialGraphQLInfo } from "../../builders/types";
+import { ApiEndpointInfo } from "../../builders/types";
 import { useVisibility, useVisibilityMapper, visibilityBuilderPrisma } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { getSearchStringQuery } from "../../getters";
@@ -83,7 +83,7 @@ export const CommentModel: CommentModelLogic = ({
         async searchThreads(
             userData: SessionUser | null,
             input: { ids: string[], take: number, sortBy: CommentSortBy },
-            info: GraphQLInfo | PartialGraphQLInfo,
+            info: ApiEndpointInfo,
             nestLimit = 2,
         ): Promise<CommentThread[]> {
             // Partially convert info type
@@ -154,7 +154,7 @@ export const CommentModel: CommentModelLogic = ({
         async searchNested(
             req: Request,
             input: CommentSearchInput,
-            info: GraphQLInfo | PartialGraphQLInfo,
+            info: ApiEndpointInfo,
             nestLimit = 2,
         ): Promise<CommentSearchResult> {
             const userData = SessionService.getUser(req.session);
@@ -226,7 +226,7 @@ export const CommentModel: CommentModelLogic = ({
             }
             let comments: any = flattenThreads(childThreads);
             // Shape comments and add supplemental fields
-            comments = comments.map((c: any) => modelToGql(c, partialInfo as PartialGraphQLInfo));
+            comments = comments.map((c: any) => modelToGql(c, partialInfo as ApiEndpointInfo));
             comments = await addSupplementalFields(userData, comments, partialInfo);
             // Put comments back into "threads" object, using another helper function. 
             // Comments can be matched by their ID

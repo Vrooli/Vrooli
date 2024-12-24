@@ -15,22 +15,22 @@ import { Trigger } from "../../events/trigger";
 import { DEFAULT_USER_NAME_LENGTH } from "../../models/base/user";
 import { UI_URL_REMOTE } from "../../server";
 import { closeSessionSockets, closeUserSockets } from "../../sockets/events";
-import { GQLEndpoint, RecursivePartial, SessionData } from "../../types";
+import { ApiEndpoint, RecursivePartial, SessionData } from "../../types";
 import { hasProfanity } from "../../utils/censor";
 
 export type EndpointsAuth = {
     Mutation: {
-        emailLogIn: GQLEndpoint<EmailLogInInput, Session>;
-        emailSignUp: GQLEndpoint<EmailSignUpInput, Session>;
-        emailRequestPasswordChange: GQLEndpoint<EmailRequestPasswordChangeInput, Success>;
-        emailResetPassword: GQLEndpoint<EmailResetPasswordInput, Session>;
-        guestLogIn: GQLEndpoint<Record<string, never>, RecursivePartial<Session>>;
-        logOut: GQLEndpoint<Record<string, never>, Session>;
-        logOutAll: GQLEndpoint<Record<string, never>, Session>;
-        validateSession: GQLEndpoint<ValidateSessionInput, RecursivePartial<Session>>;
-        switchCurrentAccount: GQLEndpoint<SwitchCurrentAccountInput, RecursivePartial<Session>>;
-        walletInit: GQLEndpoint<WalletInitInput, string>;
-        walletComplete: GQLEndpoint<WalletCompleteInput, WalletComplete>;
+        emailLogIn: ApiEndpoint<EmailLogInInput, Session>;
+        emailSignUp: ApiEndpoint<EmailSignUpInput, Session>;
+        emailRequestPasswordChange: ApiEndpoint<EmailRequestPasswordChangeInput, Success>;
+        emailResetPassword: ApiEndpoint<EmailResetPasswordInput, Session>;
+        guestLogIn: ApiEndpoint<Record<string, never>, RecursivePartial<Session>>;
+        logOut: ApiEndpoint<Record<string, never>, Session>;
+        logOutAll: ApiEndpoint<Record<string, never>, Session>;
+        validateSession: ApiEndpoint<ValidateSessionInput, RecursivePartial<Session>>;
+        switchCurrentAccount: ApiEndpoint<SwitchCurrentAccountInput, RecursivePartial<Session>>;
+        walletInit: ApiEndpoint<WalletInitInput, string>;
+        walletComplete: ApiEndpoint<WalletCompleteInput, WalletComplete>;
     }
 }
 

@@ -4,20 +4,20 @@ import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateManyHelper, updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
 import { CustomError } from "../../events/error";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsMemberInvite = {
     Query: {
-        memberInvite: GQLEndpoint<FindByIdInput, FindOneResult<MemberInvite>>;
-        memberInvites: GQLEndpoint<MemberInviteSearchInput, FindManyResult<MemberInvite>>;
+        memberInvite: ApiEndpoint<FindByIdInput, FindOneResult<MemberInvite>>;
+        memberInvites: ApiEndpoint<MemberInviteSearchInput, FindManyResult<MemberInvite>>;
     },
     Mutation: {
-        memberInviteCreate: GQLEndpoint<MemberInviteCreateInput, CreateOneResult<MemberInvite>>;
-        memberInvitesCreate: GQLEndpoint<MemberInviteCreateInput[], CreateOneResult<MemberInvite>[]>;
-        memberInviteUpdate: GQLEndpoint<MemberInviteUpdateInput, UpdateOneResult<MemberInvite>>;
-        memberInvitesUpdate: GQLEndpoint<MemberInviteUpdateInput[], UpdateOneResult<MemberInvite>[]>;
-        memberInviteAccept: GQLEndpoint<FindByIdInput, UpdateOneResult<MemberInvite>>;
-        memberInviteDecline: GQLEndpoint<FindByIdInput, UpdateOneResult<MemberInvite>>;
+        memberInviteCreate: ApiEndpoint<MemberInviteCreateInput, CreateOneResult<MemberInvite>>;
+        memberInvitesCreate: ApiEndpoint<MemberInviteCreateInput[], CreateOneResult<MemberInvite>[]>;
+        memberInviteUpdate: ApiEndpoint<MemberInviteUpdateInput, UpdateOneResult<MemberInvite>>;
+        memberInvitesUpdate: ApiEndpoint<MemberInviteUpdateInput[], UpdateOneResult<MemberInvite>[]>;
+        memberInviteAccept: ApiEndpoint<FindByIdInput, UpdateOneResult<MemberInvite>>;
+        memberInviteDecline: ApiEndpoint<FindByIdInput, UpdateOneResult<MemberInvite>>;
     }
 }
 

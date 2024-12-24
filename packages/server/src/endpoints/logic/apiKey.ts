@@ -4,14 +4,14 @@ import { deleteOneHelper } from "../../actions/deletes";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
 import { CustomError } from "../../events/error";
-import { CreateOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsApiKey = {
     Mutation: {
-        apiKeyCreate: GQLEndpoint<ApiKeyCreateInput, CreateOneResult<ApiKey>>;
-        apiKeyUpdate: GQLEndpoint<ApiKeyUpdateInput, UpdateOneResult<ApiKey>>;
-        apiKeyDeleteOne: GQLEndpoint<ApiKeyDeleteOneInput, Success>;
-        apiKeyValidate: GQLEndpoint<ApiKeyValidateInput, ApiKey>;
+        apiKeyCreate: ApiEndpoint<ApiKeyCreateInput, CreateOneResult<ApiKey>>;
+        apiKeyUpdate: ApiEndpoint<ApiKeyUpdateInput, UpdateOneResult<ApiKey>>;
+        apiKeyDeleteOne: ApiEndpoint<ApiKeyDeleteOneInput, Success>;
+        apiKeyValidate: ApiEndpoint<ApiKeyValidateInput, ApiKey>;
     }
 }
 

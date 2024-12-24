@@ -1,11 +1,11 @@
 import { View, ViewSearchInput } from "@local/shared";
 import { readManyHelper } from "../../actions/reads";
 import { RequestService } from "../../auth/request";
-import { FindManyResult, GQLEndpoint } from "../../types";
+import { ApiEndpoint, FindManyResult } from "../../types";
 
 export type EndpointsView = {
     Query: {
-        views: GQLEndpoint<ViewSearchInput, FindManyResult<View>>;
+        views: ApiEndpoint<ViewSearchInput, FindManyResult<View>>;
     },
 }
 

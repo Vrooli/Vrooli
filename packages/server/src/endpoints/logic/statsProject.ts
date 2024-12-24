@@ -1,11 +1,11 @@
 import { StatsProjectSearchInput, StatsProjectSearchResult } from "@local/shared";
 import { readManyHelper } from "../../actions/reads";
 import { RequestService } from "../../auth/request";
-import { GQLEndpoint } from "../../types";
+import { ApiEndpoint } from "../../types";
 
 export type EndpointsStatsProject = {
     Query: {
-        statsProject: GQLEndpoint<StatsProjectSearchInput, StatsProjectSearchResult>;
+        statsProject: ApiEndpoint<StatsProjectSearchInput, StatsProjectSearchResult>;
     },
 }
 

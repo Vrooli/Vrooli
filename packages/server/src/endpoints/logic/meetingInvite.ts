@@ -4,20 +4,20 @@ import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateManyHelper, updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
 import { CustomError } from "../../events/error";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsMeetingInvite = {
     Query: {
-        meetingInvite: GQLEndpoint<FindByIdInput, FindOneResult<MeetingInvite>>;
-        meetingInvites: GQLEndpoint<MeetingInviteSearchInput, FindManyResult<MeetingInvite>>;
+        meetingInvite: ApiEndpoint<FindByIdInput, FindOneResult<MeetingInvite>>;
+        meetingInvites: ApiEndpoint<MeetingInviteSearchInput, FindManyResult<MeetingInvite>>;
     },
     Mutation: {
-        meetingInviteCreate: GQLEndpoint<MeetingInviteCreateInput, CreateOneResult<MeetingInvite>>;
-        meetingInvitesCreate: GQLEndpoint<MeetingInviteCreateInput[], CreateOneResult<MeetingInvite>[]>;
-        meetingInviteUpdate: GQLEndpoint<MeetingInviteUpdateInput, UpdateOneResult<MeetingInvite>>;
-        meetingInvitesUpdate: GQLEndpoint<MeetingInviteUpdateInput[], UpdateOneResult<MeetingInvite>[]>;
-        meetingInviteAccept: GQLEndpoint<FindByIdInput, UpdateOneResult<MeetingInvite>>;
-        meetingInviteDecline: GQLEndpoint<FindByIdInput, UpdateOneResult<MeetingInvite>>;
+        meetingInviteCreate: ApiEndpoint<MeetingInviteCreateInput, CreateOneResult<MeetingInvite>>;
+        meetingInvitesCreate: ApiEndpoint<MeetingInviteCreateInput[], CreateOneResult<MeetingInvite>[]>;
+        meetingInviteUpdate: ApiEndpoint<MeetingInviteUpdateInput, UpdateOneResult<MeetingInvite>>;
+        meetingInvitesUpdate: ApiEndpoint<MeetingInviteUpdateInput[], UpdateOneResult<MeetingInvite>[]>;
+        meetingInviteAccept: ApiEndpoint<FindByIdInput, UpdateOneResult<MeetingInvite>>;
+        meetingInviteDecline: ApiEndpoint<FindByIdInput, UpdateOneResult<MeetingInvite>>;
     }
 }
 

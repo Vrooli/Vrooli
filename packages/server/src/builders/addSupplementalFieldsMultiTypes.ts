@@ -1,19 +1,19 @@
 import { SessionUser } from "@local/shared";
 import { addSupplementalFields } from "./addSupplementalFields";
-import { PartialGraphQLInfo } from "./types";
+import { ApiEndpointInfo } from "./types";
 
 type DataShape = { [key: string]: any[] };
 
 /**
  * Combines addSupplementalFields calls for multiple object types
  * @param data Object of arrays, where each value is a list of the same object type queried from the database
- * @param partial PartialGraphQLInfo object with the same keys as data, and values equal to the partial info for that object type
+ * @param partial API endpoint info object with the same keys as data, and values equal to the partial info for that object type
  * @param userData Requesting user's data
  * @returns Object in same shape as data, but with each value containing supplemental data
  */
 export async function addSupplementalFieldsMultiTypes<
     TData extends DataShape,
-    TPartial extends { [K in keyof TData]: PartialGraphQLInfo }
+    TPartial extends { [K in keyof TData]: ApiEndpointInfo }
 >(
     data: TData,
     partial: TPartial,
@@ -21,7 +21,7 @@ export async function addSupplementalFieldsMultiTypes<
 ): Promise<{ [K in keyof TData]: any[] }> {
     // Flatten data object into an array and create an array of partials that match the data array
     const combinedData: any[] = [];
-    const combinedPartialInfo: PartialGraphQLInfo[] = [];
+    const combinedPartialInfo: ApiEndpointInfo[] = [];
     for (const key in data) {
         for (const item of data[key]) {
             combinedData.push(item);

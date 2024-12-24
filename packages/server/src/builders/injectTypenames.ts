@@ -2,7 +2,7 @@ import { GqlModelType } from "@local/shared";
 import { FormatMap } from "../models/formats";
 import { GqlRelMap, ModelLogicType } from "../models/types";
 import { isRelationshipObject } from "./isOfType";
-import { PartialGraphQLInfo } from "./types";
+import { ApiEndpointInfo } from "./types";
 
 /**
  * Recursively injects type fields into a select object
@@ -15,7 +15,7 @@ export const injectTypenames = <
     Typename extends `${GqlModelType}`,
     GqlModel extends ModelLogicType["GqlModel"],
     PrismaModel extends ModelLogicType["PrismaModel"],
->(select: { [x: string]: any }, parentRelationshipMap: GqlRelMap<Typename, GqlModel, PrismaModel>): PartialGraphQLInfo => {
+>(select: { [x: string]: any }, parentRelationshipMap: GqlRelMap<Typename, GqlModel, PrismaModel>): ApiEndpointInfo => {
     // Create result object
     const result: any = {};
     // Iterate over select object

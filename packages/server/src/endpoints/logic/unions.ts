@@ -4,17 +4,17 @@ import { RequestService } from "../../auth/request";
 import { SessionService } from "../../auth/session";
 import { addSupplementalFieldsMultiTypes } from "../../builders/addSupplementalFieldsMultiTypes";
 import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
-import { PartialGraphQLInfo } from "../../builders/types";
-import { FindManyResult, GQLEndpoint } from "../../types";
+import { ApiEndpointInfo } from "../../builders/types";
+import { ApiEndpoint, FindManyResult } from "../../types";
 import { SearchMap } from "../../utils";
 
 const DEFAULT_TAKE = 10;
 
 export type EndpointsUnions = {
     Query: {
-        projectOrRoutines: GQLEndpoint<ProjectOrRoutineSearchInput, FindManyResult<ProjectOrRoutine>>;
-        runProjectOrRunRoutines: GQLEndpoint<RunProjectOrRunRoutineSearchInput, FindManyResult<RunProjectOrRunRoutine>>;
-        projectOrTeams: GQLEndpoint<ProjectOrTeamSearchInput, FindManyResult<ProjectOrTeam>>;
+        projectOrRoutines: ApiEndpoint<ProjectOrRoutineSearchInput, FindManyResult<ProjectOrRoutine>>;
+        runProjectOrRunRoutines: ApiEndpoint<RunProjectOrRunRoutineSearchInput, FindManyResult<RunProjectOrRunRoutine>>;
+        projectOrTeams: ApiEndpoint<ProjectOrTeamSearchInput, FindManyResult<ProjectOrTeam>>;
     },
 }
 
@@ -44,7 +44,7 @@ export const UnionsEndpoints: EndpointsUnions = {
             // Query projects
             const { nodes: projects, pageInfo: projectsInfo } = shouldInclude("Project") ? await readManyAsFeedHelper({
                 ...commonReadParams,
-                info: partial.Project as PartialGraphQLInfo,
+                info: partial.Project as ApiEndpointInfo,
                 input: {
                     after: input.projectAfter,
                     createdTimeFrame: input.createdTimeFrame,
@@ -75,7 +75,7 @@ export const UnionsEndpoints: EndpointsUnions = {
             // Query routines
             const { nodes: routines, pageInfo: routinesInfo } = shouldInclude("Routine") ? await readManyAsFeedHelper({
                 ...commonReadParams,
-                info: partial.Routine as PartialGraphQLInfo,
+                info: partial.Routine as ApiEndpointInfo,
                 input: {
                     after: input.routineAfter,
                     createdTimeFrame: input.createdTimeFrame,
@@ -112,8 +112,8 @@ export const UnionsEndpoints: EndpointsUnions = {
             }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes({ projects, routines }, {
-                projects: { type: "Project", ...(partial.Project as PartialGraphQLInfo) },
-                routines: { type: "Routine", ...(partial.Routine as PartialGraphQLInfo) },
+                projects: { type: "Project", ...(partial.Project as ApiEndpointInfo) },
+                routines: { type: "Routine", ...(partial.Routine as ApiEndpointInfo) },
             }, userData);
             // Combine nodes, alternating between each type
             const properties = Object.values(withSupplemental);
@@ -155,7 +155,7 @@ export const UnionsEndpoints: EndpointsUnions = {
             // Query run projects
             const { nodes: runProjects, pageInfo: runProjectsInfo } = shouldInclude("RunProject") ? await readManyAsFeedHelper({
                 ...commonReadParams,
-                info: partial.RunProject as PartialGraphQLInfo,
+                info: partial.RunProject as ApiEndpointInfo,
                 input: {
                     after: input.runProjectAfter,
                     createdTimeFrame: input.createdTimeFrame,
@@ -178,7 +178,7 @@ export const UnionsEndpoints: EndpointsUnions = {
             // Query routines
             const { nodes: runRoutines, pageInfo: runRoutinesInfo } = shouldInclude("RunRoutine") ? await readManyAsFeedHelper({
                 ...commonReadParams,
-                info: partial.RunRoutine as PartialGraphQLInfo,
+                info: partial.RunRoutine as ApiEndpointInfo,
                 input: {
                     after: input.runProjectAfter,
                     createdTimeFrame: input.createdTimeFrame,
@@ -200,8 +200,8 @@ export const UnionsEndpoints: EndpointsUnions = {
             }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes({ runProjects, runRoutines }, {
-                runProjects: { type: "RunProject", ...(partial.RunProject as PartialGraphQLInfo) },
-                runRoutines: { type: "RunRoutine", ...(partial.RunRoutine as PartialGraphQLInfo) },
+                runProjects: { type: "RunProject", ...(partial.RunProject as ApiEndpointInfo) },
+                runRoutines: { type: "RunRoutine", ...(partial.RunRoutine as ApiEndpointInfo) },
             }, userData);
             // Combine nodes, alternating between each type
             const properties = Object.values(withSupplemental);
@@ -246,7 +246,7 @@ export const UnionsEndpoints: EndpointsUnions = {
             // Query projects
             const { nodes: projects, pageInfo: projectsInfo } = shouldInclude("Project") ? await readManyAsFeedHelper({
                 ...commonReadParams,
-                info: partial.Project as PartialGraphQLInfo,
+                info: partial.Project as ApiEndpointInfo,
                 input: {
                     after: input.projectAfter,
                     createdTimeFrame: input.createdTimeFrame,
@@ -278,7 +278,7 @@ export const UnionsEndpoints: EndpointsUnions = {
             // Query teams
             const { nodes: teams, pageInfo: teamsInfo } = shouldInclude("Team") ? await readManyAsFeedHelper({
                 ...commonReadParams,
-                info: partial.Team as PartialGraphQLInfo,
+                info: partial.Team as ApiEndpointInfo,
                 input: {
                     after: input.teamAfter,
                     createdTimeFrame: input.createdTimeFrame,
@@ -306,8 +306,8 @@ export const UnionsEndpoints: EndpointsUnions = {
             }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
             // Add supplemental fields to every result
             const withSupplemental = await addSupplementalFieldsMultiTypes({ projects, teams }, {
-                projects: { type: "Project", ...(partial.Project as PartialGraphQLInfo) },
-                teams: { type: "Team", ...(partial.Team as PartialGraphQLInfo) },
+                projects: { type: "Project", ...(partial.Project as ApiEndpointInfo) },
+                teams: { type: "Team", ...(partial.Team as ApiEndpointInfo) },
             }, userData);
             // Combine nodes, alternating between each type
             const properties = Object.values(withSupplemental);

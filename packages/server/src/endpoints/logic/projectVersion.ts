@@ -4,17 +4,17 @@ import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
 import { CustomError } from "../../events/error";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsProjectVersion = {
     Query: {
-        projectVersion: GQLEndpoint<FindVersionInput, FindOneResult<ProjectVersion>>;
-        projectVersions: GQLEndpoint<ProjectVersionSearchInput, FindManyResult<ProjectVersion>>;
-        projectVersionContents: GQLEndpoint<ProjectVersionContentsSearchInput, FindManyResult<ProjectVersionContentsSearchResult>>;
+        projectVersion: ApiEndpoint<FindVersionInput, FindOneResult<ProjectVersion>>;
+        projectVersions: ApiEndpoint<ProjectVersionSearchInput, FindManyResult<ProjectVersion>>;
+        projectVersionContents: ApiEndpoint<ProjectVersionContentsSearchInput, FindManyResult<ProjectVersionContentsSearchResult>>;
     },
     Mutation: {
-        projectVersionCreate: GQLEndpoint<ProjectVersionCreateInput, CreateOneResult<ProjectVersion>>;
-        projectVersionUpdate: GQLEndpoint<ProjectVersionUpdateInput, UpdateOneResult<ProjectVersion>>;
+        projectVersionCreate: ApiEndpoint<ProjectVersionCreateInput, CreateOneResult<ProjectVersion>>;
+        projectVersionUpdate: ApiEndpoint<ProjectVersionUpdateInput, UpdateOneResult<ProjectVersion>>;
     }
 }
 

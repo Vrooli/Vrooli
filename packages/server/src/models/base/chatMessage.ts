@@ -8,7 +8,7 @@ import { modelToGql } from "../../builders/modelToGql";
 import { selectHelper } from "../../builders/selectHelper";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
-import { GraphQLInfo, PartialGraphQLInfo } from "../../builders/types";
+import { ApiEndpointInfo } from "../../builders/types";
 import { useVisibility } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
@@ -422,7 +422,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
         async searchTree(
             req: Request,
             input: ChatMessageSearchTreeInput,
-            info: GraphQLInfo | PartialGraphQLInfo,
+            info: ApiEndpointInfo,
         ): Promise<ChatMessageSearchTreeResult> {
             if (!input.chatId) throw new CustomError("0531", "InvalidArgs", { input });
             // Query for all authentication data
@@ -452,10 +452,10 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     where: { chatId: input.chatId },
                     orderBy,
                     take,
-                    ...selectHelper(partial.messages as PartialGraphQLInfo),
+                    ...selectHelper(partial.messages as ApiEndpointInfo),
                 });
-                messages = messages.map((c: any) => modelToGql(c, partial.messages as PartialGraphQLInfo));
-                messages = await addSupplementalFields(SessionService.getUser(req.session), messages, partial.messages as PartialGraphQLInfo);
+                messages = messages.map((c: any) => modelToGql(c, partial.messages as ApiEndpointInfo));
+                messages = await addSupplementalFields(SessionService.getUser(req.session), messages, partial.messages as ApiEndpointInfo);
                 return {
                     __typename: "ChatMessageSearchTreeResult" as const,
                     hasMoreDown: false,

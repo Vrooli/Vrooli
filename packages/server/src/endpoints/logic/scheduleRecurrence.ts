@@ -3,16 +3,16 @@ import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsScheduleRecurrence = {
     Query: {
-        scheduleRecurrence: GQLEndpoint<FindByIdInput, FindOneResult<ScheduleRecurrence>>;
-        scheduleRecurrences: GQLEndpoint<ScheduleRecurrenceSearchInput, FindManyResult<ScheduleRecurrence>>;
+        scheduleRecurrence: ApiEndpoint<FindByIdInput, FindOneResult<ScheduleRecurrence>>;
+        scheduleRecurrences: ApiEndpoint<ScheduleRecurrenceSearchInput, FindManyResult<ScheduleRecurrence>>;
     },
     Mutation: {
-        scheduleRecurrenceCreate: GQLEndpoint<ScheduleRecurrenceCreateInput, CreateOneResult<ScheduleRecurrence>>;
-        scheduleRecurrenceUpdate: GQLEndpoint<ScheduleRecurrenceUpdateInput, UpdateOneResult<ScheduleRecurrence>>;
+        scheduleRecurrenceCreate: ApiEndpoint<ScheduleRecurrenceCreateInput, CreateOneResult<ScheduleRecurrence>>;
+        scheduleRecurrenceUpdate: ApiEndpoint<ScheduleRecurrenceUpdateInput, UpdateOneResult<ScheduleRecurrence>>;
     }
 }
 

@@ -3,20 +3,20 @@ import { ModelMap } from "../models/base";
 import { addSupplementalFieldsHelper } from "./addSupplementalFieldsHelper";
 import { combineSupplements } from "./combineSupplements";
 import { groupPrismaData } from "./groupPrismaData";
-import { PartialGraphQLInfo } from "./types";
+import { ApiEndpointInfo } from "./types";
 
 /**
  * Adds supplemental fields to the select object, and all of its relationships (and their relationships, etc.)
  * Groups objects types together, so database is called only once for each type.
  * @param userData Requesting user's data
  * @param data Array of GraphQL-shaped data, where each object contains at least an ID
- * @param partialInfo PartialGraphQLInfo object
+ * @param partialInfo API endpoint info object
  * @returns data array with supplemental fields added to each object
  */
 export async function addSupplementalFields(
     userData: SessionUser | null,
     data: ({ [x: string]: any } | null | undefined)[],
-    partialInfo: OrArray<PartialGraphQLInfo>,
+    partialInfo: OrArray<ApiEndpointInfo>,
 ): Promise<{ [x: string]: any }[]> {
     if (data.length === 0) return [];
     // Group data into dictionaries, which will make later operations easier

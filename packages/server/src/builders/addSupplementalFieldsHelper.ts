@@ -1,7 +1,7 @@
 import { GqlModelType, SessionUser, getDotNotationValue, setDotNotationValue } from "@local/shared";
 import { ModelMap } from "../models/base";
 import { RecursivePartial } from "../types";
-import { PartialGraphQLInfo } from "./types";
+import { ApiEndpointInfo } from "./types";
 
 /**
  * Returns a list of dot notation strings that describe every key in the input object, excluding arrays.
@@ -36,7 +36,7 @@ export const addSupplementalFieldsHelper = async <GraphQLModel extends { [x: str
     languages: string[],
     objects: ({ id: string } & { [x: string]: any })[],
     objectType: `${GqlModelType}`,
-    partial: PartialGraphQLInfo,
+    partial: ApiEndpointInfo,
     userData: SessionUser | null,
 }): Promise<RecursivePartial<GraphQLModel>[]> => {
     if (!objects || objects.length === 0) return [];

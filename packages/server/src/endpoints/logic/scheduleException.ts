@@ -3,16 +3,16 @@ import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsScheduleException = {
     Query: {
-        scheduleException: GQLEndpoint<FindByIdInput, FindOneResult<ScheduleException>>;
-        scheduleExceptions: GQLEndpoint<ScheduleExceptionSearchInput, FindManyResult<ScheduleException>>;
+        scheduleException: ApiEndpoint<FindByIdInput, FindOneResult<ScheduleException>>;
+        scheduleExceptions: ApiEndpoint<ScheduleExceptionSearchInput, FindManyResult<ScheduleException>>;
     },
     Mutation: {
-        scheduleExceptionCreate: GQLEndpoint<ScheduleExceptionCreateInput, CreateOneResult<ScheduleException>>;
-        scheduleExceptionUpdate: GQLEndpoint<ScheduleExceptionUpdateInput, UpdateOneResult<ScheduleException>>;
+        scheduleExceptionCreate: ApiEndpoint<ScheduleExceptionCreateInput, CreateOneResult<ScheduleException>>;
+        scheduleExceptionUpdate: ApiEndpoint<ScheduleExceptionUpdateInput, UpdateOneResult<ScheduleException>>;
     }
 }
 

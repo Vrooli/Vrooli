@@ -3,16 +3,16 @@ import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsPullRequest = {
     Query: {
-        pullRequest: GQLEndpoint<FindByIdInput, FindOneResult<PullRequest>>;
-        pullRequests: GQLEndpoint<PullRequestSearchInput, FindManyResult<PullRequest>>;
+        pullRequest: ApiEndpoint<FindByIdInput, FindOneResult<PullRequest>>;
+        pullRequests: ApiEndpoint<PullRequestSearchInput, FindManyResult<PullRequest>>;
     },
     Mutation: {
-        pullRequestCreate: GQLEndpoint<PullRequestCreateInput, CreateOneResult<PullRequest>>;
-        pullRequestUpdate: GQLEndpoint<PullRequestUpdateInput, UpdateOneResult<PullRequest>>;
+        pullRequestCreate: ApiEndpoint<PullRequestCreateInput, CreateOneResult<PullRequest>>;
+        pullRequestUpdate: ApiEndpoint<PullRequestUpdateInput, UpdateOneResult<PullRequest>>;
     }
 }
 

@@ -14,6 +14,7 @@ const { escapeRegExp } = pkg;
 
 const DEFAULT_RATE_LIMIT = 250;
 const DEFAULT_RATE_LIMIT_WINDOW_S = DAYS_1_S;
+const MAX_DOMAIN_LENGTH = 253;
 
 const tokenBucketScriptFile = `${process.env.PROJECT_DIR}/packages/server/${process.env.NODE_ENV === "development" ? "src" : "dist"}/utils/tokenBucketScript.lua`;
 
@@ -125,7 +126,7 @@ export class RequestService {
      * @returns True if valid, false otherwise.
      */
     static isValidDomain(domain: string): boolean {
-        if (domain.length > 253) return false;
+        if (domain.length > MAX_DOMAIN_LENGTH) return false;
         return RequestService.domainRegex.test(domain);
     }
 
@@ -141,7 +142,7 @@ export class RequestService {
         const origins: Array<string | RegExp> = [];
         const siteIp = process.env.SITE_IP;
         if (process.env.VITE_SERVER_LOCATION === "local") {
-            origins.push(RequestService.localhostRegex, RequestService.localhostIpRegex, "https://studio.apollographql.com");
+            origins.push(RequestService.localhostRegex, RequestService.localhostIpRegex);
         }
         const domains = (process.env.VIRTUAL_HOST ?? "").split(",");
         for (const domain of domains) {

@@ -3,7 +3,7 @@ import { LRUCache } from "../utils/lruCache";
 import { isRelationshipObject } from "./isOfType";
 import { removeTypenames } from "./removeTypenames";
 import { toPartialPrismaSelect } from "./toPartialPrismaSelect";
-import { PartialGraphQLInfo, PartialPrismaSelect, PrismaSelect } from "./types";
+import { ApiEndpointInfo, PartialPrismaSelect, PrismaSelect } from "./types";
 
 // Cache results of each `partial` conversion, so we only have to 
 // do it once. This improves performance a bit
@@ -50,7 +50,7 @@ export function selPad(fields: object): PrismaSelect {
  * Converts shapes 2 and 3 of the GraphQL to Prisma conversion to shape 4.
  * @returns Object which can be passed into Prisma select directly
  */
-export function selectHelper(partial: PartialGraphQLInfo | PartialPrismaSelect): PrismaSelect | undefined {
+export function selectHelper(partial: ApiEndpointInfo | PartialPrismaSelect): PrismaSelect | undefined {
     // Check if cached
     const cacheKey = JSON.stringify(partial);
     const cachedResult = cache.get(cacheKey);

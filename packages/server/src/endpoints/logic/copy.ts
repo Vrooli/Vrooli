@@ -1,11 +1,11 @@
 import { CopyInput, CopyResult, lowercaseFirstLetter } from "@local/shared";
 import { copyHelper } from "../../actions/copies";
 import { RequestService } from "../../auth/request";
-import { GQLEndpoint } from "../../types";
+import { ApiEndpoint } from "../../types";
 
 export type EndpointsCopy = {
     Mutation: {
-        copy: GQLEndpoint<CopyInput, CopyResult>;
+        copy: ApiEndpoint<CopyInput, CopyResult>;
     }
 }
 

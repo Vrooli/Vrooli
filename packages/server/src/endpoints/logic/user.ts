@@ -8,26 +8,26 @@ import { PasswordAuthService } from "../../auth/email";
 import { RequestService } from "../../auth/request";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
-import { FindManyResult, FindOneResult, GQLEndpoint, IWrap, RecursivePartial, UpdateOneResult } from "../../types";
+import { ApiEndpoint, FindManyResult, FindOneResult, IWrap, RecursivePartial, UpdateOneResult } from "../../types";
 import { parseICalFile } from "../../utils";
 import { AuthEndpoints } from "./auth";
 
 export type EndpointsUser = {
     Query: {
-        profile: GQLEndpoint<Record<string, never>, FindOneResult<User>>;
-        user: GQLEndpoint<FindByIdOrHandleInput, FindOneResult<User>>;
-        users: GQLEndpoint<UserSearchInput, FindManyResult<User>>;
+        profile: ApiEndpoint<Record<string, never>, FindOneResult<User>>;
+        user: ApiEndpoint<FindByIdOrHandleInput, FindOneResult<User>>;
+        users: ApiEndpoint<UserSearchInput, FindManyResult<User>>;
     },
     Mutation: {
-        botCreate: GQLEndpoint<BotCreateInput, UpdateOneResult<User>>;
-        botUpdate: GQLEndpoint<BotUpdateInput, UpdateOneResult<User>>;
-        profileUpdate: GQLEndpoint<ProfileUpdateInput, UpdateOneResult<User>>;
-        profileEmailUpdate: GQLEndpoint<ProfileEmailUpdateInput, UpdateOneResult<User>>;
-        userDeleteOne: GQLEndpoint<UserDeleteInput, RecursivePartial<Session>>;
-        importCalendar: GQLEndpoint<ImportCalendarInput, Success>;
-        // importUserData: GQLEndpoint<ImportUserDataInput, Success>;
-        exportCalendar: GQLEndpoint<Record<string, never>, string>;
-        exportData: GQLEndpoint<Record<string, never>, string>;
+        botCreate: ApiEndpoint<BotCreateInput, UpdateOneResult<User>>;
+        botUpdate: ApiEndpoint<BotUpdateInput, UpdateOneResult<User>>;
+        profileUpdate: ApiEndpoint<ProfileUpdateInput, UpdateOneResult<User>>;
+        profileEmailUpdate: ApiEndpoint<ProfileEmailUpdateInput, UpdateOneResult<User>>;
+        userDeleteOne: ApiEndpoint<UserDeleteInput, RecursivePartial<Session>>;
+        importCalendar: ApiEndpoint<ImportCalendarInput, Success>;
+        // importUserData: ApiEndpoint<ImportUserDataInput, Success>;
+        exportCalendar: ApiEndpoint<Record<string, never>, string>;
+        exportData: ApiEndpoint<Record<string, never>, string>;
     }
 }
 
@@ -101,8 +101,8 @@ export const UserEndpoints: EndpointsUser = {
             // Create new emails
             if (input.emailsCreate) {
                 await cudHelper({
+                    info: { __typename: "Email", id: true, emailAddress: true },
                     inputData: input.emailsCreate.map(email => ({ action: "Create", input: email, objectType: "Email" })),
-                    partialInfo: { __typename: "Email", id: true, emailAddress: true },
                     userData,
                 });
             }

@@ -4,17 +4,17 @@ import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
 import { RunRoutineModel } from "../../models/base/runRoutine";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsRunRoutine = {
     Query: {
-        runRoutine: GQLEndpoint<FindByIdInput, FindOneResult<RunRoutine>>;
-        runRoutines: GQLEndpoint<RunRoutineSearchInput, FindManyResult<RunRoutine>>;
+        runRoutine: ApiEndpoint<FindByIdInput, FindOneResult<RunRoutine>>;
+        runRoutines: ApiEndpoint<RunRoutineSearchInput, FindManyResult<RunRoutine>>;
     },
     Mutation: {
-        runRoutineCreate: GQLEndpoint<RunRoutineCreateInput, CreateOneResult<RunRoutine>>;
-        runRoutineUpdate: GQLEndpoint<RunRoutineUpdateInput, UpdateOneResult<RunRoutine>>;
-        runRoutineDeleteAll: GQLEndpoint<Record<string, never>, Count>;
+        runRoutineCreate: ApiEndpoint<RunRoutineCreateInput, CreateOneResult<RunRoutine>>;
+        runRoutineUpdate: ApiEndpoint<RunRoutineUpdateInput, UpdateOneResult<RunRoutine>>;
+        runRoutineDeleteAll: ApiEndpoint<Record<string, never>, Count>;
     }
 }
 

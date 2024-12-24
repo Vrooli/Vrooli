@@ -4,19 +4,19 @@ import { isRelationshipObject } from "./isOfType";
 import { removeCountFields } from "./removeCountFields";
 import { removeHiddenFields } from "./removeHiddenFields";
 import { removeJoinTables } from "./removeJoinTables";
-import { PartialGraphQLInfo } from "./types";
+import { ApiEndpointInfo } from "./types";
 import { constructUnions } from "./unions";
 
 /**
- * Converts shapes 4 of the GraphQL to Prisma conversion to shape 1. Used to format the result of a query.
+ * Converts shapes 3 of the GraphQL to Prisma conversion to shape 1. Used to format the result of a query.
  * @param data Prisma object
- * @param partialInfo PartialGraphQLInfo object
- * @returns Valid GraphQL object
+ * @param partialInfo API endpoint info object
+ * @returns Valid API response object
  */
-export function modelToGql<GqlModel extends Record<string, any>>(
+export function modelToGql<ObjectModel extends Record<string, any>>(
     data: { [x: string]: any },
-    partialInfo: PartialGraphQLInfo,
-): GqlModel {
+    partialInfo: ApiEndpointInfo,
+): ObjectModel {
     // Convert data to usable shape
     const type = partialInfo?.__typename;
     const format = ModelMap.get(type, false)?.format;
@@ -37,12 +37,12 @@ export function modelToGql<GqlModel extends Record<string, any>>(
         // If value is an array, call modelToGql on each element
         if (Array.isArray(value)) {
             // Pass each element through modelToGql
-            data[key] = data[key].map((v: any) => modelToGql(v, partialInfo[key] as PartialGraphQLInfo));
+            data[key] = data[key].map((v: any) => modelToGql(v, partialInfo[key] as ApiEndpointInfo));
         }
         // If value is an object (and not date), call modelToGql on it
         else if (isRelationshipObject(value)) {
             data[key] = modelToGql(value, (partialInfo as any)[key]);
         }
     }
-    return data as GqlModel;
+    return data as ObjectModel;
 }

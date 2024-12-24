@@ -3,13 +3,13 @@ import { createOneHelper } from "../../actions/creates";
 import { setupPhoneVerificationCode, validatePhoneVerificationCode } from "../../auth/phone";
 import { RequestService } from "../../auth/request";
 import { CustomError } from "../../events/error";
-import { CreateOneResult, GQLEndpoint } from "../../types";
+import { ApiEndpoint, CreateOneResult } from "../../types";
 
 export type EndpointsPhone = {
     Mutation: {
-        phoneCreate: GQLEndpoint<PhoneCreateInput, CreateOneResult<Phone>>;
-        sendVerificationText: GQLEndpoint<SendVerificationTextInput, Success>;
-        validateVerificationText: GQLEndpoint<ValidateVerificationTextInput, Success>;
+        phoneCreate: ApiEndpoint<PhoneCreateInput, CreateOneResult<Phone>>;
+        sendVerificationText: ApiEndpoint<SendVerificationTextInput, Success>;
+        validateVerificationText: ApiEndpoint<ValidateVerificationTextInput, Success>;
     }
 }
 

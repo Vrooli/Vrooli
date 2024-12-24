@@ -1,11 +1,11 @@
 import { Wallet, WalletUpdateInput } from "@local/shared";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
-import { GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, UpdateOneResult } from "../../types";
 
 export type EndpointsWallet = {
     Mutation: {
-        walletUpdate: GQLEndpoint<WalletUpdateInput, UpdateOneResult<Wallet>>;
+        walletUpdate: ApiEndpoint<WalletUpdateInput, UpdateOneResult<Wallet>>;
     }
 }
 

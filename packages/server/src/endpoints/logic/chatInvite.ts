@@ -4,20 +4,20 @@ import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateManyHelper, updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
 import { CustomError } from "../../events/error";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsChatInvite = {
     Query: {
-        chatInvite: GQLEndpoint<FindByIdInput, FindOneResult<ChatInvite>>;
-        chatInvites: GQLEndpoint<ChatInviteSearchInput, FindManyResult<ChatInvite>>;
+        chatInvite: ApiEndpoint<FindByIdInput, FindOneResult<ChatInvite>>;
+        chatInvites: ApiEndpoint<ChatInviteSearchInput, FindManyResult<ChatInvite>>;
     },
     Mutation: {
-        chatInviteCreate: GQLEndpoint<ChatInviteCreateInput, CreateOneResult<ChatInvite>>;
-        chatInvitesCreate: GQLEndpoint<ChatInviteCreateInput[], CreateOneResult<ChatInvite>[]>;
-        chatInviteUpdate: GQLEndpoint<ChatInviteUpdateInput, UpdateOneResult<ChatInvite>>;
-        chatInvitesUpdate: GQLEndpoint<ChatInviteUpdateInput[], UpdateOneResult<ChatInvite>[]>;
-        chatInviteAccept: GQLEndpoint<FindByIdInput, UpdateOneResult<ChatInvite>>;
-        chatInviteDecline: GQLEndpoint<FindByIdInput, UpdateOneResult<ChatInvite>>;
+        chatInviteCreate: ApiEndpoint<ChatInviteCreateInput, CreateOneResult<ChatInvite>>;
+        chatInvitesCreate: ApiEndpoint<ChatInviteCreateInput[], CreateOneResult<ChatInvite>[]>;
+        chatInviteUpdate: ApiEndpoint<ChatInviteUpdateInput, UpdateOneResult<ChatInvite>>;
+        chatInvitesUpdate: ApiEndpoint<ChatInviteUpdateInput[], UpdateOneResult<ChatInvite>[]>;
+        chatInviteAccept: ApiEndpoint<FindByIdInput, UpdateOneResult<ChatInvite>>;
+        chatInviteDecline: ApiEndpoint<FindByIdInput, UpdateOneResult<ChatInvite>>;
     }
 }
 

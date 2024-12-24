@@ -3,16 +3,16 @@ import { createOneHelper } from "../../actions/creates";
 import { readManyWithEmbeddingsHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsTag = {
     Query: {
-        tag: GQLEndpoint<FindByIdInput, FindOneResult<Tag>>;
-        tags: GQLEndpoint<TagSearchInput, FindManyResult<Tag>>;
+        tag: ApiEndpoint<FindByIdInput, FindOneResult<Tag>>;
+        tags: ApiEndpoint<TagSearchInput, FindManyResult<Tag>>;
     },
     Mutation: {
-        tagCreate: GQLEndpoint<TagCreateInput, CreateOneResult<Tag>>;
-        tagUpdate: GQLEndpoint<TagUpdateInput, UpdateOneResult<Tag>>;
+        tagCreate: ApiEndpoint<TagCreateInput, CreateOneResult<Tag>>;
+        tagUpdate: ApiEndpoint<TagUpdateInput, UpdateOneResult<Tag>>;
     }
 }
 
