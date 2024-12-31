@@ -163,8 +163,7 @@ export class RequestService {
      * @returns True if the request comes from a safe origin
      */
     isSafeOrigin(req: Request): boolean {
-        // Allow all on development. This ensures that graphql-generate and other 
-        // dev tools work properly.
+        // Allow all on development. This ensures that dev tools work properly.
         if (process.env.NODE_ENV === "development") return true;
         const origins = this.safeOrigins();
         let origin = req.headers.origin;

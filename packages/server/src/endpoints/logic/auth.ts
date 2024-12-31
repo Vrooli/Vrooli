@@ -1,4 +1,4 @@
-import { AUTH_PROVIDERS, AccountStatus, COOKIE, EmailLogInInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, EmailSignUpInput, LINKS, MINUTES_5_MS, ResourceUsedFor, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInitInput, emailLogInFormValidation, emailRequestPasswordChangeSchema, emailResetPasswordSchema, emailSignUpValidation, switchCurrentAccountSchema, uuid, validateSessionSchema } from "@local/shared";
+import { AUTH_PROVIDERS, AccountStatus, COOKIE, EmailLogInInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, EmailSignUpInput, LINKS, MINUTES_5_MS, ResourceUsedFor, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInit, WalletInitInput, emailLogInFormValidation, emailRequestPasswordChangeSchema, emailResetPasswordSchema, emailSignUpValidation, switchCurrentAccountSchema, uuid, validateSessionSchema } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
 import { Response } from "express";
 import { AuthTokensService } from "../../auth/auth";
@@ -29,7 +29,7 @@ export type EndpointsAuth = {
         logOutAll: ApiEndpoint<Record<string, never>, Session>;
         validateSession: ApiEndpoint<ValidateSessionInput, RecursivePartial<Session>>;
         switchCurrentAccount: ApiEndpoint<SwitchCurrentAccountInput, RecursivePartial<Session>>;
-        walletInit: ApiEndpoint<WalletInitInput, string>;
+        walletInit: ApiEndpoint<WalletInitInput, WalletInit>;
         walletComplete: ApiEndpoint<WalletCompleteInput, WalletComplete>;
     }
 }
@@ -612,7 +612,10 @@ export const AuthEndpoints: EndpointsAuth = {
                     },
                 });
             }
-            return nonce;
+            return {
+                __typename: "WalletInit",
+                nonce,
+            } as const;
         },
         // Verify that signed message from user wallet has been signed by the correct public address
         walletComplete: async (_, { input }, { req, res }) => {
@@ -701,10 +704,14 @@ export const AuthEndpoints: EndpointsAuth = {
             // Add session token to return payload
             await AuthTokensService.generateSessionToken(res, session);
             return {
+                __typename: "WalletComplete",
                 firstLogIn,
                 session,
-                wallet,
-            } as WalletComplete;
+                wallet: {
+                    ...wallet,
+                    __typename: "Wallet",
+                }
+            } as const;
         },
     },
 };

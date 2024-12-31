@@ -11,13 +11,13 @@ import { UpdateManyHelperProps, UpdateOneHelperProps } from "./types";
  * Helper function for updating multiple objects of the same type in a single line
  * @returns GraphQL response object
  */
-export async function updateManyHelper<GraphQLModel>({
+export async function updateManyHelper<ObjectModel>({
     additionalData,
     info,
     input,
     objectType,
     req,
-}: UpdateManyHelperProps): Promise<RecursivePartial<GraphQLModel>[]> {
+}: UpdateManyHelperProps): Promise<RecursivePartial<ObjectModel>[]> {
     const userData = RequestService.assertRequestFrom(req, { isUser: true });
     // Get formatter and id field
     const format = ModelMap.get(objectType).format;
@@ -26,12 +26,12 @@ export async function updateManyHelper<GraphQLModel>({
     // Create objects. cudHelper will check permissions
     const updated = await cudHelper({
         additionalData,
+        info: partialInfo,
         inputData: input.map(d => ({
             action: "Update",
             input: d,
             objectType,
         })),
-        partialInfo,
         userData,
     });
     // Make sure none of the items in the array are booleans
@@ -40,16 +40,16 @@ export async function updateManyHelper<GraphQLModel>({
     }
     // Handle new version trigger, if applicable
     //TODO might be done in shapeUpdate. Not sure yet
-    return await addSupplementalFields(userData, updated as Record<string, any>[], partialInfo) as RecursivePartial<GraphQLModel>[];
+    return await addSupplementalFields(userData, updated as Record<string, any>[], partialInfo) as RecursivePartial<ObjectModel>[];
 }
 
 /**
  * Helper function for updating one object in a single line
  * @returns GraphQL response object
  */
-export async function updateOneHelper<GraphQLModel>({
+export async function updateOneHelper<ObjectModel>({
     input,
     ...rest
-}: UpdateOneHelperProps): Promise<RecursivePartial<GraphQLModel>> {
-    return (await updateManyHelper<GraphQLModel>({ input: [input], ...rest }))[0];
+}: UpdateOneHelperProps): Promise<RecursivePartial<ObjectModel>> {
+    return (await updateManyHelper<ObjectModel>({ input: [input], ...rest }))[0];
 }

@@ -27,7 +27,7 @@ export type EndpointsUser = {
         importCalendar: ApiEndpoint<ImportCalendarInput, Success>;
         // importUserData: ApiEndpoint<ImportUserDataInput, Success>;
         exportCalendar: ApiEndpoint<Record<string, never>, string>;
-        exportData: ApiEndpoint<Record<string, never>, string>;
+        exportData: ApiEndpoint<Record<string, never>, Success>;
     }
 }
 

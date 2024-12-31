@@ -10,15 +10,15 @@ import { CreateManyHelperProps, CreateOneHelperProps } from "./types";
 /**
  * Helper function for creating multiple objects of the same type in a single line.
  * Throws error if not successful.
- * @returns GraphQL response object
+ * @returns API response object
  */
-export async function createManyHelper<GraphQLModel>({
+export async function createManyHelper<ObjectModel>({
     additionalData,
     info,
     input,
     objectType,
     req,
-}: CreateManyHelperProps): Promise<RecursivePartial<GraphQLModel>[]> {
+}: CreateManyHelperProps): Promise<RecursivePartial<ObjectModel>[]> {
     const userData = RequestService.assertRequestFrom(req, { isUser: true });
     const format = ModelMap.get(objectType).format;
     // Partially convert info type
@@ -26,19 +26,19 @@ export async function createManyHelper<GraphQLModel>({
     // Create objects. cudHelper will check permissions
     const created = await cudHelper({
         additionalData,
+        info: partialInfo,
         inputData: input.map(d => ({
             action: "Create",
             input: d,
             objectType,
         })),
-        partialInfo,
         userData,
     });
     // Make sure none of the items in the array are booleans
     if (created.some(d => typeof d === "boolean")) {
         throw new CustomError("0028", "ErrorUnknown");
     }
-    return await addSupplementalFields(userData, created as Record<string, any>[], partialInfo) as RecursivePartial<GraphQLModel>[];
+    return await addSupplementalFields(userData, created as Record<string, any>[], partialInfo) as RecursivePartial<ObjectModel>[];
 }
 
 /**
@@ -46,9 +46,9 @@ export async function createManyHelper<GraphQLModel>({
  * Throws error if not successful.
  * @returns GraphQL response object
  */
-export async function createOneHelper<GraphQLModel>({
+export async function createOneHelper<ObjectModel>({
     input,
     ...rest
-}: CreateOneHelperProps): Promise<RecursivePartial<GraphQLModel>> {
-    return (await createManyHelper<GraphQLModel>({ input: [input], ...rest }))[0];
+}: CreateOneHelperProps): Promise<RecursivePartial<ObjectModel>> {
+    return (await createManyHelper<ObjectModel>({ input: [input], ...rest }))[0];
 }

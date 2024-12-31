@@ -1,22 +1,13 @@
+import { endpointsChatMessage } from "@local/shared";
 import { chatMessage_create, chatMessage_findMany, chatMessage_findOne, chatMessage_findTree, chatMessage_regenerateResponse, chatMessage_update } from "../generated";
 import { ChatMessageEndpoints } from "../logic/chatMessage";
 import { setupRoutes } from "./base";
 
-export const ChatMessageRest = setupRoutes({
-    "/chatMessage/:id": {
-        get: [ChatMessageEndpoints.Query.chatMessage, chatMessage_findOne],
-        put: [ChatMessageEndpoints.Mutation.chatMessageUpdate, chatMessage_update],
-    },
-    "/chatMessages": {
-        get: [ChatMessageEndpoints.Query.chatMessages, chatMessage_findMany],
-    },
-    "/chatMessageTree": {
-        get: [ChatMessageEndpoints.Query.chatMessageTree, chatMessage_findTree],
-    },
-    "/chatMessage": {
-        post: [ChatMessageEndpoints.Mutation.chatMessageCreate, chatMessage_create],
-    },
-    "/regenerateResponse": {
-        post: [ChatMessageEndpoints.Mutation.regenerateResponse, chatMessage_regenerateResponse],
-    },
-});
+export const ChatMessageRest = setupRoutes([
+    [endpointsChatMessage.findOne, ChatMessageEndpoints.Query.chatMessage, chatMessage_findOne],
+    [endpointsChatMessage.updateOne, ChatMessageEndpoints.Mutation.chatMessageUpdate, chatMessage_update],
+    [endpointsChatMessage.findMany, ChatMessageEndpoints.Query.chatMessages, chatMessage_findMany],
+    [endpointsChatMessage.findTree, ChatMessageEndpoints.Query.chatMessageTree, chatMessage_findTree],
+    [endpointsChatMessage.createOne, ChatMessageEndpoints.Mutation.chatMessageCreate, chatMessage_create],
+    [endpointsChatMessage.regenerateResponse, ChatMessageEndpoints.Mutation.regenerateResponse, chatMessage_regenerateResponse],
+]);

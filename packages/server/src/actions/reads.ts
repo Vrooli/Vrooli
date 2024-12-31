@@ -6,7 +6,7 @@ import { modelToGql } from "../builders/modelToGql";
 import { selectHelper } from "../builders/selectHelper";
 import { timeFrameToSql } from "../builders/timeFrame";
 import { toPartialGqlInfo } from "../builders/toPartialGqlInfo";
-import { PaginatedSearchResult, PartialGraphQLInfo, PrismaDelegate } from "../builders/types";
+import { ApiEndpointInfo, PaginatedSearchResult, PrismaDelegate } from "../builders/types";
 import { visibilityBuilderPrisma } from "../builders/visibilityBuilder";
 import { prismaInstance } from "../db/instance";
 import { SqlBuilder } from "../db/sqlBuilder";
@@ -44,12 +44,12 @@ export function getDesiredTake(take: unknown, trace?: string): number {
  * Helper function for reading one object in a single line
  * @returns GraphQL response object
  */
-export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
+export async function readOneHelper<ObjectModel extends { [x: string]: any }>({
     info,
     input,
     objectType,
     req,
-}: ReadOneHelperProps): Promise<RecursivePartial<GraphQLModel>> {
+}: ReadOneHelperProps): Promise<RecursivePartial<ObjectModel>> {
     const userData = SessionService.getUser(req.session);
     const model = ModelMap.get(objectType);
     // Validate input. This can be of the form FindByIdInput, FindByIdOrHandleInput, or FindVersionInput
@@ -91,12 +91,12 @@ export async function readOneHelper<GraphQLModel extends { [x: string]: any }>({
         throw new CustomError("0435", "NotFound", { objectType, error });
     }
     // Return formatted for GraphQL
-    const formatted = modelToGql(object, partialInfo) as RecursivePartial<GraphQLModel>;
+    const formatted = modelToGql(object, partialInfo) as RecursivePartial<ObjectModel>;
     // If logged in and object tracks view counts, add a view
     if (userData?.id && objectType in ViewFor) {
         ModelMap.get<ViewModelLogic>("View").view(userData, { forId: object.id, viewFor: objectType as ViewFor });
     }
-    const result = (await addSupplementalFields(userData, [formatted], partialInfo))[0] as RecursivePartial<GraphQLModel>;
+    const result = (await addSupplementalFields(userData, [formatted], partialInfo))[0] as RecursivePartial<ObjectModel>;
     return result;
 }
 
@@ -183,7 +183,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     //TODO validate that the user has permission to read all of the results, including relationships
     // Add supplemental fields, if requested
     if (addSupplemental) {
-        searchResults = searchResults.map(n => modelToGql(n, partialInfo as PartialGraphQLInfo));
+        searchResults = searchResults.map(n => modelToGql(n, partialInfo as ApiEndpointInfo));
         searchResults = await addSupplementalFields(userData, searchResults, partialInfo);
     }
     // Return formatted for GraphQL
@@ -385,7 +385,7 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
     });
     //TODO validate that the user has permission to read all of the results, including relationships
     // Return formatted for GraphQL
-    let formattedNodes = finalResults.map(n => modelToGql(n, partialInfo as PartialGraphQLInfo));
+    let formattedNodes = finalResults.map(n => modelToGql(n, partialInfo as ApiEndpointInfo));
     // If fetch mode is "full", add supplemental fields
     if (fetchMode === "full") {
         formattedNodes = await addSupplementalFields(userData, formattedNodes, partialInfo);

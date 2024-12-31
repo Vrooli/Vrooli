@@ -1,12 +1,15 @@
-import { HttpStatus, MB_10_BYTES, ServerError, SessionUser, decodeValue } from "@local/shared";
+import { HttpStatus, MB_10_BYTES, SERVER_VERSION, ServerError, SessionUser, decodeValue, endpointsApi, endpointsApiKey } from "@local/shared";
 import Busboy from "busboy";
-import { NextFunction, Request, Response, Router } from "express";
-import { SessionService } from "../../auth/session";
-import { ApiEndpointInfo } from "../../builders/types";
-import { CustomError } from "../../events/error";
-import { Context, context } from "../../middleware";
-import { processAndStoreFiles } from "../../utils/fileStorage";
-import { ResponseService } from "../../utils/response";
+import { Express, NextFunction, Request, Response, Router } from "express";
+import { SessionService } from "../auth/session";
+import { ApiEndpointInfo } from "../builders/types";
+import { CustomError } from "../events/error";
+import { Context, context } from "../middleware";
+import { processAndStoreFiles } from "../utils/fileStorage";
+import { ResponseService } from "../utils/response";
+import { apiKey_create, apiKey_deleteOne, apiKey_update, apiKey_validate, api_create, api_findMany, api_findOne, api_update } from "./generated";
+import { ApiEndpoints } from "./logic/api";
+import { ApiKeyEndpoints } from "./logic/apiKey";
 
 const DEFAULT_MAX_FILES = 1;
 const DEFAULT_MAX_FILE_SIZE = MB_10_BYTES;
@@ -66,7 +69,7 @@ function parseInput(input: Record<string, unknown>): Record<string, unknown> {
     return parsed;
 }
 
-export async function handleEndpoint(
+async function handleEndpoint(
     endpoint: EndpointFunction,
     selection: ApiEndpointInfo,
     input: unknown,
@@ -99,7 +102,7 @@ export async function handleEndpoint(
 /**
  * Middleware to conditionally setup middleware for file uploads.
  */
-export function maybeFileUploads(config?: UploadConfig) {
+function maybeFileUploads(config?: UploadConfig) {
     // Return fily upload middleware if the endpoint accepts files.
     return (req: Request, res: Response, next: NextFunction) => {
         if (!config || !config.acceptsFiles) {
@@ -164,7 +167,7 @@ export function maybeFileUploads(config?: UploadConfig) {
  * @param restEndpoints List of endpoint tuples, where each tuple contains 
  * the information needed to create the endpoint.
  */
-export function setupRoutes(endpointTuples: EndpointTuple[]): Router {
+function setupRoutes(endpointTuples: EndpointTuple[]): Router {
     const router = Router();
     // Loop through each endpoint
     endpointTuples.forEach(([endpointDef, endpointHandler, selection, uploadConfig]) => {
@@ -248,3 +251,26 @@ export function setupRoutes(endpointTuples: EndpointTuple[]): Router {
     });
     return router;
 }
+
+/**
+ * Creates a router with all the API endpoints.
+ */
+export function initRestApi(app: Express) {
+    const routes = setupRoutes([
+        // API
+        [endpointsApi.findOne, ApiEndpoints.Query.api, api_findOne],
+        [endpointsApi.findMany, ApiEndpoints.Query.apis, api_findMany],
+        [endpointsApi.createOne, ApiEndpoints.Mutation.apiCreate, api_create],
+        [endpointsApi.updateOne, ApiEndpoints.Mutation.apiUpdate, api_update],
+        // API key
+        [endpointsApiKey.createOne, ApiKeyEndpoints.Mutation.apiKeyCreate, apiKey_create],
+        [endpointsApiKey.updateOne, ApiKeyEndpoints.Mutation.apiKeyUpdate, apiKey_update],
+        [endpointsApiKey.deleteOne, ApiKeyEndpoints.Mutation.apiKeyDeleteOne, apiKey_deleteOne],
+        [endpointsApiKey.validateOne, ApiKeyEndpoints.Mutation.apiKeyValidate, apiKey_validate],
+    ]);
+    app.use(`/api/${SERVER_VERSION}/rest`, routes);
+}
+
+export const ApiRest = setupRoutes([
+
+]);

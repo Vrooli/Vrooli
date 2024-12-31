@@ -2,7 +2,7 @@ import { DUMMY_ID, GqlModelType, SessionUser } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
 import { modelToGql } from "../builders/modelToGql";
 import { selectHelper } from "../builders/selectHelper";
-import { PartialGraphQLInfo, PrismaCreate, PrismaDelegate, PrismaUpdate } from "../builders/types";
+import { ApiEndpointInfo, PrismaCreate, PrismaDelegate, PrismaUpdate } from "../builders/types";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
@@ -17,11 +17,11 @@ import { profanityCheck } from "../validators/profanityCheck";
 import { CudAdditionalData } from "./types";
 
 type CudHelperParams = {
-    inputData: CudInputData[],
-    partialInfo: PartialGraphQLInfo,
-    userData: SessionUser,
     /** Additional data that can be passed to ModelLogic functions */
     additionalData?: CudAdditionalData,
+    info: ApiEndpointInfo,
+    inputData: CudInputData[],
+    userData: SessionUser,
 }
 
 type CudHelperResult = Array<boolean | Record<string, any>>;
@@ -125,7 +125,7 @@ function groupTopLevelDataByType(inputData: CudInputData[]): TopLevelInputsByTyp
  * Builds the array of database operations to be executed in the transaction.
  * @param topInputsByType The top-level inputs grouped by type and action.
  * @param inputData The original (but shaped) input data.
- * @param partialInfo The partial GraphQL info for selecting fields.
+ * @param partialInfo The API endpoint info for selecting fields.
  * @param userData The session user data.
  * @param maps The maps containing grouped data.
  * @returns An object containing the operations array and transaction data.
@@ -133,7 +133,7 @@ function groupTopLevelDataByType(inputData: CudInputData[]): TopLevelInputsByTyp
 async function buildOperations(
     topInputsByType: TopLevelInputsByType,
     inputData: CudInputData[],
-    partialInfo: PartialGraphQLInfo,
+    partialInfo: ApiEndpointInfo,
     userData: SessionUser,
     maps: CudDataMaps,
 ): Promise<CudTransactionData> {
@@ -244,7 +244,7 @@ function processTransactionResults(
     transactionData: CudTransactionData,
     topInputsByType: TopLevelInputsByType,
     inputData: CudInputData[],
-    partialInfo: PartialGraphQLInfo,
+    partialInfo: ApiEndpointInfo,
     maps: CudDataMaps,
     result: Array<boolean | Record<string, any>>,
 ): void {
@@ -327,11 +327,14 @@ async function triggerAfterMutations(
 
 /**
  * Performs create, update, and delete operations with validation, data shaping, and transaction management.
- * @param params An object containing inputData, partialInfo, and userData.
  * @returns An array of results corresponding to the inputData operations.
  */
-export async function cudHelper(params: CudHelperParams): Promise<CudHelperResult> {
-    const { additionalData, inputData, partialInfo, userData } = params;
+export async function cudHelper({
+    additionalData,
+    info,
+    inputData,
+    userData,
+}: CudHelperParams): Promise<CudHelperResult> {
 
     const result = initializeResults(inputData.length);
     await validateAndCastInputs(inputData);
@@ -346,10 +349,10 @@ export async function cudHelper(params: CudHelperParams): Promise<CudHelperResul
 
     const topInputsByType = groupTopLevelDataByType(inputData);
 
-    const transactionData = await buildOperations(topInputsByType, inputData, partialInfo, userData, maps);
+    const transactionData = await buildOperations(topInputsByType, inputData, info, userData, maps);
 
     const transactionResult = await executeTransaction(transactionData.operations);
-    processTransactionResults(transactionResult, transactionData, topInputsByType, inputData, partialInfo, maps, result);
+    processTransactionResults(transactionResult, transactionData, topInputsByType, inputData, info, maps, result);
     await triggerAfterMutations(transactionData, maps, additionalData || {}, userData);
 
     return result;

@@ -2,7 +2,7 @@
  * Handles wallet integration
  * See CIP-0030 for more info: https://github.com/cardano-foundation/CIPs/pull/148
  */
-import { endpointPostAuthWalletComplete, endpointPostAuthWalletInit, WalletComplete, WalletCompleteInput, WalletInitInput } from "@local/shared";
+import { endpointPostAuthWalletComplete, endpointPostAuthWalletInit, WalletComplete, WalletCompleteInput, WalletInit, WalletInitInput } from "@local/shared";
 import { fetchWrapper } from "api/fetchWrapper";
 import { PubSub } from "utils/pubsub";
 
@@ -106,11 +106,11 @@ async function connectWallet(key: string): Promise<any> {
  * @returns Hex string of payload to be signed by wallet
  */
 async function walletInit(stakingAddress: string): Promise<string | null> {
-    const data = await fetchWrapper<WalletInitInput, string>({
+    const data = await fetchWrapper<WalletInitInput, WalletInit>({
         ...endpointPostAuthWalletInit,
         inputs: { stakingAddress },
     });
-    return data?.data ?? null;
+    return data?.data?.nonce ?? null;
 }
 
 /**

@@ -1,6 +1,6 @@
 import { CopyInput, DeleteManyInput, DeleteOneInput, GqlModelType, SessionUser, VisibilityType } from "@local/shared";
 import { Request } from "express";
-import { CountInputBase, GraphQLInfo, PartialGraphQLInfo } from "../builders/types";
+import { ApiEndpointInfo, CountInputBase } from "../builders/types";
 import { SessionData } from "../types";
 import { EmbeddableType } from "../utils/embeddings/types";
 
@@ -16,7 +16,7 @@ export type CountHelperProps<CountInput extends CountInputBase> = {
 
 export type CreateOneHelperProps = {
     additionalData?: CudAdditionalData;
-    info: GraphQLInfo | PartialGraphQLInfo;
+    info: ApiEndpointInfo;
     input: any;
     objectType: `${GqlModelType}`;
     req: { session: SessionData };
@@ -37,7 +37,7 @@ export type DeleteOneHelperProps = {
 }
 
 export type CopyHelperProps = {
-    info: GraphQLInfo | PartialGraphQLInfo,
+    info: ApiEndpointInfo,
     input: CopyInput,
     objectType: `${GqlModelType}`,
     req: { session: SessionData },
@@ -53,7 +53,7 @@ export type ReadManyHelperProps<
      * later in one call
      */
     addSupplemental?: boolean;
-    info: GraphQLInfo | PartialGraphQLInfo;
+    info: ApiEndpointInfo;
     input: Input;
     objectType: `${GqlModelType}`;
     req: { session: Pick<SessionData, "languages" | "users"> };
@@ -79,7 +79,7 @@ type FindUniqueInput = {
     idRoot?: string | null | undefined;
 }
 export type ReadOneHelperProps = {
-    info: GraphQLInfo | PartialGraphQLInfo;
+    info: ApiEndpointInfo;
     input: FindUniqueInput;
     objectType: `${GqlModelType}`;
     req: { session: Pick<SessionData, "languages" | "users"> };
@@ -104,7 +104,7 @@ export type RelBuilderHelperProps<
 
 export type UpdateOneHelperProps = {
     additionalData?: CudAdditionalData;
-    info: GraphQLInfo | PartialGraphQLInfo;
+    info: ApiEndpointInfo;
     input: any;
     objectType: GqlModelType | `${GqlModelType}`;
     req: Request;
