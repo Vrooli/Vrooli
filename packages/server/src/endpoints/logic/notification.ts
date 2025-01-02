@@ -8,63 +8,55 @@ import { ApiEndpoint, FindManyResult, FindOneResult } from "../../types";
 import { parseJsonOrDefault } from "../../utils/objectTools";
 
 export type EndpointsNotification = {
-    Query: {
-        notification: ApiEndpoint<FindByIdInput, FindOneResult<Notification>>;
-        notifications: ApiEndpoint<NotificationSearchInput, FindManyResult<Notification>>;
-        notificationSettings: ApiEndpoint<undefined, NotificationSettings>;
-    },
-    Mutation: {
-        notificationMarkAsRead: ApiEndpoint<FindByIdInput, Success>;
-        notificationMarkAllAsRead: ApiEndpoint<undefined, Success>;
-        notificationSettingsUpdate: ApiEndpoint<NotificationSettingsUpdateInput, NotificationSettings>;
-    }
+    findOne: ApiEndpoint<FindByIdInput, FindOneResult<Notification>>;
+    findMany: ApiEndpoint<NotificationSearchInput, FindManyResult<Notification>>;
+    getSettings: ApiEndpoint<undefined, NotificationSettings>;
+    markAsRead: ApiEndpoint<FindByIdInput, Success>;
+    markAllAsRead: ApiEndpoint<undefined, Success>;
+    updateSettings: ApiEndpoint<NotificationSettingsUpdateInput, NotificationSettings>;
 }
 
 const objectType = "Notification";
-export const NotificationEndpoints: EndpointsNotification = {
-    Query: {
-        notification: async (_, { input }, { req }, info) => {
-            await RequestService.get().rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, req });
-        },
-        notifications: async (_, { input }, { req }, info) => {
-            await RequestService.get().rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, req, visibility: VisibilityType.Own });
-        },
-        notificationSettings: async (_, __, { req }) => {
-            const { id } = RequestService.assertRequestFrom(req, { isUser: true });
-            await RequestService.get().rateLimit({ maxUser: 250, req });
-            const user = await prismaInstance.user.findUnique({
-                where: { id },
-                select: { notificationSettings: true },
-            });
-            if (!user) throw new CustomError("0402", "InternalError");
-            return parseJsonOrDefault<NotificationSettings>(user.notificationSettings, defaultNotificationSettings);
-        },
+export const notification: EndpointsNotification = {
+    findOne: async (_, { input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return readOneHelper({ info, input, objectType, req });
     },
-    Mutation: {
-        notificationMarkAsRead: async (_p, { input }, { req }) => {
-            const { id: userId } = RequestService.assertRequestFrom(req, { isUser: true });
-            await RequestService.get().rateLimit({ maxUser: 1000, req });
-            const { count } = await prismaInstance.notification.updateMany({
-                where: { AND: [{ user: { id: userId } }, { id: input.id }] },
-                data: { isRead: true },
-            });
-            return { __typename: "Success", success: count > 0 };
-        },
-        notificationMarkAllAsRead: async (_, __, { req }) => {
-            const { id: userId } = RequestService.assertRequestFrom(req, { isUser: true });
-            await RequestService.get().rateLimit({ maxUser: 1000, req });
-            await prismaInstance.notification.updateMany({
-                where: { AND: [{ user: { id: userId } }, { isRead: false }] },
-                data: { isRead: true },
-            });
-            return { __typename: "Success", success: true };
-        },
-        notificationSettingsUpdate: async (_, { input }, { req }) => {
-            const { id } = RequestService.assertRequestFrom(req, { isUser: true });
-            await RequestService.get().rateLimit({ maxUser: 100, req });
-            return updateNotificationSettings(input, id);
-        },
+    findMany: async (_, { input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return readManyHelper({ info, input, objectType, req, visibility: VisibilityType.Own });
+    },
+    getSettings: async (_, __, { req }) => {
+        const { id } = RequestService.assertRequestFrom(req, { isUser: true });
+        await RequestService.get().rateLimit({ maxUser: 250, req });
+        const user = await prismaInstance.user.findUnique({
+            where: { id },
+            select: { notificationSettings: true },
+        });
+        if (!user) throw new CustomError("0402", "InternalError");
+        return parseJsonOrDefault<NotificationSettings>(user.notificationSettings, defaultNotificationSettings);
+    },
+    markAsRead: async (_p, { input }, { req }) => {
+        const { id: userId } = RequestService.assertRequestFrom(req, { isUser: true });
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        const { count } = await prismaInstance.notification.updateMany({
+            where: { AND: [{ user: { id: userId } }, { id: input.id }] },
+            data: { isRead: true },
+        });
+        return { __typename: "Success", success: count > 0 };
+    },
+    markAllAsRead: async (_, __, { req }) => {
+        const { id: userId } = RequestService.assertRequestFrom(req, { isUser: true });
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        await prismaInstance.notification.updateMany({
+            where: { AND: [{ user: { id: userId } }, { isRead: false }] },
+            data: { isRead: true },
+        });
+        return { __typename: "Success", success: true };
+    },
+    updateSettings: async (_, { input }, { req }) => {
+        const { id } = RequestService.assertRequestFrom(req, { isUser: true });
+        await RequestService.get().rateLimit({ maxUser: 100, req });
+        return updateNotificationSettings(input, id);
     },
 };

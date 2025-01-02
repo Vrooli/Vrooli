@@ -5,24 +5,20 @@ import { RequestService } from "../../auth/request";
 import { ApiEndpoint, CreateOneResult } from "../../types";
 
 export type EndpointsEmail = {
-    Mutation: {
-        emailCreate: ApiEndpoint<EmailCreateInput, CreateOneResult<Email>>;
-        sendVerificationEmail: ApiEndpoint<SendVerificationEmailInput, Success>;
-    }
+    createOne: ApiEndpoint<EmailCreateInput, CreateOneResult<Email>>;
+    verify: ApiEndpoint<SendVerificationEmailInput, Success>;
 }
 
 const objectType = "Email";
-export const EmailEndpoints: EndpointsEmail = {
-    Mutation: {
-        emailCreate: async (_, { input }, { req }, info) => {
-            await RequestService.get().rateLimit({ maxUser: 10, req });
-            return createOneHelper({ info, input, objectType, req });
-        },
-        sendVerificationEmail: async (_, { input }, { req }) => {
-            const { id: userId } = RequestService.assertRequestFrom(req, { isUser: true });
-            await RequestService.get().rateLimit({ maxUser: 50, req });
-            await PasswordAuthService.setupEmailVerificationCode(input.emailAddress, userId, req.session.languages);
-            return { __typename: "Success" as const, success: true };
-        },
+export const email: EndpointsEmail = {
+    createOne: async (_, { input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 10, req });
+        return createOneHelper({ info, input, objectType, req });
+    },
+    verify: async (_, { input }, { req }) => {
+        const { id: userId } = RequestService.assertRequestFrom(req, { isUser: true });
+        await RequestService.get().rateLimit({ maxUser: 50, req });
+        await PasswordAuthService.setupEmailVerificationCode(input.emailAddress, userId, req.session.languages);
+        return { __typename: "Success" as const, success: true };
     },
 };

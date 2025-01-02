@@ -1289,6 +1289,15 @@ export type DeleteOneInput = {
     objectType: DeleteType;
 };
 
+export type DeleteAllInput = {
+    objectTypes: Array<DeleteType>;
+}
+
+export type DeleteAccountInput = {
+    deletePublicData: Scalars['Boolean'];
+    password: Scalars['String'];
+};
+
 export enum DeleteType {
     Api = 'Api',
     ApiKey = 'ApiKey',
@@ -4015,8 +4024,6 @@ export type QuizQuestionCreateInput = BaseTranslatableCreateInput<QuizQuestionTr
     standardVersionCreate?: InputMaybe<StandardVersionCreateInput>;
 };
 
-export type QuizQuestionEdge = Edge<QuizQuestion, "QuizQuestionEdge">;
-
 export type QuizQuestionResponse = DbObject<"QuizQuestionResponse"> & {
     created_at: Scalars['Date'];
     quizAttempt: QuizAttempt;
@@ -4065,29 +4072,6 @@ export type QuizQuestionResponseYou = {
     canDelete: Scalars['Boolean'];
     canUpdate: Scalars['Boolean'];
 };
-
-export type QuizQuestionSearchInput = BaseSearchInput<QuizQuestionSortBy> & {
-    createdTimeFrame?: InputMaybe<TimeFrame>;
-    quizId?: InputMaybe<Scalars['ID']>;
-    responseId?: InputMaybe<Scalars['ID']>;
-    searchString?: InputMaybe<Scalars['String']>;
-    standardId?: InputMaybe<Scalars['ID']>;
-    translationLanguages?: InputMaybe<Array<Scalars['String']>>;
-    updatedTimeFrame?: InputMaybe<TimeFrame>;
-    userId?: InputMaybe<Scalars['ID']>;
-    visibility?: InputMaybe<VisibilityType>;
-};
-
-export type QuizQuestionSearchResult = SearchResult<QuizQuestionEdge, "QuizQuestionSearchResult">;
-
-export enum QuizQuestionSortBy {
-    DateCreatedAsc = 'DateCreatedAsc',
-    DateCreatedDesc = 'DateCreatedDesc',
-    DateUpdatedAsc = 'DateUpdatedAsc',
-    DateUpdatedDesc = 'DateUpdatedDesc',
-    OrderAsc = 'OrderAsc',
-    OrderDesc = 'OrderDesc'
-}
 
 export type QuizQuestionTranslation = BaseTranslation<"QuizQuestionTranslation"> & {
     helpText?: Maybe<Scalars['String']>;
@@ -4579,8 +4563,6 @@ export type ResourceCreateInput = BaseTranslatableCreateInput<ResourceTranslatio
     usedFor: ResourceUsedFor;
 };
 
-export type ResourceEdge = Edge<Resource, "ResourceEdge">;
-
 export type ResourceList = DbObject<"ResourceList"> & {
     created_at: Scalars['Date'];
     listFor: ResourceListOn;
@@ -4658,27 +4640,6 @@ export type ResourceListUpdateInput = BaseTranslatableUpdateInput<ResourceListTr
     resourcesDelete?: InputMaybe<Array<Scalars['ID']>>;
     resourcesUpdate?: InputMaybe<Array<ResourceUpdateInput>>;
 };
-
-export type ResourceSearchInput = BaseSearchInput<ResourceSortBy> & {
-    createdTimeFrame?: InputMaybe<TimeFrame>;
-    resourceListId?: InputMaybe<Scalars['ID']>;
-    searchString?: InputMaybe<Scalars['String']>;
-    translationLanguages?: InputMaybe<Array<Scalars['String']>>;
-    updatedTimeFrame?: InputMaybe<TimeFrame>;
-};
-
-export type ResourceSearchResult = SearchResult<ResourceEdge, "ResourceSearchResult">;
-
-export enum ResourceSortBy {
-    DateCreatedAsc = 'DateCreatedAsc',
-    DateCreatedDesc = 'DateCreatedDesc',
-    DateUpdatedAsc = 'DateUpdatedAsc',
-    DateUpdatedDesc = 'DateUpdatedDesc',
-    IndexAsc = 'IndexAsc',
-    IndexDesc = 'IndexDesc',
-    UsedForAsc = 'UsedForAsc',
-    UsedForDesc = 'UsedForDesc'
-}
 
 export type ResourceTranslation = BaseTranslation<"ResourceTranslation"> & {
     description?: Maybe<Scalars['String']>;
@@ -6980,11 +6941,6 @@ export type User = DbObject<"User"> & {
     views: Scalars['Int'];
     wallets?: Maybe<Array<Wallet>>;
     you: UserYou;
-};
-
-export type UserDeleteInput = {
-    deletePublicData: Scalars['Boolean'];
-    password: Scalars['String'];
 };
 
 export type UserEdge = Edge<User, "UserEdge">;

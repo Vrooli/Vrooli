@@ -1,4 +1,4 @@
-import { HttpStatus, SERVER_VERSION, i18nConfig } from "@local/shared";
+import { HttpStatus, i18nConfig } from "@local/shared";
 import cookie from "cookie";
 import cors from "cors";
 import express from "express";
@@ -8,7 +8,7 @@ import { fileURLToPath } from "url";
 import { app } from "./app";
 import { AuthService } from "./auth/auth";
 import { SessionService } from "./auth/session";
-import * as restRoutes from "./endpoints/rest";
+import { initRestApi } from "./endpoints/rest";
 import { logger } from "./events/logger";
 import { ModelMap } from "./models/base";
 import { initializeRedis } from "./redisConn";
@@ -102,6 +102,7 @@ async function main() {
 
     // For authentication
     app.use((req, res, next) => {
+        console.log("in here. Current time:", new Date());
         // Exclude webhooks, as they have their own authentication methods
         if (req.originalUrl.startsWith("/webhooks")) {
             next();
@@ -136,9 +137,7 @@ async function main() {
     app.use("/ai/configs", express.static(path.join(__dirname, "../../shared/dist/ai/configs")));
 
     // Set up REST API
-    Object.keys(restRoutes).forEach((key) => {
-        app.use(`/api/${SERVER_VERSION}/rest`, restRoutes[key]);
-    });
+    await initRestApi(app);
 
     // Set up websocket server
     // Authenticate new connections (this is not called for each event)

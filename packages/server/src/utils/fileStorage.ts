@@ -6,6 +6,7 @@ import sharp from "sharp";
 import { UploadConfig } from "../endpoints/rest";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
+import { RequestFile } from "../types";
 
 // Global S3 client variable
 let s3: S3Client | undefined;
@@ -168,7 +169,7 @@ async function uploadFile(
  * Asynchronously processes and uploads files to an Amazon S3 bucket.
  */
 export async function processAndStoreFiles<TInput>(
-    files: Express.Multer.File[],
+    files: RequestFile[],
     input: TInput,
     userData: SessionUser,
     config?: UploadConfig<TInput>,
@@ -191,12 +192,12 @@ export async function processAndStoreFiles<TInput>(
 
         // Check if the maximum number of files for this field has been exceeded
         if (fileConfig?.maxFiles !== undefined && fileCounts[file.fieldname] > fileConfig.maxFiles) {
-            throw new CustomError("0524", "MaxFilesExceeded", { file: file.filename });
+            throw new CustomError("0524", "MaxFilesExceeded", { file: file.originalname });
         }
 
         // Check if the file size exceeds the maximum allowed size
         if (fileConfig?.maxFileSize !== undefined && file.size > fileConfig.maxFileSize) {
-            throw new CustomError("0525", "MaxFileSizeExceeded", { file: file.filename });
+            throw new CustomError("0525", "MaxFileSizeExceeded", { file: file.originalname });
         }
 
         // Get the file name
@@ -208,13 +209,13 @@ export async function processAndStoreFiles<TInput>(
         const fileType = await fileTypeFromBuffer(file.buffer);
         let extension = fileType?.ext;
         if (!extension) {
-            throw new CustomError("0502", "InternalError", { file: file.filename });
+            throw new CustomError("0502", "InternalError", { file: file.originalname });
         }
 
         // Check if the file extension is allowed
         const allowedExtensions = fileConfig?.allowedExtensions ?? ["txt", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "heic", "heif", "png", "jpg", "jpeg", "gif", "webp", "tiff", "bmp"];
         if (!allowedExtensions.includes(extension)) {
-            throw new CustomError("0508", "InternalError", { file: file.filename });
+            throw new CustomError("0508", "InternalError", { file: file.originalname });
         }
 
         // Find other information about the file

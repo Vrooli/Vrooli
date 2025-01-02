@@ -4,17 +4,13 @@ import { RequestService } from "../../auth/request";
 import { ApiEndpoint } from "../../types";
 
 export type EndpointsStatsQuiz = {
-    Query: {
-        statsQuiz: ApiEndpoint<StatsQuizSearchInput, StatsQuizSearchResult>;
-    },
+    findMany: ApiEndpoint<StatsQuizSearchInput, StatsQuizSearchResult>;
 }
 
 const objectType = "StatsQuiz";
-export const StatsQuizEndpoints: EndpointsStatsQuiz = {
-    Query: {
-        statsQuiz: async (_, { input }, { req }, info) => {
-            await RequestService.get().rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, req });
-        },
+export const statsQuiz: EndpointsStatsQuiz = {
+    findMany: async (_, { input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return readManyHelper({ info, input, objectType, req });
     },
 };

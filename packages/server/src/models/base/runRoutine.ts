@@ -1,4 +1,4 @@
-import { Count, MaxObjects, RunRoutineSortBy, runRoutineValidation } from "@local/shared";
+import { MaxObjects, RunRoutineSortBy, runRoutineValidation } from "@local/shared";
 import { RunStatus, RunStepStatus } from "@prisma/client";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
@@ -16,10 +16,7 @@ const __typename = "RunRoutine" as const;
 export const RunRoutineModel: RunRoutineModelLogic = ({
     __typename,
     danger: {
-        /**
-         * Anonymizes all public runs associated with a user or team
-         */
-        async anonymize(owner: { __typename: "Team" | "User", id: string }): Promise<void> {
+        async anonymize(owner) {
             await prismaInstance.run_routine.updateMany({
                 where: {
                     teamId: owner.__typename === "Team" ? owner.id : undefined,
@@ -32,16 +29,14 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                 },
             });
         },
-        /**
-         * Deletes all runs associated with a user or team
-         */
-        async deleteAll(owner: { __typename: "Team" | "User", id: string }): Promise<Count> {
-            return prismaInstance.run_routine.deleteMany({
+        async deleteAll(owner) {
+            const result = await prismaInstance.run_routine.deleteMany({
                 where: {
                     teamId: owner.__typename === "Team" ? owner.id : undefined,
                     userId: owner.__typename === "User" ? owner.id : undefined,
                 },
-            }).then(({ count }) => ({ __typename: "Count" as const, count })) as any;
+            });
+            return result.count;
         },
     },
     dbTable: "run_routine",

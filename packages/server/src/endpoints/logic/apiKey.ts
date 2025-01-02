@@ -7,41 +7,37 @@ import { CustomError } from "../../events/error";
 import { ApiEndpoint, CreateOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsApiKey = {
-    Mutation: {
-        apiKeyCreate: ApiEndpoint<ApiKeyCreateInput, CreateOneResult<ApiKey>>;
-        apiKeyUpdate: ApiEndpoint<ApiKeyUpdateInput, UpdateOneResult<ApiKey>>;
-        apiKeyDeleteOne: ApiEndpoint<ApiKeyDeleteOneInput, Success>;
-        apiKeyValidate: ApiEndpoint<ApiKeyValidateInput, ApiKey>;
-    }
+    createOne: ApiEndpoint<ApiKeyCreateInput, CreateOneResult<ApiKey>>;
+    updateOne: ApiEndpoint<ApiKeyUpdateInput, UpdateOneResult<ApiKey>>;
+    deleteOne: ApiEndpoint<ApiKeyDeleteOneInput, Success>;
+    validate: ApiEndpoint<ApiKeyValidateInput, ApiKey>;
 }
 
 const objectType = "ApiKey";
-export const ApiKeyEndpoints: EndpointsApiKey = {
-    Mutation: {
-        apiKeyCreate: async (_, { input }, { req }, info) => {
-            RequestService.assertRequestFrom(req, { isOfficialUser: true });
-            await RequestService.get().rateLimit({ maxUser: 10, req });
-            return createOneHelper({ info, input, objectType, req });
-        },
-        apiKeyUpdate: async (_, { input }, { req }, info) => {
-            RequestService.assertRequestFrom(req, { isOfficialUser: true });
-            await RequestService.get().rateLimit({ maxUser: 10, req });
-            return updateOneHelper({ info, input, objectType, req });
-        },
-        apiKeyDeleteOne: async (_, { input }, { req }) => {
-            RequestService.assertRequestFrom(req, { isOfficialUser: true });
-            await RequestService.get().rateLimit({ maxUser: 10, req });
-            return deleteOneHelper({ input: { id: input.id, objectType } as DeleteOneInput, req });
-        },
-        apiKeyValidate: async (_, _i, { req, res }) => {
-            await RequestService.get().rateLimit({ maxApi: 5000, req });
-            // If session is expired
-            if (!req.session.apiToken || !req.session.validToken) {
-                res.clearCookie(COOKIE.Jwt);
-                throw new CustomError("0318", "SessionExpired");
-            }
-            // TODO
-            throw new CustomError("0319", "NotImplemented");
-        },
+export const apiKey: EndpointsApiKey = {
+    createOne: async (_, { input }, { req }, info) => {
+        RequestService.assertRequestFrom(req, { isOfficialUser: true });
+        await RequestService.get().rateLimit({ maxUser: 10, req });
+        return createOneHelper({ info, input, objectType, req });
+    },
+    updateOne: async (_, { input }, { req }, info) => {
+        RequestService.assertRequestFrom(req, { isOfficialUser: true });
+        await RequestService.get().rateLimit({ maxUser: 10, req });
+        return updateOneHelper({ info, input, objectType, req });
+    },
+    deleteOne: async (_, { input }, { req }) => {
+        RequestService.assertRequestFrom(req, { isOfficialUser: true });
+        await RequestService.get().rateLimit({ maxUser: 10, req });
+        return deleteOneHelper({ input: { id: input.id, objectType } as DeleteOneInput, req });
+    },
+    validate: async (_, _i, { req, res }) => {
+        await RequestService.get().rateLimit({ maxApi: 5000, req });
+        // If session is expired
+        if (!req.session.apiToken || !req.session.validToken) {
+            res.clearCookie(COOKIE.Jwt);
+            throw new CustomError("0318", "SessionExpired");
+        }
+        // TODO
+        throw new CustomError("0319", "NotImplemented");
     },
 };

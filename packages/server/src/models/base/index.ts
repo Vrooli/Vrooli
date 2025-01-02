@@ -4,14 +4,15 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
-import { Displayer, Duplicator, Formatter, ModelLogic, Mutater, Searcher, Validator } from "../types";
+import { Danger, Displayer, Duplicator, Formatter, ModelLogic, Mutater, Searcher, Validator } from "../types";
 
 export type GenericModelLogic = ModelLogic<any, any, any>;
 type ObjectMap = { [key in GqlModelType]: GenericModelLogic | Record<string, never> };
-type LogicProps = "dbTable" | "dbTranslationTable" | "display" | "duplicate" | "format" | "idField" | "mutate" | "search" | "validate";
+type LogicProps = "danger" | "dbTable" | "dbTranslationTable" | "display" | "duplicate" | "format" | "idField" | "mutate" | "search" | "validate";
 type GetLogicReturn<
     Logic extends LogicProps,
 > = {
+    danger: "danger" extends Logic ? Danger : never,
     dbTable: "dbTable" extends Logic ? string : never,
     dbTranslationTable: "dbTranslationTable" extends Logic ? string : never,
     display: "display" extends Logic ? Displayer<any> : never,

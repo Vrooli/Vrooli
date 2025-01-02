@@ -261,6 +261,7 @@ export const RoutineModel: RoutineModelLogic = ({
             issuesId: true,
             labelsIds: true,
             latestVersionRoutineType: true,
+            latestVersionRoutineTypes: true,
             maxScore: true,
             maxBookmarks: true,
             maxViews: true,

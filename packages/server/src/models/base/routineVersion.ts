@@ -186,6 +186,7 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
             reportId: true,
             rootId: true,
             routineType: true,
+            routineTypes: true,
             tagsRoot: true,
             translationLanguages: true,
             updatedTimeFrame: true,

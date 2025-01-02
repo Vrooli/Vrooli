@@ -4,17 +4,13 @@ import { RequestService } from "../../auth/request";
 import { ApiEndpoint, FindManyResult } from "../../types";
 
 export type EndpointsRunRoutineInput = {
-    Query: {
-        runRoutineInputs: ApiEndpoint<RunRoutineInputSearchInput, FindManyResult<RunRoutineInput>>;
-    },
+    findMany: ApiEndpoint<RunRoutineInputSearchInput, FindManyResult<RunRoutineInput>>;
 }
 
 const objectType = "RunRoutineInput";
-export const RunRoutineInputEndpoints: EndpointsRunRoutineInput = {
-    Query: {
-        runRoutineInputs: async (_, { input }, { req }, info) => {
-            await RequestService.get().rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, req });
-        },
+export const runRoutineInput: EndpointsRunRoutineInput = {
+    findMany: async (_, { input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return readManyHelper({ info, input, objectType, req });
     },
 };

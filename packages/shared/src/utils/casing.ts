@@ -4,7 +4,7 @@
  * @param str String to lowercase
  * @returns Lowercased string
  */
-export const lowercaseFirstLetter = (str: string): string => {
+export function lowercaseFirstLetter(str: string): string {
     return str.charAt(0).toLowerCase() + str.slice(1);
 };
 
@@ -14,7 +14,7 @@ export const lowercaseFirstLetter = (str: string): string => {
  * @param str String to capitalize
  * @returns Uppercased string
  */
-export const uppercaseFirstLetter = (str: string): string => {
+export function uppercaseFirstLetter(str: string): string {
     return str.charAt(0).toUpperCase() + str.slice(1);
 };
 
@@ -24,7 +24,7 @@ export const uppercaseFirstLetter = (str: string): string => {
  * @param str String to convert
  * @returns PascalCased string
  */
-export const pascalCase = (str: string): string => {
+export function pascalCase(str: string): string {
     return str.split(/[-_ ]/).map(uppercaseFirstLetter).join("");
 };
 
@@ -34,7 +34,7 @@ export const pascalCase = (str: string): string => {
  * @param str String to convert
  * @returns camelCased string
  */
-export const camelCase = (str: string): string => {
+export function camelCase(str: string): string {
     return lowercaseFirstLetter(pascalCase(str));
 };
 
@@ -44,7 +44,7 @@ export const camelCase = (str: string): string => {
  * @param str String to convert
  * @returns snake_cased string
  */
-export const snakeCase = (str: string): string => {
+export function snakeCase(str: string): string {
     return str
         // Insert an underscore before any uppercase letter followed by lowercase letters
         .replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2")

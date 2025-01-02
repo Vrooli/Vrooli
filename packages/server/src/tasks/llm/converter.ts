@@ -182,7 +182,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "ApiDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
@@ -225,7 +225,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "BotDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
@@ -278,7 +278,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "DataConverterDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
@@ -317,7 +317,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "MembersDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/actions");
         const info = CountInfo;
         return async (data) => {
             const input = converter[task](data, language);
@@ -360,7 +360,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "NoteDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
@@ -402,7 +402,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "ProjectDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
@@ -444,7 +444,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "QuestionDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
@@ -494,7 +494,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "ReminderDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
@@ -537,7 +537,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "RoleDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
@@ -580,7 +580,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "RoutineDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
@@ -652,7 +652,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "ScheduleDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
@@ -695,7 +695,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "SmartContractDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
@@ -737,7 +737,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "StandardDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
@@ -779,7 +779,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         };
     },
     "TeamDelete": async ({ context, converter, language, task }) => {
-        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/deleteOneOrMany");
+        const { DeleteOneOrManyEndpoints } = await import("../../endpoints/logic/actions");
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);

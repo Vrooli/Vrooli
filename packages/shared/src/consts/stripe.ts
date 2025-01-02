@@ -1,4 +1,4 @@
-import { PaymentType } from "../api/generated/graphqlTypes";
+import { PaymentType } from "../api/types";
 
 export type SubscriptionPricesResponse = {
     monthly: number;

@@ -5,31 +5,23 @@ import { RequestService } from "../../auth/request";
 import { ApiEndpoint, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
 
 export type EndpointsMember = {
-    Query: {
-        member: ApiEndpoint<FindByIdInput, FindOneResult<Member>>;
-        members: ApiEndpoint<MemberSearchInput, FindManyResult<Member>>;
-    },
-    Mutation: {
-        memberUpdate: ApiEndpoint<MemberUpdateInput, UpdateOneResult<Member>>;
-    }
+    findOne: ApiEndpoint<FindByIdInput, FindOneResult<Member>>;
+    findMany: ApiEndpoint<MemberSearchInput, FindManyResult<Member>>;
+    updateOne: ApiEndpoint<MemberUpdateInput, UpdateOneResult<Member>>;
 }
 
 const objectType = "Member";
-export const MemberEndpoints: EndpointsMember = {
-    Query: {
-        member: async (_, { input }, { req }, info) => {
-            await RequestService.get().rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, req });
-        },
-        members: async (_, { input }, { req }, info) => {
-            await RequestService.get().rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, req });
-        },
+export const member: EndpointsMember = {
+    findOne: async (_, { input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return readOneHelper({ info, input, objectType, req });
     },
-    Mutation: {
-        memberUpdate: async (_, { input }, { req }, info) => {
-            await RequestService.get().rateLimit({ maxUser: 250, req });
-            return updateOneHelper({ info, input, objectType, req });
-        },
+    findMany: async (_, { input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return readManyHelper({ info, input, objectType, req });
+    },
+    updateOne: async (_, { input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 250, req });
+        return updateOneHelper({ info, input, objectType, req });
     },
 };

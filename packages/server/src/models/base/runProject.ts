@@ -15,6 +15,30 @@ import { ProjectVersionModelLogic, RunProjectModelInfo, RunProjectModelLogic } f
 const __typename = "RunProject" as const;
 export const RunProjectModel: RunProjectModelLogic = ({
     __typename,
+    danger: {
+        async anonymize(owner) {
+            await prismaInstance.run_project.updateMany({
+                where: {
+                    teamId: owner.__typename === "Team" ? owner.id : undefined,
+                    userId: owner.__typename === "User" ? owner.id : undefined,
+                    isPrivate: false,
+                },
+                data: {
+                    teamId: null,
+                    userId: null,
+                },
+            });
+        },
+        async deleteAll(owner) {
+            const result = await prismaInstance.run_project.deleteMany({
+                where: {
+                    teamId: owner.__typename === "Team" ? owner.id : undefined,
+                    userId: owner.__typename === "User" ? owner.id : undefined,
+                },
+            });
+            return result.count;
+        },
+    },
     dbTable: "run_project",
     display: () => ({
         label: {

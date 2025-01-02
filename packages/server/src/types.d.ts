@@ -1,7 +1,6 @@
 import { GqlModelType, SessionUser } from "@local/shared";
 import pkg from "@prisma/client";
-import { GraphQLResolveInfo } from "graphql";
-import { PartialGraphQLInfo } from ".";
+import { ApiEndpointInfo } from ".";
 import { Context } from "./middleware";
 
 declare module "@local/server";
@@ -74,10 +73,20 @@ declare module "winston" {
     }
 }
 
+export type RequestFile = {
+    fieldname: string;
+    originalname: string;
+    encoding: string;
+    mimetype: string;
+    buffer: Buffer;
+    size: number;
+}
+
 // Request type
 declare global {
     namespace Express {
         interface Request {
+            files?: RequestFile[];
             session: SessionData;
         }
     }
@@ -90,11 +99,11 @@ export type WithIdField<IdField extends string = "id"> = {
 /** Prisma type shorthand */
 export type PrismaType = pkg.PrismaClient<pkg.Prisma.PrismaClientOptions, never, pkg.Prisma.RejectOnNotFound | pkg.Prisma.RejectPerOperation | undefined>
 
-/** Wrapper for GraphQL input types */
+/** Wrapper for API endpoint input types */
 export type IWrap<T> = { input: T }
 
 /**
- * Type for converting GraphQL objects (where nullables are set based on database), 
+ * Type for converting API endpoint objects (where nullables are set based on database), 
  * to fully OPTIONAL objects (including relationships)
  */
 export type RecursivePartial<T> = {
@@ -131,7 +140,7 @@ export type CreateManyResult<T> = FindOneResult<T>[]
 export type UpdateOneResult<T> = FindOneResult<T>
 export type UpdateManyResult<T> = FindOneResult<T>[]
 
-export type GQLEndpoint<T, U> = (parent: undefined, data: T extends undefined ? undefined : IWrap<T>, context: Context, info: GraphQLResolveInfo | PartialGraphQLInfo) => Promise<U>;
+export type ApiEndpoint<T, U> = (parent: undefined, data: T extends undefined ? undefined : IWrap<T>, context: Context, info: ApiEndpointInfo) => Promise<U>;
 
 export type UnionResolver = { __resolveType: (obj: any) => `${GqlModelType}` };
 

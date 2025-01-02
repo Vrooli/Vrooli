@@ -1,5 +1,5 @@
 import { AITaskInfo, MessageStream } from "../ai/types";
-import { ChatMessage, ChatParticipant } from "../api/generated/graphqlTypes";
+import { ChatMessage, ChatParticipant } from "../api/types";
 import { RunTaskInfo } from "../utils/runUtils";
 import { JOIN_CHAT_ROOM_ERRORS, JOIN_RUN_ROOM_ERRORS, JOIN_USER_ROOM_ERRORS, LEAVE_CHAT_ROOM_ERRORS, LEAVE_RUN_ROOM_ERRORS, LEAVE_USER_ROOM_ERRORS } from "./api";
 

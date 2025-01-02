@@ -51,6 +51,8 @@ export type ModelLogic<
     IdField extends keyof Model["GqlModel"] = "id",
 > = {
     __typename: Model["__typename"];
+    /** Irreversible actions that modify multiple objects of this type */
+    danger?: Danger;
     /** The db table for this object, as it appears in Prisma */
     dbTable: string;
     /** The db table for the object's translations, as it appears in Prisma */
@@ -560,6 +562,20 @@ export type Mutater<Model extends {
         create?: (params: YupMutateParams) => (Model["GqlCreate"] extends GqlObject ? AnyObjectSchema : never),
         update?: (params: YupMutateParams) => (Model["GqlUpdate"] extends GqlObject ? AnyObjectSchema : never),
     }
+}
+
+/** Irreversible actions that modify multiple objects of this type */
+export type Danger = {
+    /**
+    * Anonymizes all public objects of this type associated with the specified user or team.
+    */
+    anonymize: (owner: { __typename: "Team" | "User", id: string }) => Promise<void>,
+    /**
+     * Deletes all objects of this type associated with the specified user or team.
+     * 
+     * @returns The number of objects deleted
+     */
+    deleteAll: (owner: { __typename: "Team" | "User", id: string }) => Promise<number>,
 }
 
 /** Functions for displaying an object */

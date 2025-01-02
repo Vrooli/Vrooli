@@ -231,6 +231,25 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
             },
         };
     },
+    latestVersionRoutineTypes: (routineTypes: RoutineType[], { visibility }) => {
+        // If visibility is "Public", then we must use "isLatestPublic" flag
+        if (visibility === VisibilityType.Public) {
+            return { versions: { some: { isLatestPublic: true, routineType: { in: routineTypes } } } };
+        }
+        // Otherwise, use "isLatest" flag or "isLatestPublic" flag. The visibility builder will handle omitting objects you're not allowed to see.
+        // TODO probably flawed if using visibility "All"
+        return {
+            versions: {
+                some: {
+                    OR: [
+                        { isLatest: true },
+                        { isLatestPublic: true },
+                    ],
+                    routineType: { in: routineTypes },
+                },
+            },
+        };
+    },
     /**
      * Example: limitTo(["Routine", "Standard"]) => ({ OR: [{ routineId: { NOT: null } }, { standardId: { NOT: null } }] })
      */
@@ -313,6 +332,7 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
     routinesId: (id: string) => oneToManyId(id, "routines"),
     routinesIds: (ids: string[]) => oneToManyIds(ids, "routines"),
     routineType: (routineType: RoutineType) => ({ routineType }),
+    routineTypes: (routineTypes: RoutineType[]) => ({ routineType: { in: routineTypes } }),
     routineVersionId: (id: string) => oneToOneId(id, "routineVersion"),
     routineVersionsId: (id: string) => oneToManyId(id, "routineVersions"),
     runProjectTeamId: (id: string) => ({ runProject: { team: { id } } }),

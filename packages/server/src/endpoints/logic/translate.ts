@@ -4,59 +4,55 @@ import { CustomError } from "../../events/error";
 import { ApiEndpoint } from "../../types";
 
 export type EndpointsTranslate = {
-    Query: {
-        translate: ApiEndpoint<TranslateInput, Translate>;
-    },
+    translate: ApiEndpoint<TranslateInput, Translate>;
 }
 
-export const TranslateEndpoints: EndpointsTranslate = {
-    Query: {
-        translate: async (_, { input }, { req }, info) => {
-            return {} as any;
-            throw new CustomError("0328", "NotImplemented");
-            // Get IETF subtags for source and target languages
-            const sourceTag = input.languageSource.split("-")[0];
-            const targetTag = input.languageTarget.split("-")[0];
-            // Try to parse fields object from stringified JSON
-            let fields: { [key: string]: string } = {};
-            try {
-                fields = JSON.parse(input.fields);
-            } catch (e) {
-                throw new CustomError("0329", "InvalidArgs");
-            }
-            // Grab translatable values from input
-            const filteredFields = Object.entries(fields).filter(([key, value]) => !["type", "id", "language"].includes(key) && typeof value === "string" && value.trim().length > 0);
-            // If there are no fields, return empty object
-            if (Object.keys(filteredFields).length === 0) {
-                return {
-                    __typename: "Translate" as const,
-                    fields: JSON.stringify({}),
-                    language: targetTag,
-                };
-            }
-            // Use LibreTranslate API to translate fields. 
-            // Must make a call for each field, using promise all
-            const promises = filteredFields.map(async ([key, value]) => {
-                const url = `http://localhost:${process.env.PORT_TRANSLATE}/translate?source=${sourceTag}&target=${targetTag}&q=${encodeURI(value.trim())}`;
-                const response = await fetch(url);
-                const json = await response.json() as any;
-                return {
-                    [key]: json?.translatedText,
-                };
-            });
-            const results = await Promise.all(promises);
-            // Combine results into one object
-            const translatedFields = results.reduce((acc, cur) => {
-                return {
-                    ...acc,
-                    ...cur,
-                };
-            }, {});
+export const translate: EndpointsTranslate = {
+    translate: async (_, { input }, { req }, info) => {
+        return {} as any;
+        throw new CustomError("0328", "NotImplemented");
+        // Get IETF subtags for source and target languages
+        const sourceTag = input.languageSource.split("-")[0];
+        const targetTag = input.languageTarget.split("-")[0];
+        // Try to parse fields object from stringified JSON
+        let fields: { [key: string]: string } = {};
+        try {
+            fields = JSON.parse(input.fields);
+        } catch (e) {
+            throw new CustomError("0329", "InvalidArgs");
+        }
+        // Grab translatable values from input
+        const filteredFields = Object.entries(fields).filter(([key, value]) => !["type", "id", "language"].includes(key) && typeof value === "string" && value.trim().length > 0);
+        // If there are no fields, return empty object
+        if (Object.keys(filteredFields).length === 0) {
             return {
                 __typename: "Translate" as const,
-                fields: JSON.stringify(translatedFields),
+                fields: JSON.stringify({}),
                 language: targetTag,
             };
-        },
+        }
+        // Use LibreTranslate API to translate fields. 
+        // Must make a call for each field, using promise all
+        const promises = filteredFields.map(async ([key, value]) => {
+            const url = `http://localhost:${process.env.PORT_TRANSLATE}/translate?source=${sourceTag}&target=${targetTag}&q=${encodeURI(value.trim())}`;
+            const response = await fetch(url);
+            const json = await response.json() as any;
+            return {
+                [key]: json?.translatedText,
+            };
+        });
+        const results = await Promise.all(promises);
+        // Combine results into one object
+        const translatedFields = results.reduce((acc, cur) => {
+            return {
+                ...acc,
+                ...cur,
+            };
+        }, {});
+        return {
+            __typename: "Translate" as const,
+            fields: JSON.stringify(translatedFields),
+            language: targetTag,
+        };
     },
 };
