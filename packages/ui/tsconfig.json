@@ -38,7 +38,8 @@
         "types.d.ts",
         "sw-template.js",
         "src/api/hooks",
-        "public/pkg/libheif/worker.js"
+        "public/pkg/libheif/worker.js",
+        "../server/src/__tools/endpoints.ts"
     ],
     "exclude": [
         "**/*.spec.ts",

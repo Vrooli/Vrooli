@@ -178,7 +178,6 @@ export const endpointsCode = standardCRUD("code", "codes");
 export const endpointsCodeVersion = standardCRUD("codeVersion", "codeVersions");
 
 export const endpointsComment = standardCRUD("comment", "comments");
-//TODO for morning: Remove API_GENERATE script for ui package, leaving only the server script for generating prisma select objects and the shared script for generating OpenAPI schema
 
 export const endpointsActions = {
     copy: {

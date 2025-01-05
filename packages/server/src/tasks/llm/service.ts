@@ -594,12 +594,12 @@ export async function generateResponseWithFallback({
                 try {
                     if (latestMessage) {
                         await cudHelper({
+                            info: {},
                             inputData: [{
                                 action: "Delete",
                                 input: latestMessage,
                                 objectType: "ChatMessage",
                             }],
-                            partialInfo: {},
                             userData,
                         });
                     }

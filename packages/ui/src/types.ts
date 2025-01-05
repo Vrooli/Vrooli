@@ -106,12 +106,6 @@ declare module "@mui/material/styles" {
 /** Makes a value nullable. Mimics the Maybe type in GraphQL. */
 export type Maybe<T> = T | null;
 
-/** Recursively removes the Maybe type from all fields in a type, and makes them required. */
-export type NonMaybe<T> = { [K in keyof T]-?: T[K] extends Maybe<unknown> ? NonNullable<T[K]> : T[K] };
-
-/** Makes a value lazy or not */
-export type MaybeLazyAsync<T> = T | (() => T) | (() => Promise<T>);
-
 export type SxType = NonNullable<SystemStyleObject<Theme>> & {
     color?: string;
 }

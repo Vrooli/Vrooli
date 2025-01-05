@@ -1,0 +1,52 @@
+import { ChatMessage, ChatMessageSearchTreeResult, ChatMessageTranslation, ChatMessageYou } from "@local/shared";
+import { GqlPartial } from "../types";
+import { rel } from "../utils";
+
+export const chatMessageTranslation: GqlPartial<ChatMessageTranslation> = {
+    common: {
+        id: true,
+        language: true,
+        text: true,
+    },
+};
+
+export const chatMessageYou: GqlPartial<ChatMessageYou> = {
+    common: {
+        canDelete: true,
+        canReply: true,
+        canReport: true,
+        canUpdate: true,
+        canReact: true,
+        reaction: true,
+    },
+};
+
+export const chatMessage: GqlPartial<ChatMessage> = {
+    common: {
+        id: true,
+        created_at: true,
+        updated_at: true,
+        sequence: true,
+        versionIndex: true,
+        parent: { id: true, created_at: true },
+        user: async () => rel((await import("./user")).user, "nav"),
+        score: true,
+        reactionSummaries: async () => rel((await import("./reaction")).reactionSummary, "list"),
+        reportsCount: true,
+        you: () => rel(chatMessageYou, "full"),
+    },
+    full: {
+        translations: () => rel(chatMessageTranslation, "full"),
+    },
+    list: {
+        translations: () => rel(chatMessageTranslation, "list"),
+    },
+};
+
+export const chatMessageSearchTreeResult: GqlPartial<ChatMessageSearchTreeResult> = {
+    common: {
+        hasMoreUp: true,
+        hasMoreDown: true,
+        messages: () => rel(chatMessage, "list"),
+    },
+};
