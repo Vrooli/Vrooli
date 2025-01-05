@@ -1,13 +1,11 @@
-import { MaxObjects, QuizQuestionSortBy, getTranslation, quizQuestionValidation } from "@local/shared";
+import { MaxObjects, getTranslation, quizQuestionValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { useVisibility } from "../../builders/visibilityBuilder";
 import { defaultPermissions, oneIsPublic } from "../../utils";
 import { translationShapeHelper } from "../../utils/shapes";
-import { getSingleTypePermissions } from "../../validators";
 import { QuizQuestionFormat } from "../formats";
-import { SuppFields } from "../suppFields";
 import { QuizModelInfo, QuizModelLogic, QuizQuestionModelInfo, QuizQuestionModelLogic } from "./types";
 
 const __typename = "QuizQuestion" as const;
@@ -41,34 +39,7 @@ export const QuizQuestionModel: QuizQuestionModelLogic = ({
         },
         yup: quizQuestionValidation,
     },
-    search: {
-        defaultSort: QuizQuestionSortBy.OrderAsc,
-        sortBy: QuizQuestionSortBy,
-        searchFields: {
-            createdTimeFrame: true,
-            translationLanguages: true,
-            quizId: true,
-            standardId: true,
-            userId: true,
-            responseId: true,
-            updatedTimeFrame: true,
-        },
-        searchStringQuery: () => ({
-            OR: [
-                "transQuestionTextWrapped",
-            ],
-        }),
-        supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<QuizQuestionModelInfo["GqlPermission"]>(__typename, ids, userData)),
-                    },
-                };
-            },
-        },
-    },
+    search: undefined,
     validate: () => ({
         isDeleted: () => false,
         isPublic: (...rest) => oneIsPublic<QuizQuestionModelInfo["PrismaSelect"]>([["quiz", "Quiz"]], ...rest),

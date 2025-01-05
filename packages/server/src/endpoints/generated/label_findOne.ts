@@ -1,60 +1,21 @@
 export const label_findOne = {
-  "id": true,
-  "created_at": true,
-  "updated_at": true,
-  "color": true,
-  "label": true,
-  "owner": {
-    "Team": {
-      "id": true,
-      "bannerImage": true,
-      "handle": true,
-      "profileImage": true,
-      "you": {
-        "canAddMembers": true,
+    "id": true,
+    "created_at": true,
+    "updated_at": true,
+    "color": true,
+    "label": true,
+    "you": {
         "canDelete": true,
-        "canBookmark": true,
-        "canReport": true,
-        "canUpdate": true,
-        "canRead": true,
-        "isBookmarked": true,
-        "isViewed": true,
-        "yourMembership": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "isAdmin": true,
-          "permissions": true
-        }
-      },
-      "__typename": "Team"
+        "canUpdate": true
     },
-    "User": {
-      "id": true,
-      "created_at": true,
-      "updated_at": true,
-      "bannerImage": true,
-      "handle": true,
-      "isBot": true,
-      "isBotDepictingPerson": true,
-      "name": true,
-      "profileImage": true,
-      "__typename": "User"
-    }
-  },
-  "you": {
-    "canDelete": true,
-    "canUpdate": true
-  },
-  "apisCount": true,
-  "codesCount": true,
-  "focusModesCount": true,
-  "issuesCount": true,
-  "meetingsCount": true,
-  "notesCount": true,
-  "projectsCount": true,
-  "routinesCount": true,
-  "schedulesCount": true,
-  "standardsCount": true,
-  "__typename": "Label"
-} as const;
+    "apisCount": true,
+    "codesCount": true,
+    "focusModesCount": true,
+    "issuesCount": true,
+    "meetingsCount": true,
+    "notesCount": true,
+    "projectsCount": true,
+    "routinesCount": true,
+    "schedulesCount": true,
+    "standardsCount": true
+};

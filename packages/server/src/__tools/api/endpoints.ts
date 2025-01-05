@@ -19,7 +19,7 @@ export const endpoints = {
             findOne: await toObject(api, "full"),
             findMany: await toObject(...(await toSearch(api))),
             createOne: await toObject(api, "full"),
-            updateUpdate: await toObject(api, "full"),
+            updateOne: await toObject(api, "full"),
         };
     },
     apiKey: async () => {
@@ -149,7 +149,7 @@ export const endpoints = {
             findOne: await toObject(comment, "full"),
             findMany: await toObject(commentSearchResult, "full"),
             createOne: await toObject(comment, "full"),
-            updateONe: await toObject(comment, "full"),
+            updateOne: await toObject(comment, "full"),
         };
     },
     email: async () => {

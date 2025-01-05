@@ -1,4 +1,4 @@
-import { ApiSortBy, CodeSortBy, HomeResult, NoteSortBy, PageInfo, Popular, PopularSearchInput, PopularSearchResult, ProjectSortBy, QuestionSortBy, ReminderSortBy, ResourceSortBy, RoutineSortBy, ScheduleSortBy, StandardSortBy, TeamSortBy, UserSortBy, VisibilityType } from "@local/shared";
+import { ApiSortBy, CodeSortBy, HomeResult, NoteSortBy, PageInfo, Popular, PopularSearchInput, PopularSearchResult, ProjectSortBy, QuestionSortBy, ReminderSortBy, RoutineSortBy, ScheduleSortBy, StandardSortBy, TeamSortBy, UserSortBy, VisibilityType } from "@local/shared";
 import { readManyAsFeedHelper } from "../../actions/reads";
 import { RequestService } from "../../auth/request";
 import { SessionService } from "../../auth/session";
@@ -52,7 +52,7 @@ export const feed: EndpointsFeed = {
                 },
             },
             info: partial.resources as ApiEndpointInfo,
-            input: { take, sortBy: ResourceSortBy.IndexAsc, visibility: VisibilityType.Own },
+            input: { take, visibility: VisibilityType.Own },
             objectType: "Resource",
         });
         // Query schedules that might occur in the next 7 days. 

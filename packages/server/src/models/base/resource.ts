@@ -1,4 +1,4 @@
-import { MaxObjects, ResourceSortBy, getTranslation, resourceValidation } from "@local/shared";
+import { MaxObjects, getTranslation, resourceValidation } from "@local/shared";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { shapeHelper } from "../../builders/shapeHelper";
@@ -40,23 +40,7 @@ export const ResourceModel: ResourceModelLogic = ({
         },
         yup: resourceValidation,
     },
-    search: {
-        defaultSort: ResourceSortBy.IndexAsc,
-        sortBy: ResourceSortBy,
-        searchFields: {
-            createdTimeFrame: true,
-            resourceListId: true,
-            translationLanguages: true,
-            updatedTimeFrame: true,
-        },
-        searchStringQuery: () => ({
-            OR: [
-                "transDescriptionWrapped",
-                "transNameWrapped",
-                "linkWrapped",
-            ],
-        }),
-    },
+    search: undefined,
     validate: () => ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
