@@ -2,24 +2,23 @@ import { PageInfo, ProjectOrRoutine, ProjectOrRoutineSearchInput, ProjectOrRouti
 import { readManyAsFeedHelper } from "../../actions/reads";
 import { RequestService } from "../../auth/request";
 import { SessionService } from "../../auth/session";
-import { addSupplementalFieldsMultiTypes } from "../../builders/addSupplementalFieldsMultiTypes";
-import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
-import { ApiEndpointInfo } from "../../builders/types";
-import { ApiEndpoint, FindManyResult } from "../../types";
+import { InfoConverter, addSupplementalFieldsMultiTypes } from "../../builders/infoConverter";
+import { PartialApiInfo } from "../../builders/types";
+import { ApiEndpoint } from "../../types";
 import { SearchMap } from "../../utils";
 
 const DEFAULT_TAKE = 10;
 
 export type EndpointsUnions = {
-    projectOrRoutines: ApiEndpoint<ProjectOrRoutineSearchInput, FindManyResult<ProjectOrRoutine>>;
-    runProjectOrRunRoutines: ApiEndpoint<RunProjectOrRunRoutineSearchInput, FindManyResult<RunProjectOrRunRoutine>>;
-    projectOrTeams: ApiEndpoint<ProjectOrTeamSearchInput, FindManyResult<ProjectOrTeam>>;
+    projectOrRoutines: ApiEndpoint<ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult>;
+    runProjectOrRunRoutines: ApiEndpoint<RunProjectOrRunRoutineSearchInput, RunProjectOrRunRoutineSearchResult>;
+    projectOrTeams: ApiEndpoint<ProjectOrTeamSearchInput, ProjectOrTeamSearchResult>;
 }
 
 export const unions: EndpointsUnions = {
-    projectOrRoutines: async (_, { input }, { req }, info) => {
+    projectOrRoutines: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 2000, req });
-        const partial = toPartialGqlInfo(info, {
+        const partial = InfoConverter.fromApiToPartialApi(info, {
             __typename: "ProjectOrRoutineSearchResult",
             Project: "Project",
             Routine: "Routine",
@@ -41,7 +40,7 @@ export const unions: EndpointsUnions = {
         // Query projects
         const { nodes: projects, pageInfo: projectsInfo } = shouldInclude("Project") ? await readManyAsFeedHelper({
             ...commonReadParams,
-            info: partial.Project as ApiEndpointInfo,
+            info: partial.Project as PartialApiInfo,
             input: {
                 after: input.projectAfter,
                 createdTimeFrame: input.createdTimeFrame,
@@ -72,7 +71,7 @@ export const unions: EndpointsUnions = {
         // Query routines
         const { nodes: routines, pageInfo: routinesInfo } = shouldInclude("Routine") ? await readManyAsFeedHelper({
             ...commonReadParams,
-            info: partial.Routine as ApiEndpointInfo,
+            info: partial.Routine as PartialApiInfo,
             input: {
                 after: input.routineAfter,
                 createdTimeFrame: input.createdTimeFrame,
@@ -109,8 +108,8 @@ export const unions: EndpointsUnions = {
         }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
         // Add supplemental fields to every result
         const withSupplemental = await addSupplementalFieldsMultiTypes({ projects, routines }, {
-            projects: { type: "Project", ...(partial.Project as ApiEndpointInfo) },
-            routines: { type: "Routine", ...(partial.Routine as ApiEndpointInfo) },
+            projects: { type: "Project", ...(partial.Project as PartialApiInfo) },
+            routines: { type: "Routine", ...(partial.Routine as PartialApiInfo) },
         }, userData);
         // Combine nodes, alternating between each type
         const properties = Object.values(withSupplemental);
@@ -131,9 +130,9 @@ export const unions: EndpointsUnions = {
         };
         return combined;
     },
-    runProjectOrRunRoutines: async (_, { input }, { req }, info) => {
+    runProjectOrRunRoutines: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 2000, req });
-        const partial = toPartialGqlInfo(info, {
+        const partial = InfoConverter.fromApiToPartialApi(info, {
             __typename: "RunProjectOrRunRoutineSearchResult",
             RunProject: "RunProject",
             RunRoutine: "RunRoutine",
@@ -152,7 +151,7 @@ export const unions: EndpointsUnions = {
         // Query run projects
         const { nodes: runProjects, pageInfo: runProjectsInfo } = shouldInclude("RunProject") ? await readManyAsFeedHelper({
             ...commonReadParams,
-            info: partial.RunProject as ApiEndpointInfo,
+            info: partial.RunProject as PartialApiInfo,
             input: {
                 after: input.runProjectAfter,
                 createdTimeFrame: input.createdTimeFrame,
@@ -175,7 +174,7 @@ export const unions: EndpointsUnions = {
         // Query routines
         const { nodes: runRoutines, pageInfo: runRoutinesInfo } = shouldInclude("RunRoutine") ? await readManyAsFeedHelper({
             ...commonReadParams,
-            info: partial.RunRoutine as ApiEndpointInfo,
+            info: partial.RunRoutine as PartialApiInfo,
             input: {
                 after: input.runProjectAfter,
                 createdTimeFrame: input.createdTimeFrame,
@@ -197,8 +196,8 @@ export const unions: EndpointsUnions = {
         }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
         // Add supplemental fields to every result
         const withSupplemental = await addSupplementalFieldsMultiTypes({ runProjects, runRoutines }, {
-            runProjects: { type: "RunProject", ...(partial.RunProject as ApiEndpointInfo) },
-            runRoutines: { type: "RunRoutine", ...(partial.RunRoutine as ApiEndpointInfo) },
+            runProjects: { type: "RunProject", ...(partial.RunProject as PartialApiInfo) },
+            runRoutines: { type: "RunRoutine", ...(partial.RunRoutine as PartialApiInfo) },
         }, userData);
         // Combine nodes, alternating between each type
         const properties = Object.values(withSupplemental);
@@ -219,9 +218,9 @@ export const unions: EndpointsUnions = {
         };
         return combined;
     },
-    projectOrTeams: async (_, { input }, { req }, info) => {
+    projectOrTeams: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 2000, req });
-        const partial = toPartialGqlInfo(info, {
+        const partial = InfoConverter.fromApiToPartialApi(info, {
             __typename: "ProjectOrTeamSearchResult",
             Project: "Project",
             Team: "Team",
@@ -243,7 +242,7 @@ export const unions: EndpointsUnions = {
         // Query projects
         const { nodes: projects, pageInfo: projectsInfo } = shouldInclude("Project") ? await readManyAsFeedHelper({
             ...commonReadParams,
-            info: partial.Project as ApiEndpointInfo,
+            info: partial.Project as PartialApiInfo,
             input: {
                 after: input.projectAfter,
                 createdTimeFrame: input.createdTimeFrame,
@@ -275,7 +274,7 @@ export const unions: EndpointsUnions = {
         // Query teams
         const { nodes: teams, pageInfo: teamsInfo } = shouldInclude("Team") ? await readManyAsFeedHelper({
             ...commonReadParams,
-            info: partial.Team as ApiEndpointInfo,
+            info: partial.Team as PartialApiInfo,
             input: {
                 after: input.teamAfter,
                 createdTimeFrame: input.createdTimeFrame,
@@ -303,8 +302,8 @@ export const unions: EndpointsUnions = {
         }) : { nodes: [], pageInfo: {} } as { nodes: object[], pageInfo: Partial<PageInfo> };
         // Add supplemental fields to every result
         const withSupplemental = await addSupplementalFieldsMultiTypes({ projects, teams }, {
-            projects: { type: "Project", ...(partial.Project as ApiEndpointInfo) },
-            teams: { type: "Team", ...(partial.Team as ApiEndpointInfo) },
+            projects: { type: "Project", ...(partial.Project as PartialApiInfo) },
+            teams: { type: "Team", ...(partial.Team as PartialApiInfo) },
         }, userData);
         // Combine nodes, alternating between each type
         const properties = Object.values(withSupplemental);

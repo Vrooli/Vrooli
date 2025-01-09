@@ -94,7 +94,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //     async searchContents(
     //         req: Request,
     //         input: ProjectVersionContentsSearchInput,
-    //         info: ApiEndpointInfo,
+    //         info: PartialApiInfo,
     //         nestLimit: number = 2,
     //     ): Promise<ProjectVersionContentsSearchResult> {
     //         // Partially convert info type
@@ -166,7 +166,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //         }
     //         let comments: any = flattenThreads(childThreads);
     //         // Shape comments and add supplemental fields
-    //         comments = comments.map((c: any) => modelToGql(c, partialInfo as ApiEndpointInfo));
+    //         comments = comments.map((c: any) => InfoConverter.fromDbToApi(c, partialInfo as PartialApiInfo));
     //         comments = await addSupplementalFields(getUser(req.session), comments, partialInfo);
     //         // Put comments back into "threads" object, using another helper function. 
     //         // Comments can be matched by their ID
@@ -237,11 +237,11 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<ProjectVersionModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ProjectVersionModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -251,10 +251,10 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<ProjectVersionModelInfo["PrismaSelect"]>([["root", "Project"]], data, ...rest),
+            oneIsPublic<ProjectVersionModelInfo["DbSelect"]>([["root", "Project"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<ProjectModelLogic>("Project").validate().owner(data?.root as ProjectModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ProjectModelLogic>("Project").validate().owner(data?.root as ProjectModelInfo["DbModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

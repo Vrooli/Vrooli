@@ -1,8 +1,8 @@
 import { FocusModeFilter } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const focusModeFilter: GqlPartial<FocusModeFilter> = {
+export const focusModeFilter: ApiPartial<FocusModeFilter> = {
     full: {
         id: true,
         filterType: true,

@@ -285,11 +285,11 @@ export const RoutineModel: RoutineModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<RoutineModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<RoutineModelInfo["ApiPermission"]>(__typename, ids, userData)),
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
                         reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
@@ -309,7 +309,7 @@ export const RoutineModel: RoutineModelLogic = ({
             data.isInternal === false &&
             (
                 (data.ownedByUser === null && data.ownedByTeam === null) ||
-                oneIsPublic<RoutineModelInfo["PrismaSelect"]>([
+                oneIsPublic<RoutineModelInfo["DbSelect"]>([
                     ["ownedByTeam", "Team"],
                     ["ownedByUser", "User"],
                 ], data, ...rest)

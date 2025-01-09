@@ -1,15 +1,15 @@
-import { Award, AwardSearchInput } from "@local/shared";
+import { AwardSearchInput, AwardSearchResult } from "@local/shared";
 import { readManyHelper } from "../../actions/reads";
 import { RequestService } from "../../auth/request";
-import { ApiEndpoint, FindManyResult } from "../../types";
+import { ApiEndpoint } from "../../types";
 
 export type EndpointsAward = {
-    findMany: ApiEndpoint<AwardSearchInput, FindManyResult<Award>>;
+    findMany: ApiEndpoint<AwardSearchInput, AwardSearchResult>;
 }
 
 const objectType = "Award";
 export const award: EndpointsAward = {
-    findMany: async (_, { input }, { req }, info) => {
+    findMany: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
         return readManyHelper({ info, input, objectType, req });
     },

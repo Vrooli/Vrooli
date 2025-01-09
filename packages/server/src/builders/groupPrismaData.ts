@@ -1,7 +1,7 @@
-import { GqlModelType, isObject, OrArray } from "@local/shared";
+import { ModelType, OrArray, isObject } from "@local/shared";
 import pkg from "lodash";
 import { isRelationshipObject } from "./isOfType";
-import { ApiEndpointInfo } from "./types";
+import { PartialApiInfo } from "./types";
 
 const { merge } = pkg;
 
@@ -45,7 +45,7 @@ const combineDicts = (dict1: GroupPrismaDataReturn, dict2: GroupPrismaDataReturn
  */
 export const groupPrismaData = (
     data: OrArray<{ [x: string]: any }>,
-    partialInfo: OrArray<ApiEndpointInfo>,
+    partialInfo: OrArray<PartialApiInfo>,
 ): GroupPrismaDataReturn => {
     // Check for valid input
     if (!data || !partialInfo) return {
@@ -70,7 +70,7 @@ export const groupPrismaData = (
     }
     // Loop through each key/value pair in data
     for (const [key, value] of Object.entries(data)) {
-        let childPartialInfo: ApiEndpointInfo = partialInfo[key] as any;
+        let childPartialInfo: PartialApiInfo = partialInfo[key] as any;
         if (childPartialInfo && value) {
             // If every key in childPartialInfo starts with a capital letter, then it is a union.
             // In this case, we must determine which union to use based on the shape of value
@@ -90,7 +90,7 @@ export const groupPrismaData = (
                 // If no union type matches, skip
                 if (!matchingType) continue;
                 // If union type, update child partial
-                childPartialInfo = childPartialInfo[matchingType] as ApiEndpointInfo;
+                childPartialInfo = childPartialInfo[matchingType] as PartialApiInfo;
             }
         }
         // If value is an array
@@ -110,15 +110,15 @@ export const groupPrismaData = (
             result = combineDicts(result, childDicts);
         }
         // If key is 'id'
-        else if (key === "id" && (partialInfo as ApiEndpointInfo).__typename) {
-            const type = (partialInfo as ApiEndpointInfo).__typename as `${GqlModelType}`;
+        else if (key === "id" && (partialInfo as PartialApiInfo).__typename) {
+            const type = (partialInfo as PartialApiInfo).__typename as `${ModelType}`;
             // Add to objectTypesIdsDict
             result.objectTypesIdsDict[type] = result.objectTypesIdsDict[type] ?? [];
             result.objectTypesIdsDict[type].push(value);
         }
     }
     // Add keys to selectFieldsDict
-    const currType = (partialInfo as ApiEndpointInfo)?.__typename as `${GqlModelType}`;
+    const currType = (partialInfo as PartialApiInfo)?.__typename as `${ModelType}`;
     if (currType) {
         result.selectFieldsDict[currType] = merge(result.selectFieldsDict[currType] ?? {}, partialInfo);
     }

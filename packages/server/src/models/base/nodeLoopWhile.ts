@@ -43,9 +43,9 @@ export const NodeLoopWhileModel: NodeLoopWhileModelLogic = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, loop: "NodeLoop" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<NodeLoopModelLogic>("NodeLoop").validate().owner(data?.loop as NodeLoopModelInfo["PrismaModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<NodeLoopModelLogic>("NodeLoop").validate().isDeleted(data.loop as NodeLoopModelInfo["PrismaModel"], languages),
-        isPublic: (...rest) => oneIsPublic<NodeLoopWhileModelInfo["PrismaSelect"]>([["loop", "NodeLoop"]], ...rest),
+        owner: (data, userId) => ModelMap.get<NodeLoopModelLogic>("NodeLoop").validate().owner(data?.loop as NodeLoopModelInfo["DbModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<NodeLoopModelLogic>("NodeLoop").validate().isDeleted(data.loop as NodeLoopModelInfo["DbModel"], languages),
+        isPublic: (...rest) => oneIsPublic<NodeLoopWhileModelInfo["DbSelect"]>([["loop", "NodeLoop"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {

@@ -1,8 +1,8 @@
 import { RoutineVersion, RoutineVersionTranslation, RoutineVersionYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const routineVersionTranslation: GqlPartial<RoutineVersionTranslation> = {
+export const routineVersionTranslation: ApiPartial<RoutineVersionTranslation> = {
     common: {
         id: true,
         language: true,
@@ -12,7 +12,7 @@ export const routineVersionTranslation: GqlPartial<RoutineVersionTranslation> = 
     },
 };
 
-export const routineVersionYou: GqlPartial<RoutineVersionYou> = {
+export const routineVersionYou: ApiPartial<RoutineVersionYou> = {
     common: {
         canComment: true,
         canCopy: true,
@@ -26,7 +26,7 @@ export const routineVersionYou: GqlPartial<RoutineVersionYou> = {
     },
 };
 
-export const routineVersion: GqlPartial<RoutineVersion> = {
+export const routineVersion: ApiPartial<RoutineVersion> = {
     common: {
         id: true,
         created_at: true,

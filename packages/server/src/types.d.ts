@@ -1,6 +1,6 @@
-import { GqlModelType, SessionUser } from "@local/shared";
+import { ModelType, SessionUser } from "@local/shared";
 import pkg from "@prisma/client";
-import { ApiEndpointInfo } from ".";
+import { PartialApiInfo } from ".";
 import { Context } from "./middleware";
 
 declare module "@local/server";
@@ -123,26 +123,13 @@ export type RecursivePartialNullable<T> = {
     : T[P] | null
 };
 
-/** Return type of find one queries */
-export type FindOneResult<T> = RecursivePartial<T> | null
+export type ApiEndpoint<T, U> = (
+    data: T extends undefined ? undefined : IWrap<T>,
+    context: Context,
+    info: PartialApiInfo
+) => Promise<U extends Array<infer V> ? RecursivePartial<V>[] : RecursivePartial<U>>;
 
-/** Return type of find many queries */
-export type FindManyResult<T> = {
-    pageInfo: {
-        hasNextPage: boolean,
-        endCursor?: string | null
-    },
-    edges: Array<{ cursor: string, node: RecursivePartial<T> }>
-}
-
-export type CreateOneResult<T> = FindOneResult<T>
-export type CreateManyResult<T> = FindOneResult<T>[]
-export type UpdateOneResult<T> = FindOneResult<T>
-export type UpdateManyResult<T> = FindOneResult<T>[]
-
-export type ApiEndpoint<T, U> = (parent: undefined, data: T extends undefined ? undefined : IWrap<T>, context: Context, info: ApiEndpointInfo) => Promise<U>;
-
-export type UnionResolver = { __resolveType: (obj: any) => `${GqlModelType}` };
+export type UnionResolver = { __resolveType: (obj: any) => `${ModelType}` };
 
 /** Either a promise or a value */
 export type PromiseOrValue<T> = Promise<T> | T;

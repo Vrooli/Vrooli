@@ -1,4 +1,4 @@
-import { DUMMY_ID, DeleteOneInput, DeleteType, Phone, PhoneCreateInput, SendVerificationTextInput, Success, ValidateVerificationTextInput, endpointPostDeleteOne, endpointPostPhone, endpointPostPhoneValidateText, endpointPostPhoneVerificationText, phoneValidation, updateArray, uuid } from "@local/shared";
+import { DUMMY_ID, DeleteOneInput, DeleteType, Phone, PhoneCreateInput, SendVerificationTextInput, Success, ValidateVerificationTextInput, endpointsActions, endpointsPhone, phoneValidation, updateArray, uuid } from "@local/shared";
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -41,7 +41,7 @@ export function PhoneListItem({
         return () => clearInterval(timer);
     }, [cooldown]);
 
-    const [verifyMutation, { loading: loadingVerifyText }] = useLazyFetch<SendVerificationTextInput, Success>(endpointPostPhoneVerificationText);
+    const [verifyMutation, { loading: loadingVerifyText }] = useLazyFetch<SendVerificationTextInput, Success>(endpointsPhone.verify);
     const sendVerificationText = useCallback(() => {
         if (cooldown > 0 || loadingVerifyText) return;
 
@@ -95,7 +95,7 @@ export function PhoneListItem({
 
     //TODO current twilio number only supports US and Canada (I think?). Need to add support countries list, and 
     // prevent validation process when number is not from US or Canada
-    const [validateMutation, { loading: loadingValidateText }] = useLazyFetch<ValidateVerificationTextInput, Success>(endpointPostPhoneValidateText);
+    const [validateMutation, { loading: loadingValidateText }] = useLazyFetch<ValidateVerificationTextInput, Success>(endpointsPhone.validate);
     const validateText = useCallback(() => {
         if (loadingValidateText || verificationCode.length === 0) return;
 
@@ -164,16 +164,16 @@ export function PhoneListItem({
     );
 }
 
-export const PhoneList = ({
+export function PhoneList({
     handleUpdate,
     numOtherVerified,
     list,
-}: PhoneListProps) => {
+}: PhoneListProps) {
     console.log("rendering phonelist", list);
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const [verifyMutation, { loading: loadingVerifyText }] = useLazyFetch<SendVerificationTextInput, Success>(endpointPostPhoneVerificationText);
+    const [verifyMutation, { loading: loadingVerifyText }] = useLazyFetch<SendVerificationTextInput, Success>(endpointsPhone.verify);
     const sendVerificationText = useCallback((phone: Phone) => {
         if (loadingVerifyText) return;
 
@@ -187,7 +187,7 @@ export const PhoneList = ({
     }, [loadingVerifyText, verifyMutation]);
 
     // Handle add
-    const [addMutation, { loading: loadingAdd }] = useLazyFetch<PhoneCreateInput, Phone>(endpointPostPhone);
+    const [addMutation, { loading: loadingAdd }] = useLazyFetch<PhoneCreateInput, Phone>(endpointsPhone.createOne);
     const formik = useFormik({
         initialValues: {
             id: DUMMY_ID,
@@ -211,7 +211,7 @@ export const PhoneList = ({
         },
     });
 
-    const [deleteMutation, { loading: loadingDelete }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
+    const [deleteMutation, { loading: loadingDelete }] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
     const onDelete = useCallback((phone: Phone) => {
         if (loadingDelete) return;
         // Make sure that the user has at least one other authentication method 
@@ -298,4 +298,4 @@ export const PhoneList = ({
             </Stack>
         </form>
     );
-};
+}

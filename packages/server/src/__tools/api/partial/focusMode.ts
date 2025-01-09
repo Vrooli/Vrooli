@@ -1,8 +1,8 @@
 import { FocusMode, FocusModeYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const focusModeYou: GqlPartial<FocusModeYou> = {
+export const focusModeYou: ApiPartial<FocusModeYou> = {
     full: {
         canDelete: true,
         canRead: true,
@@ -10,7 +10,7 @@ export const focusModeYou: GqlPartial<FocusModeYou> = {
     },
 };
 
-export const focusMode: GqlPartial<FocusMode> = {
+export const focusMode: ApiPartial<FocusMode> = {
     common: {
         id: true,
         name: true,

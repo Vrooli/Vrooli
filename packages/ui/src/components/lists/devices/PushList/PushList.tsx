@@ -1,4 +1,4 @@
-import { DeleteOneInput, DeleteType, PushDevice, PushDeviceTestInput, PushDeviceUpdateInput, Success, endpointPostDeleteOne, endpointPutPushDevice, endpointPutPushDeviceTest, updateArray } from "@local/shared";
+import { DeleteOneInput, DeleteType, PushDevice, PushDeviceTestInput, PushDeviceUpdateInput, Success, endpointsActions, endpointsPushDevice, updateArray } from "@local/shared";
 import { Box, Button, IconButton, ListItem, ListItemText, Stack, TextField, Tooltip, styled, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -163,7 +163,7 @@ export function PushList({
         }
     }, [handleUpdate, list]);
 
-    const [updateMutation, { loading: loadingUpdate }] = useLazyFetch<PushDeviceUpdateInput, PushDevice>(endpointPutPushDevice);
+    const [updateMutation, { loading: loadingUpdate }] = useLazyFetch<PushDeviceUpdateInput, PushDevice>(endpointsPushDevice.updateOne);
     const onUpdate = useCallback((index: number, updatedDevice: PushDevice) => {
         if (loadingUpdate) return;
         fetchLazyWrapper<PushDeviceUpdateInput, PushDevice>({
@@ -178,7 +178,7 @@ export function PushList({
         });
     }, [handleUpdate, list, loadingUpdate, updateMutation]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
+    const [deleteMutation, { loading: loadingDelete }] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
     const onDelete = useCallback((device: PushDevice) => {
         if (loadingDelete) return;
         fetchLazyWrapper<DeleteOneInput, Success>({
@@ -190,7 +190,7 @@ export function PushList({
         });
     }, [deleteMutation, handleUpdate, list, loadingDelete]);
 
-    const [testPushNotification, { loading: loadingTestPush }] = useLazyFetch<PushDeviceTestInput, Success>(endpointPutPushDeviceTest);
+    const [testPushNotification, { loading: loadingTestPush }] = useLazyFetch<PushDeviceTestInput, Success>(endpointsPushDevice.testOne);
     const onTestPush = useCallback((device: PushDevice) => {
         if (loadingTestPush) return;
         fetchLazyWrapper<PushDeviceTestInput, Success>({

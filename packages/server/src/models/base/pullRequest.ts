@@ -1,4 +1,4 @@
-import { GqlModelType, MaxObjects, PullRequestFromObjectType, PullRequestSortBy, PullRequestStatus, PullRequestToObjectType, pullRequestValidation } from "@local/shared";
+import { MaxObjects, ModelType, PullRequestFromObjectType, PullRequestSortBy, PullRequestStatus, PullRequestToObjectType, pullRequestValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { ModelMap } from ".";
 import { findFirstRel } from "../../builders/findFirstRel";
@@ -38,22 +38,22 @@ export const PullRequestModel: PullRequestModelLogic = ({
             select: () => ({
                 id: true,
                 ...Object.fromEntries(Object.entries(fromMapper).map(([key, value]) =>
-                    [value, { select: ModelMap.get(key as GqlModelType).display().label.select() }])),
+                    [value, { select: ModelMap.get(key as ModelType).display().label.select() }])),
                 ...Object.fromEntries(Object.entries(toMapper).map(([key, value]) =>
-                    [value, { select: ModelMap.get(key as GqlModelType).display().label.select() }])),
+                    [value, { select: ModelMap.get(key as ModelType).display().label.select() }])),
             }),
             get: (select, languages) => {
                 let from = "";
                 let to = "";
                 for (const [key, value] of Object.entries(fromMapper)) {
                     if (select[value]) {
-                        from = ModelMap.get(key as GqlModelType).display().label.get(select[value], languages);
+                        from = ModelMap.get(key as ModelType).display().label.get(select[value], languages);
                         break;
                     }
                 }
                 for (const [key, value] of Object.entries(toMapper)) {
                     if (select[value]) {
-                        to = ModelMap.get(key as GqlModelType).display().label.get(select[value], languages);
+                        to = ModelMap.get(key as ModelType).display().label.get(select[value], languages);
                         break;
                     }
                 }
@@ -101,11 +101,11 @@ export const PullRequestModel: PullRequestModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<PullRequestModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<PullRequestModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -128,7 +128,7 @@ export const PullRequestModel: PullRequestModelLogic = ({
             const [onField, onData] = findFirstRel(data, Object.values(toMapper));
             if (!onField || !onData) return {};
             // Object type is field without the 'to' prefix
-            const onType = onField.slice(2) as GqlModelType;
+            const onType = onField.slice(2) as ModelType;
             const validate = ModelMap.get(onType).validate;
             return validate().owner(onData, userId);
         },
@@ -145,7 +145,7 @@ export const PullRequestModel: PullRequestModelLogic = ({
             id: true,
             createdBy: "User",
             status: true,
-            ...Object.fromEntries(Object.entries(toMapper).map(([key, value]) => [value, key as GqlModelType])),
+            ...Object.fromEntries(Object.entries(toMapper).map(([key, value]) => [value, key as ModelType])),
         }),
         visibility: {
             own: function getOwn(data) {
@@ -159,7 +159,7 @@ export const PullRequestModel: PullRequestModelLogic = ({
                                 { fromProjectVersion: useVisibility("ProjectVersion", "Own", data) },
                                 { fromRoutineVersion: useVisibility("RoutineVersion", "Own", data) },
                                 { fromStandardVersion: useVisibility("StandardVersion", "Own", data) },
-                            ]
+                            ],
                         },
                         {
                             status: { not: PullRequestStatus.Draft }, // If you didn't create it, is cannot be a draft
@@ -170,9 +170,9 @@ export const PullRequestModel: PullRequestModelLogic = ({
                                 { toProject: useVisibility("Project", "Own", data) },
                                 { toRoutine: useVisibility("Routine", "Own", data) },
                                 { toStandard: useVisibility("Standard", "Own", data) },
-                            ]
-                        }
-                    ]
+                            ],
+                        },
+                    ],
                 };
             },
             ownOrPublic: function getOwnOrPublic(data) {
@@ -197,7 +197,7 @@ export const PullRequestModel: PullRequestModelLogic = ({
                         { toProject: useVisibility("Project", "Public", data) },
                         { toRoutine: useVisibility("Routine", "Public", data) },
                         { toStandard: useVisibility("Standard", "Public", data) },
-                    ]
+                    ],
                 };
             },
         },

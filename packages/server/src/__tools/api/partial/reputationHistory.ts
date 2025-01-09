@@ -1,7 +1,7 @@
 import { ReputationHistory } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 
-export const reputationHistory: GqlPartial<ReputationHistory> = {
+export const reputationHistory: ApiPartial<ReputationHistory> = {
     full: {
         id: true,
         created_at: true,

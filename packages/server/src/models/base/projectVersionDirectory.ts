@@ -58,10 +58,10 @@ export const ProjectVersionDirectoryModel: ProjectVersionDirectoryModelLogic = (
     search: {} as any,
     validate: () => ({
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<ProjectVersionDirectoryModelInfo["PrismaSelect"]>([["projectVersion", "ProjectVersion"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<ProjectVersionDirectoryModelInfo["DbSelect"]>([["projectVersion", "ProjectVersion"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<ProjectVersionModelLogic>("ProjectVersion").validate().owner(data?.projectVersion as ProjectVersionModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ProjectVersionModelLogic>("ProjectVersion").validate().owner(data?.projectVersion as ProjectVersionModelInfo["DbModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

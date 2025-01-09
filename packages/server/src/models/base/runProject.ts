@@ -150,8 +150,8 @@ export const RunProjectModel: RunProjectModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 // Find the step with the highest "completedAt" Date for each run
                 const recentSteps = await prismaInstance.$queryRaw`
                     SELECT DISTINCT ON ("runProjectId")
@@ -168,7 +168,7 @@ export const RunProjectModel: RunProjectModelLogic = ({
                 return {
                     lastStep: lastSteps,
                     you: {
-                        ...(await getSingleTypePermissions<RunProjectModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<RunProjectModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -194,7 +194,7 @@ export const RunProjectModel: RunProjectModelLogic = ({
             data.isPrivate === false &&
             (
                 (data.user === null && data.team === null) ||
-                oneIsPublic<RunProjectModelInfo["PrismaSelect"]>([
+                oneIsPublic<RunProjectModelInfo["DbSelect"]>([
                     ["team", "Team"],
                     ["user", "User"],
                 ], data, ...rest)
@@ -206,16 +206,16 @@ export const RunProjectModel: RunProjectModelLogic = ({
                     OR: [
                         { team: useVisibility("Team", "Own", data) },
                         { user: useVisibility("User", "Own", data) },
-                    ]
-                }
+                    ],
+                };
             },
             ownOrPublic: function getOwnOrPublic(data) {
                 return {
                     OR: [
                         { team: useVisibility("Team", "OwnOrPublic", data) },
                         { user: useVisibility("User", "OwnOrPublic", data) },
-                    ]
-                }
+                    ],
+                };
             },
             ownPrivate: function getOwnPrivate(data) {
                 return {
@@ -223,7 +223,7 @@ export const RunProjectModel: RunProjectModelLogic = ({
                     OR: [
                         { team: useVisibility("Team", "Own", data) },
                         { user: useVisibility("User", "Own", data) },
-                    ]
+                    ],
                 };
             },
             ownPublic: function getOwnPublic(data) {
@@ -232,7 +232,7 @@ export const RunProjectModel: RunProjectModelLogic = ({
                     OR: [
                         { team: useVisibility("Team", "Own", data) },
                         { user: useVisibility("User", "Own", data) },
-                    ]
+                    ],
                 };
             },
             public: function getPublic() {

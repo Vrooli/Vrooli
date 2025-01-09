@@ -13,7 +13,7 @@ export const ChatParticipantModel: ChatParticipantModelLogic = ({
         // Label is the user's label
         label: {
             select: () => ({ id: true, user: { select: ModelMap.get<UserModelLogic>("User").display().label.select() } }),
-            get: (select, languages) => ModelMap.get<UserModelLogic>("User").display().label.get(select.user as UserModelInfo["PrismaModel"], languages),
+            get: (select, languages) => ModelMap.get<UserModelLogic>("User").display().label.get(select.user as UserModelInfo["DbModel"], languages),
         },
     }),
     format: ChatParticipantFormat,
@@ -45,8 +45,8 @@ export const ChatParticipantModel: ChatParticipantModelLogic = ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Team: (data?.chat as ChatModelInfo["PrismaModel"])?.team,
-            User: (data?.chat as ChatModelInfo["PrismaModel"])?.creator,
+            Team: (data?.chat as ChatModelInfo["DbModel"])?.team,
+            User: (data?.chat as ChatModelInfo["DbModel"])?.creator,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

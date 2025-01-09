@@ -1,10 +1,10 @@
 import { FindManyArgs, batch, logger, prismaInstance } from "@local/server";
-import { GqlModelType, camelCase, uppercaseFirstLetter } from "@local/shared";
+import { ModelType, camelCase, uppercaseFirstLetter } from "@local/shared";
 
 async function processTableInBatches(tableName: keyof typeof prismaInstance): Promise<void> {
     try {
         await batch<FindManyArgs>({
-            objectType: uppercaseFirstLetter(camelCase(tableName as string)) as GqlModelType,
+            objectType: uppercaseFirstLetter(camelCase(tableName as string)) as ModelType,
             processBatch: async (batch) => {
                 for (const item of batch) {
                     const actualCount = item._count.bookmarkedBy;

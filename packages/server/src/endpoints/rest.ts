@@ -1,10 +1,11 @@
-import { BotCreateInput, BotUpdateInput, HttpStatus, MB_10_BYTES, SERVER_VERSION, ServerError, SessionUser, TeamCreateInput, TeamUpdateInput, decodeValue, endpointsActions, endpointsApi, endpointsApiKey, endpointsApiVersion, endpointsAuth, endpointsAward, endpointsBookmark, endpointsBookmarkList, endpointsChat, endpointsChatInvite, endpointsChatMessage, endpointsChatParticipant, endpointsCode, endpointsCodeVersion, endpointsComment, endpointsEmail, endpointsFeed, endpointsFocusMode, endpointsIssue, endpointsLabel, endpointsMeeting, endpointsMeetingInvite, endpointsMember, endpointsMemberInvite, endpointsNote, endpointsNoteVersion, endpointsNotification, endpointsNotificationSubscription, endpointsPhone, endpointsPost, endpointsProject, endpointsProjectVersion, endpointsProjectVersionDirectory, endpointsPullRequest, endpointsPushDevice, endpointsQuestion, endpointsQuestionAnswer, endpointsQuiz, endpointsQuizAttempt, endpointsQuizQuestionResponse, endpointsReaction, endpointsReminder, endpointsReminderList, endpointsReport, endpointsReportResponse, endpointsReputationHistory, endpointsResourceList, endpointsRole, endpointsRoutine, endpointsRoutineVersion, endpointsRunProject, endpointsRunRoutine, endpointsRunRoutineInput, endpointsRunRoutineOutput, endpointsSchedule, endpointsStandard, endpointsStandardVersion, endpointsStatsApi, endpointsStatsCode, endpointsStatsProject, endpointsStatsQuiz, endpointsStatsRoutine, endpointsStatsSite, endpointsStatsStandard, endpointsStatsTeam, endpointsStatsUser, endpointsTag, endpointsTask, endpointsTeam, endpointsTransfer, endpointsTranslate, endpointsUnions, endpointsUser, endpointsView, endpointsWallet } from "@local/shared";
+import { BotCreateInput, BotUpdateInput, HttpStatus, MB_10_BYTES, SERVER_VERSION, ServerError, SessionUser, TeamCreateInput, TeamUpdateInput, decodeValue, endpointsActions, endpointsApi, endpointsApiKey, endpointsApiVersion, endpointsAuth, endpointsAward, endpointsBookmark, endpointsBookmarkList, endpointsChat, endpointsChatInvite, endpointsChatMessage, endpointsChatParticipant, endpointsCode, endpointsCodeVersion, endpointsComment, endpointsEmail, endpointsFeed, endpointsFocusMode, endpointsIssue, endpointsLabel, endpointsMeeting, endpointsMeetingInvite, endpointsMember, endpointsMemberInvite, endpointsNote, endpointsNoteVersion, endpointsNotification, endpointsNotificationSubscription, endpointsPhone, endpointsPost, endpointsProject, endpointsProjectVersion, endpointsProjectVersionDirectory, endpointsPullRequest, endpointsPushDevice, endpointsQuestion, endpointsQuestionAnswer, endpointsQuiz, endpointsQuizAttempt, endpointsQuizQuestionResponse, endpointsReaction, endpointsReminder, endpointsReminderList, endpointsReport, endpointsReportResponse, endpointsReputationHistory, endpointsResource, endpointsResourceList, endpointsRole, endpointsRoutine, endpointsRoutineVersion, endpointsRunProject, endpointsRunRoutine, endpointsRunRoutineInput, endpointsRunRoutineOutput, endpointsSchedule, endpointsStandard, endpointsStandardVersion, endpointsStatsApi, endpointsStatsCode, endpointsStatsProject, endpointsStatsQuiz, endpointsStatsRoutine, endpointsStatsSite, endpointsStatsStandard, endpointsStatsTeam, endpointsStatsUser, endpointsTag, endpointsTask, endpointsTeam, endpointsTransfer, endpointsTranslate, endpointsUnions, endpointsUser, endpointsView, endpointsWallet } from "@local/shared";
 import Busboy from "busboy";
 import { Express, NextFunction, Request, Response, Router } from "express";
 import { SessionService } from "../auth/session";
-import { ApiEndpointInfo } from "../builders/types";
+import { PartialApiInfo } from "../builders/types";
 import { CustomError } from "../events/error";
-import { Context, context } from "../middleware";
+import { context } from "../middleware";
+import { ApiEndpoint } from "../types";
 import { processAndStoreFiles } from "../utils/fileStorage";
 import { ResponseService } from "../utils/response";
 
@@ -15,13 +16,6 @@ export type EndpointDef = {
     endpoint: string; // e.g. "/bookmark/:id"
     method: "GET" | "POST" | "PUT" | "DELETE";
 }
-export type EndpointFunction = (
-    parent: undefined,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    data: any,
-    context: Context,
-    info: ApiEndpointInfo,
-) => Promise<unknown>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type FileConfig<TInput = any> = {
     readonly allowedExtensions?: Array<"txt" | "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" | "heic" | "heif" | "png" | "jpg" | "jpeg" | "gif" | "webp" | "tiff" | "bmp" | string>;
@@ -41,8 +35,8 @@ export type UploadConfig<TInput = any> = {
 }
 export type EndpointTuple = readonly [
     EndpointDef,
-    EndpointFunction,
-    ApiEndpointInfo | Record<string, unknown>,
+    ApiEndpoint<never, unknown>,
+    PartialApiInfo | Record<string, unknown>,
     UploadConfig?
 ];
 export type EndpointType = "get" | "post" | "put" | "delete";
@@ -67,16 +61,15 @@ function parseInput(input: Record<string, unknown>): Record<string, unknown> {
 }
 
 async function handleEndpoint(
-    endpoint: EndpointFunction,
-    selection: ApiEndpointInfo,
+    endpoint: ApiEndpoint<never, unknown>,
+    selection: PartialApiInfo,
     input: unknown,
     req: Request,
     res: Response,
 ) {
     try {
         const data = await endpoint(
-            undefined,
-            (input ? { input } : undefined),
+            (input ? { input } : undefined) as never,
             context({ req, res }),
             selection,
         );
@@ -237,7 +230,7 @@ function setupRoutes(endpointTuples: EndpointTuple[]): Router {
                     input[fieldname] = { sizes, file };
                 }
             }
-            handleEndpoint(endpointHandler, selection as ApiEndpointInfo, input, req, res);
+            handleEndpoint(endpointHandler, selection as PartialApiInfo, input, req, res);
         }
 
         // Add method to route
@@ -333,7 +326,7 @@ export async function initRestApi(app: Express) {
         [endpointsAuth.emailSignup, Logic.auth.emailSignUp, Select.auth_emailSignUp],
         [endpointsAuth.emailRequestPasswordChange, Logic.auth.emailRequestPasswordChange, Select.auth_emailRequestPasswordChange],
         [endpointsAuth.emailResetPassword, Logic.auth.emailResetPassword, Select.auth_emailResetPassword],
-        [endpointsAuth.emailLogin, Logic.auth.guestLogIn, Select.auth_guestLogIn],
+        [endpointsAuth.guestLogin, Logic.auth.guestLogIn, Select.auth_guestLogIn],
         [endpointsAuth.logout, Logic.auth.logOut, Select.auth_logOut],
         [endpointsAuth.logoutAll, Logic.auth.logOutAll, Select.auth_logOut],
         [endpointsAuth.validateSession, Logic.auth.validateSession, Select.auth_validateSession],
@@ -547,6 +540,11 @@ export async function initRestApi(app: Express) {
         // Reputation history
         [endpointsReputationHistory.findOne, Logic.reputationHistory.findOne, Select.reputationHistory_findOne],
         [endpointsReputationHistory.findMany, Logic.reputationHistory.findMany, Select.reputationHistory_findMany],
+        // Resource
+        [endpointsResource.findOne, Logic.resource.findOne, Select.resource_findOne],
+        [endpointsResource.findMany, Logic.resource.findMany, Select.resource_findMany],
+        [endpointsResource.createOne, Logic.resource.createOne, Select.resource_createOne],
+        [endpointsResource.updateOne, Logic.resource.updateOne, Select.resource_updateOne],
         // Resource list
         [endpointsResourceList.findOne, Logic.resourceList.findOne, Select.resourceList_findOne],
         [endpointsResourceList.findMany, Logic.resourceList.findMany, Select.resourceList_findMany],

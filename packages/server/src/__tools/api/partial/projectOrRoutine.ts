@@ -1,8 +1,8 @@
 import { ProjectOrRoutine } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const projectOrRoutine: GqlPartial<ProjectOrRoutine> = {
+export const projectOrRoutine: ApiPartial<ProjectOrRoutine> = {
     full: {
         __union: {
             Project: async () => rel((await import("./project")).project, "full"),

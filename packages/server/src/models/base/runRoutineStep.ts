@@ -62,9 +62,9 @@ export const RunRoutineStepModel: RunRoutineStepModelLogic = ({
         }),
         permissionResolvers: defaultPermissions,
         profanityFields: ["name"],
-        owner: (data, userId) => ModelMap.get<RunRoutineModelLogic>("RunRoutine").validate().owner(data?.runRoutine as RunRoutineModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<RunRoutineModelLogic>("RunRoutine").validate().owner(data?.runRoutine as RunRoutineModelInfo["DbModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<RunRoutineStepModelInfo["PrismaSelect"]>([["runRoutine", "RunRoutine"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<RunRoutineStepModelInfo["DbSelect"]>([["runRoutine", "RunRoutine"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {

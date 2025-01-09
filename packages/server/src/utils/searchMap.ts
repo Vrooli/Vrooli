@@ -1,4 +1,4 @@
-import { GqlModelType, RoutineType, ScheduleFor, SessionUser, TimeFrame, VisibilityType, lowercaseFirstLetter } from "@local/shared";
+import { ModelType, RoutineType, ScheduleFor, SessionUser, TimeFrame, VisibilityType, lowercaseFirstLetter } from "@local/shared";
 import { PeriodType } from "@prisma/client";
 import { timeFrameToPrisma } from "../builders/timeFrame";
 import { visibilityBuilderPrisma } from "../builders/visibilityBuilder";
@@ -45,7 +45,7 @@ function oneToManyIds<RelField extends string>(ids: string[], relField: RelField
  */
 type RequestData = {
     /** The object type being queried */
-    objectType: GqlModelType | `${GqlModelType}`;
+    objectType: ModelType | `${ModelType}`;
     /** Full search input query */
     searchInput: { [x: string]: any };
     /** The current user's session token */

@@ -1,15 +1,15 @@
 import { ChatInvite, ChatInviteYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const chatInviteYou: GqlPartial<ChatInviteYou> = {
+export const chatInviteYou: ApiPartial<ChatInviteYou> = {
     full: {
         canDelete: true,
         canUpdate: true,
     },
 };
 
-export const chatInvite: GqlPartial<ChatInvite> = {
+export const chatInvite: ApiPartial<ChatInvite> = {
     common: {
         id: true,
         created_at: true,

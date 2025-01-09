@@ -1,15 +1,15 @@
-import { RunRoutineOutput, RunRoutineOutputSearchInput } from "@local/shared";
+import { RunRoutineOutputSearchInput, RunRoutineOutputSearchResult } from "@local/shared";
 import { readManyHelper } from "../../actions/reads";
 import { RequestService } from "../../auth/request";
-import { ApiEndpoint, FindManyResult } from "../../types";
+import { ApiEndpoint } from "../../types";
 
 export type EndpointsRunRoutineOutput = {
-    findMany: ApiEndpoint<RunRoutineOutputSearchInput, FindManyResult<RunRoutineOutput>>;
+    findMany: ApiEndpoint<RunRoutineOutputSearchInput, RunRoutineOutputSearchResult>;
 }
 
 const objectType = "RunRoutineOutput";
 export const runRoutineOutput: EndpointsRunRoutineOutput = {
-    findMany: async (_, { input }, { req }, info) => {
+    findMany: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
         return readManyHelper({ info, input, objectType, req });
     },

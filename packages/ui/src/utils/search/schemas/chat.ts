@@ -1,11 +1,15 @@
-import { ChatSortBy, FormSchema, endpointGetChat, endpointGetChats } from "@local/shared";
+import { ChatSortBy, FormSchema, endpointsChat } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
-export const chatSearchSchema = (): FormSchema => ({
-    layout: searchFormLayout("SearchChat"),
-    containers: [], //TODO
-    elements: [], //TODO
-});
+export function chatSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchChat"),
+        containers: [], //TODO
+        elements: [], //TODO
+    };
+}
 
-export const chatSearchParams = () => toParams(chatSearchSchema(), endpointGetChats, endpointGetChat, ChatSortBy, ChatSortBy.DateUpdatedDesc);
+export function chatSearchParams() {
+    return toParams(chatSearchSchema(), endpointsChat, ChatSortBy, ChatSortBy.DateUpdatedDesc);
+}

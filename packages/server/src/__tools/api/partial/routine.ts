@@ -1,8 +1,8 @@
 import { Routine, RoutineYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const routineYou: GqlPartial<RoutineYou> = {
+export const routineYou: ApiPartial<RoutineYou> = {
     common: {
         canComment: true,
         canDelete: true,
@@ -16,7 +16,7 @@ export const routineYou: GqlPartial<RoutineYou> = {
     },
 };
 
-export const routine: GqlPartial<Routine> = {
+export const routine: ApiPartial<Routine> = {
     common: {
         id: true,
         created_at: true,

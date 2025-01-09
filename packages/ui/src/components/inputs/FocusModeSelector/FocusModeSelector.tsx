@@ -1,4 +1,4 @@
-import { ActiveFocusMode, FocusMode, FocusModeSearchInput, FocusModeSearchResult, FocusModeStopCondition, LINKS, MaxObjects, Session, SetActiveFocusModeInput, endpointGetFocusModes, endpointPutFocusModeActive } from "@local/shared";
+import { ActiveFocusMode, FocusMode, FocusModeSearchInput, FocusModeSearchResult, FocusModeStopCondition, LINKS, MaxObjects, Session, SetActiveFocusModeInput, endpointsFocusMode } from "@local/shared";
 import { fetchData } from "api/fetchData";
 import { ServerResponseParser } from "api/responseParser";
 import { SessionContext } from "contexts";
@@ -46,7 +46,7 @@ export const useFocusModesStore = create<FocusModesState>()((set, get) => ({
 
         try {
             const response = await fetchData<FocusModeSearchInput, FocusModeSearchResult>({
-                ...endpointGetFocusModes,
+                ...endpointsFocusMode.findMany,
                 inputs: {},
                 signal,
             });
@@ -117,7 +117,7 @@ export const useFocusModesStore = create<FocusModesState>()((set, get) => ({
         // Update active focus mode in database
         try {
             const response = await fetchData<SetActiveFocusModeInput, ActiveFocusMode>({
-                ...endpointPutFocusModeActive,
+                ...endpointsFocusMode.setActive,
                 inputs: {
                     id: activeFocusMode?.focusMode.id,
                     stopCondition: activeFocusMode?.stopCondition,

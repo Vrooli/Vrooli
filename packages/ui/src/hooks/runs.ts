@@ -1,4 +1,4 @@
-import { DUMMY_ID, RunProject, RunProjectCreateInput, RunProjectUpdateInput, RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput, RunStatus, RunTaskInfo, RunnableProjectVersion, RunnableRoutineVersion, StartRunTaskInput, Success, TaskStatus, endpointPostRunProject, endpointPostRunRoutine, endpointPostStartRunTask, endpointPutRunProject, endpointPutRunRoutine, uuid, uuidValidate } from "@local/shared";
+import { DUMMY_ID, RunProject, RunProjectCreateInput, RunProjectUpdateInput, RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput, RunStatus, RunTaskInfo, RunnableProjectVersion, RunnableRoutineVersion, StartRunTaskInput, Success, TaskStatus, endpointsRunProject, endpointsRunRoutine, endpointsTask, uuid, uuidValidate } from "@local/shared";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { SocketService } from "api/socket";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -16,8 +16,8 @@ type UpdateRunRoutineProps = RunRoutineUpdateInput & {
 }
 
 export function useUpsertRunRoutine() {
-    const [createRunRoutine, { loading: isCreatingRunRoutine }] = useLazyFetch<RunRoutineCreateInput, RunRoutine>(endpointPostRunRoutine);
-    const [updateRunRoutine, { loading: isUpdatingRunRoutine }] = useLazyFetch<RunRoutineUpdateInput, RunRoutine>(endpointPutRunRoutine);
+    const [createRunRoutine, { loading: isCreatingRunRoutine }] = useLazyFetch<RunRoutineCreateInput, RunRoutine>(endpointsRunRoutine.createOne);
+    const [updateRunRoutine, { loading: isUpdatingRunRoutine }] = useLazyFetch<RunRoutineUpdateInput, RunRoutine>(endpointsRunRoutine.updateOne);
 
     const createRun = useCallback(function createRunCallback({
         objectId,
@@ -77,8 +77,8 @@ type UpdateRunProjectProps = RunProjectUpdateInput & {
 }
 
 export function useUpsertRunProject() {
-    const [createRunProject, { loading: isCreatingRunProject }] = useLazyFetch<RunProjectCreateInput, RunProject>(endpointPostRunProject);
-    const [updateRunProject, { loading: isUpdatingRunProject }] = useLazyFetch<RunProjectUpdateInput, RunProject>(endpointPutRunProject);
+    const [createRunProject, { loading: isCreatingRunProject }] = useLazyFetch<RunProjectCreateInput, RunProject>(endpointsRunProject.createOne);
+    const [updateRunProject, { loading: isUpdatingRunProject }] = useLazyFetch<RunProjectUpdateInput, RunProject>(endpointsRunProject.updateOne);
 
     const createRun = useCallback(function createRunCallback({
         objectId,
@@ -187,7 +187,7 @@ export function useSocketRun({
     runnableObjectRef.current = runnableObject;
 
     const [subroutineTaskInfo, setSubroutineTaskInfo] = useState<RunTaskInfo | null>(null);
-    const [startTask, { loading: isGeneratingOutputs }] = useLazyFetch<StartRunTaskInput, Success>(endpointPostStartRunTask);
+    const [startTask, { loading: isGeneratingOutputs }] = useLazyFetch<StartRunTaskInput, Success>(endpointsTask.startRunTask);
     // const [cancelTask] = useLazyFetch<CancelTaskInput, Success>(endpointPostCancelTask);
 
     const handleRunSubroutine = useCallback(function handleGenerateOutputsCallback() {

@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/shared";
+import { ModelType } from "@local/shared";
 import { prismaInstance } from "../db/instance";
 
 /**
@@ -10,7 +10,7 @@ export async function getIdFromHandle({
     objectType,
 }: {
     handle: string;
-    objectType: `${GqlModelType}`,
+    objectType: `${ModelType}`,
 }): Promise<string | undefined> {
     const where = { handle };
     const select = { id: true };

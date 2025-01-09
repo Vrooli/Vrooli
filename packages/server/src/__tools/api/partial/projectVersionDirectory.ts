@@ -1,8 +1,8 @@
 import { ProjectVersionDirectory, ProjectVersionDirectoryTranslation } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const projectVersionDirectoryTranslation: GqlPartial<ProjectVersionDirectoryTranslation> = {
+export const projectVersionDirectoryTranslation: ApiPartial<ProjectVersionDirectoryTranslation> = {
     common: {
         id: true,
         language: true,
@@ -11,7 +11,7 @@ export const projectVersionDirectoryTranslation: GqlPartial<ProjectVersionDirect
     },
 };
 
-export const projectVersionDirectory: GqlPartial<ProjectVersionDirectory> = {
+export const projectVersionDirectory: ApiPartial<ProjectVersionDirectory> = {
     common: {
         id: true,
         created_at: true,

@@ -1,4 +1,4 @@
-import { endpointDeleteUser, LINKS, Session, UserDeleteInput, userDeleteOneSchema as validationSchema } from "@local/shared";
+import { DeleteAccountInput, endpointsActions, LINKS, Session, userDeleteOneSchema as validationSchema } from "@local/shared";
 import { Button, Checkbox, DialogContent, FormControlLabel, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
@@ -16,22 +16,26 @@ import { LargeDialog } from "../LargeDialog/LargeDialog";
 import { DeleteAccountDialogProps } from "../types";
 
 const titleId = "delete-object-dialog-title";
+const initialValues = {
+    password: "",
+    deletePublicData: false,
+} as const;
 
 /**
  * Dialog for deleting your account
  * @returns 
  */
-export const DeleteAccountDialog = ({
+export function DeleteAccountDialog({
     handleClose,
     isOpen,
-}: DeleteAccountDialogProps) => {
+}: DeleteAccountDialogProps) {
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
     const { id, name } = useMemo(() => getCurrentUser(session), [session]);
-    const [deleteAccount] = useLazyFetch<UserDeleteInput, Session>(endpointDeleteUser);
+    const [deleteAccount] = useLazyFetch<DeleteAccountInput, Session>(endpointsActions.deleteAccount);
 
     return (
         <LargeDialog
@@ -47,16 +51,13 @@ export const DeleteAccountDialog = ({
             />
             <Formik
                 enableReinitialize={true}
-                initialValues={{
-                    password: "",
-                    deletePublicData: false,
-                }}
+                initialValues={initialValues}
                 onSubmit={(values, helpers) => {
                     if (!id) {
                         PubSub.get().publish("snack", { messageKey: "NoUserIdFound", severity: "Error" });
                         return;
                     }
-                    fetchLazyWrapper<UserDeleteInput, Session>({
+                    fetchLazyWrapper<DeleteAccountInput, Session>({
                         fetch: deleteAccount,
                         inputs: values,
                         successMessage: () => ({ messageKey: "AccountDeleteSuccess" }),
@@ -111,4 +112,4 @@ export const DeleteAccountDialog = ({
             </Formik>
         </LargeDialog>
     );
-};
+}

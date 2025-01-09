@@ -1,8 +1,8 @@
 import { ChatMessage, ChatMessageSearchTreeResult, ChatMessageTranslation, ChatMessageYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const chatMessageTranslation: GqlPartial<ChatMessageTranslation> = {
+export const chatMessageTranslation: ApiPartial<ChatMessageTranslation> = {
     common: {
         id: true,
         language: true,
@@ -10,7 +10,7 @@ export const chatMessageTranslation: GqlPartial<ChatMessageTranslation> = {
     },
 };
 
-export const chatMessageYou: GqlPartial<ChatMessageYou> = {
+export const chatMessageYou: ApiPartial<ChatMessageYou> = {
     common: {
         canDelete: true,
         canReply: true,
@@ -21,7 +21,7 @@ export const chatMessageYou: GqlPartial<ChatMessageYou> = {
     },
 };
 
-export const chatMessage: GqlPartial<ChatMessage> = {
+export const chatMessage: ApiPartial<ChatMessage> = {
     common: {
         id: true,
         created_at: true,
@@ -43,7 +43,7 @@ export const chatMessage: GqlPartial<ChatMessage> = {
     },
 };
 
-export const chatMessageSearchTreeResult: GqlPartial<ChatMessageSearchTreeResult> = {
+export const chatMessageSearchTreeResult: ApiPartial<ChatMessageSearchTreeResult> = {
     common: {
         hasMoreUp: true,
         hasMoreDown: true,

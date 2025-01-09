@@ -1,4 +1,4 @@
-import { endpointPutProfile, LINKS, ProfileUpdateInput, profileValidation, User } from "@local/shared";
+import { endpointsUser, LINKS, ProfileUpdateInput, profileValidation, User } from "@local/shared";
 import { Box, Button, Divider, Grid, Link, styled, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -156,7 +156,7 @@ export function SettingsDisplayView({
     const { t } = useTranslation();
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
-    const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);
+    const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointsUser.profileUpdate);
 
     const onSubmit = useCallback(function onSubmitCallback(values: ProfileUpdateInput, helpers: FormikHelpers<ProfileUpdateInput>) {
         if (!profile) {

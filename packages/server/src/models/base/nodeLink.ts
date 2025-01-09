@@ -20,7 +20,7 @@ export const NodeLinkModel: NodeLinkModelLogic = ({
             }),
             // Label combines from and to labels
             get: (select, languages) => {
-                return `${ModelMap.get<NodeModelLogic>("Node").display().label.get(select.from as NodeModelInfo["PrismaModel"], languages)} -> ${ModelMap.get<NodeModelLogic>("Node").display().label.get(select.to as NodeModelInfo["PrismaModel"], languages)}`;
+                return `${ModelMap.get<NodeModelLogic>("Node").display().label.get(select.from as NodeModelInfo["DbModel"], languages)} -> ${ModelMap.get<NodeModelLogic>("Node").display().label.get(select.to as NodeModelInfo["DbModel"], languages)}`;
             },
         },
     }),
@@ -51,9 +51,9 @@ export const NodeLinkModel: NodeLinkModelLogic = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, routineVersion: "RoutineVersion" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().owner(data?.routineVersion as RoutineVersionModelInfo["PrismaModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().isDeleted(data.routineVersion as RoutineVersionModelInfo["PrismaModel"], languages),
-        isPublic: (...rest) => oneIsPublic<NodeLinkModelInfo["PrismaSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
+        owner: (data, userId) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().owner(data?.routineVersion as RoutineVersionModelInfo["DbModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().isDeleted(data.routineVersion as RoutineVersionModelInfo["DbModel"], languages),
+        isPublic: (...rest) => oneIsPublic<NodeLinkModelInfo["DbSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {

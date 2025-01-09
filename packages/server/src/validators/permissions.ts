@@ -1,4 +1,4 @@
-import { DUMMY_ID, GqlModelType, SessionUser } from "@local/shared";
+import { DUMMY_ID, ModelType, SessionUser } from "@local/shared";
 import { permissionsSelectHelper } from "../builders/permissionsSelectHelper";
 import { PrismaDelegate } from "../builders/types";
 import { prismaInstance } from "../db/instance";
@@ -284,7 +284,7 @@ export async function getMultiTypePermissions(
  * of that permission's value for each object (in the same order as the IDs)
  */
 export async function getSingleTypePermissions<Permissions extends { [x: string]: any }>(
-    type: `${GqlModelType}`,
+    type: `${ModelType}`,
     ids: string[],
     userData: SessionUser | null,
 ): Promise<{ [K in keyof Permissions]: Permissions[K][] }> {
@@ -328,7 +328,7 @@ export async function getSingleTypePermissions<Permissions extends { [x: string]
  * @param throwsOnError Whether to throw an error if the user does not have permission, or return a boolean
  */
 export async function permissionsCheck(
-    authDataById: { [id: string]: { __typename: `${GqlModelType}`, [x: string]: any } },
+    authDataById: { [id: string]: { __typename: `${ModelType}`, [x: string]: any } },
     idsByAction: { [key in QueryAction]?: string[] },
     inputsById: InputsById,
     userData: SessionUser | null,

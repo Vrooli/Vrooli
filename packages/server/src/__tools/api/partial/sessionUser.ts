@@ -1,7 +1,7 @@
 import { SessionUser } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 
-export const sessionUser: GqlPartial<SessionUser> = {
+export const sessionUser: ApiPartial<SessionUser> = {
     full: {
         apisCount: true,
         codesCount: true,

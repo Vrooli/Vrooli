@@ -1,8 +1,8 @@
 import { ActiveFocusMode } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const activeFocusMode: GqlPartial<ActiveFocusMode> = {
+export const activeFocusMode: ApiPartial<ActiveFocusMode> = {
     full: {
         focusMode: async () => rel((await import("./focusMode")).focusMode, "full"),
         stopCondition: true,

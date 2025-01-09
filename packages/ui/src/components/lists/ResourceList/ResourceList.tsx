@@ -1,6 +1,7 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { Count, DUMMY_ID, DeleteManyInput, DeleteType, ListObject, Resource, ResourceList as ResourceListType, ResourceUsedFor, TranslationKeyCommon, endpointPostDeleteMany, updateArray } from "@local/shared";
+import { DragDropContext, Draggable, DropResult, Droppable } from "@hello-pangea/dnd";
+import { Count, DUMMY_ID, DeleteManyInput, DeleteType, ListObject, Resource, ResourceList as ResourceListType, ResourceUsedFor, TranslationKeyCommon, endpointsActions, updateArray } from "@local/shared";
 import { Box, Button, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
@@ -18,7 +19,6 @@ import { useObjectContextMenu } from "hooks/useObjectContextMenu";
 import { useSelectableList } from "hooks/useSelectableList";
 import { AddIcon, CloseIcon, DeleteIcon, EditIcon, LinkIcon, OpenInNewIcon } from "icons";
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { DragDropContext, Draggable, DropResult, Droppable } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { CardBox, multiLineEllipsis } from "styles";
@@ -536,7 +536,7 @@ export function ResourceList(props: ResourceListProps) {
         });
     }, [closeAddDialog, handleUpdate, list]);
 
-    const [deleteMutation] = useLazyFetch<DeleteManyInput, Count>(endpointPostDeleteMany);
+    const [deleteMutation] = useLazyFetch<DeleteManyInput, Count>(endpointsActions.deleteMany);
     const onDelete = useCallback((item: Resource) => {
         if (!list) return;
         if (mutate && item.id) {

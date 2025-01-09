@@ -1,4 +1,4 @@
-import { EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, endpointPostAuthEmailRequestPasswordChange, LINKS, Success } from "@local/shared";
+import { EmailRequestPasswordChangeInput, emailRequestPasswordChangeSchema, endpointsAuth, LINKS, Success } from "@local/shared";
 import { Box, Button, InputAdornment } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { BreadcrumbsBase } from "components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase";
@@ -46,7 +46,7 @@ function ForgotPasswordForm({
 }: ForgotPasswordFormProps) {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const [emailRequestPasswordChange, { loading }] = useLazyFetch<EmailRequestPasswordChangeInput, Success>(endpointPostAuthEmailRequestPasswordChange);
+    const [emailRequestPasswordChange, { loading }] = useLazyFetch<EmailRequestPasswordChangeInput, Success>(endpointsAuth.emailRequestPasswordChange);
 
     const onSubmit = useCallback(function onSubmitCallback(values: FormValues, helpers: FormikHelpers<FormValues>) {
         fetchLazyWrapper<EmailRequestPasswordChangeInput, Success>({

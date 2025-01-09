@@ -200,11 +200,11 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<RoutineVersionModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<RoutineVersionModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -214,10 +214,10 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<RoutineVersionModelInfo["PrismaSelect"]>([["root", "Routine"]], data, ...rest),
+            oneIsPublic<RoutineVersionModelInfo["DbSelect"]>([["root", "Routine"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<RoutineModelLogic>("Routine").validate().owner(data?.root as RoutineModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<RoutineModelLogic>("Routine").validate().owner(data?.root as RoutineModelInfo["DbModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

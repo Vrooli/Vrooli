@@ -1,4 +1,4 @@
-import { RoutineType } from "../../api/generated";
+import { RoutineType } from "../../api/types";
 import { YupModel, bool, configCallData, configFormInput, configFormOutput, description, enumToYup, id, instructions, name, opt, req, transRel, versionLabel, versionNotes, yupObj } from "../utils";
 import { nodeValidation } from "./node";
 import { nodeLinkValidation } from "./nodeLink";

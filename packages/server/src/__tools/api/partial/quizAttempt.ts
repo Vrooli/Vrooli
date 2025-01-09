@@ -1,15 +1,15 @@
 import { QuizAttempt, QuizAttemptYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const quizAttemptYou: GqlPartial<QuizAttemptYou> = {
+export const quizAttemptYou: ApiPartial<QuizAttemptYou> = {
     common: {
         canDelete: true,
         canUpdate: true,
     },
 };
 
-export const quizAttempt: GqlPartial<QuizAttempt> = {
+export const quizAttempt: ApiPartial<QuizAttempt> = {
     common: {
         id: true,
         created_at: true,

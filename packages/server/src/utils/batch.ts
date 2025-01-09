@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/shared";
+import { ModelType } from "@local/shared";
 import { PrismaDelegate } from "../builders/types";
 import { prismaInstance } from "../db/instance";
 import { ModelMap } from "../models/base";
@@ -12,7 +12,7 @@ export type FindManyArgs = {
 
 export interface BatchProps<T extends FindManyArgs> {
     batchSize?: number,
-    objectType: GqlModelType | `${GqlModelType}`
+    objectType: ModelType | `${ModelType}`
     processBatch: (batch: any[]) => Promise<void>,
     select: T["select"],
     where?: T["where"],

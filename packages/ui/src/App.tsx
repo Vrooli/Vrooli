@@ -1,4 +1,4 @@
-import { ActiveFocusMode, endpointPostAuthValidateSession, endpointPutFocusModeActive, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
+import { ActiveFocusMode, endpointsAuth, endpointsFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
 import { Box, BoxProps, createTheme, CssBaseline, GlobalStyles, styled, StyledEngineProvider, Theme, ThemeProvider } from "@mui/material";
 import { fetchAIConfig } from "api/ai";
 import { fetchLazyWrapper } from "api/fetchWrapper";
@@ -227,8 +227,8 @@ export function App() {
     const [openVideoData, setOpenVideoData] = useState<PopupVideoPub | null>(null);
     const [isProDialogOpen, setIsProDialogOpen] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const [validateSession] = useLazyFetch<ValidateSessionInput, Session>(endpointPostAuthValidateSession);
-    const [setActiveFocusMode] = useLazyFetch<SetActiveFocusModeInput, ActiveFocusMode>(endpointPutFocusModeActive);
+    const [validateSession] = useLazyFetch<ValidateSessionInput, Session>(endpointsAuth.validateSession);
+    const [setActiveFocusMode] = useLazyFetch<SetActiveFocusModeInput, ActiveFocusMode>(endpointsFocusMode.setActive);
     const isSettingActiveFocusMode = useRef<boolean>(false);
     const isMobile = useWindowSize(({ width }) => width <= theme.breakpoints.values.md);
     const { isOpen: isLeftDrawerOpen } = useSideMenu({ id: CHAT_SIDE_MENU_ID, isMobile });

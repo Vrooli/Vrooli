@@ -1,7 +1,7 @@
 /**
  * Displays all search options for a team
  */
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkListCreateInput, BookmarkSearchInput, BookmarkSearchResult, Count, DeleteManyInput, DeleteType, endpointGetBookmarks, endpointPostBookmark, endpointPostBookmarkList, endpointPostDeleteMany, lowercaseFirstLetter, shapeBookmark, shapeBookmarkList, uuid } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkListCreateInput, BookmarkSearchInput, BookmarkSearchResult, Count, DeleteManyInput, DeleteType, endpointsActions, endpointsBookmark, endpointsBookmarkList, lowercaseFirstLetter, shapeBookmark, shapeBookmarkList, uuid } from "@local/shared";
 import { Box, Button, Checkbox, Divider, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, TextField, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -46,7 +46,7 @@ export function SelectBookmarkListDialog({
 
     // Fetch all bookmarks for object
     const [refetch, { data, loading: isFindLoading }] = useLazyFetch<BookmarkSearchInput, BookmarkSearchResult>({
-        ...endpointGetBookmarks,
+        ...endpointsBookmark.findMany,
         inputs: { [`${lowercaseFirstLetter(objectType)}Id`]: objectId },
     });
     useEffect(() => {
@@ -62,8 +62,8 @@ export function SelectBookmarkListDialog({
         }
     }, [data]);
 
-    const [create, { loading: isCreateLoading }] = useLazyFetch<BookmarkCreateInput, Bookmark>(endpointPostBookmark);
-    const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteManyInput, Count>(endpointPostDeleteMany);
+    const [create, { loading: isCreateLoading }] = useLazyFetch<BookmarkCreateInput, Bookmark>(endpointsBookmark.createOne);
+    const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteManyInput, Count>(endpointsActions.deleteMany);
     const handleSubmit = useCallback(async () => {
         // Iterate over selected lists
         for (const list of selectedLists) {
@@ -204,7 +204,7 @@ function CreateBookmarkListDialog({
     const { palette } = useTheme();
 
     // useLazyFetch for creating a BookmarkList
-    const [createList, { loading: isCreating }] = useLazyFetch<BookmarkListCreateInput, BookmarkList>(endpointPostBookmarkList);
+    const [createList, { loading: isCreating }] = useLazyFetch<BookmarkListCreateInput, BookmarkList>(endpointsBookmarkList.createOne);
 
     useLayoutEffect(function autoFocusNameInputEffect() {
         if (isOpen && nameInputRef.current) {

@@ -1,11 +1,15 @@
-import { ChatInviteSortBy, FormSchema, endpointGetChatInvite, endpointGetChatInvites } from "@local/shared";
+import { ChatInviteSortBy, FormSchema, endpointsChatInvite } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
-export const chatInviteSearchSchema = (): FormSchema => ({
-    layout: searchFormLayout("SearchChatInvite"),
-    containers: [], //TODO
-    elements: [], //TODO
-});
+export function chatInviteSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchChatInvite"),
+        containers: [], //TODO
+        elements: [], //TODO
+    };
+}
 
-export const chatInviteSearchParams = () => toParams(chatInviteSearchSchema(), endpointGetChatInvites, endpointGetChatInvite, ChatInviteSortBy, ChatInviteSortBy.DateUpdatedDesc);
+export function chatInviteSearchParams() {
+    return toParams(chatInviteSearchSchema(), endpointsChatInvite, ChatInviteSortBy, ChatInviteSortBy.DateUpdatedDesc);
+}

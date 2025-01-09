@@ -9,7 +9,7 @@ export type EndpointsStatsProject = {
 
 const objectType = "StatsProject";
 export const statsProject: EndpointsStatsProject = {
-    findMany: async (_, { input }, { req }, info) => {
+    findMany: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
         return readManyHelper({ info, input, objectType, req });
     },

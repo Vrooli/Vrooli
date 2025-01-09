@@ -14,7 +14,7 @@ export const ReminderListModel: ReminderListModelLogic = ({
         label: {
             select: () => ({ id: true, focusMode: { select: ModelMap.get<FocusModeModelLogic>("FocusMode").display().label.select() } }),
             // Label is schedule's label
-            get: (select, languages) => ModelMap.get<FocusModeModelLogic>("FocusMode").display().label.get(select.focusMode as FocusModeModelInfo["PrismaModel"], languages),
+            get: (select, languages) => ModelMap.get<FocusModeModelLogic>("FocusMode").display().label.get(select.focusMode as FocusModeModelInfo["DbModel"], languages),
         },
     }),
     format: ReminderListFormat,
@@ -41,7 +41,7 @@ export const ReminderListModel: ReminderListModelLogic = ({
             focusMode: "FocusMode",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<FocusModeModelLogic>("FocusMode").validate().owner(data?.focusMode as FocusModeModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<FocusModeModelLogic>("FocusMode").validate().owner(data?.focusMode as FocusModeModelInfo["DbModel"], userId),
         isDeleted: () => false,
         isPublic: () => false,
         visibility: {

@@ -24,7 +24,7 @@ export const NodeRoutineListItemModel: NodeRoutineListItemModelLogic = ({
                 // Prefer item translations over routineVersion's
                 const itemLabel = getTranslation(select, languages).name ?? "";
                 if (itemLabel.length > 0) return itemLabel;
-                return ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").display().label.get(select.routineVersion as RoutineVersionModelInfo["PrismaModel"], languages);
+                return ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").display().label.get(select.routineVersion as RoutineVersionModelInfo["DbModel"], languages);
             },
         },
     }),
@@ -54,9 +54,9 @@ export const NodeRoutineListItemModel: NodeRoutineListItemModelLogic = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, list: "NodeRoutineList" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<NodeRoutineListModelLogic>("NodeRoutineList").validate().owner(data?.list as NodeRoutineListModelInfo["PrismaModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<NodeRoutineListModelLogic>("NodeRoutineList").validate().isDeleted(data.list as NodeRoutineListModelInfo["PrismaModel"], languages),
-        isPublic: (...rest) => oneIsPublic<NodeRoutineListItemModelInfo["PrismaSelect"]>([["list", "NodeRoutineList"]], ...rest),
+        owner: (data, userId) => ModelMap.get<NodeRoutineListModelLogic>("NodeRoutineList").validate().owner(data?.list as NodeRoutineListModelInfo["DbModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<NodeRoutineListModelLogic>("NodeRoutineList").validate().isDeleted(data.list as NodeRoutineListModelInfo["DbModel"], languages),
+        isPublic: (...rest) => oneIsPublic<NodeRoutineListItemModelInfo["DbSelect"]>([["list", "NodeRoutineList"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {

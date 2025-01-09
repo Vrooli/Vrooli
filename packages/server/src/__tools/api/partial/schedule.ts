@@ -1,8 +1,8 @@
 import { Schedule } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const schedule: GqlPartial<Schedule> = {
+export const schedule: ApiPartial<Schedule> = {
     common: {
         id: true,
         created_at: true,

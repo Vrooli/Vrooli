@@ -1,4 +1,4 @@
-import { endpointPutProfile, ProfileUpdateInput, profileValidation, User } from "@local/shared";
+import { endpointsUser, ProfileUpdateInput, profileValidation, User } from "@local/shared";
 import { Box, styled, Typography } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -111,7 +111,7 @@ export function SettingsPrivacyView({
     const { t } = useTranslation();
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
-    const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);
+    const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointsUser.profileUpdate);
 
     const initialValues = useMemo<ProfileUpdateInput>(function initialValuesMemo() {
         return {

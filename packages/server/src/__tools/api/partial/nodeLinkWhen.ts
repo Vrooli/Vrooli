@@ -1,8 +1,8 @@
 import { NodeLinkWhen, NodeLinkWhenTranslation } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const nodeLinkWhenTranslation: GqlPartial<NodeLinkWhenTranslation> = {
+export const nodeLinkWhenTranslation: ApiPartial<NodeLinkWhenTranslation> = {
     common: {
         id: true,
         language: true,
@@ -11,7 +11,7 @@ export const nodeLinkWhenTranslation: GqlPartial<NodeLinkWhenTranslation> = {
     },
 };
 
-export const nodeLinkWhen: GqlPartial<NodeLinkWhen> = {
+export const nodeLinkWhen: ApiPartial<NodeLinkWhen> = {
     common: {
         id: true,
         condition: true,

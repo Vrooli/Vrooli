@@ -1,8 +1,8 @@
 import { Chat, ChatTranslation, ChatYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const chatTranslation: GqlPartial<ChatTranslation> = {
+export const chatTranslation: ApiPartial<ChatTranslation> = {
     common: {
         id: true,
         language: true,
@@ -11,7 +11,7 @@ export const chatTranslation: GqlPartial<ChatTranslation> = {
     },
 };
 
-export const chatYou: GqlPartial<ChatYou> = {
+export const chatYou: ApiPartial<ChatYou> = {
     common: {
         canDelete: true,
         canInvite: true,
@@ -19,7 +19,7 @@ export const chatYou: GqlPartial<ChatYou> = {
     },
 };
 
-export const chat: GqlPartial<Chat> = {
+export const chat: ApiPartial<Chat> = {
     common: {
         id: true,
         created_at: true,

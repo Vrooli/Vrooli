@@ -3,7 +3,7 @@
  * award
  */
 
-import { AwardCategory, awardNames, awardVariants, DEFAULT_LANGUAGE, GqlModelType } from "@local/shared";
+import { AwardCategory, awardNames, awardVariants, DEFAULT_LANGUAGE, ModelType } from "@local/shared";
 import i18next from "i18next";
 import { prismaInstance } from "../db/instance";
 import { Notify } from "../notify";
@@ -48,7 +48,7 @@ function shouldAward(awardCategory: `${AwardCategory}`, previousCount: number, c
  * @param objectType The object type to check
  * @returns `${objectType}Create` if it's a tracked award category
  */
-export function objectAwardCategory<T extends keyof typeof GqlModelType>(objectType: T): `${T}Create` | null {
+export function objectAwardCategory<T extends keyof typeof ModelType>(objectType: T): `${T}Create` | null {
     return `${objectType}Create` in AwardCategory ? `${objectType}Create` : null;
 }
 

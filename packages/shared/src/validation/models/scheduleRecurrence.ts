@@ -1,5 +1,5 @@
 import * as yup from "yup";
-import { ScheduleRecurrenceType } from "../../api/generated/graphqlTypes";
+import { ScheduleRecurrenceType } from "../../api/types";
 import { endDate, enumToYup, id, intPositiveOrOne, maxNumErr, minNumErr, opt, req, YupModel, yupObj } from "../utils";
 
 const recurrenceType = enumToYup(ScheduleRecurrenceType);

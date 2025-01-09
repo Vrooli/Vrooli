@@ -1,4 +1,4 @@
-import { FocusModeFilterType } from "../../api/generated/graphqlTypes";
+import { FocusModeFilterType } from "../../api/types";
 import { enumToYup, id, req, YupModel, yupObj } from "../utils";
 import { tagValidation } from "./tag";
 

@@ -1,16 +1,16 @@
-import { ApiCreateInput, ApiSearchInput, ApiUpdateInput, BotCreateInput, BotUpdateInput, CodeCreateInput, CodeSearchInput, CodeUpdateInput, DEFAULT_LANGUAGE, DeleteManyInput, DeleteOneInput, GqlModelType, LlmTask, MemberSearchInput, MemberUpdateInput, NavigableObject, NoteCreateInput, NoteSearchInput, NoteUpdateInput, ProjectCreateInput, ProjectSearchInput, ProjectUpdateInput, QuestionCreateInput, QuestionSearchInput, QuestionUpdateInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, RoleCreateInput, RoleSearchInput, RoleUpdateInput, RoutineCreateInput, RoutineSearchInput, RoutineUpdateInput, RunProjectCreateInput, RunRoutineCreateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, SessionUser, StandardCreateInput, StandardSearchInput, StandardUpdateInput, TeamCreateInput, TeamSearchInput, TeamUpdateInput, ToBotSettingsPropBot, UserSearchInput, getObjectSlug, getObjectUrlBase, uuidValidate } from "@local/shared";
+import { ApiCreateInput, ApiSearchInput, ApiUpdateInput, BotCreateInput, BotUpdateInput, CodeCreateInput, CodeSearchInput, CodeUpdateInput, DEFAULT_LANGUAGE, DeleteManyInput, DeleteOneInput, LlmTask, MemberSearchInput, MemberUpdateInput, ModelType, NavigableObject, NoteCreateInput, NoteSearchInput, NoteUpdateInput, ProjectCreateInput, ProjectSearchInput, ProjectUpdateInput, QuestionCreateInput, QuestionSearchInput, QuestionUpdateInput, ReminderCreateInput, ReminderSearchInput, ReminderUpdateInput, RoleCreateInput, RoleSearchInput, RoleUpdateInput, RoutineCreateInput, RoutineSearchInput, RoutineUpdateInput, RunProjectCreateInput, RunRoutineCreateInput, ScheduleCreateInput, ScheduleSearchInput, ScheduleUpdateInput, SessionUser, StandardCreateInput, StandardSearchInput, StandardUpdateInput, TeamCreateInput, TeamSearchInput, TeamUpdateInput, ToBotSettingsPropBot, UserSearchInput, getObjectSlug, getObjectUrlBase, uuidValidate } from "@local/shared";
 import { Request, Response } from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import { readManyWithEmbeddingsHelper } from "../../actions/reads";
-import { ApiEndpointInfo } from "../../builders/types";
+import { PartialApiInfo } from "../../builders/types";
 import { prismaInstance } from "../../db/instance";
 import { logger } from "../../events";
 import { CustomError } from "../../events/error";
 import { Context } from "../../middleware/context";
 import { ModelMap } from "../../models/base";
 import { processRunProject, processRunRoutine } from "../../tasks/run";
-import { CreateOneResult, FindOneResult, UpdateOneResult } from "../../types";
+import { RecursivePartial } from "../../types";
 
 type LlmTaskDataValue = string | number | boolean | null;
 export type LlmTaskData = Record<string, LlmTaskDataValue>;
@@ -118,8 +118,8 @@ type LlmTaskResult = {
 type LlmTaskExec = (data: LlmTaskData) => (LlmTaskResult | Promise<LlmTaskResult>);
 
 type ValidateFieldsFunc = (...validators: [string, ((data: LlmTaskData) => boolean)][]) => (data: LlmTaskData) => void;
-type GetObjectLabelFunc<T extends { __typename: string }> = (object: CreateOneResult<T> | UpdateOneResult<T> | FindOneResult<T>) => string | null;
-type GetObjectLinkFunc<T extends object> = (object: CreateOneResult<T> | UpdateOneResult<T> | FindOneResult<T>) => string | null;
+type GetObjectLabelFunc<T extends { __typename: string }> = (object: RecursivePartial<T>) => string | null;
+type GetObjectLinkFunc<T extends object> = (object: RecursivePartial<T>) => string | null;
 type TaskHandlerHelperFuncs<Task extends Exclude<LlmTask, "Start">> = {
     context: Context,
     converter: LlmTaskConverters,
@@ -148,8 +148,8 @@ export async function importConverter(language: string): Promise<LlmTaskConverte
     }
 }
 
-const SuccessInfo = { __typename: "Success" as const, success: true } as unknown as ApiEndpointInfo;
-const CountInfo = { __typename: "Count" as const, count: true } as unknown as ApiEndpointInfo;
+const SuccessInfo = { __typename: "Success" as const, success: true } as unknown as PartialApiInfo;
+const CountInfo = { __typename: "Count" as const, count: true } as unknown as PartialApiInfo;
 
 const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskHandlerHelperFuncs<Task>) => Promise<LlmTaskExec> } = {
     "ApiAdd": async ({ context, converter, getObjectLabel, getObjectLink, language, task }) => {
@@ -157,7 +157,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = await import("../../endpoints/generated/api_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.api.createOne(undefined, { input }, context, info);
+            const payload = await Endpoints.api.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -168,7 +168,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.actions.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
@@ -189,7 +189,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await Endpoints.api.updateOne(undefined, { input }, context, info);
+            const payload = await Endpoints.api.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -200,7 +200,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = await import("../../endpoints/generated/user_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.user.botCreateOne(undefined, { input }, context, info);
+            const payload = await Endpoints.user.botCreateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -211,7 +211,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.actions.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
@@ -242,7 +242,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
                 throw new CustomError("0276", "NotFound", { id: data.id, task });
             }
             const input = converter[task](data, language, existingUser);
-            const payload = await Endpoints.user.botUpdateOne(undefined, { input }, context, info);
+            const payload = await Endpoints.user.botUpdateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -253,7 +253,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = await import("../../endpoints/generated/code_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.code.createOne(undefined, { input }, context, info);
+            const payload = await Endpoints.code.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -264,7 +264,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.actions.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
@@ -284,7 +284,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await Endpoints.code.updateOne(undefined, { input }, context, info);
+            const payload = await Endpoints.code.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -303,7 +303,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = CountInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.actions.deleteMany(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteMany({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
@@ -312,9 +312,11 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = await import("../../endpoints/generated/member_findMany");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.member.findMany(undefined, { input }, context, info);
-            const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
-            const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
+            const payload = await Endpoints.member.findMany({ input }, context, info);
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const label = payload.edges!.length > 0 ? getObjectLabel(payload.edges![0]!.node!) : null;
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const link = payload.edges!.length > 0 ? getObjectLink(payload.edges![0]!.node!) : null;
             return { label, link, payload };
         };
     },
@@ -324,7 +326,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await Endpoints.member.updateOne(undefined, { input }, context, info);
+            const payload = await Endpoints.member.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -335,7 +337,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = await import("../../endpoints/generated/note_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.note.createOne(undefined, { input }, context, info);
+            const payload = await Endpoints.note.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -346,7 +348,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.actions.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
@@ -366,7 +368,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await Endpoints.note.updateOne(undefined, { input }, context, info);
+            const payload = await Endpoints.note.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -377,7 +379,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = await import("../../endpoints/generated/project_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.project.createOne(undefined, { input }, context, info);
+            const payload = await Endpoints.project.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -388,7 +390,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.actions.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
@@ -408,7 +410,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await Endpoints.project.updateOne(undefined, { input }, context, info);
+            const payload = await Endpoints.project.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -419,7 +421,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = await import("../../endpoints/generated/question_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.question.createOne(undefined, { input }, context, info);
+            const payload = await Endpoints.question.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -430,7 +432,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.actions.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
@@ -450,7 +452,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await Endpoints.question.updateOne(undefined, { input }, context, info);
+            const payload = await Endpoints.question.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -469,7 +471,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
                     throw new CustomError("0555", "InternalError", { task, data, language });
                 }
             }
-            const payload = await Endpoints.reminder.createOne(undefined, { input }, context, info);
+            const payload = await Endpoints.reminder.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -480,7 +482,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.actions.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
@@ -489,9 +491,11 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = await import("../../endpoints/generated/reminder_findMany");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.reminder.findMany(undefined, { input }, context, info);
-            const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
-            const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
+            const payload = await Endpoints.reminder.findMany({ input }, context, info);
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const label = payload.edges!.length > 0 ? getObjectLabel(payload.edges![0]!.node!) : null;
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const link = payload.edges!.length > 0 ? getObjectLink(payload.edges![0]!.node!) : null;
             return { label, link, payload };
         };
     },
@@ -501,7 +505,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await Endpoints.reminder.updateOne(undefined, { input }, context, info);
+            const payload = await Endpoints.reminder.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -512,7 +516,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = await import("../../endpoints/generated/role_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.role.createOne(undefined, { input }, context, info);
+            const payload = await Endpoints.role.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -523,7 +527,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.actions.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
@@ -532,9 +536,11 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = await import("../../endpoints/generated/role_findMany");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.role.findMany(undefined, { input }, context, info);
-            const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
-            const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
+            const payload = await Endpoints.role.findMany({ input }, context, info);
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const label = payload.edges!.length > 0 ? getObjectLabel(payload.edges![0]!.node!) : null;
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const link = payload.edges!.length > 0 ? getObjectLink(payload.edges![0]!.node!) : null;
             return { label, link, payload };
         };
     },
@@ -544,7 +550,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await Endpoints.role.updateOne(undefined, { input }, context, info);
+            const payload = await Endpoints.role.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -555,7 +561,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = await import("../../endpoints/generated/routine_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.routine.createOne(undefined, { input }, context, info);
+            const payload = await Endpoints.routine.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -566,7 +572,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.actions.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
@@ -586,7 +592,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await Endpoints.routine.updateOne(undefined, { input }, context, info);
+            const payload = await Endpoints.routine.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -598,7 +604,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         return async (data) => {
             const input = converter[task](data, language);
             // Create the run
-            const payload = await Endpoints.runProject.createOne(undefined, { input }, context, info);
+            const payload = await Endpoints.runProject.createOne({ input }, context, info);
             // Start the run
             await processRunProject({} as any);//TODO
             // Return the run
@@ -613,7 +619,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         return async (data) => {
             const input = converter[task](data, language);
             // Create the run
-            const payload = await Endpoints.runRoutine.createOne(undefined, { input }, context, info);
+            const payload = await Endpoints.runRoutine.createOne({ input }, context, info);
             // Start the run
             await processRunRoutine({} as any);//TODO
             // Return the run
@@ -627,7 +633,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = await import("../../endpoints/generated/schedule_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.schedule.createOne(undefined, { input }, context, info);
+            const payload = await Endpoints.schedule.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -638,7 +644,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.actions.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
@@ -647,9 +653,11 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = await import("../../endpoints/generated/schedule_findMany");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.schedule.findMany(undefined, { input }, context, info);
-            const label = payload.edges.length > 0 ? getObjectLabel(payload.edges[0].node) : null;
-            const link = payload.edges.length > 0 ? getObjectLink(payload.edges[0].node) : null;
+            const payload = await Endpoints.schedule.findMany({ input }, context, info);
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const label = payload.edges!.length > 0 ? getObjectLabel(payload.edges![0]!.node!) : null;
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            const link = payload.edges!.length > 0 ? getObjectLink(payload.edges![0]!.node!) : null;
             return { label, link, payload };
         };
     },
@@ -659,7 +667,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await Endpoints.schedule.updateOne(undefined, { input }, context, info);
+            const payload = await Endpoints.schedule.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -670,7 +678,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = await import("../../endpoints/generated/code_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.code.createOne(undefined, { input }, context, info);
+            const payload = await Endpoints.code.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -681,7 +689,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.actions.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
@@ -701,7 +709,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await Endpoints.code.updateOne(undefined, { input }, context, info);
+            const payload = await Endpoints.code.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -712,7 +720,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = await import("../../endpoints/generated/standard_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.standard.createOne(undefined, { input }, context, info);
+            const payload = await Endpoints.standard.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -723,7 +731,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.actions.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
@@ -743,7 +751,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await Endpoints.standard.updateOne(undefined, { input }, context, info);
+            const payload = await Endpoints.standard.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -754,7 +762,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = await import("../../endpoints/generated/team_findOne");
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.team.createOne(undefined, { input }, context, info);
+            const payload = await Endpoints.team.createOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -765,7 +773,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         const info = SuccessInfo;
         return async (data) => {
             const input = converter[task](data, language);
-            const payload = await Endpoints.actions.deleteOne(undefined, { input }, context, info);
+            const payload = await Endpoints.actions.deleteOne({ input }, context, info);
             return { label: null, link: null, payload };
         };
     },
@@ -785,7 +793,7 @@ const taskHandlerMap: { [Task in Exclude<LlmTask, "Start">]: (helperFuncs: TaskH
         return async (data) => {
             validateFields(["id", (data) => uuidValidate(data.id)])(data);
             const input = converter[task](data, language);
-            const payload = await Endpoints.team.updateOne(undefined, { input }, context, info);
+            const payload = await Endpoints.team.updateOne({ input }, context, info);
             const label = getObjectLabel(payload);
             const link = getObjectLink(payload);
             return { label, link, payload };
@@ -836,7 +844,7 @@ export async function generateTaskExec<Task extends Exclude<LlmTask, "Start">>(
         if (object === null || object === undefined) {
             return null;
         }
-        const { display } = ModelMap.getLogic(["display"], object.__typename as GqlModelType, true);
+        const { display } = ModelMap.getLogic(["display"], object.__typename as ModelType, true);
         return display().label.get(object, languages);
     }
 

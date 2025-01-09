@@ -1,8 +1,8 @@
 import { Wallet, WalletComplete, WalletInit } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const wallet: GqlPartial<Wallet> = {
+export const wallet: ApiPartial<Wallet> = {
     common: {
         id: true,
         name: true,
@@ -12,13 +12,13 @@ export const wallet: GqlPartial<Wallet> = {
     },
 };
 
-export const walletInit: GqlPartial<WalletInit> = {
+export const walletInit: ApiPartial<WalletInit> = {
     full: {
         nonce: true,
     },
 };
 
-export const walletComplete: GqlPartial<WalletComplete> = {
+export const walletComplete: ApiPartial<WalletComplete> = {
     full: {
         firstLogIn: true,
         session: async () => rel((await import("./session")).session, "full"),

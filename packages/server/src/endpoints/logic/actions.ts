@@ -6,7 +6,7 @@ import { RequestService } from "../../auth/request";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { ModelMap } from "../../models/base";
-import { ApiEndpoint, IWrap } from "../../types";
+import { ApiEndpoint } from "../../types";
 import { auth } from "./auth";
 
 export type EndpointsActions = {
@@ -18,20 +18,20 @@ export type EndpointsActions = {
 }
 
 export const actions: EndpointsActions = {
-    copy: async (_, { input }, { req }, info) => {
+    copy: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 500, req });
         const result = await copyHelper({ info, input, objectType: input.objectType, req });
         return { __typename: "CopyResult" as const, [lowercaseFirstLetter(input.objectType)]: result };
     },
-    deleteOne: async (_, { input }, { req }) => {
+    deleteOne: async ({ input }, { req }) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
         return deleteOneHelper({ input, req });
     },
-    deleteMany: async (_, { input }, { req }) => {
+    deleteMany: async ({ input }, { req }) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
         return deleteManyHelper({ input, req });
     },
-    deleteAll: async (_, { input }, { req }) => {
+    deleteAll: async ({ input }, { req }) => {
         const userData = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 25, req });
         let totalCount = 0;
@@ -49,7 +49,7 @@ export const actions: EndpointsActions = {
             count: totalCount,
         };
     },
-    deleteAccount: async (_, { input }, { req, res }, info) => {
+    deleteAccount: async ({ input }, { req, res }, info) => {
         const { id } = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 500, req });
         // Find user
@@ -77,7 +77,7 @@ export const actions: EndpointsActions = {
         if (result.success) {
             // TODO this will only work if you're deleing yourself, since it clears your own session. 
             // If there are cases like deleting a bot, or an admin deleting a user, this will need to be handled differently
-            return auth.logOut(undefined, undefined as unknown as IWrap<Record<string, never>>, { req, res }, info) as any;
+            return auth.logOut(undefined as never, { req, res }, info) as any;
         } else {
             throw new CustomError("0123", "InternalError");
         }

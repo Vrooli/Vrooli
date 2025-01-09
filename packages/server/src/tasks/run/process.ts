@@ -2,8 +2,7 @@ import { API_CREDITS_MULTIPLIER, BotStyle, ConfigCallData, ConfigCallDataGenerat
 import { Job } from "bull";
 import { performance } from "perf_hooks";
 import { readOneHelper } from "../../actions/reads";
-import { modelToGql } from "../../builders/modelToGql";
-import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
+import { InfoConverter } from "../../builders/infoConverter";
 import { prismaInstance } from "../../db/instance";
 import { parseRunIOFromPlaintext } from "../../db/seeds/codes";
 import { CustomError } from "../../events/error";
@@ -925,32 +924,32 @@ export async function doRunRoutine({
                 currentStepOrder: 1,// TODO will change for multi-step support
                 currentStepRunData: null,// TODO will change for multi-step support
                 formData,
-                handleRunProjectUpdate: async function updateRun(gqlInput) {
+                handleRunProjectUpdate: async function updateRun(apiInput) {
                     // Update the run with the new data
                     const { format, mutate } = ModelMap.getLogic(["format", "mutate"], "RunProject", true, "run process update project cast");
-                    const input = mutate.yup.update && mutate.yup.update({ env: process.env.NODE_ENV }).cast(gqlInput, { stripUnknown: true });
+                    const input = mutate.yup.update && mutate.yup.update({ env: process.env.NODE_ENV }).cast(apiInput, { stripUnknown: true });
                     const data = mutate.shape.update ? await mutate.shape.update({ data: input, idsCreateToConnect: {}, preMap: {}, userData }) : input;
                     const updateResult = await prismaInstance.run_project.update({
-                        where: { id: run?.id || gqlInput.id },
+                        where: { id: run?.id || apiInput.id },
                         data,
                         select: runProjectSelect,
                     });
-                    const partialInfo = toPartialGqlInfo(runProjectSelect, format.gqlRelMap, true);
-                    const converted = modelToGql(updateResult, partialInfo) as RunProject;
+                    const partialInfo = InfoConverter.fromApiToPartialApi(runProjectSelect, format.apiRelMap, true);
+                    const converted = InfoConverter.fromDbToApi(updateResult, partialInfo) as RunProject;
                     run = converted;
                 },
-                handleRunRoutineUpdate: async function updateRun(gqlInput) {
+                handleRunRoutineUpdate: async function updateRun(apiInput) {
                     // Update the run with the new data
                     const { format, mutate } = ModelMap.getLogic(["format", "mutate"], "RunRoutine", true, "run process update routine cast");
-                    const input = mutate.yup.update && mutate.yup.update({ env: process.env.NODE_ENV }).cast(gqlInput, { stripUnknown: true });
+                    const input = mutate.yup.update && mutate.yup.update({ env: process.env.NODE_ENV }).cast(apiInput, { stripUnknown: true });
                     const data = mutate.shape.update ? await mutate.shape.update({ data: input, idsCreateToConnect: {}, preMap: {}, userData }) : input;
                     const updateResult = await prismaInstance.run_routine.update({
-                        where: { id: run?.id || gqlInput.id },
+                        where: { id: run?.id || apiInput.id },
                         data,
                         select: runRoutineSelect,
                     });
-                    const partialInfo = toPartialGqlInfo(runRoutineSelect, format.gqlRelMap, true);
-                    const converted = modelToGql(updateResult, partialInfo) as RunRoutine;
+                    const partialInfo = InfoConverter.fromApiToPartialApi(runRoutineSelect, format.apiRelMap, true);
+                    const converted = InfoConverter.fromDbToApi(updateResult, partialInfo) as RunRoutine;
                     run = converted;
                 },
                 isStepCompleted: false,// TODO will change for multi-step support

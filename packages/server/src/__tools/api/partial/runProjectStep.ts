@@ -1,8 +1,8 @@
 import { RunProjectStep } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const runProjectStep: GqlPartial<RunProjectStep> = {
+export const runProjectStep: ApiPartial<RunProjectStep> = {
     common: {
         id: true,
         order: true,

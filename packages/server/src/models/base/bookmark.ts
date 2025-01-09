@@ -1,8 +1,8 @@
-import { BookmarkFor, BookmarkSortBy, bookmarkValidation, exists, GqlModelType, lowercaseFirstLetter, MaxObjects, uppercaseFirstLetter } from "@local/shared";
+import { BookmarkFor, BookmarkSortBy, MaxObjects, ModelType, bookmarkValidation, exists, lowercaseFirstLetter, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { ModelMap } from ".";
 import { findFirstRel } from "../../builders/findFirstRel";
-import { onlyValidIds } from "../../builders/onlyValidIds";
+import { onlyValidIds } from "../../builders/onlyValid";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { PrismaDelegate } from "../../builders/types";
 import { useVisibility } from "../../builders/visibilityBuilder";
@@ -39,11 +39,11 @@ export const BookmarkModel: BookmarkModelLogic = ({
             select: () => ({
                 id: true,
                 ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) =>
-                    [value, { select: ModelMap.get(key as GqlModelType).display().label.select() }])),
+                    [value, { select: ModelMap.get(key as ModelType).display().label.select() }])),
             }),
             get: (select, languages) => {
                 for (const [key, value] of Object.entries(forMapper)) {
-                    if (select[value]) return ModelMap.get(key as GqlModelType).display().label.get(select[value], languages);
+                    if (select[value]) return ModelMap.get(key as ModelType).display().label.get(select[value], languages);
                 }
                 return "";
             },
@@ -150,7 +150,7 @@ export const BookmarkModel: BookmarkModelLogic = ({
                 }
                 // For each bookmarked object type, decrement the bookmark count
                 for (const [objectType, objectIds] of Object.entries((beforeDeletedData[__typename] ?? {}) as { [key in BookmarkFor]?: string[] })) {
-                    const delegate = (prismaInstance[ModelMap.get(objectType as GqlModelType, true, "bookmark onDeleted").dbTable] as PrismaDelegate);
+                    const delegate = (prismaInstance[ModelMap.get(objectType as ModelType, true, "bookmark onDeleted").dbTable] as PrismaDelegate);
                     await (delegate as any).updateMany({ where: { id: { in: objectIds } }, data: { bookmarks: { decrement: 1 } } });
                     // For each bookmarked object, trigger bookmarkDeleted event
                     for (const objectId of (objectIds as string[])) {
@@ -212,7 +212,7 @@ export const BookmarkModel: BookmarkModelLogic = ({
         searchStringQuery: () => ({
             OR: [
                 { list: ModelMap.get<BookmarkListModelLogic>("BookmarkList").search.searchStringQuery() },
-                ...Object.entries(forMapper).map(([key, value]) => ({ [value]: ModelMap.getLogic(["search"], key as GqlModelType).search.searchStringQuery() })),
+                ...Object.entries(forMapper).map(([key, value]) => ({ [value]: ModelMap.getLogic(["search"], key as ModelType).search.searchStringQuery() })),
             ],
         }),
         supplemental: {
@@ -235,8 +235,8 @@ export const BookmarkModel: BookmarkModelLogic = ({
                 "teamId",
                 "userId",
             ],
-            graphqlFields: [],
-            toGraphQL: async () => ({}),
+            suppFields: [],
+            getSuppFields: async () => ({}),
         },
     },
     validate: () => ({
@@ -244,12 +244,12 @@ export const BookmarkModel: BookmarkModelLogic = ({
         isPublic: () => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<BookmarkListModelLogic>("BookmarkList").validate().owner(data?.list as BookmarkListModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<BookmarkListModelLogic>("BookmarkList").validate().owner(data?.list as BookmarkListModelInfo["DbModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,
             list: "BookmarkList",
-            ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, key as GqlModelType])),
+            ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, key as ModelType])),
         }),
         visibility: {
             own: function getOwn(data) {

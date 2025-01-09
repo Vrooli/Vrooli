@@ -1,5 +1,5 @@
 import * as yup from "yup";
-import { CodeType } from "../../api/generated";
+import { CodeType } from "../../api/types";
 import { YupModel, bool, description, enumToYup, id, jsonVariable, maxStrErr, minStrErr, name, opt, req, transRel, versionLabel, versionNotes, yupObj } from "../utils";
 import { codeValidation } from "./code";
 import { resourceListValidation } from "./resourceList";

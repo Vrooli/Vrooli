@@ -1,4 +1,4 @@
-import { BookmarkFor } from "../../api/generated/graphqlTypes";
+import { BookmarkFor } from "../../api/types";
 import { enumToYup, id, req, YupModel, yupObj } from "../utils";
 import { bookmarkListValidation } from "./bookmarkList";
 

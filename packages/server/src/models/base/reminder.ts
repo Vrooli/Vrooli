@@ -66,10 +66,10 @@ export const ReminderModel: ReminderModelLogic = ({
     },
     validate: () => ({
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<ReminderModelInfo["PrismaSelect"]>([["reminderList", "ReminderList"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<ReminderModelInfo["DbSelect"]>([["reminderList", "ReminderList"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<ReminderListModelLogic>("ReminderList").validate().owner(data?.reminderList as ReminderListModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ReminderListModelLogic>("ReminderList").validate().owner(data?.reminderList as ReminderListModelInfo["DbModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

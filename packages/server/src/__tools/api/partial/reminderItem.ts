@@ -1,8 +1,8 @@
 import { ReminderItem } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const reminderItem: GqlPartial<ReminderItem> = {
+export const reminderItem: ApiPartial<ReminderItem> = {
     full: {
         id: true,
         created_at: true,

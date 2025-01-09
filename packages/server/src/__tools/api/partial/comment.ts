@@ -1,8 +1,8 @@
 import { Comment, CommentSearchResult, CommentThread, CommentTranslation, CommentYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const commentTranslation: GqlPartial<CommentTranslation> = {
+export const commentTranslation: ApiPartial<CommentTranslation> = {
     common: {
         id: true,
         language: true,
@@ -10,7 +10,7 @@ export const commentTranslation: GqlPartial<CommentTranslation> = {
     },
 };
 
-export const commentYou: GqlPartial<CommentYou> = {
+export const commentYou: ApiPartial<CommentYou> = {
     common: {
         canDelete: true,
         canBookmark: true,
@@ -23,7 +23,7 @@ export const commentYou: GqlPartial<CommentYou> = {
     },
 };
 
-export const comment: GqlPartial<Comment> = {
+export const comment: ApiPartial<Comment> = {
     common: {
         id: true,
         created_at: true,
@@ -62,7 +62,7 @@ export const comment: GqlPartial<Comment> = {
     },
 };
 
-export const commentThread: GqlPartial<CommentThread> = {
+export const commentThread: ApiPartial<CommentThread> = {
     common: {
         childThreads: {
             childThreads: {
@@ -80,7 +80,7 @@ export const commentThread: GqlPartial<CommentThread> = {
     },
 };
 
-export const commentSearchResult: GqlPartial<CommentSearchResult> = {
+export const commentSearchResult: ApiPartial<CommentSearchResult> = {
     common: {
         endCursor: true,
         threads: () => rel(commentThread, "common"),

@@ -17,7 +17,7 @@ export const MemberModel: MemberModelLogic = ({
                 id: true,
                 user: { select: ModelMap.get<UserModelLogic>("User").display().label.select() },
             }),
-            get: (select, languages) => ModelMap.get<UserModelLogic>("User").display().label.get(select.user as UserModelInfo["PrismaModel"], languages),
+            get: (select, languages) => ModelMap.get<UserModelLogic>("User").display().label.get(select.user as UserModelInfo["DbModel"], languages),
         },
     }),
     format: MemberFormat,
@@ -40,11 +40,11 @@ export const MemberModel: MemberModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<MemberModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<MemberModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -55,9 +55,9 @@ export const MemberModel: MemberModelLogic = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, team: "Team" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<TeamModelLogic>("Team").validate().owner(data?.team as TeamModelInfo["PrismaModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<TeamModelLogic>("Team").validate().isDeleted(data.team as TeamModelInfo["PrismaModel"], languages),
-        isPublic: (...rest) => oneIsPublic<MemberModelInfo["PrismaSelect"]>([["team", "Team"]], ...rest),
+        owner: (data, userId) => ModelMap.get<TeamModelLogic>("Team").validate().owner(data?.team as TeamModelInfo["DbModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<TeamModelLogic>("Team").validate().isDeleted(data.team as TeamModelInfo["DbModel"], languages),
+        isPublic: (...rest) => oneIsPublic<MemberModelInfo["DbSelect"]>([["team", "Team"]], ...rest),
         // Not sure which search methods are needed, so we'll add them as needed
         visibility: {
             own: null,

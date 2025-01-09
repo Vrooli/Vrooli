@@ -1,9 +1,9 @@
 import { CodeVersion, CodeVersionTranslation } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 import { versionYou } from "./root";
 
-export const codeVersionTranslation: GqlPartial<CodeVersionTranslation> = {
+export const codeVersionTranslation: ApiPartial<CodeVersionTranslation> = {
     common: {
         id: true,
         language: true,
@@ -13,7 +13,7 @@ export const codeVersionTranslation: GqlPartial<CodeVersionTranslation> = {
     },
 };
 
-export const codeVersion: GqlPartial<CodeVersion> = {
+export const codeVersion: ApiPartial<CodeVersion> = {
     common: {
         id: true,
         created_at: true,

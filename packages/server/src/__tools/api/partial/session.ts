@@ -1,8 +1,8 @@
 import { Session } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const session: GqlPartial<Session> = {
+export const session: ApiPartial<Session> = {
     full: {
         isLoggedIn: true,
         timeZone: true,

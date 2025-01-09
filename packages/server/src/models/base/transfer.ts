@@ -1,9 +1,9 @@
-import { DEFAULT_LANGUAGE, GqlModelType, SessionUser, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSortBy, transferValidation } from "@local/shared";
+import { DEFAULT_LANGUAGE, ModelType, SessionUser, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSortBy, transferValidation } from "@local/shared";
 import i18next from "i18next";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
 import { permissionsSelectHelper } from "../../builders/permissionsSelectHelper";
-import { ApiEndpointInfo, PrismaDelegate } from "../../builders/types";
+import { PartialApiInfo, PrismaDelegate } from "../../builders/types";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { Notify } from "../../notify";
@@ -108,7 +108,7 @@ export function transfer() {
          * Initiates a transfer request from an object someone else owns, to you
          */
         requestReceive: async (
-            info: ApiEndpointInfo,
+            info: PartialApiInfo,
             input: TransferRequestReceiveInput,
             userData: SessionUser,
         ): Promise<string> => {
@@ -282,11 +282,11 @@ export const TransferModel: TransferModelLogic = ({
             select: () => ({
                 id: true,
                 ...Object.fromEntries(Object.entries(TransferableFieldMap).map(([key, value]) =>
-                    [value, { select: ModelMap.get(key as GqlModelType).display().label.select() }])),
+                    [value, { select: ModelMap.get(key as ModelType).display().label.select() }])),
             }),
             get: (select, languages) => {
                 for (const [key, value] of Object.entries(TransferableFieldMap)) {
-                    if (select[value]) return ModelMap.get(key as GqlModelType).display().label.get(select[value], languages);
+                    if (select[value]) return ModelMap.get(key as ModelType).display().label.get(select[value], languages);
                 }
                 return i18next.t("common:Transfer", { lng: languages && languages.length ? languages[0] : DEFAULT_LANGUAGE });
             },
@@ -324,15 +324,15 @@ export const TransferModel: TransferModelLogic = ({
                 { fromTeam: ModelMap.get<TeamModelLogic>("Team").search.searchStringQuery() },
                 { toUser: ModelMap.get<UserModelLogic>("User").search.searchStringQuery() },
                 { toTeam: ModelMap.get<TeamModelLogic>("Team").search.searchStringQuery() },
-                ...Object.entries(TransferableFieldMap).map(([key, value]) => ({ [value]: ModelMap.getLogic(["search"], key as GqlModelType).search.searchStringQuery() })),
+                ...Object.entries(TransferableFieldMap).map(([key, value]) => ({ [value]: ModelMap.getLogic(["search"], key as ModelType).search.searchStringQuery() })),
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<TransferModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<TransferModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },

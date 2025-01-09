@@ -15,7 +15,7 @@ export const StatsCodeModel: StatsCodeModelLogic = ({
             select: () => ({ id: true, code: { select: ModelMap.get<CodeModelLogic>("Code").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE,
-                objectName: ModelMap.get<CodeModelLogic>("Code").display().label.get(select.code as CodeModelInfo["PrismaModel"], languages),
+                objectName: ModelMap.get<CodeModelLogic>("Code").display().label.get(select.code as CodeModelInfo["DbModel"], languages),
             }),
         },
     }),
@@ -37,9 +37,9 @@ export const StatsCodeModel: StatsCodeModelLogic = ({
             code: "Code",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<CodeModelLogic>("Code").validate().owner(data?.code as CodeModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<CodeModelLogic>("Code").validate().owner(data?.code as CodeModelInfo["DbModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<StatsCodeModelInfo["PrismaSelect"]>([["code", "Code"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<StatsCodeModelInfo["DbSelect"]>([["code", "Code"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {

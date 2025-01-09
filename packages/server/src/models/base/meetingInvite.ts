@@ -17,7 +17,7 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
         // Label is the meeting label
         label: {
             select: () => ({ id: true, meeting: { select: ModelMap.get<MeetingModelLogic>("Meeting").display().label.select() } }),
-            get: (select, languages) => ModelMap.get<MeetingModelLogic>("Meeting").display().label.get(select.meeting as MeetingModelInfo["PrismaModel"], languages),
+            get: (select, languages) => ModelMap.get<MeetingModelLogic>("Meeting").display().label.get(select.meeting as MeetingModelInfo["DbModel"], languages),
         },
     }),
     format: MeetingInviteFormat,
@@ -54,11 +54,11 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<MeetingInviteModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<MeetingInviteModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -74,10 +74,10 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
         }),
         permissionResolvers: defaultPermissions,
         owner: (data) => ({
-            Team: (data?.meeting as MeetingModelInfo["PrismaModel"])?.team,
+            Team: (data?.meeting as MeetingModelInfo["DbModel"])?.team,
         }),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<MeetingInviteModelInfo["PrismaSelect"]>([["meeting", "Meeting"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<MeetingInviteModelInfo["DbSelect"]>([["meeting", "Meeting"]], ...rest),
         // Not sure which search methods are needed, so we'll add them as needed
         visibility: {
             own: function getOwn(data) {
@@ -85,7 +85,7 @@ export const MeetingInviteModel: MeetingInviteModelLogic = ({
                     OR: [
                         { meeting: useVisibility("Meeting", "OwnOrPublic", data) },
                         { user: { id: data.userId } },
-                    ]
+                    ],
                 };
             },
             ownOrPublic: null,

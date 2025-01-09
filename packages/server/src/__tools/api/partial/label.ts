@@ -1,15 +1,15 @@
 import { Label, LabelYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const labelYou: GqlPartial<LabelYou> = {
+export const labelYou: ApiPartial<LabelYou> = {
     full: {
         canDelete: true,
         canUpdate: true,
     },
 };
 
-export const label: GqlPartial<Label> = {
+export const label: ApiPartial<Label> = {
     common: {
         id: true,
         created_at: true,

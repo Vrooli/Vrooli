@@ -1,11 +1,15 @@
-import { endpointGetStatsQuiz, FormSchema, StatsQuizSortBy } from "@local/shared";
+import { endpointsStatsQuiz, FormSchema, StatsQuizSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
-export const statsQuizSearchSchema = (): FormSchema => ({
-    layout: searchFormLayout("SearchStatsQuiz"),
-    containers: [], //TODO
-    elements: [], //TODO
-});
+export function statsQuizSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchStatsQuiz"),
+        containers: [], //TODO
+        elements: [], //TODO
+    };
+}
 
-export const statsQuizSearchParams = () => toParams(statsQuizSearchSchema(), endpointGetStatsQuiz, undefined, StatsQuizSortBy, StatsQuizSortBy.PeriodStartAsc);
+export function statsQuizSearchParams() {
+    return toParams(statsQuizSearchSchema(), endpointsStatsQuiz, StatsQuizSortBy, StatsQuizSortBy.PeriodStartAsc);
+}

@@ -1,4 +1,4 @@
-import { endpointGetProfile, User } from "@local/shared";
+import { endpointsUser, User } from "@local/shared";
 import { SessionContext } from "contexts";
 import { useCallback, useContext, useEffect, useState } from "react";
 import { getCurrentUser } from "utils/authentication/session";
@@ -6,7 +6,7 @@ import { useLazyFetch } from "./useLazyFetch";
 
 export function useProfileQuery() {
     const session = useContext(SessionContext);
-    const [getData, { data, loading: isProfileLoading }] = useLazyFetch<never, User>(endpointGetProfile);
+    const [getData, { data, loading: isProfileLoading }] = useLazyFetch<never, User>(endpointsUser.profile);
     useEffect(() => {
         if (getCurrentUser(session).id) getData();
     }, [getData, session]);

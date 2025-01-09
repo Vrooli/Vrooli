@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/shared";
+import { ModelType } from "@local/shared";
 import { shapeHelper, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper";
 import { RelationshipType } from "../../builders/types";
 
@@ -27,7 +27,7 @@ export const nodeEndNextShapeHelper = async <
             parentIdFieldName: "fromEndId",
             parentId: (data as { id?: string | null | undefined }).id ?? null,
         },
-        objectType: "RoutineVersion" as GqlModelType,
+        objectType: "RoutineVersion" as ModelType,
         parentRelationshipName: "suggestedNextByNode",
         relation: "suggestedNextRoutineVersions",
         ...rest,

@@ -1,4 +1,4 @@
-import { endpointGetRunProject, RunProject } from "@local/shared";
+import { endpointsRunProject, RunProject } from "@local/shared";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useObjectActions } from "hooks/objectActions";
 import { useManagedObject } from "hooks/useManagedObject";
@@ -17,7 +17,7 @@ export function RunProjectView({
     const [, setLocation] = useLocation();
 
     const { object: existing, isLoading, setObject: setRunProject } = useManagedObject<RunProject>({
-        ...endpointGetRunProject,
+        ...endpointsRunProject.findOne,
         objectType: "RunProject",
     });
 

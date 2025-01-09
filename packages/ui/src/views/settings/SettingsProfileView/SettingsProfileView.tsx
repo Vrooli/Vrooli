@@ -1,4 +1,4 @@
-import { DUMMY_ID, endpointPutProfile, ProfileUpdateInput, profileValidation, shapeProfile, User, userTranslationValidation } from "@local/shared";
+import { DUMMY_ID, endpointsUser, ProfileUpdateInput, profileValidation, shapeProfile, User, userTranslationValidation } from "@local/shared";
 import { InputAdornment } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -140,7 +140,7 @@ export function SettingsProfileView({
     const session = useContext(SessionContext);
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
-    const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);
+    const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointsUser.profileUpdate);
 
     const initialValues = useMemo(function initialValuesMemo() {
         return {

@@ -1,6 +1,6 @@
-import { CopyInput, DeleteManyInput, DeleteOneInput, GqlModelType, SessionUser, VisibilityType } from "@local/shared";
+import { CopyInput, DeleteManyInput, DeleteOneInput, ModelType, SessionUser, VisibilityType } from "@local/shared";
 import { Request } from "express";
-import { ApiEndpointInfo, CountInputBase } from "../builders/types";
+import { CountInputBase, PartialApiInfo } from "../builders/types";
 import { SessionData } from "../types";
 import { EmbeddableType } from "../utils/embeddings/types";
 
@@ -8,7 +8,7 @@ export type CudAdditionalData = Record<string, any>;
 
 export type CountHelperProps<CountInput extends CountInputBase> = {
     input: CountInput;
-    objectType: `${GqlModelType}`;
+    objectType: `${ModelType}`;
     req: { session: SessionData };
     where?: { [x: string]: any };
     visibility?: VisibilityType;
@@ -16,9 +16,9 @@ export type CountHelperProps<CountInput extends CountInputBase> = {
 
 export type CreateOneHelperProps = {
     additionalData?: CudAdditionalData;
-    info: ApiEndpointInfo;
+    info: PartialApiInfo;
     input: any;
-    objectType: `${GqlModelType}`;
+    objectType: `${ModelType}`;
     req: { session: SessionData };
 }
 
@@ -37,9 +37,9 @@ export type DeleteOneHelperProps = {
 }
 
 export type CopyHelperProps = {
-    info: ApiEndpointInfo,
+    info: PartialApiInfo,
     input: CopyInput,
-    objectType: `${GqlModelType}`,
+    objectType: `${ModelType}`,
     req: { session: SessionData },
 }
 
@@ -53,9 +53,9 @@ export type ReadManyHelperProps<
      * later in one call
      */
     addSupplemental?: boolean;
-    info: ApiEndpointInfo;
+    info: PartialApiInfo;
     input: Input;
-    objectType: `${GqlModelType}`;
+    objectType: `${ModelType}`;
     req: { session: Pick<SessionData, "languages" | "users"> };
     visibility?: VisibilityType;
 }
@@ -79,9 +79,9 @@ type FindUniqueInput = {
     idRoot?: string | null | undefined;
 }
 export type ReadOneHelperProps = {
-    info: ApiEndpointInfo;
+    info: PartialApiInfo;
     input: FindUniqueInput;
-    objectType: `${GqlModelType}`;
+    objectType: `${ModelType}`;
     req: { session: Pick<SessionData, "languages" | "users"> };
 }
 
@@ -97,16 +97,16 @@ export type RelBuilderHelperProps<
     isOneToOne: IsOneToOne,
     isRequired: IsRequired,
     linkVersion?: boolean,
-    objectType: `${GqlModelType}`,
+    objectType: `${ModelType}`,
     relationshipName: RelName,
     userData: SessionUser,
 }
 
 export type UpdateOneHelperProps = {
     additionalData?: CudAdditionalData;
-    info: ApiEndpointInfo;
+    info: PartialApiInfo;
     input: any;
-    objectType: GqlModelType | `${GqlModelType}`;
+    objectType: ModelType | `${ModelType}`;
     req: Request;
 }
 

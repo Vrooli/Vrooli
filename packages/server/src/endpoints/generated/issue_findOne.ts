@@ -6,53 +6,51 @@ export const issue_findOne = {
     "referencedVersionId": true,
     "status": true,
     "to": {
-        "__union": {
-            "Api": {
-                "id": true,
-                "isPrivate": true
-            },
-            "Code": {
-                "id": true,
-                "isPrivate": true
-            },
-            "Note": {
-                "id": true,
-                "isPrivate": true
-            },
-            "Project": {
-                "id": true,
-                "isPrivate": true
-            },
-            "Routine": {
-                "id": true,
-                "isInternal": true,
-                "isPrivate": true
-            },
-            "Standard": {
-                "id": true,
-                "isPrivate": true
-            },
-            "Team": {
-                "id": true,
-                "bannerImage": true,
-                "handle": true,
-                "profileImage": true,
-                "you": {
-                    "canAddMembers": true,
-                    "canDelete": true,
-                    "canBookmark": true,
-                    "canReport": true,
-                    "canUpdate": true,
-                    "canRead": true,
-                    "isBookmarked": true,
-                    "isViewed": true,
-                    "yourMembership": {
-                        "id": true,
-                        "created_at": true,
-                        "updated_at": true,
-                        "isAdmin": true,
-                        "permissions": true
-                    }
+        "Api": {
+            "id": true,
+            "isPrivate": true
+        },
+        "Code": {
+            "id": true,
+            "isPrivate": true
+        },
+        "Note": {
+            "id": true,
+            "isPrivate": true
+        },
+        "Project": {
+            "id": true,
+            "isPrivate": true
+        },
+        "Routine": {
+            "id": true,
+            "isInternal": true,
+            "isPrivate": true
+        },
+        "Standard": {
+            "id": true,
+            "isPrivate": true
+        },
+        "Team": {
+            "id": true,
+            "bannerImage": true,
+            "handle": true,
+            "profileImage": true,
+            "you": {
+                "canAddMembers": true,
+                "canDelete": true,
+                "canBookmark": true,
+                "canReport": true,
+                "canUpdate": true,
+                "canRead": true,
+                "isBookmarked": true,
+                "isViewed": true,
+                "yourMembership": {
+                    "id": true,
+                    "created_at": true,
+                    "updated_at": true,
+                    "isAdmin": true,
+                    "permissions": true
                 }
             }
         }

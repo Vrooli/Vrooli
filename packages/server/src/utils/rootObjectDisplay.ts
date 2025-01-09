@@ -34,7 +34,7 @@ const findBestVersion = (versions: any[]): any | undefined => {
 export const rootObjectDisplay = <
     RootModel extends ModelLogicType,
     VersionModel extends ModelLogicType,
-    VersionSuppFields extends readonly DotNotation<VersionModel["GqlModel"]>[]
+    VersionSuppFields extends readonly DotNotation<VersionModel["ApiModel"]>[]
 >(
     versionModelLogic: ModelLogic<VersionModel, VersionSuppFields>,
 ): ReturnType<Displayer<RootModel>> => ({

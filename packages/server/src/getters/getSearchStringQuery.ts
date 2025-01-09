@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/shared";
+import { ModelType } from "@local/shared";
 import { isRelationshipObject } from "../builders/isOfType";
 import { ModelMap } from "../models/base";
 import { SearchStringQuery, SearchStringQueryParams } from "../models/types";
@@ -60,7 +60,7 @@ export const getSearchStringQuery = <Where extends { [x: string]: any }>({
     searchString,
 }: {
     languages?: string[] | undefined;
-    objectType: `${GqlModelType}`;
+    objectType: `${ModelType}`;
     searchString: string;
 }): Where => {
     if (searchString.length === 0) return {} as Where;

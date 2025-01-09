@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/shared";
+import { ModelType } from "@local/shared";
 import { QueryAction } from "./types";
 
 /**
@@ -20,13 +20,13 @@ import { QueryAction } from "./types";
  * the database for the actual IDs, ensuring the correct linking of entities.
  */
 export class InputNode {
-    __typename: `${GqlModelType}`;
+    __typename: `${ModelType}`;
     id: string;
     action: QueryAction;
     children: InputNode[];
     parent: InputNode | null;
 
-    constructor(__typename: `${GqlModelType}`, id: string, action: QueryAction) {
+    constructor(__typename: `${ModelType}`, id: string, action: QueryAction) {
         this.__typename = __typename;
         this.id = id;
         this.action = action;

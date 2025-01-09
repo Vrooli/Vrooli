@@ -1,8 +1,7 @@
-import { DUMMY_ID, GqlModelType, SessionUser } from "@local/shared";
+import { DUMMY_ID, ModelType, SessionUser } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
-import { modelToGql } from "../builders/modelToGql";
-import { selectHelper } from "../builders/selectHelper";
-import { ApiEndpointInfo, PrismaCreate, PrismaDelegate, PrismaUpdate } from "../builders/types";
+import { InfoConverter, selectHelper } from "../builders/infoConverter";
+import { PartialApiInfo, PrismaCreate, PrismaDelegate, PrismaUpdate } from "../builders/types";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
@@ -19,7 +18,7 @@ import { CudAdditionalData } from "./types";
 type CudHelperParams = {
     /** Additional data that can be passed to ModelLogic functions */
     additionalData?: CudAdditionalData,
-    info: ApiEndpointInfo,
+    info: PartialApiInfo,
     inputData: CudInputData[],
     userData: SessionUser,
 }
@@ -33,11 +32,11 @@ type TopLevelInputsByAction = {
     Update: { index: number, input: PrismaUpdate }[],
     Delete: { index: number, input: string }[],
 }
-type TopLevelInputsByType = { [key in GqlModelType]?: TopLevelInputsByAction };
+type TopLevelInputsByType = { [key in ModelType]?: TopLevelInputsByAction };
 
 type CudTransactionData = {
-    deletedIdsByType: { [key in GqlModelType]?: string[] };
-    beforeDeletedData: { [key in GqlModelType]?: object };
+    deletedIdsByType: { [key in ModelType]?: string[] };
+    beforeDeletedData: { [key in ModelType]?: object };
     operations: PrismaPromise<object>[];
 }
 
@@ -58,7 +57,7 @@ function initializeResults(length: number): Array<boolean | Record<string, any>>
 async function validateAndCastInputs(inputData: CudInputData[]): Promise<void> {
     for (let i = 0; i < inputData.length; i++) {
         const { action, input, objectType } = inputData[i];
-        const { mutate } = ModelMap.getLogic(["mutate"], objectType as GqlModelType, true, `cudHelper cast ${action.toLowerCase()}`);
+        const { mutate } = ModelMap.getLogic(["mutate"], objectType as ModelType, true, `cudHelper cast ${action.toLowerCase()}`);
         let transformedInput;
         if (action === "Create") {
             if (!mutate.yup.create) {
@@ -94,7 +93,7 @@ export async function calculatePreShapeData(
 ): Promise<void> {
     for (const [type, inputs] of Object.entries(inputsByType)) {
         preMap[type] = {};
-        const { mutate } = ModelMap.getLogic(["mutate"], type as GqlModelType, true, "cudHelper preshape type");
+        const { mutate } = ModelMap.getLogic(["mutate"], type as ModelType, true, "cudHelper preshape type");
 
         if (mutate.shape.pre) {
             const preResult = await mutate.shape.pre({ ...inputs, userData, inputsById });
@@ -115,7 +114,7 @@ function groupTopLevelDataByType(inputData: CudInputData[]): TopLevelInputsByTyp
         if (!topInputsByType[objectType]) {
             topInputsByType[objectType] = { Create: [], Update: [], Delete: [] };
         }
-        topInputsByType[objectType as GqlModelType]![action].push({ index, input: input as any });
+        topInputsByType[objectType as ModelType]![action].push({ index, input: input as any });
     }
 
     return topInputsByType;
@@ -133,16 +132,16 @@ function groupTopLevelDataByType(inputData: CudInputData[]): TopLevelInputsByTyp
 async function buildOperations(
     topInputsByType: TopLevelInputsByType,
     inputData: CudInputData[],
-    partialInfo: ApiEndpointInfo,
+    partialInfo: PartialApiInfo,
     userData: SessionUser,
     maps: CudDataMaps,
 ): Promise<CudTransactionData> {
     const operations: PrismaPromise<object>[] = [];
-    const deletedIdsByType: { [key in GqlModelType]?: string[] } = {};
-    const beforeDeletedData: { [key in GqlModelType]?: object } = {};
+    const deletedIdsByType: { [key in ModelType]?: string[] } = {};
+    const beforeDeletedData: { [key in ModelType]?: object } = {};
 
     for (const [objectType, { Create, Update, Delete }] of Object.entries(topInputsByType)) {
-        const { dbTable, idField, mutate } = ModelMap.getLogic(["dbTable", "idField", "mutate"], objectType as GqlModelType, true, "cudHelper loop");
+        const { dbTable, idField, mutate } = ModelMap.getLogic(["dbTable", "idField", "mutate"], objectType as ModelType, true, "cudHelper loop");
         const deletingIds = Delete.map(({ input }) => input);
 
         // Create operations
@@ -196,7 +195,7 @@ async function buildOperations(
                     })
                     .then((records) => records.map(({ id }) => id));
 
-                deletedIdsByType[objectType as GqlModelType] = existingIds;
+                deletedIdsByType[objectType as ModelType] = existingIds;
 
                 const deleteOperation = (prismaInstance[dbTable] as PrismaDelegate).deleteMany({
                     where: { [idField]: { in: existingIds } },
@@ -244,7 +243,7 @@ function processTransactionResults(
     transactionData: CudTransactionData,
     topInputsByType: TopLevelInputsByType,
     inputData: CudInputData[],
-    partialInfo: ApiEndpointInfo,
+    partialInfo: PartialApiInfo,
     maps: CudDataMaps,
     result: Array<boolean | Record<string, any>>,
 ): void {
@@ -254,7 +253,7 @@ function processTransactionResults(
     for (const [objectType, { Create, Update, Delete }] of Object.entries(topInputsByType)) {
         for (const { index, input } of Create) {
             const createdObject = transactionResult[transactionIndex++];
-            const converted = modelToGql<object>(createdObject, partialInfo);
+            const converted = InfoConverter.fromDbToApi<object>(createdObject, partialInfo);
             result[index] = converted;
             if (input.id) {
                 maps.resultsById[input.id as string] = converted;
@@ -263,7 +262,7 @@ function processTransactionResults(
 
         for (const { index, input } of Update) {
             const updatedObject = transactionResult[transactionIndex++];
-            const converted = modelToGql<object>(updatedObject, partialInfo);
+            const converted = InfoConverter.fromDbToApi<object>(updatedObject, partialInfo);
             result[index] = converted;
             if (input.id) {
                 maps.resultsById[input.id as string] = converted;
@@ -271,7 +270,7 @@ function processTransactionResults(
         }
 
         if (Delete.length > 0) {
-            const ids = deletedIdsByType[objectType as GqlModelType] || [];
+            const ids = deletedIdsByType[objectType as ModelType] || [];
             for (const id of ids) {
                 const index = inputData.findIndex(({ input }) => input === id);
                 if (index >= 0) result[index] = true;
@@ -300,7 +299,7 @@ async function triggerAfterMutations(
     const allTypes = new Set([...Object.keys(outputsByType), ...Object.keys(deletedIdsByType)]);
 
     for (const type of allTypes) {
-        const { mutate } = ModelMap.getLogic(["mutate"], type as GqlModelType, true, "cudHelper afterMutations type");
+        const { mutate } = ModelMap.getLogic(["mutate"], type as ModelType, true, "cudHelper afterMutations type");
 
         if (!mutate.trigger?.afterMutations) continue;
 
@@ -308,7 +307,7 @@ async function triggerAfterMutations(
         const createdIds = outputsByType[type]?.createdIds || [];
         const updatedIds = outputsByType[type]?.updatedIds || [];
         const updateInputs = outputsByType[type]?.updateInputs || [];
-        const deletedIds = deletedIdsByType[type as GqlModelType] || [];
+        const deletedIds = deletedIdsByType[type as ModelType] || [];
 
         await mutate.trigger.afterMutations({
             additionalData,

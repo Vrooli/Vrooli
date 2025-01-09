@@ -1,4 +1,4 @@
-import { ReportSuggestedAction } from "../../api/generated/graphqlTypes";
+import { ReportSuggestedAction } from "../../api/types";
 import { details, enumToYup, id, language, opt, req, YupModel, yupObj } from "../utils";
 
 const actionSuggested = enumToYup(ReportSuggestedAction);

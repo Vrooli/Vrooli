@@ -1,15 +1,15 @@
 import { MemberInvite, MemberInviteYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const memberInviteYou: GqlPartial<MemberInviteYou> = {
+export const memberInviteYou: ApiPartial<MemberInviteYou> = {
     common: {
         canDelete: true,
         canUpdate: true,
     },
 };
 
-export const memberInvite: GqlPartial<MemberInvite> = {
+export const memberInvite: ApiPartial<MemberInvite> = {
     common: {
         id: true,
         created_at: true,

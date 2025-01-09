@@ -1,4 +1,4 @@
-import { endpointGetSchedule, Schedule } from "@local/shared";
+import { endpointsSchedule, Schedule } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
@@ -20,7 +20,7 @@ export function ScheduleView({
     const [, setLocation] = useLocation();
 
     const { id, isLoading, object: schedule, permissions, setObject: setSchedule } = useManagedObject<Schedule>({
-        ...endpointGetSchedule,
+        ...endpointsSchedule.findOne,
         objectType: "Schedule",
     });
 

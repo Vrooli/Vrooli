@@ -1,4 +1,4 @@
-import { CommentFor, FindByIdInput, FormSchema, LINKS, ResourceListShape, ResourceList as ResourceListType, RoutineShape, RoutineSingleStepViewSearchParams, RoutineType, RoutineVersion, RunIOManager, RunProject, RunRoutine, RunStatus, RunnableRoutineVersion, Tag, TagShape, UrlTools, base36ToUuid, endpointGetRoutineVersion, endpointGetRunRoutine, exists, generateInitialValues, generateRoutineInitialValues, generateYupSchema, getTranslation, noop, noopSubmit, parseConfigCallData, parseSchemaInput, parseSchemaOutput, uuid, uuidToBase36, uuidValidate } from "@local/shared";
+import { CommentFor, FindByIdInput, FormSchema, LINKS, ResourceListShape, ResourceList as ResourceListType, RoutineShape, RoutineSingleStepViewSearchParams, RoutineType, RoutineVersion, RunIOManager, RunProject, RunRoutine, RunStatus, RunnableRoutineVersion, Tag, TagShape, UrlTools, base36ToUuid, endpointsRoutineVersion, endpointsRunRoutine, exists, generateInitialValues, generateRoutineInitialValues, generateYupSchema, getTranslation, noop, noopSubmit, parseConfigCallData, parseSchemaInput, parseSchemaOutput, uuid, uuidToBase36, uuidValidate } from "@local/shared";
 import { Box, Divider, Stack, Typography, styled, useTheme } from "@mui/material";
 import { RunButton } from "components/buttons/RunButton/RunButton";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -102,7 +102,7 @@ function RoutineSingleStepTypeView({
         setValues(values as FormErrors);
     }, [existing.configFormInput, existing.configFormOutput, existing.routineType, resetForm, setValues]);
 
-    const [getRun, { data: runData, loading: isLoadingGetRun }] = useLazyFetch<FindByIdInput, RunRoutine>(endpointGetRunRoutine);
+    const [getRun, { data: runData, loading: isLoadingGetRun }] = useLazyFetch<FindByIdInput, RunRoutine>(endpointsRunRoutine.findOne);
     useEffect(function fetchRunFromUrl() {
         const searchParams = UrlTools.parseSearchParams(LINKS.RoutineSingleStep);
         if (searchParams.runId) {
@@ -316,7 +316,7 @@ export function RoutineSingleStepView({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     const { isLoading: isGetRoutineLoading, object: existing, permissions, setObject: setRoutineVersion } = useManagedObject<RoutineVersion>({
-        ...endpointGetRoutineVersion,
+        ...endpointsRoutineVersion.findOne,
         onInvalidUrlParams: handleInvalidUrlParams,
         objectType: "RoutineVersion",
     });

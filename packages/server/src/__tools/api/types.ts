@@ -28,9 +28,9 @@ export type DeepPartialBooleanWithFragments<T extends object> = {
     }
 
 /**
- * Ensures that a GraphQL selection is valid for a given type.
+ * Ensures that an API selection is valid for a given type.
  */
-export type GqlPartial<
+export type ApiPartial<
     T extends object,
 > = {
     /**

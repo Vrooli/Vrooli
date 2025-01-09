@@ -1,7 +1,7 @@
 import { Translate } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 
-export const translate: GqlPartial<Translate> = {
+export const translate: ApiPartial<Translate> = {
     common: {
         fields: true,
         language: true,

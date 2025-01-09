@@ -1,8 +1,8 @@
 import { BookmarkList } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const bookmarkList: GqlPartial<BookmarkList> = {
+export const bookmarkList: ApiPartial<BookmarkList> = {
     common: {
         id: true,
         created_at: true,

@@ -1,4 +1,4 @@
-import { DEFAULT_LANGUAGE, GqlModelType, MaxObjects, ReportFor, ReportSearchInput, ReportSortBy, ReportStatus, reportValidation } from "@local/shared";
+import { DEFAULT_LANGUAGE, MaxObjects, ModelType, ReportFor, ReportSearchInput, ReportSortBy, ReportStatus, reportValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { ModelMap } from ".";
@@ -38,11 +38,11 @@ export const ReportModel: ReportModelLogic = ({
             select: () => ({
                 id: true,
                 ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) =>
-                    [value, { select: ModelMap.get(key as GqlModelType).display().label.select() }])),
+                    [value, { select: ModelMap.get(key as ModelType).display().label.select() }])),
             }),
             get: (select, languages) => {
                 for (const [key, value] of Object.entries(forMapper)) {
-                    if (select[value]) return ModelMap.get(key as GqlModelType).display().label.get(select[value], languages);
+                    if (select[value]) return ModelMap.get(key as ModelType).display().label.get(select[value], languages);
                 }
                 return i18next.t("common:Report", { lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE, count: 1 });
             },
@@ -134,11 +134,11 @@ export const ReportModel: ReportModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<ReportModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ReportModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -184,7 +184,7 @@ export const ReportModel: ReportModelLogic = ({
                     return {
                         OR: [
                             useVisibility("Report", "Own", data),
-                            { [relation]: useVisibility(reversedForMapper[relation] as GqlModelType, "OwnOrPublic", data) },
+                            { [relation]: useVisibility(reversedForMapper[relation] as ModelType, "OwnOrPublic", data) },
                         ],
                     };
                 }
@@ -213,7 +213,7 @@ export const ReportModel: ReportModelLogic = ({
                 );
                 if (forSearch) {
                     const relation = forSearch.substring(0, forSearch.length - "Id".length);
-                    return { [relation]: useVisibility(reversedForMapper[relation] as GqlModelType, "Public", data) };
+                    return { [relation]: useVisibility(reversedForMapper[relation] as ModelType, "Public", data) };
                 }
                 // Otherwise, use an OR on all relations
                 return {

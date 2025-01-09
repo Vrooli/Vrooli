@@ -1,4 +1,4 @@
-import { endpointGetRunRoutine, RunRoutine } from "@local/shared";
+import { endpointsRunRoutine, RunRoutine } from "@local/shared";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { useObjectActions } from "hooks/objectActions";
 import { useManagedObject } from "hooks/useManagedObject";
@@ -17,7 +17,7 @@ export function RunRoutineView({
     const [, setLocation] = useLocation();
 
     const { object: existing, isLoading, setObject: setRunRoutine } = useManagedObject<RunRoutine>({
-        ...endpointGetRunRoutine,
+        ...endpointsRunRoutine.findOne,
         objectType: "RunRoutine",
     });
 

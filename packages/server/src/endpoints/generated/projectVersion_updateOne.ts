@@ -109,41 +109,39 @@ export const projectVersion_updateOne = {
                     }
                 },
                 "owner": {
-                    "__union": {
-                        "Team": {
-                            "id": true,
-                            "bannerImage": true,
-                            "handle": true,
-                            "profileImage": true,
-                            "you": {
-                                "canAddMembers": true,
-                                "canDelete": true,
-                                "canBookmark": true,
-                                "canReport": true,
-                                "canUpdate": true,
-                                "canRead": true,
-                                "isBookmarked": true,
-                                "isViewed": true,
-                                "yourMembership": {
-                                    "id": true,
-                                    "created_at": true,
-                                    "updated_at": true,
-                                    "isAdmin": true,
-                                    "permissions": true
-                                }
+                    "Team": {
+                        "id": true,
+                        "bannerImage": true,
+                        "handle": true,
+                        "profileImage": true,
+                        "you": {
+                            "canAddMembers": true,
+                            "canDelete": true,
+                            "canBookmark": true,
+                            "canReport": true,
+                            "canUpdate": true,
+                            "canRead": true,
+                            "isBookmarked": true,
+                            "isViewed": true,
+                            "yourMembership": {
+                                "id": true,
+                                "created_at": true,
+                                "updated_at": true,
+                                "isAdmin": true,
+                                "permissions": true
                             }
-                        },
-                        "User": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "bannerImage": true,
-                            "handle": true,
-                            "isBot": true,
-                            "isBotDepictingPerson": true,
-                            "name": true,
-                            "profileImage": true
                         }
+                    },
+                    "User": {
+                        "id": true,
+                        "created_at": true,
+                        "updated_at": true,
+                        "bannerImage": true,
+                        "handle": true,
+                        "isBot": true,
+                        "isBotDepictingPerson": true,
+                        "name": true,
+                        "profileImage": true
                     }
                 },
                 "permissions": true,
@@ -232,41 +230,39 @@ export const projectVersion_updateOne = {
                     }
                 },
                 "owner": {
-                    "__union": {
-                        "Team": {
-                            "id": true,
-                            "bannerImage": true,
-                            "handle": true,
-                            "profileImage": true,
-                            "you": {
-                                "canAddMembers": true,
-                                "canDelete": true,
-                                "canBookmark": true,
-                                "canReport": true,
-                                "canUpdate": true,
-                                "canRead": true,
-                                "isBookmarked": true,
-                                "isViewed": true,
-                                "yourMembership": {
-                                    "id": true,
-                                    "created_at": true,
-                                    "updated_at": true,
-                                    "isAdmin": true,
-                                    "permissions": true
-                                }
+                    "Team": {
+                        "id": true,
+                        "bannerImage": true,
+                        "handle": true,
+                        "profileImage": true,
+                        "you": {
+                            "canAddMembers": true,
+                            "canDelete": true,
+                            "canBookmark": true,
+                            "canReport": true,
+                            "canUpdate": true,
+                            "canRead": true,
+                            "isBookmarked": true,
+                            "isViewed": true,
+                            "yourMembership": {
+                                "id": true,
+                                "created_at": true,
+                                "updated_at": true,
+                                "isAdmin": true,
+                                "permissions": true
                             }
-                        },
-                        "User": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "bannerImage": true,
-                            "handle": true,
-                            "isBot": true,
-                            "isBotDepictingPerson": true,
-                            "name": true,
-                            "profileImage": true
                         }
+                    },
+                    "User": {
+                        "id": true,
+                        "created_at": true,
+                        "updated_at": true,
+                        "bannerImage": true,
+                        "handle": true,
+                        "isBot": true,
+                        "isBotDepictingPerson": true,
+                        "name": true,
+                        "profileImage": true
                     }
                 },
                 "permissions": true,
@@ -346,41 +342,39 @@ export const projectVersion_updateOne = {
                     }
                 },
                 "owner": {
-                    "__union": {
-                        "Team": {
-                            "id": true,
-                            "bannerImage": true,
-                            "handle": true,
-                            "profileImage": true,
-                            "you": {
-                                "canAddMembers": true,
-                                "canDelete": true,
-                                "canBookmark": true,
-                                "canReport": true,
-                                "canUpdate": true,
-                                "canRead": true,
-                                "isBookmarked": true,
-                                "isViewed": true,
-                                "yourMembership": {
-                                    "id": true,
-                                    "created_at": true,
-                                    "updated_at": true,
-                                    "isAdmin": true,
-                                    "permissions": true
-                                }
+                    "Team": {
+                        "id": true,
+                        "bannerImage": true,
+                        "handle": true,
+                        "profileImage": true,
+                        "you": {
+                            "canAddMembers": true,
+                            "canDelete": true,
+                            "canBookmark": true,
+                            "canReport": true,
+                            "canUpdate": true,
+                            "canRead": true,
+                            "isBookmarked": true,
+                            "isViewed": true,
+                            "yourMembership": {
+                                "id": true,
+                                "created_at": true,
+                                "updated_at": true,
+                                "isAdmin": true,
+                                "permissions": true
                             }
-                        },
-                        "User": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "bannerImage": true,
-                            "handle": true,
-                            "isBot": true,
-                            "isBotDepictingPerson": true,
-                            "name": true,
-                            "profileImage": true
                         }
+                    },
+                    "User": {
+                        "id": true,
+                        "created_at": true,
+                        "updated_at": true,
+                        "bannerImage": true,
+                        "handle": true,
+                        "isBot": true,
+                        "isBotDepictingPerson": true,
+                        "name": true,
+                        "profileImage": true
                     }
                 },
                 "permissions": true,
@@ -467,41 +461,39 @@ export const projectVersion_updateOne = {
                     }
                 },
                 "owner": {
-                    "__union": {
-                        "Team": {
-                            "id": true,
-                            "bannerImage": true,
-                            "handle": true,
-                            "profileImage": true,
-                            "you": {
-                                "canAddMembers": true,
-                                "canDelete": true,
-                                "canBookmark": true,
-                                "canReport": true,
-                                "canUpdate": true,
-                                "canRead": true,
-                                "isBookmarked": true,
-                                "isViewed": true,
-                                "yourMembership": {
-                                    "id": true,
-                                    "created_at": true,
-                                    "updated_at": true,
-                                    "isAdmin": true,
-                                    "permissions": true
-                                }
+                    "Team": {
+                        "id": true,
+                        "bannerImage": true,
+                        "handle": true,
+                        "profileImage": true,
+                        "you": {
+                            "canAddMembers": true,
+                            "canDelete": true,
+                            "canBookmark": true,
+                            "canReport": true,
+                            "canUpdate": true,
+                            "canRead": true,
+                            "isBookmarked": true,
+                            "isViewed": true,
+                            "yourMembership": {
+                                "id": true,
+                                "created_at": true,
+                                "updated_at": true,
+                                "isAdmin": true,
+                                "permissions": true
                             }
-                        },
-                        "User": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "bannerImage": true,
-                            "handle": true,
-                            "isBot": true,
-                            "isBotDepictingPerson": true,
-                            "name": true,
-                            "profileImage": true
                         }
+                    },
+                    "User": {
+                        "id": true,
+                        "created_at": true,
+                        "updated_at": true,
+                        "bannerImage": true,
+                        "handle": true,
+                        "isBot": true,
+                        "isBotDepictingPerson": true,
+                        "name": true,
+                        "profileImage": true
                     }
                 },
                 "permissions": true,
@@ -598,41 +590,39 @@ export const projectVersion_updateOne = {
                     }
                 },
                 "owner": {
-                    "__union": {
-                        "Team": {
-                            "id": true,
-                            "bannerImage": true,
-                            "handle": true,
-                            "profileImage": true,
-                            "you": {
-                                "canAddMembers": true,
-                                "canDelete": true,
-                                "canBookmark": true,
-                                "canReport": true,
-                                "canUpdate": true,
-                                "canRead": true,
-                                "isBookmarked": true,
-                                "isViewed": true,
-                                "yourMembership": {
-                                    "id": true,
-                                    "created_at": true,
-                                    "updated_at": true,
-                                    "isAdmin": true,
-                                    "permissions": true
-                                }
+                    "Team": {
+                        "id": true,
+                        "bannerImage": true,
+                        "handle": true,
+                        "profileImage": true,
+                        "you": {
+                            "canAddMembers": true,
+                            "canDelete": true,
+                            "canBookmark": true,
+                            "canReport": true,
+                            "canUpdate": true,
+                            "canRead": true,
+                            "isBookmarked": true,
+                            "isViewed": true,
+                            "yourMembership": {
+                                "id": true,
+                                "created_at": true,
+                                "updated_at": true,
+                                "isAdmin": true,
+                                "permissions": true
                             }
-                        },
-                        "User": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "bannerImage": true,
-                            "handle": true,
-                            "isBot": true,
-                            "isBotDepictingPerson": true,
-                            "name": true,
-                            "profileImage": true
                         }
+                    },
+                    "User": {
+                        "id": true,
+                        "created_at": true,
+                        "updated_at": true,
+                        "bannerImage": true,
+                        "handle": true,
+                        "isBot": true,
+                        "isBotDepictingPerson": true,
+                        "name": true,
+                        "profileImage": true
                     }
                 },
                 "permissions": true,
@@ -722,41 +712,39 @@ export const projectVersion_updateOne = {
                     }
                 },
                 "owner": {
-                    "__union": {
-                        "Team": {
-                            "id": true,
-                            "bannerImage": true,
-                            "handle": true,
-                            "profileImage": true,
-                            "you": {
-                                "canAddMembers": true,
-                                "canDelete": true,
-                                "canBookmark": true,
-                                "canReport": true,
-                                "canUpdate": true,
-                                "canRead": true,
-                                "isBookmarked": true,
-                                "isViewed": true,
-                                "yourMembership": {
-                                    "id": true,
-                                    "created_at": true,
-                                    "updated_at": true,
-                                    "isAdmin": true,
-                                    "permissions": true
-                                }
+                    "Team": {
+                        "id": true,
+                        "bannerImage": true,
+                        "handle": true,
+                        "profileImage": true,
+                        "you": {
+                            "canAddMembers": true,
+                            "canDelete": true,
+                            "canBookmark": true,
+                            "canReport": true,
+                            "canUpdate": true,
+                            "canRead": true,
+                            "isBookmarked": true,
+                            "isViewed": true,
+                            "yourMembership": {
+                                "id": true,
+                                "created_at": true,
+                                "updated_at": true,
+                                "isAdmin": true,
+                                "permissions": true
                             }
-                        },
-                        "User": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "bannerImage": true,
-                            "handle": true,
-                            "isBot": true,
-                            "isBotDepictingPerson": true,
-                            "name": true,
-                            "profileImage": true
                         }
+                    },
+                    "User": {
+                        "id": true,
+                        "created_at": true,
+                        "updated_at": true,
+                        "bannerImage": true,
+                        "handle": true,
+                        "isBot": true,
+                        "isBotDepictingPerson": true,
+                        "name": true,
+                        "profileImage": true
                     }
                 },
                 "permissions": true,
@@ -932,41 +920,39 @@ export const projectVersion_updateOne = {
             }
         },
         "owner": {
-            "__union": {
-                "Team": {
-                    "id": true,
-                    "bannerImage": true,
-                    "handle": true,
-                    "profileImage": true,
-                    "you": {
-                        "canAddMembers": true,
-                        "canDelete": true,
-                        "canBookmark": true,
-                        "canReport": true,
-                        "canUpdate": true,
-                        "canRead": true,
-                        "isBookmarked": true,
-                        "isViewed": true,
-                        "yourMembership": {
-                            "id": true,
-                            "created_at": true,
-                            "updated_at": true,
-                            "isAdmin": true,
-                            "permissions": true
-                        }
+            "Team": {
+                "id": true,
+                "bannerImage": true,
+                "handle": true,
+                "profileImage": true,
+                "you": {
+                    "canAddMembers": true,
+                    "canDelete": true,
+                    "canBookmark": true,
+                    "canReport": true,
+                    "canUpdate": true,
+                    "canRead": true,
+                    "isBookmarked": true,
+                    "isViewed": true,
+                    "yourMembership": {
+                        "id": true,
+                        "created_at": true,
+                        "updated_at": true,
+                        "isAdmin": true,
+                        "permissions": true
                     }
-                },
-                "User": {
-                    "id": true,
-                    "created_at": true,
-                    "updated_at": true,
-                    "bannerImage": true,
-                    "handle": true,
-                    "isBot": true,
-                    "isBotDepictingPerson": true,
-                    "name": true,
-                    "profileImage": true
                 }
+            },
+            "User": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "bannerImage": true,
+                "handle": true,
+                "isBot": true,
+                "isBotDepictingPerson": true,
+                "name": true,
+                "profileImage": true
             }
         },
         "permissions": true,

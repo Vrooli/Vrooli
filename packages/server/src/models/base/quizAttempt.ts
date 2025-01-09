@@ -22,7 +22,7 @@ export const QuizAttemptModel: QuizAttemptModelLogic = ({
             }),
             // Label is quiz name + created_at date
             get: (select, languages) => {
-                const quizName = ModelMap.get<QuizModelLogic>("Quiz").display().label.get(select.quiz as QuizModelInfo["PrismaModel"], languages);
+                const quizName = ModelMap.get<QuizModelLogic>("Quiz").display().label.get(select.quiz as QuizModelInfo["DbModel"], languages);
                 const date = new Date(select.created_at).toLocaleDateString();
                 return `${quizName} - ${date}`;
             },
@@ -63,11 +63,11 @@ export const QuizAttemptModel: QuizAttemptModelLogic = ({
         },
         searchStringQuery: () => ({}), // No strings to search
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<QuizAttemptModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<QuizAttemptModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -75,10 +75,10 @@ export const QuizAttemptModel: QuizAttemptModelLogic = ({
     },
     validate: () => ({
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<QuizAttemptModelInfo["PrismaSelect"]>([["quiz", "Quiz"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<QuizAttemptModelInfo["DbSelect"]>([["quiz", "Quiz"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<QuizModelLogic>("Quiz").validate().owner(data?.quiz as QuizModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<QuizModelLogic>("Quiz").validate().owner(data?.quiz as QuizModelInfo["DbModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({ id: true, quiz: "Quiz" }),
         visibility: {

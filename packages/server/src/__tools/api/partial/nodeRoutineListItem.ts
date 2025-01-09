@@ -1,8 +1,8 @@
 import { NodeRoutineListItem, NodeRoutineListItemTranslation } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const nodeRoutineListItemTranslation: GqlPartial<NodeRoutineListItemTranslation> = {
+export const nodeRoutineListItemTranslation: ApiPartial<NodeRoutineListItemTranslation> = {
     common: {
         id: true,
         language: true,
@@ -11,7 +11,7 @@ export const nodeRoutineListItemTranslation: GqlPartial<NodeRoutineListItemTrans
     },
 };
 
-export const nodeRoutineListItem: GqlPartial<NodeRoutineListItem> = {
+export const nodeRoutineListItem: ApiPartial<NodeRoutineListItem> = {
     common: {
         id: true,
         index: true,

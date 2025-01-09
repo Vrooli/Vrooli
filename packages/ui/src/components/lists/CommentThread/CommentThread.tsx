@@ -1,4 +1,4 @@
-import { BookmarkFor, Comment, CommentFor, DeleteOneInput, DeleteType, ReactionFor, ReportFor, Success, endpointPostDeleteOne, getTranslation, updateArray } from "@local/shared";
+import { BookmarkFor, Comment, CommentFor, DeleteOneInput, DeleteType, ReactionFor, ReportFor, Success, endpointsActions, getTranslation, updateArray } from "@local/shared";
 import { Avatar, Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
@@ -134,7 +134,7 @@ export function CommentThreadItem({
         return { canDelete, canUpdate, canReply, canReport, canBookmark, canReact, displayText: text };
     }, [data, session]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
+    const [deleteMutation, { loading: loadingDelete }] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
     const handleDelete = useCallback(() => {
         if (!data) return;
         // Confirmation dialog
@@ -311,11 +311,11 @@ export function CommentThreadItem({
  * Each level  contains a list of comment items, then a "Show more" text button.
  * To the left of this is a CommentConnector item, which is a collapsible line.
  */
-export const CommentThread = ({
+export function CommentThread({
     canOpen,
     data,
     language,
-}: CommentThreadProps) => {
+}: CommentThreadProps) {
     // open state
     const [isOpen, setIsOpen] = useState(true);
 
@@ -392,4 +392,4 @@ export const CommentThread = ({
             </Stack>
         </Stack>
     ) : null;
-};
+}

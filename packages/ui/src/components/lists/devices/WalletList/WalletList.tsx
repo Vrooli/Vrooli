@@ -1,4 +1,4 @@
-import { DeleteOneInput, endpointPostDeleteOne, endpointPutWallet, Success, updateArray, Wallet, WalletUpdateInput } from "@local/shared";
+import { DeleteOneInput, endpointsActions, endpointsWallet, Success, updateArray, Wallet, WalletUpdateInput } from "@local/shared";
 import { Box, Button, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -109,7 +109,7 @@ export function WalletList({
 }: WalletListProps) {
     const { t } = useTranslation();
 
-    const [updateMutation, { loading: loadingUpdate }] = useLazyFetch<WalletUpdateInput, Wallet>(endpointPutWallet);
+    const [updateMutation, { loading: loadingUpdate }] = useLazyFetch<WalletUpdateInput, Wallet>(endpointsWallet.updateOne);
     const onUpdate = useCallback((index: number, updatedWallet: Wallet) => {
         if (loadingUpdate) return;
         fetchLazyWrapper<WalletUpdateInput, Wallet>({
@@ -124,7 +124,7 @@ export function WalletList({
         });
     }, [handleUpdate, list, loadingUpdate, updateMutation]);
 
-    const [deleteMutation, { loading: loadingDelete }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
+    const [deleteMutation, { loading: loadingDelete }] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
     const onDelete = useCallback((wallet: Wallet) => {
         if (loadingDelete) return;
         // Make sure that the user has at least one other authentication method 

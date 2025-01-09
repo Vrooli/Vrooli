@@ -1,7 +1,7 @@
 import { PushDevice } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 
-export const pushDevice: GqlPartial<PushDevice> = {
+export const pushDevice: ApiPartial<PushDevice> = {
     full: {
         id: true,
         expires: true,

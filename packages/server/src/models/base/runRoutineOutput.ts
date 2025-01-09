@@ -19,8 +19,8 @@ export const RunRoutineOutputModel: RunRoutineOutputModelLogic = ({
             }),
             // Label combines runRoutine's label and output's label
             get: (select, languages) => {
-                const runRoutineLabel = ModelMap.get<RunRoutineModelLogic>("RunRoutine").display().label.get(select.runRoutine as RunRoutineModelInfo["PrismaModel"], languages);
-                const outputLabel = ModelMap.get<RoutineVersionOutputModelLogic>("RoutineVersionOutput").display().label.get(select.output as RoutineVersionOutputModelInfo["PrismaModel"], languages);
+                const runRoutineLabel = ModelMap.get<RunRoutineModelLogic>("RunRoutine").display().label.get(select.runRoutine as RunRoutineModelInfo["DbModel"], languages);
+                const outputLabel = ModelMap.get<RoutineVersionOutputModelLogic>("RoutineVersionOutput").display().label.get(select.output as RoutineVersionOutputModelInfo["DbModel"], languages);
                 if (runRoutineLabel.length > 0) {
                     return `${runRoutineLabel} - ${outputLabel}`;
                 }
@@ -67,9 +67,9 @@ export const RunRoutineOutputModel: RunRoutineOutputModelLogic = ({
         }),
         permissionResolvers: defaultPermissions,
         profanityFields: ["data"],
-        owner: (data, userId) => ModelMap.get<RunRoutineModelLogic>("RunRoutine").validate().owner(data?.runRoutine as RunRoutineModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<RunRoutineModelLogic>("RunRoutine").validate().owner(data?.runRoutine as RunRoutineModelInfo["DbModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<RunRoutineOutputModelInfo["PrismaSelect"]>([["runRoutine", "RunRoutine"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<RunRoutineOutputModelInfo["DbSelect"]>([["runRoutine", "RunRoutine"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {

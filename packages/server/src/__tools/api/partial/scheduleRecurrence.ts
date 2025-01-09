@@ -1,8 +1,8 @@
 import { ScheduleRecurrence } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const scheduleRecurrence: GqlPartial<ScheduleRecurrence> = {
+export const scheduleRecurrence: ApiPartial<ScheduleRecurrence> = {
     common: {
         id: true,
         recurrenceType: true,

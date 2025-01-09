@@ -145,11 +145,11 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<NoteVersionModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<NoteVersionModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -158,10 +158,10 @@ export const NoteVersionModel: NoteVersionModelLogic = ({
     validate: () => ({
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
-            oneIsPublic<NoteVersionModelInfo["PrismaSelect"]>([["root", "Note"]], data, ...rest),
+            oneIsPublic<NoteVersionModelInfo["DbSelect"]>([["root", "Note"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<NoteModelLogic>("Note").validate().owner(data?.root as NoteModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<NoteModelLogic>("Note").validate().owner(data?.root as NoteModelInfo["DbModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

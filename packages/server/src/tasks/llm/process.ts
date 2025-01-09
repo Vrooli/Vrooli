@@ -1,9 +1,7 @@
 import { ChatMessage, GetValidTasksFromMessageParams, ServerLlmTaskInfo, SessionUser, getValidTasksFromMessage, importCommandToTask, parseBotInformation, uuid } from "@local/shared";
 import { Job } from "bull";
 import i18next from "i18next";
-import { addSupplementalFields } from "../../builders/addSupplementalFields";
-import { modelToGql } from "../../builders/modelToGql";
-import { selectHelper } from "../../builders/selectHelper";
+import { InfoConverter, addSupplementalFields, selectHelper } from "../../builders/infoConverter";
 import { prismaInstance } from "../../db/instance";
 import { chatMessage_findOne } from "../../endpoints/generated/chatMessage_findOne";
 import { CustomError } from "../../events";
@@ -301,7 +299,7 @@ export async function llmProcessBotMessage({
                 userId: respondingBotId,
             });
 
-            const formattedResponseMessage = modelToGql(createdData, chatMessage_findOne);
+            const formattedResponseMessage = InfoConverter.fromDbToApi(createdData, chatMessage_findOne);
             const fullResponseMessage = (await addSupplementalFields(userData, [formattedResponseMessage], chatMessage_findOne))[0] as ChatMessage;
 
             // Perform triggers for notifications, achievements, etc.

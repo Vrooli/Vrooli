@@ -1,12 +1,9 @@
-import { GqlModelType, PageInfo, TimeFrame, ViewFor, camelCase } from "@local/shared";
+import { ModelType, PageInfo, TimeFrame, ViewFor, camelCase } from "@local/shared";
 import { SessionService } from "../auth/session";
-import { addSupplementalFields } from "../builders/addSupplementalFields";
 import { combineQueries } from "../builders/combineQueries";
-import { modelToGql } from "../builders/modelToGql";
-import { selectHelper } from "../builders/selectHelper";
+import { InfoConverter, addSupplementalFields, selectHelper } from "../builders/infoConverter";
 import { timeFrameToSql } from "../builders/timeFrame";
-import { toPartialGqlInfo } from "../builders/toPartialGqlInfo";
-import { ApiEndpointInfo, PaginatedSearchResult, PrismaDelegate } from "../builders/types";
+import { PaginatedSearchResult, PartialApiInfo, PrismaDelegate } from "../builders/types";
 import { visibilityBuilderPrisma } from "../builders/visibilityBuilder";
 import { prismaInstance } from "../db/instance";
 import { SqlBuilder } from "../db/sqlBuilder";
@@ -57,7 +54,7 @@ export async function readOneHelper<ObjectModel extends { [x: string]: any }>({
     if (!input.id && !input.idRoot && !input.handle && !input.handleRoot)
         throw new CustomError("0019", "IdOrHandleRequired");
     // Partially convert info
-    const partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, true);
+    const partialInfo = InfoConverter.fromApiToPartialApi(info, model.format.apiRelMap, true);
     // If using idRoot or handleRoot, this means we are requesting a versioned object using data from the root object.
     // To query the version, we must find the latest completed version associated with the root object.
     let id: string | null | undefined;
@@ -91,7 +88,7 @@ export async function readOneHelper<ObjectModel extends { [x: string]: any }>({
         throw new CustomError("0435", "NotFound", { objectType, error });
     }
     // Return formatted for GraphQL
-    const formatted = modelToGql(object, partialInfo) as RecursivePartial<ObjectModel>;
+    const formatted = InfoConverter.fromDbToApi(object, partialInfo) as RecursivePartial<ObjectModel>;
     // If logged in and object tracks view counts, add a view
     if (userData?.id && objectType in ViewFor) {
         ModelMap.get<ViewModelLogic>("View").view(userData, { forId: object.id, viewFor: objectType as ViewFor });
@@ -119,7 +116,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     const userData = SessionService.getUser(req.session);
     const model = ModelMap.get(objectType);
     // Partially convert info type
-    const partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, true);
+    const partialInfo = InfoConverter.fromApiToPartialApi(info, model.format.apiRelMap, true);
     // Make sure ID is in partialInfo, since this is required for cursor-based search
     partialInfo.id = true;
     const searcher: Searcher<any, any> | undefined = model.search;
@@ -127,7 +124,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
         objectType: model.__typename,
         searchInput: input,
         userData,
-        visibility: input.visibility ?? visibility
+        visibility: input.visibility ?? visibility,
     };
     // Determine text search query
     const searchQuery = (input.searchString && searcher?.searchStringQuery) ? getSearchStringQuery({ objectType: model.__typename, searchString: input.searchString }) : undefined;
@@ -183,7 +180,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     //TODO validate that the user has permission to read all of the results, including relationships
     // Add supplemental fields, if requested
     if (addSupplemental) {
-        searchResults = searchResults.map(n => modelToGql(n, partialInfo as ApiEndpointInfo));
+        searchResults = searchResults.map(n => InfoConverter.fromDbToApi(n, partialInfo as PartialApiInfo));
         searchResults = await addSupplementalFields(userData, searchResults, partialInfo);
     }
     // Return formatted for GraphQL
@@ -221,7 +218,7 @@ export async function readManyAsFeedHelper<Input extends { [x: string]: any }>({
 }: Omit<ReadManyHelperProps<Input>, "addSupplemental">): Promise<ReadManyAsFeedResult> {
     const readManyResult = await readManyHelper({
         additionalQueries,
-        addSupplemental: false,
+        addSupplemental: false, // Skips conversion to API format
         info,
         input,
         objectType,
@@ -230,7 +227,7 @@ export async function readManyAsFeedHelper<Input extends { [x: string]: any }>({
     });
     const format = ModelMap.get(objectType).format;
     const nodes = readManyResult.edges.map(({ node }: any) =>
-        modelToGql(node, toPartialGqlInfo(info, format.gqlRelMap, true))) as any[];
+        InfoConverter.fromDbToApi(node, InfoConverter.fromApiToPartialApi(info, format.apiRelMap, true))) as any[];
     return {
         pageInfo: readManyResult.pageInfo,
         nodes,
@@ -283,7 +280,7 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
         searchInput: input,
         userData,
         visibility: input.visibility ?? visibility,
-    }
+    };
     const { query: visibilityQuery, visibilityUsed } = visibilityBuilderPrisma(searchData);
 
     // Check cache for previously fetched IDs for this specific situation
@@ -299,7 +296,7 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
     // If we still need more results (i.e. no cached results or only some cached), fetch them
     if (idsNeeded > 0) {
         const newOffset = offset + (cachedResults ? cachedResults.length : 0);
-        const translationObjectType = (objectType + "Translation") as GqlModelType;
+        const translationObjectType = (objectType + "Translation") as ModelType;
         // Create builder to construct the SQL query to fetch missing data
         const builder = new SqlBuilder(objectType);
         // Make sure we select the ID
@@ -377,7 +374,7 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
     }
 
     // Fetch additional data for the search results
-    const partialInfo = toPartialGqlInfo(info, model.format.gqlRelMap, true);
+    const partialInfo = InfoConverter.fromApiToPartialApi(info, model.format.apiRelMap, true);
     const select = selectHelper(partialInfo);
     finalResults = await (prismaInstance[model.dbTable] as PrismaDelegate).findMany({
         where: { id: { in: finalResults.map(t => t.id) } },
@@ -385,7 +382,7 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
     });
     //TODO validate that the user has permission to read all of the results, including relationships
     // Return formatted for GraphQL
-    let formattedNodes = finalResults.map(n => modelToGql(n, partialInfo as ApiEndpointInfo));
+    let formattedNodes = finalResults.map(n => InfoConverter.fromDbToApi(n, partialInfo as PartialApiInfo));
     // If fetch mode is "full", add supplemental fields
     if (fetchMode === "full") {
         formattedNodes = await addSupplementalFields(userData, formattedNodes, partialInfo);

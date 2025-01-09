@@ -1,4 +1,4 @@
-import { DeleteOneInput, DeleteType, endpointPostDeleteOne, FocusMode, FocusModeFilterType, FocusModeStopCondition, LINKS, MaxObjects, noop, SessionUser, Success } from "@local/shared";
+import { DeleteOneInput, DeleteType, endpointsActions, FocusMode, FocusModeFilterType, FocusModeStopCondition, LINKS, MaxObjects, noop, SessionUser, Success } from "@local/shared";
 import { Box, Button, Chip, Divider, IconButton, ListItem, ListItemProps, ListItemText, styled, Tooltip, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -124,7 +124,7 @@ export function SettingsFocusModesView({
         return { canAdd: focusModeInfo.all.length < max, hasPremium };
     }, [focusModeInfo.all.length, session]);
 
-    const [deleteMutation] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
+    const [deleteMutation] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
     const handleDelete = useCallback((focusMode: FocusMode) => {
         // Don't delete if there is only one focus mode left
         if (focusModeInfo.all.length === 1) {

@@ -1,8 +1,8 @@
 import { RunProjectOrRunRoutine } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const runProjectOrRunRoutine: GqlPartial<RunProjectOrRunRoutine> = {
+export const runProjectOrRunRoutine: ApiPartial<RunProjectOrRunRoutine> = {
     full: {
         __union: {
             RunProject: async () => rel((await import("./runProject")).runProject, "full"),

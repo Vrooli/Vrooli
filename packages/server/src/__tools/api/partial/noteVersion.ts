@@ -1,9 +1,9 @@
 import { NotePage, NoteVersion, NoteVersionTranslation } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 import { versionYou } from "./root";
 
-export const notePage: GqlPartial<NotePage> = {
+export const notePage: ApiPartial<NotePage> = {
     common: {
         id: true,
         pageIndex: true,
@@ -11,7 +11,7 @@ export const notePage: GqlPartial<NotePage> = {
     },
 };
 
-export const noteVersionTranslation: GqlPartial<NoteVersionTranslation> = {
+export const noteVersionTranslation: ApiPartial<NoteVersionTranslation> = {
     common: {
         id: true,
         language: true,
@@ -21,7 +21,7 @@ export const noteVersionTranslation: GqlPartial<NoteVersionTranslation> = {
     },
 };
 
-export const noteVersion: GqlPartial<NoteVersion> = {
+export const noteVersion: ApiPartial<NoteVersion> = {
     common: {
         id: true,
         created_at: true,

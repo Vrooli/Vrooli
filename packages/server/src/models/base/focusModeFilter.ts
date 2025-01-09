@@ -13,7 +13,7 @@ export const FocusModeFilterModel: FocusModeFilterModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, tag: { select: ModelMap.get<TagModelLogic>("Tag").display().label.select() } }),
-            get: (select, languages) => select.tag ? ModelMap.get<TagModelLogic>("Tag").display().label.get(select.tag as TagModelInfo["PrismaModel"], languages) : "",
+            get: (select, languages) => select.tag ? ModelMap.get<TagModelLogic>("Tag").display().label.get(select.tag as TagModelInfo["DbModel"], languages) : "",
         },
     }),
     format: FocusModeFilterFormat,
@@ -35,7 +35,7 @@ export const FocusModeFilterModel: FocusModeFilterModelLogic = ({
         isPublic: () => false,
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<FocusModeModelLogic>("FocusMode").validate().owner(data?.focusMode as FocusModeModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<FocusModeModelLogic>("FocusMode").validate().owner(data?.focusMode as FocusModeModelInfo["DbModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

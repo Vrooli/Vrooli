@@ -1,4 +1,4 @@
-import { TransferObjectType } from "../../api/generated/graphqlTypes";
+import { TransferObjectType } from "../../api/types";
 import { YupMutateParams } from "../../validation/utils/types";
 import { YupModel, enumToYup, id, message, opt, req, yupObj } from "../utils";
 

@@ -1,8 +1,8 @@
 import { Quiz, QuizTranslation, QuizYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const quizTranslation: GqlPartial<QuizTranslation> = {
+export const quizTranslation: ApiPartial<QuizTranslation> = {
     common: {
         id: true,
         language: true,
@@ -11,7 +11,7 @@ export const quizTranslation: GqlPartial<QuizTranslation> = {
     },
 };
 
-export const quizYou: GqlPartial<QuizYou> = {
+export const quizYou: ApiPartial<QuizYou> = {
     common: {
         canDelete: true,
         canBookmark: true,
@@ -24,7 +24,7 @@ export const quizYou: GqlPartial<QuizYou> = {
     },
 };
 
-export const quiz: GqlPartial<Quiz> = {
+export const quiz: ApiPartial<Quiz> = {
     common: {
         id: true,
         created_at: true,

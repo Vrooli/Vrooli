@@ -15,7 +15,7 @@ import { Trigger } from "../../events/trigger";
 import { DEFAULT_USER_NAME_LENGTH } from "../../models/base/user";
 import { UI_URL_REMOTE } from "../../server";
 import { closeSessionSockets, closeUserSockets } from "../../sockets/events";
-import { ApiEndpoint, RecursivePartial, SessionData } from "../../types";
+import { ApiEndpoint, SessionData } from "../../types";
 import { hasProfanity } from "../../utils/censor";
 
 export type EndpointsAuth = {
@@ -23,11 +23,11 @@ export type EndpointsAuth = {
     emailSignUp: ApiEndpoint<EmailSignUpInput, Session>;
     emailRequestPasswordChange: ApiEndpoint<EmailRequestPasswordChangeInput, Success>;
     emailResetPassword: ApiEndpoint<EmailResetPasswordInput, Session>;
-    guestLogIn: ApiEndpoint<Record<string, never>, RecursivePartial<Session>>;
-    logOut: ApiEndpoint<Record<string, never>, Session>;
-    logOutAll: ApiEndpoint<Record<string, never>, Session>;
-    validateSession: ApiEndpoint<ValidateSessionInput, RecursivePartial<Session>>;
-    switchCurrentAccount: ApiEndpoint<SwitchCurrentAccountInput, RecursivePartial<Session>>;
+    guestLogIn: ApiEndpoint<never, Session>;
+    logOut: ApiEndpoint<never, Session>;
+    logOutAll: ApiEndpoint<never, Session>;
+    validateSession: ApiEndpoint<ValidateSessionInput, Session>;
+    switchCurrentAccount: ApiEndpoint<SwitchCurrentAccountInput, Session>;
     walletInit: ApiEndpoint<WalletInitInput, WalletInit>;
     walletComplete: ApiEndpoint<WalletCompleteInput, WalletComplete>;
 }
@@ -154,7 +154,7 @@ async function establishGuestSession(res: Response) {
  * 3. Guest login
  */
 export const auth: EndpointsAuth = {
-    emailLogIn: async (_, { input }, { req, res }) => {
+    emailLogIn: async ({ input }, { req, res }) => {
         await RequestService.get().rateLimit({ maxUser: 100, req });
         // Validate arguments with schema
         emailLogInFormValidation.validateSync(input, { abortEarly: false });
@@ -226,7 +226,7 @@ export const auth: EndpointsAuth = {
             }
         }
     },
-    emailSignUp: async (_, { input }, { req, res }) => {
+    emailSignUp: async ({ input }, { req, res }) => {
         await RequestService.get().rateLimit({ maxUser: 10, req });
         // Validate input format
         emailSignUpValidation.validateSync(input, { abortEarly: false });
@@ -306,7 +306,7 @@ export const auth: EndpointsAuth = {
         // Return user data
         return session;
     },
-    emailRequestPasswordChange: async (_, { input }, { req }) => {
+    emailRequestPasswordChange: async ({ input }, { req }) => {
         await RequestService.get().rateLimit({ maxUser: 10, req });
         // Validate input format
         emailRequestPasswordChangeSchema.validateSync(input, { abortEarly: false });
@@ -328,7 +328,7 @@ export const auth: EndpointsAuth = {
         const success = await PasswordAuthService.setupPasswordReset(user);
         return { __typename: "Success", success };
     },
-    emailResetPassword: async (_, { input }, { req, res }) => {
+    emailResetPassword: async ({ input }, { req, res }) => {
         await RequestService.get().rateLimit({ maxUser: 10, req });
         // Validate input format
         emailResetPasswordSchema.validateSync(input, { abortEarly: false });
@@ -426,11 +426,11 @@ export const auth: EndpointsAuth = {
         await AuthTokensService.generateSessionToken(res, session);
         return session;
     },
-    guestLogIn: async (_p, _d, { req, res }) => {
+    guestLogIn: async (_d, { req, res }) => {
         await RequestService.get().rateLimit({ maxUser: 500, req });
         return establishGuestSession(res);
     },
-    logOut: async (_p, _d, { req, res }) => {
+    logOut: async (_d, { req, res }) => {
         const userData = SessionService.getUser(req.session);
         const userId = userData?.id;
         // If user is already logged out, return a guest session
@@ -481,7 +481,7 @@ export const auth: EndpointsAuth = {
         await AuthTokensService.generateSessionToken(res, session);
         return session;
     },
-    logOutAll: async (_p, _d, { req, res }) => {
+    logOutAll: async (_d, { req, res }) => {
         // Get user data
         const userData = SessionService.getUser(req.session);
         const userId = userData?.id;
@@ -510,7 +510,7 @@ export const auth: EndpointsAuth = {
     },
     // NOTE: The `authentiateRequest` middleware should have already validated the session token 
     // and handled the cookie. This makes the function below very simple.
-    validateSession: async (_, { input }, { req, res }) => {
+    validateSession: async ({ input }, { req, res }) => {
         await RequestService.get().rateLimit({ maxUser: 5000, req });
 
         if (!req.session.isLoggedIn) {
@@ -531,7 +531,7 @@ export const auth: EndpointsAuth = {
 
         return req.session;
     },
-    switchCurrentAccount: async (_, { input }, { req, res }) => {
+    switchCurrentAccount: async ({ input }, { req, res }) => {
         await RequestService.get().rateLimit({ maxUser: 500, req });
 
         // Validate input format
@@ -565,7 +565,7 @@ export const auth: EndpointsAuth = {
      * Starts handshake for establishing trust between backend and user wallet
      * @returns Nonce that wallet must sign and send to walletComplete endpoint
      */
-    walletInit: async (_, { input }, { req }) => {
+    walletInit: async ({ input }, { req }) => {
         await RequestService.get().rateLimit({ maxUser: 100, req });
         // // Make sure that wallet is on mainnet (i.e. starts with 'stake1')
         const deserializedStakingAddress = serializedAddressToBech32(input.stakingAddress);
@@ -615,7 +615,7 @@ export const auth: EndpointsAuth = {
         } as const;
     },
     // Verify that signed message from user wallet has been signed by the correct public address
-    walletComplete: async (_, { input }, { req, res }) => {
+    walletComplete: async ({ input }, { req, res }) => {
         await RequestService.get().rateLimit({ maxUser: 100, req });
         // Find wallet with public address
         const walletData = await prismaInstance.wallet.findUnique({
@@ -707,7 +707,7 @@ export const auth: EndpointsAuth = {
             wallet: {
                 ...wallet,
                 __typename: "Wallet",
-            }
+            },
         } as const;
     },
 };

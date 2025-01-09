@@ -1,8 +1,8 @@
 import { RunRoutineStep } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const runRoutineStep: GqlPartial<RunRoutineStep> = {
+export const runRoutineStep: ApiPartial<RunRoutineStep> = {
     common: {
         id: true,
         order: true,

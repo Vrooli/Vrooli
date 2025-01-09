@@ -1,4 +1,4 @@
-import { GqlModelType, isOfType } from "@local/shared";
+import { ModelType, isOfType } from "@local/shared";
 import { PrismaDelegate } from "../builders/types";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
@@ -15,12 +15,12 @@ export async function getLatestVersion({
     handleRoot,
 }: {
     includeIncomplete?: boolean,
-    objectType: `${GqlModelType.ApiVersion
-    | GqlModelType.CodeVersion
-    | GqlModelType.NoteVersion
-    | GqlModelType.ProjectVersion
-    | GqlModelType.RoutineVersion
-    | GqlModelType.StandardVersion
+    objectType: `${ModelType.ApiVersion
+    | ModelType.CodeVersion
+    | ModelType.NoteVersion
+    | ModelType.ProjectVersion
+    | ModelType.RoutineVersion
+    | ModelType.StandardVersion
     }`,
     idRoot?: string | null,
     handleRoot?: string | null,

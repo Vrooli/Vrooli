@@ -54,10 +54,10 @@ export const RunProjectStepModel: RunProjectStepModelLogic = ({
     search: undefined,
     validate: () => ({
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<RunProjectStepModelInfo["PrismaSelect"]>([["runProject", "RunProject"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<RunProjectStepModelInfo["DbSelect"]>([["runProject", "RunProject"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<RunProjectModelLogic>("RunProject").validate().owner(data?.runProject as RunProjectModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<RunProjectModelLogic>("RunProject").validate().owner(data?.runProject as RunProjectModelInfo["DbModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({ id: true, runProject: "RunProject" }),
         visibility: {

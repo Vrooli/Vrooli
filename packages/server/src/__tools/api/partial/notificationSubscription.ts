@@ -1,8 +1,8 @@
 import { NotificationSubscription } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const notificationSubscription: GqlPartial<NotificationSubscription> = {
+export const notificationSubscription: ApiPartial<NotificationSubscription> = {
     full: {
         id: true,
         created_at: true,

@@ -1,8 +1,8 @@
 import { Post, PostTranslation } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const postTranslation: GqlPartial<PostTranslation> = {
+export const postTranslation: ApiPartial<PostTranslation> = {
     common: {
         id: true,
         language: true,
@@ -11,7 +11,7 @@ export const postTranslation: GqlPartial<PostTranslation> = {
     },
 };
 
-export const post: GqlPartial<Post> = {
+export const post: ApiPartial<Post> = {
     common: {
         id: true,
         created_at: true,

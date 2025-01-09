@@ -1,4 +1,4 @@
-import { RunStatus } from "../../api/generated/graphqlTypes";
+import { RunStatus } from "../../api/types";
 import { bool, enumToYup, id, intPositiveOrZero, name, opt, req, YupModel, yupObj } from "../utils";
 import { runProjectStepValidation } from "./runProjectStep";
 import { scheduleValidation } from "./schedule";

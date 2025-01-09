@@ -1,4 +1,4 @@
-import { BookmarkFor, DUMMY_ID, endpointGetTags, exists, Tag, TagSearchInput, TagSearchResult, TagShape, TagSortBy } from "@local/shared";
+import { BookmarkFor, DUMMY_ID, endpointsTag, exists, Tag, TagSearchInput, TagSearchResult, TagShape, TagSortBy } from "@local/shared";
 import { Autocomplete, AutocompleteRenderGetTagProps, AutocompleteRenderInputParams, Chip, CircularProgress, InputAdornment, ListItemText, MenuItem, Popper, PopperProps, styled } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { useField } from "formik";
@@ -152,7 +152,7 @@ export function TagSelectorBase({
     const tagsRef = useRef<{ [key: string]: TagShape | Tag }>({});
 
     const { data: autocompleteData, loading } = useFetch<TagSearchInput, TagSearchResult>({
-        ...endpointGetTags,
+        ...endpointsTag.findMany,
         debounceMs: 250,
         inputs: {
             sortBy: TagSortBy.EmbedTopDesc,

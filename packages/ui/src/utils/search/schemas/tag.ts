@@ -1,11 +1,15 @@
-import { endpointGetTag, endpointGetTags, FormSchema, TagSortBy } from "@local/shared";
+import { endpointsTag, FormSchema, TagSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
-export const tagSearchSchema = (): FormSchema => ({
-    layout: searchFormLayout("SearchTag"),
-    containers: [], //TODO
-    elements: [], //TODO
-});
+export function tagSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchTag"),
+        containers: [], //TODO
+        elements: [], //TODO
+    };
+}
 
-export const tagSearchParams = () => toParams(tagSearchSchema(), endpointGetTags, endpointGetTag, TagSortBy, TagSortBy.EmbedTopDesc);
+export function tagSearchParams() {
+    return toParams(tagSearchSchema(), endpointsTag, TagSortBy, TagSortBy.EmbedTopDesc);
+}

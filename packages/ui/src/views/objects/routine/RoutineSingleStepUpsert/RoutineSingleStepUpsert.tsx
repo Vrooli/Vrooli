@@ -1,4 +1,4 @@
-import { ConfigCallData, DUMMY_ID, FormInputBase, FormSchema, LINKS, LlmTask, RoutineShape, RoutineType, RoutineVersion, RoutineVersionCreateInput, RoutineVersionInputShape, RoutineVersionOutputShape, RoutineVersionShape, RoutineVersionUpdateInput, SearchPageTabOption, Session, defaultConfigCallDataMap, defaultConfigFormInputMap, defaultConfigFormOutputMap, endpointGetRoutineVersion, endpointPostRoutineVersion, endpointPutRoutineVersion, noop, noopSubmit, orDefault, parseConfigCallData, parseSchemaInput, parseSchemaOutput, routineVersionTranslationValidation, routineVersionValidation, shapeRoutineVersion, uuid, uuidValidate } from "@local/shared";
+import { ConfigCallData, DUMMY_ID, FormInputBase, FormSchema, LINKS, LlmTask, RoutineShape, RoutineType, RoutineVersion, RoutineVersionCreateInput, RoutineVersionInputShape, RoutineVersionOutputShape, RoutineVersionShape, RoutineVersionUpdateInput, SearchPageTabOption, Session, defaultConfigCallDataMap, defaultConfigFormInputMap, defaultConfigFormOutputMap, endpointsRoutineVersion, noop, noopSubmit, orDefault, parseConfigCallData, parseSchemaInput, parseSchemaOutput, routineVersionTranslationValidation, routineVersionValidation, shapeRoutineVersion, uuid, uuidValidate } from "@local/shared";
 import { Checkbox, Divider, FormControlLabel, Grid, Tooltip } from "@mui/material";
 import { useSubmitHelper } from "api/fetchWrapper";
 import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
@@ -352,8 +352,8 @@ function RoutineSingleStepForm({
     } = useUpsertFetch<RoutineVersion, RoutineVersionCreateInput, RoutineVersionUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointPostRoutineVersion,
-        endpointUpdate: endpointPutRoutineVersion,
+        endpointCreate: endpointsRoutineVersion.createOne,
+        endpointUpdate: endpointsRoutineVersion.updateOne,
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "RoutineVersion" });
 
@@ -576,7 +576,7 @@ export function RoutineSingleStepUpsert({
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<RoutineVersion, RoutineVersionShape>({
-        ...endpointGetRoutineVersion,
+        ...endpointsRoutineVersion.findOne,
         disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "RoutineVersion",

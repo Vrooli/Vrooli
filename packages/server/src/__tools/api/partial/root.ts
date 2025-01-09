@@ -1,7 +1,7 @@
 import { VersionYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 
-export const versionYou: GqlPartial<VersionYou> = {
+export const versionYou: ApiPartial<VersionYou> = {
     full: {
         canComment: true,
         canCopy: true,

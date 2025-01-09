@@ -1,8 +1,8 @@
 import { Meeting, MeetingTranslation, MeetingYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const meetingTranslation: GqlPartial<MeetingTranslation> = {
+export const meetingTranslation: ApiPartial<MeetingTranslation> = {
     common: {
         id: true,
         language: true,
@@ -12,7 +12,7 @@ export const meetingTranslation: GqlPartial<MeetingTranslation> = {
     },
 };
 
-export const meetingYou: GqlPartial<MeetingYou> = {
+export const meetingYou: ApiPartial<MeetingYou> = {
     common: {
         canDelete: true,
         canInvite: true,
@@ -20,7 +20,7 @@ export const meetingYou: GqlPartial<MeetingYou> = {
     },
 };
 
-export const meeting: GqlPartial<Meeting> = {
+export const meeting: ApiPartial<Meeting> = {
     common: {
         id: true,
         created_at: true,

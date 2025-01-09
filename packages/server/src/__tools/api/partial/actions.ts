@@ -1,8 +1,8 @@
 import { CopyResult } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const copyResult: GqlPartial<CopyResult> = {
+export const copyResult: ApiPartial<CopyResult> = {
     common: {
         apiVersion: async () => rel((await import("./apiVersion")).apiVersion, "list"),
         codeVersion: async () => rel((await import("./codeVersion")).codeVersion, "list"),

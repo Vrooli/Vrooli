@@ -1,4 +1,4 @@
-import { API_CREDITS_MULTIPLIER, ActionOption, HistoryPageTabOption, LINKS, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User, endpointPostAuthLogout, endpointPostAuthSwitchCurrentAccount, endpointPutProfile, noop, profileValidation, shapeProfile } from "@local/shared";
+import { API_CREDITS_MULTIPLIER, ActionOption, HistoryPageTabOption, LINKS, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User, endpointsAuth, endpointsUser, noop, profileValidation, shapeProfile } from "@local/shared";
 import { Avatar, Box, Collapse, Divider, IconButton, Link, List, ListItem, ListItemIcon, ListItemText, Palette, SwipeableDrawer, Typography, styled, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
 import { fetchLazyWrapper } from "api/fetchWrapper";
@@ -143,7 +143,7 @@ export function SideMenu() {
     }, [breakpoints, isOpen]);
 
     // Handle update. Only updates when menu closes, and account settings have changed.
-    const [fetch] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);
+    const [fetch] = useLazyFetch<ProfileUpdateInput, User>(endpointsUser.profileUpdate);
     const formik = useFormik({
         initialValues: {
             theme: getCurrentUser(session).theme ?? "light",
@@ -186,7 +186,7 @@ export function SideMenu() {
         closeDisplaySettings();
     }, [close, closeAdditionalResources, closeDisplaySettings, formik]);
 
-    const [switchCurrentAccount] = useLazyFetch<SwitchCurrentAccountInput, Session>(endpointPostAuthSwitchCurrentAccount);
+    const [switchCurrentAccount] = useLazyFetch<SwitchCurrentAccountInput, Session>(endpointsAuth.switchCurrentAccount);
     const handleUserClick = useCallback((event: React.MouseEvent<HTMLElement>, user: SessionUser) => {
         // Close menu if not persistent
         if (isMobile) handleClose(event);
@@ -217,7 +217,7 @@ export function SideMenu() {
         if (isMobile) handleClose(event);
     }, [handleClose, isMobile, setLocation]);
 
-    const [logOut] = useLazyFetch<undefined, Session>(endpointPostAuthLogout);
+    const [logOut] = useLazyFetch<undefined, Session>(endpointsAuth.logout);
     const handleLogOut = useCallback((event: React.MouseEvent<HTMLElement>) => {
         if (isMobile) handleClose(event);
         const user = getCurrentUser(session);
@@ -242,15 +242,15 @@ export function SideMenu() {
         setLocation(LINKS.Home);
     }, [handleClose, isMobile, session, logOut, setLocation]);
 
-    function handleOpen(event: React.MouseEvent<HTMLElement>, link: string) {
+    const handleOpen = useCallback(function handleOpenCallback(event: React.MouseEvent<HTMLElement>, link: string) {
         setLocation(link);
         if (isMobile) handleClose(event);
-    }
+    }, [handleClose, isMobile, setLocation]);
 
-    function handleAction(event: React.MouseEvent<HTMLElement>, action: ActionOption) {
+    const handleAction = useCallback(function handleActionCallback(event: React.MouseEvent<HTMLElement>, action: ActionOption) {
         if (isMobile) handleClose(event);
         performAction(action, session);
-    }
+    }, [handleClose, isMobile, session]);
 
     const accounts = useMemo(() => session?.users ?? [], [session?.users]);
     const profileListItems = accounts.map((account) => {

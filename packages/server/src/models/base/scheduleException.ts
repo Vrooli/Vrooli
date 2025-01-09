@@ -14,7 +14,7 @@ export const ScheduleExceptionModel: ScheduleExceptionModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, schedule: { select: ModelMap.get<ScheduleModelLogic>("Schedule").display().label.select() } }),
-            get: (select, languages) => ModelMap.get<ScheduleModelLogic>("Schedule").display().label.get(select.schedule as ScheduleModelInfo["PrismaModel"], languages),
+            get: (select, languages) => ModelMap.get<ScheduleModelLogic>("Schedule").display().label.get(select.schedule as ScheduleModelInfo["DbModel"], languages),
         },
     }),
     format: ScheduleExceptionFormat,
@@ -45,9 +45,9 @@ export const ScheduleExceptionModel: ScheduleExceptionModelLogic = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ schedule: "Schedule" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<ScheduleModelLogic>("Schedule").validate().owner(data?.schedule as ScheduleModelInfo["PrismaModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<ScheduleModelLogic>("Schedule").validate().isDeleted(data.schedule as ScheduleModelInfo["PrismaModel"], languages),
-        isPublic: (...rest) => oneIsPublic<ScheduleExceptionModelInfo["PrismaSelect"]>([["schedule", "Schedule"]], ...rest),
+        owner: (data, userId) => ModelMap.get<ScheduleModelLogic>("Schedule").validate().owner(data?.schedule as ScheduleModelInfo["DbModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<ScheduleModelLogic>("Schedule").validate().isDeleted(data.schedule as ScheduleModelInfo["DbModel"], languages),
+        isPublic: (...rest) => oneIsPublic<ScheduleExceptionModelInfo["DbSelect"]>([["schedule", "Schedule"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {

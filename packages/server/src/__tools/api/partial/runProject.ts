@@ -1,8 +1,8 @@
 import { RunProject, RunProjectYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const runProjectYou: GqlPartial<RunProjectYou> = {
+export const runProjectYou: ApiPartial<RunProjectYou> = {
     common: {
         canDelete: true,
         canUpdate: true,
@@ -10,7 +10,7 @@ export const runProjectYou: GqlPartial<RunProjectYou> = {
     },
 };
 
-export const runProject: GqlPartial<RunProject> = {
+export const runProject: ApiPartial<RunProject> = {
     common: {
         id: true,
         isPrivate: true,

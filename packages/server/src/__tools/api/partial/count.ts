@@ -1,7 +1,7 @@
 import { Count } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 
-export const count: GqlPartial<Count> = {
+export const count: ApiPartial<Count> = {
     full: {
         count: true,
     },

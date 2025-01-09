@@ -1,7 +1,7 @@
 import { Award } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 
-export const award: GqlPartial<Award> = {
+export const award: ApiPartial<Award> = {
     common: {
         id: true,
         created_at: true,

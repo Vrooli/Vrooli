@@ -1,4 +1,4 @@
-import { GqlModelType, lowercaseFirstLetter } from "@local/shared";
+import { ModelType, lowercaseFirstLetter } from "@local/shared";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -7,7 +7,7 @@ import { logger } from "../../events/logger";
 import { Danger, Displayer, Duplicator, Formatter, ModelLogic, Mutater, Searcher, Validator } from "../types";
 
 export type GenericModelLogic = ModelLogic<any, any, any>;
-type ObjectMap = { [key in GqlModelType]: GenericModelLogic | Record<string, never> };
+type ObjectMap = { [key in ModelType]: GenericModelLogic | Record<string, never> };
 type LogicProps = "danger" | "dbTable" | "dbTranslationTable" | "display" | "duplicate" | "format" | "idField" | "mutate" | "search" | "validate";
 type GetLogicReturn<
     Logic extends LogicProps,
@@ -51,7 +51,7 @@ export class ModelMap {
     private constructor() { }
 
     private async initializeMap() {
-        const modelNames = Object.keys(GqlModelType) as (keyof typeof ModelMap.prototype.map)[];
+        const modelNames = Object.keys(ModelType) as (keyof typeof ModelMap.prototype.map)[];
         const dirname = path.dirname(fileURLToPath(import.meta.url));
 
         // Create a promise for each model import and process them in parallel
@@ -85,7 +85,7 @@ export class ModelMap {
         await Promise.all(importPromises);
     }
 
-    public static isModel(objectType: GqlModelType | `${GqlModelType}`): boolean {
+    public static isModel(objectType: ModelType | `${ModelType}`): boolean {
         if (!ModelMap.instance) {
             const caller = getCallerFunctionName();
             throw new Error(`ModelMap was never initialized by caller ${caller}`);
@@ -98,7 +98,7 @@ export class ModelMap {
         T extends GenericModelLogic,
         ThrowError extends boolean = true,
     >(
-        objectType: GqlModelType | `${GqlModelType}` | undefined,
+        objectType: ModelType | `${ModelType}` | undefined,
         throwErrorIfNotFound: ThrowError = true as ThrowError,
         errorTrace?: string,
     ): ThrowError extends true ? T : (T | undefined) {
@@ -123,7 +123,7 @@ export class ModelMap {
         ThrowError extends boolean = true,
     >(
         props: Logic,
-        objectType: `${GqlModelType}`,
+        objectType: `${ModelType}`,
         throwErrorIfNotFound: ThrowError = true as ThrowError,
         errorTrace?: string,
     ): ThrowError extends true ? GetLogicReturn<Logic[number]> : Undefinable<GetLogicReturn<Logic[number]>> {

@@ -1,7 +1,7 @@
 import { CheckTaskStatusesResult } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 
-export const checkTaskStatusesResult: GqlPartial<CheckTaskStatusesResult> = {
+export const checkTaskStatusesResult: ApiPartial<CheckTaskStatusesResult> = {
     common: {
         statuses: { id: true, status: true },
     },

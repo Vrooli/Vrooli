@@ -1,8 +1,8 @@
 import { RunRoutineOutput } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const runRoutineOutput: GqlPartial<RunRoutineOutput> = {
+export const runRoutineOutput: ApiPartial<RunRoutineOutput> = {
     common: {
         id: true,
         data: true,

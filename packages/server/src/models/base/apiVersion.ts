@@ -133,11 +133,11 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<ApiVersionModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ApiVersionModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -147,10 +147,10 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<ApiVersionModelInfo["PrismaSelect"]>([["root", "Api"]], data, ...rest),
+            oneIsPublic<ApiVersionModelInfo["DbSelect"]>([["root", "Api"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<ApiModelLogic>("Api").validate().owner(data?.root as ApiModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ApiModelLogic>("Api").validate().owner(data?.root as ApiModelInfo["DbModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

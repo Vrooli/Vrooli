@@ -1,8 +1,8 @@
 import { RunRoutine, RunRoutineYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const runRoutineYou: GqlPartial<RunRoutineYou> = {
+export const runRoutineYou: ApiPartial<RunRoutineYou> = {
     common: {
         canDelete: true,
         canUpdate: true,
@@ -10,7 +10,7 @@ export const runRoutineYou: GqlPartial<RunRoutineYou> = {
     },
 };
 
-export const runRoutine: GqlPartial<RunRoutine> = {
+export const runRoutine: ApiPartial<RunRoutine> = {
     common: {
         id: true,
         isPrivate: true,

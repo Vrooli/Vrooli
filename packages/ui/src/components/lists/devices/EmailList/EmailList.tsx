@@ -1,4 +1,4 @@
-import { DeleteOneInput, DeleteType, DUMMY_ID, Email, EmailCreateInput, emailValidation, endpointPostDeleteOne, endpointPostEmail, endpointPostEmailVerification, SendVerificationEmailInput, Success, uuid } from "@local/shared";
+import { DeleteOneInput, DeleteType, DUMMY_ID, Email, EmailCreateInput, emailValidation, endpointsActions, endpointsEmail, SendVerificationEmailInput, Success, uuid } from "@local/shared";
 import { Box, IconButton, InputAdornment, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
@@ -101,7 +101,7 @@ export function EmailList({
     const { t } = useTranslation();
 
     // Handle add
-    const [addMutation, { loading: loadingAdd }] = useLazyFetch<EmailCreateInput, Email>(endpointPostEmail);
+    const [addMutation, { loading: loadingAdd }] = useLazyFetch<EmailCreateInput, Email>(endpointsEmail.createOne);
     const formik = useFormik({
         initialValues: {
             id: DUMMY_ID,
@@ -124,7 +124,7 @@ export function EmailList({
         },
     });
 
-    const [deleteMutation, { loading: loadingDelete }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
+    const [deleteMutation, { loading: loadingDelete }] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
     const onDelete = useCallback((email: Email) => {
         if (loadingDelete) return;
         // Make sure that the user has at least one other authentication method 
@@ -154,7 +154,7 @@ export function EmailList({
         });
     }, [deleteMutation, handleUpdate, list, loadingDelete, numOtherVerified]);
 
-    const [verifyMutation, { loading: loadingVerifyEmail }] = useLazyFetch<SendVerificationEmailInput, Success>(endpointPostEmailVerification);
+    const [verifyMutation, { loading: loadingVerifyEmail }] = useLazyFetch<SendVerificationEmailInput, Success>(endpointsEmail.verify);
     const sendVerificationEmail = useCallback((email: Email) => {
         if (loadingVerifyEmail) return;
         fetchLazyWrapper<SendVerificationEmailInput, Success>({

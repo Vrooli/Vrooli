@@ -1,5 +1,5 @@
 // Used to display popular/search results of a particular object type
-import { endpointPutReminder, Reminder, ReminderUpdateInput, shapeReminder } from "@local/shared";
+import { endpointsReminder, Reminder, ReminderUpdateInput, shapeReminder } from "@local/shared";
 import { Checkbox, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { CompletionBar } from "components/CompletionBar/CompletionBar";
@@ -66,7 +66,7 @@ export function ReminderListItem({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const [updateMutation, { errors: updateErrors }] = useLazyFetch<ReminderUpdateInput, Reminder>(endpointPutReminder);
+    const [updateMutation, { errors: updateErrors }] = useLazyFetch<ReminderUpdateInput, Reminder>(endpointsReminder.updateOne);
 
     // State of the checkbox
     const { checked, checkDisabled, checkTooltip } = useMemo(() => {

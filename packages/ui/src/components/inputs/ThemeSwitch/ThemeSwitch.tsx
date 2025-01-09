@@ -1,4 +1,4 @@
-import { ProfileUpdateInput, User, endpointPutProfile } from "@local/shared";
+import { ProfileUpdateInput, User, endpointsUser } from "@local/shared";
 import { Box, Typography, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { useLazyFetch } from "hooks/useLazyFetch";
@@ -22,7 +22,7 @@ export function ThemeSwitch({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);
+    const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointsUser.profileUpdate);
     const handleChange = useCallback(() => {
         if (isUpdating) return;
         const newTheme = palette.mode === "light" ? "dark" : "light";

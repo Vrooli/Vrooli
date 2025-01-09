@@ -1,4 +1,4 @@
-import { ApiVersion, BookmarkFor, ResourceList as ResourceListType, endpointGetApiVersion, getTranslation } from "@local/shared";
+import { ApiVersion, BookmarkFor, ResourceList as ResourceListType, endpointsApiVersion, getTranslation } from "@local/shared";
 import { Avatar, Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
@@ -34,7 +34,7 @@ export function ApiView({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     const { id, isLoading, object: apiVersion, permissions, setObject: setApiVersion } = useManagedObject<ApiVersion>({
-        ...endpointGetApiVersion,
+        ...endpointsApiVersion.findOne,
         objectType: "ApiVersion",
     });
 

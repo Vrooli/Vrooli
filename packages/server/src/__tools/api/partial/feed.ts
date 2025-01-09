@@ -1,8 +1,8 @@
 import { HomeResult, Popular } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const homeResult: GqlPartial<HomeResult> = {
+export const homeResult: ApiPartial<HomeResult> = {
     list: {
         recommended: async () => rel((await import("./resource")).resource, "list"),
         reminders: async () => rel((await import("./reminder")).reminder, "full"),
@@ -11,7 +11,7 @@ export const homeResult: GqlPartial<HomeResult> = {
     },
 };
 
-export const popular: GqlPartial<Popular> = {
+export const popular: ApiPartial<Popular> = {
     list: {
         __union: {
             Api: async () => rel((await import("./api")).api, "list"),

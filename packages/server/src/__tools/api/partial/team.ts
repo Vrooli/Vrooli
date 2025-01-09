@@ -1,8 +1,8 @@
 import { Team, TeamTranslation, TeamYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const teamTranslation: GqlPartial<TeamTranslation> = {
+export const teamTranslation: ApiPartial<TeamTranslation> = {
     common: {
         id: true,
         language: true,
@@ -11,7 +11,7 @@ export const teamTranslation: GqlPartial<TeamTranslation> = {
     },
 };
 
-export const teamYou: GqlPartial<TeamYou> = {
+export const teamYou: ApiPartial<TeamYou> = {
     common: {
         canAddMembers: true,
         canDelete: true,
@@ -31,7 +31,7 @@ export const teamYou: GqlPartial<TeamYou> = {
     },
 };
 
-export const team: GqlPartial<Team> = {
+export const team: ApiPartial<Team> = {
     common: {
         id: true,
         bannerImage: true,

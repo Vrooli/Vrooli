@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/shared";
+import { ModelType } from "@local/shared";
 import { ModelMap } from "../models/base";
 
 /**
@@ -6,9 +6,9 @@ import { ModelMap } from "../models/base";
  * This typically means that one of the fields has a non-null value with "isPrivate" and "isDeleted" set to false.
  */
 export function oneIsPublic<PrismaSelect extends { [x: string]: any }>(
-    list: [keyof PrismaSelect, `${GqlModelType}`][],
+    list: [keyof PrismaSelect, `${ModelType}`][],
     permissionsData: { [key in keyof PrismaSelect]: any },
-    getParentInfo: ((id: string, typename: `${GqlModelType}`) => any | undefined),
+    getParentInfo: ((id: string, typename: `${ModelType}`) => any | undefined),
     languages: string[],
 ): boolean {
     // Loop through each field in the list

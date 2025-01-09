@@ -1,40 +1,40 @@
-import { DotNotation, GqlModelType, ObjectLimit, SessionUser, YupMutateParams } from "@local/shared";
+import { DotNotation, ModelType, ObjectLimit, SessionUser, YupMutateParams } from "@local/shared";
 import { AnyObjectSchema } from "yup";
-import { ApiEndpointInfo, PartialPrismaSelect } from "../builders/types";
+import { PartialApiInfo, PartialPrismaSelect } from "../builders/types";
 import { PromiseOrValue } from "../types";
 import { SearchMap, SearchStringMap } from "../utils";
 import { InputNode } from "../utils/inputNode";
 import { SortMap } from "../utils/sortMap";
 import { IdsCreateToConnect, InputsById, QueryAction } from "../utils/types";
 
-type GqlObject = Record<string, any>;
+type ApiObject = Record<string, any>;
 type DbObject = Record<string, any>;
 
 /** Types and flags for an object's business layer */
 export type ModelLogicType = {
-    __typename: `${GqlModelType}`;
-    /** GraphQL input for creating the object */
-    GqlCreate: GqlObject | undefined,
-    /** GraphQL input for updating the object */
-    GqlUpdate: GqlObject | undefined,
-    /** GraphQL input for searching the object */
-    GqlSearch: GqlObject | undefined,
-    /** GraphQL sort options for the object */
-    GqlSort: string | undefined,
-    /** GraphQL type returned when querying the object */
-    GqlModel: GqlObject,
-    /** GraphQL type with your permissions for the object (e.g. canUpdate, canDelete) */
-    GqlPermission: GqlObject,
+    __typename: `${ModelType}`;
+    /** API input for creating the object */
+    ApiCreate: ApiObject | undefined,
+    /** API input for updating the object */
+    ApiUpdate: ApiObject | undefined,
+    /** API input for searching the object */
+    ApiSearch: ApiObject | undefined,
+    /** API sort options for the object */
+    ApiSort: string | undefined,
+    /** API type returned when querying the object */
+    ApiModel: ApiObject,
+    /** API type with your permissions for the object (e.g. canUpdate, canDelete) */
+    ApiPermission: ApiObject,
     /** Prisma input for creating the object */
-    PrismaCreate: DbObject | undefined,
+    DbCreate: DbObject | undefined,
     /** Prisma input for updating the object */
-    PrismaUpdate: DbObject | undefined,
+    DbUpdate: DbObject | undefined,
     /** Prisma input for selecting the object */
-    PrismaSelect: DbObject,
+    DbSelect: DbObject,
     /** Prisma input for filtering the object */
-    PrismaWhere: DbObject | undefined,
+    DbWhere: DbObject | undefined,
     /** Prisma type returned when querying the object */
-    PrismaModel: DbObject,
+    DbModel: DbObject,
     /** Flag for whether the object can be transferred to another account */
     IsTransferable?: boolean,
     /** Flag for whether the object is versioned */
@@ -47,8 +47,8 @@ export type ModelLogicType = {
 */
 export type ModelLogic<
     Model extends ModelLogicType,
-    SuppFields extends readonly DotNotation<Model["GqlModel"]>[],
-    IdField extends keyof Model["GqlModel"] = "id",
+    SuppFields extends readonly DotNotation<Model["ApiModel"]>[],
+    IdField extends keyof Model["ApiModel"] = "id",
 > = {
     __typename: Model["__typename"];
     /** Irreversible actions that modify multiple objects of this type */
@@ -71,54 +71,54 @@ export type ModelLogic<
      * */
     idField?: IdField;
     /** Functions and data for searching the object */
-    search: Model["GqlSearch"] extends undefined ? undefined :
-    Model["GqlSort"] extends undefined ? undefined :
-    Model["PrismaWhere"] extends undefined ? undefined :
+    search: Model["ApiSearch"] extends undefined ? undefined :
+    Model["ApiSort"] extends undefined ? undefined :
+    Model["DbWhere"] extends undefined ? undefined :
     Searcher<{
-        GqlModel: Model["GqlModel"],
-        GqlSearch: Exclude<Model["GqlSearch"], undefined>,
-        GqlSort: Exclude<Model["GqlSort"], undefined>,
-        PrismaWhere: Exclude<Model["PrismaWhere"], undefined>,
+        ApiModel: Model["ApiModel"],
+        ApiSearch: Exclude<Model["ApiSearch"], undefined>,
+        ApiSort: Exclude<Model["ApiSort"], undefined>,
+        DbWhere: Exclude<Model["DbWhere"], undefined>,
     }, SuppFields>;
     /** Shapes the object for different operations, and handles related triggers */
     mutate?: Mutater<{
-        GqlCreate: Model["GqlCreate"],
-        GqlUpdate: Model["GqlUpdate"],
-        GqlModel: Exclude<Model["GqlModel"], undefined>,
-        PrismaCreate: Model["PrismaCreate"],
-        PrismaUpdate: Model["PrismaUpdate"],
+        ApiCreate: Model["ApiCreate"],
+        ApiUpdate: Model["ApiUpdate"],
+        ApiModel: Exclude<Model["ApiModel"], undefined>,
+        DbCreate: Model["DbCreate"],
+        DbUpdate: Model["DbUpdate"],
     }>;
     /** Permissions checking  */
     validate: Validator<{
-        GqlCreate: Model["GqlCreate"],
-        GqlUpdate: Model["GqlUpdate"],
-        PrismaModel: Exclude<Model["PrismaModel"], undefined>,
-        GqlPermission: Exclude<Model["GqlPermission"], undefined>,
-        PrismaSelect: Exclude<Model["PrismaSelect"], undefined>,
-        PrismaWhere: Exclude<Model["PrismaWhere"], undefined>,
+        ApiCreate: Model["ApiCreate"],
+        ApiUpdate: Model["ApiUpdate"],
+        DbModel: Exclude<Model["DbModel"], undefined>,
+        ApiPermission: Exclude<Model["ApiPermission"], undefined>,
+        DbSelect: Exclude<Model["DbSelect"], undefined>,
+        DbWhere: Exclude<Model["DbWhere"], undefined>,
         IsTransferable: Exclude<Model["IsTransferable"], undefined>,
         IsVersioned: Exclude<Model["IsVersioned"], undefined>,
     }>
 } & { [x: string]: any };
 
 /**
- * An object which maps GraphQL fields to GqlModelTypes. Normal fields 
- * are a single GqlModelType, while unions are handled with an object. 
- * A union object maps Prisma relation fields to GqlModelTypes.
+ * An object which maps GraphQL fields to ModelTypes. Normal fields 
+ * are a single ModelType, while unions are handled with an object. 
+ * A union object maps Prisma relation fields to ModelTypes.
  */
-export type GqlRelMap<
-    Typename extends `${GqlModelType}`,
-    GqlModel extends ModelLogicType["GqlModel"],
-    PrismaModel extends ModelLogicType["PrismaModel"],
+export type ApiRelMap<
+    Typename extends `${ModelType}`,
+    ApiModel extends ModelLogicType["ApiModel"],
+    DbModel extends ModelLogicType["DbModel"],
 > = {
-    [K in keyof GqlModel]?: `${GqlModelType}` | ({ [K2 in keyof PrismaModel]?: `${GqlModelType}` })
+    [K in keyof ApiModel]?: `${ModelType}` | ({ [K2 in keyof DbModel]?: `${ModelType}` })
 } & { __typename: Typename };
 
 /**
- * Allows Prisma select fields to map to GqlModelTypes
+ * Allows Prisma select fields to map to ModelTypes
  */
-export type PrismaRelMap<Typename extends `${GqlModelType}`, T> = {
-    [K in keyof T]?: `${GqlModelType}`
+export type PrismaRelMap<Typename extends `${ModelType}`, T> = {
+    [K in keyof T]?: `${ModelType}`
 } & { __typename: Typename };
 
 /**
@@ -130,10 +130,10 @@ export interface SupplementalConverter<
     SuppFields extends readonly any[]
 > {
     /**
-     * List of all supplemental fields added to the GraphQL model after the main query 
+     * List of all supplemental fields added to the model after the main query 
      * (i.e. all fields to be excluded)
      */
-    graphqlFields: SuppFields;
+    suppFields: SuppFields;
     /**
      * List of all fields to add to the Prisma select query, in order to calculate 
      * supplemental fields
@@ -142,11 +142,11 @@ export interface SupplementalConverter<
     /**
      * Calculates supplemental fields from the main query results
      */
-    toGraphQL: ({ ids, objects, partial, userData }: {
+    getSuppFields: ({ ids, objects, partial, userData }: {
         ids: string[],
         languages: string[] | undefined,
         objects: ({ id: string } & DbObject)[],
-        partial: ApiEndpointInfo,
+        partial: PartialApiInfo,
         userData: SessionUser | null,
     }) => Promise<{ [key in SuppFields[number]]: any[] | { [x: string]: any[] } }>;
 }
@@ -160,46 +160,46 @@ type StringArrayMap<T extends readonly string[]> = {
  */
 export interface Formatter<
     Model extends {
-        __typename: `${GqlModelType}`,
-        GqlCreate: ModelLogicType["GqlCreate"],
-        GqlModel: ModelLogicType["GqlModel"],
-        PrismaModel: ModelLogicType["PrismaModel"],
+        __typename: `${ModelType}`,
+        ApiCreate: ModelLogicType["ApiCreate"],
+        ApiModel: ModelLogicType["ApiModel"],
+        DbModel: ModelLogicType["DbModel"],
     }
 > {
     /**
-     * Maps GraphQL types to GqlModelType, with special handling for unions
+     * Maps API response object types to ModelType, with special handling for unions
      */
-    gqlRelMap: Model extends { PrismaModel: infer P }
+    apiRelMap: Model extends { DbModel: infer P }
     ? P extends undefined
-    ? GqlRelMap<Model["__typename"], Model["GqlModel"], Model["PrismaModel"]>
-    : GqlRelMap<Model["__typename"], Model["GqlModel"], NonNullable<P>>
-    : GqlRelMap<Model["__typename"], Model["GqlModel"], Model["PrismaModel"]>;
+    ? ApiRelMap<Model["__typename"], Model["ApiModel"], Model["DbModel"]>
+    : ApiRelMap<Model["__typename"], Model["ApiModel"], NonNullable<P>>
+    : ApiRelMap<Model["__typename"], Model["ApiModel"], Model["DbModel"]>;
     /** Defines additional information for parsing union types, used for things like building mutation input trees */
-    unionFields?: { [key in keyof Model["GqlModel"]]?: Record<string, never> | { connectField: keyof Model["GqlCreate"], typeField: keyof Model["GqlCreate"] } };
-    /** Maps Prisma types to GqlModelType */
-    prismaRelMap: PrismaRelMap<Model["__typename"], Model["PrismaModel"]>;
+    unionFields?: { [key in keyof Model["ApiModel"]]?: Record<string, never> | { connectField: keyof Model["ApiCreate"], typeField: keyof Model["ApiCreate"] } };
+    /** Maps Prisma types to ModelType */
+    prismaRelMap: PrismaRelMap<Model["__typename"], Model["DbModel"]>;
     /**
      * Map used to add/remove join tables from the query. 
      * Each key is a GraphQL field, and each value is the join table's relation name
      */
-    joinMap?: { [key in keyof Model["GqlModel"]]?: string };
+    joinMap?: { [key in keyof Model["ApiModel"]]?: string };
     /**
      * List of fields which provide the count of a relationship. 
      * These fields must end with "Count", and exist in the GraphQL object.
      * Each field of the form {relationship}Count will be converted to
      * { [relationship]: { _count: true } } in the Prisma query
      */
-    countFields: StringArrayMap<(keyof Model["GqlModel"] extends infer R ? R extends `${string}Count` ? R : never : never)[]>;
+    countFields: StringArrayMap<(keyof Model["ApiModel"] extends infer R ? R extends `${string}Count` ? R : never : never)[]>;
     /** List of fields to always exclude from GraphQL results */
     hiddenFields?: string[];
     /** Add join tables which are not present in GraphQL object */
-    addJoinTables?: (partial: ApiEndpointInfo | PartialPrismaSelect) => any;
+    addJoinTables?: (partial: PartialApiInfo | PartialPrismaSelect) => any;
     /** Remove join tables which are not present in GraphQL object */
-    removeJoinTables?: (data: GqlObject) => GqlObject;
+    removeJoinTables?: (data: ApiObject) => ApiObject;
     /** Add _count fields */
-    addCountFields?: (partial: ApiEndpointInfo | PartialPrismaSelect) => any;
+    addCountFields?: (partial: PartialApiInfo | PartialPrismaSelect) => any;
     /** Remove _count fields */
-    removeCountFields?: (data: GqlObject) => GqlObject;
+    removeCountFields?: (data: ApiObject) => ApiObject;
 }
 
 type CommonSearchFields = "after" | "take" | "ids" | "offset" | "searchString" | "sortBy" | "visibility";
@@ -227,29 +227,29 @@ export type SearchStringQuery<Where extends DbObject> = {
  */
 export type Searcher<
     Model extends {
-        GqlModel: Exclude<ModelLogicType["GqlModel"], undefined>,
-        GqlSearch: Exclude<ModelLogicType["GqlSearch"], undefined>,
-        GqlSort: Exclude<ModelLogicType["GqlSort"], undefined>,
-        PrismaWhere: Exclude<ModelLogicType["PrismaWhere"], undefined>,
+        ApiModel: Exclude<ModelLogicType["ApiModel"], undefined>,
+        ApiSearch: Exclude<ModelLogicType["ApiSearch"], undefined>,
+        ApiSort: Exclude<ModelLogicType["ApiSort"], undefined>,
+        DbWhere: Exclude<ModelLogicType["DbWhere"], undefined>,
     },
-    SuppFields extends readonly DotNotation<Model["GqlModel"]>[]
+    SuppFields extends readonly DotNotation<Model["ApiModel"]>[]
 > = {
-    defaultSort: Model["GqlSort"];
+    defaultSort: Model["ApiSort"];
     /**
      * Enum of all possible sort fields for this model
      * Also ensures that each field is in the SortMap object 
-     * (i.e. SortMap is a superset of Model['GqlSort'])
+     * (i.e. SortMap is a superset of Model['ApiSort'])
      */
-    sortBy: { [x in Model["GqlSort"]]: keyof typeof SortMap };
+    sortBy: { [x in Model["ApiSort"]]: keyof typeof SortMap };
     /**
      * Search input fields for this model
      * Also ensures that each field is in the SearchMap object
-     * (i.e. SearchMap is a superset of Model['GqlSearch'])
+     * (i.e. SearchMap is a superset of Model['ApiSearch'])
      * 
      * NOTE: Excludes fields which are common to all models 
      * (or have special logic), such as "take", "after", etc.
      */
-    searchFields: StringArrayMap<(keyof Model["GqlSearch"] extends infer R ?
+    searchFields: StringArrayMap<(keyof Model["ApiSearch"] extends infer R ?
         R extends keyof typeof SearchMap ?
         R extends CommonSearchFields ? never : R
         : never
@@ -264,7 +264,7 @@ export type Searcher<
      * pieces of the query can be replaced with keys of the SearchStringMap object. 
      * This works for both arrays and objects
      */
-    searchStringQuery: () => SearchStringQuery<Model["PrismaWhere"]>;
+    searchStringQuery: () => SearchStringQuery<Model["DbWhere"]>;
     /**
      * Data for adding supplemental fields to the GraphQL object
      */
@@ -274,20 +274,20 @@ export type Searcher<
 /**
  * Describes shape of select query used to check 
  * the permissions for an object. Basically, it's the 
- * Prisma select query, but where fields can be a GqlModelType 
+ * Prisma select query, but where fields can be a ModelType 
  * string instead of a boolean. 
  * 
  * Any field - top-level or nested - meets 
  * one of the following conditions:
  * 1. It's a partial select query matching the generic type ModelSelect
- * 2. It's a GqlModelType string, which means that object's permissions
+ * 2. It's a ModelType string, which means that object's permissions
  * will be substituted for that value
- * 3. It's a tuple of the form [GqlModelType, [omitFields]] where omitFields 
+ * 3. It's a tuple of the form [ModelType, [omitFields]] where omitFields 
  * is a list of fields (supporting dot notation) to omit from the substitution's permissions. This 
  * is important for preventing circular references
  */
-export type PermissionsMap<ModelSelect extends GqlObject> = {
-    [x in keyof ModelSelect]: ModelSelect[x] | `${GqlModelType}` | [`${GqlModelType}`, string[]]
+export type PermissionsMap<ModelSelect extends ApiObject> = {
+    [x in keyof ModelSelect]: ModelSelect[x] | `${ModelType}` | [`${ModelType}`, string[]]
 }
 
 export type VisibilityFuncInput = {
@@ -298,19 +298,19 @@ export type VisibilityFuncInput = {
  * Function for building partial Prisma select queries. 
  * Used to safely query only the objects you are allowed to see.
  */
-export type VisibilityFunc<PrismaWhere extends Exclude<ModelLogicType["PrismaWhere"], undefined>> = ((data: VisibilityFuncInput) => PrismaWhere);
+export type VisibilityFunc<DbWhere extends Exclude<ModelLogicType["DbWhere"], undefined>> = ((data: VisibilityFuncInput) => DbWhere);
 
 /**
  * Describes shape of component that has validation rules 
  */
 export type Validator<
     Model extends {
-        GqlCreate: ModelLogicType["GqlCreate"],
-        GqlUpdate: ModelLogicType["GqlUpdate"],
-        PrismaModel: Exclude<ModelLogicType["PrismaModel"], undefined>,
-        GqlPermission: Exclude<ModelLogicType["GqlPermission"], undefined>,
-        PrismaSelect: Exclude<ModelLogicType["PrismaSelect"], undefined>,
-        PrismaWhere: Exclude<ModelLogicType["PrismaWhere"], undefined>,
+        ApiCreate: ModelLogicType["ApiCreate"],
+        ApiUpdate: ModelLogicType["ApiUpdate"],
+        DbModel: Exclude<ModelLogicType["DbModel"], undefined>,
+        ApiPermission: Exclude<ModelLogicType["ApiPermission"], undefined>,
+        DbSelect: Exclude<ModelLogicType["DbSelect"], undefined>,
+        DbWhere: Exclude<ModelLogicType["DbWhere"], undefined>,
         IsTransferable: Exclude<ModelLogicType["IsTransferable"], undefined>,
         IsVersioned: Exclude<ModelLogicType["IsVersioned"], undefined>,
     }
@@ -328,18 +328,18 @@ export type Validator<
      * conjunction with the parent object's permissions (also queried in this field) - to determine if you 
      * are allowed to perform the mutation
      */
-    permissionsSelect: (userId: string | null, languages: string[] | undefined) => PermissionsMap<Model["PrismaSelect"]>;
+    permissionsSelect: (userId: string | null, languages: string[] | undefined) => PermissionsMap<Model["DbSelect"]>;
     /**
      * Key/value pair of permission fields and resolvers to calculate them.
      */
     permissionResolvers: ({ data, isAdmin, isDeleted, isLoggedIn, isPublic, userId }: {
-        data: Model["PrismaModel"],
+        data: Model["DbModel"],
         isAdmin: boolean,
         isDeleted: boolean,
         isLoggedIn: boolean,
         isPublic: boolean,
         userId: string | null | undefined,
-    }) => { [x in keyof Omit<Model["GqlPermission"], "type">]: () => any } & { [x in Exclude<QueryAction, "Create"> as `can${x}`]: () => boolean | Promise<boolean> };
+    }) => { [x in keyof Omit<Model["ApiPermission"], "type">]: () => any } & { [x in Exclude<QueryAction, "Create"> as `can${x}`]: () => boolean | Promise<boolean> };
     /**
      * Partial queries for various visibility checks
      */
@@ -350,7 +350,7 @@ export type Validator<
          * Set to null if this query type is not supported. This will throw an error 
          * if the query is attempted.
          */
-        own: VisibilityFunc<Model["PrismaWhere"]> | null;
+        own: VisibilityFunc<Model["DbWhere"]> | null;
         /** 
          * Union of objects you own and public objects (so it should include public objects
          * you don't own).
@@ -358,34 +358,34 @@ export type Validator<
          * Set to null if this query type is not supported. This will throw an error
          * if the query is attempted.
          */
-        ownOrPublic: VisibilityFunc<Model["PrismaWhere"]> | null;
+        ownOrPublic: VisibilityFunc<Model["DbWhere"]> | null;
         /** 
         * For public objects you own (i.e. intersection of objects you own and private objects).
         * 
         * Set to null if this query type is not supported. This will throw an error
         * if the query is attempted.
         */
-        ownPublic: VisibilityFunc<Model["PrismaWhere"]> | null;
+        ownPublic: VisibilityFunc<Model["DbWhere"]> | null;
         /** 
          * For private objects you own.
          * 
          * Set to null if this query type is not supported. This will throw an error
          * if the query is attempted.
          */
-        ownPrivate: VisibilityFunc<Model["PrismaWhere"]> | null;
+        ownPrivate: VisibilityFunc<Model["DbWhere"]> | null;
         /**
          * For public objects.
          * 
          * Set to null if this query type is not supported. This will throw an error
          * if the query is attempted.
          */
-        public: VisibilityFunc<Model["PrismaWhere"]> | null;
+        public: VisibilityFunc<Model["DbWhere"]> | null;
         // Allow additional visibility queries
-    } & { [x: string]: VisibilityFunc<Model["PrismaWhere"]> | null };
+    } & { [x: string]: VisibilityFunc<Model["DbWhere"]> | null };
     /**
      * Uses query result to determine if the object is soft-deleted
      */
-    isDeleted: (data: Model["PrismaModel"], languages: string[] | undefined) => boolean;
+    isDeleted: (data: Model["DbModel"], languages: string[] | undefined) => boolean;
     /**
      * Uses query result to determine if the object is public. This typically means "isPrivate" and "isDeleted" are false. 
      * @param data The data used to determine if the object is public
@@ -393,11 +393,11 @@ export type Validator<
      * database, this is not needed. When using data from a create mutation, it can be useful.
      * @param languages Languages to display error messages in
      */
-    isPublic: (data: Model["PrismaModel"], getParentInfo: ((id: string, typename: `${GqlModelType}`) => any | undefined), languages: string[]) => boolean;
+    isPublic: (data: Model["DbModel"], getParentInfo: ((id: string, typename: `${ModelType}`) => any | undefined), languages: string[]) => boolean;
     /**
      * Permissions data for the object's owner
      */
-    owner: (data: Model["PrismaModel"] | undefined, userId: string) => {
+    owner: (data: Model["DbModel"] | undefined, userId: string) => {
         Team?: ({ id: string } & DbObject) | null;
         User?: ({ id: string } & DbObject) | null;
     }
@@ -413,8 +413,8 @@ export type Validator<
      * connects, which means this function has to be pretty flexible in what it allows
      */
     transformations?: {
-        create?: (createMany: Model["GqlCreate"][], userId: string) => Promise<Model["GqlCreate"][]> | Model["GqlCreate"][];
-        update?: (updateMany: Model["GqlUpdate"][], userId: string) => Promise<Model["GqlUpdate"][]> | Model["GqlUpdate"][];
+        create?: (createMany: Model["ApiCreate"][], userId: string) => Promise<Model["ApiCreate"][]> | Model["ApiCreate"][];
+        update?: (updateMany: Model["ApiUpdate"][], userId: string) => Promise<Model["ApiUpdate"][]> | Model["ApiUpdate"][];
     };
     /**
      * True if you are allowed to tranfer the object to another user/orgaization
@@ -423,12 +423,12 @@ export type Validator<
 } & (
         Model["IsTransferable"] extends true ? {
             /* Determines if object has its original owner */
-            hasOriginalOwner: (data: Model["PrismaModel"]) => boolean;
+            hasOriginalOwner: (data: Model["DbModel"]) => boolean;
         } : object
     ) & (
         Model["IsVersioned"] extends true ? {
             /** Determines if there is a completed version of the object */
-            hasCompleteVersion: (data: Model["PrismaModel"]) => boolean;
+            hasCompleteVersion: (data: Model["DbModel"]) => boolean;
         } : object
     ))
 
@@ -461,17 +461,17 @@ export type Duplicator<
  * 
  * This means you can reference pre function results by using `preMap[__typename]`.
  **/
-export type PreMap = { [key in GqlModelType]?: any };
+export type PreMap = { [key in ModelType]?: any };
 
 /**
  * Describes shape of component that can be mutated
  */
 export type Mutater<Model extends {
-    GqlCreate: ModelLogicType["GqlCreate"],
-    GqlUpdate: ModelLogicType["GqlUpdate"],
-    GqlModel: ModelLogicType["GqlModel"],
-    PrismaCreate: ModelLogicType["PrismaCreate"],
-    PrismaUpdate: ModelLogicType["PrismaUpdate"],
+    ApiCreate: ModelLogicType["ApiCreate"],
+    ApiUpdate: ModelLogicType["ApiUpdate"],
+    ApiModel: ModelLogicType["ApiModel"],
+    DbCreate: ModelLogicType["DbCreate"],
+    DbUpdate: ModelLogicType["DbUpdate"],
 }> = {
     /**
      * Shapes data for create/update mutations, both as a main 
@@ -484,8 +484,8 @@ export type Mutater<Model extends {
          * things like routine complexity, where the calculation depends on the complexity of subroutines.
          */
         pre?: ({ Create, Update, Delete, userData }: {
-            Create: { node: InputNode, input: Model["GqlCreate"] }[],
-            Update: { node: InputNode, input: (Model["GqlUpdate"] & { id: string }) }[],
+            Create: { node: InputNode, input: Model["ApiCreate"] }[],
+            Update: { node: InputNode, input: (Model["ApiUpdate"] & { id: string }) }[],
             Delete: { node: InputNode, input: string }[],
             userData: SessionUser,
             inputsById: InputsById,
@@ -502,24 +502,24 @@ export type Mutater<Model extends {
          * object permissions when using this function
          */
         findConnects?: ({ Create }: {
-            Create: { node: InputNode, input: Model["GqlCreate"] }[],
+            Create: { node: InputNode, input: Model["ApiCreate"] }[],
         }) => PromiseOrValue<(string | null)[]>,
         /** Shapes data for create mutations */
-        create?: Model["GqlCreate"] extends GqlObject ?
-        Model["PrismaCreate"] extends DbObject ? ({ data, idsCreateToConnect, preMap, userData }: {
-            data: Model["GqlCreate"],
+        create?: Model["ApiCreate"] extends ApiObject ?
+        Model["DbCreate"] extends DbObject ? ({ data, idsCreateToConnect, preMap, userData }: {
+            data: Model["ApiCreate"],
             idsCreateToConnect: IdsCreateToConnect,
             preMap: PreMap;
             userData: SessionUser,
-        }) => PromiseOrValue<Model["PrismaCreate"]> : never : never,
+        }) => PromiseOrValue<Model["DbCreate"]> : never : never,
         /** Shapes data for update mutations */
-        update?: Model["GqlUpdate"] extends GqlObject ?
-        Model["PrismaUpdate"] extends DbObject ? ({ data, idsCreateToConnect, preMap, userData }: {
-            data: Model["GqlUpdate"],
+        update?: Model["ApiUpdate"] extends ApiObject ?
+        Model["DbUpdate"] extends DbObject ? ({ data, idsCreateToConnect, preMap, userData }: {
+            data: Model["ApiUpdate"],
             idsCreateToConnect: IdsCreateToConnect,
             preMap: PreMap,
             userData: SessionUser,
-        }) => PromiseOrValue<Model["PrismaUpdate"]> : never : never
+        }) => PromiseOrValue<Model["DbUpdate"]> : never : never
     }
     /**
      * Triggers after (or before if specified) a mutation is performed on the object. Useful for sending notifications,
@@ -534,7 +534,7 @@ export type Mutater<Model extends {
          */
         beforeDeleted?: ({ beforeDeletedData, deletingIds, userData }: {
             /** Result is added to this object */
-            beforeDeletedData: { [key in `${GqlModelType}`]?: object },
+            beforeDeletedData: { [key in `${ModelType}`]?: object },
             deletingIds: string[],
             userData: SessionUser,
         }) => PromiseOrValue<void>,
@@ -546,21 +546,21 @@ export type Mutater<Model extends {
          */
         afterMutations?: ({ createdIds, deletedIds, updatedIds, updateInputs, userData }: {
             additionalData: Record<string, any>,
-            beforeDeletedData: { [key in `${GqlModelType}`]?: object },
+            beforeDeletedData: { [key in `${ModelType}`]?: object },
             createdIds: string[],
-            createInputs: Model["GqlCreate"][],
+            createInputs: Model["ApiCreate"][],
             deletedIds: string[],
             resultsById: { [key: string]: unknown },
             updatedIds: string[],
-            updateInputs: Model["GqlUpdate"][],
+            updateInputs: Model["ApiUpdate"][],
             preMap: PreMap,
             userData: SessionUser,
         }) => PromiseOrValue<void>,
     }
     /** Create and update validations. Share these with UI to make forms more reliable */
     yup: {
-        create?: (params: YupMutateParams) => (Model["GqlCreate"] extends GqlObject ? AnyObjectSchema : never),
-        update?: (params: YupMutateParams) => (Model["GqlUpdate"] extends GqlObject ? AnyObjectSchema : never),
+        create?: (params: YupMutateParams) => (Model["ApiCreate"] extends ApiObject ? AnyObjectSchema : never),
+        update?: (params: YupMutateParams) => (Model["ApiUpdate"] extends ApiObject ? AnyObjectSchema : never),
     }
 }
 
@@ -581,23 +581,23 @@ export type Danger = {
 /** Functions for displaying an object */
 export type Displayer<
     Model extends {
-        PrismaSelect: ModelLogicType["PrismaSelect"],
-        PrismaModel: ModelLogicType["PrismaModel"],
+        DbSelect: ModelLogicType["DbSelect"],
+        DbModel: ModelLogicType["DbModel"],
     }
 > = () => ({
     /** Display the object for push notifications, etc. */
     label: {
         /** Prisma selection for the label */
-        select: () => Model["PrismaSelect"],
+        select: () => Model["DbSelect"],
         /** Converts the selection to a string */
-        get: (select: Model["PrismaModel"], languages: string[] | undefined) => string,
+        get: (select: Model["DbModel"], languages: string[] | undefined) => string,
     }
     /** Object representation for text embedding, which is used for search */
     embed?: {
         /** Prisma selection for the embed */
-        select: () => Model["PrismaSelect"],
+        select: () => Model["DbSelect"],
         /** Converts the selection to a string */
-        get: (select: Model["PrismaModel"], languages: string[] | undefined) => string,
+        get: (select: Model["DbModel"], languages: string[] | undefined) => string,
     }
 })
 

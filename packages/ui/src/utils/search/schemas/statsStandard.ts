@@ -1,11 +1,15 @@
-import { endpointGetStatsStandard, FormSchema, StatsStandardSortBy } from "@local/shared";
+import { endpointsStatsStandard, FormSchema, StatsStandardSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
-export const statsStandardSearchSchema = (): FormSchema => ({
-    layout: searchFormLayout("SearchStatsStandard"),
-    containers: [], //TODO
-    elements: [], //TODO
-});
+export function statsStandardSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchStatsStandard"),
+        containers: [], //TODO
+        elements: [], //TODO
+    };
+}
 
-export const statsStandardSearchParams = () => toParams(statsStandardSearchSchema(), endpointGetStatsStandard, undefined, StatsStandardSortBy, StatsStandardSortBy.PeriodStartAsc);
+export function statsStandardSearchParams() {
+    return toParams(statsStandardSearchSchema(), endpointsStatsStandard, StatsStandardSortBy, StatsStandardSortBy.PeriodStartAsc);
+}

@@ -1,7 +1,7 @@
 import { ApiKey } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 
-export const apiKey: GqlPartial<ApiKey> = {
+export const apiKey: ApiPartial<ApiKey> = {
     full: {
         id: true,
         creditsUsed: true,

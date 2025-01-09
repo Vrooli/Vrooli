@@ -1,15 +1,15 @@
 import { Transfer, TransferYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const transferYou: GqlPartial<TransferYou> = {
+export const transferYou: ApiPartial<TransferYou> = {
     common: {
         canDelete: true,
         canUpdate: true,
     },
 };
 
-export const transfer: GqlPartial<Transfer> = {
+export const transfer: ApiPartial<Transfer> = {
     common: {
         id: true,
         created_at: true,

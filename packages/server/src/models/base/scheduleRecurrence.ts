@@ -14,7 +14,7 @@ export const ScheduleRecurrenceModel: ScheduleRecurrenceModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, schedule: { select: ModelMap.get<ScheduleModelLogic>("Schedule").display().label.select() } }),
-            get: (select, languages) => ModelMap.get<ScheduleModelLogic>("Schedule").display().label.get(select.schedule as ScheduleModelInfo["PrismaModel"], languages),
+            get: (select, languages) => ModelMap.get<ScheduleModelLogic>("Schedule").display().label.get(select.schedule as ScheduleModelInfo["DbModel"], languages),
         },
     }),
     format: ScheduleRecurrenceFormat,
@@ -53,9 +53,9 @@ export const ScheduleRecurrenceModel: ScheduleRecurrenceModelLogic = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ schedule: "Schedule" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<ScheduleModelLogic>("Schedule").validate().owner(data?.schedule as ScheduleModelInfo["PrismaModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<ScheduleModelLogic>("Schedule").validate().isDeleted(data.schedule as ScheduleModelInfo["PrismaModel"], languages),
-        isPublic: (...rest) => oneIsPublic<ScheduleRecurrenceModelInfo["PrismaSelect"]>([["schedule", "Schedule"]], ...rest),
+        owner: (data, userId) => ModelMap.get<ScheduleModelLogic>("Schedule").validate().owner(data?.schedule as ScheduleModelInfo["DbModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<ScheduleModelLogic>("Schedule").validate().isDeleted(data.schedule as ScheduleModelInfo["DbModel"], languages),
+        isPublic: (...rest) => oneIsPublic<ScheduleRecurrenceModelInfo["DbSelect"]>([["schedule", "Schedule"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {

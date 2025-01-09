@@ -2,7 +2,7 @@ import { DEFAULT_LANGUAGE, MaxObjects, TeamSortBy, exists, getTranslation, teamV
 import { role } from "@prisma/client";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
-import { onlyValidIds } from "../../builders/onlyValidIds";
+import { onlyValidIds } from "../../builders/onlyValid";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { useVisibility } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
@@ -163,11 +163,11 @@ export const TeamModel: TeamModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<TeamModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<TeamModelInfo["ApiPermission"]>(__typename, ids, userData)),
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
                     },

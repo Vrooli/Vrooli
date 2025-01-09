@@ -22,7 +22,7 @@ export function runSocketRoomHandlers(socket: Socket) {
             // Check if user is authenticated
             const userData = RequestService.assertRequestFrom(socket, { isUser: true });
             // Find run only if permitted
-            const { canDelete: canRun } = await getSingleTypePermissions<(RunRoutineModelInfo | RunProjectModelInfo)["GqlPermission"]>(runType, [runId], userData);
+            const { canDelete: canRun } = await getSingleTypePermissions<(RunRoutineModelInfo | RunProjectModelInfo)["ApiPermission"]>(runType, [runId], userData);
             if (!Array.isArray(canRun) || !canRun.every(Boolean)) {
                 const message = JOIN_RUN_ROOM_ERRORS.RunNotFoundOrUnauthorized;
                 logger.error(message, { trace: "0623" });

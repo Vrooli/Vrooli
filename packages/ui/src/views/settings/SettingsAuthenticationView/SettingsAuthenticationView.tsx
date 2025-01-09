@@ -1,4 +1,4 @@
-import { Email, endpointPostAuthLogout, endpointPostAuthLogoutAll, endpointPutProfileEmail, LINKS, Phone, profileEmailUpdateFormValidation, ProfileEmailUpdateInput, Session, User, Wallet } from "@local/shared";
+import { Email, endpointsAuth, endpointsUser, LINKS, Phone, profileEmailUpdateFormValidation, ProfileEmailUpdateInput, Session, User, Wallet } from "@local/shared";
 import { Box, Button, Divider, Stack, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { SocketService } from "api/socket";
@@ -110,8 +110,8 @@ export function SettingsAuthenticationView({
 
     const { isProfileLoading, onProfileUpdate, profile } = useProfileQuery();
 
-    const [logOut] = useLazyFetch<undefined, Session>(endpointPostAuthLogout);
-    const [logOutAllDevices] = useLazyFetch<undefined, Session>(endpointPostAuthLogoutAll);
+    const [logOut] = useLazyFetch<undefined, Session>(endpointsAuth.logout);
+    const [logOutAllDevices] = useLazyFetch<undefined, Session>(endpointsAuth.logoutAll);
     const handleLogout = useCallback((logoutEndpoint: LazyRequestWithResult<undefined, Session>) => {
         SocketService.get().disconnect();
         fetchLazyWrapper<undefined, Session>({
@@ -150,7 +150,7 @@ export function SettingsAuthenticationView({
     const numVerifiedWallets = profile?.wallets?.filter((wallet) => wallet.verified)?.length ?? 0;
 
     // Handle update
-    const [update, { loading: isUpdating }] = useLazyFetch<ProfileEmailUpdateInput, User>(endpointPutProfileEmail);
+    const [update, { loading: isUpdating }] = useLazyFetch<ProfileEmailUpdateInput, User>(endpointsUser.profileEmailUpdate);
 
     const [deleteOpen, setDeleteOpen] = useState<boolean>(false);
     const openDelete = useCallback(() => setDeleteOpen(true), [setDeleteOpen]);

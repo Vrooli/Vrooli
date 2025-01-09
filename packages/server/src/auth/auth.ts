@@ -266,7 +266,7 @@ export class AuthService {
         if (!req.session.fromSafeOrigin) {
             const trace = "0451";
             logger.error("Error authenticating request", { trace });
-            return ResponseService.sendError(res, { trace, code: "UnsafeOrigin" }, HttpStatus.Unauthorized);
+            return ResponseService.sendError(res, { trace, code: "UnsafeOrigin" }, HttpStatus.Forbidden);
         }
         try {
             // Authenticate token if it exists

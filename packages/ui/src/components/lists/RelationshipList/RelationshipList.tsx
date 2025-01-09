@@ -1,4 +1,4 @@
-import { GqlModelType, OwnerShape, Session } from "@local/shared";
+import { ModelType, OwnerShape, Session } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { FocusModeButton } from "components/buttons/relationships/FocusModeButton/FocusModeButton";
 import { IsCompleteButton } from "components/buttons/relationships/IsCompleteButton/IsCompleteButton";
@@ -29,7 +29,7 @@ export function userFromSession(session: Session): Exclude<OwnerShape, null> {
 }
 
 /** Map of button types to objects they're shown on */
-const buttonTypeMap: Record<RelationshipButtonType, (GqlModelType | `${GqlModelType}`)[]> = {
+const buttonTypeMap: Record<RelationshipButtonType, (ModelType | `${ModelType}`)[]> = {
     IsPrivate: ["Api", "Code", "Note", "Project", "Routine", "RunProject", "RunRoutine", "Standard", "Team", "User"],
     IsComplete: ["Project", "Routine"],
     Owner: ["Api", "Code", "Comment", "Label", "Note", "Project", "Routine", "Standard"],

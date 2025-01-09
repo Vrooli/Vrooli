@@ -1,8 +1,8 @@
 import { Role, RoleTranslation } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const roleTranslation: GqlPartial<RoleTranslation> = {
+export const roleTranslation: ApiPartial<RoleTranslation> = {
     common: {
         id: true,
         language: true,
@@ -10,7 +10,7 @@ export const roleTranslation: GqlPartial<RoleTranslation> = {
     },
 };
 
-export const role: GqlPartial<Role> = {
+export const role: ApiPartial<Role> = {
     common: {
         id: true,
         created_at: true,

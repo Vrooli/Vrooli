@@ -1,4 +1,4 @@
-import { GqlModelType, MaxObjects, QuestionForType, QuestionSortBy, getTranslation, questionValidation } from "@local/shared";
+import { MaxObjects, ModelType, QuestionForType, QuestionSortBy, getTranslation, questionValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { ModelMap } from ".";
 import { noNull } from "../../builders/noNull";
@@ -120,11 +120,11 @@ export const QuestionModel: QuestionModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<QuestionModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<QuestionModelInfo["ApiPermission"]>(__typename, ids, userData)),
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
@@ -153,7 +153,7 @@ export const QuestionModel: QuestionModelLogic = ({
                         // The question is not tied to an object
                         Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value + "Id", null])),
                         // The object the question is tied to is public
-                        Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, useVisibility(key as GqlModelType, "Public", data)])),
+                        Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, useVisibility(key as ModelType, "Public", data)])),
                     ],
                 };
             },
@@ -162,7 +162,7 @@ export const QuestionModel: QuestionModelLogic = ({
                     OR: [
                         useVisibility("Question", "Own", data),
                         useVisibility("Question", "Public", data),
-                    ]
+                    ],
                 };
             },
             ownPrivate: function getOwnPrivate(data) {
@@ -184,7 +184,7 @@ export const QuestionModel: QuestionModelLogic = ({
                         // The question is not tied to an object
                         Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value + "Id", null])),
                         // The object the question is tied to is public
-                        Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, useVisibility(key as GqlModelType, "Public", data)])),
+                        Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, useVisibility(key as ModelType, "Public", data)])),
                     ],
                 };
             },

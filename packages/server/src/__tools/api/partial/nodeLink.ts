@@ -1,8 +1,8 @@
 import { NodeLink } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const nodeLink: GqlPartial<NodeLink> = {
+export const nodeLink: ApiPartial<NodeLink> = {
     common: {
         id: true,
         from: {

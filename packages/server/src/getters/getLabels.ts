@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/shared";
+import { ModelType } from "@local/shared";
 import { PrismaDelegate } from "../builders/types";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
@@ -19,7 +19,7 @@ const MAX_LABEL_LENGTH = 50;
  */
 export async function getLabels(
     objects: { id: string, languages: string[] }[] | string[],
-    objectType: `${GqlModelType}`,
+    objectType: `${ModelType}`,
     languages: string[],
     errorTrace: string,
 ): Promise<string[]> {

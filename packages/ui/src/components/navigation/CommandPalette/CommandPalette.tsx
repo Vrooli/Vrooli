@@ -1,4 +1,4 @@
-import { AutocompleteOption, endpointGetFeedPopular, getObjectUrl, PopularSearchInput, PopularSearchResult, ShortcutOption } from "@local/shared";
+import { AutocompleteOption, endpointsFeed, getObjectUrl, PopularSearchInput, PopularSearchResult, ShortcutOption } from "@local/shared";
 import { DialogContent, useTheme } from "@mui/material";
 import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
@@ -40,7 +40,7 @@ export function CommandPalette() {
     }, []);
 
     const [refetch, { data, loading }] = useLazyFetch<PopularSearchInput, PopularSearchResult>({
-        ...endpointGetFeedPopular,
+        ...endpointsFeed.popular,
         inputs: { searchString: searchString.replace(/![^\s]{1,}/g, "") },
     });
     useEffect(() => { open && refetch(); }, [open, refetch, searchString]);

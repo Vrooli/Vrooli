@@ -1,4 +1,4 @@
-import { SubscribableObject } from "../../api/generated/graphqlTypes";
+import { SubscribableObject } from "../../api/types";
 import { bool, enumToYup, id, opt, req, YupModel, yupObj } from "../utils";
 
 const subscribableObject = enumToYup(SubscribableObject);

@@ -1,4 +1,4 @@
-import { CodeSortBy, FormSchema, endpointGetCode, endpointGetCodes } from "@local/shared";
+import { CodeSortBy, FormSchema, endpointsCode } from "@local/shared";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
 
@@ -23,6 +23,6 @@ export function codeSearchSchema(): FormSchema {
 }
 
 export function codeSearchParams() {
-    return toParams(codeSearchSchema(), endpointGetCodes, endpointGetCode, CodeSortBy, CodeSortBy.ScoreDesc);
+    return toParams(codeSearchSchema(), endpointsCode, CodeSortBy, CodeSortBy.ScoreDesc);
 }
 

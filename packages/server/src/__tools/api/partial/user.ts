@@ -1,8 +1,8 @@
 import { User, UserTranslation, UserYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const userTranslation: GqlPartial<UserTranslation> = {
+export const userTranslation: ApiPartial<UserTranslation> = {
     common: {
         id: true,
         language: true,
@@ -10,7 +10,7 @@ export const userTranslation: GqlPartial<UserTranslation> = {
     },
 };
 
-export const userYou: GqlPartial<UserYou> = {
+export const userYou: ApiPartial<UserYou> = {
     common: {
         canDelete: true,
         canReport: true,
@@ -20,7 +20,7 @@ export const userYou: GqlPartial<UserYou> = {
     },
 };
 
-export const user: GqlPartial<User> = {
+export const user: ApiPartial<User> = {
     common: {
         id: true,
         created_at: true,
@@ -55,7 +55,7 @@ export const user: GqlPartial<User> = {
     },
 };
 
-export const profile: GqlPartial<User> = {
+export const profile: ApiPartial<User> = {
     common: {
         id: true,
         created_at: true,

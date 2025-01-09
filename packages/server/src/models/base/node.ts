@@ -71,9 +71,9 @@ export const NodeModel: NodeModelLogic = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, routineVersion: "RoutineVersion" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().owner(data?.routineVersion as RoutineVersionModelInfo["PrismaModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().isDeleted(data.routineVersion as RoutineVersionModelInfo["PrismaModel"], languages),
-        isPublic: (...rest) => oneIsPublic<NodeModelInfo["PrismaSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
+        owner: (data, userId) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().owner(data?.routineVersion as RoutineVersionModelInfo["DbModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().isDeleted(data.routineVersion as RoutineVersionModelInfo["DbModel"], languages),
+        isPublic: (...rest) => oneIsPublic<NodeModelInfo["DbSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {

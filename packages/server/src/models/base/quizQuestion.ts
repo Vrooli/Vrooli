@@ -42,10 +42,10 @@ export const QuizQuestionModel: QuizQuestionModelLogic = ({
     search: undefined,
     validate: () => ({
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<QuizQuestionModelInfo["PrismaSelect"]>([["quiz", "Quiz"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<QuizQuestionModelInfo["DbSelect"]>([["quiz", "Quiz"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<QuizModelLogic>("Quiz").validate().owner(data?.quiz as QuizModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<QuizModelLogic>("Quiz").validate().owner(data?.quiz as QuizModelInfo["DbModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

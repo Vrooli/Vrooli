@@ -1,8 +1,8 @@
 import { Notification, NotificationSettings, NotificationSettingsCategory } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const notification: GqlPartial<Notification> = {
+export const notification: ApiPartial<Notification> = {
     full: {
         id: true,
         created_at: true,
@@ -15,7 +15,7 @@ export const notification: GqlPartial<Notification> = {
     },
 };
 
-export const notificationSettingsCategory: GqlPartial<NotificationSettingsCategory> = {
+export const notificationSettingsCategory: ApiPartial<NotificationSettingsCategory> = {
     full: {
         category: true,
         enabled: true,
@@ -26,7 +26,7 @@ export const notificationSettingsCategory: GqlPartial<NotificationSettingsCatego
     },
 };
 
-export const notificationSettings: GqlPartial<NotificationSettings> = {
+export const notificationSettings: ApiPartial<NotificationSettings> = {
     full: {
         includedEmails: async () => rel((await import("./email")).email, "list"),
         includedSms: async () => rel((await import("./phone")).phone, "list"),

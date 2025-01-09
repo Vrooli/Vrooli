@@ -1,5 +1,5 @@
 import * as yup from "yup";
-import { FocusModeStopCondition } from "../../api/generated/graphqlTypes";
+import { FocusModeStopCondition } from "../../api/types";
 import { YupModel, description, enumToYup, id, name, opt, req, yupObj } from "../utils";
 import { focusModeFilterValidation } from "./focusModeFilter";
 import { labelValidation } from "./label";

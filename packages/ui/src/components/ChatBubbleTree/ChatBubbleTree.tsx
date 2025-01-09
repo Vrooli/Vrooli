@@ -1,4 +1,4 @@
-import { ChatMessageShape, ChatMessageStatus, ChatSocketEventPayloads, ListObject, NavigableObject, ReactInput, ReactionFor, ReactionSummary, ReportFor, Success, endpointPostReact, getObjectUrl, getTranslation, noop } from "@local/shared";
+import { ChatMessageShape, ChatMessageStatus, ChatSocketEventPayloads, ListObject, NavigableObject, ReactInput, ReactionFor, ReactionSummary, ReportFor, Success, endpointsReaction, getObjectUrl, getTranslation, noop } from "@local/shared";
 import { Box, BoxProps, CircularProgress, CircularProgressProps, IconButton, IconButtonProps, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { green, red } from "@mui/material/colors";
 import { fetchLazyWrapper } from "api/fetchWrapper";
@@ -434,7 +434,7 @@ export function ChatBubble({
     const isMobile = useMemo(() => chatWidth <= breakpoints.values.sm, [breakpoints, chatWidth]);
     const profileColors = useMemo(() => placeholderColor(message.user?.id), [message.user?.id]);
 
-    const [react] = useLazyFetch<ReactInput, Success>(endpointPostReact);
+    const [react] = useLazyFetch<ReactInput, Success>(endpointsReaction.createOne);
 
     const {
         handleDelete,

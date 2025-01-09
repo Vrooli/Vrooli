@@ -1,8 +1,8 @@
 import { Resource, ResourceTranslation } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const resourceTranslation: GqlPartial<ResourceTranslation> = {
+export const resourceTranslation: ApiPartial<ResourceTranslation> = {
     common: {
         id: true,
         language: true,
@@ -11,7 +11,7 @@ export const resourceTranslation: GqlPartial<ResourceTranslation> = {
     },
 };
 
-export const resource: GqlPartial<Resource> = {
+export const resource: ApiPartial<Resource> = {
     common: {
         id: true,
         index: true,

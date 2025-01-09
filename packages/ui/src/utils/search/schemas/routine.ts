@@ -1,10 +1,10 @@
-import { endpointGetRoutine, endpointGetRoutines, FormSchema, InputType, RoutineSortBy, RoutineType } from "@local/shared";
+import { endpointsRoutine, FormSchema, InputType, RoutineSortBy, RoutineType } from "@local/shared";
 import { ActionIcon, ApiIcon, CaseSensitiveIcon, HelpIcon, MagicIcon, RoutineIcon, SmartContractIcon, TerminalIcon } from "icons";
 import { SvgProps } from "types";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
 
-type RoutineTypeOption = {
+export type RoutineTypeOption = {
     type: RoutineType;
     label: string;
     description: string;
@@ -104,6 +104,6 @@ export function routineSearchSchema(): FormSchema {
 }
 
 export function routineSearchParams() {
-    return toParams(routineSearchSchema(), endpointGetRoutines, endpointGetRoutine, RoutineSortBy, RoutineSortBy.ScoreDesc);
+    return toParams(routineSearchSchema(), endpointsRoutine, RoutineSortBy, RoutineSortBy.ScoreDesc);
 }
 

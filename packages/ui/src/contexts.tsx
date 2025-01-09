@@ -1,4 +1,4 @@
-import { Chat, ChatCreateInput, ChatParticipantShape, ChatShape, DUMMY_ID, FindByIdInput, Session, VALYXA_ID, endpointGetChat, endpointPostChat, noop, uuidValidate } from "@local/shared";
+import { Chat, ChatCreateInput, ChatParticipantShape, ChatShape, DUMMY_ID, FindByIdInput, Session, VALYXA_ID, endpointsChat, noop, uuidValidate } from "@local/shared";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { ServerResponseParser } from "api/responseParser";
 import { useLazyFetch } from "hooks/useLazyFetch";
@@ -112,8 +112,8 @@ export function ActiveChatProvider({ children }) {
     const { t } = useTranslation();
     const { id: userId, languages: userLanguages } = getCurrentUser(session);
 
-    const [getChat, { data: loadedChat, loading: isChatLoading }] = useLazyFetch<FindByIdInput, Chat>(endpointGetChat);
-    const [createChat, { loading: isCreatingChat }] = useLazyFetch<ChatCreateInput, Chat>(endpointPostChat);
+    const [getChat, { data: loadedChat, loading: isChatLoading }] = useLazyFetch<FindByIdInput, Chat>(endpointsChat.findOne);
+    const [createChat, { loading: isCreatingChat }] = useLazyFetch<ChatCreateInput, Chat>(endpointsChat.createOne);
     const isLoading = useMemo(function isLoadingMemo() {
         return isChatLoading || isCreatingChat;
     }, [isChatLoading, isCreatingChat]);

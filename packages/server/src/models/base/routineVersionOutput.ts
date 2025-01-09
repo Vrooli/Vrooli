@@ -20,7 +20,7 @@ export const RoutineVersionOutputModel: RoutineVersionOutputModelLogic = ({
                 name: true,
                 routineVersion: { select: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").display().label.select() },
             }),
-            get: (select, languages) => select.name ?? ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").display().label.get(select.routineVersion as RoutineVersionModelInfo["PrismaModel"], languages),
+            get: (select, languages) => select.name ?? ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").display().label.get(select.routineVersion as RoutineVersionModelInfo["DbModel"], languages),
         },
     }),
     format: RoutineVersionOutputFormat,
@@ -46,10 +46,10 @@ export const RoutineVersionOutputModel: RoutineVersionOutputModelLogic = ({
     search: undefined,
     validate: () => ({
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<RoutineVersionOutputModelInfo["PrismaSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<RoutineVersionOutputModelInfo["DbSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().owner(data?.routineVersion as RoutineVersionModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().owner(data?.routineVersion as RoutineVersionModelInfo["DbModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({ id: true, routineVersion: "RoutineVersion" }),
         visibility: {

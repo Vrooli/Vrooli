@@ -1,28 +1,48 @@
 import { exists, mergeDeep } from "@local/shared";
-import { DeepPartialBooleanWithFragments, GqlPartial, MaybeLazyAsync, NonMaybe, SelectionType } from "./types";
+import { ApiPartial, DeepPartialBooleanWithFragments, MaybeLazyAsync, NonMaybe, SelectionType } from "./types";
 
 /**
- * Converts a GqlPartial-like structure into a plain nested object for REST/Prisma usage.
+ * Converts an ApiPartial-like structure into a plain nested object for REST/Prisma usage.
  */
-export async function toObject<T extends GqlPartial<any>>(
+export async function toObject<T extends ApiPartial<any>>(
     partial: T,
-    selectionType: SelectionType
+    selectionType: SelectionType,
+    options?: {
+        asSearch?: boolean,
+        searchOverrides?: {
+            edges?: Record<string, true>;
+            pageInfo?: Record<string, true>;
+        },
+    },
 ): Promise<Record<string, any>> {
-    // 1. Use `rel` to merge partials for the desired selection type
+    // Convert using the 'rel' function
     let shaped = await rel(partial, selectionType);
-
+    // If the 'asSearch' option is true, wrap the object in a 'search' object and convert again
+    if (options?.asSearch) {
+        shaped = {
+            edges: options?.searchOverrides?.edges ?? {
+                cursor: true,
+                node: shaped,
+            },
+            pageInfo: options?.searchOverrides?.pageInfo ?? {
+                endCursor: true,
+                hasNextPage: true,
+            },
+        }
+        shaped = await rel({ [selectionType]: shaped }, selectionType);
+    }
     return shaped;
 }
 
 /**
  * Finds the best DeepPartialBooleanWithFragments 
- * to use in a GqlPartial object
- * @param obj The GqlPartial object to search
+ * to use in an ApiPartial object
+ * @param obj The ApiPartial object to search
  * @param selection The preferred selection to use
  * @returns The preferred selection if it exists, otherwise the best selection
  */
 export function findSelection(
-    obj: GqlPartial<any>,
+    obj: ApiPartial<any>,
     selection: SelectionType,
 ): SelectionType {
     const selectionOrder: Record<SelectionType, SelectionType[]> = {
@@ -43,7 +63,7 @@ export function findSelection(
 }
 
 /**
- * Recursively shapes a gql selection object to remove duplicate fragments and lazy fields.
+ * Recursively shapes an API selection object to remove duplicate fragments and lazy fields.
  * @param selection The selection to shape
  * @returns A properly-shaped selection object.
  */
@@ -56,15 +76,23 @@ export async function partialShape<T extends object>(
     const data = await unlazyDeep(selection);
     // Iterate over the keys
     for (const key of Object.keys(data)) {
-        // Combine the values of the key
-        if (!exists(data[key])) continue;
         // If the key is a boolean, set it to true
         if (typeof data[key] === "boolean") {
             result[key] = true;
         }
         // Otherwise, assume it's an object and recursively combine
         else {
-            result[key] = await partialShape(data[key] ?? {});
+            const inner = await partialShape(data[key] ?? {});
+            // If the key is __union, add each value of inner to the result directly (instead of nesting)
+            if (key === "__union") {
+                for (const unionKey in inner) {
+                    result[unionKey] = inner[unionKey];
+                }
+            }
+            // Otherwise, add the inner object to the result under the key
+            else {
+                result[key] = inner;
+            }
         }
     }
     // Return the combined object
@@ -73,12 +101,12 @@ export async function partialShape<T extends object>(
 
 /**
  * Adds a relation to an GraphQL selection set, while optionally omitting one or more fields.
- * @param partial The GqlPartial object containing the selection set
- * @param selectionType Which selection from GqlPartial to use
+ * @param partial The ApiPartial object containing the selection set
+ * @param selectionType Which selection from ApiPartial to use
  * @param exceptions Exceptions object containing fields to omit. Supports dot notation.
  */
 export async function rel<
-    Partial extends GqlPartial<any>,
+    Partial extends ApiPartial<any>,
     Selection extends SelectionType,
     OmitField extends string | number | symbol,
 >(
@@ -131,39 +159,6 @@ export async function removeValuesUsingDot(obj: Record<string | number | symbol,
         if (!exists(currentObject) || !exists(currentObject[currentKey])) return;
         delete currentObject[currentKey];
     });
-}
-
-/**
- * Helper function for generating a GraphQL selection of a 
- * paginated search result using a template literal.
- * 
- * @param partial A GqlPartial object for the object type being searched
- * @partial overrides Custom overrides for edges and pageInfo
- * @returns A new GqlPartial object like the one passed in, but wrapped 
- * in a paginated search result.
- */
-export async function toSearch<
-    GqlObject extends object
->(
-    partial: GqlPartial<GqlObject>,
-    overrides?: {
-        edges?: Record<string, true>;
-        pageInfo?: Record<string, true>;
-    },
-): Promise<[GqlPartial<any>, "list"]> {
-    const node = await rel(partial, "list");
-    return [{
-        list: {
-            edges: overrides?.edges ?? {
-                cursor: true,
-                node,
-            },
-            pageInfo: overrides?.pageInfo ?? {
-                endCursor: true,
-                hasNextPage: true,
-            },
-        },
-    }, "list"];
 }
 
 /**

@@ -1,4 +1,4 @@
-import { DUMMY_ID, GqlModelType, base36ToUuid } from "@local/shared";
+import { DUMMY_ID, ModelType, base36ToUuid } from "@local/shared";
 import { renderHook } from "@testing-library/react";
 import { act } from "react";
 import { PubSub as PubSubMock } from "../utils/__mocks__/pubsub";
@@ -379,7 +379,7 @@ describe("Helper Functions", () => {
             const result = initializeObjectState({
                 disabled: false,
                 isCreate: false,
-                objectType: "TestObject" as GqlModelType,
+                objectType: "TestObject" as ModelType,
                 overrideObject: { id: "override-id", isOverride: true } as any,
                 transform: mockTransform,
                 urlParams: mockUrlParams,
@@ -396,7 +396,7 @@ describe("Helper Functions", () => {
             const result = initializeObjectState({
                 disabled: true,
                 isCreate: false,
-                objectType: "TestObject" as GqlModelType,
+                objectType: "TestObject" as ModelType,
                 transform: mockTransform,
                 urlParams: mockUrlParams,
             });
@@ -410,14 +410,14 @@ describe("Helper Functions", () => {
 
         it("uses cached data when available", () => {
             // Store partial data
-            setCookiePartialData({ __typename: "TestObject" as GqlModelType, id: mockUrlParams.id, isPartial: true } as any, "full");
+            setCookiePartialData({ __typename: "TestObject" as ModelType, id: mockUrlParams.id, isPartial: true } as any, "full");
             // Also store form data to ensure it's not used
-            setCookieFormData("TestObject" as GqlModelType, DUMMY_ID, { id: mockUrlParams.id, isPartial: false });
+            setCookieFormData("TestObject" as ModelType, DUMMY_ID, { id: mockUrlParams.id, isPartial: false });
 
             const result = initializeObjectState({
                 disabled: false,
                 isCreate: false,
-                objectType: "TestObject" as GqlModelType,
+                objectType: "TestObject" as ModelType,
                 transform: mockTransform,
                 urlParams: mockUrlParams,
             });
@@ -431,14 +431,14 @@ describe("Helper Functions", () => {
 
         it("uses form data when isCreate is true", () => {
             // Store form data
-            setCookieFormData("TestObject" as GqlModelType, DUMMY_ID, { id: "form-id", isForm: true });
+            setCookieFormData("TestObject" as ModelType, DUMMY_ID, { id: "form-id", isForm: true });
             // Also store partial data to ensure it's not used
-            setCookiePartialData({ __typename: "TestObject" as GqlModelType, id: "form-id", isForm: false } as any, "full");
+            setCookiePartialData({ __typename: "TestObject" as ModelType, id: "form-id", isForm: false } as any, "full");
 
             const result = initializeObjectState({
                 disabled: false,
                 isCreate: true,
-                objectType: "TestObject" as GqlModelType,
+                objectType: "TestObject" as ModelType,
                 transform: mockTransform,
                 urlParams: mockUrlParams,
             });
@@ -523,7 +523,7 @@ describe("Helper Functions", () => {
         });
 
         it("returns cached data when available", () => {
-            const objectType = "TestObject" as GqlModelType;
+            const objectType = "TestObject" as ModelType;
             const urlParams = { id: "12345" };
             const cachedData = { __typename: objectType, id: urlParams.id, name: "Cached Object" };
 
@@ -535,7 +535,7 @@ describe("Helper Functions", () => {
         });
 
         it("returns the data we passed in (i.e. all we know about the object) when no cached data is available", () => {
-            const objectType = "TestObject" as GqlModelType;
+            const objectType = "TestObject" as ModelType;
             const urlParams = { id: "12345" };
 
             // Ensure no data is cached
@@ -560,7 +560,7 @@ describe("Helper Functions", () => {
 
         describe("returns stored form data when available", () => {
             test("create forms", () => {
-                const objectType = "TestObject" as GqlModelType;
+                const objectType = "TestObject" as ModelType;
                 const objectId = "12345";
                 const isCreate = true;
                 const formId = isCreate ? DUMMY_ID : objectId;
@@ -575,7 +575,7 @@ describe("Helper Functions", () => {
                 expect(result).toEqual(formData);
             });
             test("update forms", () => {
-                const objectType = "TestObject" as GqlModelType;
+                const objectType = "TestObject" as ModelType;
                 const objectId = "12345";
                 const isCreate = false;
                 const formId = isCreate ? DUMMY_ID : objectId;
@@ -593,17 +593,17 @@ describe("Helper Functions", () => {
 
         it("returns undefined when no stored form data is available", () => {
             // Store irrelevant form data to make sure it's not returned
-            setCookieFormData("OtherObject" as GqlModelType, "12345", { id: "12345", name: "Irrelevant Object" });
+            setCookieFormData("OtherObject" as ModelType, "12345", { id: "12345", name: "Irrelevant Object" });
 
             const result = getStoredFormData({
-                objectType: "TestObject" as GqlModelType,
+                objectType: "TestObject" as ModelType,
                 isCreate: true,
                 urlParams: { id: "12345" },
             });
             expect(result).toBeUndefined();
 
             const result2 = getStoredFormData({
-                objectType: "TestObject" as GqlModelType,
+                objectType: "TestObject" as ModelType,
                 isCreate: false,
                 urlParams: { id: "12345" },
             });

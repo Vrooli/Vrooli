@@ -1,6 +1,5 @@
 import { RequestService } from "../auth/request";
-import { addSupplementalFields } from "../builders/addSupplementalFields";
-import { toPartialGqlInfo } from "../builders/toPartialGqlInfo";
+import { addSupplementalFields, InfoConverter } from "../builders/infoConverter";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
 import { RecursivePartial } from "../types";
@@ -22,7 +21,7 @@ export async function updateManyHelper<ObjectModel>({
     // Get formatter and id field
     const format = ModelMap.get(objectType).format;
     // Partially convert info type
-    const partialInfo = toPartialGqlInfo(info, format.gqlRelMap, true);
+    const partialInfo = InfoConverter.fromApiToPartialApi(info, format.apiRelMap, true);
     // Create objects. cudHelper will check permissions
     const updated = await cudHelper({
         additionalData,

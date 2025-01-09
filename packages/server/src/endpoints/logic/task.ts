@@ -14,7 +14,7 @@ export type EndpointsTask = {
 }
 
 export const task: EndpointsTask = {
-    checkStatuses: async (_, { input }, { req }) => {
+    checkStatuses: async ({ input }, { req }) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
         const result: CheckTaskStatusesResult = {
             __typename: "CheckTaskStatusesResult",
@@ -33,7 +33,7 @@ export const task: EndpointsTask = {
         }
         return result;
     },
-    startLlmTask: async (_, { input }, { req }) => {
+    startLlmTask: async ({ input }, { req }) => {
         const userData = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 1000, req });
 
@@ -44,7 +44,7 @@ export const task: EndpointsTask = {
             userData,
         });
     },
-    startRunTask: async (_, { input }, { req }) => {
+    startRunTask: async ({ input }, { req }) => {
         const userData = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 1000, req });
 
@@ -75,7 +75,7 @@ export const task: EndpointsTask = {
             return { __typename: "Success", success: false } as const;
         }
     },
-    cancelTask: async (_, { input }, { req }) => {
+    cancelTask: async ({ input }, { req }) => {
         const userData = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 1000, req });
 

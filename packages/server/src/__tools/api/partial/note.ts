@@ -1,8 +1,8 @@
 import { Note, NoteYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const noteYou: GqlPartial<NoteYou> = {
+export const noteYou: ApiPartial<NoteYou> = {
     common: {
         canDelete: true,
         canBookmark: true,
@@ -16,7 +16,7 @@ export const noteYou: GqlPartial<NoteYou> = {
     },
 };
 
-export const note: GqlPartial<Note> = {
+export const note: ApiPartial<Note> = {
     common: {
         id: true,
         created_at: true,

@@ -1,9 +1,9 @@
 import { ResourceList, ResourceListTranslation } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 import { resource } from "./resource";
 
-export const resourceListTranslation: GqlPartial<ResourceListTranslation> = {
+export const resourceListTranslation: ApiPartial<ResourceListTranslation> = {
     common: {
         id: true,
         language: true,
@@ -12,7 +12,7 @@ export const resourceListTranslation: GqlPartial<ResourceListTranslation> = {
     },
 };
 
-export const resourceList: GqlPartial<ResourceList> = {
+export const resourceList: ApiPartial<ResourceList> = {
     common: {
         id: true,
         created_at: true,

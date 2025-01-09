@@ -1,7 +1,7 @@
 import { Success } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 
-export const success: GqlPartial<Success> = {
+export const success: ApiPartial<Success> = {
     full: {
         success: true,
     },

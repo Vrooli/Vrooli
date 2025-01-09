@@ -1,7 +1,7 @@
 import { Phone } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 
-export const phone: GqlPartial<Phone> = {
+export const phone: ApiPartial<Phone> = {
     full: {
         id: true,
         phoneNumber: true,

@@ -11,7 +11,7 @@
  * We want objects to be owned by teams rather than users, as this means the objects are tied to 
  * the team's governance structure.
  */
-import { GqlModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, ObjectLimitPrivacy, SessionUser } from "@local/shared";
+import { ModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, ObjectLimitPrivacy, SessionUser } from "@local/shared";
 import { PrismaDelegate } from "../builders/types";
 import { getVisibilityFunc } from "../builders/visibilityBuilder";
 import { prismaInstance } from "../db/instance";
@@ -133,7 +133,7 @@ export async function maxObjectsCheck(
     userData: SessionUser,
 ) {
     // Initialize counts. This is used to count how many objects a user or team will have after every action is applied.
-    const counts: { [key in GqlModelType]?: { [ownerId: string]: { private: number, public: number } } } = {};
+    const counts: { [key in ModelType]?: { [ownerId: string]: { private: number, public: number } } } = {};
     // Loop through every "Create" action, and increment the count for the object type
     if (idsByAction.Create) {
         for (const id of idsByAction.Create) {
@@ -182,8 +182,8 @@ export async function maxObjectsCheck(
     // Loop through every object type in the counts object
     for (const objectType of Object.keys(counts)) {
         // Get delegate and validate functions for the object type
-        const delegator = prismaInstance[ModelMap.get(objectType as GqlModelType, true, "maxObjectsCheck 3").dbTable] as PrismaDelegate;
-        const validator = ModelMap.get(objectType as GqlModelType, true, "maxObjectsCheck 4").validate();
+        const delegator = prismaInstance[ModelMap.get(objectType as ModelType, true, "maxObjectsCheck 3").dbTable] as PrismaDelegate;
+        const validator = ModelMap.get(objectType as ModelType, true, "maxObjectsCheck 4").validate();
         // Loop through every owner in the counts object
         for (const ownerId in counts[objectType]!) {
             // Query the database for the current counts of objects owned by the owner
@@ -191,8 +191,8 @@ export async function maxObjectsCheck(
             let currCountPrivate = 0;
             let currCountPublic = 0;
             // Some objects don't support private/public, so may have null visibility functions. We can ignore these.
-            const privateVisibility = getVisibilityFunc(objectType as GqlModelType, "OwnPrivate", false);
-            const publicVisibility = getVisibilityFunc(objectType as GqlModelType, "OwnPublic", false);
+            const privateVisibility = getVisibilityFunc(objectType as ModelType, "OwnPrivate", false);
+            const publicVisibility = getVisibilityFunc(objectType as ModelType, "OwnPublic", false);
             if (privateVisibility) currCountPrivate = await delegator.count({ where: privateVisibility(searchData) });
             if (publicVisibility) currCountPublic = await delegator.count({ where: publicVisibility(searchData) });
             // Add count obtained from add and deletes to the current counts

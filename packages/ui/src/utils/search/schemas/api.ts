@@ -1,4 +1,4 @@
-import { ApiSortBy, FormSchema, endpointGetApi, endpointGetApis } from "@local/shared";
+import { ApiSortBy, FormSchema, endpointsApi } from "@local/shared";
 import { toParams } from "./base";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
 
@@ -23,6 +23,6 @@ export function apiSearchSchema(): FormSchema {
 }
 
 export function apiSearchParams() {
-    return toParams(apiSearchSchema(), endpointGetApis, endpointGetApi, ApiSortBy, ApiSortBy.ScoreDesc);
+    return toParams(apiSearchSchema(), endpointsApi, ApiSortBy, ApiSortBy.ScoreDesc);
 }
 

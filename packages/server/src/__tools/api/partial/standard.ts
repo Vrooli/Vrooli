@@ -1,8 +1,8 @@
 import { Standard, StandardYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const standardYou: GqlPartial<StandardYou> = {
+export const standardYou: ApiPartial<StandardYou> = {
     common: {
         canDelete: true,
         canBookmark: true,
@@ -16,7 +16,7 @@ export const standardYou: GqlPartial<StandardYou> = {
     },
 };
 
-export const standard: GqlPartial<Standard> = {
+export const standard: ApiPartial<Standard> = {
     common: {
         id: true,
         created_at: true,

@@ -32,8 +32,8 @@ export const AwardModel: AwardModelLogic = ({
         searchStringQuery: () => ({}),
         supplemental: {
             dbFields: ["category", "progress"],
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, objects, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, objects, userData }) => {
                 // Find name and description of highest tier achieved
                 const titles: (string | null)[] = [];
                 const descriptions: (string | null)[] = [];

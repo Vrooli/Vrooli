@@ -8,7 +8,7 @@ export type EndpointsTranslate = {
 }
 
 export const translate: EndpointsTranslate = {
-    translate: async (_, { input }, { req }, info) => {
+    translate: async ({ input }, { req }, info) => {
         return {} as any;
         throw new CustomError("0328", "NotImplemented");
         // Get IETF subtags for source and target languages

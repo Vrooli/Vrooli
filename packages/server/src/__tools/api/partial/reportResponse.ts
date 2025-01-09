@@ -1,8 +1,8 @@
 import { ReportResponse, ReportResponseYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const reportResponseYou: GqlPartial<ReportResponseYou> = {
+export const reportResponseYou: ApiPartial<ReportResponseYou> = {
     common: {
         canDelete: true,
         canUpdate: true,
@@ -10,7 +10,7 @@ export const reportResponseYou: GqlPartial<ReportResponseYou> = {
 };
 
 
-export const reportResponse: GqlPartial<ReportResponse> = {
+export const reportResponse: ApiPartial<ReportResponse> = {
     common: {
         id: true,
         created_at: true,

@@ -1,8 +1,8 @@
 import { NodeEnd } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const nodeEnd: GqlPartial<NodeEnd> = {
+export const nodeEnd: ApiPartial<NodeEnd> = {
     common: {
         id: true,
         wasSuccessful: true,

@@ -143,11 +143,11 @@ export const CodeVersionModel: CodeVersionModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<CodeVersionModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<CodeVersionModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -157,10 +157,10 @@ export const CodeVersionModel: CodeVersionModelLogic = ({
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<CodeVersionModelInfo["PrismaSelect"]>([["root", "Code"]], data, ...rest),
+            oneIsPublic<CodeVersionModelInfo["DbSelect"]>([["root", "Code"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<CodeModelLogic>("Code").validate().owner(data?.root as CodeModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<CodeModelLogic>("Code").validate().owner(data?.root as CodeModelInfo["DbModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

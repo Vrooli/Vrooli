@@ -1,7 +1,7 @@
 import { StatsRoutine } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 
-export const statsRoutine: GqlPartial<StatsRoutine> = {
+export const statsRoutine: ApiPartial<StatsRoutine> = {
     full: {
         id: true,
         periodStart: true,

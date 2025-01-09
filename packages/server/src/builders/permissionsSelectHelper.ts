@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/shared";
+import { ModelType } from "@local/shared";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
 import { PermissionsMap } from "../models/types";
@@ -48,11 +48,11 @@ export function permissionsSelectHelper<Select extends { [x: string]: any }>(
         const value = map[key];
         // If the value is an array
         if (Array.isArray(value)) {
-            // If array is of length 2, where the first element is a GqlModelType and the second is a string array, 
+            // If array is of length 2, where the first element is a ModelType and the second is a string array, 
             // attempt to recurse using substitution
-            if (value.length === 2 && typeof value[0] === "string" && value[0] in GqlModelType && Array.isArray(value[1])) {
+            if (value.length === 2 && typeof value[0] === "string" && value[0] in ModelType && Array.isArray(value[1])) {
                 // Check if the validator exists. If not, assume this is not a substitution and add it to the result
-                const validate = ModelMap.get(value[0] as GqlModelType, false)?.validate;
+                const validate = ModelMap.get(value[0] as ModelType, false)?.validate;
                 if (!validate) {
                     result[key] = value;
                 }
@@ -80,10 +80,10 @@ export function permissionsSelectHelper<Select extends { [x: string]: any }>(
             const childOmitFields = removeFirstDotLayer(omitFields);
             result[key] = permissionsSelectHelper(value, userId, languages, recursionDepth + 1, childOmitFields);
         }
-        // If the value is a GqlModelType, attempt to recurse using substitution
-        else if (typeof value === "string" && value in GqlModelType) {
+        // If the value is a ModelType, attempt to recurse using substitution
+        else if (typeof value === "string" && value in ModelType) {
             // Check if the validator exists. If not, assume this is some other string and add it to the result
-            const validate = ModelMap.get(value as GqlModelType, false)?.validate;
+            const validate = ModelMap.get(value as ModelType, false)?.validate;
             if (!validate) {
                 result[key] = value;
             }

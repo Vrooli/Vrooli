@@ -1,4 +1,4 @@
-import { AITaskInfo, CheckTaskStatusesInput, CheckTaskStatusesResult, DUMMY_ID, LlmTask, StartLlmTaskInput, TaskContextInfo, TaskType, VALYXA_ID, endpointGetCheckTaskStatuses, endpointPostStartLlmTask, getTranslation, uuid } from "@local/shared";
+import { AITaskInfo, CheckTaskStatusesInput, CheckTaskStatusesResult, DUMMY_ID, LlmTask, StartLlmTaskInput, TaskContextInfo, TaskType, VALYXA_ID, endpointsTask, getTranslation, uuid } from "@local/shared";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { ActiveChatContext } from "contexts";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -164,7 +164,7 @@ export function useAutoFill<T = object>({
     const contextId = useRef<string>(uuid());
 
     // Starts the autofill process in the server. Must listen to socket events for the result
-    const [startLlmTask, { loading: isStartingLlmTask }] = useLazyFetch<StartLlmTaskInput, undefined>(endpointPostStartLlmTask);
+    const [startLlmTask, { loading: isStartingLlmTask }] = useLazyFetch<StartLlmTaskInput, undefined>(endpointsTask.startLlmTask);
     const autoFill = useCallback(function autoFillCallback() {
         const chatId = chat?.id;
         if (!chatId) {
@@ -619,7 +619,7 @@ export function useChatTasks({
     }, [handleActiveTaskChange, handleInactiveTasksChange]);
 
     // Query for tasks which are in a running state, to see if they were completed when we were offline
-    const [getTaskData, { data: fetchedTaskData, loading: isTaskLoading }] = useLazyFetch<CheckTaskStatusesInput, CheckTaskStatusesResult>(endpointGetCheckTaskStatuses);
+    const [getTaskData, { data: fetchedTaskData, loading: isTaskLoading }] = useLazyFetch<CheckTaskStatusesInput, CheckTaskStatusesResult>(endpointsTask.checkStatuses);
 
     // Fetch task data when the chat ID changes
     const hasCheckedRunningTasks = useRef(false);

@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkListSearchInput, BookmarkListSearchResult, BookmarkSearchInput, BookmarkSearchResult, CopyInput, CopyResult, CopyType, Count, DeleteManyInput, DeleteOneInput, DeleteType, GqlModelType, LINKS, ListObject, ReactInput, ReactionFor, Role, Success, User, endpointGetBookmarkLists, endpointGetBookmarks, endpointPostBookmark, endpointPostCopy, endpointPostDeleteMany, endpointPostDeleteOne, endpointPostReact, exists, getReactionScore, setDotNotationValue, shapeBookmark, uuid } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkListSearchInput, BookmarkListSearchResult, BookmarkSearchInput, BookmarkSearchResult, CopyInput, CopyResult, CopyType, Count, DeleteManyInput, DeleteOneInput, DeleteType, LINKS, ListObject, ModelType, ReactInput, ReactionFor, Role, Success, User, endpointsActions, endpointsBookmark, endpointsBookmarkList, endpointsReaction, exists, getReactionScore, setDotNotationValue, shapeBookmark, uuid } from "@local/shared";
 import { fetchData } from "api/fetchData";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { ServerResponseParser } from "api/responseParser";
@@ -39,7 +39,7 @@ export const useBookmarkListsStore = create<BookmarkListsState>()((set, get) => 
 
         try {
             const response = await fetchData<BookmarkListSearchInput, BookmarkListSearchResult>({
-                ...endpointGetBookmarkLists,
+                ...endpointsBookmarkList.findMany,
                 inputs: {},
             });
 
@@ -62,7 +62,7 @@ export const useBookmarkListsStore = create<BookmarkListsState>()((set, get) => 
 
 type UseBookmarkerProps = {
     objectId: string | null | undefined;
-    objectType: `${GqlModelType}` | undefined;
+    objectType: `${ModelType}` | undefined;
     onActionComplete: <T extends "Bookmark" | "BookmarkUndo">(action: T, data: ActionCompletePayloads[T]) => unknown;
 };
 
@@ -76,11 +76,11 @@ export function useBookmarker({
 }: UseBookmarkerProps) {
     const fetchBookmarkLists = useBookmarkListsStore(state => state.fetchBookmarkLists);
 
-    const [addBookmark] = useLazyFetch<BookmarkCreateInput, Bookmark>(endpointPostBookmark);
-    const [deleteOne] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
+    const [addBookmark] = useLazyFetch<BookmarkCreateInput, Bookmark>(endpointsBookmark.createOne);
+    const [deleteOne] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
     // In most cases, we must query for bookmarks to remove them, since 
     // we usually only know that an object has a bookmark - not the bookmarks themselves
-    const [getData] = useLazyFetch<BookmarkSearchInput, BookmarkSearchResult>(endpointGetBookmarks);
+    const [getData] = useLazyFetch<BookmarkSearchInput, BookmarkSearchResult>(endpointsBookmark.findMany);
 
     const hasBookmarkingSupport = objectType && objectType in BookmarkFor;
 
@@ -196,7 +196,7 @@ export function useBulkDeleter({
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const closeDeleteDialog = useCallback(() => { setIsDeleteDialogOpen(false); }, []);
 
-    const [deleteMany] = useLazyFetch<DeleteManyInput, Count>(endpointPostDeleteMany);
+    const [deleteMany] = useLazyFetch<DeleteManyInput, Count>(endpointsActions.deleteMany);
 
     const doBulkDelete = useCallback((confirmedForDeletion: ListObject[]) => {
         if (!selectedData || !selectedData.length) {
@@ -408,7 +408,7 @@ export function useBulkObjectActions<T extends ListObject = ListObject>({
 type UseCopierProps = {
     objectId: string | null | undefined;
     objectName: string | null | undefined;
-    objectType: `${GqlModelType}` | undefined;
+    objectType: `${ModelType}` | undefined;
     onActionComplete: <T extends "Fork">(action: T, data: ActionCompletePayloads[T]) => unknown;
 }
 
@@ -421,7 +421,7 @@ export function useCopier({
     objectType,
     onActionComplete,
 }: UseCopierProps) {
-    const [copy] = useLazyFetch<CopyInput, CopyResult>(endpointPostCopy);
+    const [copy] = useLazyFetch<CopyInput, CopyResult>(endpointsActions.copy);
 
     const hasCopyingSupport = objectType && objectType in CopyType;
 
@@ -506,7 +506,7 @@ export function useDeleter({
     onActionComplete,
 }: {
     object: ListObject | null | undefined;
-    objectType: `${GqlModelType}`;
+    objectType: `${ModelType}`;
     onActionComplete: <T extends "Delete">(action: T, data: ActionCompletePayloads[T]) => unknown;
 }) {
     const [, setLocation] = useLocation();
@@ -515,7 +515,7 @@ export function useDeleter({
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const closeDeleteDialog = useCallback(() => { setIsDeleteDialogOpen(false); }, []);
 
-    const [deleteOne] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
+    const [deleteOne] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
     const doDelete = useCallback(() => {
         if (!object || !objectType) {
             console.error("Missing object or objectType");
@@ -734,18 +734,18 @@ export function useObjectActions({
         isBookmarkDialogOpen,
     } = useBookmarker({
         objectId: object?.root?.id ?? object?.id, // Can only bookmark root objects
-        objectType: objectType?.replace("Version", "") as GqlModelType | undefined,
+        objectType: objectType?.replace("Version", "") as ModelType | undefined,
         onActionComplete,
     });
     const { handleCopy } = useCopier({
         objectId: object?.id,
         objectName: getDisplay(object).title,
-        objectType: objectType as GqlModelType | undefined,
+        objectType: objectType as ModelType | undefined,
         onActionComplete,
     });
     const { handleVote } = useVoter({
         objectId: object?.root?.id ?? object?.id, // Can only vote on root objects
-        objectType: objectType?.replace("Version", "") as GqlModelType | undefined,
+        objectType: objectType?.replace("Version", "") as ModelType | undefined,
         onActionComplete,
     });
     const {
@@ -755,7 +755,7 @@ export function useObjectActions({
         DeleteDialogComponent,
     } = useDeleter({
         object,
-        objectType: objectType as GqlModelType,
+        objectType: objectType as ModelType,
         onActionComplete,
     });
 
@@ -853,7 +853,7 @@ export function useObjectActions({
 
 type UseVoterProps = {
     objectId: string | null | undefined;
-    objectType: `${GqlModelType}` | undefined;
+    objectType: `${ModelType}` | undefined;
     onActionComplete: <T extends "VoteDown" | "VoteUp">(action: T, data: ActionCompletePayloads[T]) => unknown;
 }
 
@@ -865,7 +865,7 @@ export function useVoter({
     objectType,
     onActionComplete,
 }: UseVoterProps) {
-    const [fetch] = useLazyFetch<ReactInput, Success>(endpointPostReact);
+    const [fetch] = useLazyFetch<ReactInput, Success>(endpointsReaction.createOne);
 
     const hasVotingSupport = objectType && objectType in ReactionFor;
 

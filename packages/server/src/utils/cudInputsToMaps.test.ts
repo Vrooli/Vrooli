@@ -669,7 +669,7 @@ describe("updateClosestWithId", () => {
 
 describe("determineModelType", () => {
     const commentFormat = {
-        gqlRelMap: {
+        apiRelMap: {
             __typename: "Comment",
             owner: {
                 ownedByUser: "User",
@@ -688,7 +688,7 @@ describe("determineModelType", () => {
     };
 
     const labelFormat = {
-        gqlRelMap: {
+        apiRelMap: {
             __typename: "Label",
             owner: {
                 ownedByUser: "User",
@@ -721,7 +721,7 @@ describe("determineModelType", () => {
         expect(__typename).toBeNull();
     });
 
-    it("throws an error when field is not found in gqlRelMap", () => {
+    it("throws an error when field is not found in apiRelMap", () => {
         expect(() => {
             determineModelType("nonexistentFieldCreate", "nonexistentField", {}, commentFormat);
         }).toThrowError("InternalError");
@@ -751,7 +751,7 @@ describe("processCreateOrUpdate", () => {
     });
 
     it("correctly processes a 'Create' action with closestWithId", () => {
-        const childFormat = { gqlRelMap: { __typename: "User" as const } };
+        const childFormat = { apiRelMap: { __typename: "User" as const } };
         const childInput = { id: "childID", name: "Test", someRelation: { id: "789" } };
         const action = "Create";
         const fieldName = "child";
@@ -772,7 +772,7 @@ describe("processCreateOrUpdate", () => {
     });
 
     it("correctly processes a 'Create' action without closestWithId", () => {
-        const childFormat = { gqlRelMap: { __typename: "User" as const } };
+        const childFormat = { apiRelMap: { __typename: "User" as const } };
         const childInput = { id: "childID", name: "Test", someRelation: { id: "789" } };
         const action = "Create";
         const fieldName = "child";
@@ -794,7 +794,7 @@ describe("processCreateOrUpdate", () => {
 
 
     it("correctly processes an 'Update' action with closestWithId", () => {
-        const childFormat = { gqlRelMap: { __typename: "User" as const } };
+        const childFormat = { apiRelMap: { __typename: "User" as const } };
         const childInput = { id: "childID", name: "Test", someRelation: { id: "789" } };
         const action = "Update";
         const fieldName = "child";
@@ -815,7 +815,7 @@ describe("processCreateOrUpdate", () => {
     });
 
     it("throws an error when processing an 'Update' action without closestWithId", () => {
-        const childFormat = { gqlRelMap: { __typename: "User" as const } };
+        const childFormat = { apiRelMap: { __typename: "User" as const } };
         const childInput = { id: "childID", name: "Test", someRelation: { id: "789" } };
         const action = "Update";
         const fieldName = "child";
@@ -827,7 +827,7 @@ describe("processCreateOrUpdate", () => {
     });
 
     it("throws an error for invalid actions", () => {
-        const childFormat = { gqlRelMap: { __typename: "User" as const } };
+        const childFormat = { apiRelMap: { __typename: "User" as const } };
         const childInput = { id: "childID", name: "Test", someRelation: { id: "789" } };
         const action = "Connect"; // This is process CREATE or UPDATE, not CONNECT
         const fieldName = "child";
@@ -839,7 +839,7 @@ describe("processCreateOrUpdate", () => {
     });
 
     it("correctly processes multiple different objects", () => {
-        const childFormat = { gqlRelMap: { __typename: "User" as const } };
+        const childFormat = { apiRelMap: { __typename: "User" as const } };
         const firstChildInput = { id: "childID1", name: "TestUser1", someRelation: { id: "789" } };
         const secondChildInput = { id: "childID2", name: "TestUser2", someRelation: { id: "790" } };
         const action = "Create";
@@ -851,7 +851,7 @@ describe("processCreateOrUpdate", () => {
         processCreateOrUpdate(action, secondChildInput, childFormat, fieldName, idField, parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType);
 
         expect(idsByAction[action]).toEqual(expect.arrayContaining([firstChildInput.id, secondChildInput.id]));
-        expect(idsByType[childFormat.gqlRelMap.__typename]).toEqual(expect.arrayContaining([firstChildInput.id, secondChildInput.id]));
+        expect(idsByType[childFormat.apiRelMap.__typename]).toEqual(expect.arrayContaining([firstChildInput.id, secondChildInput.id]));
         expect(parentNode.children).toHaveLength(2);
         // Ensure each child node has the expected properties
         expect(parentNode.children[0].id).toEqual(firstChildInput.id);
@@ -1013,7 +1013,7 @@ describe("processInputObjectField", () => {
         inputsByType = JSON.parse(JSON.stringify(initialInputsByType));
         inputInfo = { node: parentNode, input: {} };
         format = {
-            gqlRelMap: {
+            apiRelMap: {
                 __typename: "User" as const,
                 project: "Project",
                 reports: "Report",
@@ -1515,7 +1515,7 @@ describe("inputToMaps", () => {
         inputsById = JSON.parse(JSON.stringify(initialInputsById));
         inputsByType = JSON.parse(JSON.stringify(initialInputsByType));
         format = {
-            gqlRelMap: {
+            apiRelMap: {
                 __typename: "User" as const,
                 api: "Api",
                 code: "Code",

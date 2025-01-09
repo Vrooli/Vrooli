@@ -1,8 +1,8 @@
 import { ScheduleException } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const scheduleException: GqlPartial<ScheduleException> = {
+export const scheduleException: ApiPartial<ScheduleException> = {
     common: {
         id: true,
         originalStartTime: true,

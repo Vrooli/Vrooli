@@ -1,4 +1,4 @@
-import { GqlModelType, SessionUser } from "@local/shared";
+import { ModelType, SessionUser } from "@local/shared";
 import { PrismaDelegate } from "../../builders/types";
 import { prismaInstance } from "../../db/instance";
 import { Trigger } from "../../events/trigger";
@@ -19,7 +19,7 @@ export async function afterMutationsPlain({
 }: {
     createdIds: string[],
     deletedIds: string[],
-    objectType: GqlModelType | `${GqlModelType}`,
+    objectType: ModelType | `${ModelType}`,
     ownerTeamField?: string,
     ownerUserField?: string,
     updatedIds: string[]
@@ -89,4 +89,4 @@ export async function afterMutationsPlain({
             objectType,
         });
     }
-};
+}

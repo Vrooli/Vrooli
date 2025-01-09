@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/shared";
+import { ModelType } from "@local/shared";
 import { shapeHelper, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper";
 import { RelationshipType } from "../../builders/types";
 import { EmbeddingLanguageUpdateMap } from "./preShapeEmbeddableTranslatable";
@@ -34,7 +34,7 @@ export const translationShapeHelper = async <
             })),
         },
         isOneToOne: false,
-        objectType: "Translation" as GqlModelType,
+        objectType: "Translation" as ModelType,
         parentRelationshipName: "",
         relation: "translations",
         ...rest,

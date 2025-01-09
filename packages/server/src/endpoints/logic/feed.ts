@@ -2,23 +2,22 @@ import { ApiSortBy, CodeSortBy, HomeResult, NoteSortBy, PageInfo, Popular, Popul
 import { readManyAsFeedHelper } from "../../actions/reads";
 import { RequestService } from "../../auth/request";
 import { SessionService } from "../../auth/session";
-import { addSupplementalFieldsMultiTypes } from "../../builders/addSupplementalFieldsMultiTypes";
-import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
-import { ApiEndpointInfo } from "../../builders/types";
+import { InfoConverter, addSupplementalFieldsMultiTypes } from "../../builders/infoConverter";
+import { PartialApiInfo } from "../../builders/types";
 import { schedulesWhereInTimeframe } from "../../events/schedule";
 import { ApiEndpoint } from "../../types";
 
 const SCHEDULES_DAYS_TO_LOOK_AHEAD = 7;
 
 export type EndpointsFeed = {
-    home: ApiEndpoint<Record<string, never>, HomeResult>;
+    home: ApiEndpoint<never, HomeResult>;
     popular: ApiEndpoint<PopularSearchInput, PopularSearchResult>;
 }
 
 export const feed: EndpointsFeed = {
-    home: async (_p, _i, { req }, info) => {
+    home: async (_i, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 5000, req });
-        const partial = toPartialGqlInfo(info, {
+        const partial = InfoConverter.fromApiToPartialApi(info, {
             __typename: "HomeResult",
             recommended: "Resource",
             reminders: "Reminder",
@@ -38,7 +37,7 @@ export const feed: EndpointsFeed = {
                     focusMode: null,
                 },
             },
-            info: partial.reminders as ApiEndpointInfo,
+            info: partial.reminders as PartialApiInfo,
             input: { take, sortBy: ReminderSortBy.DateCreatedAsc, isComplete: false, visibility: VisibilityType.Own },
             objectType: "Reminder",
         });
@@ -51,7 +50,7 @@ export const feed: EndpointsFeed = {
                     focusMode: null,
                 },
             },
-            info: partial.resources as ApiEndpointInfo,
+            info: partial.resources as PartialApiInfo,
             input: { take, visibility: VisibilityType.Own },
             objectType: "Resource",
         });
@@ -65,7 +64,7 @@ export const feed: EndpointsFeed = {
             additionalQueries: {
                 ...schedulesWhereInTimeframe(startDate, endDate),
             },
-            info: partial.schedules as ApiEndpointInfo,
+            info: partial.schedules as PartialApiInfo,
             input: { take, sortBy: ScheduleSortBy.EndTimeAsc, visibility: VisibilityType.Own },
             objectType: "Schedule",
         });
@@ -82,9 +81,10 @@ export const feed: EndpointsFeed = {
             ...withSupplemental,
         };
     },
-    popular: async (_, { input }, { req }, info) => {
+    popular: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 5000, req });
-        const partial = toPartialGqlInfo(info, {
+        console.log("popular info", JSON.stringify(info, null, 4));
+        const partial = InfoConverter.fromApiToPartialApi(info, {
             __typename: "PopularResult",
             Api: "Api",
             Code: "Code",
@@ -121,7 +121,7 @@ export const feed: EndpointsFeed = {
         const { nodes: apis, pageInfo: apisInfo } = shouldInclude("Api") ? await readManyAsFeedHelper({
             ...commonReadParams,
             additionalQueries: { isPrivate: false },
-            info: partial.Api as ApiEndpointInfo,
+            info: partial.Api as PartialApiInfo,
             input: {
                 ...commonInputParams,
                 after: input.apiAfter,
@@ -133,7 +133,7 @@ export const feed: EndpointsFeed = {
         const { nodes: notes, pageInfo: notesInfo } = shouldInclude("Note") ? await readManyAsFeedHelper({
             ...commonReadParams,
             additionalQueries: { isPrivate: false },
-            info: partial.Note as ApiEndpointInfo,
+            info: partial.Note as PartialApiInfo,
             input: {
                 ...commonInputParams,
                 after: input.noteAfter,
@@ -145,7 +145,7 @@ export const feed: EndpointsFeed = {
         const { nodes: teams, pageInfo: teamsInfo } = shouldInclude("Team") ? await readManyAsFeedHelper({
             ...commonReadParams,
             additionalQueries: { isPrivate: false },
-            info: partial.Team as ApiEndpointInfo,
+            info: partial.Team as PartialApiInfo,
             input: {
                 ...commonInputParams,
                 after: input.teamAfter,
@@ -157,7 +157,7 @@ export const feed: EndpointsFeed = {
         const { nodes: projects, pageInfo: projectsInfo } = shouldInclude("Project") ? await readManyAsFeedHelper({
             ...commonReadParams,
             additionalQueries: { isPrivate: false },
-            info: partial.Project as ApiEndpointInfo,
+            info: partial.Project as PartialApiInfo,
             input: {
                 ...commonInputParams,
                 after: input.projectAfter,
@@ -178,7 +178,7 @@ export const feed: EndpointsFeed = {
                 standard: null,
                 team: null,
             },
-            info: partial.Question as ApiEndpointInfo,
+            info: partial.Question as PartialApiInfo,
             input: {
                 ...commonInputParams,
                 after: input.questionAfter,
@@ -190,7 +190,7 @@ export const feed: EndpointsFeed = {
         const { nodes: routines, pageInfo: routinesInfo } = shouldInclude("Routine") ? await readManyAsFeedHelper({
             ...commonReadParams,
             additionalQueries: { isPrivate: false },
-            info: partial.Routine as ApiEndpointInfo,
+            info: partial.Routine as PartialApiInfo,
             input: {
                 ...commonInputParams,
                 after: input.routineAfter,
@@ -203,7 +203,7 @@ export const feed: EndpointsFeed = {
         const { nodes: codes, pageInfo: codesInfo } = shouldInclude("Code") ? await readManyAsFeedHelper({
             ...commonReadParams,
             additionalQueries: { isPrivate: false },
-            info: partial.Code as ApiEndpointInfo,
+            info: partial.Code as PartialApiInfo,
             input: {
                 ...commonInputParams,
                 after: input.codeAfter,
@@ -215,7 +215,7 @@ export const feed: EndpointsFeed = {
         const { nodes: standards, pageInfo: standardsInfo } = shouldInclude("Standard") ? await readManyAsFeedHelper({
             ...commonReadParams,
             additionalQueries: { isPrivate: false },
-            info: partial.Standard as ApiEndpointInfo,
+            info: partial.Standard as PartialApiInfo,
             input: {
                 ...commonInputParams,
                 after: input.standardAfter,
@@ -229,7 +229,7 @@ export const feed: EndpointsFeed = {
         const { nodes: users, pageInfo: usersInfo } = shouldInclude("User") ? await readManyAsFeedHelper({
             ...commonReadParams,
             additionalQueries: { isPrivate: false },
-            info: partial.User as ApiEndpointInfo,
+            info: partial.User as PartialApiInfo,
             input: {
                 ...commonInputParams,
                 after: input.userAfter,
@@ -249,15 +249,15 @@ export const feed: EndpointsFeed = {
             teams,
             users,
         }, {
-            apis: { type: "Api", ...(partial.Api as ApiEndpointInfo) },
-            codes: { type: "Code", ...(partial.Code as ApiEndpointInfo) },
-            notes: { type: "Note", ...(partial.Note as ApiEndpointInfo) },
-            projects: { type: "Project", ...(partial.Project as ApiEndpointInfo) },
-            questions: { type: "Question", ...(partial.Question as ApiEndpointInfo) },
-            routines: { type: "Routine", ...(partial.Routine as ApiEndpointInfo) },
-            standards: { type: "Standard", ...(partial.Standard as ApiEndpointInfo) },
-            teams: { type: "Team", ...(partial.Team as ApiEndpointInfo) },
-            users: { type: "User", ...(partial.User as ApiEndpointInfo) },
+            apis: { type: "Api", ...(partial.Api as PartialApiInfo) },
+            codes: { type: "Code", ...(partial.Code as PartialApiInfo) },
+            notes: { type: "Note", ...(partial.Note as PartialApiInfo) },
+            projects: { type: "Project", ...(partial.Project as PartialApiInfo) },
+            questions: { type: "Question", ...(partial.Question as PartialApiInfo) },
+            routines: { type: "Routine", ...(partial.Routine as PartialApiInfo) },
+            standards: { type: "Standard", ...(partial.Standard as PartialApiInfo) },
+            teams: { type: "Team", ...(partial.Team as PartialApiInfo) },
+            users: { type: "User", ...(partial.User as PartialApiInfo) },
         }, SessionService.getUser(req.session));
         // Combine nodes, alternating between each type
         const properties = Object.values(withSupplemental);

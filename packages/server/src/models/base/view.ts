@@ -1,8 +1,8 @@
-import { Count, DEFAULT_LANGUAGE, GqlModelType, HOURS_1_MS, MaxObjects, SessionUser, ViewFor, ViewSortBy, lowercaseFirstLetter } from "@local/shared";
+import { Count, DEFAULT_LANGUAGE, HOURS_1_MS, MaxObjects, ModelType, SessionUser, ViewFor, ViewSortBy, lowercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
 import { ModelMap } from ".";
-import { onlyValidIds } from "../../builders/onlyValidIds";
+import { onlyValidIds } from "../../builders/onlyValid";
 import { PrismaDelegate } from "../../builders/types";
 import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
@@ -168,11 +168,11 @@ export const ViewModel: ViewModelLogic = ({
             select: () => ({
                 id: true,
                 ...Object.fromEntries(Object.entries(displayMapper).map(([key, value]) =>
-                    [value, { select: ModelMap.get(key as GqlModelType).display().label.select() }])),
+                    [value, { select: ModelMap.get(key as ModelType).display().label.select() }])),
             }),
             get: (select, languages) => {
                 for (const [key, value] of Object.entries(displayMapper)) {
-                    if (select[value]) return ModelMap.get(key as GqlModelType).display().label.get(select[value], languages);
+                    if (select[value]) return ModelMap.get(key as ModelType).display().label.get(select[value], languages);
                 }
                 return i18next.t("common:View", { lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE, count: 1 });
             },
@@ -188,7 +188,7 @@ export const ViewModel: ViewModelLogic = ({
         searchStringQuery: () => ({
             OR: [
                 "nameWrapped",
-                ...Object.entries(displayMapper).map(([key, value]) => ({ [value]: ModelMap.getLogic(["search"], key as GqlModelType).search.searchStringQuery() })),
+                ...Object.entries(displayMapper).map(([key, value]) => ({ [value]: ModelMap.getLogic(["search"], key as ModelType).search.searchStringQuery() })),
             ],
         }),
     },
@@ -322,7 +322,7 @@ export const ViewModel: ViewModelLogic = ({
             case ViewFor.Standard:
             case ViewFor.StandardVersion: {
                 // Check if ROOT object is owned by this user or by a team they are a member of
-                const { dbTable: rootDbTable } = ModelMap.getLogic(["dbTable"], input.viewFor.replace("Version", "") as GqlModelType, true, "view 2");
+                const { dbTable: rootDbTable } = ModelMap.getLogic(["dbTable"], input.viewFor.replace("Version", "") as ModelType, true, "view 2");
                 const rootObject = await (prismaInstance[rootDbTable] as PrismaDelegate).findFirst({
                     where: {
                         AND: [
@@ -362,7 +362,7 @@ export const ViewModel: ViewModelLogic = ({
                 // If object viewed more than 1 hour ago, update view count
                 if (!lastViewed || new Date(lastViewed).getTime() < new Date().getTime() - HOURS_1_MS) {
                     // View counts don't exist on versioned objects, so we must make sure we are updating the root object
-                    const { dbTable: rootDbTable } = ModelMap.getLogic(["dbTable"], input.viewFor.replace("Version", "") as GqlModelType, true, "view 3");
+                    const { dbTable: rootDbTable } = ModelMap.getLogic(["dbTable"], input.viewFor.replace("Version", "") as ModelType, true, "view 3");
                     await (prismaInstance[rootDbTable] as PrismaDelegate).update({
                         where: { id: input.forId },
                         data: { views: dataMapper[input.viewFor](objectToView).views + 1 },

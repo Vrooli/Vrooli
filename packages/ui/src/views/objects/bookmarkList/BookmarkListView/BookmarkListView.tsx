@@ -1,4 +1,4 @@
-import { Bookmark, BookmarkCreateInput, BookmarkList, deleteArrayIndex, endpointGetBookmarkList, endpointPostBookmark, HistoryPageTabOption, LINKS, shapeBookmark, updateArray, uuid } from "@local/shared";
+import { Bookmark, BookmarkCreateInput, BookmarkList, deleteArrayIndex, endpointsBookmark, endpointsBookmarkList, HistoryPageTabOption, LINKS, shapeBookmark, updateArray, uuid } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
@@ -35,7 +35,7 @@ export function BookmarkListView({
     const [, setLocation] = useLocation();
 
     const { object: existing, isLoading, setObject: setBookmarkList } = useManagedObject<BookmarkList>({
-        ...endpointGetBookmarkList,
+        ...endpointsBookmarkList.findOne,
         objectType: "BookmarkList",
     });
 
@@ -69,7 +69,7 @@ export function BookmarkListView({
         setObject: setBookmarkList,
     });
 
-    const [createBookmark, { loading: isCreating, errors: createErrors }] = useLazyFetch<BookmarkCreateInput, Bookmark>(endpointPostBookmark);
+    const [createBookmark, { loading: isCreating, errors: createErrors }] = useLazyFetch<BookmarkCreateInput, Bookmark>(endpointsBookmark.createOne);
     const addNewBookmark = useCallback(async (to: any) => {
         fetchLazyWrapper<BookmarkCreateInput, Bookmark>({
             fetch: createBookmark,

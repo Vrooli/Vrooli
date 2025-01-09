@@ -1,8 +1,8 @@
 import { Tag, TagTranslation, TagYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const tagTranslation: GqlPartial<TagTranslation> = {
+export const tagTranslation: ApiPartial<TagTranslation> = {
     common: {
         id: true,
         language: true,
@@ -10,14 +10,14 @@ export const tagTranslation: GqlPartial<TagTranslation> = {
     },
 };
 
-export const tagYou: GqlPartial<TagYou> = {
+export const tagYou: ApiPartial<TagYou> = {
     common: {
         isOwn: true,
         isBookmarked: true,
     },
 };
 
-export const tag: GqlPartial<Tag> = {
+export const tag: ApiPartial<Tag> = {
     common: {
         id: true,
         created_at: true,

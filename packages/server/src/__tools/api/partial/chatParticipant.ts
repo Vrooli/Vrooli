@@ -1,8 +1,8 @@
 import { ChatParticipant } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const chatParticipant: GqlPartial<ChatParticipant> = {
+export const chatParticipant: ApiPartial<ChatParticipant> = {
     common: {
         id: true,
         created_at: true,

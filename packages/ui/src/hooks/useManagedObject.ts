@@ -1,4 +1,4 @@
-import { DUMMY_ID, FindByIdInput, FindByIdOrHandleInput, FindVersionInput, GqlModelType, ParseSearchParamsResult, YouInflated, exists, isEqual, parseSearchParams } from "@local/shared";
+import { DUMMY_ID, FindByIdInput, FindByIdOrHandleInput, FindVersionInput, ModelType, ParseSearchParamsResult, YouInflated, exists, isEqual, parseSearchParams } from "@local/shared";
 import { ServerResponseParser } from "api/responseParser";
 import { FetchInputOptions } from "api/types";
 import { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
@@ -11,7 +11,7 @@ import { PubSub } from "utils/pubsub";
 import { useFormCacheStore } from "./forms";
 import { useLazyFetch } from "./useLazyFetch";
 
-type UrlObject = { __typename: GqlModelType | `${GqlModelType}`; id?: string };
+type UrlObject = { __typename: ModelType | `${ModelType}`; id?: string };
 
 type FetchInput = FindByIdInput | FindVersionInput | FindByIdOrHandleInput;
 
@@ -38,7 +38,7 @@ interface UseManagedObjectParams<
     /** The endpoint to fetch data from */
     endpoint: string;
     /** The GraphQL object type (e.g., 'BookmarkList') */
-    objectType: GqlModelType | `${GqlModelType}`;
+    objectType: ModelType | `${ModelType}`;
     /** If true, the hook will not attempt to fetch or load data */
     disabled?: boolean;
     /** If true, shows error snack when fetching fails */
@@ -184,9 +184,9 @@ export function initializeObjectState<
     urlParams,
 }: {
     disabled: boolean;
-    getFormCacheData: ((objectType: GqlModelType | `${GqlModelType}`, id: string) => object | null),
+    getFormCacheData: ((objectType: ModelType | `${ModelType}`, id: string) => object | null),
     isCreate: boolean;
-    objectType: GqlModelType | `${GqlModelType}`;
+    objectType: ModelType | `${ModelType}`;
     overrideObject?: Partial<PData>;
     transform?: TFunc;
     urlParams: UrlInfo;
@@ -315,7 +315,7 @@ export function fetchDataUsingUrl(
 }
 
 type GetCachedDataProps = {
-    objectType: GqlModelType | `${GqlModelType}`;
+    objectType: ModelType | `${ModelType}`;
     urlParams: UrlInfo;
 };
 /**

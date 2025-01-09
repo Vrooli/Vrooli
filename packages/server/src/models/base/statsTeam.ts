@@ -15,7 +15,7 @@ export const StatsTeamModel: StatsTeamModelLogic = ({
             select: () => ({ id: true, team: { select: ModelMap.get<TeamModelLogic>("Team").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE,
-                objectName: ModelMap.get<TeamModelLogic>("Team").display().label.get(select.team as TeamModelInfo["PrismaModel"], languages),
+                objectName: ModelMap.get<TeamModelLogic>("Team").display().label.get(select.team as TeamModelInfo["DbModel"], languages),
             }),
         },
     }),
@@ -37,9 +37,9 @@ export const StatsTeamModel: StatsTeamModelLogic = ({
             team: "Team",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<TeamModelLogic>("Team").validate().owner(data?.team as TeamModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<TeamModelLogic>("Team").validate().owner(data?.team as TeamModelInfo["DbModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<StatsTeamModelInfo["PrismaSelect"]>([["team", "Team"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<StatsTeamModelInfo["DbSelect"]>([["team", "Team"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {

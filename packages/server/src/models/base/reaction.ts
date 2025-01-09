@@ -1,7 +1,7 @@
-import { GqlModelType, MaxObjects, ReactInput, ReactionFor, ReactionSearchInput, ReactionSortBy, SessionUser, camelCase, exists, getReactionScore, lowercaseFirstLetter, removeModifiers, uuid } from "@local/shared";
+import { MaxObjects, ModelType, ReactInput, ReactionFor, ReactionSearchInput, ReactionSortBy, SessionUser, camelCase, exists, getReactionScore, lowercaseFirstLetter, removeModifiers, uuid } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { ModelMap } from ".";
-import { onlyValidIds } from "../../builders/onlyValidIds";
+import { onlyValidIds } from "../../builders/onlyValid";
 import { permissionsSelectHelper } from "../../builders/permissionsSelectHelper";
 import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
@@ -51,12 +51,12 @@ export const ReactionModel: ReactionModelLogic = ({
             select: () => ({
                 id: true,
                 ...Object.keys(ReactionFor).map((key) =>
-                    [reactionForToRelation(key as keyof typeof ReactionFor), { select: ModelMap.get(key as GqlModelType).display().label.select() }]),
+                    [reactionForToRelation(key as keyof typeof ReactionFor), { select: ModelMap.get(key as ModelType).display().label.select() }]),
             }),
             get: (select, languages) => {
                 for (const key of Object.keys(ReactionFor)) {
                     const value = reactionForToRelation(key as keyof typeof ReactionFor);
-                    if (select[value]) return ModelMap.get(key as GqlModelType).display().label.get(select[value], languages);
+                    if (select[value]) return ModelMap.get(key as ModelType).display().label.get(select[value], languages);
                 }
                 return "";
             },
@@ -100,7 +100,7 @@ export const ReactionModel: ReactionModelLogic = ({
      * @returns True if cast correctly (even if skipped because of duplicate)
      */
     react: async (userData: SessionUser, input: ReactInput): Promise<boolean> => {
-        const { dbTable: reactedOnDbTable, validate: reactedOnValidate } = ModelMap.getLogic(["dbTable", "validate"], input.reactionFor as string as GqlModelType, true, `ModelMap.react for ${input.reactionFor}`);
+        const { dbTable: reactedOnDbTable, validate: reactedOnValidate } = ModelMap.getLogic(["dbTable", "validate"], input.reactionFor as string as ModelType, true, `ModelMap.react for ${input.reactionFor}`);
         const reactedOnValidator = reactedOnValidate();
         // Chat messages get additional treatment, as we need to send the updated reaction summaries to the chat room to update open clients
         const isChatMessage = input.reactionFor === "ChatMessage";
@@ -294,7 +294,7 @@ export const ReactionModel: ReactionModelLogic = ({
         isPublic: function getIsPublic(data, ...rest) {
             if (!data.by) return false;
             if (data.by.isPrivateVotes) return false;
-            return oneIsPublic<ReactionModelInfo["PrismaSelect"]>([
+            return oneIsPublic<ReactionModelInfo["DbSelect"]>([
                 ["api", "Api"],
                 ["chatMessage", "ChatMessage"],
                 ["code", "Code"],
@@ -350,7 +350,7 @@ export const ReactionModel: ReactionModelLogic = ({
                 );
                 if (forSearch) {
                     const relation = forSearch.substring(0, forSearch.length - "Id".length);
-                    return { [relation]: useVisibility(reversedForMapper[relation] as GqlModelType, "Public", data) };
+                    return { [relation]: useVisibility(reversedForMapper[relation] as ModelType, "Public", data) };
                 }
                 // Otherwise, use an OR on all relations
                 return {

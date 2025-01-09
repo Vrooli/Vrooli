@@ -1,5 +1,5 @@
 import * as yup from "yup";
-import { ResourceUsedFor } from "../../api/generated/graphqlTypes";
+import { ResourceUsedFor } from "../../api/types";
 import { addHttps, description, enumToYup, handleRegex, id, index, maxStrErr, name, opt, req, transRel, urlRegex, walletAddressRegex, YupModel, yupObj } from "../utils";
 import { urlRegexDev } from "../utils/regex";
 import { YupMutateParams } from "../utils/types";

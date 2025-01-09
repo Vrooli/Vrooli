@@ -59,11 +59,11 @@ export const FocusModeModel: FocusModeModelLogic = ({
         },
         searchStringQuery: () => ({ OR: ["descriptionWrapped", "nameWrapped"] }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<FocusModeModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<FocusModeModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },

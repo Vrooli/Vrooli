@@ -1,4 +1,4 @@
-import { BookmarkSortBy, FormSchema, endpointGetBookmark, endpointGetBookmarks } from "@local/shared";
+import { BookmarkSortBy, FormSchema, endpointsBookmark } from "@local/shared";
 import i18next from "i18next";
 import { toParams } from "./base";
 import { searchFormLayout, yesNoDontCare } from "./common";
@@ -26,5 +26,5 @@ export function bookmarkSearchSchema(): FormSchema {
 }
 
 export function bookmarkSearchParams() {
-    return toParams(bookmarkSearchSchema(), endpointGetBookmarks, endpointGetBookmark, BookmarkSortBy, BookmarkSortBy.DateUpdatedDesc);
+    return toParams(bookmarkSearchSchema(), endpointsBookmark, BookmarkSortBy, BookmarkSortBy.DateUpdatedDesc);
 }

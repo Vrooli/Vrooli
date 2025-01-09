@@ -63,11 +63,11 @@ export const LabelModel: LabelModelLogic = ({
         },
         searchStringQuery: () => ({ OR: ["labelWrapped", "transDescriptionWrapped"] }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<LabelModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<LabelModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -89,7 +89,7 @@ export const LabelModel: LabelModelLogic = ({
         isDeleted: () => false,
         isPublic: (data, ...rest) =>
             (data.ownedByUser === null && data.ownedByTeam === null) ||
-            oneIsPublic<LabelModelInfo["PrismaSelect"]>([
+            oneIsPublic<LabelModelInfo["DbSelect"]>([
                 ["ownedByTeam", "Team"],
                 ["ownedByUser", "User"],
             ], data, ...rest),

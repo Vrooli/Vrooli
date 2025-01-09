@@ -1,8 +1,8 @@
 import { Node, NodeTranslation } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const nodeTranslation: GqlPartial<NodeTranslation> = {
+export const nodeTranslation: ApiPartial<NodeTranslation> = {
     common: {
         id: true,
         language: true,
@@ -12,7 +12,7 @@ export const nodeTranslation: GqlPartial<NodeTranslation> = {
 };
 
 
-export const node: GqlPartial<Node> = {
+export const node: ApiPartial<Node> = {
     common: {
         id: true,
         created_at: true,

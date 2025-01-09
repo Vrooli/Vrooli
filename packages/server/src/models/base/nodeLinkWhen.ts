@@ -43,9 +43,9 @@ export const NodeLinkWhenModel: NodeLinkWhenModelLogic = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, link: "NodeLink" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<NodeLinkModelLogic>("NodeLink").validate().owner(data?.link as NodeLinkModelInfo["PrismaModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<NodeLinkModelLogic>("NodeLink").validate().isDeleted(data.link as NodeLinkModelInfo["PrismaModel"], languages),
-        isPublic: (...rest) => oneIsPublic<NodeLinkWhenModelInfo["PrismaSelect"]>([["link", "NodeLink"]], ...rest),
+        owner: (data, userId) => ModelMap.get<NodeLinkModelLogic>("NodeLink").validate().owner(data?.link as NodeLinkModelInfo["DbModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<NodeLinkModelLogic>("NodeLink").validate().isDeleted(data.link as NodeLinkModelInfo["DbModel"], languages),
+        isPublic: (...rest) => oneIsPublic<NodeLinkWhenModelInfo["DbSelect"]>([["link", "NodeLink"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {

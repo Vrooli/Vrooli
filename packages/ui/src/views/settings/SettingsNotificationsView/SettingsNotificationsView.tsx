@@ -1,4 +1,4 @@
-import { Email, endpointGetNotificationSettings, endpointPutNotificationSettings, NotificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput, PushDevice } from "@local/shared";
+import { Email, endpointsNotification, NotificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput, PushDevice } from "@local/shared";
 import { Box, Button, Divider, Stack } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
@@ -188,8 +188,8 @@ export function SettingsNotificationsView({
 }: SettingsNotificationsViewProps) {
     const { t } = useTranslation();
 
-    const { data, refetch, loading: isLoading } = useFetch<undefined, NotificationSettings>(endpointGetNotificationSettings);
-    const [updateFetch, { loading: isUpdating }] = useLazyFetch<NotificationSettingsUpdateInput, NotificationSettings>(endpointPutNotificationSettings);
+    const { data, refetch, loading: isLoading } = useFetch<undefined, NotificationSettings>(endpointsNotification.getSettings);
+    const [updateFetch, { loading: isUpdating }] = useLazyFetch<NotificationSettingsUpdateInput, NotificationSettings>(endpointsNotification.updateSettings);
 
     return (
         <ScrollBox>

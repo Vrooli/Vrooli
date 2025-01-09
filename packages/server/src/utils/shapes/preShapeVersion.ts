@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/shared";
+import { ModelType } from "@local/shared";
 import { WithIdField } from "../../types";
 import { EmbeddingLanguageUpdateMap, preShapeEmbeddableTranslatable } from "./preShapeEmbeddableTranslatable";
 
@@ -15,7 +15,7 @@ type PreShapeVersionParams<IdField extends string = "id"> = {
             translationsDelete?: string[] | null | undefined,
         }
     }[],
-    objectType: GqlModelType | `${GqlModelType}`,
+    objectType: ModelType | `${ModelType}`,
 };
 
 export type PreShapeVersionResult = {

@@ -1,4 +1,4 @@
-import { ResourceListFor } from "../../api/generated/graphqlTypes";
+import { ResourceListFor } from "../../api/types";
 import { description, enumToYup, id, name, opt, req, transRel, YupModel, yupObj } from "../utils";
 import { resourceValidation } from "./resource";
 

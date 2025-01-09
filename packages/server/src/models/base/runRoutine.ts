@@ -157,8 +157,8 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
         supplemental: {
             // Add fields needed for notifications when a run is started/completed
             dbFields: ["name"],
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 // Find the step with the highest "completedAt" Date for each run
                 const recentSteps = await prismaInstance.$queryRaw`
                     SELECT DISTINCT ON ("runRoutineId")
@@ -175,7 +175,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                 return {
                     lastStep: lastSteps,
                     you: {
-                        ...(await getSingleTypePermissions<RunRoutineModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<RunRoutineModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -201,7 +201,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
             data.isPrivate === false &&
             (
                 (data.user === null && data.team === null) ||
-                oneIsPublic<RunRoutineModelInfo["PrismaSelect"]>([
+                oneIsPublic<RunRoutineModelInfo["DbSelect"]>([
                     ["team", "Team"],
                     ["user", "User"],
                 ], data, ...rest)
@@ -213,16 +213,16 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                     OR: [
                         { team: useVisibility("Team", "Own", data) },
                         { user: useVisibility("User", "Own", data) },
-                    ]
-                }
+                    ],
+                };
             },
             ownOrPublic: function getOwnOrPublic(data) {
                 return {
                     OR: [
                         { team: useVisibility("Team", "OwnOrPublic", data) },
                         { user: useVisibility("User", "OwnOrPublic", data) },
-                    ]
-                }
+                    ],
+                };
             },
             ownPrivate: function getOwnPrivate(data) {
                 return {
@@ -230,7 +230,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                     OR: [
                         { team: useVisibility("Team", "Own", data) },
                         { user: useVisibility("User", "Own", data) },
-                    ]
+                    ],
                 };
             },
             ownPublic: function getOwnPublic(data) {
@@ -239,7 +239,7 @@ export const RunRoutineModel: RunRoutineModelLogic = ({
                     OR: [
                         { team: useVisibility("Team", "Own", data) },
                         { user: useVisibility("User", "Own", data) },
-                    ]
+                    ],
                 };
             },
             public: function getPublic() {

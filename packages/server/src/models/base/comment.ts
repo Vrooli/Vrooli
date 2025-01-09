@@ -1,14 +1,11 @@
-import { Comment, CommentFor, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, GqlModelType, MaxObjects, SessionUser, VisibilityType, commentValidation, getTranslation, lowercaseFirstLetter } from "@local/shared";
+import { Comment, CommentFor, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, MaxObjects, ModelType, SessionUser, VisibilityType, commentValidation, getTranslation, lowercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { Request } from "express";
 import { ModelMap } from ".";
 import { SessionService } from "../../auth/session";
-import { addSupplementalFields } from "../../builders/addSupplementalFields";
 import { combineQueries } from "../../builders/combineQueries";
-import { modelToGql } from "../../builders/modelToGql";
-import { selectHelper } from "../../builders/selectHelper";
-import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
-import { ApiEndpointInfo } from "../../builders/types";
+import { InfoConverter, addSupplementalFields, selectHelper } from "../../builders/infoConverter";
+import { PartialApiInfo } from "../../builders/types";
 import { useVisibility, useVisibilityMapper, visibilityBuilderPrisma } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { getSearchStringQuery } from "../../getters";
@@ -83,11 +80,11 @@ export const CommentModel: CommentModelLogic = ({
         async searchThreads(
             userData: SessionUser | null,
             input: { ids: string[], take: number, sortBy: CommentSortBy },
-            info: ApiEndpointInfo,
+            info: PartialApiInfo,
             nestLimit = 2,
         ): Promise<CommentThread[]> {
             // Partially convert info type
-            const partialInfo = toPartialGqlInfo(info, ModelMap.get<CommentModelLogic>("Comment").format.gqlRelMap, true);
+            const partialInfo = InfoConverter.fromApiToPartialApi(info, ModelMap.get<CommentModelLogic>("Comment").format.apiRelMap, true);
             const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
             // Combine queries
             const where = { ...idQuery };
@@ -154,12 +151,12 @@ export const CommentModel: CommentModelLogic = ({
         async searchNested(
             req: Request,
             input: CommentSearchInput,
-            info: ApiEndpointInfo,
+            info: PartialApiInfo,
             nestLimit = 2,
         ): Promise<CommentSearchResult> {
             const userData = SessionService.getUser(req.session);
             // Partially convert info type
-            const partialInfo = toPartialGqlInfo(info, ModelMap.get<CommentModelLogic>("Comment").format.gqlRelMap, true);
+            const partialInfo = InfoConverter.fromApiToPartialApi(info, ModelMap.get<CommentModelLogic>("Comment").format.apiRelMap, true);
             // Determine text search query
             const searchQuery = input.searchString ? getSearchStringQuery({ objectType: "Comment", searchString: input.searchString }) : undefined;
             const searchData = {
@@ -226,7 +223,7 @@ export const CommentModel: CommentModelLogic = ({
             }
             let comments: any = flattenThreads(childThreads);
             // Shape comments and add supplemental fields
-            comments = comments.map((c: any) => modelToGql(c, partialInfo as ApiEndpointInfo));
+            comments = comments.map((c: any) => InfoConverter.fromDbToApi(c, partialInfo as PartialApiInfo));
             comments = await addSupplementalFields(userData, comments, partialInfo);
             // Put comments back into "threads" object, using another helper function. 
             // Comments can be matched by their ID
@@ -283,11 +280,11 @@ export const CommentModel: CommentModelLogic = ({
         sortBy: CommentSortBy,
         searchStringQuery: () => ({ translations: "transText" }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<CommentModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<CommentModelInfo["ApiPermission"]>(__typename, ids, userData)),
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
@@ -322,7 +319,7 @@ export const CommentModel: CommentModelLogic = ({
             User: data?.ownedByUser,
         }),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<CommentModelInfo["PrismaSelect"]>([
+        isPublic: (...rest) => oneIsPublic<CommentModelInfo["DbSelect"]>([
             ["apiVersion", "ApiVersion"],
             ["codeVersion", "CodeVersion"],
             ["issue", "Issue"],
@@ -368,7 +365,7 @@ export const CommentModel: CommentModelLogic = ({
                 );
                 if (forSearch) {
                     const relation = forSearch.substring(0, forSearch.length - "Id".length);
-                    return { [relation]: useVisibility(reversedForMapper[relation] as GqlModelType, "Public", data) };
+                    return { [relation]: useVisibility(reversedForMapper[relation] as ModelType, "Public", data) };
                 }
                 // Otherwise, use an OR on all relations
                 return {

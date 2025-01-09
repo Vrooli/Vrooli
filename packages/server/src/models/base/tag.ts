@@ -78,9 +78,9 @@ export const TagModel: TagModelLogic = ({
         },
         searchStringQuery: () => "tagWrapped",
         supplemental: {
-            graphqlFields: SuppFields[__typename],
+            suppFields: SuppFields[__typename],
             dbFields: ["createdById", "id"],
-            toGraphQL: async ({ ids, objects, userData }) => ({
+            getSuppFields: async ({ ids, objects, userData }) => ({
                 you: {
                     isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                     isOwn: objects.map((x) => Boolean(userData) && x.createdByUserId === userData?.id),

@@ -1,11 +1,11 @@
-import { GqlModelType } from "@local/shared";
+import { ModelType } from "@local/shared";
 import { PrismaDelegate } from "../builders/types";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
 
 function hasInternalField(objectType: string) {
-    return [GqlModelType.RoutineVersion, GqlModelType.StandardVersion].includes(objectType as any);
+    return [ModelType.RoutineVersion, ModelType.StandardVersion].includes(objectType as any);
 }
 
 /**
@@ -23,12 +23,12 @@ export async function versionsCheck({
     Update,
     Delete,
 }: {
-    objectType: `${GqlModelType.ApiVersion
-    | GqlModelType.CodeVersion
-    | GqlModelType.NoteVersion
-    | GqlModelType.ProjectVersion
-    | GqlModelType.RoutineVersion
-    | GqlModelType.StandardVersion
+    objectType: `${ModelType.ApiVersion
+    | ModelType.CodeVersion
+    | ModelType.NoteVersion
+    | ModelType.ProjectVersion
+    | ModelType.RoutineVersion
+    | ModelType.StandardVersion
     }`,
     Create: {
         input: {
@@ -70,7 +70,7 @@ export async function versionsCheck({
     const deleteIds = Delete;
     const uniqueVersionIds = [...new Set([...updateIds, ...deleteIds])];
     // Query the database for existing data (by root)
-    const rootType = objectType.replace("Version", "") as GqlModelType;
+    const rootType = objectType.replace("Version", "") as ModelType;
     const dbTable = ModelMap.get(rootType).dbTable;
     let existingRoots: any[];
     let where: { [key: string]: any } = {};

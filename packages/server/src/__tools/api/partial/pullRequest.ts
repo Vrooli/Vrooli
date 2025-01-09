@@ -1,8 +1,8 @@
 import { PullRequest, PullRequestTranslation, PullRequestYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const pullRequestYou: GqlPartial<PullRequestYou> = {
+export const pullRequestYou: ApiPartial<PullRequestYou> = {
     common: {
         canComment: true,
         canDelete: true,
@@ -11,7 +11,7 @@ export const pullRequestYou: GqlPartial<PullRequestYou> = {
     },
 };
 
-export const pullRequestTranslation: GqlPartial<PullRequestTranslation> = {
+export const pullRequestTranslation: ApiPartial<PullRequestTranslation> = {
     common: {
         id: true,
         language: true,
@@ -19,7 +19,7 @@ export const pullRequestTranslation: GqlPartial<PullRequestTranslation> = {
     },
 };
 
-export const pullRequest: GqlPartial<PullRequest> = {
+export const pullRequest: ApiPartial<PullRequest> = {
     common: {
         id: true,
         created_at: true,

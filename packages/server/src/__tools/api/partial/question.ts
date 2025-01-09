@@ -1,8 +1,8 @@
 import { Question, QuestionTranslation, QuestionYou } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const questionTranslation: GqlPartial<QuestionTranslation> = {
+export const questionTranslation: ApiPartial<QuestionTranslation> = {
     common: {
         id: true,
         language: true,
@@ -11,13 +11,13 @@ export const questionTranslation: GqlPartial<QuestionTranslation> = {
     },
 };
 
-export const questionYou: GqlPartial<QuestionYou> = {
+export const questionYou: ApiPartial<QuestionYou> = {
     common: {
         reaction: true,
     },
 };
 
-export const question: GqlPartial<Question> = {
+export const question: ApiPartial<Question> = {
     common: {
         id: true,
         created_at: true,

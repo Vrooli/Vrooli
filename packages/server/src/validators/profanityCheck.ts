@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/shared";
+import { ModelType } from "@local/shared";
 import { isRelationshipArray, isRelationshipObject } from "../builders/isOfType";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
@@ -22,7 +22,7 @@ type ProfanityFieldsToCheck = {
  */
 const collectProfanities = (
     input: ProfanityFieldsToCheck,
-    objectType?: `${GqlModelType}`,
+    objectType?: `${ModelType}`,
 ): Record<string, string[]> => {
     // Initialize result
     const result: Record<string, string[]> = {};
@@ -67,7 +67,7 @@ const collectProfanities = (
         result.tagsConnect = input.tagsConnect as string[];
     }
     // Handle recursive case
-    const processNestedFields = (nestedInput: any, nestedObjectType?: `${GqlModelType}`) => {
+    const processNestedFields = (nestedInput: any, nestedObjectType?: `${ModelType}`) => {
         const newFields = collectProfanities(nestedInput, nestedObjectType);
         for (const field in newFields) {
             result[field] = result[field] ? [...result[field], ...newFields[field]] : newFields[field];
@@ -75,14 +75,14 @@ const collectProfanities = (
     };
     for (const key in input) {
         // Find next objectType, if any
-        let nextObjectType: `${GqlModelType}` | undefined;
+        let nextObjectType: `${ModelType}` | undefined;
         // Strip "Create" and "Update" from the end of the key
         const strippedKey = key.endsWith("Create") || key.endsWith("Update") ? key.slice(0, -6) : key;
         // Translations were already handled above, so skip them here
         if (strippedKey === "translations") continue;
         // Check if stripped key is in validator's validateMap
-        if (typeof format?.gqlRelMap?.[strippedKey] === "string") {
-            nextObjectType = format?.gqlRelMap?.[strippedKey] as GqlModelType;
+        if (typeof format?.apiRelMap?.[strippedKey] === "string") {
+            nextObjectType = format?.apiRelMap?.[strippedKey] as ModelType;
         }
         if (isRelationshipArray(input[key])) {
             for (const item of input[key]) {

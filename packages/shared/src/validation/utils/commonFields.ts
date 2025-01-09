@@ -6,7 +6,7 @@
  * that format matches the fields below, there should be no errors.
  */
 import * as yup from "yup";
-import { ReportFor } from "../../api/generated/graphqlTypes";
+import { ReportFor } from "../../api/types";
 import { uuidValidate } from "../../id/uuid";
 import { urlRegexDev } from "../../validation/utils/regex";
 import { YupMutateParams } from "../../validation/utils/types";

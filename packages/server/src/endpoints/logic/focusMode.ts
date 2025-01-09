@@ -1,4 +1,4 @@
-import { ActiveFocusMode, FindByIdInput, FocusMode, FocusModeCreateInput, FocusModeSearchInput, FocusModeUpdateInput, SetActiveFocusModeInput, VisibilityType, setActiveFocusModeValidation } from "@local/shared";
+import { ActiveFocusMode, FindByIdInput, FocusMode, FocusModeCreateInput, FocusModeSearchInput, FocusModeSearchResult, FocusModeUpdateInput, SetActiveFocusModeInput, VisibilityType, setActiveFocusModeValidation } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
 import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
@@ -7,35 +7,35 @@ import { updateSessionCurrentUser } from "../../auth/auth";
 import { RequestService } from "../../auth/request";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
-import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
+import { ApiEndpoint } from "../../types";
 
 export type EndpointsFocusMode = {
-    findOne: ApiEndpoint<FindByIdInput, FindOneResult<FocusMode>>;
-    findMany: ApiEndpoint<FocusModeSearchInput, FindManyResult<FocusMode>>;
-    createOne: ApiEndpoint<FocusModeCreateInput, CreateOneResult<FocusMode>>;
-    updateOne: ApiEndpoint<FocusModeUpdateInput, UpdateOneResult<FocusMode>>;
+    findOne: ApiEndpoint<FindByIdInput, FocusMode>;
+    findMany: ApiEndpoint<FocusModeSearchInput, FocusModeSearchResult>;
+    createOne: ApiEndpoint<FocusModeCreateInput, FocusMode>;
+    updateOne: ApiEndpoint<FocusModeUpdateInput, FocusMode>;
     setActive: ApiEndpoint<SetActiveFocusModeInput, ActiveFocusMode | null>;
 }
 
 const objectType = "FocusMode";
 export const focusMode: EndpointsFocusMode = {
-    findOne: async (_, { input }, { req }, info) => {
+    findOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
         return readOneHelper({ info, input, objectType, req });
     },
-    findMany: async (_, { input }, { req }, info) => {
+    findMany: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
         return readManyHelper({ info, input, objectType, req, visibility: VisibilityType.Own });
     },
-    createOne: async (_, { input }, { req }, info) => {
+    createOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 100, req });
         return createOneHelper({ info, input, objectType, req });
     },
-    updateOne: async (_, { input }, { req }, info) => {
+    updateOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 250, req });
         return updateOneHelper({ info, input, objectType, req });
     },
-    setActive: async (_, { input }, { req, res }) => {
+    setActive: async ({ input }, { req, res }) => {
         const userData = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 500, req });
         setActiveFocusModeValidation.validateSync(input, { abortEarly: false });

@@ -14,7 +14,7 @@ export const NodeRoutineListModel: NodeRoutineListModelLogic = ({
     display: () => ({
         label: {
             select: () => ({ id: true, node: { select: ModelMap.get<NodeModelLogic>("Node").display().label.select() } }),
-            get: (select, languages) => ModelMap.get<NodeModelLogic>("Node").display().label.get(select.node as NodeModelInfo["PrismaModel"], languages),
+            get: (select, languages) => ModelMap.get<NodeModelLogic>("Node").display().label.get(select.node as NodeModelInfo["DbModel"], languages),
         },
     }),
     format: NodeRoutineListFormat,
@@ -41,9 +41,9 @@ export const NodeRoutineListModel: NodeRoutineListModelLogic = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, node: "Node" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<NodeModelLogic>("Node").validate().owner(data?.node as NodeModelInfo["PrismaModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<NodeModelLogic>("Node").validate().isDeleted(data.node as NodeModelInfo["PrismaModel"], languages),
-        isPublic: (...rest) => oneIsPublic<NodeRoutineListModelInfo["PrismaSelect"]>([["node", "Node"]], ...rest),
+        owner: (data, userId) => ModelMap.get<NodeModelLogic>("Node").validate().owner(data?.node as NodeModelInfo["DbModel"], userId),
+        isDeleted: (data, languages) => ModelMap.get<NodeModelLogic>("Node").validate().isDeleted(data.node as NodeModelInfo["DbModel"], languages),
+        isPublic: (...rest) => oneIsPublic<NodeRoutineListModelInfo["DbSelect"]>([["node", "Node"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {

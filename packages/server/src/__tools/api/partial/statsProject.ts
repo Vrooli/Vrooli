@@ -1,7 +1,7 @@
 import { StatsProject } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 
-export const statsProject: GqlPartial<StatsProject> = {
+export const statsProject: ApiPartial<StatsProject> = {
     full: {
         id: true,
         periodStart: true,

@@ -1,8 +1,8 @@
 import { Bookmark } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const bookmark: GqlPartial<Bookmark> = {
+export const bookmark: ApiPartial<Bookmark> = {
     common: {
         id: true,
         list: async () => rel((await import("./bookmarkList")).bookmarkList, "common"),

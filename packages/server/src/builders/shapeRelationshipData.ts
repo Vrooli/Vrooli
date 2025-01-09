@@ -5,7 +5,7 @@ import { isObject } from "@local/shared";
  * @param data The object to filter
  * @param excludes The fields to exclude
  */
-export const filterFields = (data: object, excludes: string[]): object => {
+export function filterFields(data: object, excludes: string[]): object {
     if (!isObject(data)) return {};
     // Create result object
     const converted: object = {};
@@ -17,7 +17,7 @@ export const filterFields = (data: object, excludes: string[]): object => {
         }
     });
     return converted;
-};
+}
 
 /**
  * Helper method to shape Prisma connect, disconnect, create, update, and delete data
@@ -38,12 +38,12 @@ export const filterFields = (data: object, excludes: string[]): object => {
  * @param excludes The fields to exclude from the shape
  * @param isOneToOne Whether the data is one-to-one (i.e. a single object)
  */
-export const shapeRelationshipData = <IsOneToOne extends boolean>(
+export function shapeRelationshipData<IsOneToOne extends boolean>(
     data: unknown,
     excludes: string[] = [],
     isOneToOne: IsOneToOne = false as IsOneToOne,
-): IsOneToOne extends true ? object : object[] => {
-    const shapeAsMany = (data: unknown): object[] => {
+): IsOneToOne extends true ? object : object[] {
+    function shapeAsMany(data: unknown): object[] {
         if (Array.isArray(data)) {
             return data.map(e => {
                 if (isObject(e)) {
@@ -57,7 +57,7 @@ export const shapeRelationshipData = <IsOneToOne extends boolean>(
         } else {
             return [{ id: data }];
         }
-    };
+    }
     // Shape as if "isOneToOne" is fasel
     const result = shapeAsMany(data);
     // Then if "isOneToOne" is true, return the first element
@@ -65,4 +65,4 @@ export const shapeRelationshipData = <IsOneToOne extends boolean>(
         return (result.length > 0 ? result[0] : {}) as IsOneToOne extends true ? object : object[];
     }
     return result;
-};
+}

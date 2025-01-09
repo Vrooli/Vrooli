@@ -3,12 +3,9 @@ import { Request } from "express";
 import { InputNode } from "utils/inputNode";
 import { ModelMap } from ".";
 import { SessionService } from "../../auth/session";
-import { addSupplementalFields } from "../../builders/addSupplementalFields";
-import { modelToGql } from "../../builders/modelToGql";
-import { selectHelper } from "../../builders/selectHelper";
+import { addSupplementalFields, InfoConverter, selectHelper } from "../../builders/infoConverter";
 import { shapeHelper } from "../../builders/shapeHelper";
-import { toPartialGqlInfo } from "../../builders/toPartialGqlInfo";
-import { ApiEndpointInfo } from "../../builders/types";
+import { PartialApiInfo } from "../../builders/types";
 import { useVisibility } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
@@ -422,7 +419,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
         async searchTree(
             req: Request,
             input: ChatMessageSearchTreeInput,
-            info: ApiEndpointInfo,
+            info: PartialApiInfo,
         ): Promise<ChatMessageSearchTreeResult> {
             if (!input.chatId) throw new CustomError("0531", "InvalidArgs", { input });
             // Query for all authentication data
@@ -433,7 +430,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             }
             await permissionsCheck(authDataById, { ["Read"]: [input.chatId] }, {}, userData);
             // Partially convert info type
-            const partial = toPartialGqlInfo(info, {
+            const partial = InfoConverter.fromApiToPartialApi(info, {
                 __typename: "ChatMessageSearchTreeResult",
                 messages: "ChatMessage",
             }, true);
@@ -452,10 +449,10 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     where: { chatId: input.chatId },
                     orderBy,
                     take,
-                    ...selectHelper(partial.messages as ApiEndpointInfo),
+                    ...selectHelper(partial.messages as PartialApiInfo),
                 });
-                messages = messages.map((c: any) => modelToGql(c, partial.messages as ApiEndpointInfo));
-                messages = await addSupplementalFields(SessionService.getUser(req.session), messages, partial.messages as ApiEndpointInfo);
+                messages = messages.map((c: any) => InfoConverter.fromDbToApi(c, partial.messages as PartialApiInfo));
+                messages = await addSupplementalFields(SessionService.getUser(req.session), messages, partial.messages as PartialApiInfo);
                 return {
                     __typename: "ChatMessageSearchTreeResult" as const,
                     hasMoreDown: false,
@@ -486,11 +483,11 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<ChatMessageModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ChatMessageModelInfo["ApiPermission"]>(__typename, ids, userData)),
                         reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
                 };
@@ -506,7 +503,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             User: data?.user,
         }),
         permissionResolvers: ({ data, isAdmin: isMessageOwner, isDeleted, isLoggedIn, userId }) => {
-            const isChatAdmin = userId ? isOwnerAdminCheck(ModelMap.get<ChatModelLogic>("Chat").validate().owner(data.chat as ChatModelInfo["PrismaModel"], userId), userId) : false;
+            const isChatAdmin = userId ? isOwnerAdminCheck(ModelMap.get<ChatModelLogic>("Chat").validate().owner(data.chat as ChatModelInfo["DbModel"], userId), userId) : false;
             const isParticipant = uuidValidate(userId) && (data.chat as Record<string, any>).participants?.some((p) => p.user?.id === userId || p.userId === userId);
             return {
                 canConnect: () => isLoggedIn && !isDeleted && isParticipant,

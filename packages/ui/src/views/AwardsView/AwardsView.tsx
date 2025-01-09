@@ -1,4 +1,4 @@
-import { Award, AwardCategory, AwardSearchInput, AwardSearchResult, TranslationKeyAward, endpointPostAwards } from "@local/shared";
+import { Award, AwardCategory, AwardSearchInput, AwardSearchResult, TranslationKeyAward, endpointsAward } from "@local/shared";
 import { Box, Typography } from "@mui/material";
 import { CompletionBar } from "components/CompletionBar/CompletionBar";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
@@ -122,7 +122,7 @@ export function AwardsView({
         return noProgressAwards.map(a => awardToDisplay(a, t));
     });
     const { data, refetch, loading } = useFetch<AwardSearchInput, AwardSearchResult>({
-        ...endpointPostAwards,
+        ...endpointsAward.findMany,
     });
     useEffect(() => {
         if (!data) return;

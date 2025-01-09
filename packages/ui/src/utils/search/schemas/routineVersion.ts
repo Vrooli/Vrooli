@@ -1,4 +1,4 @@
-import { endpointGetRoutineVersion, endpointGetRoutineVersions, FormSchema, RoutineVersionSortBy } from "@local/shared";
+import { endpointsRoutineVersion, FormSchema, RoutineVersionSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { bookmarksRootContainer, bookmarksRootFields, complexityContainer, complexityFields, isCompleteWithRootContainer, isCompleteWithRootFields, isLatestContainer, isLatestFields, languagesContainer, languagesFields, searchFormLayout, simplicityContainer, simplicityFields, tagsRootContainer, tagsRootFields, votesRootContainer, votesRootFields } from "./common";
 
@@ -28,4 +28,4 @@ export function routineVersionSearchSchema(): FormSchema {
     };
 }
 
-export function routineVersionSearchParams() { return toParams(routineVersionSearchSchema(), endpointGetRoutineVersions, endpointGetRoutineVersion, RoutineVersionSortBy, RoutineVersionSortBy.DateCreatedDesc); }
+export function routineVersionSearchParams() { return toParams(routineVersionSearchSchema(), endpointsRoutineVersion, RoutineVersionSortBy, RoutineVersionSortBy.DateCreatedDesc); }

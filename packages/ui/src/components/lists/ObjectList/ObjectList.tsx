@@ -1,4 +1,4 @@
-import { Bookmark, GqlModelType, isOfType, ListObject, noop, OrArray, Reaction, View } from "@local/shared";
+import { Bookmark, ListObject, ModelType, OrArray, Reaction, View, isOfType, noop } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
 import { UsePressEvent } from "hooks/gestures";
@@ -26,7 +26,7 @@ const { NotificationListItem } = lazily(() => import("../NotificationListItem/No
 const { ReminderListItem } = lazily(() => import("../ReminderListItem/ReminderListItem"));
 const { RunProjectListItem } = lazily(() => import("../RunProjectListItem/RunProjectListItem"));
 const { RunRoutineListItem } = lazily(() => import("../RunRoutineListItem/RunRoutineListItem"));
-function getListItemComponent(objectType: `${GqlModelType}` | "CalendarEvent") {
+function getListItemComponent(objectType: `${ModelType}` | "CalendarEvent") {
     switch (objectType) {
         case "BookmarkList": return BookmarkListListItem;
         case "Chat": return ChatListItem;
@@ -69,7 +69,7 @@ type ObjectListItemPropsForMultiple<T extends OrArray<ListObject>> = T extends L
 
 export type ObjectListProps<T extends OrArray<ListObject>> = Pick<ObjectListItemPropsForMultiple<T>, "canNavigate" | "hideUpdateButton" | "loading" | "onAction" | "onClick"> & {
     /** List of dummy items types to display while loading */
-    dummyItems?: (GqlModelType | `${GqlModelType}`)[];
+    dummyItems?: (ModelType | `${ModelType}`)[];
     handleToggleSelect?: (item: ListObject, event?: UsePressEvent) => unknown,
     /** True if list can be reordered (e.g. resource list) */
     isListReorderable?: boolean;
@@ -111,7 +111,7 @@ export function ObjectList<T extends OrArray<ListObject>>({
     const actionData = useObjectActions({
         canNavigate,
         isListReorderable,
-        objectType: contextData.object?.__typename as GqlModelType | undefined,
+        objectType: contextData.object?.__typename as ModelType | undefined,
         onAction,
         setLocation,
         ...contextData,

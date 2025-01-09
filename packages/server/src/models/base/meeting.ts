@@ -118,11 +118,11 @@ export const MeetingModel: MeetingModelLogic = ({
         }),
         supplemental: {
             dbFields: ["teamId"],
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<MeetingModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<MeetingModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },

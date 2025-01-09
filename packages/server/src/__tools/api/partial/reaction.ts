@@ -1,8 +1,8 @@
 import { Reaction, ReactionSummary } from "@local/shared";
-import { GqlPartial } from "../types";
+import { ApiPartial } from "../types";
 import { rel } from "../utils";
 
-export const reaction: GqlPartial<Reaction> = {
+export const reaction: ApiPartial<Reaction> = {
     list: {
         id: true,
         to: {
@@ -25,7 +25,7 @@ export const reaction: GqlPartial<Reaction> = {
     },
 };
 
-export const reactionSummary: GqlPartial<ReactionSummary> = {
+export const reactionSummary: ApiPartial<ReactionSummary> = {
     list: {
         emoji: true,
         count: true,

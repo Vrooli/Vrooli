@@ -1,4 +1,4 @@
-import { exists, GqlModelType, SessionUser } from "@local/shared";
+import { exists, ModelType, SessionUser } from "@local/shared";
 import { PrismaDelegate } from "../../builders/types";
 import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
@@ -59,7 +59,7 @@ type PreShapeRootParams = {
     Delete: {
         input: string;
     }[],
-    objectType: GqlModelType | `${GqlModelType}`,
+    objectType: ModelType | `${ModelType}`,
     userData: SessionUser,
 };
 

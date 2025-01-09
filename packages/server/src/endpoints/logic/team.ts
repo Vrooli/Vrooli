@@ -1,32 +1,32 @@
-import { FindByIdOrHandleInput, Team, TeamCreateInput, TeamSearchInput, TeamUpdateInput } from "@local/shared";
+import { FindByIdOrHandleInput, Team, TeamCreateInput, TeamSearchInput, TeamSearchResult, TeamUpdateInput } from "@local/shared";
 import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
 import { RequestService } from "../../auth/request";
-import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
+import { ApiEndpoint } from "../../types";
 
 export type EndpointsTeam = {
-    findOne: ApiEndpoint<FindByIdOrHandleInput, FindOneResult<Team>>;
-    findMany: ApiEndpoint<TeamSearchInput, FindManyResult<Team>>;
-    createOne: ApiEndpoint<TeamCreateInput, CreateOneResult<Team>>;
-    updateOne: ApiEndpoint<TeamUpdateInput, UpdateOneResult<Team>>;
+    findOne: ApiEndpoint<FindByIdOrHandleInput, Team>;
+    findMany: ApiEndpoint<TeamSearchInput, TeamSearchResult>;
+    createOne: ApiEndpoint<TeamCreateInput, Team>;
+    updateOne: ApiEndpoint<TeamUpdateInput, Team>;
 }
 
 const objectType = "Team";
 export const team: EndpointsTeam = {
-    findOne: async (_, { input }, { req }, info) => {
+    findOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
         return readOneHelper({ info, input, objectType, req });
     },
-    findMany: async (_, { input }, { req }, info) => {
+    findMany: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
         return readManyHelper({ info, input, objectType, req });
     },
-    createOne: async (_, { input }, { req }, info) => {
+    createOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 100, req });
         return createOneHelper({ info, input, objectType, req });
     },
-    updateOne: async (_, { input }, { req }, info) => {
+    updateOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 250, req });
         return updateOneHelper({ info, input, objectType, req });
     },

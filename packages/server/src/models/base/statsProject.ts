@@ -15,7 +15,7 @@ export const StatsProjectModel: StatsProjectModelLogic = ({
             select: () => ({ id: true, project: { select: ModelMap.get<ProjectModelLogic>("Project").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE,
-                objectName: ModelMap.get<ProjectModelLogic>("Project").display().label.get(select.project as ProjectModelInfo["PrismaModel"], languages),
+                objectName: ModelMap.get<ProjectModelLogic>("Project").display().label.get(select.project as ProjectModelInfo["DbModel"], languages),
             }),
         },
     }),
@@ -37,9 +37,9 @@ export const StatsProjectModel: StatsProjectModelLogic = ({
             project: "Project",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<ProjectModelLogic>("Project").validate().owner(data?.project as ProjectModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ProjectModelLogic>("Project").validate().owner(data?.project as ProjectModelInfo["DbModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<StatsProjectModelInfo["PrismaSelect"]>([["project", "Project"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<StatsProjectModelInfo["DbSelect"]>([["project", "Project"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {

@@ -15,7 +15,7 @@ export const StatsRoutineModel: StatsRoutineModelLogic = ({
             select: () => ({ id: true, routine: { select: ModelMap.get<RoutineModelLogic>("Routine").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE,
-                objectName: ModelMap.get<RoutineModelLogic>("Routine").display().label.get(select.routine as RoutineModelInfo["PrismaModel"], languages),
+                objectName: ModelMap.get<RoutineModelLogic>("Routine").display().label.get(select.routine as RoutineModelInfo["DbModel"], languages),
             }),
         },
     }),
@@ -37,9 +37,9 @@ export const StatsRoutineModel: StatsRoutineModelLogic = ({
             routine: "Routine",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<RoutineModelLogic>("Routine").validate().owner(data?.routine as RoutineModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<RoutineModelLogic>("Routine").validate().owner(data?.routine as RoutineModelInfo["DbModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<StatsRoutineModelInfo["PrismaSelect"]>([["routine", "Routine"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<StatsRoutineModelInfo["DbSelect"]>([["routine", "Routine"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {

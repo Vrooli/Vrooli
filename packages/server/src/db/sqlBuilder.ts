@@ -1,4 +1,4 @@
-import { GqlModelType } from "@local/shared";
+import { ModelType } from "@local/shared";
 import { CustomError } from "../events";
 import { ModelMap } from "../models/base/index";
 import { EmbedSortOption } from "../utils/embeddings/cache";
@@ -65,9 +65,9 @@ type FieldReference = {
 
 export class SqlBuilder {
     query: SQLQuery;
-    private tableToAliasMap: { [obectType in GqlModelType | `${GqlModelType}`]?: string };
+    private tableToAliasMap: { [obectType in ModelType | `${ModelType}`]?: string };
 
-    constructor(rootObjectType: GqlModelType | `${GqlModelType}`) {
+    constructor(rootObjectType: ModelType | `${ModelType}`) {
         this.tableToAliasMap = {};
         const mainTable = ModelMap.get(rootObjectType).dbTable;
 
@@ -84,7 +84,7 @@ export class SqlBuilder {
      * Finds the alias representing an object type. 
      * Creates a new alias if one does not exist.
      */
-    getAlias(objectType: GqlModelType | `${GqlModelType}`): string {
+    getAlias(objectType: ModelType | `${ModelType}`): string {
         const dbTable = ModelMap.get(objectType).dbTable;
         if (!this.tableToAliasMap[dbTable]) {
             if (Object.keys(this.tableToAliasMap).length >= 26) {
@@ -97,7 +97,7 @@ export class SqlBuilder {
         return this.tableToAliasMap[dbTable] as string;
     }
 
-    addSelect(objectType: GqlModelType | `${GqlModelType}`, field: string, alias?: string) {
+    addSelect(objectType: ModelType | `${ModelType}`, field: string, alias?: string) {
         const tableAlias = this.getAlias(objectType);
         this.query.select.push({ field, alias, tableAlias });
     }
@@ -107,7 +107,7 @@ export class SqlBuilder {
     }
 
     addJoin(
-        objectType: GqlModelType | `${GqlModelType}`,
+        objectType: ModelType | `${ModelType}`,
         type: JoinType | `${JoinType}`,
         on: string,
     ) {
@@ -120,7 +120,7 @@ export class SqlBuilder {
         this.query.where.push({ condition });
     }
 
-    addOrderBy(objectType: GqlModelType | `${GqlModelType}`, fieldName: string, direction: "DESC" | "ASC") {
+    addOrderBy(objectType: ModelType | `${ModelType}`, fieldName: string, direction: "DESC" | "ASC") {
         const tableAlias = this.getAlias(objectType);
         const orderClause = `"${tableAlias}"."${fieldName}" ${direction}`;
         this.query.orderBy.push(orderClause);
@@ -144,7 +144,7 @@ export class SqlBuilder {
         this.query.offset = offset;
     }
 
-    field(objectType: GqlModelType | `${GqlModelType}`, column: string): FieldReference {
+    field(objectType: ModelType | `${ModelType}`, column: string): FieldReference {
         const tableAlias = this.getAlias(objectType);
         return { tableAlias, column };
     }
@@ -153,8 +153,8 @@ export class SqlBuilder {
      * Generates SQL for selecting a "points" calculation
      */
     embedPoints(
-        translationObjectType: GqlModelType | `${GqlModelType}`, // Table where embeddings are stored
-        objectType: GqlModelType | `${GqlModelType}`, // Table where additional field (i.e. bookmarks or date field) is stored
+        translationObjectType: ModelType | `${ModelType}`, // Table where embeddings are stored
+        objectType: ModelType | `${ModelType}`, // Table where additional field (i.e. bookmarks or date field) is stored
         searchStringEmbedding: number[],
         sortOption: EmbedSortOption | `${EmbedSortOption}`,
     ) {

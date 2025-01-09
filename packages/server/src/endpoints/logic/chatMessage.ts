@@ -1,4 +1,4 @@
-import { ChatMessage, ChatMessageCreateWithTaskInfoInput, ChatMessageSearchInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageUpdateWithTaskInfoInput, FindByIdInput, RegenerateResponseInput, Success, getTranslation, uuidValidate } from "@local/shared";
+import { ChatMessage, ChatMessageCreateWithTaskInfoInput, ChatMessageSearchInput, ChatMessageSearchResult, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageUpdateWithTaskInfoInput, FindByIdInput, RegenerateResponseInput, Success, getTranslation, uuidValidate } from "@local/shared";
 import { createOneHelper } from "../../actions/creates";
 import { readManyHelper, readOneHelper } from "../../actions/reads";
 import { updateOneHelper } from "../../actions/updates";
@@ -8,47 +8,47 @@ import { ModelMap } from "../../models/base";
 import { ChatMessageModelLogic, ChatModelInfo } from "../../models/base/types";
 import { emitSocketEvent } from "../../sockets/events";
 import { requestBotResponse } from "../../tasks/llm/queue";
-import { ApiEndpoint, CreateOneResult, FindManyResult, FindOneResult, UpdateOneResult } from "../../types";
+import { ApiEndpoint } from "../../types";
 import { ChatMessagePre, PreMapChatData, PreMapMessageDataUpdate, PreMapUserData, getChatParticipantData } from "../../utils/chat";
 import { getSingleTypePermissions } from "../../validators/permissions";
 
 export type EndpointsChatMessage = {
-    findOne: ApiEndpoint<FindByIdInput, FindOneResult<ChatMessage>>;
-    findMany: ApiEndpoint<ChatMessageSearchInput, FindManyResult<ChatMessage>>;
+    findOne: ApiEndpoint<FindByIdInput, ChatMessage>;
+    findMany: ApiEndpoint<ChatMessageSearchInput, ChatMessageSearchResult>;
     findTree: ApiEndpoint<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>;
-    createOne: ApiEndpoint<ChatMessageCreateWithTaskInfoInput, CreateOneResult<ChatMessage>>;
-    updateOne: ApiEndpoint<ChatMessageUpdateWithTaskInfoInput, UpdateOneResult<ChatMessage>>;
+    createOne: ApiEndpoint<ChatMessageCreateWithTaskInfoInput, ChatMessage>;
+    updateOne: ApiEndpoint<ChatMessageUpdateWithTaskInfoInput, ChatMessage>;
     regenerateResponse: ApiEndpoint<RegenerateResponseInput, Success>;
 }
 
 const objectType = "ChatMessage";
 export const chatMessage: EndpointsChatMessage = {
-    findOne: async (_, { input }, { req }, info) => {
+    findOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
         return readOneHelper({ info, input, objectType, req });
     },
-    findMany: async (_, { input }, { req }, info) => {
+    findMany: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
         return readManyHelper({ info, input, objectType, req });
     },
-    findTree: async (_, { input }, { req }, info) => {
+    findTree: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
         return ModelMap.get<ChatMessageModelLogic>("ChatMessage").query.searchTree(req, input, info);
     },
-    createOne: async (_, { input }, { req }, info) => {
+    createOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
         const { message, task, taskContexts } = input;
         const additionalData = { task, taskContexts };
         return createOneHelper({ additionalData, info, input: message, objectType, req });
     },
-    updateOne: async (_, { input }, { req }, info) => {
+    updateOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
         const { message, task, taskContexts } = input;
         const additionalData = { task, taskContexts };
         return updateOneHelper({ additionalData, info, input: message, objectType, req });
     },
     //TODO remove if possible
-    regenerateResponse: async (_, { input }, { req }) => {
+    regenerateResponse: async ({ input }, { req }) => {
         const userData = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 1000, req });
 
@@ -56,7 +56,7 @@ export const chatMessage: EndpointsChatMessage = {
         if (!uuidValidate(messageId)) {
             throw new CustomError("0423", "InvalidArgs", { input });
         }
-        const { canDelete: canRegenerateResponse } = await getSingleTypePermissions<ChatModelInfo["GqlPermission"]>("ChatMessage", [input.messageId], userData);
+        const { canDelete: canRegenerateResponse } = await getSingleTypePermissions<ChatModelInfo["ApiPermission"]>("ChatMessage", [input.messageId], userData);
         // Use delete permissions to determine if we can regenerate a response, 
         // even though we keep the old message
         if (!Array.isArray(canRegenerateResponse) || !canRegenerateResponse.every(Boolean)) {

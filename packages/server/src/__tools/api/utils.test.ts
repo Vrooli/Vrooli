@@ -11,8 +11,8 @@ afterAll(() => {
 });
 
 describe("findSelection", () => {
-    // Define a base GqlPartial object
-    const baseGqlPartial = {
+    // Define a base ApiPartial object
+    const baseApiPartial = {
         common: {},
         list: {},
         full: {},
@@ -25,33 +25,33 @@ describe("findSelection", () => {
         ["full", "full"],
         ["nav", "nav"],
     ] as const)("should return the specified selection %s when it exists", (selection, expected) => {
-        const result = findSelection(baseGqlPartial, selection);
+        const result = findSelection(baseApiPartial, selection);
         expect(result).toEqual(expected);
     });
 
     it("should fallback to the next best selection if the preferred one does not exist", () => {
-        const gqlPartial = {
+        const apiPartial = {
             // "common" is missing
             list: {},
             full: {},
             nav: {},
         };
-        const result = findSelection(gqlPartial, "common");
+        const result = findSelection(apiPartial, "common");
         expect(result).toEqual("list");
     });
 
     it("should throw an error if none of the selections exist", () => {
-        const gqlPartial = {
+        const apiPartial = {
         };
-        expect(() => findSelection(gqlPartial, "common")).toThrow();
+        expect(() => findSelection(apiPartial, "common")).toThrow();
     });
 
     it("should log a warning if the specified selection does not exist but another valid selection is found", () => {
-        const gqlPartial = {
+        const apiPartial = {
             // "common" is missing, but "list" exists
             list: {},
         };
-        findSelection(gqlPartial, "common");
+        findSelection(apiPartial, "common");
         expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("Specified selection type 'common' for 'TestType' does not exist. Try using 'list' instead."));
     });
 
@@ -61,12 +61,12 @@ describe("findSelection", () => {
         ["full", ["list", "common", "nav"]],
         ["nav", ["common", "list", "full"]],
     ] as const)("should respect the fallback order for selection %s", (selection, expectedOrder) => {
-        const gqlPartial = {
+        const apiPartial = {
         };
         // Ensure only the last preference exists
-        gqlPartial[expectedOrder[expectedOrder.length - 1]] = {};
+        apiPartial[expectedOrder[expectedOrder.length - 1]] = {};
 
-        const result = findSelection(gqlPartial, selection);
+        const result = findSelection(apiPartial, selection);
         expect(result).toEqual(expectedOrder[expectedOrder.length - 1]);
     });
 

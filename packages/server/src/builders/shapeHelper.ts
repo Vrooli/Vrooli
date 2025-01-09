@@ -1,4 +1,4 @@
-import { GqlModelType, SessionUser, lowercaseFirstLetter, uuidValidate } from "@local/shared";
+import { ModelType, SessionUser, lowercaseFirstLetter, uuidValidate } from "@local/shared";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
 import { PreMap } from "../models/types";
@@ -52,7 +52,7 @@ export type ShapeHelperProps<
         parentIdFieldName: string, // e.g. team.tags.tag => 'taggedId'
         parentId: string | null, // Only needed if not a create
     }
-    objectType: `${GqlModelType}`,
+    objectType: `${ModelType}`,
     /**
     * The name of the parent relationship, from the child's perspective. 
     * Used to ensure that the child does not have a circular reference to the parent.

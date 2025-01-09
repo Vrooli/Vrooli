@@ -1,4 +1,4 @@
-import { EmailResetPasswordInput, LINKS, Session, UrlTools, emailResetPasswordFormSchema, endpointPostAuthEmailResetPassword, uuidValidate } from "@local/shared";
+import { EmailResetPasswordInput, LINKS, Session, UrlTools, emailResetPasswordFormSchema, endpointsAuth, uuidValidate } from "@local/shared";
 import { Box, Button } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
@@ -36,7 +36,7 @@ function ResetPasswordForm({
 }: ResetPasswordFormProps) {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const [emailResetPassword, { loading }] = useLazyFetch<EmailResetPasswordInput, Session>(endpointPostAuthEmailResetPassword);
+    const [emailResetPassword, { loading }] = useLazyFetch<EmailResetPasswordInput, Session>(endpointsAuth.emailResetPassword);
 
     // Get userId and code from url. Should be set if coming from email link
     const { userId, code } = useMemo(() => {

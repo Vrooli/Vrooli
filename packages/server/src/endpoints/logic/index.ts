@@ -45,6 +45,7 @@ export * from "./reminderList";
 export * from "./report";
 export * from "./reportResponse";
 export * from "./reputationHistory";
+export * from "./resource";
 export * from "./resourceList";
 export * from "./role";
 export * from "./routine";

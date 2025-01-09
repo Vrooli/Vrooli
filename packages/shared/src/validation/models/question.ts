@@ -1,5 +1,5 @@
 import * as yup from "yup";
-import { QuestionForType } from "../../api/generated/graphqlTypes";
+import { QuestionForType } from "../../api/types";
 import { YupModel, bool, enumToYup, id, opt, referencing, req, transRel, yupObj } from "../utils";
 import { maxStrErr, minStrErr } from "../utils/errors";
 

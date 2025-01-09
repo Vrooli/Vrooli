@@ -2,7 +2,7 @@
  * Handles giving reputation to users when some action is performed.
  */
 
-import { GqlModelType } from "@local/shared";
+import { ModelType } from "@local/shared";
 import { prismaInstance } from "../db/instance";
 import { logger } from "../events/logger";
 import { withRedis } from "../redisConn";
@@ -34,7 +34,7 @@ const MaxReputationGainPerDay = 100;
  * @param objectType The object type to check
  * @returns `Public${objectType}Created` if it's a tracked reputation nevent
  */
-export const objectReputationEvent = <T extends keyof typeof GqlModelType>(objectType: T): `Public${T}Created` | null => {
+export const objectReputationEvent = <T extends keyof typeof ModelType>(objectType: T): `Public${T}Created` | null => {
     return `Public${objectType}Created` in ReputationEvent ? `Public${objectType}Created` : null;
 };
 

@@ -15,7 +15,7 @@ export const StatsStandardModel: StatsStandardModelLogic = ({
             select: () => ({ id: true, standard: { select: ModelMap.get<StandardModelLogic>("Standard").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE,
-                objectName: ModelMap.get<StandardModelLogic>("Standard").display().label.get(select.standard as StandardModelInfo["PrismaModel"], languages),
+                objectName: ModelMap.get<StandardModelLogic>("Standard").display().label.get(select.standard as StandardModelInfo["DbModel"], languages),
             }),
         },
     }),
@@ -37,9 +37,9 @@ export const StatsStandardModel: StatsStandardModelLogic = ({
             standard: "Standard",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<StandardModelLogic>("Standard").validate().owner(data?.standard as StandardModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<StandardModelLogic>("Standard").validate().owner(data?.standard as StandardModelInfo["DbModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<StatsStandardModelInfo["PrismaSelect"]>([["standard", "Standard"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<StatsStandardModelInfo["DbSelect"]>([["standard", "Standard"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {

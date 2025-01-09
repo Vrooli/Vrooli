@@ -1,4 +1,4 @@
-import { AwardCategory, BookmarkFor, ChatMessage, CopyType, GqlModelType, IssueStatus, PullRequestStatus, ReactionFor, ReportStatus } from "@local/shared";
+import { AwardCategory, BookmarkFor, ChatMessage, CopyType, IssueStatus, ModelType, PullRequestStatus, ReactionFor, ReportStatus } from "@local/shared";
 import { PasswordAuthService } from "../auth/email";
 import { prismaInstance } from "../db/instance";
 import { Notify, isObjectSubscribable } from "../notify";
@@ -102,7 +102,7 @@ export function Trigger(languages: string[] | undefined) {
             issueStatus: IssueStatus,
             objectId: string,
             objectOwner: Owner,
-            objectType: GqlModelType | `${GqlModelType}`,
+            objectType: ModelType | `${ModelType}`,
             userUpdatingIssueId: string,
         }) => {
             // Ignore drafts
@@ -124,7 +124,7 @@ export function Trigger(languages: string[] | undefined) {
             }
             // Send notification
             const notification = Notify(languages).pushIssueStatusChange(issueId, objectId, objectType, issueStatus);
-            notification.toAll("Issue", objectId, objectOwner, [userUpdatingIssueId])
+            notification.toAll("Issue", objectId, objectOwner, [userUpdatingIssueId]);
         },
         /**
          * Handle object creation. 
@@ -156,7 +156,7 @@ export function Trigger(languages: string[] | undefined) {
             hasParent: boolean,
             owner: Owner,
             objectId: string,
-            objectType: `${GqlModelType}`,
+            objectType: `${ModelType}`,
             projectId?: string,
         }) => {
             // Step 1
@@ -225,7 +225,7 @@ export function Trigger(languages: string[] | undefined) {
             hasParent: boolean,
             owner: Owner,
             objectId: string,
-            objectType: `${GqlModelType}`,
+            objectType: `${ModelType}`,
             originalProjectId?: string,
             projectId?: string,
             wasCompleteAndPublic: boolean,
@@ -269,7 +269,7 @@ export function Trigger(languages: string[] | undefined) {
             hasBeenTransferred: boolean,
             hasParent: boolean,
             objectId: string,
-            objectType: `${GqlModelType}`,
+            objectType: `${ModelType}`,
             wasCompleteAndPublic: boolean,
         }) => {
             // Step 1
@@ -317,7 +317,7 @@ export function Trigger(languages: string[] | undefined) {
             const dontNotifyFor = ["ChatMessage"];
             if (scoreNotifyThresolds.includes(updatedScore) && deltaScore > 0 && !dontNotifyFor.includes(objectType)) {
                 const notification = Notify(languages).pushObjectReceivedUpvote(objectType, objectId, updatedScore);
-                notification.toAll(objectType as string as GqlModelType, objectId, objectOwner, [userId])
+                notification.toAll(objectType as string as ModelType, objectId, objectOwner, [userId]);
             }
             // // Increase/decrease reputation score of object owner(s), depending on sentiment of currentReaction compared to previousReaction
             // TODO
@@ -341,7 +341,7 @@ export function Trigger(languages: string[] | undefined) {
             pullRequestStatus: PullRequestStatus,
             objectId: string,
             objectOwner: Owner,
-            objectType: GqlModelType | `${GqlModelType}`,
+            objectType: ModelType | `${ModelType}`,
             userUpdatingPullRequestId: string,
         }) => {
             // Ignore drafts
@@ -412,7 +412,7 @@ export function Trigger(languages: string[] | undefined) {
         }: {
             objectId: string,
             objectOwner: Owner,
-            objectType: GqlModelType | `${GqlModelType}`,
+            objectType: ModelType | `${ModelType}`,
             reportContributors: string[],
             reportCreatedById: string | null,
             reportId: string,

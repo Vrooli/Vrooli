@@ -1,9 +1,8 @@
-import { DAYS_1_MS, DEFAULT_LANGUAGE, GqlModelType, HOURS_1_MS, IssueStatus, LINKS, MINUTES_1_MS, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, ReportStatus, SessionUser, SubscribableObject, Success } from "@local/shared";
+import { DAYS_1_MS, DEFAULT_LANGUAGE, HOURS_1_MS, IssueStatus, LINKS, MINUTES_1_MS, ModelType, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, ReportStatus, SessionUser, SubscribableObject, Success } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next, { TFuncKey } from "i18next";
-import { selectHelper } from "../builders/selectHelper";
-import { toPartialGqlInfo } from "../builders/toPartialGqlInfo";
-import { ApiEndpointInfo, PrismaDelegate } from "../builders/types";
+import { InfoConverter, selectHelper } from "../builders/infoConverter";
+import { PartialApiInfo, PrismaDelegate } from "../builders/types";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
 import { logger } from "../events/logger";
@@ -76,7 +75,7 @@ type NotifyResultParams = {
  * @param objectType The object type to check
  * @returns True if the object type can be subscribed to
  */
-export function isObjectSubscribable<T extends keyof typeof GqlModelType>(objectType: T): boolean {
+export function isObjectSubscribable<T extends keyof typeof ModelType>(objectType: T): boolean {
     return objectType in SubscribableObject;
 }
 
@@ -192,7 +191,7 @@ type NotifyResultType = {
     toOwner: (owner: { __typename: "User" | "Team", id: string }, excludedUsers?: string[] | string) => Promise<unknown>,
     toSubscribers: (objectType: SubscribableObject | `${SubscribableObject}`, objectId: string, excludedUsers?: string[] | string) => Promise<unknown>,
     toChatParticipants: (chatId: string, excludedUsers?: string[] | string) => Promise<unknown>,
-    toAll: (objectType: GqlModelType | `${GqlModelType}`, objectId: string, owner: Owner | null | undefined, excludedUsers?: string | string[]) => Promise<unknown>,
+    toAll: (objectType: ModelType | `${ModelType}`, objectId: string, owner: Owner | null | undefined, excludedUsers?: string | string[]) => Promise<unknown>,
 }
 
 /**
@@ -216,7 +215,7 @@ async function replaceLabels(
     // the object's translated label
     let labelTranslations: { [key: string]: string } = {};
     // Helper function to query for label translations
-    async function findTranslations(objectType: `${GqlModelType}`, objectId: string) {
+    async function findTranslations(objectType: `${ModelType}`, objectId: string) {
         // Ignore if already translated
         if (Object.keys(labelTranslations).length > 0) return;
         const { dbTable, display } = ModelMap.getLogic(["dbTable", "display"], objectType, true, "replaceLabels 1");
@@ -236,9 +235,9 @@ async function replaceLabels(
                 const match = (titleVariables[key] as string).match(labelRegex);
                 if (match) {
                     // Find label translations
-                    await findTranslations(match[1] as GqlModelType, match[2]);
+                    await findTranslations(match[1] as ModelType, match[2]);
                     // In each params, replace the matching substring with the label
-                    const { display } = ModelMap.getLogic(["display"], match[1] as GqlModelType, true, "replaceLabels 2");
+                    const { display } = ModelMap.getLogic(["display"], match[1] as ModelType, true, "replaceLabels 2");
                     for (let i = 0; i < result.length; i++) {
                         result[i][key] = (result[i][key] as string).replace(match[0], display().label.get(labelTranslations, result[i].languages));
                     }
@@ -256,9 +255,9 @@ async function replaceLabels(
                 const match = (bodyVariables[key] as string).match(labelRegex);
                 if (match) {
                     // Find label translations
-                    await findTranslations(match[1] as GqlModelType, match[2]);
+                    await findTranslations(match[1] as ModelType, match[2]);
                     // In each params, replace the matching substring with the label
-                    const { display } = ModelMap.getLogic(["display"], match[1] as GqlModelType, true, "replaceLabels 3");
+                    const { display } = ModelMap.getLogic(["display"], match[1] as ModelType, true, "replaceLabels 3");
                     for (let i = 0; i < result.length; i++) {
                         result[i][key] = (result[i][key] as string).replace(match[0], display().label.get(labelTranslations, result[i].languages));
                     }
@@ -449,9 +448,9 @@ export function Notify(languages: string[] | undefined) {
             expires?: Date,
             name?: string,
             userData: SessionUser,
-            info: ApiEndpointInfo,
+            info: PartialApiInfo,
         }): Promise<PushDevice> => {
-            const partialInfo = toPartialGqlInfo(info, PushDeviceModel.format.gqlRelMap, true);
+            const partialInfo = InfoConverter.fromApiToPartialApi(info, PushDeviceModel.format.apiRelMap, true);
             let select: { [key: string]: any } | undefined;
             let result: any = {};
             try {
@@ -561,7 +560,7 @@ export function Notify(languages: string[] | undefined) {
         pushIssueStatusChange: (
             issueId: string,
             objectId: string,
-            objectType: GqlModelType | `${GqlModelType}`,
+            objectType: ModelType | `${ModelType}`,
             status: Exclude<IssueStatus, "Draft"> | `${Exclude<IssueStatus, "Draft">}`,
         ): NotifyResultType => NotifyResult({
             bodyKey: `IssueStatus${status}Body`,
@@ -591,7 +590,7 @@ export function Notify(languages: string[] | undefined) {
             languages,
             titleKey: "NewEmailVerificationTitle",
         }),
-        pushNewQuestionOnObject: (objectType: `${GqlModelType}`, objectId: string, questionId: string): NotifyResultType => NotifyResult({
+        pushNewQuestionOnObject: (objectType: `${ModelType}`, objectId: string, questionId: string): NotifyResultType => NotifyResult({
             bodyKey: "NewQuestionOnObjectBody",
             bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
             category: "NewQuestionOrIssue",
@@ -599,7 +598,7 @@ export function Notify(languages: string[] | undefined) {
             link: `/questions/${questionId}`,
             titleKey: "NewQuestionOnObjectTitle",
         }),
-        pushNewObjectInTeam: (objectType: `${GqlModelType}`, objectId: string, teamId: string): NotifyResultType => NotifyResult({
+        pushNewObjectInTeam: (objectType: `${ModelType}`, objectId: string, teamId: string): NotifyResultType => NotifyResult({
             bodyKey: "NewObjectInTeamBody",
             bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, teamName: `<Label|Team:${teamId}>` },
             category: "NewObjectInTeam",
@@ -608,7 +607,7 @@ export function Notify(languages: string[] | undefined) {
             titleKey: "NewObjectInTeamTitle",
             titleVariables: { teamName: `<Label|Team:${teamId}>` },
         }),
-        pushNewObjectInProject: (objectType: `${GqlModelType}`, objectId: string, projectId: string): NotifyResultType => NotifyResult({
+        pushNewObjectInProject: (objectType: `${ModelType}`, objectId: string, projectId: string): NotifyResultType => NotifyResult({
             bodyKey: "NewObjectInProjectBody",
             bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, projectName: `<Label|Project:${projectId}>` },
             category: "NewObjectInProject",
@@ -617,7 +616,7 @@ export function Notify(languages: string[] | undefined) {
             titleKey: "NewObjectInProjectTitle",
             titleVariables: { projectName: `<Label|Project:${projectId}>` },
         }),
-        pushObjectReceivedBookmark: (objectType: `${GqlModelType}`, objectId: string, totalBookmarks: number): NotifyResultType => NotifyResult({
+        pushObjectReceivedBookmark: (objectType: `${ModelType}`, objectId: string, totalBookmarks: number): NotifyResultType => NotifyResult({
             bodyKey: "ObjectReceivedBookmarkBody",
             bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, count: totalBookmarks },
             category: "ObjectActivity",
@@ -625,7 +624,7 @@ export function Notify(languages: string[] | undefined) {
             link: `/${LINKS[objectType]}/${objectId}`,
             titleKey: "ObjectReceivedBookmarkTitle",
         }),
-        pushObjectReceivedComment: (objectType: `${GqlModelType}`, objectId: string, totalComments: number): NotifyResultType => NotifyResult({
+        pushObjectReceivedComment: (objectType: `${ModelType}`, objectId: string, totalComments: number): NotifyResultType => NotifyResult({
             bodyKey: "ObjectReceivedCommentBody",
             bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, count: totalComments },
             category: "ObjectActivity",
@@ -633,14 +632,14 @@ export function Notify(languages: string[] | undefined) {
             link: `/${LINKS[objectType]}/${objectId}?comments`,
             titleKey: "ObjectReceivedCommentTitle",
         }),
-        pushObjectReceivedCopy: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
+        pushObjectReceivedCopy: (objectType: `${ModelType}`, objectId: string): NotifyResultType => NotifyResult({
             category: "ObjectActivity",
             languages,
             link: `/${LINKS[objectType]}/${objectId}`,
             titleKey: "ObjectReceivedCopyTitle",
             titleVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         }),
-        pushObjectReceivedUpvote: (objectType: `${GqlModelType}`, objectId: string, totalScore: number): NotifyResultType => NotifyResult({
+        pushObjectReceivedUpvote: (objectType: `${ModelType}`, objectId: string, totalScore: number): NotifyResultType => NotifyResult({
             bodyKey: "ObjectReceivedUpvoteBody",
             bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, count: totalScore },
             category: "ObjectActivity",
@@ -655,7 +654,7 @@ export function Notify(languages: string[] | undefined) {
         pushReportStatusChange: (
             reportId: string,
             objectId: string,
-            objectType: GqlModelType | `${GqlModelType}`,
+            objectType: ModelType | `${ModelType}`,
             status: ReportStatus | `${ReportStatus}`,
         ): NotifyResultType => NotifyResult({
             bodyKey: `ReportStatus${status}Body`,
@@ -668,7 +667,7 @@ export function Notify(languages: string[] | undefined) {
         pushPullRequestStatusChange: (
             reportId: string,
             objectId: string,
-            objectType: GqlModelType | `${GqlModelType}`,
+            objectType: ModelType | `${ModelType}`,
             status: Exclude<PullRequestStatus, "Draft"> | `${Exclude<PullRequestStatus, "Draft">}`,
         ): NotifyResultType => NotifyResult({
             bodyKey: `PullRequestStatus${status}Body`,
@@ -710,7 +709,7 @@ export function Notify(languages: string[] | undefined) {
             link: `/runs/${runId}`,
             titleKey: "RunFailedAutomaticallyTitle",
         }),
-        pushScheduleReminder: (scheduleForId: string, scheduleForType: GqlModelType, startTime: Date): NotifyResultType => NotifyResult({
+        pushScheduleReminder: (scheduleForId: string, scheduleForType: ModelType, startTime: Date): NotifyResultType => NotifyResult({
             bodyKey: "ScheduleUserBody",
             bodyVariables: { title: `<Label|${scheduleForType}:${scheduleForId}>`, startLabel: getEventStartLabel(startTime) },
             category: "Schedule",
@@ -745,7 +744,7 @@ export function Notify(languages: string[] | undefined) {
             link: `/${LINKS[objectType]}/transfers/${transferId}`,
             titleKey: "TransferRequestReceiveTitle",
         }),
-        pushTransferAccepted: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
+        pushTransferAccepted: (objectType: `${ModelType}`, objectId: string): NotifyResultType => NotifyResult({
             bodyKey: "TransferAcceptedTitle",
             bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
             category: "Transfer",
@@ -753,7 +752,7 @@ export function Notify(languages: string[] | undefined) {
             link: `/${LINKS[objectType]}/${objectId}`,
             titleKey: "TransferAcceptedTitle",
         }),
-        pushTransferRejected: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
+        pushTransferRejected: (objectType: `${ModelType}`, objectId: string): NotifyResultType => NotifyResult({
             bodyKey: "TransferRejectedTitle",
             bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
             category: "Transfer",

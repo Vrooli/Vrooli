@@ -5,18 +5,18 @@ import { prismaInstance } from "../../db/instance";
 import { CustomError } from "../../events/error";
 import { logger } from "../../events/logger";
 import { Notify } from "../../notify";
-import { ApiEndpoint, CreateOneResult, FindOneResult, UpdateOneResult } from "../../types";
+import { ApiEndpoint } from "../../types";
 
 export type EndpointsPushDevice = {
-    findMany: ApiEndpoint<undefined, FindOneResult<PushDevice>[]>;
-    createOne: ApiEndpoint<PushDeviceCreateInput, CreateOneResult<PushDevice>>;
+    findMany: ApiEndpoint<undefined, PushDevice[]>;
+    createOne: ApiEndpoint<PushDeviceCreateInput, PushDevice>;
     testOne: ApiEndpoint<PushDeviceTestInput, Success>;
-    updateOne: ApiEndpoint<PushDeviceUpdateInput, UpdateOneResult<PushDevice>>;
+    updateOne: ApiEndpoint<PushDeviceUpdateInput, PushDevice>;
 }
 
 const objectType = "PushDevice";
 export const pushDevice: EndpointsPushDevice = {
-    findMany: async (_p, _d, { req }) => {
+    findMany: async (_d, { req }) => {
         const { id } = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 1000, req });
         return prismaInstance.push_device.findMany({
@@ -24,7 +24,7 @@ export const pushDevice: EndpointsPushDevice = {
             select: { id: true, name: true, expires: true },
         });
     },
-    createOne: async (_, { input }, { req }, info) => {
+    createOne: async ({ input }, { req }, info) => {
         const userData = RequestService.assertRequestFrom(req, { isUser: true });
         return Notify(userData.languages).registerPushDevice({
             endpoint: input.endpoint,
@@ -36,7 +36,7 @@ export const pushDevice: EndpointsPushDevice = {
             info,
         });
     },
-    testOne: async (_, { input }, { req }) => {
+    testOne: async ({ input }, { req }) => {
         const userData = RequestService.assertRequestFrom(req, { isUser: true });
         const pushDevices = await prismaInstance.push_device.findMany({
             where: { userId: userData.id },
@@ -50,7 +50,7 @@ export const pushDevice: EndpointsPushDevice = {
         const success = await Notify(userData.languages).testPushDevice(requestedDevice);
         return success;
     },
-    updateOne: async (_, { input }, { req }, info) => {
+    updateOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 10, req });
         return updateOneHelper({ info, input, objectType, req });
     },

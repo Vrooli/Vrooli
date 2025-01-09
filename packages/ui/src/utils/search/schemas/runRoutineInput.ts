@@ -1,11 +1,15 @@
-import { endpointGetRunRoutineInputs, FormSchema, RunRoutineInputSortBy } from "@local/shared";
+import { endpointsRunRoutineInput, FormSchema, RunRoutineInputSortBy } from "@local/shared";
 import { toParams } from "./base";
 import { searchFormLayout } from "./common";
 
-export const runRoutineInputSearchSchema = (): FormSchema => ({
-    layout: searchFormLayout("SearchRunRoutineInput"),
-    containers: [], //TODO
-    elements: [], //TODO
-});
+export function runRoutineInputSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchRunRoutineInput"),
+        containers: [], //TODO
+        elements: [], //TODO
+    };
+}
 
-export const runRoutineInputSearchParams = () => toParams(runRoutineInputSearchSchema(), endpointGetRunRoutineInputs, undefined, RunRoutineInputSortBy, RunRoutineInputSortBy.DateCreatedDesc);
+export function runRoutineInputSearchParams() {
+    return toParams(runRoutineInputSearchSchema(), endpointsRunRoutineInput, RunRoutineInputSortBy, RunRoutineInputSortBy.DateCreatedDesc);
+}

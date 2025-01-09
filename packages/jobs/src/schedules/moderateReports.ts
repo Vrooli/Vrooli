@@ -1,5 +1,5 @@
 import { ModelMap, PrismaDelegate, Trigger, batch, findFirstRel, logger, prismaInstance } from "@local/server";
-import { GqlModelType, ReportStatus, ReportSuggestedAction, uppercaseFirstLetter } from "@local/shared";
+import { ModelType, ReportStatus, ReportSuggestedAction, uppercaseFirstLetter } from "@local/shared";
 import pkg, { Prisma } from "@prisma/client";
 
 // Constants for calculating when a moderation action for a report should be accepted
@@ -199,7 +199,7 @@ async function moderateReport(
         // Trigger activity
         await Trigger(["en"]).reportActivity({
             objectId: objectData.id,
-            objectType: objectType as GqlModelType,
+            objectType: objectType as ModelType,
             objectOwner,
             reportContributors: report.responses.map(r => r.createdBy?.id).filter(id => id) as string[],
             reportCreatedById: (report as any).createdBy?.id ?? null,
@@ -208,7 +208,7 @@ async function moderateReport(
             userUpdatingReportId: null,
         });
         // Get Prisma table for the object type
-        const { dbTable } = ModelMap.getLogic(["dbTable"], objectType as GqlModelType);
+        const { dbTable } = ModelMap.getLogic(["dbTable"], objectType as ModelType);
         // Perform moderation action
         switch (acceptedAction) {
             // How delete works:

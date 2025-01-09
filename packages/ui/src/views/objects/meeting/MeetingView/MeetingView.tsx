@@ -1,4 +1,4 @@
-import { endpointGetMeeting, Meeting } from "@local/shared";
+import { endpointsMeeting, Meeting } from "@local/shared";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { TopBar } from "components/navigation/TopBar/TopBar";
 import { SessionContext } from "contexts";
@@ -22,7 +22,7 @@ export function MeetingView({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     const { object: existing, isLoading, setObject: setMeeting } = useManagedObject<Meeting>({
-        ...endpointGetMeeting,
+        ...endpointsMeeting.findOne,
         objectType: "Meeting",
     });
 

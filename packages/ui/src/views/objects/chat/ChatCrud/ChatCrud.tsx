@@ -1,4 +1,4 @@
-import { Chat, ChatCreateInput, ChatInviteShape, ChatInviteStatus, ChatMessageShape, ChatParticipantShape, ChatShape, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointGetChat, endpointPostChat, endpointPutChat, exists, getObjectUrl, LINKS, noopSubmit, orDefault, parseSearchParams, ServerResponse, Session, shapeChat, uuid, uuidToBase36, VALYXA_ID } from "@local/shared";
+import { Chat, ChatCreateInput, ChatInviteShape, ChatInviteStatus, ChatMessageShape, ChatParticipantShape, ChatShape, chatTranslationValidation, ChatUpdateInput, chatValidation, DUMMY_ID, endpointsChat, exists, getObjectUrl, LINKS, noopSubmit, orDefault, parseSearchParams, ServerResponse, Session, shapeChat, uuid, uuidToBase36, VALYXA_ID } from "@local/shared";
 import { Box, Button, Checkbox, IconButton, InputAdornment, Stack, styled, Typography } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper";
 import { ServerResponseParser } from "api/responseParser";
@@ -212,8 +212,8 @@ function ChatForm({
     } = useUpsertFetch<Chat, ChatCreateInput, ChatUpdateInput>({
         isCreate: false, // We create chats automatically, so this should always be false
         isMutate: true,
-        endpointCreate: endpointPostChat,
-        endpointUpdate: endpointPutChat,
+        endpointCreate: endpointsChat.createOne,
+        endpointUpdate: endpointsChat.updateOne,
     });
 
     // Create chats automatically
@@ -582,7 +582,7 @@ export function ChatCrud({
     const [, setLocation] = useLocation();
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Chat, ChatShape>({
-        ...endpointGetChat,
+        ...endpointsChat.findOne,
         onError: function onLoadError(errors) {
             // If the chat doesn't exist, switch to create mode
             if (ServerResponseParser.hasErrorCode({ errors }, "NotFound")) {

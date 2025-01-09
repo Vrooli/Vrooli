@@ -109,11 +109,11 @@ export const QuizModel: QuizModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<QuizModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<QuizModelInfo["ApiPermission"]>(__typename, ids, userData)),
                         hasCompleted: new Array(ids.length).fill(false), // TODO: Implement
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
@@ -124,7 +124,7 @@ export const QuizModel: QuizModelLogic = ({
     },
     validate: () => ({
         isDeleted: () => false,
-        isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<QuizModelInfo["PrismaSelect"]>([
+        isPublic: (data, ...rest) => data.isPrivate === false && oneIsPublic<QuizModelInfo["DbSelect"]>([
             ["project", "Project"],
             ["routine", "Routine"],
         ], data, ...rest),

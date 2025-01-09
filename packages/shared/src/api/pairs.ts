@@ -31,7 +31,7 @@ function createMany(many: string) {
             endpoint: `/${many}`,
             method: "POST" as const,
         },
-    }
+    };
 }
 
 function updateOne(one: string) {
@@ -129,7 +129,7 @@ export const endpointsAuth = {
         endpoint: "/auth/wallet/complete",
         method: "POST" as const,
     },
-}
+};
 
 export const endpointsAward = {
     ...findMany("awards"),
@@ -226,7 +226,7 @@ export const endpointsFocusMode = {
     setActive: {
         endpoint: "/focusMode/active/:id",
         method: "PUT" as const,
-    }
+    },
 } as const;
 
 export const endpointsIssue = {
@@ -234,7 +234,7 @@ export const endpointsIssue = {
     closeOne: {
         endpoint: "/issue/:id/close",
         method: "PUT" as const,
-    }
+    },
 } as const;
 
 export const endpointsLabel = standardCRUD("label", "labels");
@@ -362,7 +362,7 @@ export const endpointsQuizQuestionResponse = {
 export const endpointsReaction = {
     ...findMany("reactions"),
     ...createOne("react"),
-}
+};
 
 export const endpointsReminder = standardCRUD("reminder", "reminders");
 
@@ -379,6 +379,8 @@ export const endpointsReputationHistory = {
     ...findOne("reputationHistory"),
     ...findMany("reputationHistories"),
 } as const;
+
+export const endpointsResource = standardCRUD("resource", "resources");
 
 export const endpointsResourceList = standardCRUD("resourceList", "resourceLists");
 
@@ -461,7 +463,7 @@ export const endpointsTask = {
         endpoint: "/task/cancel",
         method: "POST" as const,
     },
-}
+};
 
 export const endpointsTeam = standardCRUD("team", "teams");
 
@@ -489,7 +491,7 @@ export const endpointsTransfer = {
         endpoint: "/transfer/deny",
         method: "PUT" as const,
     },
-}
+};
 
 export const endpointsTranslate = {
     translate: {
