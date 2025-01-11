@@ -14,7 +14,7 @@ cd ${PROJECT_DIR}/packages/server
 # Prompt user to confirm
 read -p "Are you sure you want to create an initial migration? THIS WILL ERASE ALL PREVIOUS MIGRATIONS! (y/n) " -n 1 -r
 echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+if is_yes "$REPLY"; then
     exit 1
 fi
 

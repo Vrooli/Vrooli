@@ -197,7 +197,7 @@ else
     prompt "Would you like to apply the generated Kubernetes YAML file now? (y/n)"
     read -n1 -r APPLY
     echo
-    if [[ "$APPLY" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+    if is_yes "$APPLY"; then
         kubectl apply -f ${OUTPUT_FILE}
         if [ $? -ne 0 ]; then
             error "Failed to apply the generated Kubernetes YAML file"
@@ -214,7 +214,7 @@ fi
 prompt "Would you like to stop Minikube? (y/n)"
 read -n1 -r STOP_MINIKUBE
 echo
-if [[ "$STOP_MINIKUBE" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+if is_yes "$STOP_MINIKUBE"; then
     info "Stopping Minikube..."
     minikube stop
     if [ $? -ne 0 ]; then
