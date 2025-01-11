@@ -1,7 +1,7 @@
 import { ModelType, PageInfo, TimeFrame, ViewFor, camelCase } from "@local/shared";
 import { SessionService } from "../auth/session";
 import { combineQueries } from "../builders/combineQueries";
-import { InfoConverter, addSupplementalFields, selectHelper } from "../builders/infoConverter";
+import { InfoConverter, addSupplementalFields } from "../builders/infoConverter";
 import { timeFrameToSql } from "../builders/timeFrame";
 import { PaginatedSearchResult, PartialApiInfo, PrismaDelegate } from "../builders/types";
 import { visibilityBuilderPrisma } from "../builders/visibilityBuilder";
@@ -54,7 +54,7 @@ export async function readOneHelper<ObjectModel extends { [x: string]: any }>({
     if (!input.id && !input.idRoot && !input.handle && !input.handleRoot)
         throw new CustomError("0019", "IdOrHandleRequired");
     // Partially convert info
-    const partialInfo = InfoConverter.fromApiToPartialApi(info, model.format.apiRelMap, true);
+    const partialInfo = InfoConverter.get().fromApiToPartialApi(info, model.format.apiRelMap, true);
     // If using idRoot or handleRoot, this means we are requesting a versioned object using data from the root object.
     // To query the version, we must find the latest completed version associated with the root object.
     let id: string | null | undefined;
@@ -81,14 +81,14 @@ export async function readOneHelper<ObjectModel extends { [x: string]: any }>({
     // Get the Prisma object
     let object: any;
     try {
-        object = await (prismaInstance[model.dbTable] as PrismaDelegate).findUnique({ where: { id }, ...selectHelper(partialInfo) });
+        object = await (prismaInstance[model.dbTable] as PrismaDelegate).findUnique({ where: { id }, ...InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo) });
         if (!object)
             throw new CustomError("0022", "NotFound", { objectType });
     } catch (error) {
         throw new CustomError("0435", "NotFound", { objectType, error });
     }
     // Return formatted for GraphQL
-    const formatted = InfoConverter.fromDbToApi(object, partialInfo) as RecursivePartial<ObjectModel>;
+    const formatted = InfoConverter.get().fromDbToApi(object, partialInfo) as RecursivePartial<ObjectModel>;
     // If logged in and object tracks view counts, add a view
     if (userData?.id && objectType in ViewFor) {
         ModelMap.get<ViewModelLogic>("View").view(userData, { forId: object.id, viewFor: objectType as ViewFor });
@@ -116,7 +116,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     const userData = SessionService.getUser(req.session);
     const model = ModelMap.get(objectType);
     // Partially convert info type
-    const partialInfo = InfoConverter.fromApiToPartialApi(info, model.format.apiRelMap, true);
+    const partialInfo = InfoConverter.get().fromApiToPartialApi(info, model.format.apiRelMap, true);
     // Make sure ID is in partialInfo, since this is required for cursor-based search
     partialInfo.id = true;
     const searcher: Searcher<any, any> | undefined = model.search;
@@ -149,7 +149,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     const orderBy = sortBy in SortMap ? SortMap[sortBy] : undefined;
     const desiredTake = getDesiredTake(input.take, objectType);
     // Find requested search array
-    const select = selectHelper(partialInfo);
+    const select = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo);
     // Search results have at least an id
     let searchResults: Record<string, any>[] = [];
     try {
@@ -180,7 +180,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     //TODO validate that the user has permission to read all of the results, including relationships
     // Add supplemental fields, if requested
     if (addSupplemental) {
-        searchResults = searchResults.map(n => InfoConverter.fromDbToApi(n, partialInfo as PartialApiInfo));
+        searchResults = searchResults.map(n => InfoConverter.get().fromDbToApi(n, partialInfo as PartialApiInfo));
         searchResults = await addSupplementalFields(userData, searchResults, partialInfo);
     }
     // Return formatted for GraphQL
@@ -227,7 +227,7 @@ export async function readManyAsFeedHelper<Input extends { [x: string]: any }>({
     });
     const format = ModelMap.get(objectType).format;
     const nodes = readManyResult.edges.map(({ node }: any) =>
-        InfoConverter.fromDbToApi(node, InfoConverter.fromApiToPartialApi(info, format.apiRelMap, true))) as any[];
+        InfoConverter.get().fromDbToApi(node, InfoConverter.get().fromApiToPartialApi(info, format.apiRelMap, true))) as any[];
     return {
         pageInfo: readManyResult.pageInfo,
         nodes,
@@ -374,15 +374,15 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
     }
 
     // Fetch additional data for the search results
-    const partialInfo = InfoConverter.fromApiToPartialApi(info, model.format.apiRelMap, true);
-    const select = selectHelper(partialInfo);
+    const partialInfo = InfoConverter.get().fromApiToPartialApi(info, model.format.apiRelMap, true);
+    const select = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo);
     finalResults = await (prismaInstance[model.dbTable] as PrismaDelegate).findMany({
         where: { id: { in: finalResults.map(t => t.id) } },
         ...select,
     });
     //TODO validate that the user has permission to read all of the results, including relationships
     // Return formatted for GraphQL
-    let formattedNodes = finalResults.map(n => InfoConverter.fromDbToApi(n, partialInfo as PartialApiInfo));
+    let formattedNodes = finalResults.map(n => InfoConverter.get().fromDbToApi(n, partialInfo as PartialApiInfo));
     // If fetch mode is "full", add supplemental fields
     if (fetchMode === "full") {
         formattedNodes = await addSupplementalFields(userData, formattedNodes, partialInfo);

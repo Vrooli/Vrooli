@@ -21,7 +21,7 @@ export async function createManyHelper<ObjectModel>({
     const userData = RequestService.assertRequestFrom(req, { isUser: true });
     const format = ModelMap.get(objectType).format;
     // Partially convert info type
-    const partialInfo = InfoConverter.fromApiToPartialApi(info, format.apiRelMap, true);
+    const partialInfo = InfoConverter.get().fromApiToPartialApi(info, format.apiRelMap, true);
     // Create objects. cudHelper will check permissions
     const created = await cudHelper({
         additionalData,

@@ -436,5 +436,6 @@ export const meetingInvite_createMany = {
             "link": true,
             "name": true
         }
-    }
+    },
+    "__cacheKey": "-29124292"
 };

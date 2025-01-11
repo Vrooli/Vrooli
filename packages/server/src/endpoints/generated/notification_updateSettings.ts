@@ -26,5 +26,6 @@ export const notification_updateSettings = {
         "toEmails": true,
         "toSms": true,
         "toPush": true
-    }
+    },
+    "__cacheKey": "1235356773"
 };

@@ -1,6 +1,6 @@
 import { DotNotation, ModelType, ObjectLimit, SessionUser, YupMutateParams } from "@local/shared";
 import { AnyObjectSchema } from "yup";
-import { PartialApiInfo, PartialPrismaSelect } from "../builders/types";
+import { PartialApiInfo } from "../builders/types";
 import { PromiseOrValue } from "../types";
 import { SearchMap, SearchStringMap } from "../utils";
 import { InputNode } from "../utils/inputNode";
@@ -193,11 +193,11 @@ export interface Formatter<
     /** List of fields to always exclude from GraphQL results */
     hiddenFields?: string[];
     /** Add join tables which are not present in GraphQL object */
-    addJoinTables?: (partial: PartialApiInfo | PartialPrismaSelect) => any;
+    addJoinTables?: (partial: PartialApiInfo) => any;
     /** Remove join tables which are not present in GraphQL object */
     removeJoinTables?: (data: ApiObject) => ApiObject;
     /** Add _count fields */
-    addCountFields?: (partial: PartialApiInfo | PartialPrismaSelect) => any;
+    addCountFields?: (partial: PartialApiInfo) => any;
     /** Remove _count fields */
     removeCountFields?: (data: ApiObject) => ApiObject;
 }

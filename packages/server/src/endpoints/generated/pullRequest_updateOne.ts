@@ -26,5 +26,6 @@ export const pullRequest_updateOne = {
         "id": true,
         "language": true,
         "text": true
-    }
+    },
+    "__cacheKey": "-1396035902"
 };

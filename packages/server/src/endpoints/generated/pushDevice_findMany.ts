@@ -10,5 +10,6 @@ export const pushDevice_findMany = {
     "pageInfo": {
         "endCursor": true,
         "hasNextPage": true
-    }
+    },
+    "__cacheKey": "375304464"
 };

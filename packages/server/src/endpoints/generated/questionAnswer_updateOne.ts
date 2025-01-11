@@ -171,5 +171,6 @@ export const questionAnswer_updateOne = {
         "id": true,
         "language": true,
         "text": true
-    }
+    },
+    "__cacheKey": "1125374912"
 };

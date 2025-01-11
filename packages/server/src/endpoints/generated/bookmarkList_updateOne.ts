@@ -1088,5 +1088,6 @@ export const bookmarkList_updateOne = {
                 }
             }
         }
-    }
+    },
+    "__cacheKey": "2079586238"
 };

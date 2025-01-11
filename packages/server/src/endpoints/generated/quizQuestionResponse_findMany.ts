@@ -109,5 +109,6 @@ export const quizQuestionResponse_findMany = {
     "pageInfo": {
         "endCursor": true,
         "hasNextPage": true
-    }
+    },
+    "__cacheKey": "1360797202"
 };

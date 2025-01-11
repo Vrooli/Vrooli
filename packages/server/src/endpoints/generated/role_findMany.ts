@@ -18,5 +18,6 @@ export const role_findMany = {
     "pageInfo": {
         "endCursor": true,
         "hasNextPage": true
-    }
+    },
+    "__cacheKey": "113187144"
 };

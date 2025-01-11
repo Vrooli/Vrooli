@@ -218,5 +218,6 @@ export const chatInvite_findMany = {
     "pageInfo": {
         "endCursor": true,
         "hasNextPage": true
-    }
+    },
+    "__cacheKey": "1750430430"
 };

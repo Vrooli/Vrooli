@@ -42,5 +42,6 @@ export const statsSite_findMany = {
     "pageInfo": {
         "endCursor": true,
         "hasNextPage": true
-    }
+    },
+    "__cacheKey": "-788783641"
 };

@@ -17,5 +17,6 @@ export const label_updateOne = {
     "projectsCount": true,
     "routinesCount": true,
     "schedulesCount": true,
-    "standardsCount": true
+    "standardsCount": true,
+    "__cacheKey": "790093191"
 };

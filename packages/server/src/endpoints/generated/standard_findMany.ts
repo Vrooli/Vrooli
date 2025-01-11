@@ -127,5 +127,6 @@ export const standard_findMany = {
     "pageInfo": {
         "endCursor": true,
         "hasNextPage": true
-    }
+    },
+    "__cacheKey": "-848910382"
 };

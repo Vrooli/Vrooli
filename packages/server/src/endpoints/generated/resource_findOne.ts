@@ -8,5 +8,6 @@ export const resource_findOne = {
         "language": true,
         "description": true,
         "name": true
-    }
+    },
+    "__cacheKey": "1019039771"
 };

@@ -3,7 +3,7 @@
  * This is needed to properly format data, query additional fields that can't be included in the initial query 
  * (or are in another database perhaps), handle unions, etc.
  */
-import { ModelType, OrArray, SessionUser, exists, getDotNotationValue, isObject, omit, setDotNotationValue } from "@local/shared";
+import { MB_10_BYTES, ModelType, OrArray, SessionUser, exists, getDotNotationValue, isObject, omit, setDotNotationValue } from "@local/shared";
 import pkg from "lodash";
 import { CustomError } from "../events/error";
 import { ModelMap } from "../models/base";
@@ -12,8 +12,8 @@ import { ApiRelMap, JoinMap, ModelLogicType } from "../models/types";
 import { RecursivePartial } from "../types";
 import { LRUCache } from "../utils/lruCache";
 import { groupPrismaData } from "./groupPrismaData";
-import { isRelationshipArray, isRelationshipObject } from "./isOfType";
-import { PartialApiInfo, PartialPrismaSelect, PrismaSelect } from "./types";
+import { isRelationshipObject } from "./isOfType";
+import { PartialApiInfo, PrismaSelect } from "./types";
 
 const { merge } = pkg;
 
@@ -90,7 +90,7 @@ class Unions {
         ApiModel extends ModelLogicType["ApiModel"],
         DbModel extends ModelLogicType["DbModel"],
     >(
-        data: { [x: string]: any },
+        data: PrismaSelect["select"],
         apiRelMap: ApiRelMap<Typename, ApiModel, DbModel>
     ): { [x: string]: any } {
         // Create result object
@@ -134,39 +134,22 @@ class JoinTables {
     }
 
     /**
-     * Idempotent helper function for adding join tables between 
-     * many-to-many relationship parents and children
-     * @param partialInfo - API-shaped object
+     * Adds join tables between many-to-many relationship parents and children
+     * @param data API response object
      * @param map - Mapping of many-to-many relationship names to join table names
      */
-    static addToData(partialInfo: PartialApiInfo, map: JoinMap | undefined): any {
-        if (!map) return partialInfo;
-        // Create result object
-        const result: any = {};
+    static addToData(
+        data: PrismaSelect["select"],
+        map: JoinMap | undefined
+    ): any {
+        if (!map || Object.keys(map).length === 0) return data;
         // Iterate over join map
-        for (const [key, value] of Object.entries(map)) {
-            // If the key is in the object, 
-            if (partialInfo[key]) {
-                // Skip if already padded with join table name
-                if (isRelationshipArray(partialInfo[key])) {
-                    if ((partialInfo[key] as any).every((o: any) => isRelationshipObject(o) && Object.keys(o).length === 1 && Object.keys(o)[0] !== "id")) {
-                        result[key] = partialInfo[key];
-                        continue;
-                    }
-                } else if (isRelationshipObject(partialInfo[key])) {
-                    if (Object.keys(partialInfo[key] as any).length === 1 && Object.keys(partialInfo[key] as any)[0] !== "id") {
-                        result[key] = partialInfo[key];
-                        continue;
-                    }
-                }
-                // Otherwise, pad with the join table name
-                result[key] = { [value]: partialInfo[key] };
+        for (const [relationshipKey, joinTableName] of Object.entries(map)) {
+            if (isObject(data[relationshipKey])) {
+                data[relationshipKey] = { select: { [joinTableName]: data[relationshipKey] } };
             }
         }
-        return {
-            ...partialInfo,
-            ...result,
-        };
+        return data
     }
 
     /**
@@ -220,28 +203,32 @@ export class CountFields {
 
     /**
      * Helper function for converting API count fields to Prisma relationship counts
-     * @param obj - API-shaped object
+     * @param data - API-shaped object
      * @param countFields - List of API field names (e.g. ['commentsCount', reportsCount']) 
      * that correspond to Prisma relationship counts (e.g. { _count: { comments: true, reports: true } })
      */
-    static addToData(obj: any, countFields: { [x: string]: true } | undefined): any {
-        if (!countFields) return obj;
-        // Create result object
-        const result: any = {};
+    static addToData(
+        data: PrismaSelect["select"],
+        countFields: { [x: string]: true } | undefined
+    ): any {
+        if (!countFields || Object.keys(countFields).length === 0) return data;
+        const result: Record<string, boolean> = {};
         // Iterate over count map
         for (const key of Object.keys(countFields)) {
-            if (obj[key]) {
-                if (!obj._count) obj._count = {};
+            if (data[key]) {
                 // Remove "Count" suffix from key
                 const value = key.slice(0, -"Count".length);
                 // Add count field to result object
-                obj._count[value] = true;
-                delete obj[key];
+                result[value] = true;
+                delete data[key];
             }
         }
+        if (Object.keys(result).length === 0) return data;
         return {
-            ...obj,
-            ...result,
+            ...data,
+            _count: {
+                select: result,
+            }
         };
     }
 
@@ -338,14 +325,51 @@ class Typenames {
         if (parentRelationshipMap.__typename) result.__typename = parentRelationshipMap.__typename;
         return result;
     }
+}
+
+class SupplementalFields {
+    private static instance: SupplementalFields;
+
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    private constructor() { }
+    public static get(): SupplementalFields {
+        if (!SupplementalFields.instance) {
+            SupplementalFields.instance = new SupplementalFields();
+        }
+        return SupplementalFields.instance;
+    }
+
+    // static addToData( TODO
 
     /**
-     * Removes the "__typename" field recursively from a JSON-serializable object
-     * @param obj - JSON-serializable object with possible type fields
-     * @return obj without type fields
+     * Removes supplemental fields (i.e. fields that cannot be calculated in the main query), and also may 
+     * add additional fields to calculate the supplemental fields
+     * @param objectType Type of object to get supplemental fields for
+     * @param data API response object
+     * @returns Data with supplemental fields removed, and maybe additional fields added
      */
-    static removeFromData(obj: { [x: string]: any }): { [x: string]: any } {
-        return JSON.parse(JSON.stringify(obj, (k, v) => (k === "__typename") ? undefined : v));
+    static removeFromData(
+        objectType: `${ModelType}`,
+        data: PrismaSelect["select"]
+    ) {
+        // Get supplemental info for object
+        const supplementer = ModelMap.get(objectType, false)?.search?.supplemental;
+        if (!supplementer) return data;
+        // Since we've already added "select" padding to the data, we'll need to make sure the suppFields have it too
+        const suppFields = supplementer.suppFields.map((field) => field.split(".").join(".select."));
+        // Remove API supplemental fields
+        const withoutGqlSupp = omit(data, suppFields);
+        // Add db supplemental fields used to calculate API supplemental fields
+        if (supplementer.dbFields) {
+            // For each db supplemental field, add it to the select object with value true
+            const dbSupp = supplementer.dbFields.reduce((acc, curr) => {
+                acc[curr] = true;
+                return acc;
+            }, {});
+            // Merge db supplemental fields with select object
+            return merge(withoutGqlSupp, dbSupp);
+        }
+        return withoutGqlSupp;
     }
 }
 
@@ -515,114 +539,6 @@ export async function addSupplementalFieldsMultiTypes<
     return formatted;
 }
 
-// Cache results of each `info` conversion, so we only have to 
-// do it once. This improves performance a bit
-const cache1 = new LRUCache<string, PartialApiInfo>(1000, 250_000);
-
-/**
- * Converts shapes 2 and 3 of a API response to Prisma conversion to shape 3. 
- * 
- * The result is like a Prisma select object, but with __typename fields and no 
- * "select" padding.
- * 
- * This function is useful when we want to check the shape of the requested data
- * 
- * @param partial GraphQL info object, partially converted to Prisma select
- * @returns Prisma select object with calculated fields, unions and join tables removed, 
- * and count fields and types added
- */
-function toPartialPrismaSelect(partial: PartialApiInfo | PartialPrismaSelect): PartialPrismaSelect {
-    // Create result object
-    let result: { [x: string]: any } = {};
-    // Loop through each key/value pair in partial
-    for (const [key, value] of Object.entries(partial)) {
-        // If value is an object (and not date), recurse
-        if (isRelationshipObject(value)) {
-            result[key] = toPartialPrismaSelect(value as PartialApiInfo | PartialPrismaSelect);
-        }
-        // Otherwise, add key/value pair to result
-        else {
-            result[key] = value;
-        }
-    }
-    // Handle base case}
-    const type = partial.__typename;
-    const format = ModelMap.get(type, false)?.format;
-    if (type) {
-        result = removeSupplementalFields(type, result);
-        if (format) {
-            result = Unions.deconstruct(result, format.apiRelMap);
-            result = JoinTables.addToData(result, format.joinMap as any);
-            result = CountFields.addToData(result, format.countFields);
-        }
-    }
-    return result;
-}
-
-// Cache results of each `partial` conversion, so we only have to 
-// do it once. This improves performance a bit
-const SELECT_CACHE_LIMIT_COUNT = 1_000;
-const SELECT_CACHE_LIMIT_SIZE_BYTES = 250_000;
-const cache2 = new LRUCache<string, PrismaSelect>(SELECT_CACHE_LIMIT_COUNT, SELECT_CACHE_LIMIT_SIZE_BYTES);
-
-/**
- * Adds "select" to the correct parts of an object to make it a Prisma select. 
- * This function is recursive and idempotent.
- */
-export function selPad(fields: object): PrismaSelect {
-    // Only pad if fields is an object
-    if (!isRelationshipObject(fields)) {
-        // Return empty object for invalid/empty fields
-        if (fields === null || fields === undefined || Array.isArray(fields)) return {} as PrismaSelect;
-        // Anything else (strings, Dates, numbers, etc.) should be returned as true
-        return true as unknown as PrismaSelect;
-    }
-    // Recursively pad
-    const converted: object = {};
-    Object.keys(fields).forEach((key) => {
-        // Check if already padded
-        const isAlreadyPadded = key === "select";
-        // Recursively pad, even if already padded. 
-        // This is because nested relationships may not be padded
-        let padded = selPad(fields[key]);
-        // If it was padded before, remove top-level "select"
-        if (isAlreadyPadded) padded = (padded as unknown as { select: PrismaSelect })["select"];
-        // If padded is empty object, skip
-        if (isRelationshipObject(padded) && Object.keys(padded).length === 0) return;
-        // Add padded to converted
-        converted[key] = padded;
-    });
-    // If converted is empty, return
-    if (Object.keys(converted).length === 0) return converted as PrismaSelect;
-    // If already padded, return
-    if ("select" in converted) return converted as PrismaSelect;
-    // Return object with "select" padded
-    return { select: converted } as PrismaSelect;
-}
-
-/**
- * Converts shapes 2 and 3 of the GraphQL to Prisma conversion to shape 4.
- * @returns Object which can be passed into Prisma select directly
- */
-export function selectHelper(partial: PartialApiInfo | PartialPrismaSelect): PrismaSelect | undefined {
-    // Check if cached
-    const cacheKey = JSON.stringify(partial);
-    const cachedResult = cache2.get(cacheKey);
-    if (cachedResult !== undefined) {
-        return cachedResult;
-    }
-    // Convert partial's special cases (virtual/calculated fields, unions, etc.)
-    let modified = toPartialPrismaSelect(partial);
-    if (!isObject(modified)) return undefined;
-    // Delete type fields
-    modified = Typenames.removeFromData(modified);
-    // Pad every relationship with "select"
-    modified = selPad(modified);
-    // Cache result
-    cache2.set(cacheKey, modified as PrismaSelect);
-    return modified as PrismaSelect;
-}
-
 /**
  * Removes a list of fields from a GraphQL object. Useful when additional fields 
  * are added to the Prisma select to calculate supplemental fields, but should never 
@@ -661,54 +577,53 @@ function removeHiddenFields<T extends { [x: string]: any }>(
     return result;
 }
 
-/**
- * Removes supplemental fields (i.e. fields that cannot be calculated in the main query), and also may 
- * add additional fields to calculate the supplemental fields
- * @param objectType Type of object to get supplemental fields for
- * @param partial Select fields object
- * @returns partial with supplemental fields removed, and maybe additional fields added
- */
-function removeSupplementalFields(objectType: `${ModelType}`, partial: PartialApiInfo | PartialPrismaSelect) {
-    // Get supplemental info for object
-    const supplementer = ModelMap.get(objectType, false)?.search?.supplemental;
-    if (!supplementer) return partial;
-    // Remove API supplemental fields
-    const withoutGqlSupp = omit(partial, supplementer.suppFields);
-    // Add db supplemental fields used to calculate API supplemental fields
-    if (supplementer.dbFields) {
-        // For each db supplemental field, add it to the select object with value true
-        const dbSupp = supplementer.dbFields.reduce((acc, curr) => {
-            acc[curr] = true;
-            return acc;
-        }, {} as PartialPrismaSelect);
-        // Merge db supplemental fields with select object
-        return merge(withoutGqlSupp, dbSupp);
-    }
-    return withoutGqlSupp;
-}
+type CachePrefix = "fromApiToPartial" | "fromPartialToPrismaSelect";
+
+const CONVERTER_CACHE_LIMIT_COUNT = 10_000;
+const CONVERTER_CACHE_LIMIT_SIZE_BYTES = MB_10_BYTES;
 
 /**
  * Manages conversions between the API response object and Prisma select object.
  * 
- * There are 4 shapes the info object can take in its lifecycle from API response object (as in the shape we 
+ * There are 3 shapes the info object can take in its lifecycle from API response object (as in the shape we 
  * expect from the API, not the actual response data) to Prisma select object:
- * - Shape 1: API response object
+ * - Shape 1: API response object, with optional __cacheKey field
  * - Shape 2: PartialApiInfo - Adds typenames and removes endpoint-specific shapes like pageInfo and edges
- * - Shape 3: PartialPrismaSelect - Removes calculated fields, join tables, and other data transformations
- * - Shape 4: PrismaSelect - Adds "select" padding to the object, making it a valid Prisma select object
+ * - Shape 3: PrismaSelect - Removes __cacheKey field, calculated fields, join tables, and other translations. 
+ *            Adds "select" padding to the object. In other words, this is a valid Prisma select object.
  * 
  * Then when we receive the data from the database, we have a single function that goes from the last shape to the first.
  */
 export class InfoConverter {
     private static instance: InfoConverter;
+    // Cache to store conversion results to avoid unnecessary recalculations
+    private cache: LRUCache<string, PartialApiInfo | PrismaSelect>;
 
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    private constructor() { }
+    private constructor() {
+        this.cache = new LRUCache<string, any>(CONVERTER_CACHE_LIMIT_COUNT, CONVERTER_CACHE_LIMIT_SIZE_BYTES);
+    }
     public static get(): InfoConverter {
         if (!InfoConverter.instance) {
-            InfoConverter.instance = new InfoConverter();
+            this.instance = new InfoConverter();
         }
         return InfoConverter.instance;
+    }
+
+    private getObjectCacheKey(obj: { __cacheKey?: string }): string {
+        // If object has a defined cache key, use it
+        if (obj.__cacheKey) return obj.__cacheKey;
+        // Otherwise, create a cache key from the object
+        return JSON.stringify(obj);
+    }
+
+    private checkCache(obj: { __cacheKey?: string }, prefix: CachePrefix) {
+        const key = `${prefix}-${this.getObjectCacheKey(obj)}`;
+        return this.cache.get(key);
+    }
+
+    private setCache(obj: { __cacheKey?: string }, prefix: CachePrefix, value: PartialApiInfo | PrismaSelect) {
+        const key = `${prefix}-${this.getObjectCacheKey(obj)}`;
+        this.cache.set(key, value);
     }
 
     /**
@@ -719,7 +634,7 @@ export class InfoConverter {
      * @param throwIfNotPartial Throw error if info is not partial
      * @returns Partial Prisma select. This can be passed into the function again without changing the result.
      */
-    static fromApiToPartialApi<
+    public fromApiToPartialApi<
         Typename extends `${ModelType}`,
         ApiModel extends ModelLogicType["ApiModel"],
         DbModel extends ModelLogicType["DbModel"],
@@ -733,16 +648,16 @@ export class InfoConverter {
         if (!info) {
             if (throwIfNotPartial)
                 throw new CustomError("0345", "InternalError");
-            return undefined as any;
+            return undefined as ThrowErrorIfNotPartial extends true ? PartialApiInfo : (PartialApiInfo | undefined);
         }
         // Check if cached
-        const cacheKey = JSON.stringify(info);
-        const cachedResult = cache1.get(cacheKey);
+        const cachedResult = this.checkCache(info, "fromApiToPartial");
         if (cachedResult !== undefined) {
-            return cachedResult;
+            return cachedResult as PartialApiInfo;
         }
         // Find select fields in info object
         let select = info;
+        const cacheKey = select.__cacheKey;
         // If fields are in the shape of a paginated search query, convert to a Prisma select object
         if (Object.prototype.hasOwnProperty.call(select, "pageInfo") && Object.prototype.hasOwnProperty.call(select, "edges")) {
             select = (select as { edges: { node: any } }).edges.node;
@@ -751,26 +666,75 @@ export class InfoConverter {
         else if (Object.prototype.hasOwnProperty.call(select, "endCursor") && Object.prototype.hasOwnProperty.call(select, "totalThreads") && Object.prototype.hasOwnProperty.call(select, "threads")) {
             select = (select as { threads: { comment: any } }).threads.comment;
         }
+        select.__cacheKey = cacheKey;
         // Inject type fields
         select = Typenames.addToData(select, apiRelMap);
         if (!select)
             throw new CustomError("0346", "InternalError");
         // Cache result
-        cache1.set(cacheKey, select);
+        this.setCache(info, "fromApiToPartial", select);
         return select;
     }
 
-    // static fromApiPartialToPrismaPartial();
-
-    // static fromPrismaPartialToPrismaSelect();
+    /**
+     * Recursive helper function for fromPartialApiToPrismaSelect
+     */
+    private toPrismaSelectHelper(partial: Omit<PartialApiInfo, "__typename">): PrismaSelect {
+        // Create result object
+        let result: PrismaSelect["select"] = {};
+        // Loop through each key/value pair in partial
+        for (const [key, value] of Object.entries(partial)) {
+            if (key === "__typename" || key === "__cacheKey") continue;
+            // If value is an object (and not date), recurse
+            if (isRelationshipObject(value)) {
+                result[key] = this.toPrismaSelectHelper(value as PartialApiInfo);
+            }
+            // Otherwise, add key/value pair to result
+            else {
+                result[key] = value as boolean;
+            }
+        }
+        // Handle base case
+        const type = partial.__typename as `${ModelType}`;
+        const format = ModelMap.get(type, false)?.format;
+        if (type) {
+            result = SupplementalFields.removeFromData(type, result);
+            delete result.__typename;
+            delete result.__cacheKey;
+            if (format) {
+                result = Unions.deconstruct(result, format.apiRelMap);
+                result = JoinTables.addToData(result, format.joinMap as JoinMap);
+                result = CountFields.addToData(result, format.countFields);
+            }
+        }
+        return { select: result };
+    }
 
     /**
-     * Converts data received from the database to the API response object shape (Shape 3 -> Shape 1)
+     * Converts shape 2 of a API response to Prisma conversion to shape 3.
+     * @returns Object which can be passed into Prisma select directly
+     */
+    public fromPartialApiToPrismaSelect(partial: PartialApiInfo): PrismaSelect | undefined {
+        // Check if cached
+        const cachedResult = this.checkCache(partial, "fromPartialToPrismaSelect");
+        if (cachedResult !== undefined) {
+            return cachedResult as PrismaSelect;
+        }
+        // Convert partial's special cases (virtual/calculated fields, unions, etc.)
+        const modified = this.toPrismaSelectHelper(partial);
+        if (!isObject(modified)) return undefined;
+        // Cache result
+        this.setCache(partial, "fromPartialToPrismaSelect", modified);
+        return modified;
+    }
+
+    /**
+     * Converts data received from the database to the API response object shape
      * @param data Prisma object
      * @param partialInfo API endpoint info object
      * @returns Valid API response object
      */
-    static fromDbToApi<ObjectModel extends Record<string, any>>(
+    public fromDbToApi<ObjectModel extends Record<string, any>>(
         data: { [x: string]: any },
         partialInfo: PartialApiInfo,
     ): ObjectModel {
@@ -803,6 +767,3 @@ export class InfoConverter {
         return data as ObjectModel;
     }
 }
-
-// TODO should be able to remove toPartialPrismaSelect and put its logic in selectHelper. Maybe also do some simplifying here (e.g. removing typename as we recurse instead of after using a parse/stringify)
-//TODO reorganize this file and rewrite in a way that is more efficient

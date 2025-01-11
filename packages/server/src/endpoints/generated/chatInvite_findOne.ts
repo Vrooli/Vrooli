@@ -219,5 +219,6 @@ export const chatInvite_findOne = {
             "description": true,
             "name": true
         }
-    }
+    },
+    "__cacheKey": "1195032105"
 };

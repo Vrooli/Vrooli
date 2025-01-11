@@ -100,5 +100,6 @@ export const quizQuestionResponse_findOne = {
     "you": {
         "canDelete": true,
         "canUpdate": true
-    }
+    },
+    "__cacheKey": "-740447924"
 };

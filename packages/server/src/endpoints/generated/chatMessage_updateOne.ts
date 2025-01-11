@@ -37,5 +37,6 @@ export const chatMessage_updateOne = {
         "id": true,
         "language": true,
         "text": true
-    }
+    },
+    "__cacheKey": "-105038720"
 };

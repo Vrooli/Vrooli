@@ -1097,5 +1097,6 @@ export const bookmark_findMany = {
     "pageInfo": {
         "endCursor": true,
         "hasNextPage": true
-    }
+    },
+    "__cacheKey": "617715361"
 };

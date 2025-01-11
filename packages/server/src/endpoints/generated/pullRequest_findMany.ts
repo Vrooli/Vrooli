@@ -35,5 +35,6 @@ export const pullRequest_findMany = {
     "pageInfo": {
         "endCursor": true,
         "hasNextPage": true
-    }
+    },
+    "__cacheKey": "-1066248856"
 };

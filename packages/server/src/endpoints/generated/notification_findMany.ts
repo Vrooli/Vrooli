@@ -15,5 +15,6 @@ export const notification_findMany = {
     "pageInfo": {
         "endCursor": true,
         "hasNextPage": true
-    }
+    },
+    "__cacheKey": "-1637668420"
 };

@@ -934,8 +934,8 @@ export async function doRunRoutine({
                         data,
                         select: runProjectSelect,
                     });
-                    const partialInfo = InfoConverter.fromApiToPartialApi(runProjectSelect, format.apiRelMap, true);
-                    const converted = InfoConverter.fromDbToApi(updateResult, partialInfo) as RunProject;
+                    const partialInfo = InfoConverter.get().fromApiToPartialApi(runProjectSelect, format.apiRelMap, true);
+                    const converted = InfoConverter.get().fromDbToApi(updateResult, partialInfo) as RunProject;
                     run = converted;
                 },
                 handleRunRoutineUpdate: async function updateRun(apiInput) {
@@ -948,8 +948,8 @@ export async function doRunRoutine({
                         data,
                         select: runRoutineSelect,
                     });
-                    const partialInfo = InfoConverter.fromApiToPartialApi(runRoutineSelect, format.apiRelMap, true);
-                    const converted = InfoConverter.fromDbToApi(updateResult, partialInfo) as RunRoutine;
+                    const partialInfo = InfoConverter.get().fromApiToPartialApi(runRoutineSelect, format.apiRelMap, true);
+                    const converted = InfoConverter.get().fromDbToApi(updateResult, partialInfo) as RunRoutine;
                     run = converted;
                 },
                 isStepCompleted: false,// TODO will change for multi-step support

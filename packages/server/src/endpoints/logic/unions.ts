@@ -18,7 +18,7 @@ export type EndpointsUnions = {
 export const unions: EndpointsUnions = {
     projectOrRoutines: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 2000, req });
-        const partial = InfoConverter.fromApiToPartialApi(info, {
+        const partial = InfoConverter.get().fromApiToPartialApi(info, {
             __typename: "ProjectOrRoutineSearchResult",
             Project: "Project",
             Routine: "Routine",
@@ -132,7 +132,7 @@ export const unions: EndpointsUnions = {
     },
     runProjectOrRunRoutines: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 2000, req });
-        const partial = InfoConverter.fromApiToPartialApi(info, {
+        const partial = InfoConverter.get().fromApiToPartialApi(info, {
             __typename: "RunProjectOrRunRoutineSearchResult",
             RunProject: "RunProject",
             RunRoutine: "RunRoutine",
@@ -220,7 +220,7 @@ export const unions: EndpointsUnions = {
     },
     projectOrTeams: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 2000, req });
-        const partial = InfoConverter.fromApiToPartialApi(info, {
+        const partial = InfoConverter.get().fromApiToPartialApi(info, {
             __typename: "ProjectOrTeamSearchResult",
             Project: "Project",
             Team: "Team",

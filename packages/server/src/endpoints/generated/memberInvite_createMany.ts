@@ -43,5 +43,6 @@ export const memberInvite_createMany = {
     "you": {
         "canDelete": true,
         "canUpdate": true
-    }
+    },
+    "__cacheKey": "-335858030"
 };

@@ -278,5 +278,6 @@ export const member_findOne = {
             "language": true,
             "bio": true
         }
-    }
+    },
+    "__cacheKey": "2055730280"
 };

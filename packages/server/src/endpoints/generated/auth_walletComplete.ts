@@ -26,5 +26,6 @@ export const auth_walletComplete = {
         "publicAddress": true,
         "stakingAddress": true,
         "verified": true
-    }
+    },
+    "__cacheKey": "-688874082"
 };

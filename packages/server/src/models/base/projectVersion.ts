@@ -135,7 +135,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //             cursor: input.after ? {
     //                 id: input.after
     //             } : undefined,
-    //             ...selectHelper(partialInfo)
+    //             ...InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo)
     //         });
     //         // If there are no results
     //         if (searchResults.length === 0) return {
@@ -166,7 +166,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //         }
     //         let comments: any = flattenThreads(childThreads);
     //         // Shape comments and add supplemental fields
-    //         comments = comments.map((c: any) => InfoConverter.fromDbToApi(c, partialInfo as PartialApiInfo));
+    //         comments = comments.map((c: any) => InfoConverter.get().fromDbToApi(c, partialInfo as PartialApiInfo));
     //         comments = await addSupplementalFields(getUser(req.session), comments, partialInfo);
     //         // Put comments back into "threads" object, using another helper function. 
     //         // Comments can be matched by their ID

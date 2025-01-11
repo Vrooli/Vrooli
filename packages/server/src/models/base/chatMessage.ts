@@ -3,7 +3,7 @@ import { Request } from "express";
 import { InputNode } from "utils/inputNode";
 import { ModelMap } from ".";
 import { SessionService } from "../../auth/session";
-import { addSupplementalFields, InfoConverter, selectHelper } from "../../builders/infoConverter";
+import { addSupplementalFields, InfoConverter } from "../../builders/infoConverter";
 import { shapeHelper } from "../../builders/shapeHelper";
 import { PartialApiInfo } from "../../builders/types";
 import { useVisibility } from "../../builders/visibilityBuilder";
@@ -430,7 +430,7 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
             }
             await permissionsCheck(authDataById, { ["Read"]: [input.chatId] }, {}, userData);
             // Partially convert info type
-            const partial = InfoConverter.fromApiToPartialApi(info, {
+            const partial = InfoConverter.get().fromApiToPartialApi(info, {
                 __typename: "ChatMessageSearchTreeResult",
                 messages: "ChatMessage",
             }, true);
@@ -449,9 +449,9 @@ export const ChatMessageModel: ChatMessageModelLogic = ({
                     where: { chatId: input.chatId },
                     orderBy,
                     take,
-                    ...selectHelper(partial.messages as PartialApiInfo),
+                    ...InfoConverter.get().fromPartialApiToPrismaSelect(partial.messages as PartialApiInfo),
                 });
-                messages = messages.map((c: any) => InfoConverter.fromDbToApi(c, partial.messages as PartialApiInfo));
+                messages = messages.map((c: any) => InfoConverter.get().fromDbToApi(c, partial.messages as PartialApiInfo));
                 messages = await addSupplementalFields(SessionService.getUser(req.session), messages, partial.messages as PartialApiInfo);
                 return {
                     __typename: "ChatMessageSearchTreeResult" as const,

@@ -1,6 +1,6 @@
 import { DUMMY_ID, ModelType, SessionUser } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
-import { InfoConverter, selectHelper } from "../builders/infoConverter";
+import { InfoConverter } from "../builders/infoConverter";
 import { PartialApiInfo, PrismaCreate, PrismaDelegate, PrismaUpdate } from "../builders/types";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
@@ -156,7 +156,7 @@ async function buildOperations(
             const data = mutate.shape.create
                 ? await mutate.shape.create({ data: input, idsCreateToConnect: maps.idsCreateToConnect, preMap: maps.preMap, userData })
                 : input;
-            const select = selectHelper(partialInfo)?.select;
+            const select = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo)?.select;
 
             const createOperation = (prismaInstance[dbTable] as PrismaDelegate).create({
                 data,
@@ -171,7 +171,7 @@ async function buildOperations(
             const data = mutate.shape.update
                 ? await mutate.shape.update({ data: input, idsCreateToConnect: maps.idsCreateToConnect, preMap: maps.preMap, userData })
                 : input;
-            const select = selectHelper(partialInfo)?.select;
+            const select = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo)?.select;
 
             const updateOperation = (prismaInstance[dbTable] as PrismaDelegate).update({
                 where: { [idField]: (input as PrismaUpdate)[idField] },
@@ -253,7 +253,7 @@ function processTransactionResults(
     for (const [objectType, { Create, Update, Delete }] of Object.entries(topInputsByType)) {
         for (const { index, input } of Create) {
             const createdObject = transactionResult[transactionIndex++];
-            const converted = InfoConverter.fromDbToApi<object>(createdObject, partialInfo);
+            const converted = InfoConverter.get().fromDbToApi<object>(createdObject, partialInfo);
             result[index] = converted;
             if (input.id) {
                 maps.resultsById[input.id as string] = converted;
@@ -262,7 +262,7 @@ function processTransactionResults(
 
         for (const { index, input } of Update) {
             const updatedObject = transactionResult[transactionIndex++];
-            const converted = InfoConverter.fromDbToApi<object>(updatedObject, partialInfo);
+            const converted = InfoConverter.get().fromDbToApi<object>(updatedObject, partialInfo);
             result[index] = converted;
             if (input.id) {
                 maps.resultsById[input.id as string] = converted;

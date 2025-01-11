@@ -15,5 +15,6 @@ export const statsRoutine_findMany = {
     "pageInfo": {
         "endCursor": true,
         "hasNextPage": true
-    }
+    },
+    "__cacheKey": "-1722537331"
 };

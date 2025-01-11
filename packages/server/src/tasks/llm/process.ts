@@ -1,7 +1,7 @@
 import { ChatMessage, GetValidTasksFromMessageParams, ServerLlmTaskInfo, SessionUser, getValidTasksFromMessage, importCommandToTask, parseBotInformation, uuid } from "@local/shared";
 import { Job } from "bull";
 import i18next from "i18next";
-import { InfoConverter, addSupplementalFields, selectHelper } from "../../builders/infoConverter";
+import { InfoConverter, addSupplementalFields } from "../../builders/infoConverter";
 import { prismaInstance } from "../../db/instance";
 import { chatMessage_findOne } from "../../endpoints/generated/chatMessage_findOne";
 import { CustomError } from "../../events";
@@ -273,7 +273,7 @@ export async function llmProcessBotMessage({
         const shouldStoreResponse = typeof chatId === "string";
         if (shouldStoreResponse) {
             // Store response in database 
-            const select = selectHelper(chatMessage_findOne);
+            const select = InfoConverter.get().fromPartialApiToPrismaSelect(chatMessage_findOne);
             const translation = {
                 id: uuid(),
                 language,
@@ -299,7 +299,7 @@ export async function llmProcessBotMessage({
                 userId: respondingBotId,
             });
 
-            const formattedResponseMessage = InfoConverter.fromDbToApi(createdData, chatMessage_findOne);
+            const formattedResponseMessage = InfoConverter.get().fromDbToApi(createdData, chatMessage_findOne);
             const fullResponseMessage = (await addSupplementalFields(userData, [formattedResponseMessage], chatMessage_findOne))[0] as ChatMessage;
 
             // Perform triggers for notifications, achievements, etc.

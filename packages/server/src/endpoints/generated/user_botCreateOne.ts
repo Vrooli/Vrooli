@@ -22,5 +22,6 @@ export const user_botCreateOne = {
         "id": true,
         "language": true,
         "bio": true
-    }
+    },
+    "__cacheKey": "-1272165009"
 };

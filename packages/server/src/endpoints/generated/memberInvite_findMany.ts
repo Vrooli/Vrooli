@@ -52,5 +52,6 @@ export const memberInvite_findMany = {
     "pageInfo": {
         "endCursor": true,
         "hasNextPage": true
-    }
+    },
+    "__cacheKey": "-574249064"
 };

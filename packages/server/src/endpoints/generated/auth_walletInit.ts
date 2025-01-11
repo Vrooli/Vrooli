@@ -1,3 +1,4 @@
 export const auth_walletInit = {
-    "nonce": true
+    "nonce": true,
+    "__cacheKey": "-898189041"
 };

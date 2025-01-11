@@ -11,5 +11,6 @@ export const tag_findOne = {
     "you": {
         "isOwn": true,
         "isBookmarked": true
-    }
+    },
+    "__cacheKey": "-766404125"
 };

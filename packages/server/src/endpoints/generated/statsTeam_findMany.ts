@@ -18,5 +18,6 @@ export const statsTeam_findMany = {
     "pageInfo": {
         "endCursor": true,
         "hasNextPage": true
-    }
+    },
+    "__cacheKey": "-1901195339"
 };

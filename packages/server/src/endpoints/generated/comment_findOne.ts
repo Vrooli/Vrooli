@@ -311,5 +311,6 @@ export const comment_findOne = {
         "id": true,
         "language": true,
         "text": true
-    }
+    },
+    "__cacheKey": "-416628507"
 };

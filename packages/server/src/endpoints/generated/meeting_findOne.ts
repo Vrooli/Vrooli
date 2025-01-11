@@ -436,5 +436,6 @@ export const meeting_findOne = {
         "description": true,
         "link": true,
         "name": true
-    }
+    },
+    "__cacheKey": "204348531"
 };

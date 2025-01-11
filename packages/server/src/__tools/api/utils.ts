@@ -1,6 +1,16 @@
 import { exists, mergeDeep } from "@local/shared";
 import { ApiPartial, DeepPartialBooleanWithFragments, MaybeLazyAsync, NonMaybe, SelectionType } from "./types";
 
+function simpleHash(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = (hash << 5) - hash + char;
+        hash |= 0; // Convert to 32bit integer
+    }
+    return hash + "";
+}
+
 /**
  * Converts an ApiPartial-like structure into a plain nested object for REST/Prisma usage.
  */
@@ -16,7 +26,7 @@ export async function toObject<T extends ApiPartial<any>>(
     },
 ): Promise<Record<string, any>> {
     // Convert using the 'rel' function
-    let shaped = await rel(partial, selectionType);
+    let shaped: Record<string, any> = await rel(partial, selectionType);
     // If the 'asSearch' option is true, wrap the object in a 'search' object and convert again
     if (options?.asSearch) {
         shaped = {
@@ -31,6 +41,8 @@ export async function toObject<T extends ApiPartial<any>>(
         }
         shaped = await rel({ [selectionType]: shaped }, selectionType);
     }
+    // Add cache key to avoid having the server stringify the whole object to generate one
+    shaped.__cacheKey = simpleHash(JSON.stringify(shaped));
     return shaped;
 }
 

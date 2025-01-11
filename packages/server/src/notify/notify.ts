@@ -1,7 +1,7 @@
 import { DAYS_1_MS, DEFAULT_LANGUAGE, HOURS_1_MS, IssueStatus, LINKS, MINUTES_1_MS, ModelType, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, ReportStatus, SessionUser, SubscribableObject, Success } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next, { TFuncKey } from "i18next";
-import { InfoConverter, selectHelper } from "../builders/infoConverter";
+import { InfoConverter } from "../builders/infoConverter";
 import { PartialApiInfo, PrismaDelegate } from "../builders/types";
 import { prismaInstance } from "../db/instance";
 import { CustomError } from "../events/error";
@@ -450,11 +450,11 @@ export function Notify(languages: string[] | undefined) {
             userData: SessionUser,
             info: PartialApiInfo,
         }): Promise<PushDevice> => {
-            const partialInfo = InfoConverter.fromApiToPartialApi(info, PushDeviceModel.format.apiRelMap, true);
+            const partialInfo = InfoConverter.get().fromApiToPartialApi(info, PushDeviceModel.format.apiRelMap, true);
             let select: { [key: string]: any } | undefined;
             let result: any = {};
             try {
-                select = selectHelper(partialInfo)?.select;
+                select = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo)?.select;
                 // Check if the device is already registered
                 const device = await prismaInstance.push_device.findUnique({
                     where: { endpoint },

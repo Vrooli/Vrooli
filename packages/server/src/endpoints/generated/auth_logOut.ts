@@ -16,5 +16,6 @@ export const auth_logOut = {
         "routinesCount": true,
         "standardsCount": true,
         "theme": true
-    }
+    },
+    "__cacheKey": "684399318"
 };

@@ -219,5 +219,6 @@ export const chatInvite_createMany = {
             "description": true,
             "name": true
         }
-    }
+    },
+    "__cacheKey": "1195032105"
 };

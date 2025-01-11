@@ -16,5 +16,6 @@ export const auth_emailLogIn = {
         "routinesCount": true,
         "standardsCount": true,
         "theme": true
-    }
+    },
+    "__cacheKey": "684399318"
 };

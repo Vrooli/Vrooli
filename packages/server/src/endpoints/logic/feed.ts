@@ -17,7 +17,7 @@ export type EndpointsFeed = {
 export const feed: EndpointsFeed = {
     home: async (_i, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 5000, req });
-        const partial = InfoConverter.fromApiToPartialApi(info, {
+        const partial = InfoConverter.get().fromApiToPartialApi(info, {
             __typename: "HomeResult",
             recommended: "Resource",
             reminders: "Reminder",
@@ -83,8 +83,7 @@ export const feed: EndpointsFeed = {
     },
     popular: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 5000, req });
-        console.log("popular info", JSON.stringify(info, null, 4));
-        const partial = InfoConverter.fromApiToPartialApi(info, {
+        const partial = InfoConverter.get().fromApiToPartialApi(info, {
             __typename: "PopularResult",
             Api: "Api",
             Code: "Code",

@@ -445,12 +445,12 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
     updatedTimeFrame: (time: TimeFrame) => timeFrameToPrisma("updated_at", time),
     userId: (id: string) => oneToOneId(id, "user"),
     usersId: (id: string) => oneToManyId(id, "users"),
-    variant: (variant: string) => variant ? ({ variant: { contains: variant.trim(), mode: "insensitive" } }) : {},
-    variantLatestVersion: (type: string) => type ? ({
+    variant: (variant: string) => variant ? ({ variant: { equals: variant } }) : {}, // Treated as an emum
+    variantLatestVersion: (variant: string) => variant ? ({
         versions: {
             some: {
                 isLatest: true,
-                variant: { contains: type.trim(), mode: "insensitive" },
+                variant: { equals: variant }, // Treated as an emum
             },
         },
     }) : {},

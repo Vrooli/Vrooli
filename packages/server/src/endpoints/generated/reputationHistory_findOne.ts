@@ -5,5 +5,6 @@ export const reputationHistory_findOne = {
     "amount": true,
     "event": true,
     "objectId1": true,
-    "objectId2": true
+    "objectId2": true,
+    "__cacheKey": "170652615"
 };

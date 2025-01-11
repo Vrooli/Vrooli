@@ -5,17 +5,10 @@ import { ModelType, OrArray, PageInfo, SessionUser, TimeFrame, VisibilityType } 
  * This type of data is also easier to hard-code in a pinch.
  */
 export interface PartialApiInfo {
-    [x: string]: `${ModelType}` | undefined | boolean | PartialApiInfo;
+    [x: string]: string | `${ModelType}` | undefined | boolean | PartialApiInfo; // string and `${ModelType}` only included for __typename (known TypeScript limitation: https://github.com/microsoft/TypeScript/issues/27144)
     __typename?: `${ModelType}`;
+    __cacheKey?: string;
 }
-
-/**
- * Shape 3 of 4 for API endpoint to Prisma conversion. Still contains the type fields, 
- * but does not pad objects with a "select" field. Calculated fields, join tables, and other 
- * data transformations are removed. This is useful when checking 
- * which fields are requested from a Prisma query.
- */
-export type PartialPrismaSelect = { __typename?: `${ModelType}` } & { [x: string]: boolean | PartialPrismaSelect };
 
 /**
  * Shape 4 of 4 for API endpoint to Prisma conversion. This is the final shape of the requested data 
@@ -25,8 +18,9 @@ export type PrismaSelect = {
     select: { [key: string]: boolean | PrismaSelectInside }
 }
 
-type PrismaSelectInside = Omit<PrismaSearch, "select"> & {
-    select: { [x: string]: boolean | PrismaSelectInside }
+type PrismaSelectInside = Omit<PrismaSearch, "select" | "where"> & {
+    select: { [x: string]: boolean | PrismaSelectInside };
+    where?: Record<string, unknown>;
 }
 
 export type PrismaSearch = {

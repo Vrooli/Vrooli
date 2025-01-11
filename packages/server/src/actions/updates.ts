@@ -21,7 +21,7 @@ export async function updateManyHelper<ObjectModel>({
     // Get formatter and id field
     const format = ModelMap.get(objectType).format;
     // Partially convert info type
-    const partialInfo = InfoConverter.fromApiToPartialApi(info, format.apiRelMap, true);
+    const partialInfo = InfoConverter.get().fromApiToPartialApi(info, format.apiRelMap, true);
     // Create objects. cudHelper will check permissions
     const updated = await cudHelper({
         additionalData,

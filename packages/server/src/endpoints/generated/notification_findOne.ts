@@ -6,5 +6,6 @@ export const notification_findOne = {
     "title": true,
     "description": true,
     "link": true,
-    "imgLink": true
+    "imgLink": true,
+    "__cacheKey": "-751355154"
 };

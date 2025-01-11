@@ -37,5 +37,6 @@ export const chatMessage_findOne = {
         "id": true,
         "language": true,
         "text": true
-    }
+    },
+    "__cacheKey": "-105038720"
 };

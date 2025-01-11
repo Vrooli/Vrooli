@@ -18,5 +18,6 @@ export const resourceList_updateOne = {
             "description": true,
             "name": true
         }
-    }
+    },
+    "__cacheKey": "541485253"
 };

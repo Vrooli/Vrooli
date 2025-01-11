@@ -4,7 +4,7 @@ import { Request } from "express";
 import { ModelMap } from ".";
 import { SessionService } from "../../auth/session";
 import { combineQueries } from "../../builders/combineQueries";
-import { InfoConverter, addSupplementalFields, selectHelper } from "../../builders/infoConverter";
+import { InfoConverter, addSupplementalFields } from "../../builders/infoConverter";
 import { PartialApiInfo } from "../../builders/types";
 import { useVisibility, useVisibilityMapper, visibilityBuilderPrisma } from "../../builders/visibilityBuilder";
 import { prismaInstance } from "../../db/instance";
@@ -84,7 +84,7 @@ export const CommentModel: CommentModelLogic = ({
             nestLimit = 2,
         ): Promise<CommentThread[]> {
             // Partially convert info type
-            const partialInfo = InfoConverter.fromApiToPartialApi(info, ModelMap.get<CommentModelLogic>("Comment").format.apiRelMap, true);
+            const partialInfo = InfoConverter.get().fromApiToPartialApi(info, ModelMap.get<CommentModelLogic>("Comment").format.apiRelMap, true);
             const idQuery = (Array.isArray(input.ids)) ? ({ id: { in: input.ids } }) : undefined;
             // Combine queries
             const where = { ...idQuery };
@@ -98,7 +98,7 @@ export const CommentModel: CommentModelLogic = ({
                 where,
                 orderBy,
                 take: input.take ?? DEFAULT_TAKE,
-                ...selectHelper(partialInfo),
+                ...InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo),
             });
             // If there are no results
             if (searchResults.length === 0) return [];
@@ -120,7 +120,7 @@ export const CommentModel: CommentModelLogic = ({
                         parentId: result.id,
                     },
                     take: input.take ?? DEFAULT_TAKE,
-                    ...selectHelper(partialInfo),
+                    ...InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo),
                 }) : [];
                 // Find end cursor of nested threads
                 const endCursor = nestedThreads.length > 0 ? nestedThreads[nestedThreads.length - 1].id : undefined;
@@ -156,7 +156,7 @@ export const CommentModel: CommentModelLogic = ({
         ): Promise<CommentSearchResult> {
             const userData = SessionService.getUser(req.session);
             // Partially convert info type
-            const partialInfo = InfoConverter.fromApiToPartialApi(info, ModelMap.get<CommentModelLogic>("Comment").format.apiRelMap, true);
+            const partialInfo = InfoConverter.get().fromApiToPartialApi(info, ModelMap.get<CommentModelLogic>("Comment").format.apiRelMap, true);
             // Determine text search query
             const searchQuery = input.searchString ? getSearchStringQuery({ objectType: "Comment", searchString: input.searchString }) : undefined;
             const searchData = {
@@ -192,7 +192,7 @@ export const CommentModel: CommentModelLogic = ({
                 cursor: input.after ? {
                     id: input.after,
                 } : undefined,
-                ...selectHelper(partialInfo),
+                ...InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo),
             });
             // If there are no results
             if (searchResults.length === 0) return {
@@ -223,7 +223,7 @@ export const CommentModel: CommentModelLogic = ({
             }
             let comments: any = flattenThreads(childThreads);
             // Shape comments and add supplemental fields
-            comments = comments.map((c: any) => InfoConverter.fromDbToApi(c, partialInfo as PartialApiInfo));
+            comments = comments.map((c: any) => InfoConverter.get().fromDbToApi(c, partialInfo as PartialApiInfo));
             comments = await addSupplementalFields(userData, comments, partialInfo);
             // Put comments back into "threads" object, using another helper function. 
             // Comments can be matched by their ID
