@@ -17,7 +17,7 @@ type Typed<Typename extends string> = {
     __typename: Typename;
 }
 
-type DbObject<Typename extends string> = Typed<Typename> & {
+export type DbObject<Typename extends string> = Typed<Typename> & {
     id: Scalars["ID"];
 };
 
@@ -1318,7 +1318,6 @@ export enum DeleteType {
     MeetingInvite = "MeetingInvite",
     Member = "Member",
     MemberInvite = "MemberInvite",
-    Node = "Node",
     Note = "Note",
     NoteVersion = "NoteVersion",
     Notification = "Notification",
@@ -1528,14 +1527,6 @@ export enum ModelType {
     MeetingInvite = "MeetingInvite",
     Member = "Member",
     MemberInvite = "MemberInvite",
-    Node = "Node",
-    NodeEnd = "NodeEnd",
-    NodeLink = "NodeLink",
-    NodeLinkWhen = "NodeLinkWhen",
-    NodeLoop = "NodeLoop",
-    NodeLoopWhile = "NodeLoopWhile",
-    NodeRoutineList = "NodeRoutineList",
-    NodeRoutineListItem = "NodeRoutineListItem",
     Note = "Note",
     NoteVersion = "NoteVersion",
     Notification = "Notification",
@@ -2185,269 +2176,6 @@ export type MemberYou = {
     __typename: "MemberYou";
     canDelete: Scalars["Boolean"];
     canUpdate: Scalars["Boolean"];
-};
-
-export type Node = DbObject<"Node"> & {
-    columnIndex?: Maybe<Scalars["Int"]>;
-    created_at: Scalars["Date"];
-    end?: Maybe<NodeEnd>;
-    loop?: Maybe<NodeLoop>;
-    nodeType: NodeType;
-    routineList?: Maybe<NodeRoutineList>;
-    routineVersion: RoutineVersion;
-    rowIndex?: Maybe<Scalars["Int"]>;
-    translations: Array<NodeTranslation>;
-    updated_at: Scalars["Date"];
-};
-
-export type NodeCreateInput = BaseTranslatableCreateInput<NodeTranslationCreateInput> & {
-    columnIndex?: InputMaybe<Scalars["Int"]>;
-    endCreate?: InputMaybe<NodeEndCreateInput>;
-    id: Scalars["ID"];
-    loopCreate?: InputMaybe<NodeLoopCreateInput>;
-    nodeType: NodeType;
-    routineListCreate?: InputMaybe<NodeRoutineListCreateInput>;
-    routineVersionConnect: Scalars["ID"];
-    rowIndex?: InputMaybe<Scalars["Int"]>;
-};
-
-export type NodeEnd = DbObject<"NodeEnd"> & {
-    node: Node;
-    suggestedNextRoutineVersions?: Maybe<Array<RoutineVersion>>;
-    wasSuccessful: Scalars["Boolean"];
-};
-
-export type NodeEndCreateInput = {
-    id: Scalars["ID"];
-    nodeConnect: Scalars["ID"];
-    suggestedNextRoutineVersionsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    wasSuccessful?: InputMaybe<Scalars["Boolean"]>;
-};
-
-export type NodeEndUpdateInput = {
-    id: Scalars["ID"];
-    suggestedNextRoutineVersionsConnect?: InputMaybe<Array<Scalars["ID"]>>;
-    suggestedNextRoutineVersionsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
-    wasSuccessful?: InputMaybe<Scalars["Boolean"]>;
-};
-
-export type NodeLink = DbObject<"NodeLink"> & {
-    from: Node;
-    operation?: Maybe<Scalars["String"]>;
-    routineVersion: RoutineVersion;
-    to: Node;
-    whens: Array<NodeLinkWhen>;
-};
-
-export type NodeLinkCreateInput = {
-    fromConnect: Scalars["ID"];
-    id: Scalars["ID"];
-    operation?: InputMaybe<Scalars["String"]>;
-    routineVersionConnect: Scalars["ID"];
-    toConnect: Scalars["ID"];
-    whensCreate?: InputMaybe<Array<NodeLinkWhenCreateInput>>;
-};
-
-export type NodeLinkUpdateInput = {
-    fromConnect?: InputMaybe<Scalars["ID"]>;
-    fromDisconnect?: InputMaybe<Scalars["Boolean"]>;
-    id: Scalars["ID"];
-    operation?: InputMaybe<Scalars["String"]>;
-    toConnect?: InputMaybe<Scalars["ID"]>;
-    toDisconnect?: InputMaybe<Scalars["Boolean"]>;
-    whensCreate?: InputMaybe<Array<NodeLinkWhenCreateInput>>;
-    whensDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    whensUpdate?: InputMaybe<Array<NodeLinkWhenUpdateInput>>;
-};
-
-export type NodeLinkWhen = DbObject<"NodeLinkWhen"> & {
-    condition: Scalars["String"];
-    link: NodeLink;
-    translations: Array<NodeLinkWhenTranslation>;
-};
-
-export type NodeLinkWhenCreateInput = BaseTranslatableCreateInput<NodeLinkWhenTranslationCreateInput> & {
-    condition: Scalars["String"];
-    id: Scalars["ID"];
-    linkConnect: Scalars["ID"];
-};
-
-export type NodeLinkWhenTranslation = BaseTranslation<"NodeLinkWhenTranslation"> & {
-    description?: Maybe<Scalars["String"]>;
-    name: Scalars["String"];
-};
-
-export type NodeLinkWhenTranslationCreateInput = BaseTranslationCreateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    name: Scalars["String"];
-};
-
-export type NodeLinkWhenTranslationUpdateInput = BaseTranslationUpdateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    name?: InputMaybe<Scalars["String"]>;
-};
-
-export type NodeLinkWhenUpdateInput = BaseTranslatableUpdateInput<NodeLinkWhenTranslationCreateInput, NodeLinkWhenTranslationUpdateInput> & {
-    condition?: InputMaybe<Scalars["String"]>;
-    id: Scalars["ID"];
-    linkConnect?: InputMaybe<Scalars["ID"]>;
-};
-
-export type NodeLoop = DbObject<"NodeLoop"> & {
-    loops?: Maybe<Scalars["Int"]>;
-    maxLoops?: Maybe<Scalars["Int"]>;
-    operation?: Maybe<Scalars["String"]>;
-    whiles: Array<NodeLoopWhile>;
-};
-
-export type NodeLoopCreateInput = {
-    id: Scalars["ID"];
-    loops?: InputMaybe<Scalars["Int"]>;
-    maxLoops?: InputMaybe<Scalars["Int"]>;
-    nodeConnect: Scalars["ID"];
-    operation?: InputMaybe<Scalars["String"]>;
-    whilesCreate?: InputMaybe<Array<NodeLoopWhileCreateInput>>;
-};
-
-export type NodeLoopUpdateInput = {
-    id: Scalars["ID"];
-    loops?: InputMaybe<Scalars["Int"]>;
-    maxLoops?: InputMaybe<Scalars["Int"]>;
-    nodeConnect?: InputMaybe<Scalars["ID"]>;
-    operation?: InputMaybe<Scalars["String"]>;
-    whilesCreate?: InputMaybe<Array<NodeLoopWhileCreateInput>>;
-    whilesDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    whilesUpdate?: InputMaybe<Array<NodeLoopWhileUpdateInput>>;
-};
-
-export type NodeLoopWhile = DbObject<"NodeLoopWhile"> & {
-    condition: Scalars["String"];
-    translations: Array<NodeLoopWhileTranslation>;
-};
-
-export type NodeLoopWhileCreateInput = BaseTranslatableCreateInput<NodeLoopWhileTranslationCreateInput> & {
-    condition: Scalars["String"];
-    id: Scalars["ID"];
-    loopConnect: Scalars["ID"];
-};
-
-export type NodeLoopWhileTranslation = BaseTranslation<"NodeLoopWhileTranslation"> & {
-    description?: Maybe<Scalars["String"]>;
-    name: Scalars["String"];
-};
-
-export type NodeLoopWhileTranslationCreateInput = BaseTranslationCreateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    name: Scalars["String"];
-};
-
-export type NodeLoopWhileTranslationUpdateInput = BaseTranslationUpdateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    name?: InputMaybe<Scalars["String"]>;
-};
-
-export type NodeLoopWhileUpdateInput = BaseTranslatableUpdateInput<NodeLoopWhileTranslationCreateInput, NodeLoopWhileTranslationUpdateInput> & {
-    condition?: InputMaybe<Scalars["String"]>;
-    id: Scalars["ID"];
-};
-
-export type NodeRoutineList = DbObject<"NodeRoutineList"> & {
-    isOptional: Scalars["Boolean"];
-    isOrdered: Scalars["Boolean"];
-    items: Array<NodeRoutineListItem>;
-    node: Node;
-};
-
-export type NodeRoutineListCreateInput = {
-    id: Scalars["ID"];
-    isOptional?: InputMaybe<Scalars["Boolean"]>;
-    isOrdered?: InputMaybe<Scalars["Boolean"]>;
-    itemsCreate?: InputMaybe<Array<NodeRoutineListItemCreateInput>>;
-    nodeConnect: Scalars["ID"];
-};
-
-export type NodeRoutineListItem = DbObject<"NodeRoutineListItem"> & {
-    index: Scalars["Int"];
-    isOptional: Scalars["Boolean"];
-    list: NodeRoutineList;
-    routineVersion: RoutineVersion;
-    translations: Array<NodeRoutineListItemTranslation>;
-};
-
-export type NodeRoutineListItemCreateInput = BaseTranslatableCreateInput<NodeRoutineListItemTranslationCreateInput> & {
-    id: Scalars["ID"];
-    index: Scalars["Int"];
-    isOptional?: InputMaybe<Scalars["Boolean"]>;
-    listConnect: Scalars["ID"];
-    routineVersionConnect: Scalars["ID"];
-};
-
-export type NodeRoutineListItemTranslation = BaseTranslation<"NodeRoutineListItemTranslation"> & {
-    description?: Maybe<Scalars["String"]>;
-    name?: Maybe<Scalars["String"]>;
-};
-
-export type NodeRoutineListItemTranslationCreateInput = BaseTranslationCreateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    name?: InputMaybe<Scalars["String"]>;
-};
-
-export type NodeRoutineListItemTranslationUpdateInput = BaseTranslationUpdateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    name?: InputMaybe<Scalars["String"]>;
-};
-
-export type NodeRoutineListItemUpdateInput = BaseTranslatableUpdateInput<NodeRoutineListItemTranslationCreateInput, NodeRoutineListItemTranslationUpdateInput> & {
-    id: Scalars["ID"];
-    index?: InputMaybe<Scalars["Int"]>;
-    isOptional?: InputMaybe<Scalars["Boolean"]>;
-    routineVersionUpdate?: InputMaybe<RoutineVersionUpdateInput>;
-};
-
-export type NodeRoutineListUpdateInput = {
-    id: Scalars["ID"];
-    isOptional?: InputMaybe<Scalars["Boolean"]>;
-    isOrdered?: InputMaybe<Scalars["Boolean"]>;
-    itemsCreate?: InputMaybe<Array<NodeRoutineListItemCreateInput>>;
-    itemsDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    itemsUpdate?: InputMaybe<Array<NodeRoutineListItemUpdateInput>>;
-};
-
-export type NodeTranslation = BaseTranslation<"NodeTranslation"> & {
-    description?: Maybe<Scalars["String"]>;
-    name: Scalars["String"];
-};
-
-export type NodeTranslationCreateInput = BaseTranslationCreateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    name: Scalars["String"];
-};
-
-export type NodeTranslationUpdateInput = BaseTranslationUpdateInput & {
-    description?: InputMaybe<Scalars["String"]>;
-    name?: InputMaybe<Scalars["String"]>;
-};
-
-export enum NodeType {
-    End = "End",
-    Redirect = "Redirect",
-    RoutineList = "RoutineList",
-    Start = "Start"
-}
-
-export type NodeUpdateInput = BaseTranslatableUpdateInput<NodeTranslationCreateInput, NodeTranslationUpdateInput> & {
-    columnIndex?: InputMaybe<Scalars["Int"]>;
-    endCreate?: InputMaybe<NodeEndCreateInput>;
-    endUpdate?: InputMaybe<NodeEndUpdateInput>;
-    id: Scalars["ID"];
-    loopCreate?: InputMaybe<NodeLoopCreateInput>;
-    loopDelete?: InputMaybe<Scalars["Boolean"]>;
-    loopUpdate?: InputMaybe<NodeLoopUpdateInput>;
-    nodeType?: InputMaybe<NodeType>;
-    routineListCreate?: InputMaybe<NodeRoutineListCreateInput>;
-    routineListUpdate?: InputMaybe<NodeRoutineListUpdateInput>;
-    routineVersionConnect?: InputMaybe<Scalars["ID"]>;
-    rowIndex?: InputMaybe<Scalars["Int"]>;
 };
 
 export type Note = DbObject<"Note"> & {
@@ -4918,9 +4646,7 @@ export type RoutineVersion = DbObject<"RoutineVersion"> & {
     commentsCount: Scalars["Int"];
     completedAt?: Maybe<Scalars["Date"]>;
     complexity: Scalars["Int"];
-    configCallData?: Maybe<Scalars["String"]>;
-    configFormInput?: Maybe<Scalars["String"]>;
-    configFormOutput?: Maybe<Scalars["String"]>;
+    config?: Maybe<Scalars["String"]>;
     created_at: Scalars["Date"];
     directoryListings: Array<ProjectVersionDirectory>;
     directoryListingsCount: Scalars["Int"];
@@ -4933,10 +4659,6 @@ export type RoutineVersion = DbObject<"RoutineVersion"> & {
     isDeleted: Scalars["Boolean"];
     isLatest: Scalars["Boolean"];
     isPrivate: Scalars["Boolean"];
-    nodeLinks: Array<NodeLink>;
-    nodeLinksCount: Scalars["Int"];
-    nodes: Array<Node>;
-    nodesCount: Scalars["Int"];
     outputs: Array<RoutineVersionOutput>;
     outputsCount: Scalars["Int"];
     pullRequest?: Maybe<PullRequest>;
@@ -4946,6 +4668,7 @@ export type RoutineVersion = DbObject<"RoutineVersion"> & {
     root: Routine;
     routineType: RoutineType;
     simplicity: Scalars["Int"];
+    subroutineLinks: Array<RoutineVersion>;
     suggestedNextByRoutineVersion: Array<RoutineVersion>;
     suggestedNextByRoutineVersionCount: Scalars["Int"];
     timesCompleted: Scalars["Int"];
@@ -4962,22 +4685,19 @@ export type RoutineVersion = DbObject<"RoutineVersion"> & {
 export type RoutineVersionCreateInput = BaseTranslatableCreateInput<RoutineVersionTranslationCreateInput> & {
     apiVersionConnect?: InputMaybe<Scalars["ID"]>;
     codeVersionConnect?: InputMaybe<Scalars["ID"]>;
-    configCallData?: InputMaybe<Scalars["String"]>;
-    configFormInput?: InputMaybe<Scalars["String"]>;
-    configFormOutput?: InputMaybe<Scalars["String"]>;
+    config?: InputMaybe<Scalars["String"]>;
     directoryListingsConnect?: InputMaybe<Array<Scalars["ID"]>>;
     id: Scalars["ID"];
     inputsCreate?: InputMaybe<Array<RoutineVersionInputCreateInput>>;
     isAutomatable?: InputMaybe<Scalars["Boolean"]>;
     isComplete?: InputMaybe<Scalars["Boolean"]>;
     isPrivate: Scalars["Boolean"];
-    nodeLinksCreate?: InputMaybe<Array<NodeLinkCreateInput>>;
-    nodesCreate?: InputMaybe<Array<NodeCreateInput>>;
     outputsCreate?: InputMaybe<Array<RoutineVersionOutputCreateInput>>;
     resourceListCreate?: InputMaybe<ResourceListCreateInput>;
     rootConnect?: InputMaybe<Scalars["ID"]>;
     rootCreate?: InputMaybe<RoutineCreateInput>;
     routineType: RoutineType;
+    subroutineLinksConnect?: InputMaybe<Array<Scalars["ID"]>>;
     suggestedNextByRoutineVersionConnect?: InputMaybe<Array<Scalars["ID"]>>;
     versionLabel: Scalars["String"];
     versionNotes?: InputMaybe<Scalars["String"]>;
@@ -5156,9 +4876,7 @@ export type RoutineVersionUpdateInput = BaseTranslatableUpdateInput<RoutineVersi
     apiVersionDisconnect?: InputMaybe<Scalars["Boolean"]>;
     codeVersionConnect?: InputMaybe<Scalars["ID"]>;
     codeVersionDisconnect?: InputMaybe<Scalars["Boolean"]>;
-    configCallData?: InputMaybe<Scalars["String"]>;
-    configFormInput?: InputMaybe<Scalars["String"]>;
-    configFormOutput?: InputMaybe<Scalars["String"]>;
+    config?: InputMaybe<Scalars["String"]>;
     directoryListingsConnect?: InputMaybe<Array<Scalars["ID"]>>;
     directoryListingsDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
     id: Scalars["ID"];
@@ -5168,18 +4886,14 @@ export type RoutineVersionUpdateInput = BaseTranslatableUpdateInput<RoutineVersi
     isAutomatable?: InputMaybe<Scalars["Boolean"]>;
     isComplete?: InputMaybe<Scalars["Boolean"]>;
     isPrivate?: InputMaybe<Scalars["Boolean"]>;
-    nodeLinksCreate?: InputMaybe<Array<NodeLinkCreateInput>>;
-    nodeLinksDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    nodeLinksUpdate?: InputMaybe<Array<NodeLinkUpdateInput>>;
-    nodesCreate?: InputMaybe<Array<NodeCreateInput>>;
-    nodesDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    nodesUpdate?: InputMaybe<Array<NodeUpdateInput>>;
     outputsCreate?: InputMaybe<Array<RoutineVersionOutputCreateInput>>;
     outputsDelete?: InputMaybe<Array<Scalars["ID"]>>;
     outputsUpdate?: InputMaybe<Array<RoutineVersionOutputUpdateInput>>;
     resourceListCreate?: InputMaybe<ResourceListCreateInput>;
     resourceListUpdate?: InputMaybe<ResourceListUpdateInput>;
     rootUpdate?: InputMaybe<RoutineUpdateInput>;
+    subroutineLinksConnect?: InputMaybe<Array<Scalars["ID"]>>;
+    subroutineLinksDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
     suggestedNextByRoutineVersionConnect?: InputMaybe<Array<Scalars["ID"]>>;
     suggestedNextByRoutineVersionDisconnect?: InputMaybe<Array<Scalars["ID"]>>;
     versionLabel?: InputMaybe<Scalars["String"]>;
@@ -5332,7 +5046,6 @@ export type RunProjectStep = DbObject<"RunProjectStep"> & {
     contextSwitches: Scalars["Int"];
     directory?: Maybe<ProjectVersionDirectory>;
     name: Scalars["String"];
-    node?: Maybe<Node>;
     order: Scalars["Int"];
     runProject: RunProject;
     startedAt?: Maybe<Scalars["Date"]>;
@@ -5346,7 +5059,6 @@ export type RunProjectStepCreateInput = {
     directoryConnect?: InputMaybe<Scalars["ID"]>;
     id: Scalars["ID"];
     name: Scalars["String"];
-    nodeConnect?: InputMaybe<Scalars["ID"]>;
     order: Scalars["Int"];
     runProjectConnect: Scalars["ID"];
     status?: InputMaybe<RunProjectStepStatus>;
@@ -5546,7 +5258,6 @@ export type RunRoutineStep = DbObject<"RunRoutineStep"> & {
     completedAt?: Maybe<Scalars["Date"]>;
     contextSwitches: Scalars["Int"];
     name: Scalars["String"];
-    node?: Maybe<Node>;
     order: Scalars["Int"];
     runRoutine: RunRoutine;
     startedAt?: Maybe<Scalars["Date"]>;
@@ -5560,7 +5271,6 @@ export type RunRoutineStepCreateInput = {
     contextSwitches?: InputMaybe<Scalars["Int"]>;
     id: Scalars["ID"];
     name: Scalars["String"];
-    nodeConnect?: InputMaybe<Scalars["ID"]>;
     order: Scalars["Int"];
     runRoutineConnect: Scalars["ID"];
     status?: InputMaybe<RunRoutineStepStatus>;

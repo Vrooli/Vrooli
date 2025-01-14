@@ -24,7 +24,10 @@ export const healFormInputPropsMap: { [key in InputType]: (props: any) => any } 
         return {
             color: "secondary",
             defaultValue: new Array(props.options?.length ?? 0).fill(false),
-            options: [],
+            options: [{
+                label: "Option 1",
+                value: "option-1",
+            }],
             maxSelection: 0,
             minSelection: 0,
             row: false,
@@ -146,7 +149,7 @@ export const healFormInputPropsMap: { [key in InputType]: (props: any) => any } 
  * (i.e. removes headers and other non-input elements) and their default values
  */
 export function generateInitialValues(
-    elements: FormElement[] | null | undefined,
+    elements: readonly FormElement[] | null | undefined,
     prefix?: string,
 ): Record<string, never> {
     if (!Array.isArray(elements)) return {};

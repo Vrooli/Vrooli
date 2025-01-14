@@ -33,7 +33,6 @@ export const RunRoutineStepModel: RunRoutineStepModelLogic = ({
                     status: noNull(data.status),
                     step: data.step,
                     timeElapsed,
-                    node: await shapeHelper({ relation: "node", relTypes: ["Connect"], isOneToOne: true, objectType: "Node", parentRelationshipName: "runSteps", data, ...rest }),
                     runRoutine: await shapeHelper({ relation: "runRoutine", relTypes: ["Connect"], isOneToOne: true, objectType: "RunRoutine", parentRelationshipName: "steps", data, ...rest }),
                     subroutine: await shapeHelper({ relation: "subroutine", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "runSteps", data, ...rest }),
                 };

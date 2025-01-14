@@ -56,3 +56,5 @@ export type TranslationFuncService = TFunction<"service", undefined, "service">
 export type TranslationFunc = TFunction<"award" | "common" | "error" | "langs" | "notify" | "service", undefined, "award" | "common" | "error" | "langs" | "notify" | "service">
 
 export type OrArray<T> = T | T[];
+export type ArrayElement<T> = T extends (infer E)[] ? E : T;
+export type DefinedArrayElement<T> = T extends (infer E)[] ? E : NonNullable<T>;

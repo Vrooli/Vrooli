@@ -1,4 +1,4 @@
-import { API_CREDITS_MULTIPLIER, BotStyle, ConfigCallData, ConfigCallDataGenerate, DOLLARS_1_CENTS, FormElementBase, FormInputBase, MINUTES_5_MS, ProjectVersion, RoutineType, RoutineVersion, RunContext, RunProject, RunRequestLimits, RunRoutine, RunStatus, RunStatusChangeReason, TaskStatus, VALYXA_ID, generateRoutineInitialValues, getTranslation, parseBotInformation, parseConfigCallData, parseSchemaInput, parseSchemaOutput, saveRunProgress, shouldStopRun, type SessionUser } from "@local/shared";
+import { BotStyle, CallDataConfigObject, CallDataGenerateConfig, FormElementBase, FormInputBase, ProjectVersion, RoutineType, RoutineVersion, RoutineVersionConfig, RunContext, RunProject, RunRequestLimits, RunRoutine, RunStatus, RunStatusChangeReason, TaskStatus, VALYXA_ID, generateRoutineInitialValues, getTranslation, parseBotInformation, saveRunProgress, shouldStopRun, type SessionUser } from "@local/shared";
 import { Job } from "bull";
 import { performance } from "perf_hooks";
 import { readOneHelper } from "../../actions/reads";
@@ -16,11 +16,6 @@ import { type RecursivePartial } from "../../types";
 import { reduceUserCredits } from "../../utils/reduceCredits";
 import { permissionsCheck } from "../../validators/permissions";
 import { type RunProjectPayload, type RunRequestPayload, type RunRoutinePayload } from "./queue";
-
-/** Limit routines to $1 for now */
-const DEFAULT_MAX_RUN_CREDITS = BigInt(DOLLARS_1_CENTS) * API_CREDITS_MULTIPLIER;
-/** Limit routines to 5 minutes for now */
-const DEFAULT_MAX_RUN_TIME = MINUTES_5_MS;
 
 const runProjectSelect = {
     id: true,
@@ -452,7 +447,7 @@ export async function doRunProject({
 type FormFieldInfo = Pick<FormElementBase, "description" | "helpText"> & Pick<FormInputBase, "fieldName" | "isRequired">;
 
 type DoRoutineTypeProps = {
-    configCallData: ConfigCallData;
+    configCallData: CallDataConfigObject;
     formData: object;
     handleFormDataUpdate: (run: object) => unknown;
     inputData: FormFieldInfo[];
@@ -1019,17 +1014,15 @@ export async function doRunRoutine({
             req,
         }) as RoutineVersion;
         // Parse configs and form data
-        const configCallData = parseConfigCallData(runnableObject.configCallData, runnableObject.routineType, logger);
-        const configFormInput = parseSchemaInput(runnableObject.configFormInput, runnableObject.routineType, logger);
-        const configFormOutput = parseSchemaOutput(runnableObject.configFormOutput, runnableObject.routineType, logger);
+        const config = RoutineVersionConfig.deserialize(runnableObject, logger, { useFallbacks: true });
         // Collect fieldName, description, and helpText for each input and output element
-        const inputFieldInfo = configFormInput.elements.map(toFormFieldInfo).filter((element) => element.fieldName);
-        const outputFieldInfo = configFormOutput.elements.map(toFormFieldInfo).filter((element) => element.fieldName);
+        const inputFieldInfo = config.formInput?.schema.elements.map(toFormFieldInfo).filter((element) => element.fieldName) || [];
+        const outputFieldInfo = config.formOutput?.schema.elements.map(toFormFieldInfo).filter((element) => element.fieldName) || [];
         // Generate input/output value object like we do in the UI. Returns object where 
         // input keys are prefixed with "input-" and output keys are prefixed with "output-"
         formData = generateRoutineInitialValues({
-            configFormInput,
-            configFormOutput,
+            configFormInput: config.formInput?.schema,
+            configFormOutput: config.formOutput?.schema,
             logger,
             runInputs: (run as RunRoutine)?.inputs,
             runOutputs: (run as RunRoutine)?.outputs,
@@ -1054,15 +1047,15 @@ export async function doRunRoutine({
         if (taskMessage) {
             // Use LLM to generate response
             let botToUse: string;
-            if (runnableObject.routineType === RoutineType.Generate) {
-                const configCallDataGenerate = configCallData as ConfigCallDataGenerate;
-                botToUse = (configCallDataGenerate.botStyle === BotStyle.Specific ? configCallDataGenerate.respondingBot : startedById) || VALYXA_ID;
+            if (config.callData && config.callData.__type === RoutineType.Generate) {
+                const generateSchema = (config.callData as CallDataGenerateConfig).schema;
+                botToUse = (generateSchema.botStyle === BotStyle.Specific ? generateSchema.respondingBot : startedById) || VALYXA_ID;
             } else {
                 botToUse = startedById || VALYXA_ID;
             }
             const botInfo = await getBotInfo(botToUse);
             if (!botInfo) {
-                throw new CustomError("0599", "InternalError", { configCallData });
+                throw new CustomError("0599", "InternalError", { configCallData: config.callData });
             }
             const participantsData = { [botInfo.id]: botInfo };
             const respondingBotConfig = parseBotInformation(participantsData, botInfo.id, logger);
@@ -1106,7 +1099,7 @@ export async function doRunRoutine({
             throw new CustomError("0593", "InternalError", { routineType: runnableObject.routineType });
         }
         const { cost } = await routineFunction({
-            configCallData,
+            configCallData: asdf, //TODO
             formData,
             handleFormDataUpdate: (updatedForm: object) => {
                 formData = updatedForm;

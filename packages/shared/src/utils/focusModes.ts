@@ -1,4 +1,4 @@
-import { ActiveFocusMode, FocusMode, FocusModeStopCondition, Schedule } from "../api/generated/graphqlTypes";
+import { ActiveFocusMode, FocusMode, FocusModeStopCondition, Schedule } from "../api/types";
 import { MINUTES_1_MS } from "../consts/numbers";
 import { calculateOccurrences } from "./schedules";
 

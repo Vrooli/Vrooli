@@ -2,7 +2,7 @@
  * Adds initial data to the database. (i.e. data that should be included in production). 
  * This is written so that it can be called multiple times without duplicating data.
  */
-import { AUTH_PROVIDERS, CodeLanguage, CodeType, FormElement, FormSchema, FormStructureType, InputType, LIST_TO_NUMBERED_PLAINTEXT, LIST_TO_PLAINTEXT_ID, PARSE_RUN_IO_FROM_PLAINTEXT_ID, Project, ResourceUsedFor, Routine, RoutineType, Standard, StandardType, TRANSFORM_SEARCH_TERMS_ID, Tag, Team, User, VALYXA_ID, uuid } from "@local/shared";
+import { AUTH_PROVIDERS, CodeLanguage, CodeType, FormElement, FormStructureType, InputType, LIST_TO_NUMBERED_PLAINTEXT, LIST_TO_PLAINTEXT_ID, PARSE_RUN_IO_FROM_PLAINTEXT_ID, Project, ResourceUsedFor, Routine, RoutineType, RoutineVersionConfig, Standard, StandardType, TRANSFORM_SEARCH_TERMS_ID, Tag, Team, User, VALYXA_ID, uuid } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import fs from "fs";
 import { PasswordAuthService } from "../../auth/email";
@@ -1261,20 +1261,26 @@ async function initRoutines() {
                 },
             },
         ] as const;
-        const configFormInput: FormSchema = {
-            layout: {
-                title: "Project Kickoff Checklist",
-                description: "Follow the steps below to ensure a successful project kickoff.",
-            },
-            containers: [
-                {
-                    title: "",
-                    description: "",
-                    totalItems: configFormInputElements.length,
+        const config = new RoutineVersionConfig({
+            __version: "1.0",
+            formInput: {
+                __version: "1.0",
+                schema: {
+                    layout: {
+                        title: "Project Kickoff Checklist",
+                        description: "Follow the steps below to ensure a successful project kickoff.",
+                    },
+                    containers: [
+                        {
+                            title: "",
+                            description: "",
+                            totalItems: configFormInputElements.length,
+                        },
+                    ],
+                    elements: configFormInputElements,
                 },
-            ],
-            elements: configFormInputElements,
-        };
+            },
+        });
         projectKickoffChecklist = await prismaInstance.routine_version.create({
             data: {
                 root: {
@@ -1331,7 +1337,7 @@ async function initRoutines() {
                         },
                     },
                 },
-                configFormInput: JSON.stringify(configFormInput),
+                config: config.serialize("json"),
                 inputs: {
                     create: [
                         {
@@ -1654,24 +1660,13 @@ async function initRoutines() {
                 },
             },
         ] as const;
-
-        const configFormInput: FormSchema = {
-            layout: {
-                title: "Workout Plan Generator",
-                description: "Provide some information to receive a personalized workout plan.",
-            },
-            containers: [
-                {
-                    title: "",
-                    description: "",
-                    totalItems: configFormInputElements.length,
-                },
-            ],
-            elements: configFormInputElements,
-        };
-
-        const configCallData = JSON.stringify({
-            promptTemplate: `You are a personal trainer creating a customized workout plan.
+        const config = new RoutineVersionConfig({
+            __version: "1.0",
+            callData: {
+                __version: "1.0",
+                __type: RoutineType.Generate,
+                schema: {
+                    prompt: `You are a personal trainer creating a customized workout plan.
     
 The user has provided the following information:
 
@@ -1695,8 +1690,26 @@ Make sure to:
 - Provide tips or modifications if necessary.
 
 Format the plan in a clear and organized manner, using markdown bullet points or tables where appropriate.`,
+                },
+            },
+            formInput: {
+                __version: "1.0",
+                schema: {
+                    layout: {
+                        title: "Workout Plan Generator",
+                        description: "Provide some information to receive a personalized workout plan.",
+                    },
+                    containers: [
+                        {
+                            title: "",
+                            description: "",
+                            totalItems: configFormInputElements.length,
+                        },
+                    ],
+                    elements: configFormInputElements,
+                },
+            },
         });
-
         workoutPlanGenerator = await prismaInstance.routine_version.create({
             data: {
                 root: {
@@ -1724,8 +1737,7 @@ Format the plan in a clear and organized manner, using markdown bullet points or
                 versionLabel: "1.0.0",
                 versionIndex: 0,
                 routineType: RoutineType.Generate,
-                configFormInput: JSON.stringify(configFormInput),
-                configCallData,
+                config: config.serialize("json"),
                 inputs: {
                     create: [
                         {

@@ -1,4 +1,4 @@
-import { Api, ApiCreateInput, ApiUpdateInput, ApiVersion, ApiVersionCreateInput, ApiVersionTranslation, ApiVersionTranslationCreateInput, ApiVersionTranslationUpdateInput, ApiVersionUpdateInput, Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkListCreateInput, BookmarkListUpdateInput, BookmarkUpdateInput, BotCreateInput, BotUpdateInput, Chat, ChatCreateInput, ChatInvite, ChatInviteCreateInput, ChatInviteStatus, ChatInviteUpdateInput, ChatInviteYou, ChatMessage, ChatMessageCreateInput, ChatMessageParent, ChatMessageTranslation, ChatMessageTranslationCreateInput, ChatMessageTranslationUpdateInput, ChatMessageUpdateInput, ChatMessageYou, ChatParticipant, ChatParticipantUpdateInput, ChatTranslation, ChatTranslationCreateInput, ChatTranslationUpdateInput, ChatUpdateInput, Code, CodeCreateInput, CodeUpdateInput, CodeVersion, CodeVersionCreateInput, CodeVersionTranslation, CodeVersionTranslationCreateInput, CodeVersionTranslationUpdateInput, CodeVersionUpdateInput, Comment, CommentCreateInput, CommentFor, CommentTranslation, CommentTranslationCreateInput, CommentTranslationUpdateInput, CommentUpdateInput, CommentedOn, FocusMode, FocusModeCreateInput, FocusModeFilter, FocusModeFilterCreateInput, FocusModeUpdateInput, Issue, IssueCreateInput, IssueFor, IssueTranslation, IssueTranslationCreateInput, IssueTranslationUpdateInput, IssueUpdateInput, Label, LabelCreateInput, LabelTranslation, LabelTranslationCreateInput, LabelTranslationUpdateInput, LabelUpdateInput, Meeting, MeetingCreateInput, MeetingInvite, MeetingInviteCreateInput, MeetingInviteUpdateInput, MeetingTranslation, MeetingTranslationCreateInput, MeetingTranslationUpdateInput, MeetingUpdateInput, Member, MemberInvite, MemberInviteCreateInput, MemberInviteUpdateInput, MemberUpdateInput, Node, NodeCreateInput, NodeEnd, NodeEndCreateInput, NodeEndUpdateInput, NodeLink, NodeLinkCreateInput, NodeLinkUpdateInput, NodeLinkWhen, NodeLinkWhenCreateInput, NodeLinkWhenTranslation, NodeLinkWhenTranslationCreateInput, NodeLinkWhenTranslationUpdateInput, NodeLinkWhenUpdateInput, NodeRoutineList, NodeRoutineListCreateInput, NodeRoutineListItem, NodeRoutineListItemCreateInput, NodeRoutineListItemTranslation, NodeRoutineListItemTranslationCreateInput, NodeRoutineListItemTranslationUpdateInput, NodeRoutineListItemUpdateInput, NodeRoutineListUpdateInput, NodeTranslation, NodeTranslationCreateInput, NodeTranslationUpdateInput, NodeUpdateInput, Note, NoteCreateInput, NotePage, NotePageCreateInput, NotePageUpdateInput, NoteUpdateInput, NoteVersion, NoteVersionCreateInput, NoteVersionTranslation, NoteVersionTranslationCreateInput, NoteVersionTranslationUpdateInput, NoteVersionUpdateInput, Post, PostCreateInput, PostUpdateInput, ProfileUpdateInput, Project, ProjectCreateInput, ProjectUpdateInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectoryUpdateInput, ProjectVersionTranslation, ProjectVersionTranslationCreateInput, ProjectVersionTranslationUpdateInput, ProjectVersionUpdateInput, PullRequest, PullRequestCreateInput, PullRequestTranslation, PullRequestTranslationCreateInput, PullRequestTranslationUpdateInput, PullRequestUpdateInput, Question, QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerUpdateInput, QuestionCreateInput, QuestionForType, QuestionTranslation, QuestionTranslationCreateInput, QuestionTranslationUpdateInput, QuestionUpdateInput, Quiz, QuizAttempt, QuizAttemptCreateInput, QuizAttemptUpdateInput, QuizCreateInput, QuizQuestion, QuizQuestionCreateInput, QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponseUpdateInput, QuizQuestionUpdateInput, QuizUpdateInput, ReactionSummary, Reminder, ReminderCreateInput, ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput, ReminderList, ReminderListCreateInput, ReminderListUpdateInput, ReminderUpdateInput, Report, ReportCreateInput, ReportFor, ReportResponse, ReportResponseCreateInput, ReportResponseUpdateInput, ReportUpdateInput, Resource, ResourceCreateInput, ResourceList, ResourceListCreateInput, ResourceListFor, ResourceListTranslation, ResourceListTranslationCreateInput, ResourceListTranslationUpdateInput, ResourceListUpdateInput, ResourceTranslation, ResourceTranslationCreateInput, ResourceTranslationUpdateInput, ResourceUpdateInput, Role, RoleCreateInput, RoleTranslation, RoleTranslationCreateInput, RoleTranslationUpdateInput, RoleUpdateInput, Routine, RoutineCreateInput, RoutineUpdateInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputTranslation, RoutineVersionInputTranslationCreateInput, RoutineVersionInputTranslationUpdateInput, RoutineVersionInputUpdateInput, RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputTranslation, RoutineVersionOutputTranslationCreateInput, RoutineVersionOutputTranslationUpdateInput, RoutineVersionOutputUpdateInput, RoutineVersionTranslation, RoutineVersionTranslationCreateInput, RoutineVersionTranslationUpdateInput, RoutineVersionUpdateInput, RunProject, RunProjectCreateInput, RunProjectStep, RunProjectStepCreateInput, RunProjectStepUpdateInput, RunProjectUpdateInput, RunRoutine, RunRoutineCreateInput, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput, RunRoutineUpdateInput, Schedule, ScheduleCreateInput, ScheduleException, ScheduleExceptionCreateInput, ScheduleExceptionUpdateInput, ScheduleRecurrence, ScheduleRecurrenceCreateInput, ScheduleRecurrenceUpdateInput, ScheduleUpdateInput, Standard, StandardCreateInput, StandardUpdateInput, StandardVersion, StandardVersionCreateInput, StandardVersionTranslation, StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput, StandardVersionUpdateInput, Tag, TagCreateInput, TagTranslation, TagTranslationCreateInput, TagTranslationUpdateInput, TagUpdateInput, Team, TeamCreateInput, TeamTranslation, TeamTranslationCreateInput, TeamTranslationUpdateInput, TeamUpdateInput, User, UserTranslation, UserTranslationCreateInput, UserTranslationUpdateInput } from "../../api/generated/graphqlTypes";
+import { Api, ApiCreateInput, ApiUpdateInput, ApiVersion, ApiVersionCreateInput, ApiVersionTranslation, ApiVersionTranslationCreateInput, ApiVersionTranslationUpdateInput, ApiVersionUpdateInput, Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkListCreateInput, BookmarkListUpdateInput, BookmarkUpdateInput, BotCreateInput, BotUpdateInput, Chat, ChatCreateInput, ChatInvite, ChatInviteCreateInput, ChatInviteStatus, ChatInviteUpdateInput, ChatInviteYou, ChatMessage, ChatMessageCreateInput, ChatMessageParent, ChatMessageTranslation, ChatMessageTranslationCreateInput, ChatMessageTranslationUpdateInput, ChatMessageUpdateInput, ChatMessageYou, ChatParticipant, ChatParticipantUpdateInput, ChatTranslation, ChatTranslationCreateInput, ChatTranslationUpdateInput, ChatUpdateInput, Code, CodeCreateInput, CodeUpdateInput, CodeVersion, CodeVersionCreateInput, CodeVersionTranslation, CodeVersionTranslationCreateInput, CodeVersionTranslationUpdateInput, CodeVersionUpdateInput, Comment, CommentCreateInput, CommentFor, CommentTranslation, CommentTranslationCreateInput, CommentTranslationUpdateInput, CommentUpdateInput, CommentedOn, FocusMode, FocusModeCreateInput, FocusModeFilter, FocusModeFilterCreateInput, FocusModeUpdateInput, Issue, IssueCreateInput, IssueFor, IssueTranslation, IssueTranslationCreateInput, IssueTranslationUpdateInput, IssueUpdateInput, Label, LabelCreateInput, LabelTranslation, LabelTranslationCreateInput, LabelTranslationUpdateInput, LabelUpdateInput, Meeting, MeetingCreateInput, MeetingInvite, MeetingInviteCreateInput, MeetingInviteUpdateInput, MeetingTranslation, MeetingTranslationCreateInput, MeetingTranslationUpdateInput, MeetingUpdateInput, Member, MemberInvite, MemberInviteCreateInput, MemberInviteUpdateInput, MemberUpdateInput, Note, NoteCreateInput, NotePage, NotePageCreateInput, NotePageUpdateInput, NoteUpdateInput, NoteVersion, NoteVersionCreateInput, NoteVersionTranslation, NoteVersionTranslationCreateInput, NoteVersionTranslationUpdateInput, NoteVersionUpdateInput, Post, PostCreateInput, PostUpdateInput, ProfileUpdateInput, Project, ProjectCreateInput, ProjectUpdateInput, ProjectVersion, ProjectVersionCreateInput, ProjectVersionDirectory, ProjectVersionDirectoryCreateInput, ProjectVersionDirectoryUpdateInput, ProjectVersionTranslation, ProjectVersionTranslationCreateInput, ProjectVersionTranslationUpdateInput, ProjectVersionUpdateInput, PullRequest, PullRequestCreateInput, PullRequestTranslation, PullRequestTranslationCreateInput, PullRequestTranslationUpdateInput, PullRequestUpdateInput, Question, QuestionAnswer, QuestionAnswerCreateInput, QuestionAnswerUpdateInput, QuestionCreateInput, QuestionForType, QuestionTranslation, QuestionTranslationCreateInput, QuestionTranslationUpdateInput, QuestionUpdateInput, Quiz, QuizAttempt, QuizAttemptCreateInput, QuizAttemptUpdateInput, QuizCreateInput, QuizQuestion, QuizQuestionCreateInput, QuizQuestionResponse, QuizQuestionResponseCreateInput, QuizQuestionResponseUpdateInput, QuizQuestionUpdateInput, QuizUpdateInput, ReactionSummary, Reminder, ReminderCreateInput, ReminderItem, ReminderItemCreateInput, ReminderItemUpdateInput, ReminderList, ReminderListCreateInput, ReminderListUpdateInput, ReminderUpdateInput, Report, ReportCreateInput, ReportFor, ReportResponse, ReportResponseCreateInput, ReportResponseUpdateInput, ReportUpdateInput, Resource, ResourceCreateInput, ResourceList, ResourceListCreateInput, ResourceListFor, ResourceListTranslation, ResourceListTranslationCreateInput, ResourceListTranslationUpdateInput, ResourceListUpdateInput, ResourceTranslation, ResourceTranslationCreateInput, ResourceTranslationUpdateInput, ResourceUpdateInput, Role, RoleCreateInput, RoleTranslation, RoleTranslationCreateInput, RoleTranslationUpdateInput, RoleUpdateInput, Routine, RoutineCreateInput, RoutineUpdateInput, RoutineVersion, RoutineVersionCreateInput, RoutineVersionInput, RoutineVersionInputCreateInput, RoutineVersionInputTranslation, RoutineVersionInputTranslationCreateInput, RoutineVersionInputTranslationUpdateInput, RoutineVersionInputUpdateInput, RoutineVersionOutput, RoutineVersionOutputCreateInput, RoutineVersionOutputTranslation, RoutineVersionOutputTranslationCreateInput, RoutineVersionOutputTranslationUpdateInput, RoutineVersionOutputUpdateInput, RoutineVersionTranslation, RoutineVersionTranslationCreateInput, RoutineVersionTranslationUpdateInput, RoutineVersionUpdateInput, RunProject, RunProjectCreateInput, RunProjectStep, RunProjectStepCreateInput, RunProjectStepUpdateInput, RunProjectUpdateInput, RunRoutine, RunRoutineCreateInput, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput, RunRoutineStep, RunRoutineStepCreateInput, RunRoutineStepUpdateInput, RunRoutineUpdateInput, Schedule, ScheduleCreateInput, ScheduleException, ScheduleExceptionCreateInput, ScheduleExceptionUpdateInput, ScheduleRecurrence, ScheduleRecurrenceCreateInput, ScheduleRecurrenceUpdateInput, ScheduleUpdateInput, Standard, StandardCreateInput, StandardUpdateInput, StandardVersion, StandardVersionCreateInput, StandardVersionTranslation, StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput, StandardVersionUpdateInput, Tag, TagCreateInput, TagTranslation, TagTranslationCreateInput, TagTranslationUpdateInput, TagUpdateInput, Team, TeamCreateInput, TeamTranslation, TeamTranslationCreateInput, TeamTranslationUpdateInput, TeamUpdateInput, User, UserTranslation, UserTranslationCreateInput, UserTranslationUpdateInput } from "../../api/types";
 import { CanConnect, ShapeModel } from "../../consts/commonTypes";
 import { DUMMY_ID } from "../../id/uuid";
 import { LlmModel } from "../../utils/bot";
@@ -556,155 +556,6 @@ export const shapeMemberInvite: ShapeModel<MemberInviteShape, MemberInviteCreate
     }),
 };
 
-export type NodeTranslationShape = Pick<NodeTranslation, "id" | "language" | "description" | "name"> & {
-    __typename?: "NodeTranslation";
-}
-export type NodeShape = Pick<Node, "id" | "columnIndex" | "rowIndex" | "nodeType"> & {
-    __typename: "Node";
-    // loop?: Omit<LoopShape, "node"> | null
-    end?: Omit<NodeEndShape, "node"> | null;
-    routineList?: Omit<NodeRoutineListShape, "node"> | null;
-    routineVersion: CanConnect<Omit<RoutineVersionShape, "nodes">>;
-    translations: NodeTranslationShape[];
-}
-export const shapeNodeTranslation: ShapeModel<NodeTranslationShape, NodeTranslationCreateInput, NodeTranslationUpdateInput> = {
-    create: (d) => createPrims(d, "id", "language", "description", "name"),
-    update: (o, u) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "description", "name")),
-};
-export const shapeNode: ShapeModel<NodeShape, NodeCreateInput, NodeUpdateInput> = {
-    create: (d) => {
-        const prims = createPrims(d, "id", "columnIndex", "nodeType", "rowIndex");
-        return {
-            ...prims,
-            ...createRel(d, "routineVersion", ["Connect"], "one"),
-            // ...createRel(d, "loop", ['Create'], "one", shapeLoop, (n) => ({ node: { id: prims.id }, ...n })),
-            ...createRel(d, "end", ["Create"], "one", shapeNodeEnd, (n) => ({ node: { id: prims.id }, ...n })),
-            ...createRel(d, "routineList", ["Create"], "one", shapeNodeRoutineList, (n) => ({ node: { id: prims.id }, ...n })),
-            ...createRel(d, "translations", ["Create"], "many", shapeNodeTranslation),
-        };
-    },
-    update: (o, u) => shapeUpdate(u, {
-        ...updatePrims(o, u, "id", "columnIndex", "nodeType", "rowIndex"),
-        ...updateRel(o, u, "routineVersion", ["Connect"], "one"),
-        // ...updateRel(o, u, "loop", ['Create', 'Update', 'Delete'], "one", shapeLoop, (n, i) => ({ node: { id: i.id }, ...n })),
-        ...updateRel(o, u, "end", ["Create", "Update"], "one", shapeNodeEnd, (n, i) => ({ node: { id: i.id }, ...n })),
-        ...updateRel(o, u, "routineList", ["Create", "Update"], "one", shapeNodeRoutineList, (n, i) => ({ node: { id: i.id }, ...n })),
-        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeNodeTranslation),
-    }),
-};
-
-export type NodeEndShape = Pick<NodeEnd, "id" | "wasSuccessful" | "suggestedNextRoutineVersions"> & {
-    __typename: "NodeEnd";
-    node: CanConnect<Omit<NodeShape, "end">>;
-    suggestedNextRoutineVersions?: CanConnect<RoutineVersionShape>[] | null;
-}
-export const shapeNodeEnd: ShapeModel<NodeEndShape, NodeEndCreateInput, NodeEndUpdateInput> = {
-    create: (d) => ({
-        ...createPrims(d, "id", "wasSuccessful"),
-        ...createRel(d, "node", ["Connect"], "one"),
-        ...createRel(d, "suggestedNextRoutineVersions", ["Connect"], "many"),
-    }),
-    update: (o, u) => shapeUpdate(u, {
-        ...updatePrims(o, u, "id", "wasSuccessful"),
-        ...updateRel(o, u, "suggestedNextRoutineVersions", ["Connect", "Disconnect"], "many"),
-    }),
-};
-
-export type NodeLinkShape = Pick<NodeLink, "id" | "operation"> & {
-    __typename: "NodeLink";
-    from: CanConnect<NodeShape>;
-    to: CanConnect<NodeShape>;
-    routineVersion: CanConnect<RoutineVersionShape>;
-    whens?: NodeLinkWhenShape[];
-}
-export const shapeNodeLink: ShapeModel<NodeLinkShape, NodeLinkCreateInput, NodeLinkUpdateInput> = {
-    create: (d) => ({
-        ...createPrims(d, "id", "operation"),
-        ...createRel(d, "from", ["Connect"], "one"),
-        ...createRel(d, "to", ["Connect"], "one"),
-        ...createRel(d, "routineVersion", ["Connect"], "one"),
-        ...createRel(d, "whens", ["Create"], "many", shapeNodeLinkWhen),
-    }),
-    update: (o, u) => shapeUpdate(u, {
-        ...updatePrims(o, u, "id", "operation"),
-        ...updateRel(o, u, "from", ["Connect", "Disconnect"], "one"),
-        ...updateRel(o, u, "to", ["Connect", "Disconnect"], "one"),
-        ...updateRel(o, u, "whens", ["Create", "Update", "Delete"], "many", shapeNodeLinkWhen),
-    }),
-};
-
-export type NodeLinkWhenTranslationShape = Pick<NodeLinkWhenTranslation, "id" | "language" | "description" | "name"> & {
-    __typename?: "NodeLinkWhenTranslation";
-}
-export type NodeLinkWhenShape = Pick<NodeLinkWhen, "id" | "condition"> & {
-    __typename: "NodeLinkWhen";
-    link: CanConnect<NodeLinkShape>;
-    translations?: NodeLinkWhenTranslationShape[] | null;
-}
-export const shapeNodeLinkWhenTranslation: ShapeModel<NodeLinkWhenTranslationShape, NodeLinkWhenTranslationCreateInput, NodeLinkWhenTranslationUpdateInput> = {
-    create: (d) => createPrims(d, "id", "language", "description", "name"),
-    update: (o, u) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "description", "name")),
-};
-export const shapeNodeLinkWhen: ShapeModel<NodeLinkWhenShape, NodeLinkWhenCreateInput, NodeLinkWhenUpdateInput> = {
-    create: (d) => ({
-        ...createPrims(d, "id", "condition"),
-        ...createRel(d, "link", ["Connect"], "one"),
-        ...createRel(d, "translations", ["Create"], "many", shapeNodeLinkWhenTranslation),
-    }),
-    update: (o, u) => shapeUpdate(u, {
-        ...updatePrims(o, u, "id", "condition"),
-        ...updateRel(o, u, "link", ["Connect"], "one"),
-        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeNodeLinkWhenTranslation),
-    }),
-};
-
-export type NodeRoutineListShape = Pick<NodeRoutineList, "id" | "isOptional" | "isOrdered"> & {
-    __typename: "NodeRoutineList";
-    items: Omit<NodeRoutineListItemShape, "list">[];
-    node: CanConnect<Omit<NodeShape, "routineList">>;
-}
-export const shapeNodeRoutineList: ShapeModel<NodeRoutineListShape, NodeRoutineListCreateInput, NodeRoutineListUpdateInput> = {
-    create: (d) => {
-        const prims = createPrims(d, "id", "isOptional", "isOrdered");
-        return {
-            ...prims,
-            ...createRel(d, "items", ["Create"], "many", shapeNodeRoutineListItem, (r) => ({ list: { id: prims.id }, ...r })),
-            ...createRel(d, "node", ["Connect"], "one"),
-        };
-    },
-    update: (o, u) => shapeUpdate(u, {
-        ...updatePrims(o, u, "id", "isOptional", "isOrdered"),
-        ...updateRel(o, u, "items", ["Create", "Update", "Delete"], "many", shapeNodeRoutineListItem, (r, i) => ({ list: { id: i.id }, ...r })),
-    }),
-};
-
-export type NodeRoutineListItemTranslationShape = Pick<NodeRoutineListItemTranslation, "id" | "language" | "description" | "name"> & {
-    __typename?: "NodeRoutineListItemTranslation";
-}
-export type NodeRoutineListItemShape = Pick<NodeRoutineListItem, "id" | "index" | "isOptional"> & {
-    __typename: "NodeRoutineListItem";
-    list: CanConnect<NodeRoutineListShape>;
-    routineVersion: RoutineVersionShape;
-    translations: NodeRoutineListItemTranslationShape[];
-}
-export const shapeNodeRoutineListItemTranslation: ShapeModel<NodeRoutineListItemTranslationShape, NodeRoutineListItemTranslationCreateInput, NodeRoutineListItemTranslationUpdateInput> = {
-    create: (d) => createPrims(d, "id", "language", "description", "name"),
-    update: (o, u) => shapeUpdate(u, updateTranslationPrims(o, u, "id", "description", "name")),
-};
-export const shapeNodeRoutineListItem: ShapeModel<NodeRoutineListItemShape, NodeRoutineListItemCreateInput, NodeRoutineListItemUpdateInput> = {
-    create: (d) => ({
-        ...createPrims(d, "id", "index", "isOptional"),
-        ...createRel(d, "list", ["Connect"], "one"),
-        ...createRel(d, "routineVersion", ["Connect"], "one"),
-        ...createRel(d, "translations", ["Create"], "many", shapeNodeRoutineListItemTranslation),
-    }),
-    update: (o, u) => shapeUpdate(u, {
-        ...updatePrims(o, u, "id", "index", "isOptional"),
-        ...updateRel(o, u, "routineVersion", ["Update"], "one", shapeRoutineVersion),
-        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeNodeRoutineListItemTranslation),
-    }),
-};
-
 export type NoteShape = Pick<Note, "id" | "isPrivate"> & {
     __typename: "Note";
     labels?: CanConnect<LabelShape>[] | null;
@@ -1230,17 +1081,16 @@ export const shapeRoutine: ShapeModel<RoutineShape, RoutineCreateInput, RoutineU
 export type RoutineVersionTranslationShape = Pick<RoutineVersionTranslation, "id" | "language" | "description" | "instructions" | "name"> & {
     __typename?: "RoutineVersionTranslation";
 }
-export type RoutineVersionShape = Pick<RoutineVersion, "id" | "configCallData" | "configFormInput" | "configFormOutput" | "isAutomatable" | "isComplete" | "isPrivate" | "routineType" | "versionLabel" | "versionNotes"> & {
+export type RoutineVersionShape = Pick<RoutineVersion, "id" | "config" | "isAutomatable" | "isComplete" | "isPrivate" | "routineType" | "versionLabel" | "versionNotes"> & {
     __typename: "RoutineVersion";
     apiVersion?: CanConnect<ApiVersionShape> | null;
     codeVersion?: CanConnect<CodeVersionShape> | null;
     directoryListings?: CanConnect<ProjectVersionDirectoryShape>[] | null;
     inputs?: RoutineVersionInputShape[] | null;
-    nodes?: Omit<NodeShape, "routineVersion">[] | null;
-    nodeLinks?: Omit<NodeLinkShape, "routineVersion">[] | null;
     outputs?: RoutineVersionOutputShape[] | null;
     resourceList?: ResourceListShape | null;
     root?: CanConnect<RoutineShape> | null;
+    subroutineLinks?: CanConnect<RoutineVersionShape>[] | null;
     suggestedNextByRoutineVersion?: CanConnect<RoutineVersionShape>[] | null;
     translations?: RoutineVersionTranslationShape[] | null;
 }
@@ -1250,33 +1100,31 @@ export const shapeRoutineVersionTranslation: ShapeModel<RoutineVersionTranslatio
 };
 export const shapeRoutineVersion: ShapeModel<RoutineVersionShape, RoutineVersionCreateInput, RoutineVersionUpdateInput> = {
     create: (d) => {
-        const prims = createPrims(d, "id", "configCallData", "configFormInput", "configFormOutput", "isAutomatable", "isComplete", "isPrivate", "routineType", "versionLabel", "versionNotes");
+        const prims = createPrims(d, "id", "config", "isAutomatable", "isComplete", "isPrivate", "routineType", "versionLabel", "versionNotes");
         return {
             ...prims,
             ...createRel(d, "apiVersion", ["Connect"], "one"),
             ...createRel(d, "codeVersion", ["Connect"], "one"),
             ...createRel(d, "directoryListings", ["Connect"], "many"),
             ...createRel(d, "inputs", ["Create"], "many", shapeRoutineVersionInput, (i) => ({ ...i, routineVersion: { id: prims.id } })),
-            ...createRel(d, "nodes", ["Create"], "many", shapeNode, (n) => ({ ...n, routineVersion: { id: prims.id } })),
-            ...createRel(d, "nodeLinks", ["Create"], "many", shapeNodeLink, (nl) => ({ ...nl, routineVersion: { id: prims.id } })),
             ...createRel(d, "outputs", ["Create"], "many", shapeRoutineVersionOutput, (out) => ({ ...out, routineVersion: { id: prims.id } })),
             ...createRel(d, "resourceList", ["Create"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: prims.id, __typename: "RoutineVersion" } })),
             ...createRel(d, "root", ["Connect", "Create"], "one", shapeRoutine, (r) => ({ ...r, isPrivate: d.isPrivate })),
+            ...createRel(d, "subroutineLinks", ["Connect"], "many"),
             ...createRel(d, "suggestedNextByRoutineVersion", ["Connect"], "many"),
             ...createRel(d, "translations", ["Create"], "many", shapeRoutineVersionTranslation),
         };
     },
     update: (o, u) => shapeUpdate(u, {
-        ...updatePrims(o, u, "id", "configCallData", "configFormInput", "configFormOutput", "isAutomatable", "isComplete", "isPrivate", "versionLabel", "versionNotes"),
+        ...updatePrims(o, u, "id", "config", "isAutomatable", "isComplete", "isPrivate", "versionLabel", "versionNotes"),
         ...updateRel(o, u, "apiVersion", ["Connect", "Disconnect"], "one"),
         ...updateRel(o, u, "codeVersion", ["Connect", "Disconnect"], "one"),
         ...updateRel(o, u, "directoryListings", ["Connect", "Disconnect"], "many"),
         ...updateRel(o, u, "inputs", ["Create", "Update", "Delete"], "many", shapeRoutineVersionInput, (i) => ({ ...i, routineVersion: { id: o.id } })),
-        ...updateRel(o, u, "nodes", ["Create", "Update", "Delete"], "many", shapeNode, (n) => ({ ...n, routineVersion: { id: o.id } })),
-        ...updateRel(o, u, "nodeLinks", ["Create", "Update", "Delete"], "many", shapeNodeLink, (nl) => ({ ...nl, routineVersion: { id: o.id } })),
         ...updateRel(o, u, "outputs", ["Create", "Update", "Delete"], "many", shapeRoutineVersionOutput, (out) => ({ ...out, routineVersion: { id: o.id } })),
         ...updateRel(o, u, "resourceList", ["Create", "Update"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: o.id, __typename: "RoutineVersion" } })),
         ...updateRel(o, u, "root", ["Update"], "one", shapeRoutine),
+        ...updateRel(o, u, "subroutineLinks", ["Connect", "Disconnect"], "many"),
         ...updateRel(o, u, "suggestedNextByRoutineVersion", ["Connect", "Disconnect"], "many"),
         ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeRoutineVersionTranslation),
     }),
@@ -1387,14 +1235,12 @@ export const shapeRunProject: ShapeModel<RunProjectShape, RunProjectCreateInput,
 export type RunProjectStepShape = Pick<RunProjectStep, "id" | "contextSwitches" | "name" | "order" | "status" | "step" | "timeElapsed"> & {
     __typename: "RunProjectStep";
     directory?: CanConnect<ProjectVersionDirectoryShape> | null;
-    node?: CanConnect<NodeShape> | null;
     runProject: CanConnect<RunProjectShape>;
 }
 export const shapeRunProjectStep: ShapeModel<RunProjectStepShape, RunProjectStepCreateInput, RunProjectStepUpdateInput> = {
     create: (d) => ({
         ...createPrims(d, "id", "contextSwitches", "name", "order", "status", "step", "timeElapsed"),
         ...createRel(d, "directory", ["Connect"], "one"),
-        ...createRel(d, "node", ["Connect"], "one"),
         ...createRel(d, "runProject", ["Connect"], "one"),
     }),
     update: (o, u) => shapeUpdate(u, {
@@ -1447,14 +1293,12 @@ export const shapeRunRoutineInput: ShapeModel<RunRoutineInputShape, RunRoutineIn
 
 export type RunRoutineStepShape = Pick<RunRoutineStep, "id" | "contextSwitches" | "name" | "order" | "status" | "step" | "timeElapsed"> & {
     __typename: "RunRoutineStep";
-    node?: CanConnect<NodeShape> | null;
     runRoutine: CanConnect<RunRoutineShape>;
     subroutine?: CanConnect<RoutineVersionShape> | null;
 }
 export const shapeRunRoutineStep: ShapeModel<RunRoutineStepShape, RunRoutineStepCreateInput, RunRoutineStepUpdateInput> = {
     create: (d) => ({
         ...createPrims(d, "id", "contextSwitches", "name", "order", "status", "step", "timeElapsed"),
-        ...createRel(d, "node", ["Connect"], "one"),
         ...createRel(d, "runRoutine", ["Connect"], "one"),
         ...createRel(d, "subroutine", ["Connect"], "one"),
     }),

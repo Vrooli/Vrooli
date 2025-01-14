@@ -13,7 +13,6 @@ export const runRoutineStepValidation: YupModel<["create", "update"]> = {
         step: req(yup.array().of(intPositiveOrZero)),
         timeElapsed: opt(intPositiveOrZero),
     }, [
-        ["node", ["Connect"], "one", "opt"],
         ["runRoutine", ["Connect"], "one", "req"],
         ["subroutine", ["Connect"], "one", "opt"],
     ], [], d),

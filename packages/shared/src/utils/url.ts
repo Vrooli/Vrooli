@@ -1,4 +1,4 @@
-import { ApiVersion, Bookmark, ChatParticipant, Code, CodeType, CodeVersion, GqlModelType, Member, NoteVersion, Notification, ProjectVersion, Reaction, Routine, RoutineType, RoutineVersion, RunProject, RunRoutine, Schedule, Session, Standard, StandardType, StandardVersion, View } from "../api/generated/graphqlTypes";
+import { ApiVersion, Bookmark, ChatParticipant, Code, CodeType, CodeVersion, Member, ModelType, NoteVersion, Notification, ProjectVersion, Reaction, Routine, RoutineType, RoutineVersion, RunProject, RunRoutine, Schedule, Session, Standard, StandardType, StandardVersion, View } from "../api/types";
 import { LINKS } from "../consts/ui";
 import { isOfType } from "./objects";
 
@@ -33,7 +33,7 @@ export type YouInflated = {
  * NOTE 2: Ideally this would be a Partial union, but a union on so many types causes a 
  * heap out of memory error  */
 export type ListObject = {
-    __typename: `${GqlModelType}` | "CalendarEvent";
+    __typename: `${ModelType}` | "CalendarEvent";
     id?: string;
     completedAt?: number | null;
     startedAt?: number | null;
@@ -54,13 +54,13 @@ export type ListObject = {
 
 /** An object connected to routing */
 export type NavigableObject = Omit<ListObject, "__typename"> & {
-    __typename: `${GqlModelType}` | "Shortcut" | "Action" | "CalendarEvent",
+    __typename: `${ModelType}` | "Shortcut" | "Action" | "CalendarEvent",
     handle?: string | null,
     id?: string,
 };
 
 export interface ObjectOption {
-    __typename: `${GqlModelType}`;
+    __typename: `${ModelType}`;
     handle?: string | null;
     id: string;
     root?: ListObject | null;

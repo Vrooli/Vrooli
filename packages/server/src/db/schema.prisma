@@ -628,146 +628,6 @@ model label_translation {
     @@unique([labelId, language])
 }
 
-model node {
-    id               String             @id @default(uuid()) @db.Uuid
-    created_at       DateTime           @default(now()) @db.Timestamptz(6)
-    updated_at       DateTime           @default(now()) @db.Timestamptz(6)
-    columnIndex      Int?
-    rowIndex         Int?
-    nodeType         NodeType
-    runConditions    String?            @db.VarChar(4096)
-    voteConditions   String?            @db.VarChar(4096)
-    routineVersionId String             @db.Uuid
-    routineVersion   routine_version    @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
-    end              node_end?
-    previous         node_link[]        @relation("node_previous")
-    next             node_link[]        @relation("node_next")
-    loop             node_loop?
-    routineList      node_routine_list?
-    translations     node_translation[]
-    runSteps         run_routine_step[] @relation("run_routine_step_node")
-}
-
-model node_translation {
-    id          String  @id @default(uuid()) @db.Uuid
-    description String? @db.VarChar(2048)
-    name        String  @default("Name Me") @db.VarChar(128)
-    language    String  @db.VarChar(3)
-    nodeId      String  @db.Uuid
-    node        node    @relation(fields: [nodeId], references: [id], onDelete: Cascade)
-
-    @@unique([nodeId, language])
-}
-
-model node_end {
-    id                           String          @id @default(uuid()) @db.Uuid
-    wasSuccessful                Boolean         @default(true)
-    suggestedNextRoutineVersions node_end_next[] @relation("node_end_next_from")
-    nodeId                       String          @unique @db.Uuid
-    node                         node            @relation(fields: [nodeId], references: [id], onDelete: Cascade)
-}
-
-model node_end_next {
-    id                 String          @id @default(uuid()) @db.Uuid
-    fromEndId          String          @db.Uuid
-    toRoutineVersionId String          @db.Uuid
-    fromEnd            node_end        @relation("node_end_next_from", fields: [fromEndId], references: [id], onDelete: Cascade)
-    toRoutineVersion   routine_version @relation("node_end_next_to", fields: [toRoutineVersionId], references: [id], onDelete: Cascade)
-
-    @@unique([fromEndId, toRoutineVersionId])
-}
-
-model node_link {
-    id               String           @id @default(uuid()) @db.Uuid
-    fromId           String           @db.Uuid
-    operation        String?          @db.VarChar(512)
-    routineVersionId String           @db.Uuid
-    toId             String           @db.Uuid
-    from             node             @relation("node_previous", fields: [fromId], references: [id], onDelete: Cascade)
-    routineVersion   routine_version  @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
-    to               node             @relation("node_next", fields: [toId], references: [id], onDelete: Cascade)
-    whens            node_link_when[]
-}
-
-model node_link_when {
-    id           String                       @id @default(uuid()) @db.Uuid
-    linkId       String                       @db.Uuid
-    condition    String                       @db.VarChar(8192)
-    link         node_link                    @relation(fields: [linkId], references: [id], onDelete: Cascade)
-    translations node_link_when_translation[]
-}
-
-model node_link_when_translation {
-    id          String         @id @default(uuid()) @db.Uuid
-    description String?        @db.VarChar(2048)
-    name        String         @db.VarChar(128)
-    language    String         @db.VarChar(3)
-    whenId      String         @db.Uuid
-    when        node_link_when @relation(fields: [whenId], references: [id], onDelete: Cascade)
-
-    @@unique([whenId, language])
-}
-
-model node_loop {
-    id        String            @id @default(uuid()) @db.Uuid
-    loops     Int?              @default(1)
-    maxLoops  Int?              @default(1)
-    operation String?           @db.VarChar(512)
-    nodeId    String            @unique @db.Uuid
-    node      node              @relation(fields: [nodeId], references: [id], onDelete: Cascade)
-    whiles    node_loop_while[]
-}
-
-model node_loop_while {
-    id           String                        @id @default(uuid()) @db.Uuid
-    loopId       String                        @db.Uuid
-    condition    String                        @db.VarChar(8192)
-    loop         node_loop                     @relation(fields: [loopId], references: [id], onDelete: Cascade)
-    translations node_loop_while_translation[]
-}
-
-model node_loop_while_translation {
-    id          String          @id @default(uuid()) @db.Uuid
-    description String          @db.VarChar(2048)
-    name        String          @db.VarChar(128)
-    language    String          @db.VarChar(3)
-    whileId     String          @db.Uuid
-    while       node_loop_while @relation(fields: [whileId], references: [id], onDelete: Cascade)
-}
-
-model node_routine_list {
-    id         String                   @id @default(uuid()) @db.Uuid
-    isOrdered  Boolean                  @default(false)
-    isOptional Boolean                  @default(false)
-    nodeId     String                   @unique @db.Uuid
-    node       node                     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
-    items      node_routine_list_item[]
-}
-
-model node_routine_list_item {
-    id               String                               @id @default(uuid()) @db.Uuid
-    index            Int
-    isOptional       Boolean                              @default(false)
-    listId           String                               @db.Uuid
-    routineVersionId String                               @db.Uuid
-    list             node_routine_list                    @relation(fields: [listId], references: [id], onDelete: Cascade)
-    routineVersion   routine_version                      @relation(fields: [routineVersionId], references: [id], onDelete: Cascade)
-    translations     node_routine_list_item_translation[]
-
-    @@unique([listId, routineVersionId], name: "node_routine_list_item_listid_routineVersionid_unique")
-}
-
-model node_routine_list_item_translation {
-    id          String                 @id @default(uuid()) @db.Uuid
-    description String?                @db.VarChar(2048)
-    name        String?                @db.VarChar(128)
-    language    String                 @db.VarChar(3)
-    itemId      String                 @db.Uuid
-    item        node_routine_list_item @relation(fields: [itemId], references: [id], onDelete: Cascade)
-
-    @@unique([itemId, language])
-}
-
 model note {
     id                 String                      @id @default(uuid()) @db.Uuid
     created_at         DateTime                    @default(now()) @db.Timestamptz(6)
@@ -1916,9 +1776,7 @@ model routine_version {
     created_at                        DateTime                      @default(now()) @db.Timestamptz(6)
     updated_at                        DateTime                      @default(now()) @db.Timestamptz(6)
     completedAt                       DateTime?                     @db.Timestamptz(6)
-    configCallData                    String?                       @db.VarChar(8192)
-    configFormInput                   String?                       @db.VarChar(8192)
-    configFormOutput                  String?                       @db.VarChar(8192)
+    config                            String?                       @db.VarChar(32768)
     complexity                        Int                           @default(1)
     intendToPullRequest               Boolean                       @default(false)
     isAutomatable                     Boolean                       @default(false)
@@ -1943,9 +1801,8 @@ model routine_version {
     codeVersion                       code_version?                 @relation(fields: [codeVersionId], references: [id], onDelete: SetNull)
     comments                          comment[]
     reports                           report[]
-    nodes                             node[]
-    nodeLinks                         node_link[]
-    nodeLists                         node_routine_list_item[]
+    subroutineLinks                   routine_version_subroutine[]  @relation("routine_version_child")
+    parentRoutineLinks                routine_version_subroutine[]  @relation("routine_version_parent")
     resourceList                      resource_list?                @relation("resource_list_routine_version", fields: [resourceListId], references: [id], onDelete: SetNull)
     root                              routine                       @relation(fields: [rootId], references: [id], onDelete: Cascade)
     forks                             routine[]                     @relation("routine_version_fork")
@@ -1955,12 +1812,21 @@ model routine_version {
     translations                      routine_version_translation[]
     runRoutines                       run_routine[]                 @relation("run_routine_version")
     runSteps                          run_routine_step[]            @relation("run_routine_step_subroutine")
-    suggestedNextByNode               node_end_next[]               @relation("node_end_next_to")
     suggestedNextByRoutineVersion     routine_version_end_next[]    @relation("routine_version_end_next_to")
     suggestedNextByRoutineVersionFrom routine_version_end_next[]    @relation("routine_version_end_next_from")
     directoryListings                 project_version_directory[]
 
     @@unique([rootId, versionIndex], name: "routine_version_rootId_versionIndex_unique")
+}
+
+model routine_version_subroutine {
+    id              String          @id @default(uuid()) @db.Uuid
+    parentRoutineId String          @db.Uuid
+    subroutineId    String          @db.Uuid
+    parentRoutine   routine_version @relation("routine_version_parent", fields: [parentRoutineId], references: [id], onDelete: Cascade)
+    subroutine      routine_version @relation("routine_version_child", fields: [subroutineId], references: [id], onDelete: Cascade)
+
+    @@unique([parentRoutineId, subroutineId], name: "routine_version_subroutine_parentRoutineId_subroutineId_unique")
 }
 
 model routine_version_translation {
@@ -2162,7 +2028,6 @@ model run_routine_step {
     step            Int[]
     status          RunStepStatus    @default(InProgress)
     name            String           @db.VarChar(128)
-    node            node?            @relation("run_routine_step_node", fields: [nodeId], references: [id], onDelete: SetNull)
     runRoutine      run_routine      @relation("run_routine_step_run", fields: [runRoutineId], references: [id], onDelete: Cascade)
     subroutine      routine_version? @relation("run_routine_step_subroutine", fields: [subroutineId], references: [id])
 }

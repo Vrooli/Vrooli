@@ -54,7 +54,7 @@ export function calculateShortestLongestWeightedPath(
      * @returns [shortest, longest] The shortest and longest distance. -1 if doesn't 
      * end with a start node (i.e. caught in a loop)
      */
-    const getShortLong = (currentNodeId: string, visitedEdges: { fromId: string, toId: string }[], currShortest: number, currLongest: number): [number, number] => {
+    function getShortLong(currentNodeId: string, visitedEdges: { fromId: string, toId: string }[], currShortest: number, currLongest: number): [number, number] {
         const fromEdges = edgesByNode[currentNodeId];
         // If no from edges, must be start node. Return currShortest and currLongest unchanged
         if (!fromEdges || fromEdges.length === 0) return [currShortest, currLongest];
@@ -85,7 +85,7 @@ export function calculateShortestLongestWeightedPath(
         const shortest = edgeShorts.length > 0 ? Math.min(...edgeShorts) : -1;
         const longest = edgeLongs.length > 0 ? Math.max(...edgeLongs) : -1;
         return [shortest, longest];
-    };
+    }
     // Find all of the end nodes, by finding all nodes without any outgoing edges
     const endNodes = Object.keys(nodes).filter(nodeId => !edges.find(e => e.fromId === nodeId));
     // Calculate the shortest and longest for each end node
@@ -95,7 +95,7 @@ export function calculateShortestLongestWeightedPath(
         Math.min(...distances.map(d => d[0])),
         Math.max(...distances.map(d => d[1])),
     ];
-};
+}
 
 /**
  * Select query for calculating the complexity of a routine version
@@ -166,7 +166,7 @@ async function groupRoutineVersionData(ids: { id: string, parentId: string | nul
     // Add existing links, nodes data, subroutineItemData, and input counts
     for (const routineVersion of data) {
         // Links
-        for (const link of routineVersion.nodeLinks) {
+        for (const link of (routineVersion as any).nodeLinks) { //TODO
             linkData[link.id] = {
                 fromId: link.fromId,
                 toId: link.toId,
@@ -174,7 +174,7 @@ async function groupRoutineVersionData(ids: { id: string, parentId: string | nul
             };
         }
         // Nodes and subroutineItemData
-        for (const node of routineVersion.nodes) {
+        for (const node of (routineVersion as any).nodes) { //TODO
             if (node.routineList) {
                 nodeData[node.id] = {
                     routineVersionId: routineVersion.id,
@@ -210,7 +210,7 @@ async function groupRoutineVersionData(ids: { id: string, parentId: string | nul
         optionalRoutineVersionInputCounts,
         allRoutineVersionInputCounts,
     };
-};
+}
 
 type CalculateComplexityResult = {
     updatingSubroutineIds: string[],
@@ -414,4 +414,4 @@ export async function calculateWeightData(
         });
     }
     return { updatingSubroutineIds, dataWeights };
-};
+}

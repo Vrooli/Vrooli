@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { OpenAIModel } from "../ai/services";
-import { User } from "../api/generated/graphqlTypes";
+import { User } from "../api/types";
 import { LlmModel, findBotData, toBotSettings } from "./bot";
 
 describe("toBotSettings", () => {

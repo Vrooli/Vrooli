@@ -1,4 +1,4 @@
-import { Wallet, WalletUpdateInput } from "../../api/generated/graphqlTypes";
+import { Wallet, WalletUpdateInput } from "../../api/types";
 import { ShapeModel } from "../../consts/commonTypes";
 import { shapeUpdate } from "./tools";
 

@@ -1,5 +1,5 @@
 import { Moment } from "moment-timezone";
-import { type Schedule, type ScheduleRecurrence } from "../api/generated/graphqlTypes";
+import { type Schedule, type ScheduleRecurrence } from "../api/types";
 import { HOURS_1_MS, MINUTES_1_MS, YEARS_1_MS } from "../consts/numbers";
 
 const DAYS_IN_WEEK = 7;

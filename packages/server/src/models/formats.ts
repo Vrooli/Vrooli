@@ -1,5 +1,5 @@
 import { ModelType } from "@local/shared";
-import { ApiKeyModelInfo, ApiModelInfo, ApiVersionModelInfo, AwardModelInfo, BookmarkListModelInfo, BookmarkModelInfo, ChatInviteModelInfo, ChatMessageModelInfo, ChatModelInfo, ChatParticipantModelInfo, CodeModelInfo, CodeVersionModelInfo, CommentModelInfo, EmailModelInfo, FocusModeFilterModelInfo, FocusModeModelInfo, IssueModelInfo, LabelModelInfo, MeetingInviteModelInfo, MeetingModelInfo, MemberInviteModelInfo, MemberModelInfo, NodeEndModelInfo, NodeLinkModelInfo, NodeLinkWhenModelInfo, NodeLoopModelInfo, NodeLoopWhileModelInfo, NodeModelInfo, NodeRoutineListItemModelInfo, NodeRoutineListModelInfo, NoteModelInfo, NoteVersionModelInfo, NotificationModelInfo, NotificationSubscriptionModelInfo, PaymentModelInfo, PhoneModelInfo, PostModelInfo, PremiumModelInfo, ProjectModelInfo, ProjectVersionDirectoryModelInfo, ProjectVersionModelInfo, PullRequestModelInfo, PushDeviceModelInfo, QuestionAnswerModelInfo, QuestionModelInfo, QuizAttemptModelInfo, QuizModelInfo, QuizQuestionModelInfo, QuizQuestionResponseModelInfo, ReactionModelInfo, ReactionSummaryModelInfo, ReminderItemModelInfo, ReminderListModelInfo, ReminderModelInfo, ReportModelInfo, ReportResponseModelInfo, ResourceListModelInfo, ResourceModelInfo, RoleModelInfo, RoutineModelInfo, RoutineVersionInputModelInfo, RoutineVersionModelInfo, RoutineVersionOutputModelInfo, RunProjectModelInfo, RunProjectStepModelInfo, RunRoutineInputModelInfo, RunRoutineModelInfo, RunRoutineOutputModelInfo, RunRoutineStepModelInfo, ScheduleExceptionModelInfo, ScheduleModelInfo, ScheduleRecurrenceModelInfo, SessionModelInfo, StandardModelInfo, StandardVersionModelInfo, StatsApiModelInfo, StatsCodeModelInfo, StatsProjectModelInfo, StatsQuizModelInfo, StatsRoutineModelInfo, StatsSiteModelInfo, StatsStandardModelInfo, StatsTeamModelInfo, StatsUserModelInfo, TagModelInfo, TeamModelInfo, TransferModelInfo, UserModelInfo, ViewModelInfo, WalletModelInfo } from "./base/types";
+import { ApiKeyModelInfo, ApiModelInfo, ApiVersionModelInfo, AwardModelInfo, BookmarkListModelInfo, BookmarkModelInfo, ChatInviteModelInfo, ChatMessageModelInfo, ChatModelInfo, ChatParticipantModelInfo, CodeModelInfo, CodeVersionModelInfo, CommentModelInfo, EmailModelInfo, FocusModeFilterModelInfo, FocusModeModelInfo, IssueModelInfo, LabelModelInfo, MeetingInviteModelInfo, MeetingModelInfo, MemberInviteModelInfo, MemberModelInfo, NoteModelInfo, NoteVersionModelInfo, NotificationModelInfo, NotificationSubscriptionModelInfo, PaymentModelInfo, PhoneModelInfo, PostModelInfo, PremiumModelInfo, ProjectModelInfo, ProjectVersionDirectoryModelInfo, ProjectVersionModelInfo, PullRequestModelInfo, PushDeviceModelInfo, QuestionAnswerModelInfo, QuestionModelInfo, QuizAttemptModelInfo, QuizModelInfo, QuizQuestionModelInfo, QuizQuestionResponseModelInfo, ReactionModelInfo, ReactionSummaryModelInfo, ReminderItemModelInfo, ReminderListModelInfo, ReminderModelInfo, ReportModelInfo, ReportResponseModelInfo, ResourceListModelInfo, ResourceModelInfo, RoleModelInfo, RoutineModelInfo, RoutineVersionInputModelInfo, RoutineVersionModelInfo, RoutineVersionOutputModelInfo, RunProjectModelInfo, RunProjectStepModelInfo, RunRoutineInputModelInfo, RunRoutineModelInfo, RunRoutineOutputModelInfo, RunRoutineStepModelInfo, ScheduleExceptionModelInfo, ScheduleModelInfo, ScheduleRecurrenceModelInfo, SessionModelInfo, StandardModelInfo, StandardVersionModelInfo, StatsApiModelInfo, StatsCodeModelInfo, StatsProjectModelInfo, StatsQuizModelInfo, StatsRoutineModelInfo, StatsSiteModelInfo, StatsStandardModelInfo, StatsTeamModelInfo, StatsUserModelInfo, TagModelInfo, TeamModelInfo, TransferModelInfo, UserModelInfo, ViewModelInfo, WalletModelInfo } from "./base/types";
 import { Formatter } from "./types";
 
 export const ApiFormat: Formatter<ApiModelInfo> = {
@@ -528,123 +528,6 @@ export const MemberInviteFormat: Formatter<MemberInviteModelInfo> = {
         __typename: "MemberInvite",
         team: "Team",
         user: "User",
-    },
-    countFields: {},
-};
-
-export const NodeFormat: Formatter<NodeModelInfo> = {
-    apiRelMap: {
-        __typename: "Node",
-        end: "NodeEnd",
-        loop: "NodeLoop",
-        routineList: "NodeRoutineList",
-        routineVersion: "RoutineVersion",
-    },
-    prismaRelMap: {
-        __typename: "Node",
-        end: "NodeEnd",
-        loop: "NodeLoop",
-        next: "NodeLink",
-        previous: "NodeLink",
-        routineList: "NodeRoutineList",
-        routineVersion: "RoutineVersion",
-        runSteps: "RunRoutineStep",
-    },
-    countFields: {},
-};
-
-export const NodeEndFormat: Formatter<NodeEndModelInfo> = {
-    apiRelMap: {
-        __typename: "NodeEnd",
-        node: "Node",
-        suggestedNextRoutineVersions: "RoutineVersion",
-    },
-    prismaRelMap: {
-        __typename: "NodeEnd",
-        node: "Node",
-        suggestedNextRoutineVersions: "RoutineVersion",
-    },
-    joinMap: { suggestedNextRoutineVersions: "toRoutineVersion" },
-    countFields: {},
-};
-
-export const NodeLinkFormat: Formatter<NodeLinkModelInfo> = {
-    apiRelMap: {
-        __typename: "NodeLink",
-        from: "Node",
-        to: "Node",
-        routineVersion: "RoutineVersion",
-        whens: "NodeLinkWhen",
-    },
-    prismaRelMap: {
-        __typename: "NodeLink",
-        from: "Node",
-        to: "Node",
-        routineVersion: "RoutineVersion",
-        whens: "NodeLinkWhen",
-    },
-    countFields: {},
-};
-
-export const NodeLinkWhenFormat: Formatter<NodeLinkWhenModelInfo> = {
-    apiRelMap: {
-        __typename: "NodeLinkWhen",
-    },
-    prismaRelMap: {
-        __typename: "NodeLinkWhen",
-        link: "NodeLink",
-    },
-    countFields: {},
-};
-
-export const NodeLoopFormat: Formatter<NodeLoopModelInfo> = {
-    apiRelMap: {
-        __typename: "NodeLoop",
-        whiles: "NodeLoopWhile",
-    },
-    prismaRelMap: {
-        __typename: "NodeLoop",
-        node: "Node",
-        whiles: "NodeLoopWhile",
-    },
-    countFields: {},
-};
-
-export const NodeLoopWhileFormat: Formatter<NodeLoopWhileModelInfo> = {
-    apiRelMap: {
-        __typename: "NodeLoopWhile",
-    },
-    prismaRelMap: {
-        __typename: "NodeLoopWhile",
-        loop: "NodeLoop",
-    },
-    countFields: {},
-};
-
-export const NodeRoutineListFormat: Formatter<NodeRoutineListModelInfo> = {
-    apiRelMap: {
-        __typename: "NodeRoutineList",
-        items: "NodeRoutineListItem",
-        node: "Node",
-    },
-    prismaRelMap: {
-        __typename: "NodeRoutineList",
-        items: "NodeRoutineListItem",
-        node: "Node",
-    },
-    countFields: {},
-};
-
-export const NodeRoutineListItemFormat: Formatter<NodeRoutineListItemModelInfo> = {
-    apiRelMap: {
-        __typename: "NodeRoutineListItem",
-        list: "NodeRoutineList",
-        routineVersion: "RoutineVersion",
-    },
-    prismaRelMap: {
-        __typename: "NodeRoutineListItem",
-        list: "NodeRoutineList",
-        routineVersion: "RoutineVersion",
     },
     countFields: {},
 };
@@ -1539,13 +1422,12 @@ export const RoutineVersionFormat: Formatter<RoutineVersionModelInfo> = {
         directoryListings: "ProjectVersionDirectory",
         forks: "Routine",
         inputs: "RoutineVersionInput",
-        nodes: "Node",
-        nodeLinks: "NodeLink",
         outputs: "RoutineVersionOutput",
         pullRequest: "PullRequest",
         resourceList: "ResourceList",
         reports: "Report",
         root: "Routine",
+        subroutineLinks: "RoutineVersion",
         suggestedNextByRoutineVersion: "RoutineVersion",
     },
     prismaRelMap: {
@@ -1555,16 +1437,16 @@ export const RoutineVersionFormat: Formatter<RoutineVersionModelInfo> = {
         comments: "Comment",
         directoryListings: "ProjectVersionDirectory",
         reports: "Report",
-        nodes: "Node",
-        nodeLinks: "NodeLink",
         resourceList: "ResourceList",
         root: "Routine",
         forks: "Routine",
         inputs: "RoutineVersionInput",
         outputs: "RoutineVersionOutput",
+        parentRoutineLinks: "RoutineVersion",
         pullRequest: "PullRequest",
         runRoutines: "RunRoutine",
         runSteps: "RunRoutineStep",
+        subroutineLinks: "RoutineVersion",
         suggestedNextByRoutineVersion: "RoutineVersion",
     },
     joinMap: {
@@ -1575,8 +1457,6 @@ export const RoutineVersionFormat: Formatter<RoutineVersionModelInfo> = {
         directoryListingsCount: true,
         forksCount: true,
         inputsCount: true,
-        nodeLinksCount: true,
-        nodesCount: true,
         outputsCount: true,
         reportsCount: true,
         suggestedNextByRoutineVersionCount: true,
@@ -1710,13 +1590,11 @@ export const RunRoutineOutputFormat: Formatter<RunRoutineOutputModelInfo> = {
 export const RunRoutineStepFormat: Formatter<RunRoutineStepModelInfo> = {
     apiRelMap: {
         __typename: "RunRoutineStep",
-        node: "Node",
         runRoutine: "RunRoutine",
         subroutine: "RoutineVersion",
     },
     prismaRelMap: {
         __typename: "RunRoutineStep",
-        node: "Node",
         runRoutine: "RunRoutine",
         subroutine: "RoutineVersion",
     },
@@ -2274,14 +2152,6 @@ export const FormatMap: { [key in ModelType]?: Formatter<any> } = {
     MeetingInvite: MeetingInviteFormat,
     Member: MemberFormat,
     MemberInvite: MemberInviteFormat,
-    Node: NodeFormat,
-    NodeEnd: NodeEndFormat,
-    NodeLink: NodeLinkFormat,
-    NodeLinkWhen: NodeLinkWhenFormat,
-    NodeLoop: NodeLoopFormat,
-    NodeLoopWhile: NodeLoopWhileFormat,
-    NodeRoutineList: NodeRoutineListFormat,
-    NodeRoutineListItem: NodeRoutineListItemFormat,
     Note: NoteFormat,
     NoteVersion: NoteVersionFormat,
     Notification: NotificationFormat,

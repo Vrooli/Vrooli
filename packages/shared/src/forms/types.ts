@@ -128,6 +128,8 @@ export interface FormInputBase extends FormElementBase {
 
 /** Checkbox-specific form input props */
 export interface CheckboxFormInputProps {
+    /** Allow users to input custom values */
+    allowCustomValues?: boolean;
     color?: "primary" | "secondary" | "default";
     /** Array of booleans. One for each option in props */
     defaultValue?: boolean[];
@@ -136,6 +138,8 @@ export interface CheckboxFormInputProps {
         label: string;
         value: string;
     }[];
+    /** Maximum number of custom values allowed */
+    maxCustomValues?: number;
     /**
      * The maximum number of checkboxes that can be selected. 
      * If 0 or not set, there is no limit.

@@ -30,7 +30,7 @@ type TagShapeHelperProps<
 /**
 * Add, update, or remove tag data for an object.
 */
-export const tagShapeHelper = async <
+export async function tagShapeHelper<
     Types extends readonly RelationshipType[],
 >({
     data,
@@ -38,7 +38,7 @@ export const tagShapeHelper = async <
     relation = "tags",
     ...rest
 }: TagShapeHelperProps<Types>):
-    Promise<ShapeHelperOutput<false, "tag">> => {
+    Promise<ShapeHelperOutput<false, "tag">> {
     // Make sure that all tag relations are objects instead of strings
     const keys = ["Create", "Connect", "Delete", "Disconnect", "Update"].map(op => `${relation}${op}` as string);
     const tagsToObject = (tags: (string | object)[]) => {
@@ -64,4 +64,4 @@ export const tagShapeHelper = async <
         relation,
         ...rest,
     });
-};
+}

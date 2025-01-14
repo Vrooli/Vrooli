@@ -1,5 +1,5 @@
 import { OpenAIModel, type AIServiceName, type AIServicesInfo } from "../ai/services";
-import { type User, type UserTranslation } from "../api/generated/graphqlTypes";
+import { type User, type UserTranslation } from "../api/types";
 import { type PassableLogger } from "../consts/commonTypes";
 import { DUMMY_ID } from "../id/uuid";
 import { type BotShape, type BotTranslationShape } from "../shape/models";

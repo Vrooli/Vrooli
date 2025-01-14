@@ -940,7 +940,16 @@ export const config: AITaskConfig = {
             type: "boolean",
             default: true,
         },
-        //...
+        routineType: {
+            description: "The type of routine. The options are: Informational, MultiStep, Generate, Data, Action, Code, Api, SmartContract.\n- Informational (Basic): No side effects. Used to collect information, provide instructions, or serve as a placeholder.\n- MultiStep: A combination of other routines, defined as a BPMN 2.0 process. Each node in the BPMN diagram corresponds to a routine (of any type), executed in order or concurrently as defined by BPMN gateways.\n- Generate: Sends inputs to an AI model and returns its output.\n- Data: Contains a single hard-coded output (e.g. a string or JSON data).\n- Action: Performs specific actions, such as creating, updating, or deleting objects.\n- Code: Runs code to transform inputs into outputs.\n- API: Sends inputs to an external API and returns the response.\n- SmartContract: Connects to a blockchain smart contract, sending inputs and returning outputs.",
+            type: "enum",
+            examples: ["Informational", "MultiStep", "Generate", "Data", "Action", "Code", "Api", "SmartContract"],
+        },
+        bpmnDiagram: {
+            description: "The BPMN 2.0 diagram (in XML) for the routine, if it is a MultiStep routine. Each BDSM task should have a name, a corresponding routine type, and a brief description of what it does. Use BPMN constructs like Start Event, End Event, Gateways (if needed), and SequenceFlows.",
+            type: "string",
+        },
+        //... TODO add properties for all routine types
     },
     RoutineAdd: () => ({
         label: "Add Routine",
@@ -951,6 +960,8 @@ export const config: AITaskConfig = {
             ["name", true],
             ["isInternal", false],
             ["isPrivate", false],
+            ["routineType", true],
+            ["bpmnDiagram", false],
         ], config.__routineProperties),
     }),
     RoutineDelete: () => ({

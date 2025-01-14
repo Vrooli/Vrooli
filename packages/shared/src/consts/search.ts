@@ -1,72 +1,74 @@
-export enum SearchType {
-    Api = "Api",
-    ApiVersion = "ApiVersion",
-    Bookmark = "Bookmark",
-    BookmarkList = "BookmarkList",
-    Chat = "Chat",
-    ChatInvite = "ChatInvite",
-    ChatMessage = "ChatMessage",
-    ChatParticipant = "ChatParticipant",
-    Code = "Code",
-    CodeVersion = "CodeVersion",
-    Comment = "Comment",
-    FocusMode = "FocusMode",
-    Issue = "Issue",
-    Label = "Label",
-    MeetingInvite = "MeetingInvite",
-    Meeting = "Meeting",
-    MemberInvite = "MemberInvite",
-    Member = "Member",
-    Note = "Note",
-    NoteVersion = "NoteVersion",
-    Notification = "Notification",
-    NotificationSubscription = "NotificationSubscription",
-    Popular = "Popular",
-    Post = "Post",
-    ProjectOrRoutine = "ProjectOrRoutine",
-    ProjectOrTeam = "ProjectOrTeam",
-    Project = "Project",
-    ProjectVersion = "ProjectVersion",
-    // ProjectVersionDirectory = 'ProjectVersionDirectory',
-    PullRequest = "PullRequest",
-    Question = "Question",
-    QuestionAnswer = "QuestionAnswer",
-    Quiz = "Quiz",
-    QuizAttempt = "QuizAttempt",
-    QuizQuestion = "QuizQuestion",
-    QuizQuestionResponse = "QuizQuestionResponse",
-    Reaction = "Reaction",
-    Reminder = "Reminder",
-    ReportResponse = "ReportResponse",
-    Report = "Report",
-    ReputationHistory = "ReputationHistory",
-    ResourceList = "ResourceList",
-    Resource = "Resource",
-    Role = "Role",
-    Routine = "Routine",
-    RoutineVersion = "RoutineVersion",
-    RunProject = "RunProject",
-    RunProjectOrRunRoutine = "RunProjectOrRunRoutine",
-    RunRoutine = "RunRoutine",
-    RunRoutineInput = "RunRoutineInput",
-    Schedule = "Schedule",
-    Standard = "Standard",
-    StandardVersion = "StandardVersion",
-    StatsApi = "StatsApi",
-    StatsCode = "StatsCode",
-    StatsProject = "StatsProject",
-    StatsQuiz = "StatsQuiz",
-    StatsRoutine = "StatsRoutine",
-    StatsSite = "StatsSite",
-    StatsStandard = "StatsStandard",
-    StatsTeam = "StatsTeam",
-    StatsUser = "StatsUser",
-    Tag = "Tag",
-    Team = "Team",
-    Transfer = "Transfer",
-    User = "User",
-    View = "View",
-}
+import { ApiSearchInput, ApiVersionSearchInput, BookmarkListSearchInput, BookmarkSearchInput, ChatInviteSearchInput, ChatMessageSearchInput, ChatParticipantSearchInput, ChatSearchInput, CodeSearchInput, CodeVersionSearchInput, CommentSearchInput, FocusModeSearchInput, IssueSearchInput, LabelSearchInput, MeetingInviteSearchInput, MeetingSearchInput, MemberInviteSearchInput, MemberSearchInput, NoteSearchInput, NoteVersionSearchInput, NotificationSearchInput, NotificationSubscriptionSearchInput, PopularSearchInput, PostSearchInput, ProjectOrRoutineSearchInput, ProjectOrTeamSearchInput, ProjectSearchInput, ProjectVersionSearchInput, PullRequestSearchInput, QuestionAnswerSearchInput, QuestionSearchInput, QuizAttemptSearchInput, QuizQuestionResponseSearchInput, QuizSearchInput, ReactionSearchInput, ReminderSearchInput, ReportResponseSearchInput, ReportSearchInput, ReputationHistorySearchInput, ResourceListSearchInput, ResourceSearchInput, RoleSearchInput, RoutineSearchInput, RoutineVersionSearchInput, RunProjectOrRunRoutineSearchInput, RunProjectSearchInput, RunRoutineInputSearchInput, RunRoutineSearchInput, ScheduleSearchInput, StandardSearchInput, StandardVersionSearchInput, StatsApiSearchInput, StatsCodeSearchInput, StatsProjectSearchInput, StatsQuizSearchInput, StatsRoutineSearchInput, StatsSiteSearchInput, StatsStandardSearchInput, StatsTeamSearchInput, StatsUserSearchInput, TagSearchInput, TeamSearchInput, TransferSearchInput, UserSearchInput, ViewSearchInput } from "../api/types";
+
+export type SearchTypeToSearchInput = {
+    Api: ApiSearchInput;
+    ApiVersion: ApiVersionSearchInput;
+    Bookmark: BookmarkSearchInput;
+    BookmarkList: BookmarkListSearchInput;
+    Chat: ChatSearchInput;
+    ChatInvite: ChatInviteSearchInput;
+    ChatMessage: ChatMessageSearchInput;
+    ChatParticipant: ChatParticipantSearchInput;
+    Code: CodeSearchInput;
+    CodeVersion: CodeVersionSearchInput;
+    Comment: CommentSearchInput;
+    FocusMode: FocusModeSearchInput;
+    Issue: IssueSearchInput;
+    Label: LabelSearchInput;
+    MeetingInvite: MeetingInviteSearchInput;
+    Meeting: MeetingSearchInput;
+    MemberInvite: MemberInviteSearchInput;
+    Member: MemberSearchInput;
+    Note: NoteSearchInput;
+    NoteVersion: NoteVersionSearchInput;
+    Notification: NotificationSearchInput;
+    NotificationSubscription: NotificationSubscriptionSearchInput;
+    Popular: PopularSearchInput;
+    Post: PostSearchInput;
+    ProjectOrRoutine: ProjectOrRoutineSearchInput;
+    ProjectOrTeam: ProjectOrTeamSearchInput;
+    Project: ProjectSearchInput;
+    ProjectVersion: ProjectVersionSearchInput;
+    // ProjectVersionDirectory: ProjectVersionDirectorySearchInput;
+    PullRequest: PullRequestSearchInput;
+    Question: QuestionSearchInput;
+    QuestionAnswer: QuestionAnswerSearchInput;
+    Quiz: QuizSearchInput;
+    QuizAttempt: QuizAttemptSearchInput;
+    QuizQuestionResponse: QuizQuestionResponseSearchInput;
+    Reaction: ReactionSearchInput;
+    Reminder: ReminderSearchInput;
+    ReportResponse: ReportResponseSearchInput;
+    Report: ReportSearchInput;
+    ReputationHistory: ReputationHistorySearchInput;
+    Resource: ResourceSearchInput;
+    ResourceList: ResourceListSearchInput;
+    Role: RoleSearchInput;
+    Routine: RoutineSearchInput;
+    RoutineVersion: RoutineVersionSearchInput;
+    RunProject: RunProjectSearchInput;
+    RunProjectOrRunRoutine: RunProjectOrRunRoutineSearchInput;
+    RunRoutine: RunRoutineSearchInput;
+    RunRoutineInput: RunRoutineInputSearchInput;
+    Schedule: ScheduleSearchInput;
+    Standard: StandardSearchInput;
+    StandardVersion: StandardVersionSearchInput;
+    StatsApi: StatsApiSearchInput;
+    StatsCode: StatsCodeSearchInput;
+    StatsProject: StatsProjectSearchInput;
+    StatsQuiz: StatsQuizSearchInput;
+    StatsRoutine: StatsRoutineSearchInput;
+    StatsSite: StatsSiteSearchInput;
+    StatsStandard: StatsStandardSearchInput;
+    StatsTeam: StatsTeamSearchInput;
+    StatsUser: StatsUserSearchInput;
+    Tag: TagSearchInput;
+    Team: TeamSearchInput;
+    Transfer: TransferSearchInput;
+    User: UserSearchInput;
+    View: ViewSearchInput;
+};
+export type SearchType = keyof SearchTypeToSearchInput;
 
 export enum HistoryPageTabOption {
     RunsActive = "RunsActive",
@@ -117,7 +119,8 @@ export enum SearchPageTabOption {
     Project = "Project",
     Prompt = "Prompt",
     Question = "Question",
-    Routine = "Routine",
+    RoutineSingleStep = "RoutineSingleStep",
+    RoutineMultiStep = "RoutineMultiStep",
     SmartContract = "SmartContract",
     Team = "Team",
     User = "User",
@@ -130,7 +133,8 @@ export enum SearchVersionPageTabOption {
     NoteVersion = "NoteVersion",
     ProjectVersion = "ProjectVersion",
     PromptVersion = "PromptVersion",
-    RoutineVersion = "RoutineVersion",
+    RoutineSingleStepVersion = "RoutineSingleStepVersion",
+    RoutineMultiStepVersion = "RoutineMultiStepVersion",
     SmartContractVersion = "SmartContractVersion",
 }
 
