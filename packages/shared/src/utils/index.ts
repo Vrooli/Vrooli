@@ -9,6 +9,8 @@ export * from "./noop";
 export * from "./objects";
 export * from "./omit";
 export * from "./orDefault";
+export * from "./routineConfig";
+export * from "./routineGraph";
 export * from "./runUtils";
 export * from "./schedules";
 export * from "./sitemap";

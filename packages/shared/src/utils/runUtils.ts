@@ -1,14 +1,12 @@
-import i18next from "i18next";
-import { NodeLink, NodeType, ProjectVersion, ProjectVersionDirectory, ProjectVersionDirectorySearchInput, RoutineType, RoutineVersion, RoutineVersionInput, RoutineVersionOutput, RoutineVersionSearchInput, RunProject, RunProjectStepCreateInput, RunProjectUpdateInput, RunRoutine, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput, RunRoutineOutput, RunRoutineOutputUpdateInput, RunRoutineStepCreateInput, RunRoutineStepStatus, RunRoutineUpdateInput, RunStatus, TaskStatus } from "../api/generated/graphqlTypes";
+import { ProjectVersion, ProjectVersionDirectory, ProjectVersionDirectorySearchInput, RoutineType, RoutineVersion, RoutineVersionInput, RoutineVersionOutput, RoutineVersionSearchInput, RunProject, RunProjectStepCreateInput, RunProjectUpdateInput, RunRoutine, RunRoutineInput, RunRoutineInputCreateInput, RunRoutineInputUpdateInput, RunRoutineOutput, RunRoutineOutputUpdateInput, RunRoutineStepCreateInput, RunRoutineStepStatus, RunRoutineUpdateInput, RunStatus, TaskStatus } from "../api/types";
 import { PassableLogger, Status } from "../consts/commonTypes";
-import { InputType } from "../consts/model";
 import { PERCENTS } from "../consts/numbers";
 import { generateInitialValues } from "../forms/defaultGenerator";
 import { FormSchema } from "../forms/types";
 import { uuid, uuidValidate } from "../id/uuid";
 import { RoutineVersionShape } from "../shape/models/models";
 import { getTranslation } from "../translations/translationTools";
-import { DefinedArrayElement } from "../types";
+import { DefinedArrayElement, HttpMethod } from "../types";
 import { arraysEqual } from "./arrays";
 import { LlmModel } from "./bot";
 import { isOfType } from "./objects";
@@ -46,27 +44,6 @@ export enum RunFrom {
      * Triggered by a webhook
      */
     Webhook = "Webhook",
-}
-
-export type RunRequestLimits = {
-    /** 
-     * Maximum tokens in routine context, which accumulates relevant info 
-     * over multiple steps. Having fewer tokens reduces the cost of 
-     * generating LLM responses.
-     */
-    maxContextTokens?: number;
-    /** Maximum number of credits that can be spent */
-    maxCredits?: string;
-    /** Maximum number of steps that can be run */
-    maxSteps?: number;
-    /** Maximum time that an be spent on the run, in milliseconds */
-    maxTime?: number;
-    /** What to do on max credits reached */
-    onMaxCredits?: "Pause" | "Stop";
-    /** What to do in max time reached */
-    onMaxTime?: "Pause" | "Stop";
-    /** What to do on max steps reached */
-    onMaxSteps?: "Pause" | "Stop";
 }
 
 type RunTask = {
@@ -184,9 +161,82 @@ export type ConfigCallDataGenerate = {
     botStyle?: BotStyle;
     maxTokens?: number | null;
     model?: LlmModel | null;
+    prompt?: string | null;
     respondingBot?: string | null;
 };
-export type ConfigCallData = ConfigCallDataGenerate | Record<string, never>;
+
+/**
+ * Represents how to call a REST (or similar) API.
+ * NOTE: Untested
+ */
+export interface ConfigCallDataApi {
+    /**
+     * The URL or endpoint of the API.
+     * e.g. "https://api.example.com/v1/create"
+     */
+    endpoint: string;
+    /**
+     * The HTTP method to use when calling the API.
+     */
+    method: HttpMethod;
+    /**
+     * Optional HTTP headers (e.g. authorization token, content type, etc.).
+     */
+    headers?: Record<string, string>;
+    /**
+     * The payload or request body.
+     * For a GET request, this is typically not used, but you could store query params here.
+     */
+    body?: any;
+    /**
+     * Timeout or other request options as desired.
+     */
+    timeoutMs?: number;
+    /**
+     * Any other relevant metadata about the API call.
+     * (e.g., a flag indicating if you should retry on failure, number of retries, etc.)
+     */
+    meta?: Record<string, any>;
+}
+
+/**
+ * Represents how to call a Smart Contract on a blockchain.
+ * NOTE: Untested
+ */
+export interface ConfigCallDataSmartContract {
+    /**
+     * Address of the contract on the blockchain.
+     */
+    contractAddress: string;
+    /**
+     * The name or identifier of the blockchain/chain ID/network.
+     * e.g. "ethereum", "polygon", "rinkeby", etc.
+     */
+    chain: string;
+    /**
+     * Name of the method/function you want to invoke in the smart contract.
+     */
+    methodName: string;
+    /**
+     * Arguments/params to pass to the contract’s method.
+     */
+    args?: any[];
+    /**
+     * Optional overrides for transaction details such as gas limit, gas price, etc.
+     */
+    txOptions?: {
+        gasLimit?: number;
+        gasPrice?: string;
+        value?: string; // if the contract function requires sending ETH
+        nonce?: number;
+        [key: string]: any; // for any additional chain-specific fields
+    };
+    /**
+     * Any additional metadata about how to execute the contract call.
+     * Could include references to a wallet, signers, or other instructions.
+     */
+    meta?: Record<string, any>;
+}
 
 export enum RunStepType {
     /**
@@ -235,10 +285,10 @@ export enum RunStepType {
     Start = "Start",
 }
 
-export type RunnableRoutineVersion = Pick<RoutineVersion, "__typename" | "created_at" | "id" | "complexity" | "configCallData" | "configFormInput" | "configFormOutput" | "inputs" | "nodeLinks" | "nodes" | "outputs" | "root" | "routineType" | "translations" | "versionLabel" | "you">
+export type RunnableRoutineVersion = Pick<RoutineVersion, "__typename" | "created_at" | "id" | "complexity" | "config" | "inputs" | "outputs" | "root" | "routineType" | "subroutineLinks" | "translations" | "versionLabel" | "you">
 export type RunnableProjectVersion = Pick<ProjectVersion, "__typename" | "created_at" | "id" | "directories" | "root" | "translations" | "versionLabel" | "you">
 
-export type MinimalRunnableRoutineVersion = Pick<RunnableRoutineVersion, "id" | "nodes" | "nodeLinks" | "translations">;
+export type MinimalRunnableRoutineVersion = Pick<RunnableRoutineVersion, "id" | "config" | "subroutineLinks" | "translations">;
 
 /** Basic information provided to all routine steps */
 export interface BaseStep {
@@ -1895,171 +1945,9 @@ export async function saveRunProgress({
     }
 }
 
-/**
- * @returns The default input form object for a routine. This is a function 
- * to avoid using thes same object in multiple places, which can lead to
- * unexpected behavior if the object is modified.
- */
-export function defaultSchemaInput(): FormSchema {
-    return { containers: [], elements: [] };
-}
-
-/**
- * @returns The default output form object for a routine. This is a function
- * to avoid using the same object in multiple places, which can lead to
- * unexpected behavior if the object is modified.
- */
-export function defaultSchemaOutput(): FormSchema {
-    return { containers: [], elements: [] };
-}
-
-/**
- * @return The default output form object for a Generate routine, 
- * which always returns text (for now, since we only call LLMs)
- */
-export function defaultSchemaOutputGenerate(): FormSchema {
-    return {
-        containers: [],
-        elements: [
-            {
-                fieldName: "response",
-                id: "response",
-                label: i18next.t("Response", { count: 1 }),
-                props: {
-                    placeholder: "Model response will be displayed here",
-                },
-                type: InputType.Text,
-            },
-        ],
-    };
-}
-
-export const defaultConfigFormInputMap: { [key in RoutineType]: (() => FormSchema) } = {
-    [RoutineType.Action]: () => defaultSchemaInput(),
-    [RoutineType.Api]: () => defaultSchemaInput(),
-    [RoutineType.Code]: () => defaultSchemaInput(),
-    [RoutineType.Data]: () => defaultSchemaInput(),
-    [RoutineType.Generate]: () => defaultSchemaInput(),
-    [RoutineType.Informational]: () => defaultSchemaInput(),
-    [RoutineType.MultiStep]: () => defaultSchemaInput(),
-    [RoutineType.SmartContract]: () => defaultSchemaInput(),
-};
-
-export const defaultConfigFormOutputMap: { [key in RoutineType]: (() => FormSchema) } = {
-    [RoutineType.Action]: () => defaultSchemaOutput(),
-    [RoutineType.Api]: () => defaultSchemaOutput(),
-    [RoutineType.Code]: () => defaultSchemaOutput(),
-    [RoutineType.Data]: () => defaultSchemaOutput(),
-    [RoutineType.Generate]: () => defaultSchemaOutputGenerate(),
-    [RoutineType.Informational]: () => defaultSchemaOutput(),
-    [RoutineType.MultiStep]: () => defaultSchemaOutput(),
-    [RoutineType.SmartContract]: () => defaultSchemaOutput(),
-};
-
-export function parseSchema(
-    value: unknown,
-    defaultSchemaFn: () => FormSchema,
-    logger: PassableLogger,
-    schemaType: string,
-): FormSchema {
-    let parsedValue: FormSchema;
-
-    try {
-        parsedValue = JSON.parse(typeof value === "string" ? value : JSON.stringify(value));
-    } catch (error) {
-        logger.error(`Error parsing schema ${schemaType}: ${JSON.stringify(error)}`);
-        parsedValue = defaultSchemaFn();
-    }
-
-    // Ensure the parsed value contains `containers` and `elements` arrays
-    if (typeof parsedValue !== "object" || parsedValue === null) {
-        parsedValue = defaultSchemaFn();
-    }
-    if (!Array.isArray(parsedValue.containers)) {
-        parsedValue.containers = [];
-    }
-    if (!Array.isArray(parsedValue.elements)) {
-        parsedValue.elements = [];
-    }
-
-    return parsedValue;
-}
-
-export function parseSchemaInput(
-    value: unknown,
-    routineType: RoutineType | null | undefined,
-    logger: PassableLogger,
-): FormSchema {
-    return parseSchema(value, () => {
-        if (!routineType || !Object.prototype.hasOwnProperty.call(defaultConfigFormInputMap, routineType) || typeof defaultConfigFormInputMap[routineType] !== "function") {
-            return defaultSchemaInput();
-        }
-        return defaultConfigFormInputMap[routineType]();
-    }, logger, "input");
-}
-
-export function parseSchemaOutput(
-    value: unknown,
-    routineType: RoutineType | null | undefined,
-    logger: PassableLogger,
-): FormSchema {
-    return parseSchema(value, () => {
-        if (!routineType || !Object.prototype.hasOwnProperty.call(defaultConfigFormOutputMap, routineType) || typeof defaultConfigFormOutputMap[routineType] !== "function") {
-            return defaultSchemaOutput();
-        }
-        return defaultConfigFormOutputMap[routineType]();
-    }, logger, "output");
-}
-
-export function defaultConfigCallData(): ConfigCallData {
-    return {};
-}
-
-export function defaultConfigCallDataGenerate(): ConfigCallDataGenerate {
-    return {
-        botStyle: BotStyle.Default,
-        maxTokens: null,
-        model: null,
-        respondingBot: null,
-    };
-}
-
-export const defaultConfigCallDataMap: { [key in RoutineType]: (() => ConfigCallData) } = {
-    [RoutineType.Action]: () => defaultConfigCallData(),
-    [RoutineType.Api]: () => defaultConfigCallData(),
-    [RoutineType.Code]: () => defaultConfigCallData(),
-    [RoutineType.Data]: () => defaultConfigCallData(),
-    [RoutineType.Generate]: () => defaultConfigCallDataGenerate(),
-    [RoutineType.Informational]: () => defaultConfigCallData(),
-    [RoutineType.MultiStep]: () => defaultConfigCallData(),
-    [RoutineType.SmartContract]: () => defaultConfigCallData(),
-};
-
-export function parseConfigCallData(
-    value: unknown,
-    routineType: RoutineType | null | undefined,
-    logger: PassableLogger,
-): ConfigCallData {
-    let parsedValue: ConfigCallData;
-    const defaultConfigCallData = routineType ? (defaultConfigCallDataMap[routineType] || {}) : {};
-
-    try {
-        parsedValue = JSON.parse(typeof value === "string" ? value : JSON.stringify(value));
-    } catch (error) {
-        logger.error(`Error parsing configCallData: ${JSON.stringify(error)}`);
-        parsedValue = defaultConfigCallData;
-    }
-
-    if (typeof parsedValue !== "object" || parsedValue === null) {
-        parsedValue = defaultConfigCallData;
-    }
-
-    return parsedValue;
-}
-
 export type ShouldStopParams = {
     currentTimeElapsed: number;
-    limits: RunRequestLimits | null | undefined;
+    limits: Pick<RunRequestLimits, "onMaxCredits" | "onMaxTime" | "onMaxSteps"> | null | undefined;
     maxCredits: bigint;
     maxSteps: number;
     maxTime: number;
