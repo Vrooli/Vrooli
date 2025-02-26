@@ -1,4 +1,4 @@
-import { batch, logger, prismaInstance } from "@local/server";
+import { DbProvider, batch, logger } from "@local/server";
 import { PeriodType, Prisma } from "@prisma/client";
 
 /**
@@ -16,7 +16,7 @@ export async function logStandardStats(
         await batch<Prisma.standard_versionFindManyArgs>({
             objectType: "StandardVersion",
             processBatch: async (batch) => {
-                await prismaInstance.stats_standard.createMany({
+                await DbProvider.get().stats_standard.createMany({
                     data: batch.map(standardVersion => ({
                         standardId: standardVersion.root.id,
                         periodStart,

@@ -1,4 +1,4 @@
-import { batch, batchGroup, logger, prismaInstance } from "@local/server";
+import { batch, batchGroup, DbProvider, logger } from "@local/server";
 import { PeriodType, Prisma } from "@prisma/client";
 
 type BatchDirectoryCountsResult = Record<string, {
@@ -183,7 +183,7 @@ export async function logProjectStats(
                 // have been started or completed within the period
                 const runCountsByVersion = await batchRunCounts(batch.map(version => version.id), periodStart, periodEnd);
                 // Create stats for each project
-                await prismaInstance.stats_project.createMany({
+                await DbProvider.get().stats_project.createMany({
                     data: batch.map(projectVersion => {
                         const directoryCounts = directoryCountsByVersion[projectVersion.id];
                         const runCounts = runCountsByVersion[projectVersion.id];

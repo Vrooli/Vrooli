@@ -1,4 +1,4 @@
-import { ModelMap, PrismaDelegate, Trigger, batch, findFirstRel, logger, prismaInstance } from "@local/server";
+import { DbProvider, ModelMap, PrismaDelegate, Trigger, batch, findFirstRel, logger } from "@local/server";
 import { ModelType, ReportStatus, ReportSuggestedAction, uppercaseFirstLetter } from "@local/shared";
 import pkg, { Prisma } from "@prisma/client";
 
@@ -137,7 +137,7 @@ async function moderateReport(
     if (acceptedAction) {
         // Update report
         const status = actionToStatus(acceptedAction);
-        await prismaInstance.report.update({
+        await DbProvider.get().report.update({
             where: { id: report.id },
             data: { status },
         });
@@ -216,13 +216,13 @@ async function moderateReport(
             // If the object can be soft-deleted, soft-delete it.
             case ReportSuggestedAction.Delete:
                 if (softDeletableTypes.includes(objectType)) {
-                    await (prismaInstance[dbTable] as PrismaDelegate).update({
+                    await (DbProvider.get()[dbTable] as PrismaDelegate).update({
                         where: { id: objectData.id },
                         data: { isDeleted: true },
                     });
                 }
                 else {
-                    await (prismaInstance[dbTable] as PrismaDelegate).delete({ where: { id: objectData.id } });
+                    await (DbProvider.get()[dbTable] as PrismaDelegate).delete({ where: { id: objectData.id } });
                 }
                 break;
             case ReportSuggestedAction.FalseReport:
@@ -235,7 +235,7 @@ async function moderateReport(
                     return;
                 }
                 // Hide the object
-                await (prismaInstance[dbTable] as PrismaDelegate).update({
+                await (DbProvider.get()[dbTable] as PrismaDelegate).update({
                     where: { id: objectData.id },
                     data: { isPrivate: true },
                 });

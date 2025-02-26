@@ -1,5 +1,5 @@
-import { logger, ModelMap, PrismaDelegate, prismaInstance, UI_URL_REMOTE } from "@local/server";
-import { CodeType, generateSitemap, generateSitemapIndex, LINKS, SitemapEntryContent, StandardType, uuidToBase36 } from "@local/shared";
+import { DbProvider, ModelMap, PrismaDelegate, UI_URL_REMOTE, logger } from "@local/server";
+import { CodeType, LINKS, RoutineType, SitemapEntryContent, StandardType, generateSitemap, generateSitemapIndex, uuidToBase36 } from "@local/shared";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -40,7 +40,7 @@ function getLink(objectType: typeof sitemapObjectTypes[number], properties: any)
         case "Question":
             return LINKS.Question;
         case "RoutineVersion":
-            return LINKS.Routine;
+            return properties.routineType === RoutineType.MultiStep ? LINKS.RoutineMultiStep : LINKS.RoutineSingleStep;
         case "Team":
             return LINKS.Team;
         case "User":
@@ -84,7 +84,7 @@ async function genSitemapForObject(
         do {
             // Find all public objects
             const { dbTable, validate } = ModelMap.getLogic(["dbTable", "validate"], objectType);
-            const batch = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
+            const batch = await (DbProvider.get()[dbTable] as PrismaDelegate).findMany({
                 where: {
                     ...validate().visibility.public,
                 },
@@ -109,6 +109,7 @@ async function genSitemapForObject(
                     },
                     // Object type-specific fields for disambiguating urls
                     ...(objectType === "CodeVersion" && { codeType: true }),
+                    ...(objectType === "RoutineVersion" && { routineType: true }),
                     ...(objectType === "StandardVersion" && { variant: true }),
                 },
                 skip,

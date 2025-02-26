@@ -1,4 +1,4 @@
-import { Notify, batch, emitSocketEvent, logger, prismaInstance } from "@local/server";
+import { DbProvider, Notify, batch, emitSocketEvent, logger } from "@local/server";
 import { API_CREDITS_PREMIUM } from "@local/shared";
 import { Prisma } from "@prisma/client";
 
@@ -19,7 +19,7 @@ export async function paymentsCreditsFreePremium(): Promise<void> {
                 for (const user of batch) {
                     if (!user.premium || user.premium.isActive === false) continue;
 
-                    await prismaInstance.premium.update({
+                    await DbProvider.get().premium.update({
                         where: { id: user.premium.id },
                         // Only give free credits if the user has less than 6x the monthly free amount
                         data: {

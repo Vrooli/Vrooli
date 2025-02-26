@@ -1,4 +1,4 @@
-import { FindManyArgs, batch, logger, prismaInstance } from "@local/server";
+import { DbProvider, FindManyArgs, batch, logger } from "@local/server";
 import { ModelType, camelCase, getReactionScore, uppercaseFirstLetter } from "@local/shared";
 
 /**
@@ -97,7 +97,7 @@ async function updateReactionsForTable(tableName: string): Promise<void> {
                             },
                         };
 
-                        await prismaInstance[tableName].update({
+                        await DbProvider.get()[tableName].update({
                             where: { id: object.id },
                             data: updateData,
                         });
