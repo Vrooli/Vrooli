@@ -1,6 +1,6 @@
 import { ProjectVersionDirectory, ProjectVersionDirectoryTranslation } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const projectVersionDirectoryTranslation: ApiPartial<ProjectVersionDirectoryTranslation> = {
     common: {
@@ -18,17 +18,17 @@ export const projectVersionDirectory: ApiPartial<ProjectVersionDirectory> = {
         updated_at: true,
         childOrder: true,
         isRoot: true,
-        projectVersion: async () => rel((await import("./projectVersion")).projectVersion, "nav", { omit: "directories" }),
+        projectVersion: async () => rel((await import("./projectVersion.js")).projectVersion, "nav", { omit: "directories" }),
     },
     full: {
         children: () => rel(projectVersionDirectory, "nav", { omit: ["parentDirectory", "children"] }),
-        childApiVersions: async () => rel((await import("./apiVersion")).apiVersion, "list"),
-        childCodeVersions: async () => rel((await import("./codeVersion")).codeVersion, "list"),
-        childNoteVersions: async () => rel((await import("./noteVersion")).noteVersion, "list"),
-        childProjectVersions: async () => rel((await import("./projectVersion")).projectVersion, "list"),
-        childRoutineVersions: async () => rel((await import("./routineVersion")).routineVersion, "list"),
-        childStandardVersions: async () => rel((await import("./standardVersion")).standardVersion, "list"),
-        childTeams: async () => rel((await import("./team")).team, "list"),
+        childApiVersions: async () => rel((await import("./apiVersion.js")).apiVersion, "list"),
+        childCodeVersions: async () => rel((await import("./codeVersion.js")).codeVersion, "list"),
+        childNoteVersions: async () => rel((await import("./noteVersion.js")).noteVersion, "list"),
+        childProjectVersions: async () => rel((await import("./projectVersion.js")).projectVersion, "list"),
+        childRoutineVersions: async () => rel((await import("./routineVersion.js")).routineVersion, "list"),
+        childStandardVersions: async () => rel((await import("./standardVersion.js")).standardVersion, "list"),
+        childTeams: async () => rel((await import("./team.js")).team, "list"),
         parentDirectory: () => rel(projectVersionDirectory, "nav", { omit: ["parentDirectory", "children"] }),
         translations: () => rel(projectVersionDirectoryTranslation, "full"),
     },

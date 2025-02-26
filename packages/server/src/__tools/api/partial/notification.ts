@@ -1,6 +1,6 @@
 import { Notification, NotificationSettings, NotificationSettingsCategory } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const notification: ApiPartial<Notification> = {
     full: {
@@ -28,9 +28,9 @@ export const notificationSettingsCategory: ApiPartial<NotificationSettingsCatego
 
 export const notificationSettings: ApiPartial<NotificationSettings> = {
     full: {
-        includedEmails: async () => rel((await import("./email")).email, "list"),
-        includedSms: async () => rel((await import("./phone")).phone, "list"),
-        includedPush: async () => rel((await import("./pushDevice")).pushDevice, "list"),
+        includedEmails: async () => rel((await import("./email.js")).email, "list"),
+        includedSms: async () => rel((await import("./phone.js")).phone, "list"),
+        includedPush: async () => rel((await import("./pushDevice.js")).pushDevice, "list"),
         toEmails: true,
         toSms: true,
         toPush: true,

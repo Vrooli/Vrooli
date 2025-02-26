@@ -1,8 +1,9 @@
 import { SessionUser } from "@local/shared";
-import { ModelMap } from "../models/base/index";
-import { PreMap } from "../models/types";
-import { InputsById } from "../utils/types";
-import { calculatePreShapeData } from "./cuds";
+import { expect } from "chai";
+import { ModelMap } from "../models/base/index.js";
+import { PreMap } from "../models/types.js";
+import { InputsById } from "../utils/types.js";
+import { calculatePreShapeData } from "./cuds.js";
 
 describe("calculatePreShapeData", () => {
     let originalModelMap;
@@ -16,10 +17,10 @@ describe("calculatePreShapeData", () => {
         Object.assign(ModelMap, originalModelMap);
     });
 
-    it('should handle types without a pre function', async () => {
+    it("should handle types without a pre function", async () => {
         const inputsByType = {
             TypeA: {
-                Create: [{ node: 'TypeA', input: { /* ... */ } }],
+                Create: [{ node: "TypeA", input: { /* ... */ } }],
                 Update: [],
                 Delete: [],
             },
@@ -27,7 +28,7 @@ describe("calculatePreShapeData", () => {
                 Create: [],
                 Update: [{ node: "TypeB", input: { /* ... */ } }, { node: "TypeB", input: { /* ... */ } }],
                 Delete: [{ node: "TypeB", input: { /* ... */ } }],
-            }
+            },
         };
         const userData = {} as unknown as SessionUser;
         const inputsById: InputsById = {};
@@ -45,7 +46,7 @@ describe("calculatePreShapeData", () => {
 
         await calculatePreShapeData(inputsByType, userData, inputsById, preMap);
 
-        expect(preMap).toEqual({
+        expect(preMap).to.deep.equal({
             TypeA: {},
             TypeB: {},
         });
@@ -56,7 +57,7 @@ describe("calculatePreShapeData", () => {
             TypeA: {
                 Create: [],
                 Update: [],
-                Delete: [{ node: 'TypeA', input: { /* ... */ } }],
+                Delete: [{ node: "TypeA", input: { /* ... */ } }],
             },
         };
         const userData = {} as unknown as SessionUser;
@@ -75,7 +76,7 @@ describe("calculatePreShapeData", () => {
 
         await calculatePreShapeData(inputsByType, userData, inputsById, preMap);
 
-        expect(preMap).toEqual({
+        expect(preMap).to.deep.equal({
             TypeA: { beep: "boop" },
         });
     });
@@ -83,7 +84,7 @@ describe("calculatePreShapeData", () => {
     it("pre function should be able to modify `Create`, `Update`, and `Delete` arrays", async () => {
         const inputsByType = {
             TypeA: {
-                Create: [{ node: 'TypeA', input: { /* ... */ } }],
+                Create: [{ node: "TypeA", input: { /* ... */ } }],
                 Update: [],
                 Delete: [],
             },
@@ -96,10 +97,10 @@ describe("calculatePreShapeData", () => {
             getLogic: jest.fn().mockImplementation(() => ({
                 mutate: {
                     shape: {
-                        pre: jest.fn().mockImplementation(({ Create, Update, Delete, }) => {
-                            Create.push({ node: 'TypeA', input: { just: "added" } });
-                            Update.push({ node: 'TypeA', input: { hello: "world" } });
-                            Delete.push({ node: 'TypeA', input: { chicken: "nugget" } });
+                        pre: jest.fn().mockImplementation(({ Create, Update, Delete }) => {
+                            Create.push({ node: "TypeA", input: { just: "added" } });
+                            Update.push({ node: "TypeA", input: { hello: "world" } });
+                            Delete.push({ node: "TypeA", input: { chicken: "nugget" } });
                             return {};
                         }),
                     },
@@ -109,15 +110,15 @@ describe("calculatePreShapeData", () => {
 
         await calculatePreShapeData(inputsByType, userData, inputsById, preMap);
 
-        expect(preMap).toEqual({
+        expect(preMap).to.deep.equal({
             TypeA: {},
         });
-        expect(inputsByType).toEqual({
+        expect(inputsByType).to.deep.equal({
             TypeA: {
-                Create: [{ node: 'TypeA', input: { /* ... */ } }, { node: 'TypeA', input: { just: "added" } }],
-                Update: [{ node: 'TypeA', input: { hello: "world" } }],
-                Delete: [{ node: 'TypeA', input: { chicken: "nugget" } }],
+                Create: [{ node: "TypeA", input: { /* ... */ } }, { node: "TypeA", input: { just: "added" } }],
+                Update: [{ node: "TypeA", input: { hello: "world" } }],
+                Delete: [{ node: "TypeA", input: { chicken: "nugget" } }],
             },
         });
     });
-})
+});

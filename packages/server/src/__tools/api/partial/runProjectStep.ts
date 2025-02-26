@@ -1,6 +1,6 @@
 import { RunProjectStep } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const runProjectStep: ApiPartial<RunProjectStep> = {
     common: {
@@ -12,7 +12,6 @@ export const runProjectStep: ApiPartial<RunProjectStep> = {
         completedAt: true,
         name: true,
         status: true,
-        step: true,
-        directory: async () => rel((await import("./projectVersionDirectory")).projectVersionDirectory, "nav"),
+        directory: async () => rel((await import("./projectVersionDirectory.js")).projectVersionDirectory, "nav"),
     },
 };

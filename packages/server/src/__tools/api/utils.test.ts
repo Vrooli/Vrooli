@@ -1,12 +1,13 @@
-import { findSelection } from "./utils";
+import { expect } from "chai";
+import { findSelection } from "./utils.js";
 
 // Mock the console.warn to test warning outputs
 const originalConsoleWarn = console.warn;
-beforeAll(() => {
+before(() => {
     console.warn = jest.fn();
 });
 
-afterAll(() => {
+after(() => {
     console.warn = originalConsoleWarn;
 });
 
@@ -26,7 +27,7 @@ describe("findSelection", () => {
         ["nav", "nav"],
     ] as const)("should return the specified selection %s when it exists", (selection, expected) => {
         const result = findSelection(baseApiPartial, selection);
-        expect(result).toEqual(expected);
+        expect(result).to.deep.equal(expected);
     });
 
     it("should fallback to the next best selection if the preferred one does not exist", () => {
@@ -37,13 +38,13 @@ describe("findSelection", () => {
             nav: {},
         };
         const result = findSelection(apiPartial, "common");
-        expect(result).toEqual("list");
+        expect(result).to.deep.equal("list");
     });
 
     it("should throw an error if none of the selections exist", () => {
         const apiPartial = {
         };
-        expect(() => findSelection(apiPartial, "common")).toThrow();
+        expect(() => findSelection(apiPartial, "common")).to.throw();
     });
 
     it("should log a warning if the specified selection does not exist but another valid selection is found", () => {
@@ -67,7 +68,7 @@ describe("findSelection", () => {
         apiPartial[expectedOrder[expectedOrder.length - 1]] = {};
 
         const result = findSelection(apiPartial, selection);
-        expect(result).toEqual(expectedOrder[expectedOrder.length - 1]);
+        expect(result).to.deep.equal(expectedOrder[expectedOrder.length - 1]);
     });
 
     // Add more tests as necessary to cover edge cases or specific behaviors

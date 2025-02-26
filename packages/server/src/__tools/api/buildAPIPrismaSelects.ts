@@ -4,7 +4,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { endpoints } from "./endpoints";
+import { endpoints } from "./endpoints.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -71,7 +71,7 @@ async function main() {
 
     // Build export lines for each generated file
     const exportLines = generatedFiles.map((file) => {
-        return `export * from "./${file}";`;
+        return `export * from "./${file}.js";`;
     });
 
     // Write the export lines into index.ts

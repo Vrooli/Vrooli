@@ -1,15 +1,14 @@
 import { CopyInput, DeleteManyInput, DeleteOneInput, ModelType, SessionUser, VisibilityType } from "@local/shared";
-import { Request } from "express";
-import { CountInputBase, PartialApiInfo } from "../builders/types";
-import { SessionData } from "../types";
-import { EmbeddableType } from "../utils/embeddings/types";
+import { RequestService } from "../auth/request.js";
+import { CountInputBase, PartialApiInfo } from "../builders/types.js";
+import { EmbeddableType } from "../utils/embeddings/types.js";
 
 export type CudAdditionalData = Record<string, any>;
 
 export type CountHelperProps<CountInput extends CountInputBase> = {
     input: CountInput;
     objectType: `${ModelType}`;
-    req: { session: SessionData };
+    req: Parameters<typeof RequestService.assertRequestFrom>[0];
     where?: { [x: string]: any };
     visibility?: VisibilityType;
 }
@@ -19,7 +18,7 @@ export type CreateOneHelperProps = {
     info: PartialApiInfo;
     input: any;
     objectType: `${ModelType}`;
-    req: { session: SessionData };
+    req: Parameters<typeof RequestService.assertRequestFrom>[0];
 }
 
 export type CreateManyHelperProps = Omit<CreateOneHelperProps, "input"> & {
@@ -28,19 +27,19 @@ export type CreateManyHelperProps = Omit<CreateOneHelperProps, "input"> & {
 
 export type DeleteManyHelperProps = {
     input: DeleteManyInput;
-    req: { session: SessionData };
+    req: Parameters<typeof RequestService.assertRequestFrom>[0];
 }
 
 export type DeleteOneHelperProps = {
     input: DeleteOneInput;
-    req: { session: SessionData };
+    req: Parameters<typeof RequestService.assertRequestFrom>[0];
 }
 
 export type CopyHelperProps = {
     info: PartialApiInfo,
     input: CopyInput,
     objectType: `${ModelType}`,
-    req: { session: SessionData },
+    req: Parameters<typeof RequestService.assertRequestFrom>[0],
 }
 
 export type ReadManyHelperProps<
@@ -56,7 +55,7 @@ export type ReadManyHelperProps<
     info: PartialApiInfo;
     input: Input;
     objectType: `${ModelType}`;
-    req: { session: Pick<SessionData, "languages" | "users"> };
+    req: Parameters<typeof RequestService.assertRequestFrom>[0];
     visibility?: VisibilityType;
 }
 
@@ -82,7 +81,7 @@ export type ReadOneHelperProps = {
     info: PartialApiInfo;
     input: FindUniqueInput;
     objectType: `${ModelType}`;
-    req: { session: Pick<SessionData, "languages" | "users"> };
+    req: Parameters<typeof RequestService.assertRequestFrom>[0];
 }
 
 export type RelBuilderHelperProps<
@@ -107,7 +106,7 @@ export type UpdateOneHelperProps = {
     info: PartialApiInfo;
     input: any;
     objectType: ModelType | `${ModelType}`;
-    req: Request;
+    req: Parameters<typeof RequestService.assertRequestFrom>[0];
 }
 
 export type UpdateManyHelperProps = Omit<UpdateOneHelperProps, "input"> & {

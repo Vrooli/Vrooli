@@ -1,19 +1,19 @@
 import { DUMMY_ID, ModelType, SessionUser } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
-import { InfoConverter } from "../builders/infoConverter";
-import { PartialApiInfo, PrismaCreate, PrismaDelegate, PrismaUpdate } from "../builders/types";
-import { prismaInstance } from "../db/instance";
-import { CustomError } from "../events/error";
-import { ModelMap } from "../models/base";
-import { PreMap } from "../models/types";
-import { CudInputsToMapsResult, cudInputsToMaps } from "../utils/cudInputsToMaps";
-import { cudOutputsToMaps } from "../utils/cudOutputsToMaps";
-import { getAuthenticatedData } from "../utils/getAuthenticatedData";
-import { CudInputData } from "../utils/types";
-import { maxObjectsCheck } from "../validators/maxObjectsCheck";
-import { permissionsCheck } from "../validators/permissions";
-import { profanityCheck } from "../validators/profanityCheck";
-import { CudAdditionalData } from "./types";
+import { InfoConverter } from "../builders/infoConverter.js";
+import { PartialApiInfo, PrismaCreate, PrismaDelegate, PrismaUpdate } from "../builders/types.js";
+import { DbProvider } from "../db/provider.js";
+import { CustomError } from "../events/error.js";
+import { ModelMap } from "../models/base/index.js";
+import { PreMap } from "../models/types.js";
+import { CudInputsToMapsResult, cudInputsToMaps } from "../utils/cudInputsToMaps.js";
+import { cudOutputsToMaps } from "../utils/cudOutputsToMaps.js";
+import { getAuthenticatedData } from "../utils/getAuthenticatedData.js";
+import { CudInputData } from "../utils/types.js";
+import { maxObjectsCheck } from "../validators/maxObjectsCheck.js";
+import { permissionsCheck } from "../validators/permissions.js";
+import { profanityCheck } from "../validators/profanityCheck.js";
+import { CudAdditionalData } from "./types.js";
 
 type CudHelperParams = {
     /** Additional data that can be passed to ModelLogic functions */
@@ -158,7 +158,7 @@ async function buildOperations(
                 : input;
             const select = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo)?.select;
 
-            const createOperation = (prismaInstance[dbTable] as PrismaDelegate).create({
+            const createOperation = (DbProvider.get()[dbTable] as PrismaDelegate).create({
                 data,
                 select,
             }) as PrismaPromise<object>;
@@ -173,7 +173,7 @@ async function buildOperations(
                 : input;
             const select = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo)?.select;
 
-            const updateOperation = (prismaInstance[dbTable] as PrismaDelegate).update({
+            const updateOperation = (DbProvider.get()[dbTable] as PrismaDelegate).update({
                 where: { [idField]: (input as PrismaUpdate)[idField] },
                 data,
                 select,
@@ -188,7 +188,7 @@ async function buildOperations(
             }
 
             try {
-                const existingIds: string[] = await (prismaInstance[dbTable] as PrismaDelegate)
+                const existingIds: string[] = await (DbProvider.get()[dbTable] as PrismaDelegate)
                     .findMany({
                         where: { [idField]: { in: deletingIds } },
                         select: { id: true },
@@ -197,7 +197,7 @@ async function buildOperations(
 
                 deletedIdsByType[objectType as ModelType] = existingIds;
 
-                const deleteOperation = (prismaInstance[dbTable] as PrismaDelegate).deleteMany({
+                const deleteOperation = (DbProvider.get()[dbTable] as PrismaDelegate).deleteMany({
                     where: { [idField]: { in: existingIds } },
                 }) as PrismaPromise<object>;
                 operations.push(deleteOperation);
@@ -222,7 +222,7 @@ async function buildOperations(
  */
 async function executeTransaction(operations: PrismaPromise<object>[]): Promise<object[]> {
     try {
-        return await prismaInstance.$transaction(operations);
+        return await DbProvider.get().$transaction(operations);
     } catch (error) {
         throw new CustomError("0557", "InternalError", { error });
     }
@@ -343,7 +343,7 @@ export async function cudHelper({
 
     const authDataById = await getAuthenticatedData(maps.idsByType, userData);
     await permissionsCheck(authDataById, maps.idsByAction, maps.inputsById, userData);
-    profanityCheck(inputData, maps.inputsById, authDataById, userData.languages);
+    profanityCheck(inputData, maps.inputsById, authDataById);
     await maxObjectsCheck(maps.inputsById, authDataById, maps.idsByAction, userData);
 
     const topInputsByType = groupTopLevelDataByType(inputData);

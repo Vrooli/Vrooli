@@ -1,6 +1,6 @@
 import { User, UserTranslation, UserYou } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const userTranslation: ApiPartial<UserTranslation> = {
     common: {
@@ -84,12 +84,12 @@ export const profile: ApiPartial<User> = {
         notificationSettings: true,
         profileImage: true,
         theme: true,
-        emails: async () => rel((await import("./email")).email, "full"),
-        focusModes: async () => rel((await import("./focusMode")).focusMode, "full"),
-        phones: async () => rel((await import("./phone")).phone, "full"),
-        pushDevices: async () => rel((await import("./pushDevice")).pushDevice, "full"),
-        wallets: async () => rel((await import("./wallet")).wallet, "common"),
-        notifications: async () => rel((await import("./notification")).notification, "full"),
+        emails: async () => rel((await import("./email.js")).email, "full"),
+        focusModes: async () => rel((await import("./focusMode.js")).focusMode, "full"),
+        phones: async () => rel((await import("./phone.js")).phone, "full"),
+        pushDevices: async () => rel((await import("./pushDevice.js")).pushDevice, "full"),
+        wallets: async () => rel((await import("./wallet.js")).wallet, "common"),
+        notifications: async () => rel((await import("./notification.js")).notification, "full"),
         translations: () => rel(userTranslation, "full"),
         you: () => rel(userYou, "full"),
     },

@@ -1,4 +1,4 @@
-import { CopyHelperProps } from "./types";
+import { CopyHelperProps } from "./types.js";
 
 /**
  * Helper function for forking an object in a single line

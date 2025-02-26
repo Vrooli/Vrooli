@@ -1,6 +1,6 @@
 import { Role, RoleTranslation } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const roleTranslation: ApiPartial<RoleTranslation> = {
     common: {
@@ -18,10 +18,10 @@ export const role: ApiPartial<Role> = {
         name: true,
         permissions: true,
         membersCount: true,
-        team: async () => rel((await import("./team")).team, "nav", { omit: "roles" }),
+        team: async () => rel((await import("./team.js")).team, "nav", { omit: "roles" }),
         translations: () => rel(roleTranslation, "full"),
     },
     full: {
-        members: async () => rel((await import("./member")).member, "list", { omit: "team" }),
+        members: async () => rel((await import("./member.js")).member, "list", { omit: "team" }),
     },
 };

@@ -1,6 +1,6 @@
 import { ChatMessage, ChatMessageSearchTreeResult, ChatMessageTranslation, ChatMessageYou } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const chatMessageTranslation: ApiPartial<ChatMessageTranslation> = {
     common: {
@@ -29,9 +29,9 @@ export const chatMessage: ApiPartial<ChatMessage> = {
         sequence: true,
         versionIndex: true,
         parent: { id: true, created_at: true },
-        user: async () => rel((await import("./user")).user, "nav"),
+        user: async () => rel((await import("./user.js")).user, "nav"),
         score: true,
-        reactionSummaries: async () => rel((await import("./reaction")).reactionSummary, "list"),
+        reactionSummaries: async () => rel((await import("./reaction.js")).reactionSummary, "list"),
         reportsCount: true,
         you: () => rel(chatMessageYou, "full"),
     },

@@ -1,6 +1,6 @@
 import { Meeting, MeetingTranslation, MeetingYou } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const meetingTranslation: ApiPartial<MeetingTranslation> = {
     common: {
@@ -27,22 +27,22 @@ export const meeting: ApiPartial<Meeting> = {
         updated_at: true,
         openToAnyoneWithInvite: true,
         showOnTeamProfile: true,
-        team: async () => rel((await import("./team")).team, "nav"),
-        restrictedToRoles: async () => rel((await import("./role")).role, "full"),
+        team: async () => rel((await import("./team.js")).team, "nav"),
+        restrictedToRoles: async () => rel((await import("./role.js")).role, "full"),
         attendeesCount: true,
         invitesCount: true,
         you: () => rel(meetingYou, "full"),
     },
     full: {
-        attendees: async () => rel((await import("./user")).user, "nav"),
-        invites: async () => rel((await import("./meetingInvite")).meetingInvite, "list", { omit: "meeting" }),
-        labels: async () => rel((await import("./label")).label, "full"),
-        schedule: async () => rel((await import("./schedule")).schedule, "list", { omit: "meetings" }),
+        attendees: async () => rel((await import("./user.js")).user, "nav"),
+        invites: async () => rel((await import("./meetingInvite.js")).meetingInvite, "list", { omit: "meeting" }),
+        labels: async () => rel((await import("./label.js")).label, "full"),
+        schedule: async () => rel((await import("./schedule.js")).schedule, "list", { omit: "meetings" }),
         translations: () => rel(meetingTranslation, "full"),
     },
     list: {
-        labels: async () => rel((await import("./label")).label, "list"),
-        schedule: async () => rel((await import("./schedule")).schedule, "list", { omit: "meetings" }),
+        labels: async () => rel((await import("./label.js")).label, "list"),
+        schedule: async () => rel((await import("./schedule.js")).schedule, "list", { omit: "meetings" }),
         translations: () => rel(meetingTranslation, "list"),
     },
 };

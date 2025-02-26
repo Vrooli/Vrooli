@@ -1,7 +1,7 @@
 import { Count, Success } from "@local/shared";
-import { RequestService } from "../auth/request";
-import { cudHelper } from "./cuds";
-import { DeleteManyHelperProps, DeleteOneHelperProps } from "./types";
+import { RequestService } from "../auth/request.js";
+import { cudHelper } from "./cuds.js";
+import { DeleteManyHelperProps, DeleteOneHelperProps } from "./types.js";
 
 /**
  * Helper function for deleting one object in a single line

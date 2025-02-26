@@ -1,6 +1,6 @@
 import { Question, QuestionTranslation, QuestionYou } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const questionTranslation: ApiPartial<QuestionTranslation> = {
     common: {
@@ -22,7 +22,7 @@ export const question: ApiPartial<Question> = {
         id: true,
         created_at: true,
         updated_at: true,
-        createdBy: async () => rel((await import("./user")).user, "nav"),
+        createdBy: async () => rel((await import("./user.js")).user, "nav"),
         hasAcceptedAnswer: true,
         isPrivate: true,
         score: true,
@@ -32,20 +32,20 @@ export const question: ApiPartial<Question> = {
         reportsCount: true,
         forObject: {
             __union: {
-                Api: async () => rel((await import("./api")).api, "nav"),
-                Code: async () => rel((await import("./code")).code, "nav"),
-                Note: async () => rel((await import("./note")).note, "nav"),
-                Project: async () => rel((await import("./project")).project, "nav"),
-                Routine: async () => rel((await import("./routine")).routine, "nav"),
-                Standard: async () => rel((await import("./standard")).standard, "nav"),
-                Team: async () => rel((await import("./team")).team, "nav"),
+                Api: async () => rel((await import("./api.js")).api, "nav"),
+                Code: async () => rel((await import("./code.js")).code, "nav"),
+                Note: async () => rel((await import("./note.js")).note, "nav"),
+                Project: async () => rel((await import("./project.js")).project, "nav"),
+                Routine: async () => rel((await import("./routine.js")).routine, "nav"),
+                Standard: async () => rel((await import("./standard.js")).standard, "nav"),
+                Team: async () => rel((await import("./team.js")).team, "nav"),
             },
         },
-        tags: async () => rel((await import("./tag")).tag, "list"),
+        tags: async () => rel((await import("./tag.js")).tag, "list"),
         you: () => rel(questionYou, "full"),
     },
     full: {
-        answers: async () => rel((await import("./questionAnswer")).questionAnswer, "full", { omit: "question" }),
+        answers: async () => rel((await import("./questionAnswer.js")).questionAnswer, "full", { omit: "question" }),
         translations: () => rel(questionTranslation, "full"),
     },
     list: {

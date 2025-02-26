@@ -1,6 +1,6 @@
 import { Resource, ResourceTranslation } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const resourceTranslation: ApiPartial<ResourceTranslation> = {
     common: {

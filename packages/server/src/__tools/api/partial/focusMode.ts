@@ -1,6 +1,6 @@
 import { FocusMode, FocusModeYou } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const focusModeYou: ApiPartial<FocusModeYou> = {
     full: {
@@ -18,15 +18,15 @@ export const focusMode: ApiPartial<FocusMode> = {
         you: () => rel(focusModeYou, "full"),
     },
     full: {
-        filters: async () => rel((await import("./focusModeFilter")).focusModeFilter, "full"),
+        filters: async () => rel((await import("./focusModeFilter.js")).focusModeFilter, "full"),
         labels: {
             id: true,
             color: true,
             label: true,
         },
-        reminderList: async () => rel((await import("./reminderList")).reminderList, "full", { omit: "focusMode" }),
-        resourceList: async () => rel((await import("./resourceList")).resourceList, "common", { omit: "focusMode" }),
-        schedule: async () => rel((await import("./schedule")).schedule, "common"),
+        reminderList: async () => rel((await import("./reminderList.js")).reminderList, "full", { omit: "focusMode" }),
+        resourceList: async () => rel((await import("./resourceList.js")).resourceList, "common", { omit: "focusMode" }),
+        schedule: async () => rel((await import("./schedule.js")).schedule, "common"),
     },
     list: {
         labels: {
@@ -34,8 +34,8 @@ export const focusMode: ApiPartial<FocusMode> = {
             color: true,
             label: true,
         },
-        reminderList: async () => rel((await import("./reminderList")).reminderList, "full", { omit: "focusMode" }),
-        resourceList: async () => rel((await import("./resourceList")).resourceList, "common", { omit: "focusMode" }),
-        schedule: async () => rel((await import("./schedule")).schedule, "common"),
+        reminderList: async () => rel((await import("./reminderList.js")).reminderList, "full", { omit: "focusMode" }),
+        resourceList: async () => rel((await import("./resourceList.js")).resourceList, "common", { omit: "focusMode" }),
+        schedule: async () => rel((await import("./schedule.js")).schedule, "common"),
     },
 };

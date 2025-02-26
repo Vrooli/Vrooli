@@ -1,6 +1,6 @@
 import { ReportResponse, ReportResponseYou } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const reportResponseYou: ApiPartial<ReportResponseYou> = {
     common: {
@@ -18,7 +18,7 @@ export const reportResponse: ApiPartial<ReportResponse> = {
         actionSuggested: true,
         details: true,
         language: true,
-        report: async () => rel((await import("./report")).report, "nav", { omit: "responses" }),
+        report: async () => rel((await import("./report.js")).report, "nav", { omit: "responses" }),
         you: () => rel(reportResponseYou, "full"),
     },
 };

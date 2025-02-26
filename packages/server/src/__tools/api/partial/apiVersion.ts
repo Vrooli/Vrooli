@@ -1,7 +1,7 @@
 import { ApiVersion, ApiVersionTranslation } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
-import { versionYou } from "./root";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
+import { versionYou } from "./root.js";
 
 export const apiVersionTranslation: ApiPartial<ApiVersionTranslation> = {
     common: {
@@ -30,8 +30,8 @@ export const apiVersion: ApiPartial<ApiVersion> = {
         you: () => rel(versionYou, "full"),
     },
     full: {
-        pullRequest: async () => rel((await import("./pullRequest")).pullRequest, "full", { omit: ["from", "to"] }),
-        root: async () => rel((await import("./api")).api, "full", { omit: "versions" }),
+        pullRequest: async () => rel((await import("./pullRequest.js")).pullRequest, "full", { omit: ["from", "to"] }),
+        root: async () => rel((await import("./api.js")).api, "full", { omit: "versions" }),
         translations: () => rel(apiVersionTranslation, "full"),
         schemaLanguage: true,
         schemaText: true,
@@ -39,7 +39,7 @@ export const apiVersion: ApiPartial<ApiVersion> = {
     },
     list: {
         schemaLanguage: true,
-        root: async () => rel((await import("./api")).api, "list", { omit: "versions" }),
+        root: async () => rel((await import("./api.js")).api, "list", { omit: "versions" }),
         translations: () => rel(apiVersionTranslation, "list"),
     },
     nav: {
@@ -48,7 +48,7 @@ export const apiVersion: ApiPartial<ApiVersion> = {
         isPrivate: true,
         versionIndex: true,
         versionLabel: true,
-        root: async () => rel((await import("./api")).api, "nav", { omit: "versions" }),
+        root: async () => rel((await import("./api.js")).api, "nav", { omit: "versions" }),
         translations: () => rel(apiVersionTranslation, "list"),
     },
 };

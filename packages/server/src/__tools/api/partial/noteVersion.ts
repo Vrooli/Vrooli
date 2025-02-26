@@ -1,7 +1,7 @@
 import { NotePage, NoteVersion, NoteVersionTranslation } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
-import { versionYou } from "./root";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
+import { versionYou } from "./root.js";
 
 export const notePage: ApiPartial<NotePage> = {
     common: {
@@ -34,13 +34,13 @@ export const noteVersion: ApiPartial<NoteVersion> = {
         you: () => rel(versionYou, "full"),
     },
     full: {
-        pullRequest: async () => rel((await import("./pullRequest")).pullRequest, "full", { omit: ["from", "to"] }),
-        root: async () => rel((await import("./note")).note, "full", { omit: "versions" }),
+        pullRequest: async () => rel((await import("./pullRequest.js")).pullRequest, "full", { omit: ["from", "to"] }),
+        root: async () => rel((await import("./note.js")).note, "full", { omit: "versions" }),
         translations: () => rel(noteVersionTranslation, "full"),
         versionNotes: true,
     },
     list: {
-        root: async () => rel((await import("./note")).note, "list", { omit: "versions" }),
+        root: async () => rel((await import("./note.js")).note, "list", { omit: "versions" }),
         translations: () => rel(noteVersionTranslation, "list"),
     },
     nav: {
@@ -49,7 +49,7 @@ export const noteVersion: ApiPartial<NoteVersion> = {
         isPrivate: true,
         versionIndex: true,
         versionLabel: true,
-        root: async () => rel((await import("./note")).note, "nav", { omit: "versions" }),
+        root: async () => rel((await import("./note.js")).note, "nav", { omit: "versions" }),
         translations: () => rel(noteVersionTranslation, "list"),
     },
 };

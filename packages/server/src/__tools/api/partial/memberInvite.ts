@@ -1,6 +1,6 @@
 import { MemberInvite, MemberInviteYou } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const memberInviteYou: ApiPartial<MemberInviteYou> = {
     common: {
@@ -18,8 +18,8 @@ export const memberInvite: ApiPartial<MemberInvite> = {
         status: true,
         willBeAdmin: true,
         willHavePermissions: true,
-        team: async () => rel((await import("./team")).team, "nav"),
-        user: async () => rel((await import("./user")).user, "nav"),
+        team: async () => rel((await import("./team.js")).team, "nav"),
+        user: async () => rel((await import("./user.js")).user, "nav"),
         you: () => rel(memberInviteYou, "full"),
     },
 };

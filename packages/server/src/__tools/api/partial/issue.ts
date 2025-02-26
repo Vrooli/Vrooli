@@ -1,6 +1,6 @@
 import { Issue, IssueTranslation, IssueYou } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const issueTranslation: ApiPartial<IssueTranslation> = {
     common: {
@@ -35,13 +35,13 @@ export const issue: ApiPartial<Issue> = {
         status: true,
         to: {
             __union: {
-                Api: async () => rel((await import("./api")).api, "nav"),
-                Code: async () => rel((await import("./code")).code, "nav"),
-                Note: async () => rel((await import("./note")).note, "nav"),
-                Project: async () => rel((await import("./project")).project, "nav"),
-                Routine: async () => rel((await import("./routine")).routine, "nav"),
-                Standard: async () => rel((await import("./standard")).standard, "nav"),
-                Team: async () => rel((await import("./team")).team, "nav"),
+                Api: async () => rel((await import("./api.js")).api, "nav"),
+                Code: async () => rel((await import("./code.js")).code, "nav"),
+                Note: async () => rel((await import("./note.js")).note, "nav"),
+                Project: async () => rel((await import("./project.js")).project, "nav"),
+                Routine: async () => rel((await import("./routine.js")).routine, "nav"),
+                Standard: async () => rel((await import("./standard.js")).standard, "nav"),
+                Team: async () => rel((await import("./team.js")).team, "nav"),
             },
         },
         commentsCount: true,
@@ -49,12 +49,12 @@ export const issue: ApiPartial<Issue> = {
         score: true,
         bookmarks: true,
         views: true,
-        labels: async () => rel((await import("./label")).label, "nav"),
+        labels: async () => rel((await import("./label.js")).label, "nav"),
         you: () => rel(issueYou, "full"),
     },
     full: {
-        closedBy: async () => rel((await import("./user")).user, "nav"),
-        createdBy: async () => rel((await import("./user")).user, "nav"),
+        closedBy: async () => rel((await import("./user.js")).user, "nav"),
+        createdBy: async () => rel((await import("./user.js")).user, "nav"),
         translations: () => rel(issueTranslation, "full"),
     },
     list: {

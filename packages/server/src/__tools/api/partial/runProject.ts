@@ -1,6 +1,6 @@
 import { RunProject, RunProjectYou } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const runProjectYou: ApiPartial<RunProjectYou> = {
     common: {
@@ -20,18 +20,18 @@ export const runProject: ApiPartial<RunProject> = {
         timeElapsed: true,
         completedAt: true,
         name: true,
-        projectVersion: async () => rel((await import("./projectVersion")).projectVersion, "nav", { omit: "you" }),
+        projectVersion: async () => rel((await import("./projectVersion.js")).projectVersion, "nav", { omit: "you" }),
         status: true,
         stepsCount: true,
-        schedule: async () => rel((await import("./schedule")).schedule, "full", { omit: "runProject" }),
-        team: async () => rel((await import("./team")).team, "nav"),
-        user: async () => rel((await import("./user")).user, "nav"),
+        schedule: async () => rel((await import("./schedule.js")).schedule, "full", { omit: "runProject" }),
+        team: async () => rel((await import("./team.js")).team, "nav"),
+        user: async () => rel((await import("./user.js")).user, "nav"),
         you: () => rel(runProjectYou, "full"),
     },
     full: {
         lastStep: true,
-        projectVersion: async () => rel((await import("./projectVersion")).projectVersion, "list", { omit: "you" }),
-        steps: async () => rel((await import("./runProjectStep")).runProjectStep, "full", { omit: "run" }),
+        projectVersion: async () => rel((await import("./projectVersion.js")).projectVersion, "list", { omit: "you" }),
+        steps: async () => rel((await import("./runProjectStep.js")).runProjectStep, "full", { omit: "run" }),
     },
     list: {
         lastStep: true,

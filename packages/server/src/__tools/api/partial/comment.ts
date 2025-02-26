@@ -1,6 +1,6 @@
 import { Comment, CommentSearchResult, CommentThread, CommentTranslation, CommentYou } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const commentTranslation: ApiPartial<CommentTranslation> = {
     common: {
@@ -30,8 +30,8 @@ export const comment: ApiPartial<Comment> = {
         updated_at: true,
         owner: {
             __union: {
-                Team: async () => rel((await import("./team")).team, "nav"),
-                User: async () => rel((await import("./user")).user, "nav"),
+                Team: async () => rel((await import("./team.js")).team, "nav"),
+                User: async () => rel((await import("./user.js")).user, "nav"),
             },
         },
         score: true,
@@ -42,17 +42,17 @@ export const comment: ApiPartial<Comment> = {
     full: {
         commentedOn: {
             __union: {
-                ApiVersion: async () => rel((await import("./apiVersion")).apiVersion, "nav"),
-                CodeVersion: async () => rel((await import("./codeVersion")).codeVersion, "nav"),
-                Issue: async () => rel((await import("./issue")).issue, "nav"),
-                NoteVersion: async () => rel((await import("./noteVersion")).noteVersion, "nav"),
-                Post: async () => rel((await import("./post")).post, "nav"),
-                ProjectVersion: async () => rel((await import("./projectVersion")).projectVersion, "nav"),
-                PullRequest: async () => rel((await import("./pullRequest")).pullRequest, "nav"),
-                Question: async () => rel((await import("./question")).question, "common"),
-                QuestionAnswer: async () => rel((await import("./questionAnswer")).questionAnswer, "common"),
-                RoutineVersion: async () => rel((await import("./routineVersion")).routineVersion, "nav"),
-                StandardVersion: async () => rel((await import("./standardVersion")).standardVersion, "nav"),
+                ApiVersion: async () => rel((await import("./apiVersion.js")).apiVersion, "nav"),
+                CodeVersion: async () => rel((await import("./codeVersion.js")).codeVersion, "nav"),
+                Issue: async () => rel((await import("./issue.js")).issue, "nav"),
+                NoteVersion: async () => rel((await import("./noteVersion.js")).noteVersion, "nav"),
+                Post: async () => rel((await import("./post.js")).post, "nav"),
+                ProjectVersion: async () => rel((await import("./projectVersion.js")).projectVersion, "nav"),
+                PullRequest: async () => rel((await import("./pullRequest.js")).pullRequest, "nav"),
+                Question: async () => rel((await import("./question.js")).question, "common"),
+                QuestionAnswer: async () => rel((await import("./questionAnswer.js")).questionAnswer, "common"),
+                RoutineVersion: async () => rel((await import("./routineVersion.js")).routineVersion, "nav"),
+                StandardVersion: async () => rel((await import("./standardVersion.js")).standardVersion, "nav"),
             },
         },
         translations: () => rel(commentTranslation, "full"),

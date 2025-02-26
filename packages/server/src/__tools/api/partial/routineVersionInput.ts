@@ -1,6 +1,6 @@
 import { RoutineVersionInput, RoutineVersionInputTranslation } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const routineVersionInputTranslation: ApiPartial<RoutineVersionInputTranslation> = {
     common: {
@@ -17,7 +17,7 @@ export const routineVersionInput: ApiPartial<RoutineVersionInput> = {
         index: true,
         isRequired: true,
         name: true,
-        standardVersion: async () => rel((await import("./standardVersion")).standardVersion, "list"),
+        standardVersion: async () => rel((await import("./standardVersion.js")).standardVersion, "list"),
         translations: () => rel(routineVersionInputTranslation, "full"),
     },
 };

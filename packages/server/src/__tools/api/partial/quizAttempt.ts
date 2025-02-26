@@ -1,6 +1,6 @@
 import { QuizAttempt, QuizAttemptYou } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const quizAttemptYou: ApiPartial<QuizAttemptYou> = {
     common: {
@@ -19,11 +19,11 @@ export const quizAttempt: ApiPartial<QuizAttempt> = {
         contextSwitches: true,
         timeTaken: true,
         responsesCount: true,
-        quiz: async () => rel((await import("./quiz")).quiz, "nav"),
-        user: async () => rel((await import("./user")).user, "nav"),
+        quiz: async () => rel((await import("./quiz.js")).quiz, "nav"),
+        user: async () => rel((await import("./user.js")).user, "nav"),
         you: () => rel(quizAttemptYou, "full"),
     },
     full: {
-        responses: async () => rel((await import("./quizQuestionResponse")).quizQuestionResponse, "full"),
+        responses: async () => rel((await import("./quizQuestionResponse.js")).quizQuestionResponse, "full"),
     },
 };

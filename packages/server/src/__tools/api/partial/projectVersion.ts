@@ -1,7 +1,7 @@
 import { ProjectVersion, ProjectVersionTranslation, ProjectVersionYou } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
-import { versionYou } from "./root";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
+import { versionYou } from "./root.js";
 
 export const projectVersionTranslation: ApiPartial<ProjectVersionTranslation> = {
     common: {
@@ -40,14 +40,14 @@ export const projectVersion: ApiPartial<ProjectVersion> = {
         you: () => rel(versionYou, "full"),
     },
     full: {
-        directories: async () => rel((await import("./projectVersionDirectory")).projectVersionDirectory, "full", { omit: "projectVersion " }),
-        pullRequest: async () => rel((await import("./pullRequest")).pullRequest, "full", { omit: ["from", "to"] }),
-        root: async () => rel((await import("./project")).project, "full", { omit: "versions" }),
+        directories: async () => rel((await import("./projectVersionDirectory.js")).projectVersionDirectory, "full", { omit: "projectVersion " }),
+        pullRequest: async () => rel((await import("./pullRequest.js")).pullRequest, "full", { omit: ["from", "to"] }),
+        root: async () => rel((await import("./project.js")).project, "full", { omit: "versions" }),
         translations: () => rel(projectVersionTranslation, "full"),
         versionNotes: true,
     },
     list: {
-        root: async () => rel((await import("./project")).project, "list", { omit: "versions" }),
+        root: async () => rel((await import("./project.js")).project, "list", { omit: "versions" }),
         translations: () => rel(projectVersionTranslation, "list"),
     },
     nav: {
@@ -57,7 +57,7 @@ export const projectVersion: ApiPartial<ProjectVersion> = {
         isPrivate: true,
         versionIndex: true,
         versionLabel: true,
-        root: async () => rel((await import("./project")).project, "nav", { omit: "versions" }),
+        root: async () => rel((await import("./project.js")).project, "nav", { omit: "versions" }),
         translations: () => rel(projectVersionTranslation, "list"),
     },
 };

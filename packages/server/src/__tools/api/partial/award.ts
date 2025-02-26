@@ -1,5 +1,5 @@
 import { Award } from "@local/shared";
-import { ApiPartial } from "../types";
+import { ApiPartial } from "../types.js";
 
 export const award: ApiPartial<Award> = {
     common: {

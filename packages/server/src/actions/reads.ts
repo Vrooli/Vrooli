@@ -1,28 +1,28 @@
 import { ModelType, PageInfo, TimeFrame, ViewFor, camelCase } from "@local/shared";
-import { SessionService } from "../auth/session";
-import { combineQueries } from "../builders/combineQueries";
-import { InfoConverter, addSupplementalFields } from "../builders/infoConverter";
-import { timeFrameToSql } from "../builders/timeFrame";
-import { PaginatedSearchResult, PartialApiInfo, PrismaDelegate } from "../builders/types";
-import { visibilityBuilderPrisma } from "../builders/visibilityBuilder";
-import { prismaInstance } from "../db/instance";
-import { SqlBuilder } from "../db/sqlBuilder";
-import { CustomError } from "../events/error";
-import { logger } from "../events/logger";
-import { getIdFromHandle } from "../getters/getIdFromHandle";
-import { getLatestVersion } from "../getters/getLatestVersion";
-import { getSearchStringQuery } from "../getters/getSearchStringQuery";
-import { ModelMap } from "../models/base";
-import { ViewModelLogic } from "../models/base/types";
-import { Searcher } from "../models/types";
-import { RecursivePartial } from "../types";
-import { SearchEmbeddingsCache } from "../utils/embeddings/cache";
-import { getEmbeddings } from "../utils/embeddings/getEmbeddings";
-import { getAuthenticatedData } from "../utils/getAuthenticatedData";
-import { SearchMap } from "../utils/searchMap";
-import { SortMap } from "../utils/sortMap";
-import { permissionsCheck } from "../validators/permissions";
-import { ReadManyHelperProps, ReadManyWithEmbeddingsHelperProps, ReadOneHelperProps } from "./types";
+import { SessionService } from "../auth/session.js";
+import { combineQueries } from "../builders/combineQueries.js";
+import { InfoConverter, addSupplementalFields } from "../builders/infoConverter.js";
+import { timeFrameToSql } from "../builders/timeFrame.js";
+import { PaginatedSearchResult, PartialApiInfo, PrismaDelegate } from "../builders/types.js";
+import { visibilityBuilderPrisma } from "../builders/visibilityBuilder.js";
+import { DbProvider } from "../db/provider.js";
+import { SqlBuilder } from "../db/sqlBuilder.js";
+import { CustomError } from "../events/error.js";
+import { logger } from "../events/logger.js";
+import { getIdFromHandle } from "../getters/getIdFromHandle.js";
+import { getLatestVersion } from "../getters/getLatestVersion.js";
+import { getSearchStringQuery } from "../getters/getSearchStringQuery.js";
+import { ModelMap } from "../models/base/index.js";
+import { ViewModelLogic } from "../models/base/types.js";
+import { Searcher } from "../models/types.js";
+import { RecursivePartial } from "../types.js";
+import { SearchEmbeddingsCache } from "../utils/embeddings/cache.js";
+import { getEmbeddings } from "../utils/embeddings/getEmbeddings.js";
+import { getAuthenticatedData } from "../utils/getAuthenticatedData.js";
+import { SearchMap } from "../utils/searchMap.js";
+import { SortMap } from "../utils/sortMap.js";
+import { permissionsCheck } from "../validators/permissions.js";
+import { ReadManyHelperProps, ReadManyWithEmbeddingsHelperProps, ReadOneHelperProps } from "./types.js";
 
 const DEFAULT_TAKE = 20;
 const MAX_TAKE = 100;
@@ -81,7 +81,7 @@ export async function readOneHelper<ObjectModel extends { [x: string]: any }>({
     // Get the Prisma object
     let object: any;
     try {
-        object = await (prismaInstance[model.dbTable] as PrismaDelegate).findUnique({ where: { id }, ...InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo) });
+        object = await (DbProvider.get()[model.dbTable] as PrismaDelegate).findUnique({ where: { id }, ...InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo) });
         if (!object)
             throw new CustomError("0022", "NotFound", { objectType });
     } catch (error) {
@@ -153,7 +153,7 @@ export async function readManyHelper<Input extends { [x: string]: any }>({
     // Search results have at least an id
     let searchResults: Record<string, any>[] = [];
     try {
-        searchResults = await (prismaInstance[model.dbTable] as PrismaDelegate).findMany({
+        searchResults = await (DbProvider.get()[model.dbTable] as PrismaDelegate).findMany({
             where,
             orderBy,
             take: desiredTake + 1, // Take one extra so we can determine if there is a next page
@@ -334,7 +334,7 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
         try {
             // Should be safe to use $queryRawUnsafe in this context, as the only user input is 
             // the search string, and that has been converted to embeddings
-            const additionalResults = await prismaInstance.$queryRawUnsafe(rawQuery) as Record<string, any>[];
+            const additionalResults = await DbProvider.get().$queryRawUnsafe(rawQuery) as Record<string, any>[];
             finalResults = [...finalResults, ...additionalResults];
             // Cache the newly fetched results
             await SearchEmbeddingsCache.set({
@@ -376,7 +376,7 @@ export async function readManyWithEmbeddingsHelper<Input extends { [x: string]: 
     // Fetch additional data for the search results
     const partialInfo = InfoConverter.get().fromApiToPartialApi(info, model.format.apiRelMap, true);
     const select = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo);
-    finalResults = await (prismaInstance[model.dbTable] as PrismaDelegate).findMany({
+    finalResults = await (DbProvider.get()[model.dbTable] as PrismaDelegate).findMany({
         where: { id: { in: finalResults.map(t => t.id) } },
         ...select,
     });

@@ -1,32 +1,32 @@
 import { Bookmark } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const bookmark: ApiPartial<Bookmark> = {
     common: {
         id: true,
-        list: async () => rel((await import("./bookmarkList")).bookmarkList, "common"),
+        list: async () => rel((await import("./bookmarkList.js")).bookmarkList, "common"),
         to: {
             __union: {
-                Api: async () => rel((await import("./api")).api, "list"),
-                Code: async () => rel((await import("./code")).code, "list"),
-                Comment: async () => rel((await import("./comment")).comment, "common"),
-                Issue: async () => rel((await import("./issue")).issue, "nav"),
-                Note: async () => rel((await import("./note")).note, "list"),
-                Post: async () => rel((await import("./post")).post, "list"),
-                Project: async () => rel((await import("./project")).project, "list"),
-                Question: async () => rel((await import("./question")).question, "list"),
-                QuestionAnswer: async () => rel((await import("./questionAnswer")).questionAnswer, "list"),
-                Quiz: async () => rel((await import("./quiz")).quiz, "list"),
-                Routine: async () => rel((await import("./routine")).routine, "list"),
-                Standard: async () => rel((await import("./standard")).standard, "list"),
-                Tag: async () => rel((await import("./tag")).tag, "list"),
-                Team: async () => rel((await import("./team")).team, "list"),
-                User: async () => rel((await import("./user")).user, "list"),
+                Api: async () => rel((await import("./api.js")).api, "list"),
+                Code: async () => rel((await import("./code.js")).code, "list"),
+                Comment: async () => rel((await import("./comment.js")).comment, "common"),
+                Issue: async () => rel((await import("./issue.js")).issue, "nav"),
+                Note: async () => rel((await import("./note.js")).note, "list"),
+                Post: async () => rel((await import("./post.js")).post, "list"),
+                Project: async () => rel((await import("./project.js")).project, "list"),
+                Question: async () => rel((await import("./question.js")).question, "list"),
+                QuestionAnswer: async () => rel((await import("./questionAnswer.js")).questionAnswer, "list"),
+                Quiz: async () => rel((await import("./quiz.js")).quiz, "list"),
+                Routine: async () => rel((await import("./routine.js")).routine, "list"),
+                Standard: async () => rel((await import("./standard.js")).standard, "list"),
+                Tag: async () => rel((await import("./tag.js")).tag, "list"),
+                Team: async () => rel((await import("./team.js")).team, "list"),
+                User: async () => rel((await import("./user.js")).user, "list"),
             },
         },
     },
     full: {
-        list: async () => rel((await import("./bookmarkList")).bookmarkList, "common", { omit: "bookmarks" }),
+        list: async () => rel((await import("./bookmarkList.js")).bookmarkList, "common", { omit: "bookmarks" }),
     },
 };

@@ -1,6 +1,6 @@
 import { RunRoutine, RunRoutineYou } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const runRoutineYou: ApiPartial<RunRoutineYou> = {
     common: {
@@ -16,27 +16,26 @@ export const runRoutine: ApiPartial<RunRoutine> = {
         isPrivate: true,
         completedComplexity: true,
         contextSwitches: true,
+        data: true,
         startedAt: true,
         timeElapsed: true,
         completedAt: true,
         name: true,
         status: true,
-        inputsCount: true,
-        outputsCount: true,
+        ioCount: true,
         stepsCount: true,
         wasRunAutomatically: true,
-        routineVersion: async () => rel((await import("./routineVersion")).routineVersion, "nav", { omit: "you" }),
-        schedule: async () => rel((await import("./schedule")).schedule, "full", { omit: "runRoutine" }),
-        team: async () => rel((await import("./team")).team, "nav"),
-        user: async () => rel((await import("./user")).user, "nav"),
+        routineVersion: async () => rel((await import("./routineVersion.js")).routineVersion, "nav", { omit: "you" }),
+        schedule: async () => rel((await import("./schedule.js")).schedule, "full", { omit: "runRoutine" }),
+        team: async () => rel((await import("./team.js")).team, "nav"),
+        user: async () => rel((await import("./user.js")).user, "nav"),
         you: () => rel(runRoutineYou, "full"),
     },
     full: {
         lastStep: true,
-        inputs: async () => rel((await import("./runRoutineInput")).runRoutineInput, "list", { omit: ["runRoutine", "input.routineVersion"] }),
-        outputs: async () => rel((await import("./runRoutineOutput")).runRoutineOutput, "list", { omit: ["runRoutine", "output.routineVersion"] }),
-        routineVersion: async () => rel((await import("./routineVersion")).routineVersion, "full", { omit: "you" }),
-        steps: async () => rel((await import("./runRoutineStep")).runRoutineStep, "list"),
+        io: async () => rel((await import("./runRoutineIO.js")).runRoutineIO, "list", { omit: ["runRoutine", "routineVersionInput.routineVersion", "routineVersionInput.routineVersion"] }),
+        routineVersion: async () => rel((await import("./routineVersion.js")).routineVersion, "full", { omit: "you" }),
+        steps: async () => rel((await import("./runRoutineStep.js")).runRoutineStep, "list"),
     },
     list: {
         lastStep: true,

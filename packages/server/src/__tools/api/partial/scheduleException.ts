@@ -1,6 +1,6 @@
 import { ScheduleException } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const scheduleException: ApiPartial<ScheduleException> = {
     common: {
@@ -10,9 +10,9 @@ export const scheduleException: ApiPartial<ScheduleException> = {
         newEndTime: true,
     },
     full: {
-        schedule: async () => rel((await import("./schedule")).schedule, "full", { omit: "exceptions" }),
+        schedule: async () => rel((await import("./schedule.js")).schedule, "full", { omit: "exceptions" }),
     },
     list: {
-        schedule: async () => rel((await import("./schedule")).schedule, "list", { omit: "exceptions" }),
+        schedule: async () => rel((await import("./schedule.js")).schedule, "list", { omit: "exceptions" }),
     },
 };

@@ -1,10 +1,10 @@
-import { RequestService } from "../auth/request";
-import { addSupplementalFields, InfoConverter } from "../builders/infoConverter";
-import { CustomError } from "../events/error";
-import { ModelMap } from "../models/base";
-import { RecursivePartial } from "../types";
-import { cudHelper } from "./cuds";
-import { CreateManyHelperProps, CreateOneHelperProps } from "./types";
+import { RequestService } from "../auth/request.js";
+import { addSupplementalFields, InfoConverter } from "../builders/infoConverter.js";
+import { CustomError } from "../events/error.js";
+import { ModelMap } from "../models/base/index.js";
+import { RecursivePartial } from "../types.js";
+import { cudHelper } from "./cuds.js";
+import { CreateManyHelperProps, CreateOneHelperProps } from "./types.js";
 
 /**
  * Helper function for creating multiple objects of the same type in a single line.

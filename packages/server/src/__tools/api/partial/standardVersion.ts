@@ -1,7 +1,7 @@
 import { StandardVersion, StandardVersionTranslation } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
-import { versionYou } from "./root";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
+import { versionYou } from "./root.js";
 
 export const standardVersionTranslation: ApiPartial<StandardVersionTranslation> = {
     common: {
@@ -37,13 +37,13 @@ export const standardVersion: ApiPartial<StandardVersion> = {
     },
     full: {
         versionNotes: true,
-        pullRequest: async () => rel((await import("./pullRequest")).pullRequest, "full", { omit: ["from", "to"] }),
-        resourceList: async () => rel((await import("./resourceList")).resourceList, "common"),
-        root: async () => rel((await import("./standard")).standard, "full", { omit: "versions" }),
+        pullRequest: async () => rel((await import("./pullRequest.js")).pullRequest, "full", { omit: ["from", "to"] }),
+        resourceList: async () => rel((await import("./resourceList.js")).resourceList, "common"),
+        root: async () => rel((await import("./standard.js")).standard, "full", { omit: "versions" }),
         translations: () => rel(standardVersionTranslation, "full"),
     },
     list: {
-        root: async () => rel((await import("./standard")).standard, "list", { omit: "versions" }),
+        root: async () => rel((await import("./standard.js")).standard, "list", { omit: "versions" }),
         translations: () => rel(standardVersionTranslation, "list"),
     },
     nav: {
@@ -52,7 +52,7 @@ export const standardVersion: ApiPartial<StandardVersion> = {
         isPrivate: true,
         versionIndex: true,
         versionLabel: true,
-        root: async () => rel((await import("./standard")).standard, "nav", { omit: "versions" }),
+        root: async () => rel((await import("./standard.js")).standard, "nav", { omit: "versions" }),
         translations: () => rel(standardVersionTranslation, "list"),
     },
 };

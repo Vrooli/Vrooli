@@ -1,6 +1,6 @@
 import { PullRequest, PullRequestTranslation, PullRequestYou } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const pullRequestYou: ApiPartial<PullRequestYou> = {
     common: {
@@ -29,25 +29,25 @@ export const pullRequest: ApiPartial<PullRequest> = {
         status: true,
         from: {
             __union: {
-                ApiVersion: async () => rel((await import("./apiVersion")).apiVersion, "list"),
-                CodeVersion: async () => rel((await import("./codeVersion")).codeVersion, "list"),
-                NoteVersion: async () => rel((await import("./noteVersion")).noteVersion, "list"),
-                ProjectVersion: async () => rel((await import("./projectVersion")).projectVersion, "list"),
-                RoutineVersion: async () => rel((await import("./routineVersion")).routineVersion, "list"),
-                StandardVersion: async () => rel((await import("./standardVersion")).standardVersion, "list"),
+                ApiVersion: async () => rel((await import("./apiVersion.js")).apiVersion, "list"),
+                CodeVersion: async () => rel((await import("./codeVersion.js")).codeVersion, "list"),
+                NoteVersion: async () => rel((await import("./noteVersion.js")).noteVersion, "list"),
+                ProjectVersion: async () => rel((await import("./projectVersion.js")).projectVersion, "list"),
+                RoutineVersion: async () => rel((await import("./routineVersion.js")).routineVersion, "list"),
+                StandardVersion: async () => rel((await import("./standardVersion.js")).standardVersion, "list"),
             },
         },
         to: {
             __union: {
-                Api: async () => rel((await import("./api")).api, "list"),
-                Code: async () => rel((await import("./code")).code, "list"),
-                Note: async () => rel((await import("./note")).note, "list"),
-                Project: async () => rel((await import("./project")).project, "list"),
-                Routine: async () => rel((await import("./routine")).routine, "list"),
-                Standard: async () => rel((await import("./standard")).standard, "list"),
+                Api: async () => rel((await import("./api.js")).api, "list"),
+                Code: async () => rel((await import("./code.js")).code, "list"),
+                Note: async () => rel((await import("./note.js")).note, "list"),
+                Project: async () => rel((await import("./project.js")).project, "list"),
+                Routine: async () => rel((await import("./routine.js")).routine, "list"),
+                Standard: async () => rel((await import("./standard.js")).standard, "list"),
             },
         },
-        createdBy: async () => rel((await import("./user")).user, "nav"),
+        createdBy: async () => rel((await import("./user.js")).user, "nav"),
         you: () => rel(pullRequestYou, "full"),
     },
     full: {

@@ -1,5 +1,5 @@
 import { exists, mergeDeep } from "@local/shared";
-import { ApiPartial, DeepPartialBooleanWithFragments, MaybeLazyAsync, NonMaybe, SelectionType } from "./types";
+import { ApiPartial, DeepPartialBooleanWithFragments, MaybeLazyAsync, NonMaybe, SelectionType } from "./types.js";
 
 function simpleHash(str: string): string {
     let hash = 0;

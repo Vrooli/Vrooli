@@ -1,6 +1,6 @@
 import { BookmarkList } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const bookmarkList: ApiPartial<BookmarkList> = {
     common: {
@@ -11,9 +11,9 @@ export const bookmarkList: ApiPartial<BookmarkList> = {
         bookmarksCount: true,
     },
     list: {
-        bookmarks: async () => rel((await import("./bookmark")).bookmark, "list", { omit: "list" }),
+        bookmarks: async () => rel((await import("./bookmark.js")).bookmark, "list", { omit: "list" }),
     },
     full: {
-        bookmarks: async () => rel((await import("./bookmark")).bookmark, "full", { omit: "list" }),
+        bookmarks: async () => rel((await import("./bookmark.js")).bookmark, "full", { omit: "list" }),
     },
 };

@@ -1,6 +1,6 @@
 import { NotificationSubscription } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const notificationSubscription: ApiPartial<NotificationSubscription> = {
     full: {
@@ -9,20 +9,20 @@ export const notificationSubscription: ApiPartial<NotificationSubscription> = {
         silent: true,
         object: {
             __union: {
-                Api: async () => rel((await import("./api")).api, "list"),
-                Code: async () => rel((await import("./code")).code, "list"),
-                Comment: async () => rel((await import("./comment")).comment, "list"),
-                Issue: async () => rel((await import("./issue")).issue, "list"),
-                Meeting: async () => rel((await import("./meeting")).meeting, "list"),
-                Note: async () => rel((await import("./note")).note, "list"),
-                Project: async () => rel((await import("./project")).project, "list"),
-                PullRequest: async () => rel((await import("./pullRequest")).pullRequest, "list"),
-                Question: async () => rel((await import("./question")).question, "list"),
-                Quiz: async () => rel((await import("./quiz")).quiz, "list"),
-                Report: async () => rel((await import("./report")).report, "list"),
-                Routine: async () => rel((await import("./routine")).routine, "list"),
-                Standard: async () => rel((await import("./standard")).standard, "list"),
-                Team: async () => rel((await import("./team")).team, "list"),
+                Api: async () => rel((await import("./api.js")).api, "list"),
+                Code: async () => rel((await import("./code.js")).code, "list"),
+                Comment: async () => rel((await import("./comment.js")).comment, "list"),
+                Issue: async () => rel((await import("./issue.js")).issue, "list"),
+                Meeting: async () => rel((await import("./meeting.js")).meeting, "list"),
+                Note: async () => rel((await import("./note.js")).note, "list"),
+                Project: async () => rel((await import("./project.js")).project, "list"),
+                PullRequest: async () => rel((await import("./pullRequest.js")).pullRequest, "list"),
+                Question: async () => rel((await import("./question.js")).question, "list"),
+                Quiz: async () => rel((await import("./quiz.js")).quiz, "list"),
+                Report: async () => rel((await import("./report.js")).report, "list"),
+                Routine: async () => rel((await import("./routine.js")).routine, "list"),
+                Standard: async () => rel((await import("./standard.js")).standard, "list"),
+                Team: async () => rel((await import("./team.js")).team, "list"),
             },
         },
     },

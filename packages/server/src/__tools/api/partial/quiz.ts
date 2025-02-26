@@ -1,6 +1,6 @@
 import { Quiz, QuizTranslation, QuizYou } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const quizTranslation: ApiPartial<QuizTranslation> = {
     common: {
@@ -29,17 +29,17 @@ export const quiz: ApiPartial<Quiz> = {
         id: true,
         created_at: true,
         updated_at: true,
-        createdBy: async () => rel((await import("./user")).user, "nav"),
+        createdBy: async () => rel((await import("./user.js")).user, "nav"),
         score: true,
         bookmarks: true,
         attemptsCount: true,
         quizQuestionsCount: true,
-        project: async () => rel((await import("./project")).project, "nav"),
-        routine: async () => rel((await import("./routine")).routine, "nav"),
-        you: async () => rel((await import("./quiz")).quizYou, "full"),
+        project: async () => rel((await import("./project.js")).project, "nav"),
+        routine: async () => rel((await import("./routine.js")).routine, "nav"),
+        you: async () => rel((await import("./quiz.js")).quizYou, "full"),
     },
     full: {
-        quizQuestions: async () => rel((await import("./quizQuestion")).quizQuestion, "full", { omit: "quiz" }),
+        quizQuestions: async () => rel((await import("./quizQuestion.js")).quizQuestion, "full", { omit: "quiz" }),
         translations: () => rel(quizTranslation, "full"),
     },
     list: {

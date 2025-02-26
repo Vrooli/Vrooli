@@ -1,6 +1,6 @@
 import { ChatInvite, ChatInviteYou } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const chatInviteYou: ApiPartial<ChatInviteYou> = {
     full: {
@@ -16,13 +16,13 @@ export const chatInvite: ApiPartial<ChatInvite> = {
         updated_at: true,
         message: true,
         status: true,
-        user: async () => rel((await import("./user")).user, "nav"),
+        user: async () => rel((await import("./user.js")).user, "nav"),
         you: () => rel(chatInviteYou, "full"),
     },
     full: {
-        chat: async () => rel((await import("./chat")).chat, "full", { omit: "invites" }),
+        chat: async () => rel((await import("./chat.js")).chat, "full", { omit: "invites" }),
     },
     list: {
-        chat: async () => rel((await import("./chat")).chat, "list", { omit: "invites" }),
+        chat: async () => rel((await import("./chat.js")).chat, "list", { omit: "invites" }),
     },
 };

@@ -1,7 +1,7 @@
 import { ResourceList, ResourceListTranslation } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
-import { resource } from "./resource";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
+import { resource } from "./resource.js";
 
 export const resourceListTranslation: ApiPartial<ResourceListTranslation> = {
     common: {

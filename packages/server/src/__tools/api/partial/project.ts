@@ -1,6 +1,6 @@
 import { Project, ProjectYou } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const projectYou: ApiPartial<ProjectYou> = {
     common: {
@@ -23,29 +23,29 @@ export const project: ApiPartial<Project> = {
         updated_at: true,
         isPrivate: true,
         issuesCount: true,
-        labels: async () => rel((await import("./label")).label, "list"),
+        labels: async () => rel((await import("./label.js")).label, "list"),
         owner: {
             __union: {
-                Team: async () => rel((await import("./team")).team, "nav"),
-                User: async () => rel((await import("./user")).user, "nav"),
+                Team: async () => rel((await import("./team.js")).team, "nav"),
+                User: async () => rel((await import("./user.js")).user, "nav"),
             },
         },
         permissions: true,
         questionsCount: true,
         score: true,
         bookmarks: true,
-        tags: async () => rel((await import("./tag")).tag, "list"),
+        tags: async () => rel((await import("./tag.js")).tag, "list"),
         transfersCount: true,
         views: true,
         you: () => rel(projectYou, "full"),
     },
     full: {
         versionsCount: true,
-        parent: async () => rel((await import("./projectVersion")).projectVersion, "nav"),
-        versions: async () => rel((await import("./projectVersion")).projectVersion, "full", { omit: "root" }),
+        parent: async () => rel((await import("./projectVersion.js")).projectVersion, "nav"),
+        versions: async () => rel((await import("./projectVersion.js")).projectVersion, "full", { omit: "root" }),
     },
     list: {
-        versions: async () => rel((await import("./projectVersion")).projectVersion, "list", { omit: "root" }),
+        versions: async () => rel((await import("./projectVersion.js")).projectVersion, "list", { omit: "root" }),
     },
     nav: {
         id: true,

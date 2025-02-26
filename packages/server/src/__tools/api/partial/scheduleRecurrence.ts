@@ -1,6 +1,6 @@
 import { ScheduleRecurrence } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const scheduleRecurrence: ApiPartial<ScheduleRecurrence> = {
     common: {
@@ -13,9 +13,9 @@ export const scheduleRecurrence: ApiPartial<ScheduleRecurrence> = {
         endDate: true,
     },
     full: {
-        schedule: async () => rel((await import("./schedule")).schedule, "full", { omit: "recurrences" }),
+        schedule: async () => rel((await import("./schedule.js")).schedule, "full", { omit: "recurrences" }),
     },
     list: {
-        schedule: async () => rel((await import("./schedule")).schedule, "list", { omit: "recurrences" }),
+        schedule: async () => rel((await import("./schedule.js")).schedule, "list", { omit: "recurrences" }),
     },
 };

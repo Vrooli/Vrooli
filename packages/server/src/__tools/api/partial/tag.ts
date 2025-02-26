@@ -1,6 +1,6 @@
 import { Tag, TagTranslation, TagYou } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const tagTranslation: ApiPartial<TagTranslation> = {
     common: {

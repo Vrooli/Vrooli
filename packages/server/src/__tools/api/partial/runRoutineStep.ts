@@ -1,6 +1,6 @@
 import { RunRoutineStep } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const runRoutineStep: ApiPartial<RunRoutineStep> = {
     common: {
@@ -12,7 +12,6 @@ export const runRoutineStep: ApiPartial<RunRoutineStep> = {
         completedAt: true,
         name: true,
         status: true,
-        step: true,
-        subroutine: async () => rel((await import("./routineVersion")).routineVersion, "nav"),
+        subroutine: async () => rel((await import("./routineVersion.js")).routineVersion, "nav"),
     },
 };

@@ -1,6 +1,6 @@
 import { MeetingInvite, MeetingInviteYou } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const meetingInviteYou: ApiPartial<MeetingInviteYou> = {
     full: {
@@ -19,9 +19,9 @@ export const meetingInvite: ApiPartial<MeetingInvite> = {
         you: () => rel(meetingInviteYou, "full"),
     },
     full: {
-        meeting: async () => rel((await import("./meeting")).meeting, "full", { omit: "invites" }),
+        meeting: async () => rel((await import("./meeting.js")).meeting, "full", { omit: "invites" }),
     },
     list: {
-        meeting: async () => rel((await import("./meeting")).meeting, "list", { omit: "invites" }),
+        meeting: async () => rel((await import("./meeting.js")).meeting, "list", { omit: "invites" }),
     },
 };

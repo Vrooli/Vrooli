@@ -1,6 +1,6 @@
 import { ReminderItem } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const reminderItem: ApiPartial<ReminderItem> = {
     full: {
@@ -12,6 +12,6 @@ export const reminderItem: ApiPartial<ReminderItem> = {
         dueDate: true,
         index: true,
         isComplete: true,
-        reminder: async () => rel((await import("./reminder")).reminder, "full", { omit: "reminderItems" }),
+        reminder: async () => rel((await import("./reminder.js")).reminder, "full", { omit: "reminderItems" }),
     },
 };

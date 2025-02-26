@@ -1,6 +1,6 @@
 import { Member, MemberYou } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const memberYou: ApiPartial<MemberYou> = {
     full: {
@@ -16,15 +16,15 @@ export const member: ApiPartial<Member> = {
         updated_at: true,
         isAdmin: true,
         permissions: true,
-        roles: async () => rel((await import("./role")).role, "list"),
+        roles: async () => rel((await import("./role.js")).role, "list"),
         you: () => rel(memberYou, "full"),
     },
     full: {
-        team: async () => rel((await import("./team")).team, "full"),
-        user: async () => rel((await import("./user")).user, "full"),
+        team: async () => rel((await import("./team.js")).team, "full"),
+        user: async () => rel((await import("./user.js")).user, "full"),
     },
     list: {
-        team: async () => rel((await import("./team")).team, "list"),
-        user: async () => rel((await import("./user")).user, "list"),
+        team: async () => rel((await import("./team.js")).team, "list"),
+        user: async () => rel((await import("./user.js")).user, "list"),
     },
 };

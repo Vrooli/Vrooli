@@ -1,6 +1,6 @@
 import { Team, TeamTranslation, TeamYou } from "@local/shared";
-import { ApiPartial } from "../types";
-import { rel } from "../utils";
+import { ApiPartial } from "../types.js";
+import { rel } from "../utils.js";
 
 export const teamTranslation: ApiPartial<TeamTranslation> = {
     common: {
@@ -45,13 +45,13 @@ export const team: ApiPartial<Team> = {
         profileImage: true,
         reportsCount: true,
         bookmarks: true,
-        tags: async () => rel((await import("./tag")).tag, "list"),
+        tags: async () => rel((await import("./tag.js")).tag, "list"),
         translations: () => rel(teamTranslation, "full"),
         you: () => rel(teamYou, "full"),
     },
     full: {
-        members: async () => rel((await import("./member")).member, "list", { omit: "team" }),
-        roles: async () => rel((await import("./role")).role, "full", { omit: "team" }),
+        members: async () => rel((await import("./member.js")).member, "list", { omit: "team" }),
+        roles: async () => rel((await import("./role.js")).role, "full", { omit: "team" }),
     },
     nav: {
         id: true,
