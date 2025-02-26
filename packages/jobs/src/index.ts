@@ -1,9 +1,11 @@
+/* eslint-disable no-magic-numbers */
 import { initSingletons, logger } from "@local/server";
 import { MINUTES_30_MS } from "@local/shared";
 import cron from "node-cron";
 import { cleanupRevokedSessions } from "./schedules/cleanupRevokedSessions";
 import { countBookmarks } from "./schedules/countBookmarks";
 import { countReacts } from "./schedules/countReacts";
+import { countViews } from "./schedules/countViews";
 import { generateEmbeddings } from "./schedules/embeddings";
 import { genSitemap, isSitemapMissing } from "./schedules/genSitemap";
 import { moderatePullRequests } from "./schedules/moderatePullRequests";
@@ -99,6 +101,11 @@ const cronJobs: CronJobDefinition[] = [
     {
         description: "verify react counts",
         jobFunction: countReacts,
+        schedule: generateCronJob(null, null, 1, "*", "*"), // Off-peak time on the 1st of every month
+    },
+    {
+        description: "verify view counts",
+        jobFunction: countViews,
         schedule: generateCronJob(null, null, 1, "*", "*"), // Off-peak time on the 1st of every month
     },
     {
@@ -219,7 +226,7 @@ class CronJobQueue {
 
     private async runWithTimeout(job: JobFunction, schedule: CronSchedule, description: string) {
         const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error(`Job timeout: ${description}`)), JOB_TIMEOUT_MS)
+            setTimeout(() => reject(new Error(`Job timeout: ${description}`)), JOB_TIMEOUT_MS),
         );
         await Promise.race([job(schedule), timeoutPromise]);
     }
