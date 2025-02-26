@@ -106,6 +106,7 @@ dist
 .out
 .storybook-out
 storybook-static
+*storybook.log
 
 # rollup.js default build output
 dist/

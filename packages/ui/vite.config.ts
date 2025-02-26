@@ -36,7 +36,6 @@ export default defineConfig((props) => {
                 { find: "api", replacement: path.resolve(__dirname, "./src/api") },
                 { find: "assets", replacement: path.resolve(__dirname, "./src/assets") },
                 { find: "components", replacement: path.resolve(__dirname, "./src/components") },
-                { find: "contexts", replacement: path.resolve(__dirname, "./src/contexts") },
                 { find: "forms", replacement: path.resolve(__dirname, "./src/forms") },
                 { find: "hooks", replacement: path.resolve(__dirname, "./src/hooks") },
                 { find: "icons", replacement: path.resolve(__dirname, "./src/icons") },
