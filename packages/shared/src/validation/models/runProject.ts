@@ -1,8 +1,15 @@
-import { RunStatus } from "../../api/types";
-import { bool, enumToYup, id, intPositiveOrZero, name, opt, req, YupModel, yupObj } from "../utils";
-import { runProjectStepValidation } from "./runProjectStep";
-import { scheduleValidation } from "./schedule";
+import * as yup from "yup";
+import { RunStatus } from "../../api/types.js";
+import { enumToYup } from "../utils/builders/convert.js";
+import { opt, req } from "../utils/builders/optionality.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { bool, id, intPositiveOrZero, name } from "../utils/commonFields.js";
+import { maxStrErr } from "../utils/errors.js";
+import { type YupModel } from "../utils/types.js";
+import { runProjectStepValidation } from "./runProjectStep.js";
+import { scheduleValidation } from "./schedule.js";
 
+const data = yup.string().trim().removeEmptyString().max(16384, maxStrErr);
 const runStatus = enumToYup(RunStatus);
 
 export const runProjectValidation: YupModel<["create", "update"]> = {
@@ -10,6 +17,7 @@ export const runProjectValidation: YupModel<["create", "update"]> = {
         id: req(id),
         completedComplexity: opt(intPositiveOrZero),
         contextSwitches: opt(intPositiveOrZero),
+        data: opt(data),
         isPrivate: opt(bool),
         status: req(runStatus),
         name: req(name),
@@ -24,6 +32,7 @@ export const runProjectValidation: YupModel<["create", "update"]> = {
         id: req(id),
         completedComplexity: opt(intPositiveOrZero),
         contextSwitches: opt(intPositiveOrZero),
+        data: opt(data),
         isPrivate: opt(bool),
         isStarted: opt(bool),
         timeElapsed: opt(intPositiveOrZero),

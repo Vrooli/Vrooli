@@ -1,30 +1,29 @@
-import { DUMMY_ID, endpointGetQuestion, endpointPostQuestion, endpointPutQuestion, LlmTask, noopSubmit, orDefault, Question, QuestionCreateInput, QuestionShape, questionTranslationValidation, QuestionUpdateInput, questionValidation, Session, shapeQuestion } from "@local/shared";
+import { DUMMY_ID, endpointsQuestion, LlmTask, noopSubmit, orDefault, Question, QuestionCreateInput, QuestionShape, questionTranslationValidation, QuestionUpdateInput, questionValidation, Session, shapeQuestion } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { useSubmitHelper } from "api/fetchWrapper";
-import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
-import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { TranslatedTextInput } from "components/inputs/TextInput/TextInput";
-import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useSubmitHelper } from "api/fetchWrapper.js";
+import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton.js";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput.js";
+import { TranslatedRichInput } from "components/inputs/RichInput/RichInput.js";
+import { TagSelector } from "components/inputs/TagSelector/TagSelector.js";
+import { TranslatedTextInput } from "components/inputs/TextInput/TextInput.js";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { SessionContext } from "contexts";
 import { Formik } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "hooks/tasks";
-import { useManagedObject } from "hooks/useManagedObject";
-import { useSaveToCache } from "hooks/useSaveToCache";
-import { useTranslatedFields } from "hooks/useTranslatedFields";
-import { useUpsertActions } from "hooks/useUpsertActions";
-import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { BaseForm } from "forms/BaseForm/BaseForm.js";
+import { useSaveToCache, useUpsertActions } from "hooks/forms.js";
+import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "hooks/tasks.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
+import { useTranslatedFields } from "hooks/useTranslatedFields.js";
+import { useUpsertFetch } from "hooks/useUpsertFetch.js";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
-import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { validateFormValues } from "utils/validateFormValues";
-import { QuestionFormProps, QuestionUpsertProps } from "../types";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools.js";
+import { validateFormValues } from "utils/validateFormValues.js";
+import { QuestionFormProps, QuestionUpsertProps } from "../types.js";
 
 export function questionInitialValues(
     session: Session | undefined,
@@ -101,8 +100,8 @@ function QuestionForm({
     } = useUpsertFetch<Question, QuestionCreateInput, QuestionUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointPostQuestion,
-        endpointUpdate: endpointPutQuestion,
+        endpointCreate: endpointsQuestion.createOne,
+        endpointUpdate: endpointsQuestion.updateOne,
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Question" });
 
@@ -231,7 +230,7 @@ export function QuestionUpsert({
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Question, QuestionShape>({
-        ...endpointGetQuestion,
+        ...endpointsQuestion.findOne,
         disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "Question",

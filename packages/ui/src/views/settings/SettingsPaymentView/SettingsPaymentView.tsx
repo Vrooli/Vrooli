@@ -7,7 +7,7 @@ import { CancelIcon, OpenInNewIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { ScrollBox } from "styles";
-import { SettingsPaymentViewProps } from "../types";
+import { SettingsPaymentViewProps } from "../types.js";
 
 export function SettingsPaymentView({
     display,

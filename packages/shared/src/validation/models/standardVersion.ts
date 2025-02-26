@@ -1,8 +1,14 @@
 import * as yup from "yup";
-import { StandardType } from "../../api/types";
-import { bool, description, enumToYup, id, jsonVariable, maxStrErr, minStrErr, name, opt, req, transRel, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
-import { resourceListValidation } from "./resourceList";
-import { standardValidation } from "./standard";
+import { StandardType } from "../../api/types.js";
+import { enumToYup } from "../utils/builders/convert.js";
+import { opt, req } from "../utils/builders/optionality.js";
+import { transRel } from "../utils/builders/rel.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { bool, description, id, jsonVariable, name, versionLabel, versionNotes } from "../utils/commonFields.js";
+import { maxStrErr, minStrErr } from "../utils/errors.js";
+import { type YupModel } from "../utils/types.js";
+import { resourceListValidation } from "./resourceList.js";
+import { standardValidation } from "./standard.js";
 
 const codeLanguage = yup.string().trim().removeEmptyString().min(1, minStrErr).max(128, maxStrErr);
 const standardDefault = yup.string().trim().removeEmptyString().max(2048, maxStrErr);

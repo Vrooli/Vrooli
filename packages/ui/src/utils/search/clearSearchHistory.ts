@@ -1,7 +1,7 @@
 import { Session } from "@local/shared";
-import { getCurrentUser } from "utils/authentication/session";
-import { getLocalStorageKeys } from "utils/localStorage";
-import { PubSub } from "utils/pubsub";
+import { getCurrentUser } from "utils/authentication/session.js";
+import { getLocalStorageKeys } from "utils/localStorage.js";
+import { PubSub } from "utils/pubsub.js";
 
 /**
  * Clears search history from all search bars

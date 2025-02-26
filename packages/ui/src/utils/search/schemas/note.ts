@@ -1,6 +1,6 @@
 import { endpointsNote, FormSchema, NoteSortBy } from "@local/shared";
-import { toParams } from "./base";
-import { bookmarksContainer, bookmarksFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
+import { toParams } from "./base.js";
+import { bookmarksContainer, bookmarksFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common.js";
 
 export function noteSearchSchema(): FormSchema {
     return {

@@ -1,6 +1,6 @@
 import { TEXT_FLAGS } from "../consts";
 import { type LexicalNode } from "../nodes/LexicalNode";
-import { TextFormatTransformer, TextFormatType } from "../types";
+import { TextFormatTransformer, TextFormatType } from "../types.js";
 import { $isNode } from "../utils";
 
 export const BOLD: TextFormatTransformer = {

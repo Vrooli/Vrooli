@@ -1,5 +1,8 @@
 import * as yup from "yup";
-import { bool, id, opt, req, YupModel, yupObj } from "../utils";
+import { opt, req } from "../utils/builders/optionality.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { bool, id } from "../utils/commonFields.js";
+import { type YupModel } from "../utils/types.js";
 
 const creditsUsedBeforeLimit = yup.number().integer().min(0).max(1000000);
 const absoluteMax = yup.number().integer().min(0).max(1000000);

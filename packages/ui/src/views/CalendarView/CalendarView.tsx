@@ -1,14 +1,14 @@
 import { calculateOccurrences, CalendarEvent, Schedule } from "@local/shared";
 import { Box, BoxProps, IconButton, styled, Tooltip, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { FullPageSpinner } from "components/Spinners/Spinners";
 import { SessionContext } from "contexts";
 import { add, endOfMonth, format, getDay, startOfMonth, startOfWeek } from "date-fns";
 import { useFindMany } from "hooks/useFindMany";
 import { useTabs } from "hooks/useTabs";
-import { useWindowSize } from "hooks/useWindowSize";
+import { useWindowSize } from "hooks/useWindowSize.js";
 import { AddIcon, ArrowLeftIcon, ArrowRightIcon, DayIcon, MonthIcon, TodayIcon, WeekIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Calendar, HeaderProps as CalendarHeaderProps, ToolbarProps as CalendarToolbarProps, dateFnsLocalizer, DateLocalizer, Navigate, SlotInfo, View, Views } from "react-big-calendar";
@@ -16,9 +16,9 @@ import "react-big-calendar/lib/css/react-big-calendar.css";
 import { useTranslation } from "react-i18next";
 import { bottomNavHeight, SideActionsButton } from "styles";
 import { PartialWithType } from "types";
-import { getCurrentUser } from "utils/authentication/session";
+import { getCurrentUser } from "utils/authentication/session.js";
 import { getDisplay } from "utils/display/listTools";
-import { getShortenedLabel, getUserLanguages, getUserLocale, loadLocale } from "utils/display/translationTools";
+import { getShortenedLabel, getUserLanguages, getUserLocale, loadLocale } from "utils/display/translationTools.js";
 import { calendarTabParams } from "utils/search/objectToSearch";
 import { ScheduleUpsert } from "views/objects/schedule";
 import { ScheduleForType } from "views/objects/schedule/types";
@@ -323,7 +323,7 @@ export function CalendarView({
                 before: dateRange.end.toISOString(),
             } : undefined,
             scheduleForUserId: getCurrentUser(session)?.id,
-            ...where(),
+            ...where(undefined),
         },
     });
     // Load more schedules when date range changes
@@ -517,7 +517,7 @@ export function CalendarView({
                     onClose={onClose}
                     title={t("Schedule", { count: 1 })}
                     titleBehaviorDesktop="ShowIn"
-                    below={<PageTabs
+                    below={<PageTabs<typeof calendarTabParams>
                         ariaLabel="calendar-tabs"
                         currTab={currTab}
                         fullWidth
@@ -526,6 +526,8 @@ export function CalendarView({
                     />}
                     sxsNavbar={navbarStyle}
                 />
+                {/* TODO Remove when weird type error is fixed */}
+                {/* @ts-expect-error Incompatible JSX type definitions */}
                 <Calendar
                     localizer={localizer}
                     longPressThreshold={20}

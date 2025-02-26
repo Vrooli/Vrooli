@@ -1,34 +1,34 @@
-import { CodeLanguage, CodeShape, CodeVersion, CommentFor, LINKS, ResourceListShape, ResourceList as ResourceListType, SearchVersionPageTabOption, Tag, TagShape, endpointGetCodeVersion, exists, getTranslation, noopSubmit } from "@local/shared";
+import { CodeLanguage, CodeShape, CodeVersion, CommentFor, LINKS, ResourceListShape, ResourceList as ResourceListType, SearchVersionPageTabOption, Tag, TagShape, endpointsCodeVersion, exists, getTranslation, noopSubmit } from "@local/shared";
 import { Box, Button, Divider, Stack, useTheme } from "@mui/material";
-import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
+import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton.js";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
-import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse.js";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { CodeInput } from "components/inputs/CodeInput/CodeInput";
+import { CodeInput } from "components/inputs/CodeInput/CodeInput.js";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
-import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { ResourceList } from "components/lists/ResourceList/ResourceList";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList.js";
+import { ResourceList } from "components/lists/ResourceList/ResourceList.js";
 import { TagList } from "components/lists/TagList/TagList";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { StatsCompact } from "components/text/StatsCompact/StatsCompact";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { SessionContext } from "contexts";
 import { Formik } from "formik";
-import { useObjectActions } from "hooks/objectActions";
-import { useManagedObject } from "hooks/useManagedObject";
+import { useObjectActions } from "hooks/objectActions.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
 import { AddIcon, EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { SideActionsButton } from "styles";
-import { ObjectAction } from "utils/actions/objectActions";
+import { ObjectAction } from "utils/actions/objectActions.js";
 import { firstString } from "utils/display/stringTools";
-import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
+import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools.js";
 import { smartContractInitialValues } from "../SmartContractUpsert/SmartContractUpsert";
-import { SmartContractViewProps } from "../types";
+import { SmartContractViewProps } from "../types.js";
 
 const actionsRowExclude = [ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp] as const;
 const codeLimitTo = [CodeLanguage.Javascript] as const;
@@ -45,7 +45,7 @@ export function SmartContractView({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     const { isLoading, object: existing, permissions, setObject: setCodeVersion } = useManagedObject<CodeVersion>({
-        ...endpointGetCodeVersion,
+        ...endpointsCodeVersion.findOne,
         objectType: "CodeVersion",
     });
 
@@ -147,7 +147,7 @@ export function SmartContractView({
                         sxs={{ titleContainer: { marginBottom: 1 } }}
                     >
                         <SearchExistingButton
-                            href={`${LINKS.SearchVersion}?type="${SearchVersionPageTabOption.RoutineVersion}"&codeVersionId="${existing.id}"`}
+                            href={`${LINKS.SearchVersion}?type="${SearchVersionPageTabOption.SmartContractVersion}"&codeVersionId="${existing.id}"`}
                             text={t("RoutinesConnected", { count: existing?.calledByRoutineVersionsCount ?? 0 })}
                         />
                         {permissions.canUpdate && <Button

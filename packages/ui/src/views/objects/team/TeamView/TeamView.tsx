@@ -1,22 +1,22 @@
-import { BookmarkFor, LINKS, ListObject, ResourceList as ResourceListType, Team, TeamPageTabOption, endpointGetTeam, getTranslation, uuidValidate } from "@local/shared";
+import { BookmarkFor, LINKS, ListObject, ResourceList as ResourceListType, Team, TeamPageTabOption, endpointsTeam, getTranslation, uuidValidate } from "@local/shared";
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
-import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
+import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { ResourceList } from "components/lists/ResourceList/ResourceList";
+import { ResourceList } from "components/lists/ResourceList/ResourceList.js";
 import { SearchList } from "components/lists/SearchList/SearchList";
 import { TextLoading } from "components/lists/TextLoading/TextLoading";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts";
-import { useObjectActions } from "hooks/objectActions";
+import { useObjectActions } from "hooks/objectActions.js";
 import { useFindMany } from "hooks/useFindMany";
-import { useManagedObject } from "hooks/useManagedObject";
+import { useManagedObject } from "hooks/useManagedObject.js";
 import { useTabs } from "hooks/useTabs";
 import { EditIcon, EllipsisIcon, ExportIcon, SearchIcon, TeamIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -26,10 +26,10 @@ import { BannerImageContainer, OverviewContainer, OverviewProfileAvatar, Overvie
 import { extractImageUrl } from "utils/display/imageTools";
 import { placeholderColor } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
-import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
+import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools.js";
+import { PubSub } from "utils/pubsub.js";
 import { teamTabParams } from "utils/search/objectToSearch";
-import { TeamViewProps } from "../types";
+import { TeamViewProps } from "../types.js";
 
 const scrollContainerId = "team-search-scroll";
 
@@ -45,7 +45,7 @@ export function TeamView({
     const [language, setLanguage] = useState<string>(getUserLanguages(session)[0]);
 
     const { isLoading, object: team, permissions, setObject: setTeam } = useManagedObject<Team>({
-        ...endpointGetTeam,
+        ...endpointsTeam.findOne,
         objectType: "Team",
     });
 
@@ -246,7 +246,7 @@ export function TeamView({
             </OverviewContainer>
             {/* View routines, members, standards, and projects associated with this team */}
             <Box sx={{ margin: "auto", maxWidth: `min(${breakpoints.values.sm}px, 100%)` }}>
-                <PageTabs
+                <PageTabs<typeof teamTabParams>
                     ariaLabel="team-tabs"
                     fullWidth
                     currTab={currTab}

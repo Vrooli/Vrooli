@@ -3,7 +3,7 @@ import { ListItem, ListItemButton, ListItemProps, ListItemText, Stack, Typograph
 import { OpenInNewIcon } from "icons";
 import { useCallback, useMemo } from "react";
 import { multiLineEllipsis } from "styles";
-import { DecisionViewProps } from "../types";
+import { DecisionViewProps } from "../types.js";
 
 type Decision = DecisionStep["options"][0] & {
     color: string;

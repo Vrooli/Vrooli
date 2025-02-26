@@ -3,7 +3,7 @@ import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { useTranslation } from "react-i18next";
 import { ScrollBox } from "styles";
-import { SettingsApiViewProps } from "../types";
+import { SettingsApiViewProps } from "../types.js";
 
 export function SettingsApiView({
     display,

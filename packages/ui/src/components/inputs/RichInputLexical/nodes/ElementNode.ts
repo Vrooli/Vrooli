@@ -1,10 +1,10 @@
-import { ELEMENT_FORMAT_TO_TYPE, ELEMENT_TYPE_TO_FORMAT } from "../consts";
-import { RangeSelection, internalMakeRangeSelection, moveSelectionPointToSibling } from "../selection";
-import { BaseSelection, ElementFormatType, NodeConstructorPayloads, NodeKey, NodeType, PointType, SerializedElementNode } from "../types";
-import { errorOnReadOnly, getActiveEditor } from "../updates";
-import { $getNodeByKey, $getSelection, $isNode, $isRangeSelection, $isRootOrShadowRoot, getNextSibling, getParent, getPreviousSibling, removeFromParent } from "../utils";
-import { LexicalNode } from "./LexicalNode";
-import { type TextNode } from "./TextNode";
+import { ELEMENT_FORMAT_TO_TYPE, ELEMENT_TYPE_TO_FORMAT } from "../consts.js";
+import { RangeSelection, internalMakeRangeSelection, moveSelectionPointToSibling } from "../selection.js";
+import { BaseSelection, ElementFormatType, NodeConstructorPayloads, NodeKey, NodeType, PointType, SerializedElementNode } from "../types.js";
+import { errorOnReadOnly, getActiveEditor } from "../updates.js";
+import { $getNodeByKey, $getSelection, $isNode, $isRangeSelection, $isRootOrShadowRoot, getNextSibling, getParent, getPreviousSibling, removeFromParent } from "../utils.js";
+import { LexicalNode } from "./LexicalNode.js";
+import { type TextNode } from "./TextNode.js";
 
 export class ElementNode extends LexicalNode {
     static __type: NodeType = "Element";

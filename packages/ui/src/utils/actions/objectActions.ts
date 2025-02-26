@@ -2,7 +2,7 @@ import { Bookmark, BookmarkFor, CommentFor, CopyResult, CopyType, DeleteType, Li
 import { ListMenuItemData } from "components/dialogs/types";
 import { ArrowDownIcon, ArrowUpIcon, BookmarkFilledIcon, BookmarkOutlineIcon, BranchIcon, CommentIcon, DeleteIcon, DonateIcon, EditIcon, ReportIcon, SearchIcon, ShareIcon, StatsIcon } from "icons";
 import { SvgComponent } from "types";
-import { checkIfLoggedIn } from "utils/authentication/session";
+import { checkIfLoggedIn } from "utils/authentication/session.js";
 import { getYou } from "utils/display/listTools";
 
 /**

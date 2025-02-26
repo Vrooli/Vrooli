@@ -1,7 +1,10 @@
-import { bool, id, opt, req, YupModel, yupObj } from "../utils";
-import { apiVersionValidation } from "./apiVersion";
-import { labelValidation } from "./label";
-import { tagValidation } from "./tag";
+import { opt, req } from "../utils/builders/optionality.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { bool, id } from "../utils/commonFields.js";
+import { type YupModel } from "../utils/types.js";
+import { apiVersionValidation } from "./apiVersion.js";
+import { labelValidation } from "./label.js";
+import { tagValidation } from "./tag.js";
 
 export const apiValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({

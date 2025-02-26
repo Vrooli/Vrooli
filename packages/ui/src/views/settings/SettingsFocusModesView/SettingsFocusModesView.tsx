@@ -1,24 +1,24 @@
 import { DeleteOneInput, DeleteType, endpointsActions, FocusMode, FocusModeFilterType, FocusModeStopCondition, LINKS, MaxObjects, noop, SessionUser, Success } from "@local/shared";
 import { Box, Button, Chip, Divider, IconButton, ListItem, ListItemProps, ListItemText, styled, Tooltip, Typography, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { FocusModeInfo, useFocusModesStore } from "components/inputs/FocusModeSelector/FocusModeSelector";
-import { TagSelectorBase } from "components/inputs/TagSelector/TagSelector";
+import { FocusModeInfo, useFocusModesStore } from "components/inputs/FocusModeSelector/FocusModeSelector.js";
+import { TagSelectorBase } from "components/inputs/TagSelector/TagSelector.js";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts";
-import { useLazyFetch } from "hooks/useLazyFetch";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
 import { AddIcon, DeleteIcon, FocusModeIcon, SaveIcon, WarningIcon } from "icons";
 import { memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { FormSection, multiLineEllipsis, ScrollBox } from "styles";
-import { getCurrentUser } from "utils/authentication/session";
+import { getCurrentUser } from "utils/authentication/session.js";
 import { getDisplay } from "utils/display/listTools";
-import { PubSub } from "utils/pubsub";
+import { PubSub } from "utils/pubsub.js";
 import { FocusModeUpsert } from "views/objects/focusMode";
-import { SettingsFocusModesViewProps } from "../types";
+import { SettingsFocusModesViewProps } from "../types.js";
 
 const TitleStack = styled(Box)(({ theme }) => ({
     display: "flex",

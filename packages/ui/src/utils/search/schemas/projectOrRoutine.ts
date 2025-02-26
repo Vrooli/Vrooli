@@ -1,6 +1,6 @@
 import { endpointsUnions, FormSchema, InputType, ProjectOrRoutineSortBy } from "@local/shared";
-import { toParams } from "./base";
-import { bookmarksContainer, bookmarksFields, complexityContainer, complexityFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, simplicityContainer, simplicityFields, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
+import { toParams } from "./base.js";
+import { bookmarksContainer, bookmarksFields, complexityContainer, complexityFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, simplicityContainer, simplicityFields, tagsContainer, tagsFields, votesContainer, votesFields } from "./common.js";
 
 export function projectOrRoutineSearchSchema(): FormSchema {
     return {

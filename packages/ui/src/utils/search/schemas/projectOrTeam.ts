@@ -1,6 +1,6 @@
 import { endpointsUnions, FormSchema, InputType, ProjectOrTeamSortBy } from "@local/shared";
-import { toParams } from "./base";
-import { bookmarksContainer, bookmarksFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields } from "./common";
+import { toParams } from "./base.js";
+import { bookmarksContainer, bookmarksFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields } from "./common.js";
 
 export function projectOrTeamSearchSchema(): FormSchema {
     return {

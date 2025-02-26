@@ -1,9 +1,9 @@
-import { GqlModelType, ListObject, SearchType, getObjectUrlBase } from "@local/shared";
+import { ListObject, ModelType, getObjectUrlBase } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { useFindMany } from "hooks/useFindMany";
 import { useTabs } from "hooks/useTabs";
 import { AddIcon } from "icons";
@@ -12,7 +12,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { SideActionsButton } from "styles";
 import { historyTabParams } from "utils/search/objectToSearch";
-import { HistoryViewProps } from "../types";
+import { HistoryViewProps } from "../types.js";
 
 const scrollContainerId = "history-search-scroll";
 
@@ -36,11 +36,11 @@ export function HistoryView({
         controlsUrl: display === "page",
         searchType,
         take: 20,
-        where: where(),
+        where: where(undefined),
     });
 
     const handleAddBookmarkListClick = useCallback(function handleAddBookmarkListClickCallback() {
-        setLocation(`${getObjectUrlBase({ __typename: GqlModelType.BookmarkList })}/add`);
+        setLocation(`${getObjectUrlBase({ __typename: ModelType.BookmarkList })}/add`);
     }, [setLocation]);
 
     return (
@@ -50,7 +50,7 @@ export function HistoryView({
                 onClose={onClose}
                 title={currTab.label}
                 titleBehaviorDesktop="ShowIn"
-                below={<PageTabs
+                below={<PageTabs<typeof historyTabParams>
                     ariaLabel="history-tabs"
                     currTab={currTab}
                     fullWidth
@@ -66,7 +66,7 @@ export function HistoryView({
                 />
             }
             {
-                searchType === SearchType.BookmarkList && <SideActionsButtons display={display}>
+                searchType === "BookmarkList" && <SideActionsButtons display={display}>
                     <SideActionsButton
                         aria-label={t("Add")}
                         onClick={handleAddBookmarkListClick}

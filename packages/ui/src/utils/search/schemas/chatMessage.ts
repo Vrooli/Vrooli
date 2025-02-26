@@ -1,6 +1,6 @@
 import { ChatMessageSortBy, FormSchema, endpointsChatMessage } from "@local/shared";
-import { toParams } from "./base";
-import { searchFormLayout } from "./common";
+import { toParams } from "./base.js";
+import { searchFormLayout } from "./common.js";
 
 export function chatMessageSearchSchema(): FormSchema {
     return {

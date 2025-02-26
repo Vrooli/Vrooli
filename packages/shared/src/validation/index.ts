@@ -4,7 +4,7 @@
  * The client uses validation to display errors to the user, and to simplify forms 
  * by using formik.
  */
-export * from "./forms";
-export * from "./models";
-export * from "./utils";
+export * from "./forms/index.js";
+export * from "./models/index.js";
+export * from "./utils/index.js";
 

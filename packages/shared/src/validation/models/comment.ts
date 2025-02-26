@@ -1,6 +1,12 @@
 import * as yup from "yup";
-import { CommentFor } from "../../api/types";
-import { enumToYup, id, maxStrErr, minStrErr, opt, req, transRel, YupModel, yupObj } from "../utils";
+import { CommentFor } from "../../api/types.js";
+import { enumToYup } from "../utils/builders/convert.js";
+import { opt, req } from "../utils/builders/optionality.js";
+import { transRel } from "../utils/builders/rel.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { id } from "../utils/commonFields.js";
+import { maxStrErr, minStrErr } from "../utils/errors.js";
+import { type YupModel } from "../utils/types.js";
 
 const createdFor = enumToYup(CommentFor);
 const text = yup.string().trim().removeEmptyString().min(1, minStrErr).max(32768, maxStrErr);

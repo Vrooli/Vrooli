@@ -1,10 +1,10 @@
-import { LexicalEditor } from "../editor";
-import { getTable } from "../selection";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, InsertTableCommandPayloadHeaders, NodeType, SerializedElementNode, SerializedTableNode, TableCellHeaderStates, TableDOMCell, TableDOMTable } from "../types";
-import { $createNode, $getNearestNodeFromDOMNode, $isNode, isHTMLElement } from "../utils";
-import { ElementNode } from "./ElementNode";
-import { type TableCellNode } from "./TableCellNode";
-import { type TableRowNode } from "./TableRowNode";
+import { LexicalEditor } from "../editor.js";
+import { getTable } from "../selection.js";
+import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, InsertTableCommandPayloadHeaders, NodeType, SerializedElementNode, SerializedTableNode, TableCellHeaderStates, TableDOMCell, TableDOMTable } from "../types.js";
+import { $createNode, $getNearestNodeFromDOMNode, $isNode, isHTMLElement } from "../utils.js";
+import { ElementNode } from "./ElementNode.js";
+import { type TableCellNode } from "./TableCellNode.js";
+import { type TableRowNode } from "./TableRowNode.js";
 
 export class TableNode extends ElementNode {
     static __type: NodeType = "Table";

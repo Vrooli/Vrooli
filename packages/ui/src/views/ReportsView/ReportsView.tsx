@@ -1,33 +1,33 @@
-import { FindByIdInput, FindVersionInput, LINKS, ListObject, Report, ReportFor, ReportSearchInput, ReportStatus, VisibilityType, endpointGetApiVersion, endpointGetChatMessage, endpointGetCodeVersion, endpointGetComment, endpointGetIssue, endpointGetNoteVersion, endpointGetPost, endpointGetProjectVersion, endpointGetRoutineVersion, endpointGetStandardVersion, endpointGetTag, endpointGetTeam, endpointGetUser, getObjectUrl, noop, uuidValidate } from "@local/shared";
+import { FindByIdInput, FindVersionInput, LINKS, ListObject, Report, ReportFor, ReportSearchInput, ReportStatus, VisibilityType, endpointsApiVersion, endpointsChatMessage, endpointsCodeVersion, endpointsComment, endpointsIssue, endpointsNoteVersion, endpointsPost, endpointsProjectVersion, endpointsRoutineVersion, endpointsStandardVersion, endpointsTag, endpointsTeam, endpointsUser, getObjectUrl, noop, uuidValidate } from "@local/shared";
 import { Box, Button, Typography, styled, useTheme } from "@mui/material";
-import { ServerResponseParser } from "api/responseParser";
+import { ServerResponseParser } from "api/responseParser.js";
 import { SortButton } from "components/buttons/SortButton/SortButton";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
+import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
 import { ObjectListItem } from "components/lists/ObjectList/ObjectList";
 import { ReportListItem } from "components/lists/ReportListItem/ReportListItem";
-import { ObjectListActions } from "components/lists/types";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { ObjectListActions } from "components/lists/types.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { SessionContext } from "contexts";
-import { useInfiniteScroll } from "hooks/gestures";
-import { useObjectActions } from "hooks/objectActions";
-import { useDimensions } from "hooks/useDimensions";
+import { goBack } from "hooks/forms.js";
+import { useInfiniteScroll } from "hooks/gestures.js";
+import { useObjectActions } from "hooks/objectActions.js";
+import { useDimensions } from "hooks/useDimensions.js";
 import { useFindMany } from "hooks/useFindMany";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { fetchDataUsingUrl } from "hooks/useManagedObject";
-import { useObjectContextMenu } from "hooks/useObjectContextMenu";
-import { goBack } from "hooks/useUpsertActions";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
+import { fetchDataUsingUrl } from "hooks/useManagedObject.js";
+import { useObjectContextMenu } from "hooks/useObjectContextMenu.js";
 import { ReportIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ScrollBox } from "styles";
 import { ArgsType } from "types";
-import { getCurrentUser } from "utils/authentication/session";
+import { getCurrentUser } from "utils/authentication/session.js";
 import { getDisplay, getYou } from "utils/display/listTools";
-import { getCookiePartialData, removeCookiePartialData, setCookiePartialData } from "utils/localStorage";
+import { getCookiePartialData, removeCookiePartialData, setCookiePartialData } from "utils/localStorage.js";
 import { UrlInfo, parseSingleItemUrl } from "utils/navigation/urlTools";
-import { PubSub } from "utils/pubsub";
+import { PubSub } from "utils/pubsub.js";
 import { ReportUpsert } from "views/objects/report";
 
 const scrollContainerId = "reports-search-scroll";
@@ -43,7 +43,7 @@ const reportForLinks: Record<ReportFor, string | string[]> = {
     NoteVersion: LINKS.Note,
     Post: LINKS.Post,
     ProjectVersion: LINKS.Project,
-    RoutineVersion: LINKS.Routine,
+    RoutineVersion: [LINKS.RoutineMultiStep, LINKS.RoutineSingleStep],
     StandardVersion: [LINKS.DataStructure],
     Tag: LINKS.Tag,
     Team: LINKS.Team,
@@ -53,23 +53,22 @@ const reportForLinks: Record<ReportFor, string | string[]> = {
 type EndpointData = {
     endpoint: string;
     method: string;
-    tag: string;
 };
 
 const reportForEndpoints: Record<ReportFor, EndpointData> = {
-    ApiVersion: endpointGetApiVersion,
-    ChatMessage: endpointGetChatMessage,
-    CodeVersion: endpointGetCodeVersion,
-    Comment: endpointGetComment,
-    Issue: endpointGetIssue,
-    NoteVersion: endpointGetNoteVersion,
-    Post: endpointGetPost,
-    ProjectVersion: endpointGetProjectVersion,
-    RoutineVersion: endpointGetRoutineVersion,
-    StandardVersion: endpointGetStandardVersion,
-    Tag: endpointGetTag,
-    Team: endpointGetTeam,
-    User: endpointGetUser,
+    ApiVersion: endpointsApiVersion.findOne,
+    ChatMessage: endpointsChatMessage.findOne,
+    CodeVersion: endpointsCodeVersion.findOne,
+    Comment: endpointsComment.findOne,
+    Issue: endpointsIssue.findOne,
+    NoteVersion: endpointsNoteVersion.findOne,
+    Post: endpointsPost.findOne,
+    ProjectVersion: endpointsProjectVersion.findOne,
+    RoutineVersion: endpointsRoutineVersion.findOne,
+    StandardVersion: endpointsStandardVersion.findOne,
+    Tag: endpointsTag.findOne,
+    Team: endpointsTeam.findOne,
+    User: endpointsUser.findOne,
 };
 
 const reportForSearchFields: Record<ReportFor, keyof ReportSearchInput> = {

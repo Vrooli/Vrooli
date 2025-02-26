@@ -1,37 +1,36 @@
-import { DUMMY_ID, DeleteOneInput, DeleteType, ListObject, LlmTask, ProjectShape, ProjectVersion, ProjectVersionCreateInput, ProjectVersionDirectoryShape, ProjectVersionShape, ProjectVersionUpdateInput, Session, Success, endpointGetProjectVersion, endpointPostDeleteOne, endpointPostProjectVersion, endpointPutProjectVersion, noopSubmit, orDefault, projectVersionTranslationValidation, projectVersionValidation, shapeProjectVersion } from "@local/shared";
+import { DUMMY_ID, DeleteOneInput, DeleteType, ListObject, LlmTask, ProjectShape, ProjectVersion, ProjectVersionCreateInput, ProjectVersionDirectoryShape, ProjectVersionShape, ProjectVersionUpdateInput, Session, Success, endpointsActions, endpointsProjectVersion, noopSubmit, orDefault, projectVersionTranslationValidation, projectVersionValidation, shapeProjectVersion } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
-import { fetchLazyWrapper, useSubmitHelper } from "api/fetchWrapper";
-import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
-import { TranslatedTextInput } from "components/inputs/TextInput/TextInput";
-import { VersionInput } from "components/inputs/VersionInput/VersionInput";
+import { fetchLazyWrapper, useSubmitHelper } from "api/fetchWrapper.js";
+import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton.js";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput.js";
+import { TranslatedRichInput } from "components/inputs/RichInput/RichInput.js";
+import { TranslatedTextInput } from "components/inputs/TextInput/TextInput.js";
+import { VersionInput } from "components/inputs/VersionInput/VersionInput.js";
 import { DirectoryList } from "components/lists/DirectoryList/DirectoryList";
-import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { EditableTitle } from "components/text/EditableTitle/EditableTitle";
 import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { UseAutoFillProps, getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { useManagedObject } from "hooks/useManagedObject";
-import { useSaveToCache } from "hooks/useSaveToCache";
-import { useTranslatedFields } from "hooks/useTranslatedFields";
-import { useUpsertActions } from "hooks/useUpsertActions";
-import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { useWindowSize } from "hooks/useWindowSize";
+import { BaseForm } from "forms/BaseForm/BaseForm.js";
+import { useSaveToCache, useUpsertActions } from "hooks/forms.js";
+import { UseAutoFillProps, getAutoFillTranslationData, useAutoFill } from "hooks/tasks.js";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
+import { useTranslatedFields } from "hooks/useTranslatedFields.js";
+import { useUpsertFetch } from "hooks/useUpsertFetch.js";
+import { useWindowSize } from "hooks/useWindowSize.js";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
-import { getCurrentUser } from "utils/authentication/session";
+import { getCurrentUser } from "utils/authentication/session.js";
 import { getDisplay } from "utils/display/listTools";
-import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
-import { validateFormValues } from "utils/validateFormValues";
-import { ProjectCrudProps, ProjectFormProps } from "../types";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools.js";
+import { PubSub } from "utils/pubsub.js";
+import { validateFormValues } from "utils/validateFormValues.js";
+import { ProjectCrudProps, ProjectFormProps } from "../types.js";
 
 function projectInitialValues(
     session: Session | undefined,
@@ -137,13 +136,13 @@ function ProjectForm({
     } = useUpsertFetch<ProjectVersion, ProjectVersionCreateInput, ProjectVersionUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointPostProjectVersion,
-        endpointUpdate: endpointPutProjectVersion,
+        endpointCreate: endpointsProjectVersion.createOne,
+        endpointUpdate: endpointsProjectVersion.updateOne,
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "ProjectVersion" });
 
     // Handle delete
-    const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
+    const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
     const handleDelete = useCallback(function handleDeleteCallback() {
         function performDelete() {
             fetchLazyWrapper<DeleteOneInput, Success>({
@@ -259,7 +258,6 @@ function ProjectForm({
         );
     }, [disabled, handleAddLanguage, handleDeleteLanguage, language, languages, setLanguage, t, versions]);
 
-
     return (
         <MaybeLargeDialog
             display={display}
@@ -331,7 +329,7 @@ export function ProjectCrud({
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<ProjectVersion, ProjectVersionShape>({
-        ...endpointGetProjectVersion,
+        ...endpointsProjectVersion.findOne,
         disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "ProjectVersion",

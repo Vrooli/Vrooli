@@ -1,16 +1,16 @@
 import { endpointsMeeting, Meeting } from "@local/shared";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { SessionContext } from "contexts";
-import { useObjectActions } from "hooks/objectActions";
-import { useManagedObject } from "hooks/useManagedObject";
+import { useObjectActions } from "hooks/objectActions.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
-import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
-import { MeetingViewProps } from "../types";
+import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools.js";
+import { MeetingViewProps } from "../types.js";
 
 export function MeetingView({
     display,

@@ -1,20 +1,20 @@
 import { endpointsUser, ProfileUpdateInput, profileValidation, User } from "@local/shared";
 import { Box, styled, Typography } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsToggleListItem } from "components/lists/SettingsToggleListItem/SettingsToggleListItem";
 import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Formik, FormikHelpers, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useLazyFetch } from "hooks/useLazyFetch";
+import { BaseForm } from "forms/BaseForm/BaseForm.js";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
 import { useProfileQuery } from "hooks/useProfileQuery";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollBox } from "styles";
-import { PubSub } from "utils/pubsub";
-import { SettingsPrivacyFormProps, SettingsPrivacyViewProps } from "../types";
+import { PubSub } from "utils/pubsub.js";
+import { SettingsPrivacyFormProps, SettingsPrivacyViewProps } from "../types.js";
 
 const PrivateWarningText = styled(Typography)(({ theme }) => ({
     // eslint-disable-next-line no-magic-numbers

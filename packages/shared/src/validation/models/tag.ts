@@ -1,4 +1,8 @@
-import { bool, description, opt, req, tag, transRel, YupModel, yupObj } from "../utils";
+import { opt, req } from "../utils/builders/optionality.js";
+import { transRel } from "../utils/builders/rel.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { bool, description, tag } from "../utils/commonFields.js";
+import { type YupModel } from "../utils/types.js";
 
 export const tagTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({

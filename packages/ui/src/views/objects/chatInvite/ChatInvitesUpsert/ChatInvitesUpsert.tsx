@@ -1,20 +1,20 @@
-import { ChatInvite, ChatInviteCreateInput, ChatInviteShape, ChatInviteUpdateInput, chatInviteValidation, endpointPostChatInvites, endpointPutChatInvites, noop, noopSubmit, shapeChatInvite, validateAndGetYupErrors } from "@local/shared";
+import { ChatInvite, ChatInviteCreateInput, ChatInviteShape, ChatInviteUpdateInput, chatInviteValidation, endpointsChatInvite, noop, noopSubmit, shapeChatInvite, validateAndGetYupErrors } from "@local/shared";
 import { Box, Typography, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { RichInputBase } from "components/inputs/RichInput/RichInput";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
+import { RichInputBase } from "components/inputs/RichInput/RichInput.js";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { Formik } from "formik";
+import { useUpsertActions } from "hooks/forms.js";
 import { useHistoryState } from "hooks/useHistoryState";
-import { useUpsertActions } from "hooks/useUpsertActions";
-import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { useWindowSize } from "hooks/useWindowSize";
+import { useUpsertFetch } from "hooks/useUpsertFetch.js";
+import { useWindowSize } from "hooks/useWindowSize.js";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { PubSub } from "utils/pubsub";
-import { ChatInvitesFormProps, ChatInvitesUpsertProps } from "../types";
+import { PubSub } from "utils/pubsub.js";
+import { ChatInvitesFormProps, ChatInvitesUpsertProps } from "../types.js";
 
 function transformChatInviteValues(values: ChatInviteShape[], existing: ChatInviteShape[], isCreate: boolean) {
     return isCreate ?
@@ -74,8 +74,8 @@ function ChatInvitesForm({
     } = useUpsertFetch<ChatInvite[], ChatInviteCreateInput[], ChatInviteUpdateInput[]>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointPostChatInvites,
-        endpointUpdate: endpointPutChatInvites,
+        endpointCreate: endpointsChatInvite.createOne,
+        endpointUpdate: endpointsChatInvite.updateOne,
     });
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
 

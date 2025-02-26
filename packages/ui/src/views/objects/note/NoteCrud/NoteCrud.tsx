@@ -1,41 +1,40 @@
-import { DUMMY_ID, DeleteOneInput, DeleteType, ListObject, LlmTask, NoteVersion, NoteVersionCreateInput, NoteVersionShape, NoteVersionUpdateInput, OwnerShape, Session, Success, endpointGetNoteVersion, endpointPostDeleteOne, endpointPostNoteVersion, endpointPutNoteVersion, noopSubmit, noteVersionTranslationValidation, noteVersionValidation, orDefault, shapeNoteVersion } from "@local/shared";
+import { DUMMY_ID, DeleteOneInput, DeleteType, ListObject, LlmTask, NoteVersion, NoteVersionCreateInput, NoteVersionShape, NoteVersionUpdateInput, OwnerShape, Session, Success, endpointsActions, endpointsNoteVersion, noopSubmit, noteVersionTranslationValidation, noteVersionValidation, orDefault, shapeNoteVersion } from "@local/shared";
 import { Box, IconButton, Tooltip, styled, useTheme } from "@mui/material";
-import { fetchLazyWrapper, useSubmitHelper } from "api/fetchWrapper";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { fetchLazyWrapper, useSubmitHelper } from "api/fetchWrapper.js";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
 import { EllipsisActionButton } from "components/buttons/EllipsisActionButton/EllipsisActionButton";
-import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
-import { TranslatedTextInput } from "components/inputs/TextInput/TextInput";
+import { TranslatedRichInput } from "components/inputs/RichInput/RichInput.js";
+import { TranslatedTextInput } from "components/inputs/TextInput/TextInput.js";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
-import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { EditableTitle } from "components/text/EditableTitle/EditableTitle";
 import { ActiveChatContext, SessionContext } from "contexts";
 import { Formik } from "formik";
-import { BaseForm, InnerForm } from "forms/BaseForm/BaseForm";
-import { useObjectActions } from "hooks/objectActions";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { useManagedObject } from "hooks/useManagedObject";
-import { useSaveToCache } from "hooks/useSaveToCache";
-import { useTranslatedFields } from "hooks/useTranslatedFields";
-import { useUpsertActions } from "hooks/useUpsertActions";
-import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { useWindowSize } from "hooks/useWindowSize";
+import { BaseForm, InnerForm } from "forms/BaseForm/BaseForm.js";
+import { useSaveToCache, useUpsertActions } from "hooks/forms.js";
+import { useObjectActions } from "hooks/objectActions.js";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
+import { useTranslatedFields } from "hooks/useTranslatedFields.js";
+import { useUpsertFetch } from "hooks/useUpsertFetch.js";
+import { useWindowSize } from "hooks/useWindowSize.js";
 import { MagicIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { FormContainer, FormSection, ScrollBox } from "styles";
-import { ObjectAction } from "utils/actions/objectActions";
-import { getCurrentUser } from "utils/authentication/session";
+import { ObjectAction } from "utils/actions/objectActions.js";
+import { getCurrentUser } from "utils/authentication/session.js";
 import { taskToTaskInfo } from "utils/display/chatTools";
 import { getDisplay } from "utils/display/listTools";
-import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
-import { validateFormValues } from "utils/validateFormValues";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools.js";
+import { PubSub } from "utils/pubsub.js";
+import { validateFormValues } from "utils/validateFormValues.js";
 import { NoteCrudProps } from "views/objects/note/types";
-import { NoteFormProps } from "../types";
+import { NoteFormProps } from "../types.js";
 
 const sideActionButtonsExclude = [ObjectAction.Delete, ObjectAction.Edit] as const;
 
@@ -79,7 +78,7 @@ function transformNoteVersionValues(values: NoteVersionShape, existing: NoteVers
     return isCreate ? shapeNoteVersion.create(values) : shapeNoteVersion.update(existing, values);
 }
 
-const OuterFormBox = styled(Box)(({ theme }) => ({
+const OuterFormBox = styled(Box)(() => ({
     display: "flex",
     flexDirection: "column",
     height: "100vh",
@@ -129,8 +128,8 @@ function NoteForm({
     } = useUpsertFetch<NoteVersion, NoteVersionCreateInput, NoteVersionUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointPostNoteVersion,
-        endpointUpdate: endpointPutNoteVersion,
+        endpointCreate: endpointsNoteVersion.createOne,
+        endpointUpdate: endpointsNoteVersion.updateOne,
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "NoteVersion" });
 
@@ -145,8 +144,6 @@ function NoteForm({
     });
 
     const {
-        handleAddLanguage,
-        handleDeleteLanguage,
         language,
         languages,
         setLanguage,
@@ -164,7 +161,7 @@ function NoteForm({
     });
 
     // Handle delete
-    const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
+    const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
     const handleDelete = useCallback(() => {
         function performDelete() {
             fetchLazyWrapper<DeleteOneInput, Success>({
@@ -407,7 +404,7 @@ export function NoteCrud({
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<NoteVersion, NoteVersionShape>({
-        ...endpointGetNoteVersion,
+        ...endpointsNoteVersion.findOne,
         disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "NoteVersion",

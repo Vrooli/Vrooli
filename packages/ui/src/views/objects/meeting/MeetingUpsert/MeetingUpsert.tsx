@@ -1,24 +1,23 @@
-import { DUMMY_ID, endpointGetMeeting, endpointPostMeeting, endpointPutMeeting, Meeting, MeetingCreateInput, MeetingShape, MeetingUpdateInput, meetingValidation, noopSubmit, orDefault, Schedule, Session, shapeMeeting } from "@local/shared";
+import { DUMMY_ID, endpointsMeeting, Meeting, MeetingCreateInput, MeetingShape, MeetingUpdateInput, meetingValidation, noopSubmit, orDefault, Schedule, Session, shapeMeeting } from "@local/shared";
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
-import { useSubmitHelper } from "api/fetchWrapper";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { useSubmitHelper } from "api/fetchWrapper.js";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useManagedObject } from "hooks/useManagedObject";
-import { useSaveToCache } from "hooks/useSaveToCache";
-import { useUpsertActions } from "hooks/useUpsertActions";
-import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { BaseForm } from "forms/BaseForm/BaseForm.js";
+import { useSaveToCache, useUpsertActions } from "hooks/forms.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
+import { useUpsertFetch } from "hooks/useUpsertFetch.js";
 import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getUserLanguages } from "utils/display/translationTools";
-import { validateFormValues } from "utils/validateFormValues";
+import { getUserLanguages } from "utils/display/translationTools.js";
+import { validateFormValues } from "utils/validateFormValues.js";
 import { ScheduleUpsert } from "views/objects/schedule";
-import { MeetingFormProps, MeetingUpsertProps } from "../types";
+import { MeetingFormProps, MeetingUpsertProps } from "../types.js";
 
 
 export function meetingInitialValues(
@@ -105,8 +104,8 @@ function MeetingForm({
     } = useUpsertFetch<Meeting, MeetingCreateInput, MeetingUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointPostMeeting,
-        endpointUpdate: endpointPutMeeting,
+        endpointCreate: endpointsMeeting.createOne,
+        endpointUpdate: endpointsMeeting.updateOne,
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Meeting" });
 
@@ -251,7 +250,7 @@ export function MeetingUpsert({
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Meeting, MeetingShape>({
-        ...endpointGetMeeting,
+        ...endpointsMeeting.findOne,
         disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "Meeting",

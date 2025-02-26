@@ -1,20 +1,20 @@
 import { convertToDot, valueFromDot } from "@local/shared";
 import { Box, styled } from "@mui/material";
 import privacyMarkdown from "assets/policy/privacy.md";
-import { PageContainer } from "components/Page/Page";
+import { PageContainer } from "components/Page/Page.js";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { Footer } from "components/navigation/Footer/Footer";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { Footer } from "components/navigation/Footer/Footer.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { useMarkdown } from "hooks/useMarkdown";
 import { PageTab, useTabs } from "hooks/useTabs";
 import { ChangeEvent, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ScrollBox } from "styles";
-import { BUSINESS_DATA } from "utils/consts";
-import { PolicyTabsInfo, policyTabParams } from "utils/search/objectToSearch";
+import { BUSINESS_DATA } from "utils/consts.js";
+import { PolicyTabsInfo, TabParamBase, policyTabParams } from "utils/search/objectToSearch";
 import { MarkdownDisplay } from "../../components/text/MarkdownDisplay/MarkdownDisplay";
-import { PrivacyPolicyViewProps, TermsViewProps } from "../types";
+import { PrivacyPolicyViewProps, TermsViewProps } from "../types.js";
 
 export enum PolicyTabOption {
     Privacy = "Privacy",
@@ -55,7 +55,7 @@ export function PrivacyPolicyView({
     const content = useMarkdown(privacyMarkdown, injectBusinessData);
 
     const { currTab, tabs } = useTabs({ id: "privacy-tabs", tabParams: policyTabParams, defaultTab: PolicyTabOption.Privacy, display: "dialog" });
-    const handleTabChange = useCallback((event: ChangeEvent<unknown>, tab: PageTab<PolicyTabsInfo>) => {
+    const handleTabChange = useCallback((event: ChangeEvent<unknown>, tab: PageTab<TabParamBase<PolicyTabsInfo>>) => {
         event.preventDefault();
         setLocation(tab.href ?? "", { replace: true });
     }, [setLocation]);
@@ -69,7 +69,7 @@ export function PrivacyPolicyView({
                     title={t("Privacy")}
                     titleBehaviorDesktop="Hide"
                     titleBehaviorMobile="Hide"
-                    below={<PageTabs
+                    below={<PageTabs<typeof policyTabParams>
                         ariaLabel="privacy policy and terms tabs"
                         currTab={currTab}
                         fullWidth
@@ -96,7 +96,7 @@ export function TermsView({
     const content = useMarkdown(privacyMarkdown, injectBusinessData);
 
     const { currTab, tabs } = useTabs({ id: "terms-tabs", tabParams: policyTabParams, defaultTab: PolicyTabOption.Terms, display: "dialog" });
-    const handleTabChange = useCallback((event: ChangeEvent<unknown>, tab: PageTab<PolicyTabsInfo>) => {
+    const handleTabChange = useCallback((event: ChangeEvent<unknown>, tab: PageTab<TabParamBase<PolicyTabsInfo>>) => {
         event.preventDefault();
         setLocation(tab.href ?? "", { replace: true });
     }, [setLocation]);
@@ -110,7 +110,7 @@ export function TermsView({
                     title={t("Terms")}
                     titleBehaviorDesktop="Hide"
                     titleBehaviorMobile="Hide"
-                    below={<PageTabs
+                    below={<PageTabs<typeof policyTabParams>
                         ariaLabel="privacy policy and terms tabs"
                         currTab={currTab}
                         fullWidth

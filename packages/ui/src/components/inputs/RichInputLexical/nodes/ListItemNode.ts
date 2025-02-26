@@ -1,10 +1,10 @@
-import { RangeSelection } from "../selection";
-import { BaseSelection, DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, NodeConstructorPayloads, NodeKey, NodeType, SerializedListItemNode } from "../types";
-import { $createNode, $isNode, $isRangeSelection, append, getNextSibling, getNextSiblings, getParent, getPreviousSibling, getPreviousSiblings, isHTMLElement, isNestedListNode } from "../utils";
-import { ElementNode } from "./ElementNode";
-import { type LexicalNode } from "./LexicalNode";
-import { mergeLists, type ListNode } from "./ListNode";
-import { type ParagraphNode } from "./ParagraphNode";
+import { RangeSelection } from "../selection.js";
+import { BaseSelection, DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, NodeConstructorPayloads, NodeKey, NodeType, SerializedListItemNode } from "../types.js";
+import { $createNode, $isNode, $isRangeSelection, append, getNextSibling, getNextSiblings, getParent, getPreviousSibling, getPreviousSiblings, isHTMLElement, isNestedListNode } from "../utils.js";
+import { ElementNode } from "./ElementNode.js";
+import { type LexicalNode } from "./LexicalNode.js";
+import { mergeLists, type ListNode } from "./ListNode.js";
+import { type ParagraphNode } from "./ParagraphNode.js";
 
 export class ListItemNode extends ElementNode {
     static __type: NodeType = "ListItem";

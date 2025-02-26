@@ -1,8 +1,8 @@
-import { GqlModelType, LINKS, ResourceUsedFor } from "@local/shared";
+import { LINKS, ModelType, ResourceUsedFor } from "@local/shared";
 import { Avatar, Palette } from "@mui/material";
 import { ApiIcon, ArticleIcon, AwardIcon, BookmarkFilledIcon, BotIcon, CommentIcon, CreateIcon, DefaultSocialIcon, DonateIcon, DownloadIcon, FacebookIcon, GridIcon, HelpIcon, HistoryIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, MonthIcon, NoteIcon, NotificationsAllIcon, ObjectIcon, PremiumIcon, ProjectIcon, ProposalIcon, RedditIcon, ReminderIcon, ReportIcon, ResearchIcon, RoutineIcon, ScheduleIcon, SearchIcon, SettingsIcon, SmartContractIcon, SocialVideoIcon, StatsIcon, TeamIcon, TerminalIcon, UserIcon, WebsiteIcon, XIcon, YouTubeIcon } from "icons";
 import { SvgComponent } from "types";
-import { getCookiePartialData } from "utils/localStorage";
+import { getCookiePartialData } from "utils/localStorage.js";
 import { parseSingleItemUrl } from "utils/navigation/urlTools";
 import { extractImageUrl } from "./imageTools";
 import { getDisplay, placeholderColor } from "./listTools";
@@ -59,7 +59,8 @@ const LinkIconMap: { [key in LINKS]?: SvgComponent } = {
     [LINKS.Question]: HelpIcon,
     [LINKS.Reminder]: ReminderIcon,
     [LINKS.Report]: ReportIcon,
-    [LINKS.Routine]: RoutineIcon,
+    [LINKS.RoutineMultiStep]: RoutineIcon,
+    [LINKS.RoutineSingleStep]: RoutineIcon,
     [LINKS.Search]: SearchIcon,
     [LINKS.Settings]: SettingsIcon,
     [LINKS.SmartContract]: SmartContractIcon,
@@ -67,7 +68,7 @@ const LinkIconMap: { [key in LINKS]?: SvgComponent } = {
     [LINKS.Team]: TeamIcon,
 };
 
-const getRoute = (pathname: string): LINKS | undefined => {
+function getRoute(pathname: string): LINKS | undefined {
     const pathSegments = pathname.split("/").filter(segment => segment !== "");
     for (const key of Object.keys(LinkIconMap)) {
         const keySegments = key.split("/").filter(segment => segment !== "");
@@ -81,7 +82,7 @@ const getRoute = (pathname: string): LINKS | undefined => {
         }
     }
     return undefined;
-};
+}
 
 /**
  * Maps resource type to icon
@@ -89,7 +90,7 @@ const getRoute = (pathname: string): LINKS | undefined => {
  * @param link Resource's link, to check if it is a social media link
  * @returns Icon to display
  */
-export const getResourceIcon = (usedFor: ResourceUsedFor, link?: string, palette?: Palette): SvgComponent | JSX.Element => {
+export function getResourceIcon(usedFor: ResourceUsedFor, link?: string, palette?: Palette): SvgComponent | JSX.Element {
     // Determine default icon
     const defaultIcon = usedFor === ResourceUsedFor.Social ? ResourceSocialIconMap.default : (ResourceIconMap[usedFor] ?? LinkIconMap[usedFor]);
     // Create URL object from link safely
@@ -122,7 +123,7 @@ export const getResourceIcon = (usedFor: ResourceUsedFor, link?: string, palette
         const routeKey = Object.keys(LINKS).find(key => LINKS[key as LINKS] === route);
         // Check if it corresponds to a cached item
         const urlParams = parseSingleItemUrl({ href: link });
-        const cachedItem = getCookiePartialData({ __typename: routeKey as GqlModelType, ...urlParams }) as { __typename: GqlModelType, isBot?: boolean, profileImage?: string, updated_at?: string };
+        const cachedItem = getCookiePartialData({ __typename: routeKey as ModelType, ...urlParams }) as { __typename: ModelType, isBot?: boolean, profileImage?: string, updated_at?: string };
         // If cached item has a profileImage, return it as an Avatar
         if (cachedItem.profileImage) {
             return (<Avatar
@@ -154,4 +155,4 @@ export const getResourceIcon = (usedFor: ResourceUsedFor, link?: string, palette
         return ResourceSocialIconMap[hostName] ?? ResourceSocialIconMap.defaul;
     }
     return defaultIcon;
-};
+}

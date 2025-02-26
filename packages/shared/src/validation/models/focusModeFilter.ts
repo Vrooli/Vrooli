@@ -1,6 +1,10 @@
-import { FocusModeFilterType } from "../../api/types";
-import { enumToYup, id, req, YupModel, yupObj } from "../utils";
-import { tagValidation } from "./tag";
+import { FocusModeFilterType } from "../../api/types.js";
+import { enumToYup } from "../utils/builders/convert.js";
+import { req } from "../utils/builders/optionality.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { id } from "../utils/commonFields.js";
+import { type YupModel } from "../utils/types.js";
+import { tagValidation } from "./tag.js";
 
 const focusModeFilterType = enumToYup(FocusModeFilterType);
 

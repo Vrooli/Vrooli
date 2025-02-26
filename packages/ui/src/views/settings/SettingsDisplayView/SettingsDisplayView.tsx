@@ -1,8 +1,8 @@
 import { endpointsUser, LINKS, ProfileUpdateInput, profileValidation, User } from "@local/shared";
 import { Box, Button, Divider, Grid, Link, styled, Typography, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { FocusModeSelector } from "components/inputs/FocusModeSelector/FocusModeSelector";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { FocusModeSelector } from "components/inputs/FocusModeSelector/FocusModeSelector.js";
 import { LanguageSelector } from "components/inputs/LanguageSelector/LanguageSelector";
 import { LeftHandedCheckbox } from "components/inputs/LeftHandedCheckbox/LeftHandedCheckbox";
 import { TextSizeButtons } from "components/inputs/TextSizeButtons/TextSizeButtons";
@@ -12,17 +12,17 @@ import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsT
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts";
 import { Formik, FormikHelpers } from "formik";
-import { InnerForm, OuterForm } from "forms/BaseForm/BaseForm";
+import { InnerForm, OuterForm } from "forms/BaseForm/BaseForm.js";
 import { useShowBotWarning } from "hooks/subscriptions";
-import { useLazyFetch } from "hooks/useLazyFetch";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
 import { useProfileQuery } from "hooks/useProfileQuery";
 import { useCallback, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { FormSection, ScrollBox } from "styles";
-import { getSiteLanguage } from "utils/authentication/session";
-import { PubSub } from "utils/pubsub";
+import { getSiteLanguage } from "utils/authentication/session.js";
+import { PubSub } from "utils/pubsub.js";
 import { clearSearchHistory } from "utils/search/clearSearchHistory";
-import { SettingsDisplayFormProps, SettingsDisplayViewProps } from "../types";
+import { SettingsDisplayFormProps, SettingsDisplayViewProps } from "../types.js";
 
 const ClearSettingBox = styled(Box)(({ theme }) => ({
     background: theme.palette.background.paper,

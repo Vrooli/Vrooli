@@ -1,15 +1,15 @@
 import { endpointsSchedule, Schedule } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
-import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { useObjectActions } from "hooks/objectActions";
-import { useManagedObject } from "hooks/useManagedObject";
+import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { useObjectActions } from "hooks/objectActions.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
 import { EllipsisIcon } from "icons";
 import { MouseEvent, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { OverviewContainer } from "styles";
-import { ScheduleViewProps } from "../types";
+import { ScheduleViewProps } from "../types.js";
 
 export function ScheduleView({
     display,

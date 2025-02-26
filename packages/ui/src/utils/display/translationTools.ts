@@ -2,7 +2,7 @@ import { Session, TranslationKeyCommon, TranslationKeyError, uuid } from "@local
 import { FieldHelperProps, FieldInputProps, FieldMetaProps } from "formik";
 import i18next from "i18next";
 import { FormErrors } from "types";
-import { getCurrentUser } from "utils/authentication/session";
+import { getCurrentUser } from "utils/authentication/session.js";
 import { ObjectSchema, ValidationError } from "yup";
 
 type NestedString = string | string[] | { [key: string]: NestedString };

@@ -1,28 +1,27 @@
-import { DUMMY_ID, endpointGetFocusMode, endpointPostFocusMode, endpointPutFocusMode, FocusMode, FocusModeCreateInput, FocusModeShape, FocusModeUpdateInput, focusModeValidation, noopSubmit, Schedule, Session, shapeFocusMode } from "@local/shared";
+import { DUMMY_ID, endpointsFocusMode, FocusMode, FocusModeCreateInput, FocusModeShape, FocusModeUpdateInput, focusModeValidation, noopSubmit, Schedule, Session, shapeFocusMode } from "@local/shared";
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
-import { useSubmitHelper } from "api/fetchWrapper";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
+import { useSubmitHelper } from "api/fetchWrapper.js";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse.js";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { TextInput } from "components/inputs/TextInput/TextInput";
-import { ResourceListInput } from "components/lists/ResourceList/ResourceList";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
+import { TagSelector } from "components/inputs/TagSelector/TagSelector.js";
+import { TextInput } from "components/inputs/TextInput/TextInput.js";
+import { ResourceListInput } from "components/lists/ResourceList/ResourceList.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts";
 import { Field, Formik, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useManagedObject } from "hooks/useManagedObject";
-import { useSaveToCache } from "hooks/useSaveToCache";
-import { useUpsertActions } from "hooks/useUpsertActions";
-import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { BaseForm } from "forms/BaseForm/BaseForm.js";
+import { useSaveToCache, useUpsertActions } from "hooks/forms.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
+import { useUpsertFetch } from "hooks/useUpsertFetch.js";
 import { AddIcon, DeleteIcon, EditIcon, HeartFilledIcon, InvisibleIcon } from "icons";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { validateFormValues } from "utils/validateFormValues";
+import { validateFormValues } from "utils/validateFormValues.js";
 import { ScheduleUpsert } from "views/objects/schedule";
-import { FocusModeFormProps, FocusModeUpsertProps } from "../types";
+import { FocusModeFormProps, FocusModeUpsertProps } from "../types.js";
 
 export function focusModeInitialValues(
     session: Session | undefined,
@@ -113,8 +112,8 @@ function FocusModeForm({
     } = useUpsertFetch<FocusMode, FocusModeCreateInput, FocusModeUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointPostFocusMode,
-        endpointUpdate: endpointPutFocusMode,
+        endpointCreate: endpointsFocusMode.createOne,
+        endpointUpdate: endpointsFocusMode.updateOne,
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "FocusMode" });
 
@@ -294,7 +293,7 @@ export function FocusModeUpsert({
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useManagedObject<FocusMode, FocusModeShape>({
-        ...endpointGetFocusMode,
+        ...endpointsFocusMode.findOne,
         disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "FocusMode",

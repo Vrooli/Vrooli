@@ -2,18 +2,18 @@ import { LINKS, RoutineType, TranslationKeyCommon } from "@local/shared";
 import { Box, Dialog, DialogProps, IconButton, Stack, Typography, styled } from "@mui/material";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { useZIndex } from "hooks/useZIndex";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { useZIndex } from "hooks/useZIndex.js";
 import { ApiIcon, ArrowLeftIcon, ArticleIcon, BotIcon, CommentIcon, HelpIcon, NoteIcon, ObjectIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, TeamIcon, TerminalIcon } from "icons";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ScrollBox } from "styles";
 import { SvgComponent } from "types";
-import { ELEMENT_IDS } from "utils/consts";
-import { CreateType, getCookie, setCookie } from "utils/localStorage";
+import { ELEMENT_IDS } from "utils/consts.js";
+import { CreateType, getCookie, setCookie } from "utils/localStorage.js";
 import { RoutineTypeOption, routineTypes } from "utils/search/schemas/routine";
-import { CreateViewProps } from "../types";
+import { CreateViewProps } from "../types.js";
 
 type CreateInfo = {
     objectType: CreateType;
@@ -185,12 +185,12 @@ function RoutineWizardDialog({
         setStep("singleStepType");
     }
     function selectMultiStep() {
-        setLocation(`${LINKS["Routine"]}/add?type=MultiStep`);
+        setLocation(`${LINKS.RoutineMultiStep}/add`);
         handleClose();
     }
 
     function handleSelectSingleStepType(type?: RoutineTypeOption) {
-        let url = `${LINKS["Routine"]}/add`;
+        let url = `${LINKS.RoutineSingleStep}/add`;
         if (type) {
             url += `?type=${type.type}`;
         }

@@ -3,14 +3,14 @@
 // We have copied the code here for customization purposes, such as replacing the default code block component
 
 import { uuid } from "@local/shared";
-import { FULL_RECONCILE, NO_DIRTY_NODES } from "./consts";
-import { addRootElementEvents, removeRootElementEvents } from "./events";
-import { flushRootMutations, initMutationObserver } from "./mutations";
-import { LexicalNodes } from "./nodes";
-import { type LexicalNode } from "./nodes/LexicalNode";
-import { BaseSelection, CommandListener, CommandListenerPriority, CommandPayloadType, CommandsMap, CreateEditorArgs, EditorConfig, EditorFocusOptions, EditorListener, EditorListeners, EditorSetOptions, EditorUpdateOptions, ErrorHandler, IntentionallyMarkedAsDirtyElement, LexicalCommand, NodeKey, NodeMap, NodeType, RegisteredNodes, SerializedEditor, SerializedEditorState, SerializedElementNode, SerializedLexicalNode, Transform } from "./types";
-import { commitPendingUpdates, dispatchCommand, parseEditorState, readEditorState, setActiveEditor, triggerListeners, updateEditor } from "./updates";
-import { $createNode, $getRoot, $getSelection, $isNode, getDOMSelection, getDefaultView, markAllNodesAsDirty } from "./utils";
+import { FULL_RECONCILE, NO_DIRTY_NODES } from "./consts.js";
+import { addRootElementEvents, removeRootElementEvents } from "./events.js";
+import { flushRootMutations, initMutationObserver } from "./mutations.js";
+import { type LexicalNode } from "./nodes/LexicalNode.js";
+import { LexicalNodes } from "./nodes/index.js";
+import { BaseSelection, CommandListener, CommandListenerPriority, CommandPayloadType, CommandsMap, CreateEditorArgs, EditorConfig, EditorFocusOptions, EditorListener, EditorListeners, EditorSetOptions, EditorUpdateOptions, ErrorHandler, IntentionallyMarkedAsDirtyElement, LexicalCommand, NodeKey, NodeMap, NodeType, RegisteredNodes, SerializedEditor, SerializedEditorState, SerializedElementNode, SerializedLexicalNode, Transform } from "./types.js";
+import { commitPendingUpdates, dispatchCommand, parseEditorState, readEditorState, setActiveEditor, triggerListeners, updateEditor } from "./updates.js";
+import { $createNode, $getRoot, $getSelection, $isNode, getDOMSelection, getDefaultView, markAllNodesAsDirty } from "./utils.js";
 
 function exportNodeToJSON<SerializedNode extends SerializedLexicalNode>(
     node: LexicalNode,

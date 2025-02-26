@@ -1,6 +1,6 @@
 import { endpointsStatsQuiz, FormSchema, StatsQuizSortBy } from "@local/shared";
-import { toParams } from "./base";
-import { searchFormLayout } from "./common";
+import { toParams } from "./base.js";
+import { searchFormLayout } from "./common.js";
 
 export function statsQuizSearchSchema(): FormSchema {
     return {

@@ -1,13 +1,13 @@
 import { endpointsRunRoutine, RunRoutine } from "@local/shared";
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { useObjectActions } from "hooks/objectActions";
-import { useManagedObject } from "hooks/useManagedObject";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { useObjectActions } from "hooks/objectActions.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
-import { RunRoutineViewProps } from "../types";
+import { RunRoutineViewProps } from "../types.js";
 
 export function RunRoutineView({
     display,

@@ -1,6 +1,6 @@
 import { endpointsUser, FormSchema, InputType, UserSortBy } from "@local/shared";
-import { toParams } from "./base";
-import { bookmarksContainer, bookmarksFields, languagesContainer, languagesFields, searchFormLayout } from "./common";
+import { toParams } from "./base.js";
+import { bookmarksContainer, bookmarksFields, languagesContainer, languagesFields, searchFormLayout } from "./common.js";
 
 export function userSearchSchema(): FormSchema {
     return {

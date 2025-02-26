@@ -1,14 +1,14 @@
 import { Box, Button, Checkbox, Divider, FormControlLabel, FormHelperText, Grid } from "@mui/material";
-import { SettingsList } from "components/lists/SettingsList/SettingsList";
-import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
-import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
-import { Title } from "components/text/Title/Title";
+import { SettingsList } from "components/lists/SettingsList/SettingsList.js";
+import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar.js";
+import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay.js";
+import { Title } from "components/text/Title/Title.js";
 import { Field, Formik, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm } from "forms/BaseForm/BaseForm.js";
 import { HeartFilledIcon, RoutineIcon, TeamIcon, UserIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { SettingsDataFormProps, SettingsDataViewProps } from "../types";
+import { SettingsDataFormProps, SettingsDataViewProps } from "../types.js";
 
 function DataOption({
     disabled,

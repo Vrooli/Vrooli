@@ -1,7 +1,7 @@
-import { PIXEL_VALUE_REG_EXP } from "../consts";
-import { DOMConversionMap, DOMConversionOutput, NodeConstructorPayloads, NodeType, SerializedTableRowNode } from "../types";
-import { $createNode } from "../utils";
-import { ElementNode } from "./ElementNode";
+import { PIXEL_VALUE_REG_EXP } from "../consts.js";
+import { DOMConversionMap, DOMConversionOutput, NodeConstructorPayloads, NodeType, SerializedTableRowNode } from "../types.js";
+import { $createNode } from "../utils.js";
+import { ElementNode } from "./ElementNode.js";
 
 export class TableRowNode extends ElementNode {
     static __type: NodeType = "TableRow";

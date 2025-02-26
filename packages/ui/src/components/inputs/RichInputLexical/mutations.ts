@@ -1,61 +1,61 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { DOM_TEXT_TYPE, IS_FIREFOX, TEXT_MUTATION_VARIANCE } from "./consts";
-import { LexicalEditor } from "./editor";
-import { type RootNode } from "./nodes/RootNode";
-import { type TextNode } from "./nodes/TextNode";
-import { BaseSelection, CustomDomElement } from "./types";
-import { updateEditor } from "./updates";
-import { $getNearestNodeFromDOMNode, $getSelection, $isNode, $isRangeSelection, $setSelection, $updateTextNodeFromDOMContent, getDOMSelection, getNodeFromDOMNode, getWindow, isAttachedToRoot, isFirefoxClipboardEvents } from "./utils";
+import { DOM_TEXT_TYPE, IS_FIREFOX, TEXT_MUTATION_VARIANCE } from "./consts.js";
+import { LexicalEditor } from "./editor.js";
+import { type RootNode } from "./nodes/RootNode.js";
+import { type TextNode } from "./nodes/TextNode.js";
+import { BaseSelection, CustomDomElement } from "./types.js";
+import { updateEditor } from "./updates.js";
+import { $getNearestNodeFromDOMNode, $getSelection, $isNode, $isRangeSelection, $setSelection, $updateTextNodeFromDOMContent, getDOMSelection, getNodeFromDOMNode, getWindow, isAttachedToRoot, isFirefoxClipboardEvents } from "./utils.js";
 
 let isProcessingMutations = false;
 let lastTextEntryTimeStamp = 0;
 
-export const getIsProcessingMutations = (): boolean => {
+export function getIsProcessingMutations(): boolean {
     return isProcessingMutations;
-};
+}
 
-const updateTimeStamp = (event: Event) => {
+function updateTimeStamp(event: Event): void {
     lastTextEntryTimeStamp = event.timeStamp;
-};
+}
 
-const initTextEntryListener = (editor: LexicalEditor) => {
+function initTextEntryListener(editor: LexicalEditor): void {
     if (lastTextEntryTimeStamp === 0) {
         getWindow(editor).addEventListener("textInput", updateTimeStamp, true);
     }
-};
+}
 
-export const initMutationObserver = (editor: LexicalEditor) => {
+export function initMutationObserver(editor: LexicalEditor): void {
     initTextEntryListener(editor);
     editor._observer = new MutationObserver(
         (mutations: MutationRecord[], observer: MutationObserver) => {
             $flushMutations(editor, mutations, observer);
         },
     );
-};
+}
 
-const isManagedLineBreak = (
+function isManagedLineBreak(
     dom: Node,
     target: Node,
     editor: LexicalEditor,
-): boolean => {
+): boolean {
     return (
         (target as CustomDomElement).__lexicalLineBreak === dom ||
         (dom as CustomDomElement)[`__lexicalKey_${editor._key}`] !== undefined
     );
-};
+}
 
-const getLastSelection = (editor: LexicalEditor): null | BaseSelection => {
+function getLastSelection(editor: LexicalEditor): null | BaseSelection {
     return editor.getEditorState()?.read(() => {
         const selection = $getSelection();
         return selection !== null ? selection.clone() : null;
     }) ?? null;
-};
+}
 
-const shouldUpdateTextNodeFromMutation = (
+function shouldUpdateTextNodeFromMutation(
     selection: null | BaseSelection,
     targetDOM: Node,
     targetNode: TextNode,
-): boolean => {
+): boolean {
     if ($isRangeSelection(selection)) {
         const anchorNode = selection.anchor.getNode();
         if (
@@ -66,13 +66,13 @@ const shouldUpdateTextNodeFromMutation = (
         }
     }
     return targetDOM.nodeType === DOM_TEXT_TYPE && isAttachedToRoot(targetNode);
-};
+}
 
-const handleTextMutation = (
+function handleTextMutation(
     target: Text,
     node: TextNode,
     editor: LexicalEditor,
-): void => {
+): void {
     const domSelection = getDOMSelection(editor._window);
     let anchorOffset: number | null = null;
     let focusOffset: number | null = null;
@@ -86,7 +86,7 @@ const handleTextMutation = (
     if (text !== null) {
         $updateTextNodeFromDOMContent(node, text, anchorOffset, focusOffset, false);
     }
-};
+}
 
 export function $flushMutations(
     editor: LexicalEditor,
@@ -282,11 +282,11 @@ export function $flushMutations(
     }
 }
 
-export const flushRootMutations = (editor: LexicalEditor): void => {
+export function flushRootMutations(editor: LexicalEditor): void {
     const observer = editor._observer;
 
     if (observer !== null) {
         const mutations = observer.takeRecords();
         $flushMutations(editor, mutations, observer);
     }
-};
+}

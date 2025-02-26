@@ -1,27 +1,26 @@
-import { DUMMY_ID, endpointGetReport, endpointPostReport, endpointPutReport, getObjectSlug, getObjectUrlBase, noopSubmit, Report, ReportCreateInput, ReportFor, ReportShape, ReportUpdateInput, reportValidation, Session, shapeReport } from "@local/shared";
-import { useSubmitHelper } from "api/fetchWrapper";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
-import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { RichInput } from "components/inputs/RichInput/RichInput";
+import { DUMMY_ID, endpointsReport, getObjectSlug, getObjectUrlBase, noopSubmit, Report, ReportCreateInput, ReportFor, ReportShape, ReportUpdateInput, reportValidation, Session, shapeReport } from "@local/shared";
+import { useSubmitHelper } from "api/fetchWrapper.js";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton.js";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput.js";
+import { RichInput } from "components/inputs/RichInput/RichInput.js";
 import { Selector } from "components/inputs/Selector/Selector";
-import { TextInput } from "components/inputs/TextInput/TextInput";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { TextInput } from "components/inputs/TextInput/TextInput.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { SessionContext } from "contexts";
 import { Field, Formik, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useManagedObject } from "hooks/useManagedObject";
-import { useSaveToCache } from "hooks/useSaveToCache";
-import { useTranslatedFields } from "hooks/useTranslatedFields";
-import { useUpsertActions } from "hooks/useUpsertActions";
-import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { BaseForm } from "forms/BaseForm/BaseForm.js";
+import { useSaveToCache, useUpsertActions } from "hooks/forms.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
+import { useTranslatedFields } from "hooks/useTranslatedFields.js";
+import { useUpsertFetch } from "hooks/useUpsertFetch.js";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
-import { getUserLanguages } from "utils/display/translationTools";
-import { validateFormValues } from "utils/validateFormValues";
-import { ReportFormProps, ReportUpsertProps } from "../types";
+import { getUserLanguages } from "utils/display/translationTools.js";
+import { validateFormValues } from "utils/validateFormValues.js";
+import { ReportFormProps, ReportUpsertProps } from "../types.js";
 
 enum ReportOptions {
     Inappropriate = "Inappropriate",
@@ -104,8 +103,8 @@ function ReportForm({
     } = useUpsertFetch<Report, ReportCreateInput, ReportUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointPostReport,
-        endpointUpdate: endpointPutReport,
+        endpointCreate: endpointsReport.createOne,
+        endpointUpdate: endpointsReport.updateOne,
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Report" });
 
@@ -201,7 +200,7 @@ export function ReportUpsert({
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Report, ReportShape>({
-        ...endpointGetReport,
+        ...endpointsReport.findOne,
         disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "Report",

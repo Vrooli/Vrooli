@@ -1,6 +1,11 @@
 import * as yup from "yup";
-import { id, intPositiveOrZero, maxStrErr, minStrErr, opt, req, transRel, YupModel, yupObj } from "../utils";
-import { chatValidation } from "./chat";
+import { opt, req } from "../utils/builders/optionality.js";
+import { transRel } from "../utils/builders/rel.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { id, intPositiveOrZero } from "../utils/commonFields.js";
+import { maxStrErr, minStrErr } from "../utils/errors.js";
+import { type YupModel } from "../utils/types.js";
+import { chatValidation } from "./chat.js";
 
 const text = yup.string().trim().removeEmptyString().min(1, minStrErr).max(32768, maxStrErr);
 

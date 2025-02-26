@@ -1,7 +1,10 @@
-import { endTime, id, opt, req, startTime, timezone, YupModel, yupObj } from "../utils";
-import { labelValidation } from "./label";
-import { scheduleExceptionValidation } from "./scheduleException";
-import { scheduleRecurrenceValidation } from "./scheduleRecurrence";
+import { opt, req } from "../utils/builders/optionality.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { endTime, id, startTime, timezone } from "../utils/commonFields.js";
+import { type YupModel } from "../utils/types.js";
+import { labelValidation } from "./label.js";
+import { scheduleExceptionValidation } from "./scheduleException.js";
+import { scheduleRecurrenceValidation } from "./scheduleRecurrence.js";
 
 export const scheduleValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({

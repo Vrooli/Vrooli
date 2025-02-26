@@ -1,17 +1,17 @@
 import { EmailResetPasswordInput, LINKS, Session, UrlTools, emailResetPasswordFormSchema, endpointsAuth, uuidValidate } from "@local/shared";
 import { Box, Button } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
 import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { Formik, FormikHelpers } from "formik";
-import { InnerForm } from "forms/BaseForm/BaseForm";
+import { InnerForm } from "forms/BaseForm/BaseForm.js";
 import { formPaper, formSubmit } from "forms/styles";
-import { useLazyFetch } from "hooks/useLazyFetch";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { CenteredContentPage, CenteredContentPageWrap, CenteredContentPaper, FormContainer, FormSection } from "styles";
-import { PubSub } from "utils/pubsub";
+import { PubSub } from "utils/pubsub.js";
 import { ResetPasswordViewProps } from "views/types";
 
 interface ResetPasswordFormProps {

@@ -1,25 +1,24 @@
-import { DUMMY_ID, endpointGetRunProject, endpointPostRunProject, endpointPutRunProject, noopSubmit, RunProject, RunProjectCreateInput, RunProjectShape, RunProjectUpdateInput, runProjectValidation, RunStatus, Schedule, Session, shapeRunProject } from "@local/shared";
+import { DUMMY_ID, endpointsRunProject, noopSubmit, RunProject, RunProjectCreateInput, RunProjectShape, RunProjectUpdateInput, runProjectValidation, RunStatus, Schedule, Session, shapeRunProject } from "@local/shared";
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
-import { useSubmitHelper } from "api/fetchWrapper";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { useSubmitHelper } from "api/fetchWrapper.js";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useManagedObject } from "hooks/useManagedObject";
-import { useSaveToCache } from "hooks/useSaveToCache";
-import { useUpsertActions } from "hooks/useUpsertActions";
-import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { BaseForm } from "forms/BaseForm/BaseForm.js";
+import { useSaveToCache, useUpsertActions } from "hooks/forms.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
+import { useUpsertFetch } from "hooks/useUpsertFetch.js";
 import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import { validateFormValues } from "utils/validateFormValues";
+import { getUserLanguages } from "utils/display/translationTools.js";
+import { validateFormValues } from "utils/validateFormValues.js";
 import { ScheduleUpsert } from "views/objects/schedule";
-import { RunProjectFormProps, RunProjectUpsertProps } from "../types";
+import { RunProjectFormProps, RunProjectUpsertProps } from "../types.js";
 
 export function runProjectInitialValues(
     session: Session | undefined,
@@ -96,8 +95,8 @@ function RunProjectForm({
     } = useUpsertFetch<RunProject, RunProjectCreateInput, RunProjectUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointPostRunProject,
-        endpointUpdate: endpointPutRunProject,
+        endpointCreate: endpointsRunProject.createOne,
+        endpointUpdate: endpointsRunProject.updateOne,
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "RunProject" });
 
@@ -243,7 +242,7 @@ export function RunProjectUpsert({
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<RunProject, RunProjectShape>({
-        ...endpointGetRunProject,
+        ...endpointsRunProject.findOne,
         disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "RunProject",

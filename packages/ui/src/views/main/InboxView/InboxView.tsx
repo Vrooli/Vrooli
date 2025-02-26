@@ -1,17 +1,17 @@
-import { Chat, endpointPutNotificationsMarkAllAsRead, getObjectUrlBase, InboxPageTabOption, ListObject, Notification, Success } from "@local/shared";
+import { Chat, endpointsNotification, getObjectUrlBase, InboxPageTabOption, ListObject, Notification, Success } from "@local/shared";
 import { Tooltip, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
 import { SearchListScrollContainer } from "components/lists/SearchList/SearchList";
-import { ObjectListActions } from "components/lists/types";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { ObjectListActions } from "components/lists/types.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { useInfiniteScroll } from "hooks/gestures";
-import { useBulkObjectActions } from "hooks/objectActions";
+import { useInfiniteScroll } from "hooks/gestures.js";
+import { useBulkObjectActions } from "hooks/objectActions.js";
 import { useFindMany } from "hooks/useFindMany";
-import { useLazyFetch } from "hooks/useLazyFetch";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
 import { useSelectableList } from "hooks/useSelectableList";
 import { useTabs } from "hooks/useTabs";
 import { ActionIcon, AddIcon, CancelIcon, CompleteIcon, DeleteIcon } from "icons";
@@ -21,9 +21,9 @@ import { useLocation } from "route";
 import { pagePaddingBottom, SideActionsButton } from "styles";
 import { ArgsType } from "types";
 import { BulkObjectAction } from "utils/actions/bulkObjectActions";
-import { DUMMY_LIST_LENGTH } from "utils/consts";
+import { DUMMY_LIST_LENGTH } from "utils/consts.js";
 import { inboxTabParams } from "utils/search/objectToSearch";
-import { InboxViewProps } from "../types";
+import { InboxViewProps } from "../types.js";
 
 type InboxObject = Chat | Notification;
 
@@ -54,7 +54,7 @@ export function InboxView({
         updateItem,
     } = useFindMany<InboxObject>({
         searchType,
-        where: where(),
+        where: where(undefined),
     });
 
     const {
@@ -76,7 +76,7 @@ export function InboxView({
         setLocation,
     });
 
-    const [markAllAsReadMutation] = useLazyFetch<undefined, Success>(endpointPutNotificationsMarkAllAsRead);
+    const [markAllAsReadMutation] = useLazyFetch<undefined, Success>(endpointsNotification.markAllAsRead);
 
     const onMarkAllAsRead = useCallback(() => {
         // TODO handle chats
@@ -127,7 +127,7 @@ export function InboxView({
                 onClose={onClose}
                 title={currTab.label}
                 titleBehaviorDesktop="ShowIn"
-                below={<PageTabs
+                below={<PageTabs<typeof inboxTabParams>
                     ariaLabel="inbox-tabs"
                     fullWidth
                     id="inbox-tabs"

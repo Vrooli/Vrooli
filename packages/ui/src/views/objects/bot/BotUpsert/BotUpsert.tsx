@@ -1,42 +1,41 @@
-import { BotCreateInput, BotShape, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointGetUser, endpointPostBot, endpointPutBot, findBotData, getAvailableModels, getModelDescription, getModelName, LINKS, LlmModel, LlmTask, noopSubmit, SearchPageTabOption, Session, shapeBot, User, validateAndGetYupErrors } from "@local/shared";
+import { BotCreateInput, BotShape, botTranslationValidation, BotUpdateInput, botValidation, DUMMY_ID, endpointsUser, findBotDataForForm, getAvailableModels, getModelDescription, getModelName, LINKS, LlmModel, LlmTask, noopSubmit, SearchPageTabOption, Session, shapeBot, User, validateAndGetYupErrors } from "@local/shared";
 import { Divider, InputAdornment, Slider, Stack, Typography } from "@mui/material";
-import { getExistingAIConfig } from "api/ai";
-import { useSubmitHelper } from "api/fetchWrapper";
-import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
-import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
-import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { CheckboxInput } from "components/inputs/CheckboxInput/CheckboxInput";
-import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
-import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
-import { SelectorBase } from "components/inputs/Selector/Selector";
-import { TextInput, TranslatedTextInput } from "components/inputs/TextInput/TextInput";
-import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts";
+import { getExistingAIConfig } from "api/ai.js";
+import { useSubmitHelper } from "api/fetchWrapper.js";
+import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton.js";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton.js";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse.js";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
+import { CheckboxInput } from "components/inputs/CheckboxInput/CheckboxInput.js";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput.js";
+import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput.js";
+import { TranslatedRichInput } from "components/inputs/RichInput/RichInput.js";
+import { SelectorBase } from "components/inputs/Selector/Selector.js";
+import { TextInput, TranslatedTextInput } from "components/inputs/TextInput/TextInput.js";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { SessionContext } from "contexts.js";
 import { Field, Formik, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "hooks/tasks";
-import { useManagedObject } from "hooks/useManagedObject";
-import { useSaveToCache } from "hooks/useSaveToCache";
-import { useTranslatedFields } from "hooks/useTranslatedFields";
-import { useUpsertActions } from "hooks/useUpsertActions";
-import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { BaseForm } from "forms/BaseForm/BaseForm.js";
+import { useSaveToCache, useUpsertActions } from "hooks/forms.js";
+import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "hooks/tasks.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
+import { useTranslatedFields } from "hooks/useTranslatedFields.js";
+import { useUpsertFetch } from "hooks/useUpsertFetch.js";
 import { BotIcon, CommentIcon, HandleIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, PersonaIcon, RoutineValidIcon, TeamIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
-import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { BotFormProps, BotUpsertProps } from "../types";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools.js";
+import { BotFormProps, BotUpsertProps } from "../types.js";
 
 function botInitialValues(
     session: Session | undefined,
     existing?: Partial<User> | BotShape | null | undefined,
 ): BotShape {
     const availableModels = getAvailableModels(getExistingAIConfig()?.service?.config);
-    const { creativity, verbosity, model, translations } = findBotData(getUserLanguages(session)[0], availableModels, existing);
+    const { creativity, verbosity, model, translations } = findBotDataForForm(getUserLanguages(session)[0], availableModels, existing);
 
     return {
         __typename: "User" as const,
@@ -287,8 +286,8 @@ function BotForm({
     } = useUpsertFetch<User, BotCreateInput, BotUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointPostBot,
-        endpointUpdate: endpointPutBot,
+        endpointCreate: endpointsUser.botCreateOne,
+        endpointUpdate: endpointsUser.botUpdateOne,
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "User" });
 
@@ -556,7 +555,7 @@ export function BotUpsert({
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<User, BotShape>({
-        ...endpointGetUser,
+        ...endpointsUser.findOne,
         disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "User",

@@ -1,6 +1,10 @@
-import { BookmarkFor } from "../../api/types";
-import { enumToYup, id, req, YupModel, yupObj } from "../utils";
-import { bookmarkListValidation } from "./bookmarkList";
+import { BookmarkFor } from "../../api/types.js";
+import { enumToYup } from "../utils/builders/convert.js";
+import { req } from "../utils/builders/optionality.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { id } from "../utils/commonFields.js";
+import { type YupModel } from "../utils/types.js";
+import { bookmarkListValidation } from "./bookmarkList.js";
 
 const bookmarkFor = enumToYup(BookmarkFor);
 

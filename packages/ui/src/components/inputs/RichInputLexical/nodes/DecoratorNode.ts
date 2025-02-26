@@ -1,6 +1,6 @@
-import { LexicalEditor } from "../editor";
-import { EditorConfig, NodeType } from "../types";
-import { LexicalNode } from "./LexicalNode";
+import { LexicalEditor } from "../editor.js";
+import { EditorConfig, NodeType } from "../types.js";
+import { LexicalNode } from "./LexicalNode.js";
 
 export class DecoratorNode<T> extends LexicalNode {
     static __type: NodeType = "Decorator";

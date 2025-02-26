@@ -1,8 +1,8 @@
-import { emailLogInFormValidation, EmailLogInInput, endpointPostAuthEmailLogin, getOAuthInitRoute, LINKS, OAUTH_PROVIDERS, Session } from "@local/shared";
+import { emailLogInFormValidation, EmailLogInInput, endpointsAuth, getOAuthInitRoute, LINKS, OAUTH_PROVIDERS, Session } from "@local/shared";
 import { Box, Button, Divider, InputAdornment, styled } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { ServerResponseParser } from "api/responseParser";
-import { SocketService } from "api/socket";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
+import { ServerResponseParser } from "api/responseParser.js";
+import { SocketService } from "api/socket.js";
 import AppleIcon from "assets/img/apple.svg";
 import FacebookIcon from "assets/img/facebook.svg";
 import GitHubIcon from "assets/img/github.svg";
@@ -10,22 +10,22 @@ import GoogleIcon from "assets/img/google.svg";
 import XIcon from "assets/img/x.svg";
 import { BreadcrumbsBase } from "components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase";
 import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
-import { TextInput } from "components/inputs/TextInput/TextInput";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { TextInput } from "components/inputs/TextInput/TextInput.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { SessionContext } from "contexts";
 import { Field, Formik, FormikHelpers } from "formik";
-import { InnerForm } from "forms/BaseForm/BaseForm";
+import { InnerForm } from "forms/BaseForm/BaseForm.js";
 import { formPaper, formSubmit } from "forms/styles";
-import { useLazyFetch } from "hooks/useLazyFetch";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
 import { useReactSearch } from "hooks/useReactSearch";
 import { EmailIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { CenteredContentPage, CenteredContentPageWrap, CenteredContentPaper, FormContainer, FormSection } from "styles";
-import { getCurrentUser } from "utils/authentication/session";
-import { removeCookie } from "utils/localStorage";
-import { PubSub } from "utils/pubsub";
+import { getCurrentUser } from "utils/authentication/session.js";
+import { removeCookie } from "utils/localStorage.js";
+import { PubSub } from "utils/pubsub.js";
 import { LoginViewProps } from "views/types";
 
 interface LoginFormProps {
@@ -133,13 +133,13 @@ function LoginForm({
                 severity: "Info",
                 buttonKey: "GoBack",
                 buttonClicked: () => {
-                    setLocation(redirect);
+                    setLocation(redirect, { replace: true });
                 },
             });
         }
     }, [userId, redirect, setLocation]);
 
-    const [emailLogIn, { loading }] = useLazyFetch<EmailLogInInput, Session>(endpointPostAuthEmailLogin);
+    const [emailLogIn, { loading }] = useLazyFetch<EmailLogInInput, Session>(endpointsAuth.emailLogin);
 
     /**
      * If verification code supplied

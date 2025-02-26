@@ -1,33 +1,33 @@
-import { DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, Session, Team, TeamCreateInput, TeamShape, TeamUpdateInput, endpointGetTeam, endpointPostTeam, endpointPutTeam, noopSubmit, orDefault, shapeTeam, teamTranslationValidation, teamValidation } from "@local/shared";
-import { useSubmitHelper } from "api/fetchWrapper";
-import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
-import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
-import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, Session, Team, TeamCreateInput, TeamShape, TeamUpdateInput, endpointsTeam, noopSubmit, orDefault, shapeTeam, teamTranslationValidation, teamValidation } from "@local/shared";
+import { useSubmitHelper } from "api/fetchWrapper.js";
+import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton.js";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton.js";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse.js";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput.js";
 import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
-import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
-import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { TranslatedTextInput } from "components/inputs/TextInput/TextInput";
-import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { ResourceListInput } from "components/lists/ResourceList/ResourceList";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { TranslatedRichInput } from "components/inputs/RichInput/RichInput.js";
+import { TagSelector } from "components/inputs/TagSelector/TagSelector.js";
+import { TranslatedTextInput } from "components/inputs/TextInput/TextInput.js";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList.js";
+import { ResourceListInput } from "components/lists/ResourceList/ResourceList.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { SessionContext } from "contexts";
 import { Formik } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { UseAutoFillProps, getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
-import { useManagedObject } from "hooks/useManagedObject";
-import { useSaveToCache } from "hooks/useSaveToCache";
-import { useTranslatedFields } from "hooks/useTranslatedFields";
-import { useUpsertActions } from "hooks/useUpsertActions";
-import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { BaseForm } from "forms/BaseForm/BaseForm.js";
+import { useSaveToCache, useUpsertActions } from "hooks/forms.js";
+import { UseAutoFillProps, getAutoFillTranslationData, useAutoFill } from "hooks/tasks.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
+import { useTranslatedFields } from "hooks/useTranslatedFields.js";
+import { useUpsertFetch } from "hooks/useUpsertFetch.js";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
-import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { validateFormValues } from "utils/validateFormValues";
-import { TeamFormProps, TeamUpsertProps } from "../types";
+import { ELEMENT_IDS } from "utils/consts.js";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools.js";
+import { validateFormValues } from "utils/validateFormValues.js";
+import { TeamFormProps, TeamUpsertProps } from "../types.js";
 
 function teamInitialValues(
     session: Session | undefined,
@@ -109,8 +109,8 @@ function TeamForm({
     } = useUpsertFetch<Team, TeamCreateInput, TeamUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointPostTeam,
-        endpointUpdate: endpointPutTeam,
+        endpointCreate: endpointsTeam.createOne,
+        endpointUpdate: endpointsTeam.updateOne,
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Team" });
 
@@ -157,7 +157,7 @@ function TeamForm({
     return (
         <MaybeLargeDialog
             display={display}
-            id="team-upsert-dialog"
+            id={ELEMENT_IDS.TeamUpsertDialog}
             isOpen={isOpen}
             onClose={onClose}
         >
@@ -250,7 +250,7 @@ export function TeamUpsert({
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Team, TeamShape>({
-        ...endpointGetTeam,
+        ...endpointsTeam.findOne,
         disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "Team",

@@ -1,6 +1,6 @@
 import { Session, SessionUser, uuidValidate } from "@local/shared";
-import { getUserLanguages } from "utils/display/translationTools";
-import { getCookie } from "utils/localStorage";
+import { getUserLanguages } from "utils/display/translationTools.js";
+import { getCookie } from "utils/localStorage.js";
 
 /**
  * Session object that indicates no user is logged in

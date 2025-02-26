@@ -3,7 +3,7 @@ import { $createCodeNode } from "../nodes/CodeNode";
 import { type ElementNode } from "../nodes/ElementNode";
 import { type LexicalNode } from "../nodes/LexicalNode";
 import { listExport, listReplace } from "../nodes/ListNode";
-import { ElementTransformer } from "../types";
+import { ElementTransformer } from "../types.js";
 import { $createNode, $isNode, getPreviousSibling } from "../utils";
 
 const createBlockNode = (

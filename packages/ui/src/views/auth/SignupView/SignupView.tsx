@@ -1,31 +1,31 @@
-import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, endpointPostAuthEmailSignup, LINKS, Session, SignUpPageTabOption } from "@local/shared";
+import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, endpointsAuth, LINKS, Session, SignUpPageTabOption } from "@local/shared";
 import { Box, BoxProps, Button, Checkbox, FormControl, FormControlLabel, FormHelperText, InputAdornment, Link, styled, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { ServerResponseParser } from "api/responseParser";
-import { SocketService } from "api/socket";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
+import { ServerResponseParser } from "api/responseParser.js";
+import { SocketService } from "api/socket.js";
 import { BreadcrumbsBase } from "components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase";
 import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
-import { TextInput } from "components/inputs/TextInput/TextInput";
-import { Footer } from "components/navigation/Footer/Footer";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { TextInput } from "components/inputs/TextInput/TextInput.js";
+import { Footer } from "components/navigation/Footer/Footer.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SessionContext } from "contexts";
 import { Field, Formik, FormikHelpers } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm } from "forms/BaseForm/BaseForm.js";
 import { formSubmit } from "forms/styles";
 import { useIsLeftHanded } from "hooks/subscriptions";
-import { useLazyFetch } from "hooks/useLazyFetch";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
 import { useReactSearch } from "hooks/useReactSearch";
 import { useTabs } from "hooks/useTabs";
-import { useWindowSize } from "hooks/useWindowSize";
+import { useWindowSize } from "hooks/useWindowSize.js";
 import { EmailIcon, UserIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { FormContainer, FormSection } from "styles";
-import { getCurrentUser } from "utils/authentication/session";
-import { removeCookie } from "utils/localStorage";
-import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID } from "utils/pubsub";
+import { getCurrentUser } from "utils/authentication/session.js";
+import { removeCookie } from "utils/localStorage.js";
+import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID } from "utils/pubsub.js";
 import { setupPush } from "utils/push";
 import { signUpTabParams } from "utils/search/objectToSearch";
 import { SignupViewProps } from "views/types";
@@ -79,7 +79,7 @@ function SignupForm() {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const [emailSignUp, { loading }] = useLazyFetch<EmailSignUpInput, Session>(endpointPostAuthEmailSignup);
+    const [emailSignUp, { loading }] = useLazyFetch<EmailSignUpInput, Session>(endpointsAuth.emailSignup);
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
 
     const search = useReactSearch();
@@ -98,7 +98,7 @@ function SignupForm() {
                 severity: "Info",
                 buttonKey: "GoBack",
                 buttonClicked: () => {
-                    setLocation(redirect);
+                    setLocation(redirect, { replace: true });
                 },
             });
         }

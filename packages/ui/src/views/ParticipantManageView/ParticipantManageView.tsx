@@ -1,11 +1,11 @@
 import { ChatInvite, ChatInviteShape, ChatInviteStatus, DUMMY_ID, ListObject, noop, ParticipantManagePageTabOption, User, uuidValidate } from "@local/shared";
 import { Box, Tooltip, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
-import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
 import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { useBulkObjectActions } from "hooks/objectActions";
+import { useBulkObjectActions } from "hooks/objectActions.js";
 import { useFindMany } from "hooks/useFindMany";
 import { useSelectableList } from "hooks/useSelectableList";
 import { useTabs } from "hooks/useTabs";
@@ -16,7 +16,7 @@ import { SideActionsButton } from "styles";
 import { BulkObjectAction } from "utils/actions/bulkObjectActions";
 import { participantTabParams } from "utils/search/objectToSearch";
 import { ChatInvitesUpsert } from "views/objects/chatInvite";
-import { ParticipantManageViewProps } from "../types";
+import { ParticipantManageViewProps } from "../types.js";
 
 const scrollContainerId = "participant-search-scroll";
 const dialogStyle = {
@@ -174,7 +174,7 @@ export function ParticipantManageView({
                     display={display}
                     onClose={onClose}
                     title={t("Participant", { count: 2 })}
-                    below={<PageTabs
+                    below={<PageTabs<typeof participantTabParams>
                         ariaLabel="Search tabs"
                         currTab={currTab}
                         fullWidth

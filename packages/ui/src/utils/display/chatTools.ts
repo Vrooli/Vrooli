@@ -1,5 +1,5 @@
 import { AITaskInfo, LlmTask, MINUTES_10_MS, uuid } from "@local/shared";
-import { getExistingAIConfig } from "api/ai";
+import { getExistingAIConfig } from "api/ai.js";
 import { SetLocation } from "route";
 
 /** How long a task can be running until it is considered stale */

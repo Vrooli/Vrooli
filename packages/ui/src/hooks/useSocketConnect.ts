@@ -1,4 +1,4 @@
-import { SocketService, socket } from "api/socket";
+import { SocketService, socket } from "api/socket.js";
 import { useEffect } from "react";
 
 export function useSocketConnect() {

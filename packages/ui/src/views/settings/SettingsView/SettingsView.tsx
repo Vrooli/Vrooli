@@ -3,14 +3,14 @@ import { Box } from "@mui/material";
 import { SettingsSearchBar } from "components/inputs/search/SettingsSearchBar/SettingsSearchBar";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { Title } from "components/text/Title/Title";
 import { ApiIcon, HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ObjectIcon, ProfileIcon, VisibleIcon, WalletIcon } from "icons";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ScrollBox } from "styles";
-import { SettingsData, SettingsViewProps } from "../types";
+import { SettingsData, SettingsViewProps } from "../types.js";
 
 export const accountSettingsData: SettingsData[] = [
     {

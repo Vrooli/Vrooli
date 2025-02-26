@@ -1,24 +1,23 @@
-import { CanConnect, DeleteOneInput, DeleteType, DUMMY_ID, endpointGetSchedule, endpointPostDeleteOne, endpointPostSchedule, endpointPutSchedule, FocusModeShape, HOURS_1_MS, isOfType, LINKS, MeetingShape, noopSubmit, RunProjectShape, RunRoutineShape, Schedule, ScheduleCreateInput, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, ScheduleShape, ScheduleUpdateInput, scheduleValidation, Session, shapeSchedule, Success, uuid } from "@local/shared";
+import { CanConnect, DeleteOneInput, DeleteType, DUMMY_ID, endpointsActions, endpointsSchedule, FocusModeShape, HOURS_1_MS, isOfType, LINKS, MeetingShape, noopSubmit, RunProjectShape, RunRoutineShape, Schedule, ScheduleCreateInput, ScheduleException, ScheduleRecurrence, ScheduleRecurrenceType, ScheduleShape, ScheduleUpdateInput, scheduleValidation, Session, shapeSchedule, Success, uuid } from "@local/shared";
 import { Box, Button, Card, Divider, FormControl, IconButton, InputLabel, MenuItem, Select, SelectChangeEvent, Stack, styled, Typography, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
-import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog.js";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
 import { DateInput } from "components/inputs/DateInput/DateInput";
 import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
 import { Selector, SelectorBase } from "components/inputs/Selector/Selector";
-import { TextInput } from "components/inputs/TextInput/TextInput";
+import { TextInput } from "components/inputs/TextInput/TextInput.js";
 import { TimezoneSelector } from "components/inputs/TimezoneSelector/TimezoneSelector";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { useManagedObject } from "hooks/useManagedObject";
-import { useSaveToCache } from "hooks/useSaveToCache";
-import { useUpsertActions } from "hooks/useUpsertActions";
-import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { BaseForm } from "forms/BaseForm/BaseForm.js";
+import { useSaveToCache, useUpsertActions } from "hooks/forms.js";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
+import { useUpsertFetch } from "hooks/useUpsertFetch.js";
 import { AddIcon, DeleteIcon, FocusModeIcon, OpenInNewIcon, ProjectIcon, RoutineIcon, TeamIcon } from "icons";
 import { memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -26,9 +25,9 @@ import { useLocation } from "route";
 import { FormSection, ProfileAvatar } from "styles";
 import { getDisplay, placeholderColor } from "utils/display/listTools";
 import { openObject } from "utils/navigation/openObject";
-import { PubSub } from "utils/pubsub";
-import { validateFormValues } from "utils/validateFormValues";
-import { ScheduleFormProps, ScheduleForOption, ScheduleUpsertProps } from "../types";
+import { PubSub } from "utils/pubsub.js";
+import { validateFormValues } from "utils/validateFormValues.js";
+import { ScheduleFormProps, ScheduleForOption, ScheduleUpsertProps } from "../types.js";
 
 export const scheduleForOptions: ScheduleForOption[] = [{
     Icon: TeamIcon,
@@ -303,8 +302,8 @@ function ScheduleForm({
     } = useUpsertFetch<Schedule, ScheduleCreateInput, ScheduleUpdateInput>({
         isCreate,
         isMutate,
-        endpointCreate: endpointPostSchedule,
-        endpointUpdate: endpointPutSchedule,
+        endpointCreate: endpointsSchedule.createOne,
+        endpointUpdate: endpointsSchedule.updateOne,
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Schedule" });
 
@@ -333,7 +332,7 @@ function ScheduleForm({
         }
     }, [disabled, existing, fetch, handleCompleted, isCreate, isMutate, onCompleted, props, values]);
 
-    const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
+    const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
     const handleDelete = useCallback(() => {
         fetchLazyWrapper<DeleteOneInput, Success>({
             fetch: deleteMutation,
@@ -603,7 +602,7 @@ export function ScheduleUpsert({
     }, []);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Schedule, ScheduleShape>({
-        ...endpointGetSchedule,
+        ...endpointsSchedule.findOne,
         disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "Schedule",

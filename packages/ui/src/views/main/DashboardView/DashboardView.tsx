@@ -1,42 +1,42 @@
-import { calculateOccurrences, CalendarEvent, Chat, ChatCreateInput, ChatParticipantShape, ChatShape, ChatUpdateInput, DAYS_30_MS, deleteArrayIndex, DUMMY_ID, endpointGetChat, endpointGetFeedHome, endpointPostChat, endpointPutChat, FindByIdInput, FocusMode, FocusModeStopCondition, HomeResult, LINKS, MyStuffPageTabOption, Reminder, Resource, ResourceList as ResourceListType, Schedule, updateArray, uuid, VALYXA_ID } from "@local/shared";
+import { calculateOccurrences, CalendarEvent, Chat, ChatCreateInput, ChatParticipantShape, ChatShape, ChatUpdateInput, DAYS_30_MS, deleteArrayIndex, DUMMY_ID, endpointsChat, endpointsFeed, FindByIdInput, FocusMode, FocusModeStopCondition, HomeResult, LINKS, MyStuffPageTabOption, Reminder, Resource, ResourceList as ResourceListType, Schedule, updateArray, uuid, VALYXA_ID } from "@local/shared";
 import { Box, Button, styled, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { ServerResponseParser } from "api/responseParser";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
+import { ServerResponseParser } from "api/responseParser.js";
 import { ChatBubbleTree } from "components/ChatBubbleTree/ChatBubbleTree";
 import { ListTitleContainer } from "components/containers/ListTitleContainer/ListTitleContainer";
 import { ChatMessageInput } from "components/inputs/ChatMessageInput/ChatMessageInput";
-import { FocusModeInfo, useFocusModesStore } from "components/inputs/FocusModeSelector/FocusModeSelector";
+import { FocusModeInfo, useFocusModesStore } from "components/inputs/FocusModeSelector/FocusModeSelector.js";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
-import { ResourceList } from "components/lists/ResourceList/ResourceList";
-import { ObjectListActions } from "components/lists/types";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { ResourceList } from "components/lists/ResourceList/ResourceList.js";
+import { ObjectListActions } from "components/lists/types.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { SessionContext } from "contexts";
 import { useMessageActions, useMessageInput, useMessageTree } from "hooks/messages";
-import { useChatTasks } from "hooks/tasks";
+import { useChatTasks } from "hooks/tasks.js";
 import { useHistoryState } from "hooks/useHistoryState";
-import { useLazyFetch } from "hooks/useLazyFetch";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
 import { useSocketChat } from "hooks/useSocketChat";
 import { PageTab } from "hooks/useTabs";
-import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { useWindowSize } from "hooks/useWindowSize";
+import { useUpsertFetch } from "hooks/useUpsertFetch.js";
+import { useWindowSize } from "hooks/useWindowSize.js";
 import { AddIcon, ChevronLeftIcon, MonthIcon, OpenInNewIcon, ReminderIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { getCurrentUser } from "utils/authentication/session";
-import { DUMMY_LIST_LENGTH, ELEMENT_IDS } from "utils/consts";
+import { getCurrentUser } from "utils/authentication/session.js";
+import { DUMMY_LIST_LENGTH, ELEMENT_IDS } from "utils/consts.js";
 import { getDisplay } from "utils/display/listTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import { getCookieMatchingChat, setCookieMatchingChat } from "utils/localStorage";
+import { getUserLanguages } from "utils/display/translationTools.js";
+import { getCookieMatchingChat, setCookieMatchingChat } from "utils/localStorage.js";
+import { TabParamPayload } from "utils/search/objectToSearch";
 import { CHAT_DEFAULTS, chatInitialValues, transformChatValues, withModifiableMessages, withYourMessages } from "views/objects/chat";
-import { DashboardViewProps } from "../types";
+import { DashboardViewProps } from "../types.js";
 
 const MAX_EVENTS_SHOWN = 10;
 const MESSAGE_LIST_ID = "dashboardMessage";
 
 type DashboardTabsInfo = {
-    IsSearchable: false;
     Key: string; // "All" of focus mode's ID
     Payload: FocusMode | undefined;
     WhereParams: undefined;
@@ -108,7 +108,7 @@ export function DashboardView({
 
     const [participants, setParticipants] = useState<Omit<ChatParticipantShape, "chat">[]>([]);
     const [usersTyping, setUsersTyping] = useState<Omit<ChatParticipantShape, "chat">[]>([]);
-    const [refetch, { data: feedData, loading: isFeedLoading }] = useLazyFetch<Record<string, never>, HomeResult>(endpointGetFeedHome);
+    const [refetch, { data: feedData, loading: isFeedLoading }] = useLazyFetch<Record<string, never>, HomeResult>(endpointsFeed.home);
 
     const {
         fetchCreate,
@@ -117,11 +117,11 @@ export function DashboardView({
     } = useUpsertFetch<Chat, ChatCreateInput, ChatUpdateInput>({
         isCreate: false, // We create chats automatically, so this should always be false
         isMutate: true,
-        endpointCreate: endpointPostChat,
-        endpointUpdate: endpointPutChat,
+        endpointCreate: endpointsChat.createOne,
+        endpointUpdate: endpointsChat.updateOne,
     });
 
-    const [getChat, { data: loadedChat, loading: isChatLoading }] = useLazyFetch<FindByIdInput, Chat>(endpointGetChat);
+    const [getChat, { data: loadedChat, loading: isChatLoading }] = useLazyFetch<FindByIdInput, Chat>(endpointsChat.findOne);
     const [chat, setChat] = useState<ChatShape>(chatInitialValues(session, t, languages[0], CHAT_DEFAULTS));
     useEffect(() => {
         if (loadedChat?.participants) {
@@ -201,7 +201,7 @@ export function DashboardView({
     }, [getFocusModeInfo, session]);
 
     // Handle tabs
-    const tabs = useMemo<PageTab<DashboardTabsInfo>[]>(() => {
+    const tabs = useMemo<PageTab<TabParamPayload<DashboardTabsInfo>>[]>(() => {
         const activeColor = isMobile ? palette.primary.contrastText : palette.background.textPrimary;
         const inactiveColor = isMobile ? palette.primary.contrastText : palette.background.textSecondary;
         return [
@@ -230,7 +230,7 @@ export function DashboardView({
         if (tabs.length) return tabs[0];
         return null;
     }, [tabs, focusModeInfo.active]);
-    const handleTabChange = useCallback((e: any, tab: PageTab<DashboardTabsInfo>) => {
+    const handleTabChange = useCallback((e: any, tab: PageTab<TabParamPayload<DashboardTabsInfo>>) => {
         e.preventDefault();
         // If "Add", go to the add focus mode page
         if (tab.key === "Add" || !tab.data) {
@@ -473,10 +473,10 @@ export function DashboardView({
                 display={display}
                 onClose={onClose}
                 below={<>
-                    {showTabs && currTab && <PageTabs
+                    {showTabs && currTab && <PageTabs<TabParamPayload<DashboardTabsInfo>[]>
                         ariaLabel="Focus modes"
                         id={ELEMENT_IDS.DashboardFocusModeTabs}
-                        currTab={currTab as PageTab<DashboardTabsInfo>}
+                        currTab={currTab as PageTab<TabParamPayload<DashboardTabsInfo>>}
                         fullWidth
                         onChange={handleTabChange}
                         tabs={tabs}

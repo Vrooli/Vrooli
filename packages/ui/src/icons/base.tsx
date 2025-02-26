@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { SvgProps } from "../types";
+import { SvgProps } from "../types.js";
 
 export interface SvgBaseProps {
     props: SvgProps;

@@ -1,37 +1,36 @@
-import { CodeLanguage, CodeShape, CodeType, CodeVersion, CodeVersionCreateInput, CodeVersionShape, CodeVersionUpdateInput, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, Session, codeVersionTranslationValidation, codeVersionValidation, endpointGetCodeVersion, endpointPostCodeVersion, endpointPutCodeVersion, noopSubmit, orDefault, shapeCodeVersion } from "@local/shared";
+import { CodeLanguage, CodeShape, CodeType, CodeVersion, CodeVersionCreateInput, CodeVersionShape, CodeVersionUpdateInput, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, Session, codeVersionTranslationValidation, codeVersionValidation, endpointsCodeVersion, noopSubmit, orDefault, shapeCodeVersion } from "@local/shared";
 import { Button, Divider, useTheme } from "@mui/material";
-import { useSubmitHelper } from "api/fetchWrapper";
-import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton";
-import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
-import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { CodeInput } from "components/inputs/CodeInput/CodeInput";
-import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
-import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { TranslatedTextInput } from "components/inputs/TextInput/TextInput";
-import { VersionInput } from "components/inputs/VersionInput/VersionInput";
-import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { ResourceListInput } from "components/lists/ResourceList/ResourceList";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useSubmitHelper } from "api/fetchWrapper.js";
+import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton.js";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton.js";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse.js";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
+import { CodeInput } from "components/inputs/CodeInput/CodeInput.js";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput.js";
+import { TranslatedRichInput } from "components/inputs/RichInput/RichInput.js";
+import { TagSelector } from "components/inputs/TagSelector/TagSelector.js";
+import { TranslatedTextInput } from "components/inputs/TextInput/TextInput.js";
+import { VersionInput } from "components/inputs/VersionInput/VersionInput.js";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList.js";
+import { ResourceListInput } from "components/lists/ResourceList/ResourceList.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { UseAutoFillProps, createUpdatedTranslations, getAutoFillTranslationData, useAutoFill } from "hooks/tasks";
-import { useManagedObject } from "hooks/useManagedObject";
-import { useSaveToCache } from "hooks/useSaveToCache";
-import { useTranslatedFields } from "hooks/useTranslatedFields";
-import { useUpsertActions } from "hooks/useUpsertActions";
-import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { BaseForm } from "forms/BaseForm/BaseForm.js";
+import { useSaveToCache, useUpsertActions } from "hooks/forms.js";
+import { UseAutoFillProps, createUpdatedTranslations, getAutoFillTranslationData, useAutoFill } from "hooks/tasks.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
+import { useTranslatedFields } from "hooks/useTranslatedFields.js";
+import { useUpsertFetch } from "hooks/useUpsertFetch.js";
 import { HelpIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
-import { getCurrentUser } from "utils/authentication/session";
-import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { validateFormValues } from "utils/validateFormValues";
-import { SmartContractFormProps, SmartContractUpsertProps } from "../types";
+import { getCurrentUser } from "utils/authentication/session.js";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools.js";
+import { validateFormValues } from "utils/validateFormValues.js";
+import { SmartContractFormProps, SmartContractUpsertProps } from "../types.js";
 
 export function smartContractInitialValues(
     session: Session | undefined,
@@ -213,8 +212,8 @@ function SmartContractForm({
     } = useUpsertFetch<CodeVersion, CodeVersionCreateInput, CodeVersionUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointPostCodeVersion,
-        endpointUpdate: endpointPutCodeVersion,
+        endpointCreate: endpointsCodeVersion.createOne,
+        endpointUpdate: endpointsCodeVersion.updateOne,
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "CodeVersion" });
 
@@ -401,7 +400,7 @@ export function SmartContractUpsert({
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<CodeVersion, CodeVersionShape>({
-        ...endpointGetCodeVersion,
+        ...endpointsCodeVersion.findOne,
         disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "CodeVersion",

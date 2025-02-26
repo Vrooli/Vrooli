@@ -1,26 +1,26 @@
 import { DUMMY_ID, endpointsUser, ProfileUpdateInput, profileValidation, shapeProfile, User, userTranslationValidation } from "@local/shared";
 import { InputAdornment } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput.js";
 import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput";
-import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
-import { TextInput } from "components/inputs/TextInput/TextInput";
+import { TranslatedRichInput } from "components/inputs/RichInput/RichInput.js";
+import { TextInput } from "components/inputs/TextInput/TextInput.js";
 import { SettingsList } from "components/lists/SettingsList/SettingsList";
 import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { SessionContext } from "contexts";
 import { Field, Formik } from "formik";
-import { InnerForm, OuterForm } from "forms/BaseForm/BaseForm";
-import { useLazyFetch } from "hooks/useLazyFetch";
+import { InnerForm, OuterForm } from "forms/BaseForm/BaseForm.js";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
 import { useProfileQuery } from "hooks/useProfileQuery";
-import { useTranslatedFields } from "hooks/useTranslatedFields";
+import { useTranslatedFields } from "hooks/useTranslatedFields.js";
 import { HandleIcon, UserIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { FormSection, ScrollBox } from "styles";
-import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
-import { SettingsProfileFormProps, SettingsProfileViewProps } from "../types";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools.js";
+import { PubSub } from "utils/pubsub.js";
+import { SettingsProfileFormProps, SettingsProfileViewProps } from "../types.js";
 
 const nameInputProps = {
     startAdornment: (

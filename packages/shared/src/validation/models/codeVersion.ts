@@ -1,9 +1,16 @@
 import * as yup from "yup";
-import { CodeType } from "../../api/types";
-import { YupModel, bool, description, enumToYup, id, jsonVariable, maxStrErr, minStrErr, name, opt, req, transRel, versionLabel, versionNotes, yupObj } from "../utils";
-import { codeValidation } from "./code";
-import { resourceListValidation } from "./resourceList";
+import { CodeType } from "../../api/types.js";
+import { enumToYup } from "../utils/builders/convert.js";
+import { opt, req } from "../utils/builders/optionality.js";
+import { transRel } from "../utils/builders/rel.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { bool, description, id, jsonVariable, name, versionLabel, versionNotes } from "../utils/commonFields.js";
+import { maxStrErr, minStrErr } from "../utils/errors.js";
+import { type YupModel } from "../utils/types.js";
+import { codeValidation } from "./code.js";
+import { resourceListValidation } from "./resourceList.js";
 
+const codeData = yup.string().trim().removeEmptyString().max(8192, maxStrErr);
 const codeDefault = yup.string().trim().removeEmptyString().max(2048, maxStrErr);
 const codeLanguage = yup.string().trim().removeEmptyString().min(1, minStrErr).max(128, maxStrErr);
 const codeType = enumToYup(CodeType);
@@ -30,6 +37,7 @@ export const codeVersionValidation: YupModel<["create", "update"]> = {
         codeLanguage: req(codeLanguage),
         codeType: req(codeType),
         content: req(content),
+        data: opt(codeData),
         default: opt(codeDefault),
         versionLabel: req(versionLabel(d)),
         versionNotes: opt(versionNotes),
@@ -45,6 +53,7 @@ export const codeVersionValidation: YupModel<["create", "update"]> = {
         isPrivate: opt(bool),
         codeLanguage: opt(codeLanguage),
         content: opt(content),
+        data: opt(codeData),
         default: opt(codeDefault),
         versionLabel: opt(versionLabel(d)),
         versionNotes: opt(versionNotes),

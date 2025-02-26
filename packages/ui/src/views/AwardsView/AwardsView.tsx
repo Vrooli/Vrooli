@@ -1,10 +1,10 @@
 import { Award, AwardCategory, AwardSearchInput, AwardSearchResult, TranslationKeyAward, endpointsAward } from "@local/shared";
 import { Box, Typography } from "@mui/material";
 import { CompletionBar } from "components/CompletionBar/CompletionBar";
-import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse.js";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { TIDCard } from "components/lists/TIDCard/TIDCard";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { SessionContext } from "contexts";
 import { useFetch } from "hooks/useFetch";
 import { AwardIcon } from "icons";
@@ -13,7 +13,7 @@ import { useTranslation } from "react-i18next";
 import { ScrollBox } from "styles";
 import { AwardDisplay } from "types";
 import { awardToDisplay } from "utils/display/awardsDisplay";
-import { getUserLanguages } from "utils/display/translationTools";
+import { getUserLanguages } from "utils/display/translationTools.js";
 import { AwardsViewProps } from "views/types";
 
 // Category array for sorting

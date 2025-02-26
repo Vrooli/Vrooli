@@ -1,37 +1,36 @@
-import { ApiShape, ApiVersion, ApiVersionCreateInput, ApiVersionShape, apiVersionTranslationValidation, ApiVersionUpdateInput, apiVersionValidation, CodeLanguage, DUMMY_ID, endpointGetApiVersion, endpointPostApiVersion, endpointPutApiVersion, LINKS, LlmTask, noopSubmit, orDefault, SearchPageTabOption, Session, shapeApiVersion } from "@local/shared";
+import { ApiShape, ApiVersion, ApiVersionCreateInput, ApiVersionShape, apiVersionTranslationValidation, ApiVersionUpdateInput, apiVersionValidation, CodeLanguage, DUMMY_ID, endpointsApiVersion, LINKS, LlmTask, noopSubmit, orDefault, SearchPageTabOption, Session, shapeApiVersion } from "@local/shared";
 import { Button, Divider, InputAdornment, Stack } from "@mui/material";
-import { useSubmitHelper } from "api/fetchWrapper";
-import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
-import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { CodeInput } from "components/inputs/CodeInput/CodeInput";
-import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
-import { TagSelector } from "components/inputs/TagSelector/TagSelector";
-import { TextInput, TranslatedTextInput } from "components/inputs/TextInput/TextInput";
-import { VersionInput } from "components/inputs/VersionInput/VersionInput";
-import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { ResourceListInput } from "components/lists/ResourceList/ResourceList";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useSubmitHelper } from "api/fetchWrapper.js";
+import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton.js";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse.js";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
+import { CodeInput } from "components/inputs/CodeInput/CodeInput.js";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput.js";
+import { TranslatedRichInput } from "components/inputs/RichInput/RichInput.js";
+import { TagSelector } from "components/inputs/TagSelector/TagSelector.js";
+import { TextInput, TranslatedTextInput } from "components/inputs/TextInput/TextInput.js";
+import { VersionInput } from "components/inputs/VersionInput/VersionInput.js";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList.js";
+import { ResourceListInput } from "components/lists/ResourceList/ResourceList.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { SessionContext } from "contexts";
 import { Field, Formik, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "hooks/tasks";
-import { useManagedObject } from "hooks/useManagedObject";
-import { useSaveToCache } from "hooks/useSaveToCache";
-import { useTranslatedFields } from "hooks/useTranslatedFields";
-import { useUpsertActions } from "hooks/useUpsertActions";
-import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { BaseForm } from "forms/BaseForm/BaseForm.js";
+import { useSaveToCache, useUpsertActions } from "hooks/forms.js";
+import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, UseAutoFillProps } from "hooks/tasks.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
+import { useTranslatedFields } from "hooks/useTranslatedFields.js";
+import { useUpsertFetch } from "hooks/useUpsertFetch.js";
 import { HelpIcon, LinkIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
-import { getCurrentUser } from "utils/authentication/session";
-import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { validateFormValues } from "utils/validateFormValues";
+import { getCurrentUser } from "utils/authentication/session.js";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools.js";
+import { validateFormValues } from "utils/validateFormValues.js";
 import { SearchExistingButton } from "../../../../components/buttons/SearchExistingButton/SearchExistingButton";
-import { ApiFormProps, ApiUpsertProps } from "../types";
+import { ApiFormProps, ApiUpsertProps } from "../types.js";
 
 function apiInitialValues(
     session: Session | undefined,
@@ -508,8 +507,8 @@ function ApiForm({
     } = useUpsertFetch<ApiVersion, ApiVersionCreateInput, ApiVersionUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointPostApiVersion,
-        endpointUpdate: endpointPutApiVersion,
+        endpointCreate: endpointsApiVersion.createOne,
+        endpointUpdate: endpointsApiVersion.updateOne,
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "ApiVersion" });
 
@@ -748,7 +747,7 @@ export function ApiUpsert({
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<ApiVersion, ApiVersionShape>({
-        ...endpointGetApiVersion,
+        ...endpointsApiVersion.findOne,
         disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "ApiVersion",

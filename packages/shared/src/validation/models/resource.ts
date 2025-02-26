@@ -1,13 +1,18 @@
 import * as yup from "yup";
-import { ResourceUsedFor } from "../../api/types";
-import { addHttps, description, enumToYup, handleRegex, id, index, maxStrErr, name, opt, req, transRel, urlRegex, walletAddressRegex, YupModel, yupObj } from "../utils";
-import { urlRegexDev } from "../utils/regex";
-import { YupMutateParams } from "../utils/types";
-import { resourceListValidation } from "./resourceList";
+import { ResourceUsedFor } from "../../api/types.js";
+import { addHttps, enumToYup } from "../utils/builders/convert.js";
+import { opt, req } from "../utils/builders/optionality.js";
+import { transRel } from "../utils/builders/rel.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { description, id, index, name } from "../utils/commonFields.js";
+import { maxStrErr } from "../utils/errors.js";
+import { handleRegex, urlRegex, urlRegexDev, walletAddressRegex } from "../utils/regex.js";
+import { YupMutateParams, type YupModel } from "../utils/types.js";
+import { resourceListValidation } from "./resourceList.js";
 
 // Link must match one of the regex above
-const link = ({ env = "production" }: { env?: YupMutateParams["env"] }) =>
-    yup.string().trim().removeEmptyString().transform(addHttps).max(1024, maxStrErr).test(
+function link({ env = "production" }: { env?: YupMutateParams["env"] }) {
+    return yup.string().trim().removeEmptyString().transform(addHttps).max(1024, maxStrErr).test(
         "link",
         "Must be a URL, Cardano payment address, or ADA Handle",
         (value: string | undefined) => {
@@ -15,6 +20,7 @@ const link = ({ env = "production" }: { env?: YupMutateParams["env"] }) =>
             return value !== undefined ? (regexForUrl.test(value) || walletAddressRegex.test(value) || handleRegex.test(value)) : true;
         },
     );
+}
 const usedFor = enumToYup(ResourceUsedFor);
 
 export const resourceTranslationValidation: YupModel<["create", "update"]> = transRel({

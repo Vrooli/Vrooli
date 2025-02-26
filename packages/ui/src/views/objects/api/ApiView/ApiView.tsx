@@ -3,15 +3,15 @@ import { Avatar, Box, IconButton, LinearProgress, Stack, Tooltip, Typography, us
 import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
+import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { ResourceList } from "components/lists/ResourceList/ResourceList";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { ResourceList } from "components/lists/ResourceList/ResourceList.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { Title } from "components/text/Title/Title";
 import { SessionContext } from "contexts";
-import { useObjectActions } from "hooks/objectActions";
-import { useManagedObject } from "hooks/useManagedObject";
+import { useObjectActions } from "hooks/objectActions.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
 import { ApiIcon, EditIcon, EllipsisIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -19,8 +19,8 @@ import { useLocation } from "route";
 import { OverviewContainer } from "styles";
 import { placeholderColor } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
-import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
-import { ApiViewProps } from "../types";
+import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools.js";
+import { ApiViewProps } from "../types.js";
 
 export function ApiView({
     display,

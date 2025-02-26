@@ -1,34 +1,33 @@
-import { DeleteOneInput, DeleteType, DUMMY_ID, endpointGetReminder, endpointPostDeleteOne, endpointPostReminder, endpointPutReminder, LlmTask, noopSubmit, Reminder, ReminderCreateInput, ReminderItemShape, ReminderShape, ReminderUpdateInput, reminderValidation, shapeReminder, Success, uuid } from "@local/shared";
+import { DragDropContext, Draggable, Droppable, DropResult } from "@hello-pangea/dnd";
+import { DeleteOneInput, DeleteType, DUMMY_ID, endpointsActions, endpointsReminder, LlmTask, noopSubmit, Reminder, ReminderCreateInput, ReminderItemShape, ReminderShape, ReminderUpdateInput, reminderValidation, shapeReminder, Success, uuid } from "@local/shared";
 import { Box, Button, Checkbox, Divider, FormControlLabel, IconButton, Stack, styled, useTheme } from "@mui/material";
-import { fetchLazyWrapper, useSubmitHelper } from "api/fetchWrapper";
-import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
-import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { fetchLazyWrapper, useSubmitHelper } from "api/fetchWrapper.js";
+import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton.js";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse.js";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
 import { DateInput } from "components/inputs/DateInput/DateInput";
-import { FocusModeInfo, useFocusModesStore } from "components/inputs/FocusModeSelector/FocusModeSelector";
-import { RichInput } from "components/inputs/RichInput/RichInput";
-import { TextInput } from "components/inputs/TextInput/TextInput";
-import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { FocusModeInfo, useFocusModesStore } from "components/inputs/FocusModeSelector/FocusModeSelector.js";
+import { RichInput } from "components/inputs/RichInput/RichInput.js";
+import { TextInput } from "components/inputs/TextInput/TextInput.js";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { SessionContext } from "contexts";
 import { Field, Formik, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useAutoFill, UseAutoFillProps } from "hooks/tasks";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { useManagedObject } from "hooks/useManagedObject";
-import { useSaveToCache } from "hooks/useSaveToCache";
-import { useUpsertActions } from "hooks/useUpsertActions";
-import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { BaseForm } from "forms/BaseForm/BaseForm.js";
+import { useSaveToCache, useUpsertActions } from "hooks/forms.js";
+import { useAutoFill, UseAutoFillProps } from "hooks/tasks.js";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
+import { useUpsertFetch } from "hooks/useUpsertFetch.js";
 import { AddIcon, DeleteIcon, DragIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { DragDropContext, Draggable, Droppable, DropResult } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
-import { validateFormValues } from "utils/validateFormValues";
-import { ReminderCrudProps, ReminderFormProps } from "../types";
+import { validateFormValues } from "utils/validateFormValues.js";
+import { ReminderCrudProps, ReminderFormProps } from "../types.js";
 
 function getFallbackReminderList(focusModeInfo: FocusModeInfo, existing: Partial<ReminderShape> | null | undefined) {
     const { active: activeFocusMode, all: allFocusModes } = focusModeInfo;
@@ -124,8 +123,8 @@ function ReminderForm({
     } = useUpsertFetch<Reminder, ReminderCreateInput, ReminderUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointPostReminder,
-        endpointUpdate: endpointPutReminder,
+        endpointCreate: endpointsReminder.createOne,
+        endpointUpdate: endpointsReminder.updateOne,
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Reminder" });
 
@@ -139,7 +138,7 @@ function ReminderForm({
         onCompleted: () => { props.setSubmitting(false); },
     });
 
-    const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
+    const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
     const handleDelete = useCallback(() => {
         fetchLazyWrapper<DeleteOneInput, Success>({
             fetch: deleteMutation,
@@ -335,7 +334,7 @@ function ReminderForm({
                                                                 boxShadow: 4,
                                                                 marginBottom: 2,
                                                                 padding: 2,
-                                                                background: palette.mode === "light" ? palette.background.default : palette.background.paper,
+                                                                background: palette.background.paper,
                                                             }}>
                                                             <Stack
                                                                 direction="row"
@@ -440,7 +439,7 @@ export function ReminderCrud({
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useManagedObject<Reminder, ReminderShape>({
-        ...endpointGetReminder,
+        ...endpointsReminder.findOne,
         disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "Reminder",
@@ -454,7 +453,7 @@ export function ReminderCrud({
     const hasUpdatedFocusModeInfo = useRef(false);
 
     useEffect(function loadFocusModeINfoEffect() {
-        let abortController = new AbortController();
+        const abortController = new AbortController();
         async function loadFocusModeInfo() {
             if (!hasUpdatedFocusModeInfo.current && session && session.isLoggedIn && (display !== "dialog" || isOpen)) {
                 const info = await getFocusModeInfo(session, abortController.signal);

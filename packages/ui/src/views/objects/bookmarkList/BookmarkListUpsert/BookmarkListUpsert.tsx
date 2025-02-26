@@ -1,26 +1,25 @@
-import { Bookmark, BookmarkList, BookmarkListCreateInput, BookmarkListShape, BookmarkListUpdateInput, bookmarkListValidation, BookmarkShape, DeleteOneInput, DeleteType, DUMMY_ID, endpointGetBookmarkList, endpointPostBookmarkList, endpointPostDeleteOne, endpointPutBookmarkList, ListObject, noopSubmit, Session, shapeBookmarkList, Success, uuid } from "@local/shared";
+import { Bookmark, BookmarkList, BookmarkListCreateInput, BookmarkListShape, BookmarkListUpdateInput, bookmarkListValidation, BookmarkShape, DeleteOneInput, DeleteType, DUMMY_ID, endpointsActions, endpointsBookmarkList, ListObject, noopSubmit, Session, shapeBookmarkList, Success, uuid } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
-import { fetchLazyWrapper, useSubmitHelper } from "api/fetchWrapper";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { fetchLazyWrapper, useSubmitHelper } from "api/fetchWrapper.js";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
-import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { TextInput } from "components/inputs/TextInput/TextInput";
+import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog.js";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
+import { TextInput } from "components/inputs/TextInput/TextInput.js";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
-import { ObjectListActions } from "components/lists/types";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { ObjectListActions } from "components/lists/types.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { EditableTitle } from "components/text/EditableTitle/EditableTitle";
 import { SessionContext } from "contexts";
 import { Field, Formik, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useBulkObjectActions, useObjectActions } from "hooks/objectActions";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { useManagedObject } from "hooks/useManagedObject";
-import { useSaveToCache } from "hooks/useSaveToCache";
+import { BaseForm } from "forms/BaseForm/BaseForm.js";
+import { useSaveToCache, useUpsertActions } from "hooks/forms.js";
+import { useBulkObjectActions, useObjectActions } from "hooks/objectActions.js";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
 import { useSelectableList } from "hooks/useSelectableList";
-import { useUpsertActions } from "hooks/useUpsertActions";
-import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { useWindowSize } from "hooks/useWindowSize";
+import { useUpsertFetch } from "hooks/useUpsertFetch.js";
+import { useWindowSize } from "hooks/useWindowSize.js";
 import { ActionIcon, AddIcon, CancelIcon, DeleteIcon } from "icons";
 import { useCallback, useContext, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -28,11 +27,11 @@ import { useLocation } from "route";
 import { FormContainer } from "styles";
 import { ArgsType } from "types";
 import { BulkObjectAction } from "utils/actions/bulkObjectActions";
-import { DUMMY_LIST_LENGTH } from "utils/consts";
+import { DUMMY_LIST_LENGTH } from "utils/consts.js";
 import { getDisplay } from "utils/display/listTools";
-import { PubSub } from "utils/pubsub";
-import { validateFormValues } from "utils/validateFormValues";
-import { BookmarkListFormProps, BookmarkListUpsertProps } from "../types";
+import { PubSub } from "utils/pubsub.js";
+import { validateFormValues } from "utils/validateFormValues.js";
+import { BookmarkListFormProps, BookmarkListUpsertProps } from "../types.js";
 
 function bookmarkListInitialValues(
     session: Session | undefined,
@@ -109,8 +108,8 @@ function BookmarkListForm({
     } = useUpsertFetch<BookmarkList, BookmarkListCreateInput, BookmarkListUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointPostBookmarkList,
-        endpointUpdate: endpointPutBookmarkList,
+        endpointCreate: endpointsBookmarkList.createOne,
+        endpointUpdate: endpointsBookmarkList.updateOne,
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "BookmarkList" });
 
@@ -132,7 +131,7 @@ function BookmarkListForm({
     });
 
     // Handle delete
-    const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointPostDeleteOne);
+    const [deleteMutation, { loading: isDeleteLoading }] = useLazyFetch<DeleteOneInput, Success>(endpointsActions.deleteOne);
     const handleDelete = useCallback(() => {
         function performDelete() {
             fetchLazyWrapper<DeleteOneInput, Success>({
@@ -344,7 +343,7 @@ export function BookmarkListUpsert({
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, setObject: setExisting } = useManagedObject<BookmarkList, BookmarkListShape>({
-        ...endpointGetBookmarkList,
+        ...endpointsBookmarkList.findOne,
         disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "BookmarkList",

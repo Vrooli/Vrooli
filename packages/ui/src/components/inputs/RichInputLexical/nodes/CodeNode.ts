@@ -1,15 +1,15 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 //TODO replace this with custom styling in CodePlugin, then remove CodePlugin
 
-import { RangeSelection } from "../selection";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, NodeConstructorPayloads, NodeKey, NodeType, SerializedCodeHighlightNode, SerializedCodeNode } from "../types";
-import { $applyNodeReplacement, $createNode, $isNode, getIndexWithinParent, getNextSibling, getParent, getPreviousSibling, isHTMLElement } from "../utils";
-import { ElementNode } from "./ElementNode";
-import { type LexicalNode } from "./LexicalNode";
-import { type LineBreakNode } from "./LineBreakNode";
-import { type ParagraphNode } from "./ParagraphNode";
-import { type TabNode } from "./TabNode";
-import { TextNode } from "./TextNode";
+import { RangeSelection } from "../selection.js";
+import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, NodeConstructorPayloads, NodeKey, NodeType, SerializedCodeHighlightNode, SerializedCodeNode } from "../types.js";
+import { $applyNodeReplacement, $createNode, $isNode, getIndexWithinParent, getNextSibling, getParent, getPreviousSibling, isHTMLElement } from "../utils.js";
+import { ElementNode } from "./ElementNode.js";
+import { type LexicalNode } from "./LexicalNode.js";
+import { type LineBreakNode } from "./LineBreakNode.js";
+import { type ParagraphNode } from "./ParagraphNode.js";
+import { type TabNode } from "./TabNode.js";
+import { TextNode } from "./TextNode.js";
 
 /**
  * Copyright (c) Meta Platforms, Inc. and affiliates.

@@ -2,7 +2,7 @@ import { Session, TranslationKeyCommon } from "@local/shared";
 import { FilterOptionsState } from "@mui/material";
 import i18next from "i18next";
 import { SvgComponent } from "types";
-import { getSiteLanguage } from "utils/authentication/session";
+import { getSiteLanguage } from "utils/authentication/session.js";
 import { normalizeText, removeEmojis, removePunctuation } from "utils/display/documentTools";
 
 /**

@@ -1,28 +1,28 @@
 import { Bookmark, BookmarkCreateInput, BookmarkList, deleteArrayIndex, endpointsBookmark, endpointsBookmarkList, HistoryPageTabOption, LINKS, shapeBookmark, updateArray, uuid } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
+import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog.js";
 import { SiteSearchBar } from "components/inputs/search/SiteSearchBar/SiteSearchBar";
 import { ObjectList } from "components/lists/ObjectList/ObjectList";
-import { ObjectListActions } from "components/lists/types";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { ObjectListActions } from "components/lists/types.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { SessionContext } from "contexts";
-import { useDeleter, useObjectActions } from "hooks/objectActions";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { useManagedObject } from "hooks/useManagedObject";
+import { useDeleter, useObjectActions } from "hooks/objectActions.js";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
 import { AddIcon, DeleteIcon, EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { SideActionsButton } from "styles";
-import { ObjectAction } from "utils/actions/objectActions";
-import { DUMMY_LIST_LENGTH } from "utils/consts";
+import { ObjectAction } from "utils/actions/objectActions.js";
+import { DUMMY_LIST_LENGTH } from "utils/consts.js";
 import { listToAutocomplete } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import { BookmarkListViewProps } from "../types";
+import { getUserLanguages } from "utils/display/translationTools.js";
+import { BookmarkListViewProps } from "../types.js";
 
 export function BookmarkListView({
     display,

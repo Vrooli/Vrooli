@@ -1,5 +1,5 @@
 import { createContext as createReactContext, useContext } from "react";
-import { LexicalEditor } from "./editor";
+import { LexicalEditor } from "./editor.js";
 
 export const LexicalComposerContext: React.Context<LexicalEditor | null> =
     createReactContext<LexicalEditor | null>(null);

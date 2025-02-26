@@ -1,6 +1,6 @@
 import { endpointsNoteVersion, FormSchema, NoteVersionSortBy } from "@local/shared";
-import { toParams } from "./base";
-import { bookmarksRootContainer, bookmarksRootFields, isLatestContainer, isLatestFields, languagesContainer, languagesFields, searchFormLayout, tagsRootContainer, tagsRootFields, votesRootContainer, votesRootFields } from "./common";
+import { toParams } from "./base.js";
+import { bookmarksRootContainer, bookmarksRootFields, isLatestContainer, isLatestFields, languagesContainer, languagesFields, searchFormLayout, tagsRootContainer, tagsRootFields, votesRootContainer, votesRootFields } from "./common.js";
 
 export function noteVersionSearchSchema(): FormSchema {
     return {

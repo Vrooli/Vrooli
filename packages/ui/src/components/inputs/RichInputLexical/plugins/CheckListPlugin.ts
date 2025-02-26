@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { useEffect } from "react";
-import { INSERT_CHECK_LIST_COMMAND, KEY_ARROW_DOWN_COMMAND, KEY_ARROW_LEFT_COMMAND, KEY_ARROW_UP_COMMAND, KEY_ESCAPE_COMMAND, KEY_SPACE_COMMAND } from "../commands";
-import { COMMAND_PRIORITY_LOW } from "../consts";
-import { useLexicalComposerContext } from "../context";
-import { LexicalEditor } from "../editor";
-import { ListItemNode } from "../nodes/ListItemNode";
-import { insertList } from "../nodes/ListNode";
-import { CustomDomElement } from "../types";
-import { $findMatchingParent, $getNearestNodeFromDOMNode, $getSelection, $isNode, $isRangeSelection, calculateZoomLevel, getNextSibling, getParent, getPreviousSibling, isHTMLElement, mergeRegister } from "../utils";
+import { INSERT_CHECK_LIST_COMMAND, KEY_ARROW_DOWN_COMMAND, KEY_ARROW_LEFT_COMMAND, KEY_ARROW_UP_COMMAND, KEY_ESCAPE_COMMAND, KEY_SPACE_COMMAND } from "../commands.js";
+import { COMMAND_PRIORITY_LOW } from "../consts.js";
+import { useLexicalComposerContext } from "../context.js";
+import { LexicalEditor } from "../editor.js";
+import { ListItemNode } from "../nodes/ListItemNode.js";
+import { insertList } from "../nodes/ListNode.js";
+import { CustomDomElement } from "../types.js";
+import { $findMatchingParent, $getNearestNodeFromDOMNode, $getSelection, $isNode, $isRangeSelection, calculateZoomLevel, getNextSibling, getParent, getPreviousSibling, isHTMLElement, mergeRegister } from "../utils.js";
 
 export function CheckListPlugin(): null {
     const editor = useLexicalComposerContext();

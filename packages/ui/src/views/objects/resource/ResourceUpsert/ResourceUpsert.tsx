@@ -1,31 +1,30 @@
-import { DUMMY_ID, Resource, ResourceCreateInput, ResourceShape, ResourceUpdateInput, ResourceUsedFor, Session, TranslationKeyCommon, endpointGetResource, endpointPostResource, endpointPutResource, noopSubmit, orDefault, resourceValidation, shapeResource, userTranslationValidation } from "@local/shared";
+import { DUMMY_ID, Resource, ResourceCreateInput, ResourceShape, ResourceUpdateInput, ResourceUsedFor, Session, TranslationKeyCommon, endpointsResource, noopSubmit, orDefault, resourceValidation, shapeResource, userTranslationValidation } from "@local/shared";
 import { Button, Divider, Stack } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
 import { LinkInput } from "components/inputs/LinkInput/LinkInput";
 import { Selector, SelectorBase } from "components/inputs/Selector/Selector";
-import { TranslatedTextInput } from "components/inputs/TextInput/TextInput";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { TranslatedTextInput } from "components/inputs/TextInput/TextInput.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { SessionContext } from "contexts";
 import { Formik, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useManagedObject } from "hooks/useManagedObject";
-import { useSaveToCache } from "hooks/useSaveToCache";
-import { useTranslatedFields } from "hooks/useTranslatedFields";
-import { useUpsertActions } from "hooks/useUpsertActions";
-import { useUpsertFetch } from "hooks/useUpsertFetch";
+import { BaseForm } from "forms/BaseForm/BaseForm.js";
+import { useSaveToCache, useUpsertActions } from "hooks/forms.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
+import { useTranslatedFields } from "hooks/useTranslatedFields.js";
+import { useUpsertFetch } from "hooks/useUpsertFetch.js";
 import { CompleteIcon } from "icons";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormContainer, FormSection } from "styles";
 import { getResourceIcon } from "utils/display/getResourceIcon";
-import { combineErrorsWithTranslations, getUserLanguages, handleTranslationChange } from "utils/display/translationTools";
+import { combineErrorsWithTranslations, getUserLanguages, handleTranslationChange } from "utils/display/translationTools.js";
 import { shortcuts } from "utils/navigation/quickActions";
-import { PubSub } from "utils/pubsub";
+import { PubSub } from "utils/pubsub.js";
 import { PreSearchItem } from "utils/search/siteToSearch";
-import { validateFormValues } from "utils/validateFormValues";
-import { ResourceFormProps, ResourceUpsertProps } from "../types";
+import { validateFormValues } from "utils/validateFormValues.js";
+import { ResourceFormProps, ResourceUpsertProps } from "../types.js";
 
 export function resourceInitialValues(
     session: Session | undefined,
@@ -123,8 +122,8 @@ function ResourceForm({
     } = useUpsertFetch<Resource, ResourceCreateInput, ResourceUpdateInput>({
         isCreate,
         isMutate,
-        endpointCreate: endpointPostResource,
-        endpointUpdate: endpointPutResource,
+        endpointCreate: endpointsResource.createOne,
+        endpointUpdate: endpointsResource.updateOne,
     });
     useSaveToCache({ isCreate, values, objectId: values.id, objectType: "Resource" });
 
@@ -296,7 +295,7 @@ export function ResourceUpsert({
     const session = useContext(SessionContext);
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<Resource, ResourceShape>({
-        ...endpointGetResource,
+        ...endpointsResource.findOne,
         disabled: display === "dialog" && isOpen !== true,
         isCreate,
         objectType: "Resource",

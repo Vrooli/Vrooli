@@ -1,8 +1,8 @@
 import { endpointsRoutine, FormSchema, InputType, RoutineSortBy, RoutineType } from "@local/shared";
 import { ActionIcon, ApiIcon, CaseSensitiveIcon, HelpIcon, MagicIcon, RoutineIcon, SmartContractIcon, TerminalIcon } from "icons";
 import { SvgProps } from "types";
-import { toParams } from "./base";
-import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common";
+import { toParams } from "./base.js";
+import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common.js";
 
 export type RoutineTypeOption = {
     type: RoutineType;

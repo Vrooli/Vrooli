@@ -1,27 +1,26 @@
-import { camelCase, Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentShape, commentTranslationValidation, CommentUpdateInput, commentValidation, DUMMY_ID, endpointGetComments, endpointPostComment, endpointPutComment, noopSubmit, orDefault, Session, shapeComment, uuidValidate } from "@local/shared";
+import { camelCase, Comment, CommentCreateInput, CommentFor, CommentSearchInput, CommentSearchResult, CommentShape, commentTranslationValidation, CommentUpdateInput, commentValidation, DUMMY_ID, endpointsComment, noopSubmit, orDefault, Session, shapeComment, uuidValidate } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
-import { useSubmitHelper } from "api/fetchWrapper";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { TranslatedRichInput } from "components/inputs/RichInput/RichInput";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { useSubmitHelper } from "api/fetchWrapper.js";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
+import { TranslatedRichInput } from "components/inputs/RichInput/RichInput.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { SessionContext } from "contexts";
 import { Formik } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { useSaveToCache } from "hooks/useSaveToCache";
-import { useTranslatedFields } from "hooks/useTranslatedFields";
-import { useUpsertActions } from "hooks/useUpsertActions";
-import { useUpsertFetch } from "hooks/useUpsertFetch";
-import { useWindowSize } from "hooks/useWindowSize";
+import { BaseForm } from "forms/BaseForm/BaseForm.js";
+import { useSaveToCache, useUpsertActions } from "hooks/forms.js";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
+import { useTranslatedFields } from "hooks/useTranslatedFields.js";
+import { useUpsertFetch } from "hooks/useUpsertFetch.js";
+import { useWindowSize } from "hooks/useWindowSize.js";
 import { SendIcon } from "icons";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { defaultYou, getDisplay, getYou } from "utils/display/listTools";
-import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { validateFormValues } from "utils/validateFormValues";
-import { CommentFormProps, CommentUpsertProps } from "../types";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools.js";
+import { validateFormValues } from "utils/validateFormValues.js";
+import { CommentFormProps, CommentUpsertProps } from "../types.js";
 
 export function commentInitialValues(
     session: Session | undefined,
@@ -93,8 +92,8 @@ function CommentForm({
     } = useUpsertFetch<Comment, CommentCreateInput, CommentUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointPostComment,
-        endpointUpdate: endpointPutComment,
+        endpointCreate: endpointsComment.createOne,
+        endpointUpdate: endpointsComment.updateOne,
     });
     useSaveToCache({ isCreate: false, values, objectId, objectType: "Comment" }); // Tied to ID of object being commented on, which is always already created
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
@@ -203,8 +202,8 @@ export function CommentDialog({
     } = useUpsertFetch<Comment, CommentCreateInput, CommentUpdateInput>({
         isCreate,
         isMutate: true,
-        endpointCreate: endpointPostComment,
-        endpointUpdate: endpointPutComment,
+        endpointCreate: endpointsComment.createOne,
+        endpointUpdate: endpointsComment.updateOne,
     });
     useSaveToCache({ isCreate: false, values, objectId, objectType: "Comment" }); // Tied to ID of object being commented on, which is always already created
     const isLoading = useMemo(() => isCreateLoading || isReadLoading || isUpdateLoading || props.isSubmitting, [isCreateLoading, isReadLoading, isUpdateLoading, props.isSubmitting]);
@@ -318,7 +317,7 @@ export function CommentUpsert({
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width < breakpoints.values.sm);
 
-    const [getData, { data: fetchedData, loading: isReadLoading }] = useLazyFetch<CommentSearchInput, CommentSearchResult>(endpointGetComments);
+    const [getData, { data: fetchedData, loading: isReadLoading }] = useLazyFetch<CommentSearchInput, CommentSearchResult>(endpointsComment.findMany);
     useEffect(() => {
         if (!uuidValidate(objectId)) return;
         getData({ [`${camelCase(objectType)}Id`]: objectId });

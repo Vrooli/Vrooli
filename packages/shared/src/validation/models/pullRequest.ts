@@ -1,6 +1,12 @@
 import * as yup from "yup";
-import { PullRequestStatus, PullRequestToObjectType } from "../../api/types";
-import { YupModel, enumToYup, id, maxStrErr, minStrErr, opt, req, transRel, yupObj } from "../utils";
+import { PullRequestStatus, PullRequestToObjectType } from "../../api/types.js";
+import { enumToYup } from "../utils/builders/convert.js";
+import { opt, req } from "../utils/builders/optionality.js";
+import { transRel } from "../utils/builders/rel.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { id } from "../utils/commonFields.js";
+import { maxStrErr, minStrErr } from "../utils/errors.js";
+import { type YupModel } from "../utils/types.js";
 
 const pullRequestTo = enumToYup(PullRequestToObjectType);
 const pullRequestStatus = enumToYup(PullRequestStatus);

@@ -1,5 +1,9 @@
-import { ReportSuggestedAction } from "../../api/types";
-import { details, enumToYup, id, language, opt, req, YupModel, yupObj } from "../utils";
+import { ReportSuggestedAction } from "../../api/types.js";
+import { enumToYup } from "../utils/builders/convert.js";
+import { opt, req } from "../utils/builders/optionality.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { details, id, language } from "../utils/commonFields.js";
+import { type YupModel } from "../utils/types.js";
 
 const actionSuggested = enumToYup(ReportSuggestedAction);
 

@@ -4,8 +4,8 @@ import { fetchData } from "api/fetchData";
 import { SessionContext } from "contexts";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { addSearchParams, openLink, removeSearchParams, useLocation } from "route";
-import { getCurrentUser } from "utils/authentication/session";
-import { PubSub } from "utils/pubsub";
+import { getCurrentUser } from "utils/authentication/session.js";
+import { PubSub } from "utils/pubsub.js";
 import { useFetch } from "./useFetch";
 
 const stripePromise = loadStripe(process.env.VITE_STRIPE_PUBLISHABLE_KEY ?? "");

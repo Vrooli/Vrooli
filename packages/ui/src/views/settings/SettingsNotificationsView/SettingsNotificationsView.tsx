@@ -1,7 +1,7 @@
 import { Email, endpointsNotification, NotificationSettings, NotificationSettingsCategory, NotificationSettingsUpdateInput, PushDevice } from "@local/shared";
 import { Box, Button, Divider, Stack } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
 import { ListContainer } from "components/containers/ListContainer/ListContainer";
 import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
 import { EmailList } from "components/lists/devices/EmailList/EmailList";
@@ -11,16 +11,16 @@ import { SettingsToggleListItem } from "components/lists/SettingsToggleListItem/
 import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar";
 import { Title } from "components/text/Title/Title";
 import { Formik } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
+import { BaseForm } from "forms/BaseForm/BaseForm.js";
 import { useFetch } from "hooks/useFetch";
-import { useLazyFetch } from "hooks/useLazyFetch";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
 import { useProfileQuery } from "hooks/useProfileQuery";
 import { EmailIcon, NotificationsAllIcon, PhoneIcon } from "icons";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { ScrollBox } from "styles";
-import { PubSub } from "utils/pubsub";
-import { SettingsNotificationFormProps, SettingsNotificationsViewProps } from "../types";
+import { PubSub } from "utils/pubsub.js";
+import { SettingsNotificationFormProps, SettingsNotificationsViewProps } from "../types.js";
 
 function SettingsNotificationForm({
     display,

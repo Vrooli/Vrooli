@@ -1,25 +1,25 @@
-import { BookmarkFor, ChatShape, FindByIdOrHandleInput, LINKS, ListObject, User, UserPageTabOption, endpointGetProfile, endpointGetUser, findBotData, getAvailableModels, getObjectUrl, getTranslation, noop, uuid, uuidValidate } from "@local/shared";
-import { Box, IconButton, InputAdornment, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { getExistingAIConfig } from "api/ai";
+import { BookmarkFor, ChatShape, FindByIdOrHandleInput, LINKS, ListObject, User, UserPageTabOption, endpointsUser, findBotDataForForm, getAvailableModels, getObjectUrl, getTranslation, noop, uuid, uuidValidate } from "@local/shared";
+import { Box, IconButton, InputAdornment, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { getExistingAIConfig } from "api/ai.js";
 import BannerDefault from "assets/img/BannerDefault.webp";
 import BannerDefaultBot from "assets/img/BannerDefaultBot.webp";
-import { PageTabs } from "components/PageTabs/PageTabs";
-import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
-import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink";
-import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
-import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
-import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { TextInput } from "components/inputs/TextInput/TextInput";
-import { SearchList } from "components/lists/SearchList/SearchList";
-import { TextLoading } from "components/lists/TextLoading/TextLoading";
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
-import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
-import { Title } from "components/text/Title/Title";
-import { SessionContext } from "contexts";
-import { useObjectActions } from "hooks/objectActions";
+import { PageTabs } from "components/PageTabs/PageTabs.js";
+import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton.js";
+import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink.js";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons.js";
+import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
+import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu.js";
+import { TextInput } from "components/inputs/TextInput/TextInput.js";
+import { SearchList } from "components/lists/SearchList/SearchList.js";
+import { TextLoading } from "components/lists/TextLoading/TextLoading.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { DateDisplay } from "components/text/DateDisplay/DateDisplay.js";
+import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay.js";
+import { Title } from "components/text/Title/Title.js";
+import { SessionContext } from "contexts/SessionContext.js";
+import { useObjectActions } from "hooks/objectActions.js";
 import { useFindMany } from "hooks/useFindMany";
-import { useLazyFetch } from "hooks/useLazyFetch";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
 import { useTabs } from "hooks/useTabs";
 import { AddIcon, BotIcon, CommentIcon, EditIcon, EllipsisIcon, ExportIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, PersonaIcon, RoutineValidIcon, SearchIcon, TeamIcon, UserIcon } from "icons";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -27,18 +27,29 @@ import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
 import { BannerImageContainer, FormSection, OverviewContainer, OverviewProfileAvatar, OverviewProfileStack, ScrollBox, SideActionsButton } from "styles";
 import { PartialWithType } from "types";
-import { getCurrentUser } from "utils/authentication/session";
+import { getCurrentUser } from "utils/authentication/session.js";
 import { extractImageUrl } from "utils/display/imageTools";
 import { defaultYou, getDisplay, getYou, placeholderColor } from "utils/display/listTools";
-import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
-import { getCookieMatchingChat, getCookiePartialData, setCookiePartialData } from "utils/localStorage";
+import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools.js";
+import { getCookieMatchingChat, getCookiePartialData, setCookiePartialData } from "utils/localStorage.js";
 import { UrlInfo, parseSingleItemUrl } from "utils/navigation/urlTools";
-import { PubSub } from "utils/pubsub";
+import { PubSub } from "utils/pubsub.js";
 import { userTabParams } from "utils/search/objectToSearch";
 import { FeatureSlider } from "views/objects/bot";
-import { UserViewProps } from "../types";
+import { UserViewProps } from "../types.js";
 
 const scrollContainerId = "user-search-scroll";
+const BANNER_IMAGE_TARGET_SIZE_PX = 1000;
+
+const StyledPageTabs = styled(PageTabs<typeof userTabParams>)(({ theme }) => ({
+    background: theme.palette.background.paper,
+    borderBottom: `1px solid ${theme.palette.divider}`,
+}));
+const HandleText = styled(Typography)(({ theme }) => ({
+    color: theme.palette.secondary.dark,
+    cursor: "pointer",
+    paddingBottom: theme.spacing(2),
+}));
 
 const occupationInputProps = {
     startAdornment: (
@@ -90,6 +101,12 @@ const biasInputProps = {
     ),
 } as const;
 
+const detailsSectionStyle = {
+    overflowX: "hidden",
+    marginTop: 0,
+    borderRadius: "0px",
+} as const;
+
 export function UserView({
     display,
     onClose,
@@ -115,8 +132,8 @@ export function UserView({
         return urlInfo as UrlInfo & { isOwnProfile: boolean };
     }, [pathname, session]);
     // Logic to find user is a bit different from other objects, as "profile" is mapped to the current user
-    const [getUserData, { data: userData, loading: isUserLoading }] = useLazyFetch<FindByIdOrHandleInput, User>(endpointGetUser);
-    const [getProfileData, { data: profileData, loading: isProfileLoading }] = useLazyFetch<undefined, User>(endpointGetProfile);
+    const [getUserData, { data: userData, loading: isUserLoading }] = useLazyFetch<FindByIdOrHandleInput, User>(endpointsUser.findOne);
+    const [getProfileData, { data: profileData, loading: isProfileLoading }] = useLazyFetch<undefined, User>(endpointsUser.profile);
     const [user, setUser] = useState<PartialWithType<User> | null | undefined>(() => getCookiePartialData<PartialWithType<User>>({ __typename: "User", id: urlInfo.id, handle: urlInfo.handle }));
     // Get user or profile data
     useEffect(() => {
@@ -143,10 +160,10 @@ export function UserView({
 
     const { adornments, bannerImageUrl, bio, botData, name, handle } = useMemo(() => {
         const availableModels = getAvailableModels(getExistingAIConfig()?.service?.config);
-        const { model, creativity, verbosity, translations } = findBotData(language, availableModels, user);
+        const { model, creativity, verbosity, translations } = findBotDataForForm(language, availableModels, user);
         const { bio, ...botTranslations } = getTranslation({ translations }, [language], true);
         const { adornments } = getDisplay(user, [language], palette);
-        let bannerImageUrl = extractImageUrl(user?.bannerImage, user?.updated_at, 1000);
+        let bannerImageUrl = extractImageUrl(user?.bannerImage, user?.updated_at, BANNER_IMAGE_TARGET_SIZE_PX);
         if (!bannerImageUrl) bannerImageUrl = user?.isBot ? BannerDefaultBot : BannerDefault;
         return {
             adornments,
@@ -203,6 +220,17 @@ export function UserView({
         setLocation,
         setObject: setUser,
     });
+    const startActionEdit = useCallback(() => {
+        actionData.onActionStart("Edit");
+    }, [actionData]);
+    const startActionShare = useCallback(() => {
+        actionData.onActionStart("Share");
+    }, [actionData]);
+
+    const copyHandle = useCallback(() => {
+        navigator.clipboard.writeText(`${window.location.origin}${LINKS.User}/${handle}`);
+        PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
+    }, [handle]);
 
     /** Opens dialog to add or invite user to a team/meeting/chat */
     const handleAddOrInvite = useCallback(() => {
@@ -242,7 +270,7 @@ export function UserView({
         if (user.isBot) {
             const bestLanguage = getUserLanguages(session)[0];
             const availableModels = getAvailableModels(getExistingAIConfig()?.service?.config);
-            const { translations } = findBotData(bestLanguage, availableModels, user);
+            const { translations } = findBotDataForForm(bestLanguage, availableModels, user);
             const bestTranslation = getTranslation({ translations }, [bestLanguage]);
             const startingMessage = bestTranslation.startingMessage ?? "";
             if (startingMessage.length > 0) {
@@ -348,20 +376,12 @@ export function UserView({
                     }
                     {/* Handle */}
                     {
-                        handle && <Typography
+                        handle && <HandleText
                             variant="h6"
                             textAlign="center"
                             fontFamily="monospace"
-                            onClick={() => {
-                                navigator.clipboard.writeText(`${window.location.origin}${LINKS.User}/${handle}`);
-                                PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
-                            }}
-                            sx={{
-                                color: palette.secondary.dark,
-                                cursor: "pointer",
-                                paddingBottom: 2,
-                            }}
-                        >@{handle}</Typography>
+                            onClick={copyHandle}
+                        >@{handle}</HandleText>
                     }
                     {/* Bio */}
                     {
@@ -391,23 +411,15 @@ export function UserView({
             </OverviewContainer>
             {/* View routines, teams, standards, and projects associated with this user */}
             <Box sx={{ margin: "auto", maxWidth: `min(${breakpoints.values.sm}px, 100%)` }}>
-                <PageTabs
+                <StyledPageTabs
                     ariaLabel="user-tabs"
                     fullWidth
                     currTab={currTab}
                     onChange={handleTabChange}
                     tabs={tabs}
-                    sx={{
-                        background: palette.background.paper,
-                        borderBottom: `1px solid ${palette.divider}`,
-                    }}
                 />
                 {currTab.key === UserPageTabOption.Details && (
-                    <FormSection sx={{
-                        overflowX: "hidden",
-                        marginTop: 0,
-                        borderRadius: "0px",
-                    }}>
+                    <FormSection sx={detailsSectionStyle}>
                         {botData.model && <TextInput
                             disabled
                             fullWidth
@@ -499,10 +511,10 @@ export function UserView({
                 {currTab.key !== UserPageTabOption.Details ? <SideActionsButton aria-label={t("FilterList")} onClick={toggleSearchFilters}>
                     <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </SideActionsButton> : null}
-                {permissions.canUpdate ? <SideActionsButton aria-label={t("Edit")} onClick={() => { actionData.onActionStart("Edit"); }}>
+                {permissions.canUpdate ? <SideActionsButton aria-label={t("Edit")} onClick={startActionEdit}>
                     <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
                 </SideActionsButton> : null}
-                <SideActionsButton aria-label={t("Share")} onClick={() => { actionData.onActionStart("Share"); }}>
+                <SideActionsButton aria-label={t("Share")} onClick={startActionShare}>
                     <ExportIcon fill={palette.secondary.contrastText} width='32px' height='32px' />
                 </SideActionsButton>
                 <SideActionsButton aria-label={t("AddToTeam")} onClick={handleAddOrInvite}>

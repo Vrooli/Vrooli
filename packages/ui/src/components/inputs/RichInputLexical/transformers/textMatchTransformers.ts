@@ -1,4 +1,4 @@
-import { TextMatchTransformer } from "../types";
+import { TextMatchTransformer } from "../types.js";
 import { $createNode, $isNode } from "../utils";
 
 export const CODE_BLOCK: TextMatchTransformer = {

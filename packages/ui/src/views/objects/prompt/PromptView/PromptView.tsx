@@ -1,30 +1,32 @@
-import { CommentFor, ResourceListShape, StandardShape, StandardVersion, TagShape, endpointGetStandardVersion, exists, getTranslation, noop, noopSubmit } from "@local/shared";
+import { CommentFor, ResourceListShape, StandardShape, StandardVersion, TagShape, endpointsStandardVersion, exists, getTranslation, noop, noopSubmit } from "@local/shared";
 import { Box, Stack, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
-import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { ResourceList } from "components/lists/ResourceList/ResourceList";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList.js";
+import { ResourceList } from "components/lists/ResourceList/ResourceList.js";
 import { TagList } from "components/lists/TagList/TagList";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
 import { SessionContext } from "contexts";
 import { Formik } from "formik";
-import { useObjectActions } from "hooks/objectActions";
-import { useManagedObject } from "hooks/useManagedObject";
+import { useObjectActions } from "hooks/objectActions.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
 import { EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { FormSection, SideActionsButton } from "styles";
-import { ObjectAction } from "utils/actions/objectActions";
+import { ObjectAction } from "utils/actions/objectActions.js";
 import { firstString } from "utils/display/stringTools";
-import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
+import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools.js";
 import { promptInitialValues } from "../PromptUpsert/PromptUpsert";
-import { PromptViewProps } from "../types";
+import { PromptViewProps } from "../types.js";
+
+const contextActionsExcluded = [ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp] as const;
 
 export function PromptView({
     display,
@@ -36,7 +38,7 @@ export function PromptView({
     const [, setLocation] = useLocation();
 
     const { isLoading, object: existing, permissions, setObject: setStandardVersion } = useManagedObject<StandardVersion>({
-        ...endpointGetStandardVersion,
+        ...endpointsStandardVersion.findOne,
         objectType: "StandardVersion",
     });
 
@@ -152,7 +154,7 @@ export function PromptView({
                     {/* Action buttons */}
                     <ObjectActionsRow
                         actionData={actionData}
-                        exclude={[ObjectAction.Edit, ObjectAction.VoteDown, ObjectAction.VoteUp]} // Handled elsewhere
+                        exclude={contextActionsExcluded} // Handled elsewhere
                         object={existing}
                     />
                     {/* Comments */}

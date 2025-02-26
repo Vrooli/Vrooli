@@ -1,9 +1,14 @@
-import { RoutineType } from "../../api/types";
-import { YupModel, bool, configCallData, configFormInput, configFormOutput, description, enumToYup, id, instructions, name, opt, req, transRel, versionLabel, versionNotes, yupObj } from "../utils";
-import { resourceListValidation } from "./resourceList";
-import { routineValidation } from "./routine";
-import { routineVersionInputValidation } from "./routineVersionInput";
-import { routineVersionOutputValidation } from "./routineVersionOutput";
+import { RoutineType } from "../../api/types.js";
+import { enumToYup } from "../utils/builders/convert.js";
+import { opt, req } from "../utils/builders/optionality.js";
+import { transRel } from "../utils/builders/rel.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { bool, configCallData, configFormInput, configFormOutput, description, id, instructions, name, versionLabel, versionNotes } from "../utils/commonFields.js";
+import { type YupModel } from "../utils/types.js";
+import { resourceListValidation } from "./resourceList.js";
+import { routineValidation } from "./routine.js";
+import { routineVersionInputValidation } from "./routineVersionInput.js";
+import { routineVersionOutputValidation } from "./routineVersionOutput.js";
 
 const routineType = enumToYup(RoutineType);
 

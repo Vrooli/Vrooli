@@ -1,29 +1,31 @@
-import { CommentFor, endpointGetQuestion, exists, Question, Tag, TagShape } from "@local/shared";
+import { CommentFor, endpointsQuestion, exists, Question, Tag, TagShape } from "@local/shared";
 import { Stack, useTheme } from "@mui/material";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
 import { CommentContainer } from "components/containers/CommentContainer/CommentContainer";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
 import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectActionsRow";
-import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
+import { RelationshipList } from "components/lists/RelationshipList/RelationshipList.js";
 import { TagList } from "components/lists/TagList/TagList";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
 import { SessionContext } from "contexts";
 import { Formik } from "formik";
-import { useObjectActions } from "hooks/objectActions";
-import { useManagedObject } from "hooks/useManagedObject";
+import { useObjectActions } from "hooks/objectActions.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
 import { EditIcon } from "icons";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { FormSection, SideActionsButton } from "styles";
-import { ObjectAction } from "utils/actions/objectActions";
+import { ObjectAction } from "utils/actions/objectActions.js";
 import { getDisplay } from "utils/display/listTools";
 import { firstString } from "utils/display/stringTools";
-import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
+import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools.js";
 import { questionInitialValues } from "../QuestionUpsert/QuestionUpsert";
-import { QuestionViewProps } from "../types";
+import { QuestionViewProps } from "../types.js";
+
+const contextActionsExcluded = [ObjectAction.Edit] as const;
 
 export function QuestionView({
     display,
@@ -35,7 +37,7 @@ export function QuestionView({
     const [, setLocation] = useLocation();
 
     const { isLoading, object: existing, permissions, setObject: setQuestion } = useManagedObject<Question>({
-        ...endpointGetQuestion,
+        ...endpointsQuestion.findOne,
         objectType: "Question",
     });
 
@@ -121,7 +123,7 @@ export function QuestionView({
                     {/* Action buttons */}
                     <ObjectActionsRow
                         actionData={actionData}
-                        exclude={[ObjectAction.Edit]} // Handled elsewhere
+                        exclude={contextActionsExcluded} // Handled elsewhere
                         object={existing}
                     />
                     {/* Comments */}

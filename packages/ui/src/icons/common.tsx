@@ -1,5 +1,5 @@
 /* eslint-disable func-style */
-import { SvgProps } from "../types";
+import { SvgProps } from "../types.js";
 import { SvgPath } from "./base";
 
 export const ActionIcon = (props: SvgProps) => (
