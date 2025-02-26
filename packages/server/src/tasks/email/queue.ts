@@ -4,8 +4,8 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import winston from "winston";
-import { CustomError } from "../../events/error";
-import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, SERVER_PATH, addJobToQueue, getProcessPath } from "../queueHelper";
+import { CustomError } from "../../events/error.js";
+import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, SERVER_PATH, addJobToQueue, getProcessPath } from "../queueHelper.js";
 
 export type EmailProcessPayload = {
     to: string[];

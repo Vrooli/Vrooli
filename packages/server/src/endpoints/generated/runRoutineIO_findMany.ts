@@ -1,12 +1,13 @@
-export const runRoutineOutput_findMany = {
+export const runRoutineIO_findMany = {
     "edges": {
         "cursor": true,
         "node": {
             "id": true,
             "data": true,
-            "output": {
+            "input": {
                 "id": true,
                 "index": true,
+                "isRequired": true,
                 "name": true,
                 "standardVersion": {
                     "id": true,
@@ -137,5 +138,5 @@ export const runRoutineOutput_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-942060306"
+    "__cacheKey": "-577924714"
 };

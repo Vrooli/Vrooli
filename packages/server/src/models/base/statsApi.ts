@@ -1,10 +1,11 @@
 import { DEFAULT_LANGUAGE, MaxObjects, StatsApiSortBy } from "@local/shared";
 import i18next from "i18next";
-import { ModelMap } from ".";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { StatsApiFormat } from "../formats";
-import { ApiModelInfo, ApiModelLogic, StatsApiModelInfo, StatsApiModelLogic } from "./types";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { StatsApiFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { ApiModelInfo, ApiModelLogic, StatsApiModelInfo, StatsApiModelLogic } from "./types.js";
 
 const __typename = "StatsApi" as const;
 export const StatsApiModel: StatsApiModelLogic = ({

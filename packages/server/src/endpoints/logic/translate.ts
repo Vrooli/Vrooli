@@ -1,7 +1,7 @@
 import { Translate, TranslateInput } from "@local/shared";
 import fetch from "node-fetch";
-import { CustomError } from "../../events/error";
-import { ApiEndpoint } from "../../types";
+import { CustomError } from "../../events/error.js";
+import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsTranslate = {
     translate: ApiEndpoint<TranslateInput, Translate>;

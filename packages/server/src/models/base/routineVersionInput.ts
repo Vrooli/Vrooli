@@ -1,12 +1,13 @@
 import { MaxObjects, routineVersionInputValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { translationShapeHelper } from "../../utils/shapes";
-import { RoutineVersionInputFormat } from "../formats";
-import { RoutineVersionInputModelInfo, RoutineVersionInputModelLogic, RoutineVersionModelInfo, RoutineVersionModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { RoutineVersionInputFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { RoutineVersionInputModelInfo, RoutineVersionInputModelLogic, RoutineVersionModelInfo, RoutineVersionModelLogic } from "./types.js";
 
 const __typename = "RoutineVersionInput" as const;
 export const RoutineVersionInputModel: RoutineVersionInputModelLogic = ({

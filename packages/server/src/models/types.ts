@@ -1,11 +1,12 @@
 import { DotNotation, ModelType, ObjectLimit, SessionUser, YupMutateParams } from "@local/shared";
 import { AnyObjectSchema } from "yup";
-import { PartialApiInfo } from "../builders/types";
-import { PromiseOrValue } from "../types";
-import { SearchMap, SearchStringMap } from "../utils";
-import { InputNode } from "../utils/inputNode";
-import { SortMap } from "../utils/sortMap";
-import { IdsCreateToConnect, InputsById, QueryAction } from "../utils/types";
+import { PartialApiInfo } from "../builders/types.js";
+import { PromiseOrValue } from "../types.js";
+import { InputNode } from "../utils/inputNode.js";
+import { SearchMap } from "../utils/searchMap.js";
+import { SearchStringMap } from "../utils/searchStringMap.js";
+import { SortMap } from "../utils/sortMap.js";
+import { IdsCreateToConnect, InputsById, QueryAction } from "../utils/types.js";
 
 type ApiObject = Record<string, any>;
 type DbObject = Record<string, any>;
@@ -147,7 +148,7 @@ export interface SupplementalConverter<
         languages: string[] | undefined,
         objects: ({ id: string } & DbObject)[],
         partial: PartialApiInfo,
-        userData: SessionUser | null,
+        userData: Pick<SessionUser, "id" | "languages"> | null,
     }) => Promise<{ [key in SuppFields[number]]: any[] | { [x: string]: any[] } }>;
 }
 
@@ -328,7 +329,7 @@ export type Validator<
      * conjunction with the parent object's permissions (also queried in this field) - to determine if you 
      * are allowed to perform the mutation
      */
-    permissionsSelect: (userId: string | null, languages: string[] | undefined) => PermissionsMap<Model["DbSelect"]>;
+    permissionsSelect: (userId: string | null) => PermissionsMap<Model["DbSelect"]>;
     /**
      * Key/value pair of permission fields and resolvers to calculate them.
      */
@@ -385,15 +386,14 @@ export type Validator<
     /**
      * Uses query result to determine if the object is soft-deleted
      */
-    isDeleted: (data: Model["DbModel"], languages: string[] | undefined) => boolean;
+    isDeleted: (data: Model["DbModel"]) => boolean;
     /**
      * Uses query result to determine if the object is public. This typically means "isPrivate" and "isDeleted" are false. 
      * @param data The data used to determine if the object is public
      * @param getParentInfo Used to get the data of the parent object. When using data from the 
      * database, this is not needed. When using data from a create mutation, it can be useful.
-     * @param languages Languages to display error messages in
      */
-    isPublic: (data: Model["DbModel"], getParentInfo: ((id: string, typename: `${ModelType}`) => any | undefined), languages: string[]) => boolean;
+    isPublic: (data: Model["DbModel"], getParentInfo: ((id: string, typename: `${ModelType}`) => any | undefined)) => boolean;
     /**
      * Permissions data for the object's owner
      */

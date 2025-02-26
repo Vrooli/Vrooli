@@ -1,9 +1,9 @@
 import { FindByIdInput, Tag, TagCreateInput, TagSearchInput, TagSearchResult, TagUpdateInput } from "@local/shared";
-import { createOneHelper } from "../../actions/creates";
-import { readManyWithEmbeddingsHelper, readOneHelper } from "../../actions/reads";
-import { updateOneHelper } from "../../actions/updates";
-import { RequestService } from "../../auth/request";
-import { ApiEndpoint } from "../../types";
+import { createOneHelper } from "../../actions/creates.js";
+import { readManyWithEmbeddingsHelper, readOneHelper } from "../../actions/reads.js";
+import { updateOneHelper } from "../../actions/updates.js";
+import { RequestService } from "../../auth/request.js";
+import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsTag = {
     findOne: ApiEndpoint<FindByIdInput, Tag>;

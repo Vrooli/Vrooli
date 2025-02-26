@@ -1,10 +1,11 @@
 import { DEFAULT_LANGUAGE, MaxObjects, StatsCodeSortBy } from "@local/shared";
 import i18next from "i18next";
-import { ModelMap } from ".";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { StatsCodeFormat } from "../formats";
-import { CodeModelInfo, CodeModelLogic, StatsCodeModelInfo, StatsCodeModelLogic } from "./types";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { StatsCodeFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { CodeModelInfo, CodeModelLogic, StatsCodeModelInfo, StatsCodeModelLogic } from "./types.js";
 
 const __typename = "StatsCode" as const;
 export const StatsCodeModel: StatsCodeModelLogic = ({

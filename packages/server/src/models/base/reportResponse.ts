@@ -2,15 +2,16 @@
 // they created or own the object of
 import { MaxObjects, ReportResponseSortBy, reportResponseValidation } from "@local/shared";
 import i18next from "i18next";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { getSingleTypePermissions } from "../../validators";
-import { ReportResponseFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { ReportModelInfo, ReportModelLogic, ReportResponseModelInfo, ReportResponseModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { ReportResponseFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { ReportModelInfo, ReportModelLogic, ReportResponseModelInfo, ReportResponseModelLogic } from "./types.js";
 
 const __typename = "ReportResponse" as const;
 export const ReportResponseModel: ReportResponseModelLogic = ({
@@ -78,7 +79,7 @@ export const ReportResponseModel: ReportResponseModelLogic = ({
         permissionsSelect: () => ({ id: true, report: "Report" }),
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => ModelMap.get<ReportModelLogic>("Report").validate().owner(data?.report as ReportModelInfo["DbModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<ReportModelLogic>("Report").validate().isDeleted(data.report as ReportModelInfo["DbModel"], languages),
+        isDeleted: (data) => ModelMap.get<ReportModelLogic>("Report").validate().isDeleted(data.report as ReportModelInfo["DbModel"]),
         isPublic: (...rest) => oneIsPublic<ReportResponseModelInfo["DbSelect"]>([["report", "Report"]], ...rest),
         visibility: {
             own: function getOwn(data) {

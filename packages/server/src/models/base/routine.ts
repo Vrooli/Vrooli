@@ -1,17 +1,21 @@
 import { DEFAULT_LANGUAGE, MaxObjects, RoutineSortBy, routineValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { getLabels } from "../../getters";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
-import { PreShapeRootResult, labelShapeHelper, ownerFields, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
-import { afterMutationsRoot } from "../../utils/triggers";
-import { getSingleTypePermissions } from "../../validators";
-import { RoutineFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, ReactionModelLogic, RoutineModelInfo, RoutineModelLogic, RoutineVersionModelLogic, TeamModelLogic, ViewModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { getLabels } from "../../getters/getLabels.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { rootObjectDisplay } from "../../utils/rootObjectDisplay.js";
+import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
+import { ownerFields } from "../../utils/shapes/ownerFields.js";
+import { preShapeRoot, type PreShapeRootResult } from "../../utils/shapes/preShapeRoot.js";
+import { tagShapeHelper } from "../../utils/shapes/tagShapeHelper.js";
+import { afterMutationsRoot } from "../../utils/triggers/afterMutationsRoot.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { RoutineFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { BookmarkModelLogic, ReactionModelLogic, RoutineModelInfo, RoutineModelLogic, RoutineVersionModelLogic, TeamModelLogic, ViewModelLogic } from "./types.js";
 
 type RoutinePre = PreShapeRootResult;
 

@@ -2,9 +2,9 @@ import { ModelType, lowercaseFirstLetter } from "@local/shared";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { CustomError } from "../../events/error";
-import { logger } from "../../events/logger";
-import { Danger, Displayer, Duplicator, Formatter, ModelLogic, Mutater, Searcher, Validator } from "../types";
+import { CustomError } from "../../events/error.js";
+import { logger } from "../../events/logger.js";
+import { Danger, Displayer, Duplicator, Formatter, ModelLogic, Mutater, Searcher, Validator } from "../types.js";
 
 export type GenericModelLogic = ModelLogic<any, any, any>;
 type ObjectMap = { [key in ModelType]: GenericModelLogic | Record<string, never> };
@@ -77,6 +77,7 @@ export class ModelMap {
                 }
             } catch (error) {
                 this.map[modelName] = {};
+                console.log(`qqqq Failed to load model ${modelName}Model at ${modelPath}. There is likely a circular dependency. Try changing all imports to be relative`, error);
                 logger.warning(`Failed to load model ${modelName}Model at ${modelPath}. There is likely a circular dependency. Try changing all imports to be relative`, { trace: "0202", error });
             }
         });
@@ -113,6 +114,7 @@ export class ModelMap {
         const isModelObject = this.isModel(objectType);
         if (!isModelObject && throwErrorIfNotFound) {
             const caller = errorTrace ?? getCallerFunctionName();
+            console.error(`qqqq ModelMap.get: ${objectType} is not a model object`, ModelMap.instance);
             throw new CustomError("0024", "InternalError", { caller, objectType });
         }
         return (isModelObject ? ModelMap.instance.map[objectType] : undefined) as ThrowError extends true ? T : (T | undefined);

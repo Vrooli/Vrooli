@@ -1,9 +1,9 @@
 import { JOIN_USER_ROOM_ERRORS, LEAVE_USER_ROOM_ERRORS } from "@local/shared";
 import { Socket } from "socket.io";
-import { AuthTokensService } from "../../auth/auth";
-import { RequestService } from "../../auth/request";
-import { logger } from "../../events/logger";
-import { onSocketEvent } from "../events";
+import { AuthTokensService } from "../../auth/auth.js";
+import { RequestService } from "../../auth/request.js";
+import { logger } from "../../events/logger.js";
+import { onSocketEvent } from "../events.js";
 
 /** Socket room for user-specific events */
 export function userSocketRoomHandlers(socket: Socket) {

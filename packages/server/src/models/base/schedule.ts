@@ -1,15 +1,16 @@
 import { DEFAULT_LANGUAGE, MaxObjects, ModelType, ScheduleFor, ScheduleSortBy, scheduleValidation, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
-import { ModelMap } from ".";
-import { findFirstRel } from "../../builders/findFirstRel";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { labelShapeHelper } from "../../utils/shapes";
-import { ScheduleFormat } from "../formats";
-import { MeetingModelLogic, ScheduleModelInfo, ScheduleModelLogic } from "./types";
+import { findFirstRel } from "../../builders/findFirstRel.js";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
+import { ScheduleFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { MeetingModelLogic, ScheduleModelInfo, ScheduleModelLogic } from "./types.js";
 
 const forMapper: { [key in ScheduleFor]: keyof Prisma.scheduleUpsertArgs["create"] } = {
     FocusMode: "focusModes",

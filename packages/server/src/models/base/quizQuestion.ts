@@ -1,12 +1,13 @@
 import { MaxObjects, getTranslation, quizQuestionValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { translationShapeHelper } from "../../utils/shapes";
-import { QuizQuestionFormat } from "../formats";
-import { QuizModelInfo, QuizModelLogic, QuizQuestionModelInfo, QuizQuestionModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { QuizQuestionFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { QuizModelInfo, QuizModelLogic, QuizQuestionModelInfo, QuizQuestionModelLogic } from "./types.js";
 
 const __typename = "QuizQuestion" as const;
 export const QuizQuestionModel: QuizQuestionModelLogic = ({

@@ -1,11 +1,12 @@
 import { MaxObjects, runRoutineStepValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { RunRoutineStepFormat } from "../formats";
-import { RunRoutineModelInfo, RunRoutineModelLogic, RunRoutineStepModelInfo, RunRoutineStepModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { RunRoutineStepFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { RunRoutineModelInfo, RunRoutineModelLogic, RunRoutineStepModelInfo, RunRoutineStepModelLogic } from "./types.js";
 
 const __typename = "RunRoutineStep" as const;
 export const RunRoutineStepModel: RunRoutineStepModelLogic = ({
@@ -27,11 +28,13 @@ export const RunRoutineStepModel: RunRoutineStepModelLogic = ({
                 if (timeElapsed !== undefined) timeElapsed = Math.max(timeElapsed, 0);
                 return {
                     id: data.id,
+                    complexity: data.complexity,
                     contextSwitches,
                     name: data.name,
+                    nodeId: data.nodeId,
                     order: data.order,
                     status: noNull(data.status),
-                    step: data.step,
+                    subroutineInId: data.subroutineInId,
                     timeElapsed,
                     runRoutine: await shapeHelper({ relation: "runRoutine", relTypes: ["Connect"], isOneToOne: true, objectType: "RunRoutine", parentRelationshipName: "steps", data, ...rest }),
                     subroutine: await shapeHelper({ relation: "subroutine", relTypes: ["Connect"], isOneToOne: true, objectType: "RoutineVersion", parentRelationshipName: "runSteps", data, ...rest }),

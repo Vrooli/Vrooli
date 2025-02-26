@@ -1,10 +1,11 @@
 import { DEFAULT_LANGUAGE, MaxObjects, StatsTeamSortBy } from "@local/shared";
 import i18next from "i18next";
-import { ModelMap } from ".";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { StatsTeamFormat } from "../formats";
-import { StatsTeamModelInfo, StatsTeamModelLogic, TeamModelInfo, TeamModelLogic } from "./types";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { StatsTeamFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { StatsTeamModelInfo, StatsTeamModelLogic, TeamModelInfo, TeamModelLogic } from "./types.js";
 
 const __typename = "StatsTeam" as const;
 export const StatsTeamModel: StatsTeamModelLogic = ({

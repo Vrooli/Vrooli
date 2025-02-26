@@ -1,4 +1,4 @@
-import { PaymentType } from "../api/types";
+import { PaymentType } from "../api/types.js";
 
 export type SubscriptionPricesResponse = {
     monthly: number;

@@ -1,11 +1,10 @@
 import { PushDevice, PushDeviceCreateInput, PushDeviceTestInput, PushDeviceUpdateInput, Success } from "@local/shared";
-import { updateOneHelper } from "../../actions/updates";
-import { RequestService } from "../../auth/request";
-import { prismaInstance } from "../../db/instance";
-import { CustomError } from "../../events/error";
-import { logger } from "../../events/logger";
-import { Notify } from "../../notify";
-import { ApiEndpoint } from "../../types";
+import { updateOneHelper } from "../../actions/updates.js";
+import { RequestService } from "../../auth/request.js";
+import { DbProvider } from "../../db/provider.js";
+import { CustomError } from "../../events/error.js";
+import { logger } from "../../events/logger.js";
+import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsPushDevice = {
     findMany: ApiEndpoint<undefined, PushDevice[]>;
@@ -19,13 +18,14 @@ export const pushDevice: EndpointsPushDevice = {
     findMany: async (_d, { req }) => {
         const { id } = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 1000, req });
-        return prismaInstance.push_device.findMany({
+        return DbProvider.get().push_device.findMany({
             where: { userId: id },
             select: { id: true, name: true, expires: true },
         });
     },
     createOne: async ({ input }, { req }, info) => {
         const userData = RequestService.assertRequestFrom(req, { isUser: true });
+        const { Notify } = await import("../../notify/notify.js");
         return Notify(userData.languages).registerPushDevice({
             endpoint: input.endpoint,
             expires: input.expires,
@@ -38,7 +38,7 @@ export const pushDevice: EndpointsPushDevice = {
     },
     testOne: async ({ input }, { req }) => {
         const userData = RequestService.assertRequestFrom(req, { isUser: true });
-        const pushDevices = await prismaInstance.push_device.findMany({
+        const pushDevices = await DbProvider.get().push_device.findMany({
             where: { userId: userData.id },
         });
         const requestedId = input.id;
@@ -47,6 +47,7 @@ export const pushDevice: EndpointsPushDevice = {
             logger.info(`devices: ${requestedId}, ${JSON.stringify(pushDevices)}`);
             throw new CustomError("0588", "Unauthorized");
         }
+        const { Notify } = await import("../../notify/notify.js");
         const success = await Notify(userData.languages).testPushDevice(requestedDevice);
         return success;
     },

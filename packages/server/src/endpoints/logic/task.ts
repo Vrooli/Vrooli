@@ -1,10 +1,10 @@
-import { CancelTaskInput, CheckTaskStatusesInput, CheckTaskStatusesResult, RunFrom, StartLlmTaskInput, StartRunTaskInput, Success, TaskType, uuid } from "@local/shared";
-import { RequestService } from "../../auth/request";
-import { requestBotResponse } from "../../tasks/llm/queue";
-import { changeLlmTaskStatus, getLlmTaskStatuses } from "../../tasks/llmTask";
-import { changeRunTaskStatus, getRunTaskStatuses, processRunProject, processRunRoutine } from "../../tasks/run/queue";
-import { changeSandboxTaskStatus, getSandboxTaskStatuses } from "../../tasks/sandbox/queue";
-import { ApiEndpoint } from "../../types";
+import { CancelTaskInput, CheckTaskStatusesInput, CheckTaskStatusesResult, RunTriggeredFrom, StartLlmTaskInput, StartRunTaskInput, Success, TaskType, uuid } from "@local/shared";
+import { RequestService } from "../../auth/request.js";
+import { requestBotResponse } from "../../tasks/llm/queue.js";
+import { changeLlmTaskStatus, getLlmTaskStatuses } from "../../tasks/llmTask/queue.js";
+import { changeRunTaskStatus, getRunTaskStatuses, processRunProject, processRunRoutine } from "../../tasks/run/queue.js";
+import { changeSandboxTaskStatus, getSandboxTaskStatuses } from "../../tasks/sandbox/queue.js";
+import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsTask = {
     checkStatuses: ApiEndpoint<CheckTaskStatusesInput, CheckTaskStatusesResult>;
@@ -49,26 +49,25 @@ export const task: EndpointsTask = {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
 
         const taskId = `task-${uuid()}`;
-        const projectVersionId = input.projectVerisonId;
-        const routineVersionId = input.routineVersionId;
+        const { projectVersionId, routineVersionId } = input;
         if (projectVersionId) {
             return processRunProject({
                 ...input,
                 projectVersionId,
-                taskId,
-                runFrom: RunFrom.RunView, // Can customize this later to change queue priority
-                runType: "RunProject",
+                runFrom: RunTriggeredFrom.RunView, // Can customize this later to change queue priority
                 startedById: userData.id,
+                taskId,
+                type: "RunProject",
                 userData,
             });
         } else if (routineVersionId) {
             return processRunRoutine({
                 ...input,
                 routineVersionId,
-                runFrom: RunFrom.RunView, // Can customize this later to change queue priority
-                runType: "RunRoutine",
-                taskId,
+                runFrom: RunTriggeredFrom.RunView, // Can customize this later to change queue priority
                 startedById: userData.id,
+                taskId,
+                type: "RunRoutine",
                 userData,
             });
         } else {

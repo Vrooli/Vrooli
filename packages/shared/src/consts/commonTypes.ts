@@ -1,4 +1,5 @@
 // Dot Notation
+// eslint-disable-next-line no-magic-numbers
 type Prev = [never, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
 type DottablePaths<T, P extends Prev[number] = 5> = [] | ([P] extends [never] ? never :
     T extends readonly any[] ? never :
@@ -47,7 +48,8 @@ export type DeepPartialBoolean<T> = {
  * and winston in the server.
  */
 export type PassableLogger = {
-    error: (message: string, data?: Record<string, any>) => unknown
+    error: (message: string, data?: Record<string, any>) => unknown;
+    info: (message: string, data?: Record<string, any>) => unknown;
 }
 
 /**
@@ -87,3 +89,5 @@ export enum Status {
      */
     Valid = "Valid",
 }
+
+export type ValueOf<T> = T[keyof T];

@@ -1,11 +1,12 @@
 import { MaxObjects, scheduleRecurrenceValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { ScheduleRecurrenceFormat } from "../formats";
-import { ScheduleModelInfo, ScheduleModelLogic, ScheduleRecurrenceModelInfo, ScheduleRecurrenceModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { ScheduleRecurrenceFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { ScheduleModelInfo, ScheduleModelLogic, ScheduleRecurrenceModelInfo, ScheduleRecurrenceModelLogic } from "./types.js";
 
 const __typename = "ScheduleRecurrence" as const;
 export const ScheduleRecurrenceModel: ScheduleRecurrenceModelLogic = ({
@@ -54,7 +55,7 @@ export const ScheduleRecurrenceModel: ScheduleRecurrenceModelLogic = ({
         permissionsSelect: () => ({ schedule: "Schedule" }),
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => ModelMap.get<ScheduleModelLogic>("Schedule").validate().owner(data?.schedule as ScheduleModelInfo["DbModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<ScheduleModelLogic>("Schedule").validate().isDeleted(data.schedule as ScheduleModelInfo["DbModel"], languages),
+        isDeleted: (data) => ModelMap.get<ScheduleModelLogic>("Schedule").validate().isDeleted(data.schedule as ScheduleModelInfo["DbModel"]),
         isPublic: (...rest) => oneIsPublic<ScheduleRecurrenceModelInfo["DbSelect"]>([["schedule", "Schedule"]], ...rest),
         visibility: {
             own: function getOwn(data) {

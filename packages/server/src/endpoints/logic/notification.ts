@@ -1,11 +1,11 @@
 import { FindByIdInput, Notification, NotificationSearchInput, NotificationSearchResult, NotificationSettings, NotificationSettingsUpdateInput, Success, VisibilityType } from "@local/shared";
-import { readManyHelper, readOneHelper } from "../../actions/reads";
-import { RequestService } from "../../auth/request";
-import { prismaInstance } from "../../db/instance";
-import { CustomError } from "../../events/error";
-import { defaultNotificationSettings, updateNotificationSettings } from "../../notify/notificationSettings";
-import { ApiEndpoint } from "../../types";
-import { parseJsonOrDefault } from "../../utils/objectTools";
+import { readManyHelper, readOneHelper } from "../../actions/reads.js";
+import { RequestService } from "../../auth/request.js";
+import { DbProvider } from "../../db/provider.js";
+import { CustomError } from "../../events/error.js";
+import { defaultNotificationSettings, updateNotificationSettings } from "../../notify/notificationSettings.js";
+import { ApiEndpoint } from "../../types.js";
+import { parseJsonOrDefault } from "../../utils/objectTools.js";
 
 export type EndpointsNotification = {
     findOne: ApiEndpoint<FindByIdInput, Notification>;
@@ -29,7 +29,7 @@ export const notification: EndpointsNotification = {
     getSettings: async (_, { req }) => {
         const { id } = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 250, req });
-        const user = await prismaInstance.user.findUnique({
+        const user = await DbProvider.get().user.findUnique({
             where: { id },
             select: { notificationSettings: true },
         });
@@ -39,7 +39,7 @@ export const notification: EndpointsNotification = {
     markAsRead: async ({ input }, { req }) => {
         const { id: userId } = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 1000, req });
-        const { count } = await prismaInstance.notification.updateMany({
+        const { count } = await DbProvider.get().notification.updateMany({
             where: { AND: [{ user: { id: userId } }, { id: input.id }] },
             data: { isRead: true },
         });
@@ -48,7 +48,7 @@ export const notification: EndpointsNotification = {
     markAllAsRead: async (_, { req }) => {
         const { id: userId } = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 1000, req });
-        await prismaInstance.notification.updateMany({
+        await DbProvider.get().notification.updateMany({
             where: { AND: [{ user: { id: userId } }, { isRead: false }] },
             data: { isRead: true },
         });

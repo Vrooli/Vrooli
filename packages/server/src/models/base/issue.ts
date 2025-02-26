@@ -1,13 +1,17 @@
 import { IssueFor, IssueSearchInput, IssueSortBy, IssueStatus, MaxObjects, ModelType, getTranslation, issueValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { ModelMap } from ".";
-import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder";
-import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
-import { PreShapeEmbeddableTranslatableResult, labelShapeHelper, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
-import { getSingleTypePermissions } from "../../validators";
-import { IssueFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, IssueModelInfo, IssueModelLogic, ReactionModelLogic } from "./types";
+import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
+import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { IssueFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { type BookmarkModelLogic, type IssueModelInfo, type IssueModelLogic, type ReactionModelLogic } from "./types.js";
 
 type IssuePre = PreShapeEmbeddableTranslatableResult;
 

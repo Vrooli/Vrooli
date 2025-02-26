@@ -1,7 +1,7 @@
 import { FindByIdInput, QuizQuestionResponse, QuizQuestionResponseSearchInput, QuizQuestionResponseSearchResult } from "@local/shared";
-import { readManyHelper, readOneHelper } from "../../actions/reads";
-import { RequestService } from "../../auth/request";
-import { ApiEndpoint } from "../../types";
+import { readManyHelper, readOneHelper } from "../../actions/reads.js";
+import { RequestService } from "../../auth/request.js";
+import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsQuizQuestionResponse = {
     findOne: ApiEndpoint<FindByIdInput, QuizQuestionResponse>;

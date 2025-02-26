@@ -1,13 +1,14 @@
 import { MaxObjects, QuizAttemptSortBy, quizAttemptValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { getSingleTypePermissions } from "../../validators";
-import { QuizAttemptFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { QuizAttemptModelInfo, QuizAttemptModelLogic, QuizModelInfo, QuizModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { QuizAttemptFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { QuizAttemptModelInfo, QuizAttemptModelLogic, QuizModelInfo, QuizModelLogic } from "./types.js";
 
 const __typename = "QuizAttempt" as const;
 export const QuizAttemptModel: QuizAttemptModelLogic = ({

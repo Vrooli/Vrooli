@@ -1,10 +1,11 @@
 import { DEFAULT_LANGUAGE, MaxObjects, StatsQuizSortBy } from "@local/shared";
 import i18next from "i18next";
-import { ModelMap } from ".";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { StatsQuizFormat } from "../formats";
-import { QuizModelInfo, QuizModelLogic, StatsQuizModelInfo, StatsQuizModelLogic } from "./types";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { StatsQuizFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { QuizModelInfo, QuizModelLogic, StatsQuizModelInfo, StatsQuizModelLogic } from "./types.js";
 
 const __typename = "StatsQuiz" as const;
 export const StatsQuizModel: StatsQuizModelLogic = ({

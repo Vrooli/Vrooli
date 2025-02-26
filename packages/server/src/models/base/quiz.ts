@@ -1,15 +1,18 @@
 import { MaxObjects, QuizSortBy, getTranslation, quizValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
-import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
-import { afterMutationsPlain } from "../../utils/triggers";
-import { getSingleTypePermissions } from "../../validators";
-import { QuizFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, QuizModelInfo, QuizModelLogic, ReactionModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { afterMutationsPlain } from "../../utils/triggers/afterMutationsPlain.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { QuizFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { BookmarkModelLogic, QuizModelInfo, QuizModelLogic, ReactionModelLogic } from "./types.js";
 
 type QuizPre = PreShapeEmbeddableTranslatableResult;
 

@@ -1,7 +1,7 @@
 import { FindByIdInput, ReputationHistory, ReputationHistorySearchInput, ReputationHistorySearchResult } from "@local/shared";
-import { readManyHelper, readOneHelper } from "../../actions/reads";
-import { RequestService } from "../../auth/request";
-import { ApiEndpoint } from "../../types";
+import { readManyHelper, readOneHelper } from "../../actions/reads.js";
+import { RequestService } from "../../auth/request.js";
+import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsReputationHistory = {
     findOne: ApiEndpoint<FindByIdInput, ReputationHistory>;

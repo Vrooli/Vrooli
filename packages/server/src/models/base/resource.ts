@@ -1,12 +1,12 @@
 import { MaxObjects, ResourceSortBy, getTranslation, resourceValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { oneIsPublic } from "../../utils";
-import { translationShapeHelper } from "../../utils/shapes";
-import { ResourceFormat } from "../formats";
-import { ResourceListModelInfo, ResourceListModelLogic, ResourceModelInfo, ResourceModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { ResourceFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { ResourceListModelInfo, ResourceListModelLogic, ResourceModelInfo, ResourceModelLogic } from "./types.js";
 
 const __typename = "Resource" as const;
 export const ResourceModel: ResourceModelLogic = ({

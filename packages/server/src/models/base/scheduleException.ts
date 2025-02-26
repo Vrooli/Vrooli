@@ -1,11 +1,12 @@
 import { MaxObjects, scheduleExceptionValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { ScheduleExceptionFormat } from "../formats";
-import { ScheduleExceptionModelInfo, ScheduleExceptionModelLogic, ScheduleModelInfo, ScheduleModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { ScheduleExceptionFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { ScheduleExceptionModelInfo, ScheduleExceptionModelLogic, ScheduleModelInfo, ScheduleModelLogic } from "./types.js";
 
 const __typename = "ScheduleException" as const;
 export const ScheduleExceptionModel: ScheduleExceptionModelLogic = ({
@@ -46,7 +47,7 @@ export const ScheduleExceptionModel: ScheduleExceptionModelLogic = ({
         permissionsSelect: () => ({ schedule: "Schedule" }),
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => ModelMap.get<ScheduleModelLogic>("Schedule").validate().owner(data?.schedule as ScheduleModelInfo["DbModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<ScheduleModelLogic>("Schedule").validate().isDeleted(data.schedule as ScheduleModelInfo["DbModel"], languages),
+        isDeleted: (data) => ModelMap.get<ScheduleModelLogic>("Schedule").validate().isDeleted(data.schedule as ScheduleModelInfo["DbModel"]),
         isPublic: (...rest) => oneIsPublic<ScheduleExceptionModelInfo["DbSelect"]>([["schedule", "Schedule"]], ...rest),
         visibility: {
             own: function getOwn(data) {

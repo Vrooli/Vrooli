@@ -1,10 +1,10 @@
 import { BookmarkListSortBy, bookmarkListValidation, MaxObjects } from "@local/shared";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions } from "../../utils";
-import { BookmarkListFormat } from "../formats";
-import { BookmarkListModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { BookmarkListFormat } from "../formats.js";
+import { BookmarkListModelLogic } from "./types.js";
 
 const __typename = "BookmarkList" as const;
 export const BookmarkListModel: BookmarkListModelLogic = ({

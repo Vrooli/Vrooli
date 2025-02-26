@@ -2,13 +2,13 @@ import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, CheckCreditsPaymentParams,
 import { PrismaPromise } from "@prisma/client";
 import express, { Express, Request, Response } from "express";
 import Stripe from "stripe";
-import { prismaInstance } from "../db/instance";
-import { logger } from "../events/logger";
-import { withRedis } from "../redisConn";
-import { UI_URL } from "../server";
-import { emitSocketEvent } from "../sockets/events";
-import { sendCreditCardExpiringSoon, sendPaymentFailed, sendPaymentThankYou, sendSubscriptionCanceled, sendTrialEndingSoon } from "../tasks/email/queue";
-import { ResponseService } from "../utils/response";
+import { DbProvider } from "../db/provider.js";
+import { logger } from "../events/logger.js";
+import { withRedis } from "../redisConn.js";
+import { UI_URL } from "../server.js";
+import { emitSocketEvent } from "../sockets/events.js";
+import { sendCreditCardExpiringSoon, sendPaymentFailed, sendPaymentThankYou, sendSubscriptionCanceled, sendTrialEndingSoon } from "../tasks/email/queue.js";
+import { ResponseService } from "../utils/response.js";
 
 const STORED_PRICE_EXPIRATION = DAYS_1_S;
 
@@ -264,7 +264,8 @@ export async function getVerifiedCustomerInfo({
         return result;
     }
     // Find the user in the database
-    const user = await prismaInstance.user.findUnique({
+    console.log("qqqqqq in getVerifiedCustomerInfo", process.env.DB_TYPE, DbProvider.get());
+    const user = await DbProvider.get().user.findUnique({
         where: { id: userId },
         select: {
             id: true,
@@ -331,7 +332,7 @@ export async function getVerifiedCustomerInfo({
                 }
             }
             // Update the user's stripeCustomerId
-            await prismaInstance.user.update({
+            await DbProvider.get().user.update({
                 where: { id: userId },
                 data: { stripeCustomerId: result.stripeCustomerId },
             });
@@ -364,7 +365,7 @@ export async function createStripeCustomerId({
     });
     // Store Stripe customer ID in your database
     if (customerInfo.userId) {
-        await prismaInstance.user.update({
+        await DbProvider.get().user.update({
             where: { id: customerInfo.userId },
             data: { stripeCustomerId: stripeCustomer.id },
         });
@@ -388,7 +389,7 @@ export async function processPayment(
     const customerId = getCustomerId(session.customer);
     const { paymentType, userId } = session.metadata as CheckoutSessionMetadata;
     // Skip if payment already processed
-    const payments = await prismaInstance.payment.findMany({
+    const payments = await DbProvider.get().payment.findMany({
         where: {
             checkoutId,
             paymentMethod: PaymentMethod.Stripe,
@@ -419,11 +420,11 @@ export async function processPayment(
             },
         },
     } as const;
-    const payment = paymentId ? await prismaInstance.payment.update({
+    const payment = paymentId ? await DbProvider.get().payment.update({
         where: { id: paymentId },
         data,
         select: paymentSelect,
-    }) : await prismaInstance.payment.create({
+    }) : await DbProvider.get().payment.create({
         data: {
             ...data,
             user: userId ? { connect: { id: userId } } : undefined,
@@ -437,7 +438,7 @@ export async function processPayment(
     // If credits, award user the relevant number of credits
     if (payment.paymentType === PaymentType.Credits) {
         const creditsToAward = (BigInt(payment.amount) * API_CREDITS_MULTIPLIER);
-        await prismaInstance.user.update({
+        await DbProvider.get().user.update({
             where: { id: payment.user.id },
             data: {
                 premium: {
@@ -471,11 +472,11 @@ export async function processPayment(
         const enabledAt = new Date().toISOString();
         const expiresAt = new Date(knownSubscription.current_period_end * SECONDS_1_MS).toISOString();
         // Upsert premium status
-        const premiums = await prismaInstance.premium.findMany({
+        const premiums = await DbProvider.get().premium.findMany({
             where: { user: { id: payment.user.id } }, // User should exist based on findMany query above
         });
         if (premiums.length === 0) {
-            await prismaInstance.premium.create({
+            await DbProvider.get().premium.create({
                 data: {
                     enabledAt,
                     expiresAt,
@@ -485,7 +486,7 @@ export async function processPayment(
                 },
             });
         } else {
-            await prismaInstance.premium.update({
+            await DbProvider.get().premium.update({
                 where: { id: premiums[0].id },
                 data: {
                     enabledAt: premiums[0].enabledAt ?? enabledAt,
@@ -519,7 +520,7 @@ export async function handleCheckoutSessionExpired({ event, res }: EventHandlerA
     const checkoutId = session.id;
     const customerId = getCustomerId(session.customer);
     // Find payment in database
-    const payments = await prismaInstance.payment.findMany({
+    const payments = await DbProvider.get().payment.findMany({
         where: {
             checkoutId,
             paymentMethod: PaymentMethod.Stripe,
@@ -533,7 +534,7 @@ export async function handleCheckoutSessionExpired({ event, res }: EventHandlerA
     }
     // Mark payments as failed
     for (const payment of payments) {
-        await prismaInstance.payment.update({
+        await DbProvider.get().payment.update({
             where: { id: payment.id },
             data: { status: PaymentStatus.Failed },
         });
@@ -546,12 +547,12 @@ export async function handleCustomerDeleted({ event, res }: EventHandlerArgs): P
     const customer = event.data.object as Stripe.Customer;
     const customerId = getCustomerId(customer);
     // Attempt to find the user associated with the given customerId
-    const user = await prismaInstance.user.findUnique({
+    const user = await DbProvider.get().user.findUnique({
         where: { stripeCustomerId: customerId },
     });
     // If the user exists, remove the customerId
     if (user) {
-        await prismaInstance.user.update({
+        await DbProvider.get().user.update({
             where: { stripeCustomerId: customerId },
             data: { stripeCustomerId: null },
         });
@@ -565,7 +566,7 @@ export async function handleCustomerSourceExpiring({ event, res }: Omit<EventHan
     const customer = event.data.object as Stripe.Customer;
     const customerId = getCustomerId(customer);
     // Find user with the given Stripe customer ID
-    const user = await prismaInstance.user.findFirst({
+    const user = await DbProvider.get().user.findFirst({
         where: { stripeCustomerId: customerId },
         select: {
             emails: { select: { emailAddress: true } },
@@ -589,7 +590,7 @@ export async function handleCustomerSubscriptionDeleted({ event, res }: Omit<Eve
     const subscription = event.data.object as Stripe.Subscription;
     const customerId = getCustomerId(subscription.customer);
     // Find user 
-    const user = await prismaInstance.user.findFirst({
+    const user = await DbProvider.get().user.findFirst({
         where: { stripeCustomerId: customerId },
         select: {
             emails: { select: { emailAddress: true } },
@@ -610,7 +611,7 @@ export async function handleCustomerSubscriptionTrialWillEnd({ event, res }: Omi
     const subscription = event.data.object as Stripe.Subscription;
     const customerId = getCustomerId(subscription.customer);
     // Find user with the given Stripe customer ID
-    const user = await prismaInstance.user.findFirst({
+    const user = await DbProvider.get().user.findFirst({
         where: { stripeCustomerId: customerId },
         select: {
             emails: { select: { emailAddress: true } },
@@ -654,7 +655,7 @@ export async function handleCustomerSubscriptionUpdated({ event, res }: Omit<Eve
         return handlerResult(HttpStatus.Ok, res, "Subscription is not active.");
     }
 
-    const user = await prismaInstance.user.findFirst({
+    const user = await DbProvider.get().user.findFirst({
         where: { stripeCustomerId: customerId },
         select: {
             id: true,
@@ -674,7 +675,7 @@ export async function handleCustomerSubscriptionUpdated({ event, res }: Omit<Eve
     const { newExpiresAt, isActive } = calculateExpiryAndStatus(subscription.current_period_end);
     // Note that we're not updating the user's credits here, as that would only happen when 
     // activating a subscription. That's handled by the checkout.session.completed event.
-    await prismaInstance.user.update({
+    await DbProvider.get().user.update({
         where: { id: user.id },
         data: {
             premium: {
@@ -736,7 +737,7 @@ export async function handleInvoicePaymentCreated({ event, res }: Omit<EventHand
     const invoice = event.data.object as Stripe.Invoice;
     const customerId = getCustomerId(invoice.customer);
     // Find user with the given Stripe customer ID
-    const user = await prismaInstance.user.findFirst({
+    const user = await DbProvider.get().user.findFirst({
         where: { stripeCustomerId: customerId },
     });
     // Check if user is found
@@ -748,7 +749,7 @@ export async function handleInvoicePaymentCreated({ event, res }: Omit<EventHand
         return handlerResult(HttpStatus.InternalServerError, res, paymentError ?? "Unknown error occurred", "0225", { customerId, invoice });
     }
     // Upsert payment in the database
-    const existingPayment = await prismaInstance.payment.findFirst({
+    const existingPayment = await DbProvider.get().payment.findFirst({
         where: {
             checkoutId: invoice.id,
             user: { stripeCustomerId: customerId },
@@ -756,7 +757,7 @@ export async function handleInvoicePaymentCreated({ event, res }: Omit<EventHand
         select: { id: true },
     });
     if (existingPayment) {
-        await prismaInstance.payment.update({
+        await DbProvider.get().payment.update({
             where: { id: existingPayment.id },
             data: {
                 ...paymentData,
@@ -764,7 +765,7 @@ export async function handleInvoicePaymentCreated({ event, res }: Omit<EventHand
             },
         });
     } else {
-        await prismaInstance.payment.create({
+        await DbProvider.get().payment.create({
             data: {
                 ...paymentData,
                 status: PaymentStatus.Pending,
@@ -789,7 +790,7 @@ export async function handleInvoicePaymentFailed({ event, res }: Omit<EventHandl
             },
         },
     } as const;
-    let payment = await prismaInstance.payment.findFirst({
+    let payment = await DbProvider.get().payment.findFirst({
         where: {
             checkoutId: invoice.id,
             user: { stripeCustomerId: customerId },
@@ -803,7 +804,7 @@ export async function handleInvoicePaymentFailed({ event, res }: Omit<EventHandl
         if (paymentError || !paymentData) {
             return handlerResult(HttpStatus.InternalServerError, res, paymentError ?? "Unknown error occurred", "0229", { customerId, invoice });
         }
-        payment = await prismaInstance.payment.create({
+        payment = await DbProvider.get().payment.create({
             data: {
                 ...paymentData,
                 status: PaymentStatus.Failed,
@@ -815,7 +816,7 @@ export async function handleInvoicePaymentFailed({ event, res }: Omit<EventHandl
         });
     } else {
         // Update the payment status to Failed
-        await prismaInstance.payment.update({
+        await DbProvider.get().payment.update({
             where: { id: payment.id },
             data: { status: PaymentStatus.Failed },
         });
@@ -843,7 +844,7 @@ export async function handleInvoicePaymentSucceeded({ event, stripe, res }: Even
             },
         },
     } as const;
-    let payment = await prismaInstance.payment.findFirst({
+    let payment = await DbProvider.get().payment.findFirst({
         where: {
             checkoutId: invoice.id,
             user: { stripeCustomerId: customerId },
@@ -857,7 +858,7 @@ export async function handleInvoicePaymentSucceeded({ event, stripe, res }: Even
         if (paymentError || !paymentData) {
             return handlerResult(HttpStatus.InternalServerError, res, paymentError ?? "Unknown error occurred", "0231", { customerId, invoice });
         }
-        payment = await prismaInstance.payment.create({
+        payment = await DbProvider.get().payment.create({
             data: {
                 ...paymentData,
                 status: PaymentStatus.Paid,
@@ -869,7 +870,7 @@ export async function handleInvoicePaymentSucceeded({ event, stripe, res }: Even
         });
     } else {
         // Update the payment status to Paid
-        await prismaInstance.payment.update({
+        await DbProvider.get().payment.update({
             where: { id: payment.id },
             data: { status: PaymentStatus.Paid },
         });
@@ -893,7 +894,7 @@ export async function handleInvoicePaymentSucceeded({ event, stripe, res }: Even
         const { newExpiresAt, isActive } = calculateExpiryAndStatus(subscription.current_period_end);
         // Note that we're not updating the user's credits here, as that would only happen when 
         // activating a subscription. That's handled by the checkout.session.completed event.
-        await prismaInstance.user.update({
+        await DbProvider.get().user.update({
             where: { id: payment.user.id },
             data: {
                 premium: {
@@ -1180,7 +1181,7 @@ async function checkCreditsPayment(stripe: Stripe, req: Request, res: Response):
             // Collect valid and complete API credit sessions
             let validCreditSessions = sessionsList.data.filter(session => isValidCreditsPurchaseSession(session, userId));
             // Fetch payments in database. missing ones should be counted, as well as ones marked as pending
-            const existingPayments = await prismaInstance.payment.findMany({
+            const existingPayments = await DbProvider.get().payment.findMany({
                 where: {
                     checkoutId: { in: validCreditSessions.map(session => session.id) },
                     paymentMethod: PaymentMethod.Stripe,
@@ -1209,12 +1210,12 @@ async function checkCreditsPayment(stripe: Stripe, req: Request, res: Response):
                     paymentMethod: PaymentMethod.Stripe,
                 };
                 if (payment) {
-                    upsertOperations.push(prismaInstance.payment.update({
+                    upsertOperations.push(DbProvider.get().payment.update({
                         where: { id: payment.id },
                         data: paymentData,
                     }));
                 } else {
-                    upsertOperations.push(prismaInstance.payment.create({
+                    upsertOperations.push(DbProvider.get().payment.create({
                         data: {
                             ...paymentData,
                             description: "Credits Purchase",
@@ -1230,7 +1231,7 @@ async function checkCreditsPayment(stripe: Stripe, req: Request, res: Response):
         }
         // If there are credits to award, award them and upsert payments in the database
         if (creditsToAward > 0) {
-            const updateUserCredits = prismaInstance.user.update({
+            const updateUserCredits = DbProvider.get().user.update({
                 where: { id: userId },
                 data: {
                     premium: {
@@ -1246,7 +1247,7 @@ async function checkCreditsPayment(stripe: Stripe, req: Request, res: Response):
                 },
             });
             // Execute all operations in one transaction
-            await prismaInstance.$transaction([updateUserCredits, ...upsertOperations] as PrismaPromise<object>[]);
+            await DbProvider.get().$transaction([updateUserCredits, ...upsertOperations] as PrismaPromise<object>[]);
             data.status = "new_credits_received";
             ResponseService.sendSuccess(res, data);
         } else {

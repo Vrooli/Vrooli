@@ -1,16 +1,16 @@
 import { DEFAULT_LANGUAGE, ModelType, SessionUser, TransferObjectType, TransferRequestReceiveInput, TransferRequestSendInput, TransferSortBy, transferValidation } from "@local/shared";
 import i18next from "i18next";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { permissionsSelectHelper } from "../../builders/permissionsSelectHelper";
-import { PartialApiInfo, PrismaDelegate } from "../../builders/types";
-import { prismaInstance } from "../../db/instance";
-import { CustomError } from "../../events/error";
-import { Notify } from "../../notify";
-import { getSingleTypePermissions, isOwnerAdminCheck } from "../../validators";
-import { TransferFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { TeamModelLogic, TransferModelInfo, TransferModelLogic, UserModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { permissionsSelectHelper } from "../../builders/permissionsSelectHelper.js";
+import { PartialApiInfo, PrismaDelegate } from "../../builders/types.js";
+import { DbProvider } from "../../db/provider.js";
+import { CustomError } from "../../events/error.js";
+import { isOwnerAdminCheck } from "../../validators/isOwnerAdminCheck.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { TransferFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { TeamModelLogic, TransferModelInfo, TransferModelLogic, UserModelLogic } from "./types.js";
 
 const __typename = "Transfer" as const;
 
@@ -73,9 +73,9 @@ export function transfer() {
             // Find the object and its owner
             const object: { __typename: `${TransferObjectType}`, id: string } = { __typename: input.objectType, id: input.objectConnect };
             const { dbTable, validate } = ModelMap.getLogic(["dbTable", "validate"], object.__typename);
-            const permissionData = await (prismaInstance[dbTable] as PrismaDelegate).findUnique({
+            const permissionData = await (DbProvider.get()[dbTable] as PrismaDelegate).findUnique({
                 where: { id: object.id },
-                select: permissionsSelectHelper(validate().permissionsSelect, userData.id, userData.languages),
+                select: permissionsSelectHelper(validate().permissionsSelect, userData.id),
             });
             const owner = permissionData && validate().owner(permissionData, userData.id);
             // Check if user is allowed to transfer this object
@@ -85,7 +85,7 @@ export function transfer() {
             const toType = input.toTeamConnect ? "Team" : "User";
             const toId: string = input.toTeamConnect || input.toUserConnect as string;
             // Create transfer request
-            const request = await prismaInstance.transfer.create({
+            const request = await DbProvider.get().transfer.create({
                 data: {
                     fromUser: owner.User ? { connect: { id: owner.User.id } } : undefined,
                     fromTeam: owner.Team ? { connect: { id: owner.Team.id } } : undefined,
@@ -98,6 +98,7 @@ export function transfer() {
                 select: { id: true },
             });
             // Notify user/org that is receiving the object
+            const { Notify } = await import("../../notify/notify.js");
             const pushNotification = Notify(userData.languages).pushTransferRequestSend(request.id, object.__typename, object.id);
             if (toType === "User") await pushNotification.toUser(toId);
             else await pushNotification.toTeam(toId);
@@ -121,7 +122,7 @@ export function transfer() {
          */
         cancel: async (transferId: string, userData: SessionUser) => {
             // Find the transfer request
-            const transfer = await prismaInstance.transfer.findUnique({
+            const transfer = await DbProvider.get().transfer.findUnique({
                 where: { id: transferId },
                 select: {
                     id: true,
@@ -142,9 +143,9 @@ export function transfer() {
             // Make sure user is the owner of the transfer request
             if (transfer.fromTeamId) {
                 const { validate } = ModelMap.getLogic(["validate"], "Team");
-                const permissionData = await prismaInstance.team.findUnique({
+                const permissionData = await DbProvider.get().team.findUnique({
                     where: { id: transfer.fromTeamId },
-                    select: permissionsSelectHelper(validate().permissionsSelect, userData.id, userData.languages),
+                    select: permissionsSelectHelper(validate().permissionsSelect, userData.id),
                 });
                 if (!permissionData || !isOwnerAdminCheck(validate().owner(permissionData, userData.id), userData.id))
                     throw new CustomError("0300", "TransferRejectNotAuthorized");
@@ -152,7 +153,7 @@ export function transfer() {
                 throw new CustomError("0301", "TransferRejectNotAuthorized");
             }
             // Delete transfer request
-            await prismaInstance.transfer.delete({
+            await DbProvider.get().transfer.delete({
                 where: { id: transferId },
             });
         },
@@ -163,7 +164,7 @@ export function transfer() {
          */
         accept: async (transferId: string, userData: SessionUser) => {
             // Find the transfer request
-            const transfer = await prismaInstance.transfer.findUnique({
+            const transfer = await DbProvider.get().transfer.findUnique({
                 where: { id: transferId },
             });
             // Make sure transfer exists, and is not accepted or rejected
@@ -176,9 +177,9 @@ export function transfer() {
             // Make sure transfer is going to you or a team you can control
             if (transfer.toTeamId) {
                 const { validate } = ModelMap.getLogic(["validate"], "Team");
-                const permissionData = await prismaInstance.team.findUnique({
+                const permissionData = await DbProvider.get().team.findUnique({
                     where: { id: transfer.toTeamId },
-                    select: permissionsSelectHelper(validate().permissionsSelect, userData.id, userData.languages),
+                    select: permissionsSelectHelper(validate().permissionsSelect, userData.id),
                 });
                 if (!permissionData || !isOwnerAdminCheck(validate().owner(permissionData, userData.id), userData.id))
                     throw new CustomError("0302", "TransferAcceptNotAuthorized");
@@ -198,7 +199,7 @@ export function transfer() {
             if (!typeField)
                 throw new CustomError("0290", "TransferMissingData");
             const type = typeField.replace("Id", "");
-            await prismaInstance.transfer.update({
+            await DbProvider.get().transfer.update({
                 where: { id: transferId },
                 data: {
                     status: "Accepted",
@@ -224,7 +225,7 @@ export function transfer() {
          */
         deny: async (transferId: string, userData: SessionUser, reason?: string) => {
             // Find the transfer request
-            const transfer = await prismaInstance.transfer.findUnique({
+            const transfer = await DbProvider.get().transfer.findUnique({
                 where: { id: transferId },
             });
             // Make sure transfer exists, and is not already accepted or rejected
@@ -237,9 +238,9 @@ export function transfer() {
             // Make sure transfer is going to you or a team you can control
             if (transfer.toTeamId) {
                 const { validate } = ModelMap.getLogic(["validate"], "Team");
-                const permissionData = await prismaInstance.team.findUnique({
+                const permissionData = await DbProvider.get().team.findUnique({
                     where: { id: transfer.toTeamId },
-                    select: permissionsSelectHelper(validate().permissionsSelect, userData.id, userData.languages),
+                    select: permissionsSelectHelper(validate().permissionsSelect, userData.id),
                 });
                 if (!permissionData || !isOwnerAdminCheck(validate().owner(permissionData, userData.id), userData.id))
                     throw new CustomError("0312", "TransferRejectNotAuthorized");
@@ -259,7 +260,7 @@ export function transfer() {
                 throw new CustomError("0290", "TransferMissingData");
             const type = typeField.replace("Id", "");
             // Deny the transfer
-            await prismaInstance.transfer.update({
+            await DbProvider.get().transfer.update({
                 where: { id: transferId },
                 data: {
                     status: "Denied",

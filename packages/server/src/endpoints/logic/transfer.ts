@@ -1,10 +1,10 @@
 import { FindByIdInput, Transfer, TransferDenyInput, TransferRequestReceiveInput, TransferRequestSendInput, TransferSearchInput, TransferSearchResult, TransferUpdateInput } from "@local/shared";
-import { readManyHelper, readOneHelper } from "../../actions/reads";
-import { updateOneHelper } from "../../actions/updates";
-import { RequestService } from "../../auth/request";
-import { CustomError } from "../../events/error";
-import { TransferModel } from "../../models/base/transfer";
-import { ApiEndpoint } from "../../types";
+import { readManyHelper, readOneHelper } from "../../actions/reads.js";
+import { updateOneHelper } from "../../actions/updates.js";
+import { RequestService } from "../../auth/request.js";
+import { CustomError } from "../../events/error.js";
+import { TransferModel } from "../../models/base/transfer.js";
+import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsTransfer = {
     findOne: ApiEndpoint<FindByIdInput, Transfer>;

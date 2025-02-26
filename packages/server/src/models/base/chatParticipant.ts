@@ -1,9 +1,9 @@
 import { ChatParticipantSortBy, chatParticipantValidation, MaxObjects } from "@local/shared";
-import { ModelMap } from ".";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions } from "../../utils";
-import { ChatParticipantFormat } from "../formats";
-import { ChatModelInfo, ChatModelLogic, ChatParticipantModelLogic, UserModelInfo, UserModelLogic } from "./types";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { ChatParticipantFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { ChatModelInfo, ChatModelLogic, ChatParticipantModelLogic, UserModelInfo, UserModelLogic } from "./types.js";
 
 const __typename = "ChatParticipant" as const;
 export const ChatParticipantModel: ChatParticipantModelLogic = ({

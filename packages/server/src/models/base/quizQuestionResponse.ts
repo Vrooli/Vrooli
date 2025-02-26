@@ -1,14 +1,15 @@
 import { DEFAULT_LANGUAGE, MaxObjects, QuizQuestionResponseSortBy, quizQuestionResponseValidation } from "@local/shared";
 import i18next from "i18next";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { getSingleTypePermissions } from "../../validators";
-import { QuizQuestionResponseFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { QuizAttemptModelInfo, QuizAttemptModelLogic, QuizQuestionModelInfo, QuizQuestionModelLogic, QuizQuestionResponseModelInfo, QuizQuestionResponseModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { QuizQuestionResponseFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { QuizAttemptModelInfo, QuizAttemptModelLogic, QuizQuestionModelInfo, QuizQuestionModelLogic, QuizQuestionResponseModelInfo, QuizQuestionResponseModelLogic } from "./types.js";
 
 const __typename = "QuizQuestionResponse" as const;
 export const QuizQuestionResponseModel: QuizQuestionResponseModelLogic = ({

@@ -1,11 +1,13 @@
 import { MaxObjects, ReminderSortBy, reminderValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
-import { ReminderFormat } from "../formats";
-import { ReminderListModelInfo, ReminderListModelLogic, ReminderModelInfo, ReminderModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { ReminderFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { ReminderListModelInfo, ReminderListModelLogic, ReminderModelInfo, ReminderModelLogic } from "./types.js";
 
 const __typename = "Reminder" as const;
 export const ReminderModel: ReminderModelLogic = ({

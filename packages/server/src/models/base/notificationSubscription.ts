@@ -1,11 +1,11 @@
 import { MaxObjects, ModelType, NotificationSubscriptionSortBy, notificationSubscriptionValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { subscribableMapper } from "../../events/subscriber";
-import { defaultPermissions } from "../../utils";
-import { NotificationSubscriptionFormat } from "../formats";
-import { NotificationSubscriptionModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { subscribableMapper } from "../../events/subscriber.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { NotificationSubscriptionFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { NotificationSubscriptionModelLogic } from "./types.js";
 
 const __typename = "NotificationSubscription" as const;
 export const NotificationSubscriptionModel: NotificationSubscriptionModelLogic = ({

@@ -1,10 +1,10 @@
 import { FindByIdInput, MeetingInvite, MeetingInviteCreateInput, MeetingInviteSearchInput, MeetingInviteSearchResult, MeetingInviteUpdateInput } from "@local/shared";
-import { createManyHelper, createOneHelper } from "../../actions/creates";
-import { readManyHelper, readOneHelper } from "../../actions/reads";
-import { updateManyHelper, updateOneHelper } from "../../actions/updates";
-import { RequestService } from "../../auth/request";
-import { CustomError } from "../../events/error";
-import { ApiEndpoint } from "../../types";
+import { createManyHelper, createOneHelper } from "../../actions/creates.js";
+import { readManyHelper, readOneHelper } from "../../actions/reads.js";
+import { updateManyHelper, updateOneHelper } from "../../actions/updates.js";
+import { RequestService } from "../../auth/request.js";
+import { CustomError } from "../../events/error.js";
+import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsMeetingInvite = {
     findOne: ApiEndpoint<FindByIdInput, MeetingInvite>;

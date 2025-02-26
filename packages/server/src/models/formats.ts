@@ -1,6 +1,6 @@
 import { ModelType } from "@local/shared";
-import { ApiKeyModelInfo, ApiModelInfo, ApiVersionModelInfo, AwardModelInfo, BookmarkListModelInfo, BookmarkModelInfo, ChatInviteModelInfo, ChatMessageModelInfo, ChatModelInfo, ChatParticipantModelInfo, CodeModelInfo, CodeVersionModelInfo, CommentModelInfo, EmailModelInfo, FocusModeFilterModelInfo, FocusModeModelInfo, IssueModelInfo, LabelModelInfo, MeetingInviteModelInfo, MeetingModelInfo, MemberInviteModelInfo, MemberModelInfo, NoteModelInfo, NoteVersionModelInfo, NotificationModelInfo, NotificationSubscriptionModelInfo, PaymentModelInfo, PhoneModelInfo, PostModelInfo, PremiumModelInfo, ProjectModelInfo, ProjectVersionDirectoryModelInfo, ProjectVersionModelInfo, PullRequestModelInfo, PushDeviceModelInfo, QuestionAnswerModelInfo, QuestionModelInfo, QuizAttemptModelInfo, QuizModelInfo, QuizQuestionModelInfo, QuizQuestionResponseModelInfo, ReactionModelInfo, ReactionSummaryModelInfo, ReminderItemModelInfo, ReminderListModelInfo, ReminderModelInfo, ReportModelInfo, ReportResponseModelInfo, ResourceListModelInfo, ResourceModelInfo, RoleModelInfo, RoutineModelInfo, RoutineVersionInputModelInfo, RoutineVersionModelInfo, RoutineVersionOutputModelInfo, RunProjectModelInfo, RunProjectStepModelInfo, RunRoutineInputModelInfo, RunRoutineModelInfo, RunRoutineOutputModelInfo, RunRoutineStepModelInfo, ScheduleExceptionModelInfo, ScheduleModelInfo, ScheduleRecurrenceModelInfo, SessionModelInfo, StandardModelInfo, StandardVersionModelInfo, StatsApiModelInfo, StatsCodeModelInfo, StatsProjectModelInfo, StatsQuizModelInfo, StatsRoutineModelInfo, StatsSiteModelInfo, StatsStandardModelInfo, StatsTeamModelInfo, StatsUserModelInfo, TagModelInfo, TeamModelInfo, TransferModelInfo, UserModelInfo, ViewModelInfo, WalletModelInfo } from "./base/types";
-import { Formatter } from "./types";
+import { ApiKeyModelInfo, ApiModelInfo, ApiVersionModelInfo, AwardModelInfo, BookmarkListModelInfo, BookmarkModelInfo, ChatInviteModelInfo, ChatMessageModelInfo, ChatModelInfo, ChatParticipantModelInfo, CodeModelInfo, CodeVersionModelInfo, CommentModelInfo, EmailModelInfo, FocusModeFilterModelInfo, FocusModeModelInfo, IssueModelInfo, LabelModelInfo, MeetingInviteModelInfo, MeetingModelInfo, MemberInviteModelInfo, MemberModelInfo, NoteModelInfo, NoteVersionModelInfo, NotificationModelInfo, NotificationSubscriptionModelInfo, PaymentModelInfo, PhoneModelInfo, PostModelInfo, PremiumModelInfo, ProjectModelInfo, ProjectVersionDirectoryModelInfo, ProjectVersionModelInfo, PullRequestModelInfo, PushDeviceModelInfo, QuestionAnswerModelInfo, QuestionModelInfo, QuizAttemptModelInfo, QuizModelInfo, QuizQuestionModelInfo, QuizQuestionResponseModelInfo, ReactionModelInfo, ReactionSummaryModelInfo, ReminderItemModelInfo, ReminderListModelInfo, ReminderModelInfo, ReportModelInfo, ReportResponseModelInfo, ResourceListModelInfo, ResourceModelInfo, RoleModelInfo, RoutineModelInfo, RoutineVersionInputModelInfo, RoutineVersionModelInfo, RoutineVersionOutputModelInfo, RunProjectModelInfo, RunProjectStepModelInfo, RunRoutineIOModelInfo, RunRoutineModelInfo, RunRoutineStepModelInfo, ScheduleExceptionModelInfo, ScheduleModelInfo, ScheduleRecurrenceModelInfo, SessionModelInfo, StandardModelInfo, StandardVersionModelInfo, StatsApiModelInfo, StatsCodeModelInfo, StatsProjectModelInfo, StatsQuizModelInfo, StatsRoutineModelInfo, StatsSiteModelInfo, StatsStandardModelInfo, StatsTeamModelInfo, StatsUserModelInfo, TagModelInfo, TeamModelInfo, TransferModelInfo, UserModelInfo, ViewModelInfo, WalletModelInfo } from "./base/types.js";
+import { Formatter } from "./types.js";
 
 export const ApiFormat: Formatter<ApiModelInfo> = {
     apiRelMap: {
@@ -1474,7 +1474,7 @@ export const RoutineVersionInputFormat: Formatter<RoutineVersionInputModelInfo> 
         __typename: "RoutineVersionInput",
         routineVersion: "RoutineVersion",
         standardVersion: "StandardVersion",
-        runInputs: "RunRoutineInput",
+        runIO: "RunRoutineIO",
     },
     countFields: {},
 };
@@ -1489,6 +1489,7 @@ export const RoutineVersionOutputFormat: Formatter<RoutineVersionOutputModelInfo
         __typename: "RoutineVersionOutput",
         routineVersion: "RoutineVersion",
         standardVersion: "StandardVersion",
+        runIO: "RunRoutineIO",
     },
     countFields: {},
 };
@@ -1532,57 +1533,40 @@ export const RunProjectStepFormat: Formatter<RunProjectStepModelInfo> = {
 export const RunRoutineFormat: Formatter<RunRoutineModelInfo> = {
     apiRelMap: {
         __typename: "RunRoutine",
-        inputs: "RunRoutineInput",
-        outputs: "RunRoutineOutput",
+        io: "RunRoutineIO",
         team: "Team",
         routineVersion: "RoutineVersion",
-        runProject: "RunProject",
         schedule: "Schedule",
         steps: "RunRoutineStep",
         user: "User",
     },
     prismaRelMap: {
         __typename: "RunRoutine",
-        inputs: "RunRoutineInput",
-        outputs: "RunRoutineOutput",
+        io: "RunRoutineIO",
         team: "Team",
         routineVersion: "RoutineVersion",
-        runProject: "RunProject",
         schedule: "Schedule",
         steps: "RunRoutineStep",
         user: "User",
     },
     countFields: {
-        inputsCount: true,
-        outputsCount: true,
+        ioCount: true,
         stepsCount: true,
     },
 };
 
-export const RunRoutineInputFormat: Formatter<RunRoutineInputModelInfo> = {
+export const RunRoutineIOFormat: Formatter<RunRoutineIOModelInfo> = {
     apiRelMap: {
-        __typename: "RunRoutineInput",
-        input: "RoutineVersionInput",
+        __typename: "RunRoutineIO",
         runRoutine: "RunRoutine",
+        routineVersionInput: "RoutineVersionInput",
+        routineVersionOutput: "RoutineVersionOutput",
     },
     prismaRelMap: {
-        __typename: "RunRoutineInput",
-        input: "RunRoutineInput",
+        __typename: "RunRoutineIO",
         runRoutine: "RunRoutine",
-    },
-    countFields: {},
-};
-
-export const RunRoutineOutputFormat: Formatter<RunRoutineOutputModelInfo> = {
-    apiRelMap: {
-        __typename: "RunRoutineOutput",
-        output: "RoutineVersionOutput",
-        runRoutine: "RunRoutine",
-    },
-    prismaRelMap: {
-        __typename: "RunRoutineOutput",
-        output: "RunRoutineOutput",
-        runRoutine: "RunRoutine",
+        routineVersionInput: "RoutineVersionInput",
+        routineVersionOutput: "RoutineVersionOutput",
     },
     countFields: {},
 };
@@ -2188,8 +2172,7 @@ export const FormatMap: { [key in ModelType]?: Formatter<any> } = {
     RunProject: RunProjectFormat,
     RunProjectStep: RunProjectStepFormat,
     RunRoutine: RunRoutineFormat,
-    RunRoutineInput: RunRoutineInputFormat,
-    RunRoutineOutput: RunRoutineOutputFormat,
+    RunRoutineIO: RunRoutineIOFormat,
     RunRoutineStep: RunRoutineStepFormat,
     Schedule: ScheduleFormat,
     ScheduleException: ScheduleExceptionFormat,

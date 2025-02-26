@@ -1,7 +1,7 @@
 import { MaxObjects } from "@local/shared";
-import { defaultPermissions } from "../../utils";
-import { ReactionSummaryFormat } from "../formats";
-import { ReactionSummaryModelLogic } from "./types";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { ReactionSummaryFormat } from "../formats.js";
+import { ReactionSummaryModelLogic } from "./types.js";
 
 const __typename = "ReactionSummary" as const;
 export const ReactionSummaryModel: ReactionSummaryModelLogic = ({

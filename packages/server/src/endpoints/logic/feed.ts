@@ -1,11 +1,11 @@
 import { ApiSortBy, CodeSortBy, HomeResult, NoteSortBy, PageInfo, Popular, PopularSearchInput, PopularSearchResult, ProjectSortBy, QuestionSortBy, ReminderSortBy, RoutineSortBy, ScheduleSortBy, StandardSortBy, TeamSortBy, UserSortBy, VisibilityType } from "@local/shared";
-import { readManyAsFeedHelper } from "../../actions/reads";
-import { RequestService } from "../../auth/request";
-import { SessionService } from "../../auth/session";
-import { InfoConverter, addSupplementalFieldsMultiTypes } from "../../builders/infoConverter";
-import { PartialApiInfo } from "../../builders/types";
-import { schedulesWhereInTimeframe } from "../../events/schedule";
-import { ApiEndpoint } from "../../types";
+import { readManyAsFeedHelper } from "../../actions/reads.js";
+import { RequestService } from "../../auth/request.js";
+import { SessionService } from "../../auth/session.js";
+import { InfoConverter, addSupplementalFieldsMultiTypes } from "../../builders/infoConverter.js";
+import { PartialApiInfo } from "../../builders/types.js";
+import { schedulesWhereInTimeframe } from "../../events/schedule.js";
+import { ApiEndpoint } from "../../types.js";
 
 const SCHEDULES_DAYS_TO_LOOK_AHEAD = 7;
 

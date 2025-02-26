@@ -1,13 +1,13 @@
 import { CopyInput, CopyResult, Count, DeleteAccountInput, DeleteAllInput, DeleteManyInput, DeleteOneInput, DeleteType, Success, lowercaseFirstLetter } from "@local/shared";
-import { copyHelper } from "../../actions/copies";
-import { deleteManyHelper, deleteOneHelper } from "../../actions/deletes";
-import { PasswordAuthService } from "../../auth/email";
-import { RequestService } from "../../auth/request";
-import { prismaInstance } from "../../db/instance";
-import { CustomError } from "../../events/error";
-import { ModelMap } from "../../models/base";
-import { ApiEndpoint } from "../../types";
-import { auth } from "./auth";
+import { copyHelper } from "../../actions/copies.js";
+import { deleteManyHelper, deleteOneHelper } from "../../actions/deletes.js";
+import { PasswordAuthService } from "../../auth/email.js";
+import { RequestService } from "../../auth/request.js";
+import { DbProvider } from "../../db/provider.js";
+import { CustomError } from "../../events/error.js";
+import { ModelMap } from "../../models/base/index.js";
+import { ApiEndpoint } from "../../types.js";
+import { auth } from "./auth.js";
 
 export type EndpointsActions = {
     copy: ApiEndpoint<CopyInput, CopyResult>;
@@ -53,7 +53,7 @@ export const actions: EndpointsActions = {
         const { id } = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 500, req });
         // Find user
-        const user = await prismaInstance.user.findUnique({
+        const user = await DbProvider.get().user.findUnique({
             where: { id },
             select: PasswordAuthService.selectUserForPasswordAuth(),
         });

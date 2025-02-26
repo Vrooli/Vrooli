@@ -1,5 +1,5 @@
 import http from "http";
-import { app } from "./app";
+import { app } from "./app.js";
 
 const SERVER_PORT = "5329";
 export const SERVER_URL_LOCAL = `http://localhost:${SERVER_PORT}/api`;

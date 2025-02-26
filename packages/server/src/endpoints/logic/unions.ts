@@ -1,11 +1,11 @@
 import { PageInfo, ProjectOrRoutine, ProjectOrRoutineSearchInput, ProjectOrRoutineSearchResult, ProjectOrTeam, ProjectOrTeamSearchInput, ProjectOrTeamSearchResult, ProjectSortBy, RoutineSortBy, RunProjectOrRunRoutine, RunProjectOrRunRoutineSearchInput, RunProjectOrRunRoutineSearchResult, RunProjectOrRunRoutineSortBy, TeamSortBy, VisibilityType } from "@local/shared";
-import { readManyAsFeedHelper } from "../../actions/reads";
-import { RequestService } from "../../auth/request";
-import { SessionService } from "../../auth/session";
-import { InfoConverter, addSupplementalFieldsMultiTypes } from "../../builders/infoConverter";
-import { PartialApiInfo } from "../../builders/types";
-import { ApiEndpoint } from "../../types";
-import { SearchMap } from "../../utils";
+import { readManyAsFeedHelper } from "../../actions/reads.js";
+import { RequestService } from "../../auth/request.js";
+import { SessionService } from "../../auth/session.js";
+import { InfoConverter, addSupplementalFieldsMultiTypes } from "../../builders/infoConverter.js";
+import { PartialApiInfo } from "../../builders/types.js";
+import { ApiEndpoint } from "../../types.js";
+import { SearchMap } from "../../utils/searchMap.js";
 
 const DEFAULT_TAKE = 10;
 

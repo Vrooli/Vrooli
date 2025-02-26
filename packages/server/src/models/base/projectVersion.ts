@@ -1,14 +1,20 @@
 import { MaxObjects, ProjectVersionSortBy, getTranslation, projectVersionValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
-import { PreShapeVersionResult, afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
-import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
-import { ProjectVersionFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { ProjectModelInfo, ProjectModelLogic, ProjectVersionModelInfo, ProjectVersionModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { afterMutationsVersion } from "../../utils/shapes/afterMutationsVersion.js";
+import { preShapeVersion, type PreShapeVersionResult } from "../../utils/shapes/preShapeVersion.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { lineBreaksCheck } from "../../validators/lineBreaksCheck.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { versionsCheck } from "../../validators/versionsCheck.js";
+import { ProjectVersionFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { ProjectModelInfo, ProjectModelLogic, ProjectVersionModelInfo, ProjectVersionModelLogic } from "./types.js";
 
 type ProjectVersionPre = PreShapeVersionResult;
 
@@ -127,7 +133,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //         const orderByIsValid = ModelMap.get<CommentModelLogic>("Comment").search.sortBy[orderByField] === undefined
     //         const orderBy = orderByIsValid ? SortMap[input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort] : undefined;
     //         // Find requested search array
-    //         const searchResults = await prismaInstance.comment.findMany({
+    //         const searchResults = await DbProvider.get().comment.findMany({
     //             where,
     //             orderBy,
     //             take: input.take ?? 10,
@@ -144,7 +150,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //             threads: [],
     //         }
     //         // Query total in thread, if cursor is not provided (since this means this data was already given to the user earlier)
-    //         const totalInThread = input.after ? undefined : await prismaInstance.comment.count({
+    //         const totalInThread = input.after ? undefined : await DbProvider.get().comment.count({
     //             where: { ...where }
     //         });
     //         // Calculate end cursor

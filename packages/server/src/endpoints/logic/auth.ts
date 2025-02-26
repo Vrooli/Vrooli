@@ -1,22 +1,22 @@
 import { AUTH_PROVIDERS, AccountStatus, COOKIE, EmailLogInInput, EmailRequestPasswordChangeInput, EmailResetPasswordInput, EmailSignUpInput, LINKS, MINUTES_5_MS, ResourceUsedFor, Session, Success, SwitchCurrentAccountInput, ValidateSessionInput, WalletComplete, WalletCompleteInput, WalletInit, WalletInitInput, emailLogInFormValidation, emailRequestPasswordChangeSchema, emailResetPasswordSchema, emailSignUpValidation, switchCurrentAccountSchema, uuid, validateSessionSchema } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
 import { Response } from "express";
-import { AuthTokensService } from "../../auth/auth";
-import { randomString, validateCode } from "../../auth/codes";
-import { EMAIL_VERIFICATION_TIMEOUT, PasswordAuthService, UserDataForPasswordAuth } from "../../auth/email";
-import { JsonWebToken, REFRESH_TOKEN_EXPIRATION_MS } from "../../auth/jwt";
-import { RequestService } from "../../auth/request";
-import { SessionService } from "../../auth/session";
-import { generateNonce, serializedAddressToBech32, verifySignedMessage } from "../../auth/wallet";
-import { prismaInstance } from "../../db/instance";
-import { Award } from "../../events/awards";
-import { CustomError } from "../../events/error";
-import { Trigger } from "../../events/trigger";
-import { DEFAULT_USER_NAME_LENGTH } from "../../models/base/user";
-import { UI_URL_REMOTE } from "../../server";
-import { closeSessionSockets, closeUserSockets } from "../../sockets/events";
-import { ApiEndpoint, SessionData } from "../../types";
-import { hasProfanity } from "../../utils/censor";
+import { AuthTokensService } from "../../auth/auth.js";
+import { randomString, validateCode } from "../../auth/codes.js";
+import { EMAIL_VERIFICATION_TIMEOUT, PasswordAuthService, UserDataForPasswordAuth } from "../../auth/email.js";
+import { JsonWebToken, REFRESH_TOKEN_EXPIRATION_MS } from "../../auth/jwt.js";
+import { RequestService } from "../../auth/request.js";
+import { SessionService } from "../../auth/session.js";
+import { generateNonce, serializedAddressToBech32, verifySignedMessage } from "../../auth/wallet.js";
+import { DbProvider } from "../../db/provider.js";
+import { Award } from "../../events/awards.js";
+import { CustomError } from "../../events/error.js";
+import { Trigger } from "../../events/trigger.js";
+import { DEFAULT_USER_NAME_LENGTH } from "../../models/base/user.js";
+import { UI_URL_REMOTE } from "../../server.js";
+import { closeSessionSockets, closeUserSockets } from "../../sockets/events.js";
+import { ApiEndpoint, SessionData } from "../../types.js";
+import { hasProfanity } from "../../utils/censor.js";
 
 export type EndpointsAuth = {
     emailLogIn: ApiEndpoint<EmailLogInInput, Session>;
@@ -164,7 +164,7 @@ export const auth: EndpointsAuth = {
             const user = RequestService.assertRequestFrom(req, { isOfficialUser: true });
             // Validate verification code
             if (input.verificationCode) {
-                const email = await prismaInstance.email.findFirst({
+                const email = await DbProvider.get().email.findFirst({
                     where: {
                         AND: [
                             { userId: user.id },
@@ -185,7 +185,7 @@ export const auth: EndpointsAuth = {
         // If email supplied, validate
         else {
             // Find user
-            const user = await prismaInstance.user.findFirst({
+            const user = await DbProvider.get().user.findFirst({
                 where: {
                     emails: {
                         some: {
@@ -234,7 +234,7 @@ export const auth: EndpointsAuth = {
         if (hasProfanity(input.name))
             throw new CustomError("0140", "BannedWord");
         // Check if email exists
-        const existingEmail = await prismaInstance.email.findUnique({ where: { emailAddress: input.email ?? "" } });
+        const existingEmail = await DbProvider.get().email.findUnique({ where: { emailAddress: input.email ?? "" } });
         if (existingEmail) {
             throw new CustomError("0141", "EmailInUse");
         }
@@ -246,7 +246,7 @@ export const auth: EndpointsAuth = {
         const passwordAuthId = uuid();
         const transactions: PrismaPromise<object>[] = [
             // Create user
-            prismaInstance.user.create({
+            DbProvider.get().user.create({
                 data: {
                     id: userId,
                     name: input.name,
@@ -269,7 +269,7 @@ export const auth: EndpointsAuth = {
                 select: PasswordAuthService.selectUserForPasswordAuth(),
             }),
             // Create session
-            prismaInstance.session.create({
+            DbProvider.get().session.create({
                 data: {
                     device_info: deviceInfo,
                     expires_at: new Date(Date.now() + REFRESH_TOKEN_EXPIRATION_MS),
@@ -286,7 +286,7 @@ export const auth: EndpointsAuth = {
                 select: PasswordAuthService.selectUserForPasswordAuth().sessions.select,
             }),
         ];
-        const transactionResults = await prismaInstance.$transaction(transactions);
+        const transactionResults = await DbProvider.get().$transaction(transactions);
         // transactions[0]: user.create
         // transactions[1]: session.create
         const userData = transactionResults[0] as Omit<UserDataForPasswordAuth, "session">;
@@ -311,7 +311,7 @@ export const auth: EndpointsAuth = {
         // Validate input format
         emailRequestPasswordChangeSchema.validateSync(input, { abortEarly: false });
         // Find user
-        const user = await prismaInstance.user.findFirst({
+        const user = await DbProvider.get().user.findFirst({
             where: {
                 emails: {
                     some: {
@@ -333,7 +333,7 @@ export const auth: EndpointsAuth = {
         // Validate input format
         emailResetPasswordSchema.validateSync(input, { abortEarly: false });
         // Find user
-        const user = await prismaInstance.user.findUnique({
+        const user = await DbProvider.get().user.findUnique({
             where: { id: input.id },
             select: PasswordAuthService.selectUserForPasswordAuth(),
         });
@@ -364,7 +364,7 @@ export const auth: EndpointsAuth = {
         // Update database
         const transactions: PrismaPromise<object>[] = [
             // Update reset password request data and set new password
-            prismaInstance.user_auth.update({
+            DbProvider.get().user_auth.update({
                 where: {
                     id: passwordAuth.id,
                 },
@@ -375,7 +375,7 @@ export const auth: EndpointsAuth = {
                 },
             }),
             // Reset log in attempts
-            prismaInstance.user.update({
+            DbProvider.get().user.update({
                 where: { id: user.id },
                 data: {
                     logInAttempts: 0,
@@ -385,7 +385,7 @@ export const auth: EndpointsAuth = {
             // Revoke all existing password sessions, even ones using other authentication methods
             // You could also delete them, but this may be required for compliance reasons. 
             // We'll rely on a cron job to delete old sessions.
-            prismaInstance.session.updateMany({
+            DbProvider.get().session.updateMany({
                 where: {
                     user: {
                         id: user.id,
@@ -397,7 +397,7 @@ export const auth: EndpointsAuth = {
                 },
             }),
             // Create new session
-            prismaInstance.session.create({
+            DbProvider.get().session.create({
                 data: {
                     device_info: deviceInfo,
                     expires_at: new Date(Date.now() + REFRESH_TOKEN_EXPIRATION_MS),
@@ -414,7 +414,7 @@ export const auth: EndpointsAuth = {
                 select: PasswordAuthService.selectUserForPasswordAuth().sessions.select,
             }),
         ];
-        const transactionResults = await prismaInstance.$transaction(transactions);
+        const transactionResults = await DbProvider.get().$transaction(transactions);
         // transactions[0]: user_auth.update
         // transactions[1]: user.update
         // transactions[2]: session.updateMany
@@ -456,7 +456,7 @@ export const auth: EndpointsAuth = {
         // Revoke the sessions for every user that is being logged out
         const usersNotRemaining = req.session.users?.filter(u => u.id === userId) ?? [];
         const sessionIdsToRevoke = usersNotRemaining.map(u => u.session?.id).filter(Boolean);
-        await prismaInstance.session.updateMany({
+        await DbProvider.get().session.updateMany({
             where: {
                 id: { in: sessionIdsToRevoke },
             },
@@ -490,7 +490,7 @@ export const auth: EndpointsAuth = {
             return establishGuestSession(res);
         }
         // Use raw query to revoke sessions and return their IDs
-        const sessions = await prismaInstance.$queryRaw`
+        const sessions = await DbProvider.get().$queryRaw`
                 UPDATE "session"
                 SET revoked = true
                 WHERE "user_id" = ${userId}::uuid
@@ -574,7 +574,7 @@ export const auth: EndpointsAuth = {
         // Generate nonce for handshake
         const nonce = await generateNonce(input.nonceDescription as string | undefined);
         // Find existing wallet data in database
-        let walletData = await prismaInstance.wallet.findUnique({
+        let walletData = await DbProvider.get().wallet.findUnique({
             where: {
                 stakingAddress: input.stakingAddress,
             },
@@ -586,7 +586,7 @@ export const auth: EndpointsAuth = {
         });
         // If wallet exists, update with new nonce
         if (walletData) {
-            await prismaInstance.wallet.update({
+            await DbProvider.get().wallet.update({
                 where: { id: walletData.id },
                 data: {
                     nonce,
@@ -596,7 +596,7 @@ export const auth: EndpointsAuth = {
         }
         // If wallet data doesn't exist, create
         if (!walletData) {
-            walletData = await prismaInstance.wallet.create({
+            walletData = await DbProvider.get().wallet.create({
                 data: {
                     stakingAddress: input.stakingAddress,
                     nonce,
@@ -618,7 +618,7 @@ export const auth: EndpointsAuth = {
     walletComplete: async ({ input }, { req, res }) => {
         await RequestService.get().rateLimit({ maxUser: 100, req });
         // Find wallet with public address
-        const walletData = await prismaInstance.wallet.findUnique({
+        const walletData = await DbProvider.get().wallet.findUnique({
             where: { stakingAddress: input.stakingAddress },
             select: {
                 id: true,
@@ -650,7 +650,7 @@ export const auth: EndpointsAuth = {
             }
             firstLogIn = true;
             // Create new user
-            const userData = await prismaInstance.user.create({
+            const userData = await DbProvider.get().user.create({
                 data: {
                     name: `user${randomString(DEFAULT_USER_NAME_LENGTH, "0123456789")}`,
                     wallets: {
@@ -668,7 +668,7 @@ export const auth: EndpointsAuth = {
         else {
             // If wallet is not verified, link it to your account
             if (!walletData.verified) {
-                await prismaInstance.user.update({
+                await DbProvider.get().user.update({
                     where: { id: req.session.users?.[0]?.id as string },
                     data: {
                         wallets: {
@@ -679,7 +679,7 @@ export const auth: EndpointsAuth = {
             }
         }
         // Update wallet and remove nonce data
-        const wallet = await prismaInstance.wallet.update({
+        const wallet = await DbProvider.get().wallet.update({
             where: { id: walletData.id },
             data: {
                 verified: true,

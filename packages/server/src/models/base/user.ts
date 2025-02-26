@@ -1,16 +1,20 @@
 import { BotUpdateInput, MaxObjects, ProfileUpdateInput, UserSortBy, getTranslation, userValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { withRedis } from "../../redisConn";
-import { defaultPermissions, getEmbeddableString } from "../../utils";
-import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
-import { getSingleTypePermissions, handlesCheck } from "../../validators";
-import { UserFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { Mutater } from "../types";
-import { BookmarkModelLogic, UserModelInfo, UserModelLogic, ViewModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { withRedis } from "../../redisConn.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
+import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { handlesCheck } from "../../validators/handlesCheck.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { UserFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { Mutater } from "../types.js";
+import { ModelMap } from "./index.js";
+import { BookmarkModelLogic, UserModelInfo, UserModelLogic, ViewModelLogic } from "./types.js";
+
 
 type UserPre = PreShapeEmbeddableTranslatableResult;
 

@@ -1,13 +1,16 @@
 import { MaxObjects, PostSortBy, getTranslation, postValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, getEmbeddableString } from "../../utils";
-import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, tagShapeHelper, translationShapeHelper } from "../../utils/shapes";
-import { afterMutationsPlain } from "../../utils/triggers";
-import { PostFormat } from "../formats";
-import { PostModelLogic, TeamModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
+import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
+import { tagShapeHelper } from "../../utils/shapes/tagShapeHelper.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { afterMutationsPlain } from "../../utils/triggers/afterMutationsPlain.js";
+import { PostFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { PostModelLogic, TeamModelLogic } from "./types.js";
 
 type PostPre = PreShapeEmbeddableTranslatableResult;
 

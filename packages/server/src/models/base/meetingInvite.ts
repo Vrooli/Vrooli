@@ -1,13 +1,14 @@
 import { MaxObjects, MeetingInviteSortBy, meetingInviteValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { getSingleTypePermissions } from "../../validators";
-import { MeetingInviteFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { MeetingInviteModelInfo, MeetingInviteModelLogic, MeetingModelInfo, MeetingModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { MeetingInviteFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { MeetingInviteModelInfo, MeetingInviteModelLogic, MeetingModelInfo, MeetingModelLogic } from "./types.js";
 
 const __typename = "MeetingInvite" as const;
 export const MeetingInviteModel: MeetingInviteModelLogic = ({

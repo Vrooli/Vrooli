@@ -1,13 +1,13 @@
-import { BotCreateInput, BotUpdateInput, HttpStatus, MB_10_BYTES, SERVER_VERSION, ServerError, SessionUser, TeamCreateInput, TeamUpdateInput, decodeValue, endpointsActions, endpointsApi, endpointsApiKey, endpointsApiVersion, endpointsAuth, endpointsAward, endpointsBookmark, endpointsBookmarkList, endpointsChat, endpointsChatInvite, endpointsChatMessage, endpointsChatParticipant, endpointsCode, endpointsCodeVersion, endpointsComment, endpointsEmail, endpointsFeed, endpointsFocusMode, endpointsIssue, endpointsLabel, endpointsMeeting, endpointsMeetingInvite, endpointsMember, endpointsMemberInvite, endpointsNote, endpointsNoteVersion, endpointsNotification, endpointsNotificationSubscription, endpointsPhone, endpointsPost, endpointsProject, endpointsProjectVersion, endpointsProjectVersionDirectory, endpointsPullRequest, endpointsPushDevice, endpointsQuestion, endpointsQuestionAnswer, endpointsQuiz, endpointsQuizAttempt, endpointsQuizQuestionResponse, endpointsReaction, endpointsReminder, endpointsReminderList, endpointsReport, endpointsReportResponse, endpointsReputationHistory, endpointsResource, endpointsResourceList, endpointsRole, endpointsRoutine, endpointsRoutineVersion, endpointsRunProject, endpointsRunRoutine, endpointsRunRoutineInput, endpointsRunRoutineOutput, endpointsSchedule, endpointsStandard, endpointsStandardVersion, endpointsStatsApi, endpointsStatsCode, endpointsStatsProject, endpointsStatsQuiz, endpointsStatsRoutine, endpointsStatsSite, endpointsStatsStandard, endpointsStatsTeam, endpointsStatsUser, endpointsTag, endpointsTask, endpointsTeam, endpointsTransfer, endpointsTranslate, endpointsUnions, endpointsUser, endpointsView, endpointsWallet } from "@local/shared";
+import { BotCreateInput, BotUpdateInput, HttpStatus, MB_10_BYTES, MB_2_BYTES, SERVER_VERSION, ServerError, SessionUser, TeamCreateInput, TeamUpdateInput, decodeValue, endpointsActions, endpointsApi, endpointsApiKey, endpointsApiVersion, endpointsAuth, endpointsAward, endpointsBookmark, endpointsBookmarkList, endpointsChat, endpointsChatInvite, endpointsChatMessage, endpointsChatParticipant, endpointsCode, endpointsCodeVersion, endpointsComment, endpointsEmail, endpointsFeed, endpointsFocusMode, endpointsIssue, endpointsLabel, endpointsMeeting, endpointsMeetingInvite, endpointsMember, endpointsMemberInvite, endpointsNote, endpointsNoteVersion, endpointsNotification, endpointsNotificationSubscription, endpointsPhone, endpointsPost, endpointsProject, endpointsProjectVersion, endpointsProjectVersionDirectory, endpointsPullRequest, endpointsPushDevice, endpointsQuestion, endpointsQuestionAnswer, endpointsQuiz, endpointsQuizAttempt, endpointsQuizQuestionResponse, endpointsReaction, endpointsReminder, endpointsReminderList, endpointsReport, endpointsReportResponse, endpointsReputationHistory, endpointsResource, endpointsResourceList, endpointsRole, endpointsRoutine, endpointsRoutineVersion, endpointsRunProject, endpointsRunRoutine, endpointsRunRoutineIO, endpointsSchedule, endpointsStandard, endpointsStandardVersion, endpointsStatsApi, endpointsStatsCode, endpointsStatsProject, endpointsStatsQuiz, endpointsStatsRoutine, endpointsStatsSite, endpointsStatsStandard, endpointsStatsTeam, endpointsStatsUser, endpointsTag, endpointsTask, endpointsTeam, endpointsTransfer, endpointsTranslate, endpointsUnions, endpointsUser, endpointsView, endpointsWallet } from "@local/shared";
 import Busboy from "busboy";
 import { Express, NextFunction, Request, Response, Router } from "express";
-import { SessionService } from "../auth/session";
-import { PartialApiInfo } from "../builders/types";
-import { CustomError } from "../events/error";
-import { context } from "../middleware";
-import { ApiEndpoint } from "../types";
-import { processAndStoreFiles } from "../utils/fileStorage";
-import { ResponseService } from "../utils/response";
+import { SessionService } from "../auth/session.js";
+import { PartialApiInfo } from "../builders/types.js";
+import { CustomError } from "../events/error.js";
+import { context } from "../middleware/context.js";
+import { ApiEndpoint } from "../types.js";
+import { processAndStoreFiles } from "../utils/fileStorage.js";
+import { ResponseService } from "../utils/response.js";
 
 const DEFAULT_MAX_FILES = 1;
 const DEFAULT_MAX_FILE_SIZE = MB_10_BYTES;
@@ -246,9 +246,9 @@ function setupRoutes(endpointTuples: EndpointTuple[]): Router {
  * Creates a router with all the API endpoints.
  */
 export async function initRestApi(app: Express) {
-    const Select = await import("./generated");
-    const Logic = await import("./logic");
-    const { bannerImageConfig, profileImageConfig } = await import("../utils/fileStorage");
+    const Select = await import("./generated/index.js");
+    const Logic = await import("./logic/index.js");
+    const { bannerImageConfig, profileImageConfig } = await import("../utils/fileStorage.js");
 
     const botImagesConfig: UploadConfig<BotCreateInput | BotUpdateInput> = {
         acceptsFiles: true,
@@ -282,7 +282,7 @@ export async function initRestApi(app: Express) {
             allowedExtensions: ["ics"],
             fieldName: "file",
             fileNameBase: (_, currentUser) => `${currentUser.id}-import`,
-            maxFileSize: 1024 * 1024 * 2, // 2MB
+            maxFileSize: MB_2_BYTES,
         }],
     };
 
@@ -575,10 +575,8 @@ export async function initRestApi(app: Express) {
         [endpointsRunRoutine.findMany, Logic.runRoutine.findMany, Select.runRoutine_findMany],
         [endpointsRunRoutine.createOne, Logic.runRoutine.createOne, Select.runRoutine_createOne],
         [endpointsRunRoutine.updateOne, Logic.runRoutine.updateOne, Select.runRoutine_updateOne],
-        // Run routine input
-        [endpointsRunRoutineInput.findMany, Logic.runRoutineInput.findMany, Select.runRoutineInput_findMany],
-        // Run routine output
-        [endpointsRunRoutineOutput.findMany, Logic.runRoutineOutput.findMany, Select.runRoutineOutput_findMany],
+        // Run routine io
+        [endpointsRunRoutineIO.findMany, Logic.runRoutineIO.findMany, Select.runRoutineIO_findMany],
         // Schedule
         [endpointsSchedule.findOne, Logic.schedule.findOne, Select.schedule_findOne],
         [endpointsSchedule.findMany, Logic.schedule.findMany, Select.schedule_findMany],

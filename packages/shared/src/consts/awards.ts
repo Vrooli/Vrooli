@@ -1,5 +1,6 @@
-import { AwardCategory } from "../api/types";
-import { type TranslationKeyAward } from "../types";
+/* eslint-disable no-magic-numbers */
+import { AwardCategory } from "../api/types.js";
+import { type TranslationKeyAward } from "../types.js";
 
 /**
  * Maps award categories to their tiers, if applicable. Special cases are handled
@@ -42,11 +43,11 @@ export const awardVariants: { [key in Exclude<`${AwardCategory}`, "AccountAnnive
  * @param findNext If true, will return the next tier name instead of the current one
  * @returns Highest count and name that's applicable
  */
-const awardTier = (
+function awardTier(
     list: [number, TranslationKeyAward][],
     count: number,
     findNext = false,
-): [number, TranslationKeyAward | null] => {
+): [number, TranslationKeyAward | null] {
     for (let i = 0; i < list.length; i++) {
         const item = list[i];
         if (!item) continue;
@@ -60,7 +61,11 @@ const awardTier = (
     // If not found and findNext is true, return the first tier
     const foundResult = list.length > 0 ? list[list.length - 1] : undefined;
     return foundResult ?? [0, null];
-};
+}
+
+function title<Prefix extends string, Count extends number>(prefix: Prefix, count: Count): `${Prefix}${Count}Title` {
+    return `${prefix}${count}Title` as const;
+}
 
 /**
  * Maps award category/level to the award's name and description. Names should be interesting and unique.
@@ -82,175 +87,176 @@ export const awardNames: { [key in AwardCategory]: (count: number, findNext?: bo
     AccountNew: () => ({ name: "AccountNewTitle", body: "AccountNewBody", level: 0 }),
     ApiCreate: (count, findNext = false) => {
         // [1, 5, 10, 25, 50]
-        const tit = <C extends number>(count: C) => `${"ApiCreate"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)]], count, findNext);
+        const p = "ApiCreate";
+        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "ApiCreateBody", bodyVariables: { count: level }, level };
     },
     SmartContractCreate: (count, findNext = false) => {
         // [1, 5, 10, 25]
-        const tit = <C extends number>(count: C) => `${"SmartContractCreate"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)]], count, findNext);
+        const p = "SmartContractCreate";
+        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "SmartContractCreateBody", bodyVariables: { count: level }, level };
     },
     CommentCreate: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100, 250, 500, 1000]
-        const tit = <C extends number>(count: C) => `${"CommentCreate"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count, findNext);
+        const p = "CommentCreate";
+        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)], [250, title(p, 250)], [500, title(p, 500)], [1000, title(p, 1000)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "CommentCreateBody", bodyVariables: { count: level }, level };
     },
     IssueCreate: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100, 250]
-        const tit = <C extends number>(count: C) => `${"IssueCreate"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)]], count, findNext);
+        const p = "IssueCreate";
+        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)], [250, title(p, 250)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "IssueCreateBody", bodyVariables: { count: level }, level };
     },
     NoteCreate: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100]
-        const tit = <C extends number>(count: C) => `${"NoteCreate"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)]], count, findNext);
+        const p = "NoteCreate";
+        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "NoteCreateBody", bodyVariables: { count: level }, level };
     },
     ObjectBookmark: (count, findNext = false) => {
         // [1, 100, 500]
-        const tit = <C extends number>(count: C) => `${"ObjectBookmark"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [100, tit(100)], [500, tit(500)]], count, findNext);
+        const p = "ObjectBookmark";
+        const [level, name] = awardTier([[1, title(p, 1)], [100, title(p, 100)], [500, title(p, 500)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "ObjectBookmarkBody", bodyVariables: { count: level }, level };
     },
     ObjectReact: (count, findNext = false) => {
         // [1, 100, 1000, 10000]
-        const tit = <C extends number>(count: C) => `${"ObjectReact"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [100, tit(100)], [1000, tit(1000)], [10000, tit(10000)]], count, findNext);
+        const p = "ObjectReact";
+        const [level, name] = awardTier([[1, title(p, 1)], [100, title(p, 100)], [1000, title(p, 1000)], [10000, title(p, 10000)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "ObjectReactBody", bodyVariables: { count: level }, level };
     },
     PostCreate: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100, 250, 500, 1000]
-        const tit = <C extends number>(count: C) => `${"PostCreate"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count, findNext);
+        const p = "PostCreate";
+        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)], [250, title(p, 250)], [500, title(p, 500)], [1000, title(p, 1000)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "PostCreateBody", bodyVariables: { count: level }, level };
     },
     ProjectCreate: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100]
-        const tit = <C extends number>(count: C) => `${"ProjectCreate"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)]], count, findNext);
+        const p = "ProjectCreate";
+        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "ProjectCreateBody", bodyVariables: { count: level }, level };
     },
     PullRequestCreate: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100, 250, 500]
-        const tit = <C extends number>(count: C) => `${"PullRequestCreate"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)]], count, findNext);
+        const p = "PullRequestCreate";
+        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)], [250, title(p, 250)], [500, title(p, 500)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "PullRequestCreateBody", bodyVariables: { count: level }, level };
     },
     PullRequestComplete: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100, 250, 500]
-        const tit = <C extends number>(count: C) => `${"PullRequestComplete"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)]], count, findNext);
+        const p = "PullRequestComplete";
+        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)], [250, title(p, 250)], [500, title(p, 500)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "PullRequestCompleteBody", bodyVariables: { count: level }, level };
     },
     QuestionAnswer: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100, 250, 500, 1000]
-        const tit = <C extends number>(count: C) => `${"QuestionAnswer"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count, findNext);
+        const p = "QuestionAnswer";
+        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)], [250, title(p, 250)], [500, title(p, 500)], [1000, title(p, 1000)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "QuestionAnswerBody", bodyVariables: { count: level }, level };
     },
     QuestionCreate: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100, 250, 500, 1000]
-        const tit = <C extends number>(count: C) => `${"QuestionCreate"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count, findNext);
+        const p = "QuestionCreate";
+        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)], [250, title(p, 250)], [500, title(p, 500)], [1000, title(p, 1000)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "QuestionCreateBody", bodyVariables: { count: level }, level };
     },
     QuizPass: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100, 250, 500, 1000]
-        const tit = <C extends number>(count: C) => `${"QuizPass"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count, findNext);
+        const p = "QuizPass";
+        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)], [250, title(p, 250)], [500, title(p, 500)], [1000, title(p, 1000)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "QuizPassBody", bodyVariables: { count: level }, level };
     },
     ReportEnd: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100]
-        const tit = <C extends number>(count: C) => `${"ReportEnd"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)]], count, findNext);
+        const p = "ReportEnd";
+        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "ReportEndBody", bodyVariables: { count: level }, level };
     },
     ReportContribute: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100, 250, 500, 1000]
-        const tit = <C extends number>(count: C) => `${"ReportContribute"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count, findNext);
+        const p = "ReportContribute";
+        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)], [250, title(p, 250)], [500, title(p, 500)], [1000, title(p, 1000)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "ReportContributeBody", bodyVariables: { count: level }, level };
     },
     Reputation: (count, findNext = false) => {
         // [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]
-        const tit = <C extends number>(count: C) => `${"ReputationPoints"}${count}Title` as const;
-        const [level, name] = awardTier([[10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)], [2500, tit(2500)], [10000, tit(10000)]], count, findNext);
+        const p = "ReputationPoints";
+        const [level, name] = awardTier([[10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)], [250, title(p, 250)], [500, title(p, 500)], [1000, title(p, 1000)], [2500, title(p, 2500)], [10000, title(p, 10000)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "ReputationPointsBody", bodyVariables: { count: level }, level };
     },
     RunRoutine: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000]
-        const tit = <C extends number>(count: C) => `${"RunRoutine"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)], [2500, tit(2500)], [10000, tit(10000)]], count, findNext);
+        const p = "RunRoutine";
+        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)], [250, title(p, 250)], [500, title(p, 500)], [1000, title(p, 1000)], [2500, title(p, 2500)], [10000, title(p, 10000)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "RunRoutineBody", bodyVariables: { count: level }, level };
     },
     RunProject: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100, 250, 500, 1000]
-        const tit = <C extends number>(count: C) => `${"RunProject"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count, findNext);
+        const p = "RunProject";
+        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)], [250, title(p, 250)], [500, title(p, 500)], [1000, title(p, 1000)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "RunProjectBody", bodyVariables: { count: level }, level };
     },
     RoutineCreate: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100, 250, 500, 1000
-        const tit = <C extends number>(count: C) => `${"RoutineCreate"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)], [250, tit(250)], [500, tit(500)], [1000, tit(1000)]], count, findNext);
+        const p = "RoutineCreate";
+        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)], [250, title(p, 250)], [500, title(p, 500)], [1000, title(p, 1000)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "RoutineCreateBody", bodyVariables: { count: level }, level };
     },
     StandardCreate: (count, findNext = false) => {
         // [1, 5, 10, 25, 50]
-        const tit = <C extends number>(count: C) => `${"StandardCreate"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)]], count, findNext);
+        const p = "StandardCreate";
+        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "StandardCreateBody", bodyVariables: { count: level }, level };
     },
     Streak: (days, findNext = false) => {
-        const tit = <C extends number>(count: C) => `${"StreakDays"}${count}Title` as const;
-        const [level, name] = awardTier([[7, tit(7)], [30, tit(30)], [100, tit(100)], [200, tit(200)], [365, tit(365)], [500, tit(500)], [750, tit(750)], [1000, tit(1000)]], days, findNext);
+        // [7, 30, 100, 200, 365, 500, 750, 1000]
+        const p = "StreakDays";
+        const [level, name] = awardTier([[7, title(p, 7)], [30, title(p, 30)], [100, title(p, 100)], [200, title(p, 200)], [365, title(p, 365)], [500, title(p, 500)], [750, title(p, 750)], [1000, title(p, 1000)]], days, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "StreakDaysBody", bodyVariables: { count: days }, level };
     },
     OrganizationCreate: (count, findNext = false) => {
         // [1, 2, 5, 10]
-        const tit = <C extends number>(count: C) => `${"OrganizationCreate"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [2, tit(2)], [5, tit(5)], [10, tit(10)]], count, findNext);
+        const p = "OrganizationCreate";
+        const [level, name] = awardTier([[1, title(p, 1)], [2, title(p, 2)], [5, title(p, 5)], [10, title(p, 10)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "OrganizationCreateBody", bodyVariables: { count: level }, level };
     },
     OrganizationJoin: (count, findNext = false) => {
         // [1, 5, 10, 25]
-        const tit = <C extends number>(count: C) => `${"OrganizationJoin"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)]], count, findNext);
+        const p = "OrganizationJoin";
+        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "OrganizationJoinBody", bodyVariables: { count: level }, level };
     },
     UserInvite: (count, findNext = false) => {
         // [1, 5, 10, 25, 50, 100]
-        const tit = <C extends number>(count: C) => `${"UserInvite"}${count}Title` as const;
-        const [level, name] = awardTier([[1, tit(1)], [5, tit(5)], [10, tit(10)], [25, tit(25)], [50, tit(50)], [100, tit(100)]], count, findNext);
+        const p = "UserInvite";
+        const [level, name] = awardTier([[1, title(p, 1)], [5, title(p, 5)], [10, title(p, 10)], [25, title(p, 25)], [50, title(p, 50)], [100, title(p, 100)]], count, findNext);
         if (!name) return { name: null, body: null, level: 0 };
         return { name, body: "UserInviteBody", bodyVariables: { count: level }, level };
     },

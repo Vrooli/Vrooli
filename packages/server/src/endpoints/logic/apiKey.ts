@@ -1,10 +1,10 @@
 import { ApiKey, ApiKeyCreateInput, ApiKeyDeleteOneInput, ApiKeyUpdateInput, ApiKeyValidateInput, COOKIE, DeleteOneInput, Success } from "@local/shared";
-import { createOneHelper } from "../../actions/creates";
-import { deleteOneHelper } from "../../actions/deletes";
-import { updateOneHelper } from "../../actions/updates";
-import { RequestService } from "../../auth/request";
-import { CustomError } from "../../events/error";
-import { ApiEndpoint } from "../../types";
+import { createOneHelper } from "../../actions/creates.js";
+import { deleteOneHelper } from "../../actions/deletes.js";
+import { updateOneHelper } from "../../actions/updates.js";
+import { RequestService } from "../../auth/request.js";
+import { CustomError } from "../../events/error.js";
+import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsApiKey = {
     createOne: ApiEndpoint<ApiKeyCreateInput, ApiKey>;

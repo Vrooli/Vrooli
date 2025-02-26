@@ -1,11 +1,11 @@
 import { apiKeyValidation, MaxObjects, uuid } from "@local/shared";
-import { ModelMap } from ".";
-import { randomString } from "../../auth/codes";
-import { noNull } from "../../builders/noNull";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions } from "../../utils";
-import { ApiKeyFormat } from "../formats";
-import { ApiKeyModelLogic, TeamModelLogic } from "./types";
+import { randomString } from "../../auth/codes.js";
+import { noNull } from "../../builders/noNull.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { ApiKeyFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { ApiKeyModelLogic, TeamModelLogic } from "./types.js";
 
 const KEY_DISPLAY_CUTOFF_LENGTH = 8; // Should be an even number
 const KEY_LENGTH = 64;

@@ -1,17 +1,21 @@
 import { DEFAULT_LANGUAGE, MaxObjects, SessionUser, StandardCreateInput, StandardSortBy, standardValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { getLabels } from "../../getters";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
-import { PreShapeRootResult, labelShapeHelper, ownerFields, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
-import { afterMutationsRoot } from "../../utils/triggers";
-import { getSingleTypePermissions } from "../../validators";
-import { StandardFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, ReactionModelLogic, StandardModelInfo, StandardModelLogic, StandardVersionModelLogic, TeamModelLogic, ViewModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { getLabels } from "../../getters/getLabels.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { rootObjectDisplay } from "../../utils/rootObjectDisplay.js";
+import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
+import { ownerFields } from "../../utils/shapes/ownerFields.js";
+import { preShapeRoot, type PreShapeRootResult } from "../../utils/shapes/preShapeRoot.js";
+import { tagShapeHelper } from "../../utils/shapes/tagShapeHelper.js";
+import { afterMutationsRoot } from "../../utils/triggers/afterMutationsRoot.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { StandardFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { BookmarkModelLogic, ReactionModelLogic, StandardModelInfo, StandardModelLogic, StandardVersionModelLogic, TeamModelLogic, ViewModelLogic } from "./types.js";
 
 type StandardPre = PreShapeRootResult;
 
@@ -131,7 +135,7 @@ export const StandardModel: StandardModelLogic = ({
             // const props = sortify(data.props);
             // const yup = data.yup ? sortify(data.yup) : null;
             // // Find all standards that match the given standard
-            // const standards = await prismaInstance.standard_version.findMany({
+            // const standards = await DbProvider.get().standard_version.findMany({
             //     where: {
             //         root: {
             //             isInternal: (isInternal === true || isInternal === false) ? isInternal : undefined,

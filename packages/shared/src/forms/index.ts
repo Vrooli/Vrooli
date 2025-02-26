@@ -1,4 +1,4 @@
-export * from "./defaultGenerator";
-export * from "./types";
-export * from "./yupGenerator";
+export * from "./defaultGenerator.js";
+export * from "./types.js";
+export * from "./yupGenerator.js";
 

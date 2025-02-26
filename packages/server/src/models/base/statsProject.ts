@@ -1,10 +1,11 @@
 import { DEFAULT_LANGUAGE, MaxObjects, StatsProjectSortBy } from "@local/shared";
 import i18next from "i18next";
-import { ModelMap } from ".";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { StatsProjectFormat } from "../formats";
-import { ProjectModelInfo, ProjectModelLogic, StatsProjectModelInfo, StatsProjectModelLogic } from "./types";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { StatsProjectFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { ProjectModelInfo, ProjectModelLogic, StatsProjectModelInfo, StatsProjectModelLogic } from "./types.js";
 
 const __typename = "StatsProject" as const;
 export const StatsProjectModel: StatsProjectModelLogic = ({

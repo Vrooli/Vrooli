@@ -1,13 +1,13 @@
 import { ChatInviteSortBy, chatInviteValidation, MaxObjects, uuidValidate } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions } from "../../utils";
-import { getSingleTypePermissions } from "../../validators";
-import { ChatInviteFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { ChatInviteModelInfo, ChatInviteModelLogic, ChatModelInfo, ChatModelLogic, UserModelInfo, UserModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { ChatInviteFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { ChatInviteModelInfo, ChatInviteModelLogic, ChatModelInfo, ChatModelLogic, UserModelInfo, UserModelLogic } from "./types.js";
 
 const __typename = "ChatInvite" as const;
 export const ChatInviteModel: ChatInviteModelLogic = ({

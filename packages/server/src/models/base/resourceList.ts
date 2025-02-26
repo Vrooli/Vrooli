@@ -1,13 +1,14 @@
 import { MaxObjects, ModelType, ResourceListFor, ResourceListSearchInput, ResourceListSortBy, getTranslation, resourceListValidation, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { ModelMap } from ".";
-import { findFirstRel } from "../../builders/findFirstRel";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { translationShapeHelper } from "../../utils/shapes";
-import { ResourceListFormat } from "../formats";
-import { ResourceListModelInfo, ResourceListModelLogic } from "./types";
+import { findFirstRel } from "../../builders/findFirstRel.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { ResourceListFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { ResourceListModelInfo, ResourceListModelLogic } from "./types.js";
 
 const forMapper: { [key in ResourceListFor]: keyof Prisma.resource_listUpsertArgs["create"] } = {
     ApiVersion: "apiVersion",

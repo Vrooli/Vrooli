@@ -1,13 +1,14 @@
 import { MaxObjects, MemberInviteSortBy, memberInviteValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { getSingleTypePermissions } from "../../validators";
-import { MemberInviteFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { MemberInviteModelInfo, MemberInviteModelLogic, TeamModelLogic, UserModelInfo, UserModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { MemberInviteFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { MemberInviteModelInfo, MemberInviteModelLogic, TeamModelLogic, UserModelInfo, UserModelLogic } from "./types.js";
 
 const __typename = "MemberInvite" as const;
 export const MemberInviteModel: MemberInviteModelLogic = ({

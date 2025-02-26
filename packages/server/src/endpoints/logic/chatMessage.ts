@@ -1,16 +1,16 @@
 import { ChatMessage, ChatMessageCreateWithTaskInfoInput, ChatMessageSearchInput, ChatMessageSearchResult, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageUpdateWithTaskInfoInput, FindByIdInput, RegenerateResponseInput, Success, getTranslation, uuidValidate } from "@local/shared";
-import { createOneHelper } from "../../actions/creates";
-import { readManyHelper, readOneHelper } from "../../actions/reads";
-import { updateOneHelper } from "../../actions/updates";
-import { RequestService } from "../../auth/request";
-import { CustomError } from "../../events/error";
-import { ModelMap } from "../../models/base";
-import { ChatMessageModelLogic, ChatModelInfo } from "../../models/base/types";
-import { emitSocketEvent } from "../../sockets/events";
-import { requestBotResponse } from "../../tasks/llm/queue";
-import { ApiEndpoint } from "../../types";
-import { ChatMessagePre, PreMapChatData, PreMapMessageDataUpdate, PreMapUserData, getChatParticipantData } from "../../utils/chat";
-import { getSingleTypePermissions } from "../../validators/permissions";
+import { createOneHelper } from "../../actions/creates.js";
+import { readManyHelper, readOneHelper } from "../../actions/reads.js";
+import { updateOneHelper } from "../../actions/updates.js";
+import { RequestService } from "../../auth/request.js";
+import { CustomError } from "../../events/error.js";
+import { ModelMap } from "../../models/base/index.js";
+import { ChatMessageModelLogic, ChatModelInfo } from "../../models/base/types.js";
+import { emitSocketEvent } from "../../sockets/events.js";
+import { requestBotResponse } from "../../tasks/llm/queue.js";
+import { ApiEndpoint } from "../../types.js";
+import { ChatMessagePre, PreMapChatData, PreMapMessageDataUpdate, PreMapUserData, getChatParticipantData } from "../../utils/chat.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
 
 export type EndpointsChatMessage = {
     findOne: ApiEndpoint<FindByIdInput, ChatMessage>;
@@ -37,14 +37,14 @@ export const chatMessage: EndpointsChatMessage = {
     },
     createOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
-        const { message, task, taskContexts } = input;
-        const additionalData = { task, taskContexts };
+        const { message, model, task, taskContexts } = input;
+        const additionalData = { model, task, taskContexts };
         return createOneHelper({ additionalData, info, input: message, objectType, req });
     },
     updateOne: async ({ input }, { req }, info) => {
         await RequestService.get().rateLimit({ maxUser: 1000, req });
-        const { message, task, taskContexts } = input;
-        const additionalData = { task, taskContexts };
+        const { message, model, task, taskContexts } = input;
+        const additionalData = { model, task, taskContexts };
         return updateOneHelper({ additionalData, info, input: message, objectType, req });
     },
     //TODO remove if possible
@@ -52,7 +52,7 @@ export const chatMessage: EndpointsChatMessage = {
         const userData = RequestService.assertRequestFrom(req, { isUser: true });
         await RequestService.get().rateLimit({ maxUser: 1000, req });
 
-        const { messageId, task, taskContexts } = input;
+        const { messageId, model, task, taskContexts } = input;
         if (!uuidValidate(messageId)) {
             throw new CustomError("0423", "InvalidArgs", { input });
         }
@@ -100,6 +100,7 @@ export const chatMessage: EndpointsChatMessage = {
         requestBotResponse({
             chatId,
             mode: "text",
+            model,
             parentId: parentMessageData.messageId,
             parentMessage: parentMessageText,
             respondingBotId,

@@ -1,14 +1,14 @@
 import { DEFAULT_LANGUAGE, MaxObjects, ModelType, ReportFor, ReportSearchInput, ReportSortBy, ReportStatus, reportValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import i18next from "i18next";
-import { ModelMap } from ".";
-import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder";
-import { prismaInstance } from "../../db/instance";
-import { CustomError } from "../../events/error";
-import { getSingleTypePermissions } from "../../validators";
-import { ReportFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { ReportModelInfo, ReportModelLogic } from "./types";
+import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder.js";
+import { DbProvider } from "../../db/provider.js";
+import { CustomError } from "../../events/error.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { ReportFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { ReportModelInfo, ReportModelLogic } from "./types.js";
 
 const forMapper: { [key in ReportFor]: keyof Prisma.reportUpsertArgs["create"] } = {
     ApiVersion: "apiVersion",
@@ -62,7 +62,7 @@ export const ReportModel: ReportModelLogic = ({
                         })),
                     };
                     console.log("report pre where", JSON.stringify(where));
-                    const existing = await prismaInstance.report.findMany({
+                    const existing = await DbProvider.get().report.findMany({
                         where: {
                             status: "Open",
                             user: { id: userData.id },

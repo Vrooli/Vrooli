@@ -1,13 +1,13 @@
 import { FocusModeSortBy, focusModeValidation, MaxObjects } from "@local/shared";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions } from "../../utils";
-import { labelShapeHelper } from "../../utils/shapes";
-import { getSingleTypePermissions } from "../../validators";
-import { FocusModeFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { FocusModeModelInfo, FocusModeModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { FocusModeFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { FocusModeModelInfo, FocusModeModelLogic } from "./types.js";
 
 const __typename = "FocusMode" as const;
 export const FocusModeModel: FocusModeModelLogic = ({

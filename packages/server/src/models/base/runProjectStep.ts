@@ -1,11 +1,12 @@
 import { MaxObjects, runProjectStepValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { RunProjectStepFormat } from "../formats";
-import { RunProjectModelInfo, RunProjectModelLogic, RunProjectStepModelInfo, RunProjectStepModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { RunProjectStepFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { RunProjectModelInfo, RunProjectModelLogic, RunProjectStepModelInfo, RunProjectStepModelLogic } from "./types.js";
 
 const __typename = "RunProjectStep" as const;
 export const RunProjectStepModel: RunProjectStepModelLogic = ({
@@ -27,11 +28,12 @@ export const RunProjectStepModel: RunProjectStepModelLogic = ({
                 if (timeElapsed !== undefined) timeElapsed = Math.max(timeElapsed, 0);
                 return {
                     id: data.id,
+                    complexity: data.complexity,
                     contextSwitches,
+                    directoryInId: data.directoryInId,
                     name: data.name,
                     order: data.order,
                     status: noNull(data.status),
-                    step: data.step,
                     timeElapsed,
                     directory: await shapeHelper({ relation: "directory", relTypes: ["Connect"], isOneToOne: true, objectType: "ProjectVersionDirectory", parentRelationshipName: "runProjectSteps", data, ...rest }),
                     runProject: await shapeHelper({ relation: "runProject", relTypes: ["Connect"], isOneToOne: true, objectType: "RunProject", parentRelationshipName: "steps", data, ...rest }),

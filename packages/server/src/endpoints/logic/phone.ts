@@ -1,9 +1,9 @@
 import { Phone, PhoneCreateInput, SendVerificationTextInput, Success, ValidateVerificationTextInput } from "@local/shared";
-import { createOneHelper } from "../../actions/creates";
-import { setupPhoneVerificationCode, validatePhoneVerificationCode } from "../../auth/phone";
-import { RequestService } from "../../auth/request";
-import { CustomError } from "../../events/error";
-import { ApiEndpoint } from "../../types";
+import { createOneHelper } from "../../actions/creates.js";
+import { setupPhoneVerificationCode, validatePhoneVerificationCode } from "../../auth/phone.js";
+import { RequestService } from "../../auth/request.js";
+import { CustomError } from "../../events/error.js";
+import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsPhone = {
     createOne: ApiEndpoint<PhoneCreateInput, Phone>;

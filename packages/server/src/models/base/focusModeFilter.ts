@@ -1,10 +1,10 @@
 import { focusModeFilterValidation, MaxObjects } from "@local/shared";
-import { ModelMap } from ".";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions } from "../../utils";
-import { FocusModeFilterFormat } from "../formats";
-import { FocusModeFilterModelLogic, FocusModeModelInfo, FocusModeModelLogic, TagModelInfo, TagModelLogic } from "./types";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { FocusModeFilterFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { FocusModeFilterModelLogic, FocusModeModelInfo, FocusModeModelLogic, TagModelInfo, TagModelLogic } from "./types.js";
 
 const __typename = "FocusModeFilter" as const;
 export const FocusModeFilterModel: FocusModeFilterModelLogic = ({

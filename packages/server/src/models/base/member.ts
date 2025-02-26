@@ -1,11 +1,12 @@
 import { MaxObjects, MemberSortBy } from "@local/shared";
-import { ModelMap } from ".";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { getSingleTypePermissions } from "../../validators";
-import { MemberFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { MemberModelInfo, MemberModelLogic, RoleModelLogic, TeamModelInfo, TeamModelLogic, UserModelInfo, UserModelLogic } from "./types";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { MemberFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { MemberModelInfo, MemberModelLogic, RoleModelLogic, TeamModelInfo, TeamModelLogic, UserModelInfo, UserModelLogic } from "./types.js";
 
 const __typename = "Member" as const;
 export const MemberModel: MemberModelLogic = ({
@@ -56,7 +57,7 @@ export const MemberModel: MemberModelLogic = ({
         permissionsSelect: () => ({ id: true, team: "Team" }),
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => ModelMap.get<TeamModelLogic>("Team").validate().owner(data?.team as TeamModelInfo["DbModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<TeamModelLogic>("Team").validate().isDeleted(data.team as TeamModelInfo["DbModel"], languages),
+        isDeleted: (data) => ModelMap.get<TeamModelLogic>("Team").validate().isDeleted(data.team as TeamModelInfo["DbModel"]),
         isPublic: (...rest) => oneIsPublic<MemberModelInfo["DbSelect"]>([["team", "Team"]], ...rest),
         // Not sure which search methods are needed, so we'll add them as needed
         visibility: {

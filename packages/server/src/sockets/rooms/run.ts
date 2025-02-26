@@ -1,11 +1,11 @@
 import { JOIN_RUN_ROOM_ERRORS, LEAVE_RUN_ROOM_ERRORS } from "@local/shared";
 import { Socket } from "socket.io";
-import { AuthTokensService } from "../../auth/auth";
-import { RequestService } from "../../auth/request";
-import { logger } from "../../events/logger";
-import { RunProjectModelInfo, RunRoutineModelInfo } from "../../models/base/types";
-import { getSingleTypePermissions } from "../../validators/permissions";
-import { onSocketEvent } from "../events";
+import { AuthTokensService } from "../../auth/auth.js";
+import { RequestService } from "../../auth/request.js";
+import { logger } from "../../events/logger.js";
+import { RunProjectModelInfo, RunRoutineModelInfo } from "../../models/base/types.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { onSocketEvent } from "../events.js";
 
 /** Socket room for run events */
 export function runSocketRoomHandlers(socket: Socket) {

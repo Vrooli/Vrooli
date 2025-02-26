@@ -1,22 +1,24 @@
 import { Comment, CommentFor, CommentSearchInput, CommentSearchResult, CommentSortBy, CommentThread, MaxObjects, ModelType, SessionUser, VisibilityType, commentValidation, getTranslation, lowercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 import { Request } from "express";
-import { ModelMap } from ".";
-import { SessionService } from "../../auth/session";
-import { combineQueries } from "../../builders/combineQueries";
-import { InfoConverter, addSupplementalFields } from "../../builders/infoConverter";
-import { PartialApiInfo } from "../../builders/types";
-import { useVisibility, useVisibilityMapper, visibilityBuilderPrisma } from "../../builders/visibilityBuilder";
-import { prismaInstance } from "../../db/instance";
-import { getSearchStringQuery } from "../../getters";
-import { SearchMap, defaultPermissions, oneIsPublic } from "../../utils";
-import { translationShapeHelper } from "../../utils/shapes";
-import { SortMap } from "../../utils/sortMap";
-import { afterMutationsPlain } from "../../utils/triggers";
-import { getSingleTypePermissions } from "../../validators";
-import { CommentFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, CommentModelInfo, CommentModelLogic, ReactionModelLogic, TeamModelLogic } from "./types";
+import { SessionService } from "../../auth/session.js";
+import { combineQueries } from "../../builders/combineQueries.js";
+import { InfoConverter, addSupplementalFields } from "../../builders/infoConverter.js";
+import { PartialApiInfo } from "../../builders/types.js";
+import { useVisibility, useVisibilityMapper, visibilityBuilderPrisma } from "../../builders/visibilityBuilder.js";
+import { DbProvider } from "../../db/provider.js";
+import { getSearchStringQuery } from "../../getters/getSearchStringQuery.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { SearchMap } from "../../utils/searchMap.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { SortMap } from "../../utils/sortMap.js";
+import { afterMutationsPlain } from "../../utils/triggers/afterMutationsPlain.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { CommentFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { BookmarkModelLogic, CommentModelInfo, CommentModelLogic, ReactionModelLogic, TeamModelLogic } from "./types.js";
 
 const DEFAULT_TAKE = 10;
 
@@ -94,7 +96,7 @@ export const CommentModel: CommentModelLogic = ({
             const orderByIsValid = ModelMap.get<CommentModelLogic>("Comment").search.sortBy[orderByField] === undefined;
             const orderBy = orderByIsValid ? SortMap[input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort] : undefined;
             // Find requested search array
-            const searchResults = await prismaInstance.comment.findMany({
+            const searchResults = await DbProvider.get().comment.findMany({
                 where,
                 orderBy,
                 take: input.take ?? DEFAULT_TAKE,
@@ -107,14 +109,14 @@ export const CommentModel: CommentModelLogic = ({
             // For each result
             for (const result of searchResults) {
                 // Find total in thread
-                const totalInThread = await prismaInstance.comment.count({
+                const totalInThread = await DbProvider.get().comment.count({
                     where: {
                         ...where,
                         parentId: result.id,
                     },
                 });
                 // Query for nested threads
-                const nestedThreads = nestLimit > 0 ? await prismaInstance.comment.findMany({
+                const nestedThreads = nestLimit > 0 ? await DbProvider.get().comment.findMany({
                     where: {
                         ...where,
                         parentId: result.id,
@@ -184,7 +186,7 @@ export const CommentModel: CommentModelLogic = ({
             const orderByField = input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort;
             const orderBy = orderByField in SortMap ? SortMap[orderByField] : undefined;
             // Find requested search array
-            const searchResults = await prismaInstance.comment.findMany({
+            const searchResults = await DbProvider.get().comment.findMany({
                 where,
                 orderBy,
                 take: input.take ?? DEFAULT_TAKE,
@@ -201,7 +203,7 @@ export const CommentModel: CommentModelLogic = ({
                 threads: [],
             };
             // Query total in thread, if cursor is not provided (since this means this data was already given to the user earlier)
-            const totalInThread = input.after ? undefined : await prismaInstance.comment.count({
+            const totalInThread = input.after ? undefined : await DbProvider.get().comment.count({
                 where: { ...where },
             });
             // Calculate end cursor

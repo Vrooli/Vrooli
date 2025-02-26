@@ -1,17 +1,22 @@
 import { DEFAULT_LANGUAGE, MaxObjects, ProjectSortBy, projectValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { getLabels } from "../../getters";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
-import { PreShapeRootResult, labelShapeHelper, ownerFields, preShapeRoot, tagShapeHelper } from "../../utils/shapes";
-import { afterMutationsRoot } from "../../utils/triggers";
-import { getSingleTypePermissions, handlesCheck } from "../../validators";
-import { ProjectFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, ProjectModelInfo, ProjectModelLogic, ProjectVersionModelLogic, ReactionModelLogic, TeamModelLogic, ViewModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { getLabels } from "../../getters/getLabels.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { rootObjectDisplay } from "../../utils/rootObjectDisplay.js";
+import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
+import { ownerFields } from "../../utils/shapes/ownerFields.js";
+import { preShapeRoot, type PreShapeRootResult } from "../../utils/shapes/preShapeRoot.js";
+import { tagShapeHelper } from "../../utils/shapes/tagShapeHelper.js";
+import { afterMutationsRoot } from "../../utils/triggers/afterMutationsRoot.js";
+import { handlesCheck } from "../../validators/handlesCheck.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { ProjectFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { BookmarkModelLogic, ProjectModelInfo, ProjectModelLogic, ProjectVersionModelLogic, ReactionModelLogic, TeamModelLogic, ViewModelLogic } from "./types.js";
 
 type ProjectPre = PreShapeRootResult;
 

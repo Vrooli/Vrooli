@@ -1,13 +1,13 @@
 import { ActiveFocusMode, FindByIdInput, FocusMode, FocusModeCreateInput, FocusModeSearchInput, FocusModeSearchResult, FocusModeUpdateInput, SetActiveFocusModeInput, VisibilityType, setActiveFocusModeValidation } from "@local/shared";
 import { PrismaPromise } from "@prisma/client";
-import { createOneHelper } from "../../actions/creates";
-import { readManyHelper, readOneHelper } from "../../actions/reads";
-import { updateOneHelper } from "../../actions/updates";
-import { updateSessionCurrentUser } from "../../auth/auth";
-import { RequestService } from "../../auth/request";
-import { prismaInstance } from "../../db/instance";
-import { CustomError } from "../../events/error";
-import { ApiEndpoint } from "../../types";
+import { createOneHelper } from "../../actions/creates.js";
+import { readManyHelper, readOneHelper } from "../../actions/reads.js";
+import { updateOneHelper } from "../../actions/updates.js";
+import { updateSessionCurrentUser } from "../../auth/auth.js";
+import { RequestService } from "../../auth/request.js";
+import { DbProvider } from "../../db/provider.js";
+import { CustomError } from "../../events/error.js";
+import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsFocusMode = {
     findOne: ApiEndpoint<FindByIdInput, FocusMode>;
@@ -47,7 +47,7 @@ export const focusMode: EndpointsFocusMode = {
         // If input has an id, activate focus mode
         if (input.id) {
             // Before activating focus mode, ensure it exists and belongs to the user
-            const focusMode = await prismaInstance.focus_mode.findFirst({
+            const focusMode = await DbProvider.get().focus_mode.findFirst({
                 where: { id: input.id, user: { id: userId } },
             });
             if (!focusMode) {
@@ -55,11 +55,11 @@ export const focusMode: EndpointsFocusMode = {
             }
             const transactions: PrismaPromise<object>[] = [
                 // Delete all active focus modes for the user
-                prismaInstance.active_focus_mode.deleteMany({
+                DbProvider.get().active_focus_mode.deleteMany({
                     where: { user: { id: userId } },
                 }),
                 // Create new active focus mode
-                prismaInstance.active_focus_mode.create({
+                DbProvider.get().active_focus_mode.create({
                     data: {
                         user: { connect: { id: userId } },
                         focusMode: { connect: { id: input.id } },
@@ -78,7 +78,7 @@ export const focusMode: EndpointsFocusMode = {
                     },
                 }),
             ];
-            const transactionResults = await prismaInstance.$transaction(transactions);
+            const transactionResults = await DbProvider.get().$transaction(transactions);
             // transactions[0]: active_focus_mode.deleteMany
             // transactions[1]: active_focus_mode.create
             const activeFocusModeData = transactionResults[1] as Record<string, any>;
@@ -95,7 +95,7 @@ export const focusMode: EndpointsFocusMode = {
         }
         // Otherwise, deactivate focus mode
         else {
-            await prismaInstance.active_focus_mode.deleteMany({
+            await DbProvider.get().active_focus_mode.deleteMany({
                 where: { user: { id: userId } },
             });
         }

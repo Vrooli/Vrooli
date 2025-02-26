@@ -1,14 +1,14 @@
 import { MaxObjects, ModelType, PullRequestFromObjectType, PullRequestSortBy, PullRequestStatus, PullRequestToObjectType, pullRequestValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { ModelMap } from ".";
-import { findFirstRel } from "../../builders/findFirstRel";
-import { noNull } from "../../builders/noNull";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { translationShapeHelper } from "../../utils/shapes";
-import { getSingleTypePermissions } from "../../validators";
-import { PullRequestFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { PullRequestModelInfo, PullRequestModelLogic } from "./types";
+import { findFirstRel } from "../../builders/findFirstRel.js";
+import { noNull } from "../../builders/noNull.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { PullRequestFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { PullRequestModelInfo, PullRequestModelLogic } from "./types.js";
 
 const fromMapper: { [key in PullRequestFromObjectType]: keyof Prisma.pull_requestUpsertArgs["create"] } = {
     ApiVersion: "fromApiVersion",
