@@ -1,8 +1,8 @@
 // This file should only be imported by the worker thread manager
 import ivm from "isolated-vm";
 import SuperJSON from "superjson";
-import { parentPort } from "worker_threads";
-import { DEFAULT_MEMORY_LIMIT_MB, SCRIPT_TIMEOUT_MS } from "./consts.js"; // NOTE: The extension must be specified or else it will throw an error
+import { parentPort, workerData } from "worker_threads";
+import { DEFAULT_JOB_TIMEOUT_MS, DEFAULT_MEMORY_LIMIT_MB, MB } from "./consts.js"; // NOTE: The extension must be specified or else it will throw an error
 import { WorkerThreadInput, WorkerThreadOutput } from "./types.js"; // NOTE: The extension must be specified or else it will throw an error
 import { getFunctionDetails, urlRegister, urlWrapper } from "./utils.js"; // NOTE: The extension must be specified or else it will throw an error
 
@@ -27,10 +27,21 @@ function postMessage(message: WorkerThreadOutput) {
 }
 
 // Create sandboxed environment for code execution. 
-const isolate = new ivm.Isolate({ memoryLimit: DEFAULT_MEMORY_LIMIT_MB });
+const memoryLimitBytes = workerData.memoryLimit || DEFAULT_MEMORY_LIMIT_MB;
+// eslint-disable-next-line no-magic-numbers
+const memoryLimitMb = Math.floor(memoryLimitBytes / MB);
+const jobTimeoutMs = workerData.jobTimeoutMs || DEFAULT_JOB_TIMEOUT_MS;
+
+let isolate: ivm.Isolate | null = null;
+function getIsolate() {
+    if (!isolate || isolate.isDisposed) {
+        isolate = new ivm.Isolate({ memoryLimit: memoryLimitMb });
+    }
+    return isolate;
+}
 
 // Listen for messages from the parent thread
-parentPort.on("message", ({ code, input, shouldSpreadInput }: WorkerThreadInput) => {
+parentPort.on("message", async ({ code, input, shouldSpreadInput }: WorkerThreadInput) => {
     // Throw error is code is too long
     if (code.length > MAX_CODE_LENGTH) {
         postMessage({ __type: "error", error: "Code is too long" });
@@ -38,21 +49,18 @@ parentPort.on("message", ({ code, input, shouldSpreadInput }: WorkerThreadInput)
     }
 
     // Extract the function name from the code
-    const { functionName, isAsync } = getFunctionDetails(code);
+    const { functionName } = getFunctionDetails(code);
     if (!functionName) {
         postMessage({ __type: "error", error: "Function name not found" });
         return;
     }
 
-    // Throw error if the function is async, as we don't support async functions
-    if (isAsync) {
-        postMessage({ __type: "error", error: "Async functions are not supported" });
-        return;
-    }
-
+    let context: ivm.Context | null = null;
+    let currentIsolate: ivm.Isolate | null = null;
     try {
         // Create a new context within this isolate
-        const context = isolate.createContextSync();
+        currentIsolate = getIsolate();
+        context = currentIsolate.createContextSync();
 
         // Get a reference to the global object within the context
         const jail = context.global;
@@ -67,7 +75,7 @@ parentPort.on("message", ({ code, input, shouldSpreadInput }: WorkerThreadInput)
         // Generate unique identifiers for our placeholders
         const uniqueId = generateUniqueId();
         const inputId = `${uniqueId}Input`;
-        const executeId = `${uniqueId}Execute`;
+        // const executeId = `${uniqueId}Execute`;
         const superjsonId = `${uniqueId}SuperJSON`;
         const urlId = `${uniqueId}URL`;
 
@@ -80,7 +88,7 @@ parentPort.on("message", ({ code, input, shouldSpreadInput }: WorkerThreadInput)
         // });
 
         // Add SuperJSON to the context so that we can parse and stringify inputs/outputs
-        context.evalClosureSync(`
+        context.evalClosure(`
             global.${superjsonId} = {
                 parse: $0,
                 stringify: $1
@@ -88,9 +96,15 @@ parentPort.on("message", ({ code, input, shouldSpreadInput }: WorkerThreadInput)
           `,
             [
                 (...args) => {
+                    if (args.length === 0) {
+                        return null;
+                    }
                     return SuperJSON.parse(args[0]);
                 },
                 (...args) => {
+                    if (args.length === 0) {
+                        return null;
+                    }
                     return SuperJSON.stringify(args[0]);
                 },
             ]);
@@ -121,32 +135,35 @@ parentPort.on("message", ({ code, input, shouldSpreadInput }: WorkerThreadInput)
             `;
         }
 
-        // Bootstrap code that will be executed in the isolate
-        const bootstrap = `(function () {
-            ${additionalFunctions}
-            ${code}
-            function ${executeId}() {
-                // Parse input
-                const input = ${superjsonId}.parse(${inputId});
-                // Execute the function
-                const output = ${functionName}(${shouldSpreadInput ? "...input" : "input"});
-                // Serialize the result
-                const result = ${superjsonId}.stringify(output);
-                // Return the result
-                return result;
-            }
-            return ${executeId}();
-        })()`;
+        // Define the user’s function
+        await context.eval(additionalFunctions + code);
 
-        // Compile and run the code
-        const result = isolate
-            .compileScriptSync(bootstrap)
-            .runSync(context, {
-                timeout: SCRIPT_TIMEOUT_MS,
-                arguments: { copy: true },
-                result: { copy: true },
-            });
-        const output = SuperJSON.parse(result);
+        // Execute it asynchronously
+        const executeClosure = `
+            async function execute() {
+                const input = global.${superjsonId}.parse(global.${inputId});
+                const output = await global.${functionName}(${shouldSpreadInput ? "...input" : "input"});
+                return global.${superjsonId}.stringify(output);
+            }
+            return execute();
+        `;
+
+        // Run the code
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => {
+                // if (currentIsolate && !currentIsolate.isDisposed) {
+                //     currentIsolate.dispose();
+                // }
+                reject(new Error("Execution timed out"));
+            }, jobTimeoutMs),
+        );
+        const result = await Promise.race([
+            context.evalClosure(executeClosure, [], { result: { promise: true } }),
+            timeoutPromise,
+        ]);
+
+        // const output = SuperJSON.parse(result);
+        const output = result === "undefined" ? undefined : SuperJSON.parse(result);
 
         // Send the output back to the parent thread
         postMessage({ __type: "output", output });
@@ -156,18 +173,23 @@ parentPort.on("message", ({ code, input, shouldSpreadInput }: WorkerThreadInput)
         } else {
             postMessage({ __type: "error", error: "An unknown error occurred" });
         }
+    } finally {
+        // Clean up the context if it was created
+        context?.release();
+        // Clean up the isolate if it was created
+        if (currentIsolate && !currentIsolate.isDisposed) {
+            currentIsolate.dispose();
+        }
     }
 });
 
 // Handle errors in the worker thread
 process.on("uncaughtException", (error) => {
-    console.error("Uncaught Exception:", error);
     postMessage({ __type: "error", error: `Uncaught exception: ${error.message}` });
     process.exit(1);
 });
 
-process.on("unhandledRejection", (reason, promise) => {
-    console.error("Unhandled Rejection at:", promise, "reason:", reason);
+process.on("unhandledRejection", (reason) => {
     postMessage({ __type: "error", error: `Unhandled rejection: ${reason}` });
     process.exit(1);
 });

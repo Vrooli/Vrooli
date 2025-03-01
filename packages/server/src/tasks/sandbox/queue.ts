@@ -1,8 +1,8 @@
 import { Success, TaskStatus, TaskStatusInfo } from "@local/shared";
 import Bull from "bull";
 import winston from "winston";
-import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, changeTaskStatus, getProcessPath, getTaskStatuses } from "../queueHelper";
-import { SandboxProcessPayload } from "./types";
+import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, changeTaskStatus, getProcessPath, getTaskStatuses } from "../queueHelper.js";
+import { SandboxProcessPayload } from "./types.js";
 
 export type SandboxTestPayload = {
     __process: "Test";

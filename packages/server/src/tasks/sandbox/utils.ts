@@ -14,17 +14,23 @@ export function getFunctionDetails(funcStr: string): { functionName: string | nu
     // Then strip out inline comments
     funcStr = funcStr.replace(/\/\/.*/g, "");
 
+    // Remove leading and trailing whitespace
+    funcStr = funcStr.trim();
+
     // Regular expression to capture function names from different declarations
-    const regex = /(?:function\s+([^\s(]+))|(?:const|let|var)\s+([^\s=]+)\s*=\s*(?:async\s*)?function|(?:const|let|var)\s+([^\s=]+)\s*=\s*(?:async\s*)?\(.*?\)\s*=>/;
+    // const regex = /(?:function\s+([^\s(]+))|(?:const|let|var)\s+([^\s=]+)\s*=\s*(?:async\s*)?function|(?:const|let|var)\s+([^\s=]+)\s*=\s*(?:async\s*)?\(.*?\)\s*=>/;
+    const regex = /(?:async\s+)?function(?:\s*\*)?\s+([^\s(]+)|(?:const|let|var)\s+([^\s=]+)\s*=\s*(?:async\s+)?function(?:\s*\*)?|(?:const|let|var)\s+([^\s=]+)\s*=\s*(?:async\s+)?(?:\([^)]*\)|[^\s=]+)\s*=>/;
 
     // Attempt to match the regex pattern with the function string
     const match = regex.exec(funcStr);
     if (match) {
+        const functionName = (match[1] || match[2] || match[3]).trim();
+        const isAsync = match[0]?.startsWith("async ") || match[0]?.includes(" async ");
         return {
             // Return the first matching group that contains a name
-            functionName: match[1] || match[2] || match[3],
+            functionName,
             // Check the matched group to see if 'async' is present
-            isAsync: match.input.startsWith("async ") || match.input.includes(" async "),
+            isAsync,
         };
     }
 

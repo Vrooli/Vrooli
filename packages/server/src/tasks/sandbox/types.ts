@@ -1,4 +1,4 @@
-import { SessionUser, TaskStatus } from "@local/shared";
+import { CodeLanguage, SessionUser, TaskStatus } from "@local/shared";
 
 export type SandboxProcessPayload = {
     __process: "Sandbox";
@@ -31,6 +31,12 @@ export type RunUserCodeInput = Pick<SandboxProcessPayload, "input" | "shouldSpre
      * with no access to the file system or network.
      */
     code: string;
+    /**
+     * The language of the user code.
+     * 
+     * Any language not supported by the sandbox (which will probably only be JavaScript for a long time) will be rejected.
+     */
+    codeLanguage: CodeLanguage;
 }
 
 export type WorkerThreadInput = Omit<RunUserCodeInput, "input"> & {
@@ -45,6 +51,9 @@ export type WorkerThreadMessageLog = {
     __type: "log";
     log: string;
 }
+export type WorkerThreadMessageHeartbeat = {
+    __type: "heartbeat";
+}
 export type WorkerThreadMessageOutput = {
     __type: "output";
     output: unknown;
@@ -52,7 +61,7 @@ export type WorkerThreadMessageOutput = {
 export type WorkerThreadMessageReady = {
     __type: "ready";
 }
-export type WorkerThreadOutput = WorkerThreadMessageError | WorkerThreadMessageLog | WorkerThreadMessageOutput | WorkerThreadMessageReady;
+export type WorkerThreadOutput = WorkerThreadMessageError | WorkerThreadMessageLog | WorkerThreadMessageHeartbeat | WorkerThreadMessageOutput | WorkerThreadMessageReady;
 
 export interface RunUserCodeOutput {
     /**
