@@ -7,8 +7,8 @@ import { withRedis } from "../../redisConn.js";
 import { getAuthenticatedData } from "../../utils/getAuthenticatedData.js";
 import { permissionsCheck } from "../../validators/permissions.js";
 import { SandboxRequestPayload } from "./queue.js";
+import { SandboxChildProcessManager } from "./sandboxWorkerManager.js";
 import { RunUserCodeInput, RunUserCodeOutput, SandboxProcessPayload } from "./types.js";
-import { WorkerThreadManager } from "./workerThreadManager.js";
 
 /** How long to cache the code in Redis */
 const CACHE_TTL_SECONDS = HOURS_1_S;
@@ -19,7 +19,7 @@ const codeVersionSelect = {
 } as const;
 
 // Create a new child process manager to run the user code
-const manager = new WorkerThreadManager();
+const manager = new SandboxChildProcessManager();
 
 /**
  * Runs sandboxed user code in a secure environment, 
@@ -96,7 +96,7 @@ export async function doSandbox({
         return result;
     } catch (error) {
         logger.error("Error importing data", { trace: "0554", error });
-        return { error: "Internal error" };
+        return { __type: "error", error: "Internal error" };
     }
 }
 

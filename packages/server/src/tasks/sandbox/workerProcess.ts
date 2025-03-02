@@ -1,35 +1,27 @@
-// This file should only be imported by the worker thread manager
+// This file should only be imported by the child process manager
 import ivm from "isolated-vm";
-import { parentPort, workerData } from "worker_threads";
-import { DEFAULT_HEARTBEAT_SEND_INTERVAL_MS, DEFAULT_JOB_TIMEOUT_MS, DEFAULT_MEMORY_LIMIT_MB, MB } from "./consts.js"; // NOTE: The extension must be specified or else it will throw an error
-import { SandboxWorkerInput, SandboxWorkerMessage } from "./types.js"; // NOTE: The extension must be specified or else it will throw an error
-import { bufferRegister, bufferWrapper, getBufferClassString, getFunctionDetails, getURLClassString, urlRegister, urlWrapper } from "./utils.js"; // NOTE: The extension must be specified or else it will throw an error
+// import SuperJSON from "superjson";
+import { DEFAULT_HEARTBEAT_SEND_INTERVAL_MS, DEFAULT_JOB_TIMEOUT_MS, DEFAULT_MEMORY_LIMIT_MB, MB } from "./consts.js";
+import { SandboxWorkerInput, SandboxWorkerMessage } from "./types.js";
+import { bufferRegister, bufferWrapper, getBufferClassString, getFunctionDetails, getURLClassString, urlRegister, urlWrapper } from "./utils.js";
 
-/** Maximum length of code that can be executed */
+// Maximum length of code that can be executed
 const MAX_CODE_LENGTH = 8_192;
-/** Length of unique identifier to avoid namespace collisions */
+// Length of unique identifier to avoid namespace collisions
 const UNIQUE_ID_LENGTH = 16;
 
-if (!parentPort) {
-    throw new Error("Script must be run within a worker thread");
-}
-
-/**
- * @returns A unique identifier to avoid namespace collisions when injecting code/inputs into the isolate
- */
-function generateUniqueId() {
-    return `__ivm_${Math.random().toString(UNIQUE_ID_LENGTH).slice(2, -1)}`; // Not cryptographically secure, but doesn't need to be
-}
+// Retrieve configuration from environment variables
+const memoryLimitBytes = parseInt(process.env.MEMORY_LIMIT || DEFAULT_MEMORY_LIMIT_MB.toString(), 10);
+const memoryLimitMb = Math.floor(memoryLimitBytes / MB);
+const jobTimeoutMs = parseInt(process.env.JOB_TIMEOUT_MS || DEFAULT_JOB_TIMEOUT_MS.toString(), 10);
 
 function postMessage(message: SandboxWorkerMessage) {
-    parentPort?.postMessage(message);
+    if (process.send) {
+        process.send(message);
+    } else {
+        console.error("process.send is not defined");
+    }
 }
-
-// Create sandboxed environment for code execution. 
-const memoryLimitBytes = workerData.memoryLimit || DEFAULT_MEMORY_LIMIT_MB;
-// eslint-disable-next-line no-magic-numbers
-const memoryLimitMb = Math.floor(memoryLimitBytes / MB);
-const jobTimeoutMs = workerData.jobTimeoutMs || DEFAULT_JOB_TIMEOUT_MS;
 
 // Sandboxed environment setup
 let isolate: ivm.Isolate | null = null;
@@ -60,15 +52,13 @@ async function getSuperJSON() {
     return lazySuperJSON;
 }
 
-// Listen for messages from the parent thread
-parentPort.on("message", async ({ code, input, shouldSpreadInput }: SandboxWorkerInput) => {
-    // Throw error is code is too long
+// Listen for messages from the parent process
+process.on("message", async ({ code, input, shouldSpreadInput }: SandboxWorkerInput) => {
     if (code.length > MAX_CODE_LENGTH) {
         postMessage({ __type: "error", error: "Code is too long" });
         return;
     }
 
-    // Extract the function name from the code
     const { functionName } = getFunctionDetails(code);
     if (!functionName) {
         postMessage({ __type: "error", error: "Function name not found" });
@@ -104,14 +94,12 @@ parentPort.on("message", async ({ code, input, shouldSpreadInput }: SandboxWorke
         }
 
         // Generate unique identifiers for our placeholders
-        const uniqueId = generateUniqueId();
+        const uniqueId = `__ivm_${Math.random().toString(UNIQUE_ID_LENGTH).slice(2, -1)}`;
         const inputId = `${uniqueId}Input`;
         const superjsonId = `${uniqueId}SuperJSON`;
 
-        // Store the input (which should have been safely serialized before being sent to the worker thread)
         jail.setSync(inputId, input);
 
-        // Add SuperJSON to the context so that we can parse and stringify inputs/outputs
         context.evalClosure(`
             global.${superjsonId} = {
                 parse: $0,
@@ -137,10 +125,8 @@ parentPort.on("message", async ({ code, input, shouldSpreadInput }: SandboxWorke
             additionalFunctions += getBufferClassString(bufferId);
         }
 
-        // Define the user’s function
         await context.eval(additionalFunctions + code);
 
-        // Execute it asynchronously
         const executeClosure = `
             async function execute() {
                 const input = global.${superjsonId}.parse(global.${inputId});
@@ -150,14 +136,8 @@ parentPort.on("message", async ({ code, input, shouldSpreadInput }: SandboxWorke
             return execute();
         `;
 
-        // Run the code
         const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => {
-                // if (currentIsolate && !currentIsolate.isDisposed) {
-                //     currentIsolate.dispose();
-                // }
-                reject(new Error("Execution timed out"));
-            }, jobTimeoutMs),
+            setTimeout(() => reject(new Error("Execution timed out")), jobTimeoutMs),
         );
         const result = await Promise.race([
             context.evalClosure(executeClosure, [], { result: { promise: true } }),
@@ -165,7 +145,6 @@ parentPort.on("message", async ({ code, input, shouldSpreadInput }: SandboxWorke
         ]);
         const output = result === "undefined" ? "{\"json\":null,\"meta\":{\"values\":[\"undefined\"]}}" : result;
 
-        // Send the output back to the parent thread
         postMessage({ __type: "output", output });
     } catch (error: unknown) {
         if (error instanceof Error) {
@@ -174,13 +153,10 @@ parentPort.on("message", async ({ code, input, shouldSpreadInput }: SandboxWorke
             postMessage({ __type: "error", error: "An unknown error occurred" });
         }
     } finally {
-        // Stop sending heartbeats
         if (heartbeatInterval) {
             clearInterval(heartbeatInterval);
         }
-        // Clean up the context if it was created
         context?.release();
-        // Clean up the isolate if it was created
         if (currentIsolate && !currentIsolate.isDisposed) {
             try {
                 currentIsolate.dispose();
@@ -192,7 +168,7 @@ parentPort.on("message", async ({ code, input, shouldSpreadInput }: SandboxWorke
     }
 });
 
-// Handle errors in the worker thread
+// Error handling
 process.on("uncaughtException", (error) => {
     postMessage({ __type: "error", error: `Uncaught exception: ${error.message}` });
     process.exit(1);
@@ -203,5 +179,5 @@ process.on("unhandledRejection", (reason) => {
     process.exit(1);
 });
 
-// Send a ready message to the parent thread, indicating that the worker thread is ready to receive messages
+// Indicate readiness
 postMessage({ __type: "ready" });

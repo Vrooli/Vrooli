@@ -39,37 +39,31 @@ export type RunUserCodeInput = Pick<SandboxProcessPayload, "input" | "shouldSpre
     codeLanguage: CodeLanguage;
 }
 
-export type WorkerThreadInput = Omit<RunUserCodeInput, "input"> & {
+export type SandboxWorkerInput = Omit<RunUserCodeInput, "input"> & {
     input: string;
 }
 
-export type WorkerThreadMessageError = {
+export type SandboxWorkerMessageError = {
     __type: "error";
     error: string;
 }
-export type WorkerThreadMessageLog = {
+export type SandboxWorkerMessageLog = {
     __type: "log";
     log: string;
 }
-export type WorkerThreadMessageHeartbeat = {
+export type SandboxWorkerMessageHeartbeat = {
     __type: "heartbeat";
 }
-export type WorkerThreadMessageOutput = {
+export type SandboxWorkerMessageOutput = {
     __type: "output";
-    output: unknown;
+    output: string;
 }
-export type WorkerThreadMessageReady = {
+export type SandboxWorkerMessageReady = {
     __type: "ready";
 }
-export type WorkerThreadOutput = WorkerThreadMessageError | WorkerThreadMessageLog | WorkerThreadMessageHeartbeat | WorkerThreadMessageOutput | WorkerThreadMessageReady;
-
-export interface RunUserCodeOutput {
-    /**
-     * The error message if an error occurred during execution, or undefined if successful.
-     */
+export type SandboxWorkerMessage = SandboxWorkerMessageError | SandboxWorkerMessageLog | SandboxWorkerMessageHeartbeat | SandboxWorkerMessageOutput | SandboxWorkerMessageReady;
+export type RunUserCodeOutput = {
+    __type: "error" | "output";
     error?: string;
-    /**
-     * The output of the user code execution, or undefined if an error occurred or no output was provided.
-     */
     output?: unknown;
 }

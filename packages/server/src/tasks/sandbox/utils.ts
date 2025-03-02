@@ -1,3 +1,6 @@
+// eslint-disable-next-line import/extensions
+import { type CustomTransfomer } from "superjson/dist/custom-transformer-registry";
+
 /**
  * Extracts the name and asynchrony of a function from its string representation.
  * This function ignores comments and supports various function declaration styles,
@@ -61,9 +64,21 @@ export function urlWrapper(url: string, base?: string | URL) {
 }
 
 /**
+ * @returns A wrapper for creating a Buffer object, which is used in
+ * conjunction with a custom Buffer class to inject the Buffer class into the isolate.
+ */
+export function bufferWrapper(data: string, encoding?: BufferEncoding) {
+    const bufferObject = Buffer.from(data, encoding);
+    return {
+        byteLength: bufferObject.byteLength,
+        length: bufferObject.length,
+    };
+}
+
+/**
  * Custom register to handle URL objects in the isolate.
  */
-export const urlRegister = {
+export const urlRegister: Omit<CustomTransfomer<URL, string>, "name"> = {
     isApplicable(value: unknown): value is URL {
         return value instanceof URL;
     },
@@ -71,3 +86,63 @@ export const urlRegister = {
     deserialize: (value: string) => urlWrapper(value) as URL,
 };
 
+/**
+ * Custom register to handle Buffer objects in the isolate.
+ */
+export const bufferRegister: Omit<CustomTransfomer<Buffer, string>, "name"> = {
+    isApplicable(value: unknown): value is Buffer {
+        return value instanceof Buffer;
+    },
+    serialize: (value: Buffer) => value.toString("base64"),
+    deserialize: (value: string) => Buffer.from(value, "base64"),
+};
+
+/**
+ * Creates the URL class in the isolate.
+ */
+export function getURLClassString(urlId: string) {
+    return `
+   class URL {
+        constructor(url, base) {
+            const urlData = ${urlId}(url, base);
+            Object.assign(this, urlData);
+        }
+
+        toString() {
+            return this.href;
+        }
+    }
+
+    // Make URL available globally
+    globalThis.URL = URL;
+`;
+}
+
+/**
+ * Creates the Buffer class in the isolate.
+ */
+export function getBufferClassString(bufferId: string) {
+    return `
+    class Buffer {
+        constructor(size) {
+            const bufferData = ${bufferId}(size);
+            Object.assign(this, bufferData);
+        }
+
+        toString() {
+            return this.size;
+        }
+
+        from(array) {
+            return new Buffer(array.length);
+        }
+
+        static from(array) {
+            return new Buffer(array.length);
+        }
+    }
+
+    // Make Buffer available globally
+    globalThis.Buffer = Buffer;
+`;
+}
