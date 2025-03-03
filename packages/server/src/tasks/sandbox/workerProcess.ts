@@ -110,37 +110,40 @@ process.on("message", async ({ code, input, shouldSpreadInput }: SandboxWorkerIn
             (...args) => (args.length === 0 ? null : superjson.stringify(args[0])),
         ]);
 
+        // Set up code to be evaluated
+        let evalCode = "";
         // Add additional functions to context if the code might need them
-        let additionalFunctions = "";
         const needsURL = code.includes("URL");
         if (needsURL) {
             const urlId = `${uniqueId}URL`;
             context.global.setSync(urlId, new ivm.Callback(urlWrapper));
-            additionalFunctions += getURLClassString(urlId);
+            evalCode += getURLClassString(urlId) + "\n";
         }
         const needsBuffer = code.includes("Buffer");
         if (needsBuffer) {
             const bufferId = `${uniqueId}Buffer`;
             context.global.setSync(bufferId, new ivm.Callback(bufferWrapper));
-            additionalFunctions += getBufferClassString(bufferId);
+            evalCode += getBufferClassString(bufferId) + "\n";
         }
-
-        await context.eval(additionalFunctions + code);
-
-        const executeClosure = `
-            async function execute() {
-                const input = global.${superjsonId}.parse(global.${inputId});
-                const output = await global.${functionName}(${shouldSpreadInput ? "...input" : "input"});
-                return global.${superjsonId}.stringify(output);
-            }
-            return execute();
+        // Add the function being executed
+        evalCode += code;
+        // Add an `execute` function that will be used to execute the code
+        evalCode += `
+async function execute() {
+    const input = global.${superjsonId}.parse(global.${inputId});
+    const output = await global.${functionName}(${shouldSpreadInput ? "...input" : "input"});
+    return global.${superjsonId}.stringify(output);
+}
         `;
+
+        // Evaluate the code
+        await context.eval(String.raw`${evalCode}`);
 
         const timeoutPromise = new Promise((_, reject) =>
             setTimeout(() => reject(new Error("Execution timed out")), jobTimeoutMs),
         );
         const result = await Promise.race([
-            context.evalClosure(executeClosure, [], { result: { promise: true } }),
+            context.evalClosure("return execute()", [], { result: { promise: true } }),
             timeoutPromise,
         ]);
         const output = result === "undefined" ? "{\"json\":null,\"meta\":{\"values\":[\"undefined\"]}}" : result;
