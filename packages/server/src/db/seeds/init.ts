@@ -2,26 +2,29 @@
  * Adds initial data to the database. (i.e. data that should be included in production). 
  * This is written so that it can be called multiple times without duplicating data.
  */
-import { AUTH_PROVIDERS, CodeLanguage, CodeType, FormElement, FormStructureType, InputType, LIST_TO_NUMBERED_PLAINTEXT, LIST_TO_PLAINTEXT_ID, PARSE_RUN_IO_FROM_PLAINTEXT_ID, Project, ResourceUsedFor, Routine, RoutineType, RoutineVersionConfig, Standard, StandardType, TRANSFORM_SEARCH_TERMS_ID, Tag, Team, User, VALYXA_ID, uuid } from "@local/shared";
-import { Prisma } from "@prisma/client";
-import fs from "fs";
-import { PasswordAuthService } from "../../auth/email";
-import { prismaInstance } from "../../db/instance";
-import { logger } from "../../events/logger";
+import { AUTH_PROVIDERS, CodeLanguage, FormElement, FormStructureType, InputType, ResourceUsedFor, RoutineType, RoutineVersionConfig, SEEDED_IDS, StandardType } from "@local/shared";
+import pkg, { Prisma } from "@prisma/client";
+import { PasswordAuthService } from "../../auth/email.js";
+import { logger } from "../../events/logger.js";
+// import { loadCodes } from "./codes/load.js";
+import { importData } from "../../builders/importExport.js";
+import { data as codes } from "./codes/data.js";
 
-type TagsByName = { [name: string]: Tag };
-type UsersById = { [id: string]: User };
-type TeamsByHandle = { [handle: string]: Team };
-type ProjectsById = { [id: string]: Project };
-type StandardsById = { [id: string]: Standard };
-type RoutinesById = { [id: string]: Routine };
+const { PrismaClient } = pkg;
 
-const tags: TagsByName = {};
-const users: UsersById = {};
-const teams: TeamsByHandle = {};
-const projects: ProjectsById = {};
-const standards: StandardsById = {};
-const routines: RoutinesById = {};
+// type TagsByName = { [name: string]: Tag };
+// type UsersById = { [id: string]: User };
+// type TeamsByHandle = { [handle: string]: Team };
+// type ProjectsById = { [id: string]: Project };
+// type StandardsById = { [id: string]: Standard };
+// type RoutinesById = { [id: string]: Routine };
+
+// const tags: TagsByName = {};
+// const users: UsersById = {};
+// const teams: TeamsByHandle = {};
+// const projects: ProjectsById = {};
+// const standards: StandardsById = {};
+// const routines: RoutinesById = {};
 
 const EN = "en";
 
@@ -31,161 +34,27 @@ const tagAutomation = "Automation";
 const tagCollaboration = "Collaboration";
 const tagCardano = "Cardano";
 const tagCip = "Cardano Improvement Proposal (CIP)";
-const adminId = "3f038f3b-f8f9-4f9b-8f9b-c8f4b8f9b8d2";
-const valyxaId = VALYXA_ID;
 const vrooliHandle = "vrooli";
-const standardCip0025Id = "3a038a3b-f8a9-4fab-8fab-c8a4baaab8d2";
-const mintTokenId = "3f038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9";
-const mintNftId = "4e038f3b-f8f9-4f9b-8f9b-f8f9b8f9b8f9"; // <- DO NOT CHANGE. This is used as a reference routine
-const projectKickoffChecklistId = "9daf1edb-b98f-41f0-9d76-aab3539d671a"; // <- DO NOT CHANGE. This is used as a reference routine
-const workoutPlanGeneratorId = "3daf1bdb-a98f-41f0-9d76-cab3539d671c"; // <- DO NOT CHANGE. This is used as a reference routine
 
-// Built-in code version functions need to be loaded from a file. We have it this way 
-// so that we can run and test them outside of the sandbox
-const distCodeFile = `${process.env.PROJECT_DIR}/packages/server/dist/db/seeds/codes.js`;
-const srcCodeFile = `${process.env.PROJECT_DIR}/packages/server/src/db/seeds/codes.ts`;
-
-/** Built-in function names to IDs map */
-const codeNameToId: { [name: string]: string } = {
-    parseRunIOFromPlaintext: PARSE_RUN_IO_FROM_PLAINTEXT_ID,
-    transformSearchTerms: TRANSFORM_SEARCH_TERMS_ID,
-    listToPlaintext: LIST_TO_PLAINTEXT_ID,
-    listToNumberedPlaintext: LIST_TO_NUMBERED_PLAINTEXT,
-};
-
-type CodeVersionInfo = {
-    name: string;
-    description: string;
-    code: string;
-};
-
-const codes: { [id: string]: CodeVersionInfo } = {};
-
-/**
- * Splits a single JavaScript file content into an array of stringified functions.
- * Each function is expected to start with "export function".
- * 
- * @param jsFileContent The entire JavaScript file content as a single string.
- * @returns An array of string representations of each function.
- */
-export function splitFunctions(jsFileContent: string): string[] {
-    const lines = jsFileContent.split("\n");
-    const functions: string[] = [];
-    let currentFunction: string[] = [];
-    let isCollectingFunction = false;
-
-    lines.forEach(line => {
-        if (line.trim().startsWith("export function")) {
-            if (currentFunction.length > 0 && isCollectingFunction) {
-                functions.push(currentFunction.join("\n"));
-                currentFunction = [];
-            }
-            isCollectingFunction = true; // Start collecting lines as a function
+async function initTags(client: InstanceType<typeof PrismaClient>) {
+    async function createTag(name: string, description?: string) {
+        const tagData: Prisma.tagCreateInput = { tag: name };
+        if (description) {
+            tagData.translations = {
+                create: {
+                    language: "en",
+                    description,
+                },
+            };
         }
-        if (isCollectingFunction) {
-            currentFunction.push(line);
-        }
-    });
-
-    // Push the last function if exists and it's actually a function
-    if (currentFunction.length > 0 && isCollectingFunction) {
-        functions.push(currentFunction.join("\n"));
-    }
-
-    return functions;
-}
-
-/**
- * Parses docstrings from a TypeScript file content and extracts metadata.
- * Each extracted docstring results in an object with the function's name, description, and the function's name.
- * 
- * @param tsFileContent The TypeScript file content as a string.
- * @returns An array of objects containing the name and description from the docstring and the function name.
- */
-export function parseDocstrings(tsFileContent: string): { name: string, description: string, functionName: string }[] {
-    const docstringRegex = /\/\*\*([\s\S]*?)\*\//g;
-    const metadata: { name: string, description: string, functionName: string }[] = [];
-
-    let match;
-    while ((match = docstringRegex.exec(tsFileContent)) !== null) {
-        const docstringContent = match[1];
-
-        // Extract name and description
-        const nameMatch = docstringContent.match(/@name\s+(.*)/);
-        const descriptionMatch = docstringContent.match(/@description\s+(.*)/);
-
-        if (nameMatch && descriptionMatch) {
-            // Find the function name in the code following this docstring
-            const functionRegex = /export function (\w+)/;
-            const functionMatch = tsFileContent.substring(match.index + match[0].length)
-                .match(functionRegex);
-
-            if (functionMatch) {
-                metadata.push({
-                    name: nameMatch[1].trim(),
-                    description: descriptionMatch[1].trim(),
-                    functionName: functionMatch[1],
-                });
-            }
-        }
-    }
-
-    return metadata;
-}
-
-/**
- * Loads code functions from a file and creates a map of codeVersionID to code version info. 
- * Info includes name, description, and the code itself.
- */
-export function loadCodes() {
-    try {
-        const distFileContent = fs.readFileSync(distCodeFile, "utf-8");
-        const functions = splitFunctions(distFileContent);
-
-        const srcFileContent = fs.readFileSync(srcCodeFile, "utf-8");
-        const functionMetadata = parseDocstrings(srcFileContent);
-
-        if (functions.length !== functionMetadata.length) {
-            logger.error("Error loading built-in functions. Function count mismatch", { trace: "0629" });
-            return;
-        }
-
-        // Populate the codes object with the function metadata
-        functionMetadata.forEach(({ name, description, functionName }, index) => {
-            const code = functions[index];
-            const id = codeNameToId[functionName];
-            if (!id) {
-                logger.error("Error loading built-in functions. Function ID not found", { trace: "0630" });
-                return;
-            }
-            codes[id] = { name, description, code };
+        return client.tag.upsert({
+            where: { tag: name },
+            update: {},
+            create: tagData,
         });
-
-        console.log("Loaded codes:", JSON.stringify(codes, null, 2));
-    } catch (error) {
-        logger.error("Error loading built-in functions. They won't be upserted into the database", { trace: "0625" });
     }
-}
 
-async function createTag(name: string, description?: string) {
-    const tagData: Prisma.tagCreateInput = { tag: name };
-    if (description) {
-        tagData.translations = {
-            create: {
-                language: "en",
-                description,
-            },
-        };
-    }
-    return prismaInstance.tag.upsert({
-        where: { tag: name },
-        update: {},
-        create: tagData,
-    });
-}
-
-async function initTags() {
-    const tagsList = await Promise.all([
+    await Promise.all([
         // Tags we'll use to seed other objects go first
         createTag(tagCardano, "Open-source, decentralized blockchain platform for building and deploying smart contracts and decentralized applications"),
         createTag(tagCip, "Cardano Improvement Proposals: Formalized suggestions for changes or improvements to the Cardano protocol"),
@@ -446,14 +315,14 @@ async function initTags() {
         createTag("Warehousing", "Storage and handling of goods in a facility to maintain their condition until they are sold or shipped"),
         createTag("Sustainability", "Meeting present needs without compromising the ability of future generations to meet their own needs"),
     ]);
-    tagsList.forEach(tag => tags[tag.tag] = tag as unknown as Tag);
+    // tagsList.forEach(tag => tags[tag.tag] = tag as unknown as Tag);
 }
 
-async function initUsers() {
+async function initUsers(client: InstanceType<typeof PrismaClient>) {
     // Admin
-    const admin = await prismaInstance.user.upsert({
+    await client.user.upsert({
         where: {
-            id: adminId,
+            id: SEEDED_IDS.User.Admin,
         },
         update: {
             handle: "matt",
@@ -477,7 +346,7 @@ async function initUsers() {
             },
         },
         create: {
-            id: adminId,
+            id: SEEDED_IDS.User.Admin,
             handle: "matt",
             name: "Matt Halloran",
             reputation: 1000000, // TODO temporary until community grows
@@ -532,25 +401,25 @@ async function initUsers() {
             },
         },
     });
-    users[admin.id] = admin as unknown as User;
+    // users[admin.id] = admin as unknown as User;
 
     // Default AI assistant
-    const valyxa = await prismaInstance.user.upsert({
+    const valyxa = await client.user.upsert({
         where: {
-            id: valyxaId,
+            id: SEEDED_IDS.User.Valyxa,
         },
         update: {
             handle: "valyxa",
-            invitedByUser: { connect: { id: adminId } },
+            invitedByUser: { connect: { id: SEEDED_IDS.User.Admin } },
         },
         create: {
-            id: valyxaId,
+            id: SEEDED_IDS.User.Valyxa,
             handle: "valyxa",
             isBot: true,
             name: "Valyxa",
             reputation: 1000000, // TODO temporary until community grows
             status: "Unlocked",
-            invitedByUser: { connect: { id: adminId } },
+            invitedByUser: { connect: { id: SEEDED_IDS.User.Admin } },
             languages: {
                 create: [{ language: EN }],
             },
@@ -595,26 +464,25 @@ async function initUsers() {
             },
         },
     });
-    users[valyxa.id] = valyxa as unknown as User;
+    // users[valyxa.id] = valyxa as unknown as User;
 }
 
-async function initTeams() {
-    let vrooli = await prismaInstance.team.findFirst({
+async function initTeams(client: InstanceType<typeof PrismaClient>) {
+    let vrooli = await client.team.findFirst({
         where: {
             AND: [
                 { translations: { some: { language: EN, name: "Vrooli" } } },
-                { members: { some: { userId: adminId } } },
+                { members: { some: { userId: SEEDED_IDS.User.Admin } } },
             ],
         },
     });
     if (!vrooli) {
         logger.info("🏗 Creating Vrooli team");
-        const teamId = uuid();
-        vrooli = await prismaInstance.team.create({
+        vrooli = await client.team.create({
             data: {
-                id: teamId,
+                id: SEEDED_IDS.Team.Vrooli,
                 handle: vrooliHandle,
-                createdBy: { connect: { id: adminId } },
+                createdBy: { connect: { id: SEEDED_IDS.User.Admin } },
                 translations: {
                     create: [
                         {
@@ -634,8 +502,8 @@ async function initTeams() {
                                 {
                                     isAdmin: true,
                                     permissions: JSON.stringify({}),
-                                    team: { connect: { id: teamId } },
-                                    user: { connect: { id: adminId } },
+                                    team: { connect: { id: SEEDED_IDS.Team.Vrooli } },
+                                    user: { connect: { id: SEEDED_IDS.User.Admin } },
                                 },
                             ],
                         },
@@ -685,28 +553,28 @@ async function initTeams() {
         });
     }
     else {
-        vrooli = await prismaInstance.team.update({
+        vrooli = await client.team.update({
             where: { id: vrooli.id },
             data: {
                 handle: vrooliHandle,
             },
         });
     }
-    teams[vrooli.handle as string] = vrooli as unknown as Team;
+    // teams[vrooli.handle as string] = vrooli as unknown as Team;
 }
 
-async function initProjects() {
-    let projectEntrepreneur = await prismaInstance.project_version.findFirst({
+async function initProjects(client: InstanceType<typeof PrismaClient>) {
+    let projectEntrepreneur = await client.project_version.findFirst({
         where: {
             AND: [
-                { root: { ownedByTeamId: teams[vrooliHandle].id } },
+                { root: { ownedByTeamId: SEEDED_IDS.Team.Vrooli } },
                 { translations: { some: { language: EN, name: "Project Catalyst Entrepreneur Guide" } } },
             ],
         },
     });
     if (!projectEntrepreneur) {
         logger.info("📚 Creating Project Catalyst Guide project");
-        projectEntrepreneur = await prismaInstance.project_version.create({
+        projectEntrepreneur = await client.project_version.create({
             data: {
                 translations: {
                     create: [
@@ -720,36 +588,36 @@ async function initProjects() {
                 root: {
                     create: {
                         permissions: JSON.stringify({}),
-                        createdBy: { connect: { id: adminId } },
-                        ownedByTeam: { connect: { id: teams[vrooliHandle].id } },
+                        createdBy: { connect: { id: SEEDED_IDS.User.Admin } },
+                        ownedByTeam: { connect: { id: SEEDED_IDS.Team.Vrooli } },
                     },
                 },
             },
         });
     }
-    projects[projectEntrepreneur.id] = projectEntrepreneur as unknown as Project;
+    // projects[projectEntrepreneur.id] = projectEntrepreneur as unknown as Project;
 }
 
-async function initStandards() {
-    let standardCip0025 = await prismaInstance.standard_version.findFirst({
+async function initStandards(client: InstanceType<typeof PrismaClient>) {
+    let standardCip0025 = await client.standard_version.findFirst({
         where: {
-            id: standardCip0025Id,
+            id: SEEDED_IDS.Standard.Cip0025,
         },
     });
     if (!standardCip0025) {
         logger.info("📚 Creating CIP-0025 standard");
-        standardCip0025 = await prismaInstance.standard_version.create({
+        standardCip0025 = await client.standard_version.create({
             data: {
-                id: standardCip0025Id,
+                id: SEEDED_IDS.Standard.Cip0025,
                 root: {
                     create: {
-                        id: uuid(),
+                        id: SEEDED_IDS.Standard.Cip0025,
                         permissions: JSON.stringify({}),
-                        createdById: adminId,
+                        createdById: SEEDED_IDS.User.Admin,
                         tags: {
                             create: [
-                                { tag: { connect: { id: tags[tagCardano].id } } },
-                                { tag: { connect: { id: tags[tagCip].id } } },
+                                { tag: { connect: { id: SEEDED_IDS.Tag.Cardano } } },
+                                { tag: { connect: { id: SEEDED_IDS.Tag.Cip } } },
                             ],
                         },
                     },
@@ -771,77 +639,24 @@ async function initStandards() {
             },
         });
     }
-    standards[standardCip0025Id] = standardCip0025 as unknown as Standard;
+    // standards[standardCip0025Id] = standardCip0025 as unknown as Standard;
 }
 
-async function initCodes() {
-    loadCodes();
-    for (const [id, codeInfo] of Object.entries(codes)) {
-        let codeVersion = await prismaInstance.code_version.findFirst({ where: { id } });
-        if (!codeVersion) {
-            logger.info(`📚 Creating ${codeInfo.name} transform function`);
-            try {
-                codeVersion = await prismaInstance.code_version.create({
-                    data: {
-                        id,
-                        isComplete: true,
-                        isLatest: true,
-                        isPrivate: false,
-                        codeLanguage: "javascript",
-                        codeType: CodeType.DataConvert,
-                        content: codeInfo.code,
-                        root: {
-                            create: {
-                                id: uuid(),
-                                isPrivate: false,
-                                permissions: JSON.stringify({}),
-                                createdBy: { connect: { id: adminId } },
-                                ownedByTeam: { connect: { id: teams[vrooliHandle].id } },
-                                tags: {
-                                    create: [
-                                        { tag: { connect: { id: tags[tagVrooli].id } } },
-                                    ],
-                                },
-                            },
-                        },
-                        translations: {
-                            create: [
-                                {
-                                    language: EN,
-                                    name: codeInfo.name,
-                                    description: codeInfo.description,
-                                },
-                            ],
-                        },
-                        versionIndex: 0,
-                        versionLabel: "1.0.0",
-                    },
-                });
-                logger.info(`${codeInfo.name} function created successfully`);
-            } catch (error) {
-                logger.error(`Failed to create ${codeInfo.name} function`, { trace: error });
-            }
-        } else {
-            logger.info(`${codeInfo.name} function already exists, skipping creation`);
-        }
-    }
-}
-
-async function initRoutines() {
-    let mintToken: any = await prismaInstance.routine.findFirst({
-        where: { id: mintTokenId },
+async function initRoutines(client: InstanceType<typeof PrismaClient>) {
+    let mintToken: any = await client.routine.findFirst({
+        where: { id: SEEDED_IDS.Routine.MintToken },
     });
     if (!mintToken) {
         logger.info("📚 Creating Native Token Minting routine");
-        mintToken = await prismaInstance.routine_version.create({
+        mintToken = await client.routine_version.create({
             data: {
                 root: {
                     create: {
-                        id: mintTokenId, // Set ID so we can know ahead of time this routine's URL, and link to it as an example/introductory routine
+                        id: SEEDED_IDS.Routine.MintToken,
                         permissions: JSON.stringify({}),
                         isInternal: false,
-                        createdBy: { connect: { id: adminId } },
-                        ownedByTeam: { connect: { id: teams[vrooliHandle].id } },
+                        createdBy: { connect: { id: SEEDED_IDS.User.Admin } },
+                        ownedByTeam: { connect: { id: SEEDED_IDS.Team.Vrooli } },
                     },
                 },
                 translations: {
@@ -884,22 +699,22 @@ async function initRoutines() {
             },
         });
     }
-    routines[mintTokenId] = mintToken as unknown as Routine;
+    // routines[mintTokenId] = mintToken as unknown as Routine;
 
-    let mintNft: any = await prismaInstance.routine.findFirst({
-        where: { id: mintNftId },
+    let mintNft: any = await client.routine.findFirst({
+        where: { id: SEEDED_IDS.Routine.MintNft },
     });
     if (!mintNft) {
         logger.info("📚 Creating NFT Minting routine");
-        mintNft = await prismaInstance.routine_version.create({
+        mintNft = await client.routine_version.create({
             data: {
                 root: {
                     create: {
-                        id: mintNftId,
+                        id: SEEDED_IDS.Routine.MintNft,
                         permissions: JSON.stringify({}),
                         isInternal: false,
-                        createdBy: { connect: { id: adminId } },
-                        ownedByTeam: { connect: { id: teams[vrooliHandle].id } },
+                        createdBy: { connect: { id: SEEDED_IDS.User.Admin } },
+                        ownedByTeam: { connect: { id: SEEDED_IDS.Team.Vrooli } },
                     },
                 },
                 translations: {
@@ -950,11 +765,11 @@ async function initRoutines() {
             },
         });
     }
-    routines[mintNftId] = mintNft as unknown as Routine;
+    // routines[mintNftId] = mintNft as unknown as Routine;
 
-    await prismaInstance.routine.deleteMany({ where: { id: projectKickoffChecklistId } }); //TODO temp
-    let projectKickoffChecklist: any = await prismaInstance.routine.findFirst({
-        where: { id: projectKickoffChecklistId },
+    await client.routine.deleteMany({ where: { id: SEEDED_IDS.Routine.ProjectKickoffChecklist } }); //TODO temp
+    let projectKickoffChecklist: any = await client.routine.findFirst({
+        where: { id: SEEDED_IDS.Routine.ProjectKickoffChecklist },
     });
     if (!projectKickoffChecklist) {
         logger.info("📚 Creating Project Kickoff Checklist routine");
@@ -1281,15 +1096,15 @@ async function initRoutines() {
                 },
             },
         });
-        projectKickoffChecklist = await prismaInstance.routine_version.create({
+        projectKickoffChecklist = await client.routine_version.create({
             data: {
                 root: {
                     create: {
-                        id: projectKickoffChecklistId,
+                        id: SEEDED_IDS.Routine.ProjectKickoffChecklist,
                         permissions: JSON.stringify({}),
                         isInternal: false,
-                        createdBy: { connect: { id: adminId } },
-                        ownedByTeam: { connect: { id: teams[vrooliHandle].id } },
+                        createdBy: { connect: { id: SEEDED_IDS.User.Admin } },
+                        ownedByTeam: { connect: { id: SEEDED_IDS.Team.Vrooli } },
                     },
                 },
                 translations: {
@@ -1386,11 +1201,11 @@ async function initRoutines() {
             },
         });
     }
-    routines[projectKickoffChecklistId] = projectKickoffChecklist as unknown as Routine;
+    // routines[projectKickoffChecklistId] = projectKickoffChecklist as unknown as Routine;
 
-    await prismaInstance.routine.deleteMany({ where: { id: workoutPlanGeneratorId } }); //TODO temp
-    let workoutPlanGenerator: any = await prismaInstance.routine.findFirst({
-        where: { id: workoutPlanGeneratorId },
+    await client.routine.deleteMany({ where: { id: SEEDED_IDS.Routine.WorkoutPlanGenerator } }); //TODO temp
+    let workoutPlanGenerator: any = await client.routine.findFirst({
+        where: { id: SEEDED_IDS.Routine.WorkoutPlanGenerator },
     });
     if (!workoutPlanGenerator) {
         logger.info("📚 Creating Workout Plan Generator routine");
@@ -1662,9 +1477,8 @@ async function initRoutines() {
         ] as const;
         const config = new RoutineVersionConfig({
             __version: "1.0",
-            callData: {
+            callDataGenerate: {
                 __version: "1.0",
-                __type: RoutineType.Generate,
                 schema: {
                     prompt: `You are a personal trainer creating a customized workout plan.
     
@@ -1710,15 +1524,15 @@ Format the plan in a clear and organized manner, using markdown bullet points or
                 },
             },
         });
-        workoutPlanGenerator = await prismaInstance.routine_version.create({
+        workoutPlanGenerator = await client.routine_version.create({
             data: {
                 root: {
                     create: {
-                        id: workoutPlanGeneratorId,
+                        id: SEEDED_IDS.Routine.WorkoutPlanGenerator,
                         permissions: JSON.stringify({}),
                         isInternal: false,
-                        createdBy: { connect: { id: adminId } },
-                        ownedByTeam: { connect: { id: teams[vrooliHandle].id } },
+                        createdBy: { connect: { id: SEEDED_IDS.User.Admin } },
+                        ownedByTeam: { connect: { id: SEEDED_IDS.Team.Vrooli } },
                     },
                 },
                 translations: {
@@ -1785,10 +1599,10 @@ Format the plan in a clear and organized manner, using markdown bullet points or
             },
         });
     }
-    routines[workoutPlanGeneratorId] = workoutPlanGenerator as unknown as Routine;
+    // routines[workoutPlanGeneratorId] = workoutPlanGenerator as unknown as Routine;
 }
 
-export async function init() {
+export async function init(client: InstanceType<typeof PrismaClient>) {
     logger.info("🌱 Starting database initial seed...");
     // Check for required .env variables
     if (["ADMIN_WALLET", "ADMIN_PASSWORD", "SITE_EMAIL_USERNAME", "VALYXA_PASSWORD"].some(name => !process.env[name])) {
@@ -1796,14 +1610,32 @@ export async function init() {
         return;
     }
 
+    const importDataBase = {
+        __exportedAt: new Date().toISOString(),
+        __signature: "",
+        __source: "vrooli",
+        __version: "1.0.0",
+    } as const;
+
+    const importConfig = {
+        allowForeignData: true, // Skip foreign data checks
+        assignObjectsTo: { __typename: "Team" as const, id: SEEDED_IDS.Team.Vrooli }, // Assign to Vrooli team
+        onConflict: "overwrite" as const, //TODO need update option
+        skipPermissions: true, // Skip permission checks
+        userData: { id: SEEDED_IDS.User.Admin, languages: [EN] }, // Set user data
+    };
+
     // Order matters here. Some objects depend on others.
-    await initTags();
-    await initUsers();
-    await initTeams();
-    await initProjects();
-    await initStandards();
-    await initCodes();
-    await initRoutines();
+    await initTags(client);
+    await initUsers(client);
+    await initTeams(client);
+    await initProjects(client);
+    await initStandards(client);
+    const importedCodes = await importData({
+        ...importDataBase,
+        data: codes,
+    }, importConfig);
+    await initRoutines(client);
 
     logger.info("✅ Database seeding complete.");
 }
