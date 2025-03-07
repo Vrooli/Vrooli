@@ -1,14 +1,14 @@
 import { Box, Button, IconButton, Link, Stack, Tooltip, Typography, keyframes, styled, useTheme } from "@mui/material";
 import MattProfilePic from "assets/img/profile-matt.webp";
-import { PageContainer } from "components/Page/Page.js";
-import { Footer } from "components/navigation/Footer/Footer.js";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
-import { GitHubIcon, TeamIcon, WebsiteIcon, XIcon } from "icons";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
-import { ScrollBox } from "styles";
-import { AboutViewProps } from "views/types";
+import { PageContainer } from "../../components/Page/Page.js";
+import { Footer } from "../../components/navigation/Footer/Footer.js";
+import { TopBar } from "../../components/navigation/TopBar/TopBar.js";
+import { GitHubIcon, TeamIcon, WebsiteIcon, XIcon } from "../../icons/common.js";
+import { ScrollBox } from "../../styles.js";
+import { AboutViewProps } from "../types.js";
 
 type MemberData = {
     fullName: string;

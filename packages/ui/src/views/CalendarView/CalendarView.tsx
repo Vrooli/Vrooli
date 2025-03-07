@@ -1,28 +1,28 @@
 import { calculateOccurrences, CalendarEvent, Schedule } from "@local/shared";
 import { Box, BoxProps, IconButton, styled, Tooltip, useTheme } from "@mui/material";
-import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons.js";
 import { TopBar } from "components/navigation/TopBar/TopBar.js";
-import { PageTabs } from "components/PageTabs/PageTabs";
-import { FullPageSpinner } from "components/Spinners/Spinners";
-import { SessionContext } from "contexts";
+import { PageTabs } from "components/PageTabs/PageTabs.js";
+import { FullPageSpinner } from "components/Spinners/Spinners.js";
 import { add, endOfMonth, format, getDay, startOfMonth, startOfWeek } from "date-fns";
-import { useFindMany } from "hooks/useFindMany";
-import { useTabs } from "hooks/useTabs";
+import { useFindMany } from "hooks/useFindMany.js";
+import { useTabs } from "hooks/useTabs.js";
 import { useWindowSize } from "hooks/useWindowSize.js";
-import { AddIcon, ArrowLeftIcon, ArrowRightIcon, DayIcon, MonthIcon, TodayIcon, WeekIcon } from "icons";
+import { AddIcon, ArrowLeftIcon, ArrowRightIcon, DayIcon, MonthIcon, TodayIcon, WeekIcon } from "icons/common.js";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Calendar, HeaderProps as CalendarHeaderProps, ToolbarProps as CalendarToolbarProps, dateFnsLocalizer, DateLocalizer, Navigate, SlotInfo, View, Views } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { useTranslation } from "react-i18next";
-import { bottomNavHeight, SideActionsButton } from "styles";
-import { PartialWithType } from "types";
+import { PartialWithType } from "types.js";
 import { getCurrentUser } from "utils/authentication/session.js";
-import { getDisplay } from "utils/display/listTools";
+import { getDisplay } from "utils/display/listTools.js";
 import { getShortenedLabel, getUserLanguages, getUserLocale, loadLocale } from "utils/display/translationTools.js";
-import { calendarTabParams } from "utils/search/objectToSearch";
-import { ScheduleUpsert } from "views/objects/schedule";
-import { ScheduleForType } from "views/objects/schedule/types";
-import { CalendarViewProps } from "views/types";
+import { calendarTabParams } from "utils/search/objectToSearch.js";
+import { SessionContext } from "../../contexts.js";
+import { bottomNavHeight, SideActionsButton } from "../../styles.js";
+import { ScheduleUpsert } from "../objects/schedule/ScheduleUpsert.js";
+import { ScheduleForType } from "../objects/schedule/types.js";
+import { CalendarViewProps } from "../types.js";
 
 const views = {
     month: true,
