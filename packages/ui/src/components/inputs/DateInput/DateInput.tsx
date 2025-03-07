@@ -1,9 +1,9 @@
 import { IconButton, InputAdornment, styled, useTheme } from "@mui/material";
 import { useField } from "formik";
-import { CloseIcon } from "icons";
+import { CloseIcon } from "icons/common.js";
 import { useCallback, useMemo } from "react";
-import { TextInput } from "../TextInput/TextInput";
-import { DateInputProps } from "../types";
+import { TextInput } from "../TextInput/TextInput.js";
+import { DateInputProps } from "../types.js";
 
 const DATE_FORMAT_CHARACTERS = 2;
 

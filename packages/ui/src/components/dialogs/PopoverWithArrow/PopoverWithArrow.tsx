@@ -1,12 +1,13 @@
 import { Box, ClickAwayListener, Palette, Popper, PopperPlacementType, useTheme } from "@mui/material";
 import { useHotkeys } from "hooks/useHotkeys";
-import { useZIndex } from "hooks/useZIndex";
+import { useZIndex } from "hooks/useZIndex.js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PopoverWithArrowProps } from "../types";
+import { PopoverWithArrowProps } from "../types.js";
 
 /** Size of arrow pointing to anchor */
 const ARROW_SIZE = 10;
 const Z_INDEX_OFFSET = 1000;
+const TIMEOUT_TO_PREVENT_TOUCH_MULTIPLE_EVENTS_MS = 250;
 
 type Direction = "top" | "bottom" | "left" | "right";
 
@@ -76,7 +77,7 @@ export function PopoverWithArrow({
             timeoutRef.current = setTimeout(() => {
                 timeoutRef.current = null;
                 setCanTouch(true);
-            }, 250);
+            }, TIMEOUT_TO_PREVENT_TOUCH_MULTIPLE_EVENTS_MS);
         }
         else { stopTimeout(); }
         return () => { stopTimeout(); };

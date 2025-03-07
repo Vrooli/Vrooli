@@ -1,15 +1,17 @@
-import { DUMMY_ID, ModelType, base36ToUuid } from "@local/shared";
-import { renderHook } from "@testing-library/react";
-import { act } from "react";
-import { PubSub as PubSubMock } from "../utils/__mocks__/pubsub";
-import { defaultYou } from "../utils/display/listTools";
-import { fullPreferences, removeCookiePartialData, setCookie, setCookieFormData, setCookiePartialData } from "../utils/localStorage";
-import { PubSub } from "../utils/pubsub";
-import { mockLazyFetchData, useLazyFetch as mockUseLazyFetch, resetLazyFetchMocks, setMockLazyFetchState } from "./__mocks__/useLazyFetch";
-import { useLazyFetch } from "./useLazyFetch";
-import { applyDataTransform, fetchDataUsingUrl, getCachedData, getStoredFormData, handleInvalidUrlParams, initializeObjectState, promptToUseStoredFormData, shouldFetchData, useManagedObject } from "./useManagedObject";
 
-jest.mock("./useLazyFetch");
+import { base36ToUuid } from "@local/shared";
+import { renderHook } from "@testing-library/react";
+import { expect } from "chai";
+import { act } from "react";
+import { PubSub as PubSubMock } from "../utils/__mocks__/pubsub.js";
+import { defaultYou } from "../utils/display/listTools.js";
+import { fullPreferences, removeCookiePartialData, setCookie, setCookieFormData, setCookiePartialData } from "../utils/localStorage.js";
+import { PubSub } from "../utils/pubsub.js";
+import { mockLazyFetchData, useLazyFetch as mockUseLazyFetch, resetLazyFetchMocks, setMockLazyFetchState } from "./__mocks__/useLazyFetch.js";
+import { useLazyFetch } from "./useLazyFetch.js";
+import { applyDataTransform, fetchDataUsingUrl, getCachedData, getStoredFormData, handleInvalidUrlParams, initializeObjectState, promptToUseStoredFormData, shouldFetchData, useManagedObject } from "./useManagedObject.js";
+
+jest.mock("./useLazyFetch.js");
 jest.mock("route");
 
 describe("useManagedObject Hook", () => {
@@ -24,7 +26,7 @@ describe("useManagedObject Hook", () => {
     let originalUseLazyFetch: any;
     let originalPubSubMethods;
 
-    beforeAll(() => {
+    before(() => {
         // Save the original window.location
         originalLocation = window.location;
     });
@@ -56,7 +58,7 @@ describe("useManagedObject Hook", () => {
         // Restore PubSub
         Object.assign(PubSub, originalPubSubMethods);
     });
-    afterAll(() => {
+    after(() => {
         jest.restoreAllMocks();
         // Restore the original window.location
         window.location = originalLocation;
@@ -79,7 +81,7 @@ describe("useManagedObject Hook", () => {
 
         expect(mockLazyFetchData).not.toHaveBeenCalled();
         expect(result.current.object).toEqual(mockTransformedObject);
-        expect(result.current.isLoading).toBe(false);
+        expect(result.current.isLoading).to.equal(false);
         // We don't need to check for every permission, just that it looks good enough
         expect(result.current.permissions).toEqual(expect.objectContaining({ canDelete: expect.any(Boolean) }));
     });
@@ -101,7 +103,7 @@ describe("useManagedObject Hook", () => {
 
         expect(mockLazyFetchData).not.toHaveBeenCalled();
         expect(result.current.object).toEqual(mockTransform({}));
-        expect(result.current.isLoading).toBe(false);
+        expect(result.current.isLoading).to.equal(false);
         expect(result.current.permissions).toEqual(defaultYou);
     });
 
@@ -127,7 +129,7 @@ describe("useManagedObject Hook", () => {
         console.log("yeet intermediate");
 
         expect(result.current.object).toEqual(mockTransform(mockCachedData));
-        expect(result.current.isLoading).toBe(true);
+        expect(result.current.isLoading).to.equal(true);
 
         const mockFetchedData = { __typename: "Chat", id: urlId, name: "Fetched Object" };
         act(() => {
@@ -138,7 +140,7 @@ describe("useManagedObject Hook", () => {
         console.log("yeet after");
 
         expect(result.current.object).toEqual(mockTransform(mockFetchedData));
-        expect(result.current.isLoading).toBe(false);
+        expect(result.current.isLoading).to.equal(false);
         expect(setCookiePartialData).toHaveBeenCalledWith(mockFetchedData, "full");
     });
 
@@ -162,7 +164,7 @@ describe("useManagedObject Hook", () => {
         );
 
         expect(result.current.object).toEqual(mockTransform(mockFormData));
-        expect(result.current.isLoading).toBe(false);
+        expect(result.current.isLoading).to.equal(false);
     });
 
     it("fetches data when shouldFetchData returns true", async () => {
@@ -179,7 +181,7 @@ describe("useManagedObject Hook", () => {
         );
 
         expect(mockLazyFetchData).toHaveBeenCalledWith({ id: urlId }, expect.any(Object));
-        expect(result.current.isLoading).toBe(true);
+        expect(result.current.isLoading).to.equal(true);
 
         const mockFetchedData = { __typename: "TestObject", id: urlId, name: "Fetched Object" };
         act(() => {
@@ -188,7 +190,7 @@ describe("useManagedObject Hook", () => {
         });
 
         expect(result.current.object).toEqual(mockFetchedData);
-        expect(result.current.isLoading).toBe(false);
+        expect(result.current.isLoading).to.equal(false);
         expect(setCookiePartialData).toHaveBeenCalledWith(mockFetchedData, "full");
     });
 
@@ -340,21 +342,21 @@ describe("Helper Functions", () => {
             const params = { handle: "test-handle" };
             const result = fetchDataUsingUrl(params, mockFetchData);
             expect(mockFetchData).toHaveBeenCalledWith({ handle: "test-handle" }, expect.any(Object));
-            expect(result).toBe(true);
+            expect(result).to.equal(true);
         });
 
         it("fetches data using id when handle is not available", () => {
             const params = { id: "12345" };
             const result = fetchDataUsingUrl(params, mockFetchData);
             expect(mockFetchData).toHaveBeenCalledWith({ id: "12345" }, expect.any(Object));
-            expect(result).toBe(true);
+            expect(result).to.equal(true);
         });
 
         it("returns false when no valid params are available", () => {
             const params = {};
             const result = fetchDataUsingUrl(params, mockFetchData);
             expect(mockFetchData).not.toHaveBeenCalled();
-            expect(result).toBe(false);
+            expect(result).to.equal(false);
         });
     });
 
@@ -370,7 +372,7 @@ describe("Helper Functions", () => {
             setCookie("Preferences", fullPreferences);
         });
 
-        afterAll(() => {
+        after(() => {
             global.localStorage.clear();
             jest.restoreAllMocks();
         });
@@ -453,15 +455,15 @@ describe("Helper Functions", () => {
 
     describe("shouldFetchData", () => {
         it("returns true when not disabled and no overrideObject", () => {
-            expect(shouldFetchData({ disabled: false })).toBe(true);
+            expect(shouldFetchData({ disabled: false })).to.equal(true);
         });
 
         it("returns false when disabled", () => {
-            expect(shouldFetchData({ disabled: true })).toBe(false);
+            expect(shouldFetchData({ disabled: true })).to.equal(false);
         });
 
         it("returns false when overrideObject is provided", () => {
-            expect(shouldFetchData({ disabled: false, overrideObject: {} })).toBe(false);
+            expect(shouldFetchData({ disabled: false, overrideObject: {} })).to.equal(false);
         });
     });
 
@@ -485,7 +487,7 @@ describe("Helper Functions", () => {
                 urlParams: {},
             });
 
-            expect(result).toBeUndefined();
+            expect(result).to.be.undefined;
         });
 
         it("calls onInvalidUrlParams when provided", () => {
@@ -517,7 +519,7 @@ describe("Helper Functions", () => {
             setCookie("Preferences", fullPreferences);
         });
 
-        afterAll(() => {
+        after(() => {
             global.localStorage.clear();
             jest.restoreAllMocks();
         });
@@ -552,14 +554,14 @@ describe("Helper Functions", () => {
             global.localStorage.clear();
             setCookie("Preferences", fullPreferences);
         });
-        afterAll(() => {
+        after(() => {
             global.localStorage.clear();
             jest.restoreAllMocks();
         });
 
 
         describe("returns stored form data when available", () => {
-            test("create forms", () => {
+            it("create forms", () => {
                 const objectType = "TestObject" as ModelType;
                 const objectId = "12345";
                 const isCreate = true;
@@ -574,7 +576,7 @@ describe("Helper Functions", () => {
                 });
                 expect(result).toEqual(formData);
             });
-            test("update forms", () => {
+            it("update forms", () => {
                 const objectType = "TestObject" as ModelType;
                 const objectId = "12345";
                 const isCreate = false;
@@ -600,14 +602,14 @@ describe("Helper Functions", () => {
                 isCreate: true,
                 urlParams: { id: "12345" },
             });
-            expect(result).toBeUndefined();
+            expect(result).to.be.undefined;
 
             const result2 = getStoredFormData({
                 objectType: "TestObject" as ModelType,
                 isCreate: false,
                 urlParams: { id: "12345" },
             });
-            expect(result2).toBeUndefined();
+            expect(result2).to.be.undefined;
         });
     });
 

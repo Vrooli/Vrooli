@@ -1,2 +1,2 @@
 
-export * from "./NodeWithEndCrud/NodeWithEndCrud";
+export * from "./NodeWithEndCrud/NodeWithEndCrud.js";

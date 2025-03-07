@@ -1,12 +1,12 @@
 import { LINKS, SOCIALS, TranslationKeyCommon } from "@local/shared";
 import { Box, List, ListItem, ListItemIcon, ListItemText, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { CopyrightBreadcrumbs } from "components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs";
-import { GitHubIcon, InfoIcon, StatsIcon, XIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { openLink, useLocation } from "route";
-import { pagePaddingBottom } from "styles";
-import { SvgComponent } from "types";
-import { getDeviceInfo } from "utils/display/device";
+import { GitHubIcon, InfoIcon, StatsIcon, XIcon } from "../../../icons/common.js";
+import { pagePaddingBottom } from "../../../styles.js";
+import { SvgComponent } from "../../../types.js";
+import { getDeviceInfo } from "../../../utils/display/device.js";
+import { CopyrightBreadcrumbs } from "../../breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs.js";
 
 /** aria-label, tooltip, link, displayed text, icon */
 const contactLinks: [string, TranslationKeyCommon, string, TranslationKeyCommon, SvgComponent][] = [

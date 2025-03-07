@@ -1,15 +1,15 @@
 import { ActiveFocusMode, FocusMode, FocusModeSearchInput, FocusModeSearchResult, FocusModeStopCondition, LINKS, MaxObjects, Session, SetActiveFocusModeInput, endpointsFocusMode } from "@local/shared";
-import { fetchData } from "api/fetchData";
-import { ServerResponseParser } from "api/responseParser";
-import { SessionContext } from "contexts";
-import { FocusModeIcon } from "icons";
+import { fetchData } from "api/fetchData.js";
+import { ServerResponseParser } from "api/responseParser.js";
+import { FocusModeIcon } from "icons/common.js";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { getCurrentUser } from "utils/authentication/session";
-import { PubSub } from "utils/pubsub";
+import { getCurrentUser } from "utils/authentication/session.js";
+import { PubSub } from "utils/pubsub.js";
 import { create } from "zustand";
-import { SelectorBase } from "../Selector/Selector";
+import { SessionContext } from "../../../contexts.js";
+import { SelectorBase } from "../Selector/Selector.js";
 
 type FocusModeOption = Omit<FocusMode, "__typename">;
 

@@ -1,4 +1,4 @@
-import { copyIconPath } from "icons";
+import { copyIconPath } from "icons/common.js";
 import { PubSub } from "utils/pubsub.js";
 import { CODE_BLOCK_COMMAND } from "../commands.js";
 import { COMMAND_PRIORITY_HIGH } from "../consts.js";

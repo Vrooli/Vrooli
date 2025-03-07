@@ -3,18 +3,18 @@
  */
 import { ListObject, NavigableObject, funcTrue } from "@local/shared";
 import { Box } from "@mui/material";
-import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
-import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { SiteSearchBar } from "components/inputs/search/SiteSearchBar/SiteSearchBar";
-import { useInfiniteScroll } from "hooks/gestures";
+import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons.js";
+import { ListContainer } from "components/containers/ListContainer/ListContainer.js";
+import { SiteSearchBar } from "components/inputs/search/SiteSearchBar/SiteSearchBar.js";
+import { useInfiniteScroll } from "hooks/gestures.js";
 import { ReactNode, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
 import { ArgsType } from "types";
-import { getDummyListLength } from "utils/consts";
-import { openObject } from "utils/navigation/openObject";
-import { ObjectList } from "../ObjectList/ObjectList";
-import { ObjectListActions, SearchListProps } from "../types";
+import { getDummyListLength } from "utils/consts.js";
+import { openObject } from "utils/navigation/openObject.js";
+import { ObjectList } from "../ObjectList/ObjectList.js";
+import { ObjectListActions, SearchListProps } from "../types.js";
 
 export function SearchList<DataType extends ListObject>({
     advancedSearchParams,

@@ -1,11 +1,12 @@
 import { Box, FormControl, FormControlProps, FormHelperText, InputAdornment, InputLabel, List, ListItem, OutlinedInput, Popover, TextField, Typography, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useDebounce } from "hooks/useDebounce";
-import { useStableCallback } from "hooks/useStableCallback";
-import { PhoneIcon } from "icons";
+import { usePopover } from "hooks/usePopover";
+import { useStableCallback } from "hooks/useStableCallback.js";
+import { PhoneIcon } from "icons/common.js";
 import { CountryCallingCode, CountryCode } from "libphonenumber-js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PhoneNumberInputBaseProps, PhoneNumberInputProps } from "../types";
+import { PhoneNumberInputBaseProps, PhoneNumberInputProps } from "../types.js";
 
 const anchorOrigin = {
     vertical: "bottom",
@@ -34,9 +35,7 @@ export function PhoneNumberInputBase({
     const stableSetError = useStableCallback(setError);
 
     // Country select popover
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-    const openPopover = (event: React.MouseEvent<HTMLElement>) => { setAnchorEl(event.currentTarget); };
-    const closePopover = () => { setAnchorEl(null); };
+    const [anchorEl, openPopover, closePopover] = usePopover();
 
     // Validate phone number
     useEffect(function validatePhoneNumberEffect() {

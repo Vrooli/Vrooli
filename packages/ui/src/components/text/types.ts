@@ -1,8 +1,8 @@
 import { ListObject, Routine } from "@local/shared";
 import { BoxProps } from "@mui/material";
 import { SvgComponent, SxType } from "types";
-import { DisplayAdornment } from "utils/display/listTools";
-import { ObjectType } from "utils/navigation/openObject";
+import { type DisplayAdornment } from "../../utils/display/listTools.js";
+import { ObjectType } from "../../utils/navigation/openObject.js";
 
 export interface DateDisplayProps extends Omit<BoxProps, "zIndex"> {
     loading?: boolean;

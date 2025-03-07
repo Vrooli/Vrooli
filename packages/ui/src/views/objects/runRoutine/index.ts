@@ -1,3 +1,3 @@
-export * from "./RunRoutineUpsert/RunRoutineUpsert";
-export * from "./RunRoutineView/RunRoutineView";
+export * from "./RunRoutineUpsert.js";
+export * from "./RunRoutineView.js";
 

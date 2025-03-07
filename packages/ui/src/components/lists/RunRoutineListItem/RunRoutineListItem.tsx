@@ -2,17 +2,17 @@ import { RunStatus } from "@local/shared";
 import { Stack } from "@mui/material";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { ListItemChip, ListItemCompletionBar, ListItemStyleColor, ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
-import { RunRoutineListItemProps } from "../types";
+import { ListItemChip, ListItemCompletionBar, ListItemStyleColor, ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
+import { RunRoutineListItemProps } from "../types.js";
 
-const statusToColor = (status: RunStatus | undefined): ListItemStyleColor => {
+function statusToColor(status: RunStatus | undefined): ListItemStyleColor {
     if (!status) return "Default";
     switch (status) {
         case RunStatus.Completed: return "Green";
         case RunStatus.Failed: return "Red";
         default: return "Default";
     }
-};
+}
 
 export function RunRoutineListItem({
     data,

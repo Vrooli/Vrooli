@@ -1,4 +1,4 @@
-import { SnackSeverity } from "./BasicSnack/BasicSnack";
+import { SnackSeverity } from "./BasicSnack/BasicSnack.js";
 
 export interface BasicSnackProps {
     autoHideDuration?: number | "persist";

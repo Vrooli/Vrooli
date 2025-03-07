@@ -1,12 +1,12 @@
 import { TimeFrame, TranslationKeyCommon } from "@local/shared";
 import { Box, Menu, MenuItem, Tooltip, Typography, useTheme } from "@mui/material";
-import { DateRangeMenu } from "components/lists/DateRangeMenu/DateRangeMenu";
-import { usePopover } from "hooks/usePopover";
-import { HistoryIcon as TimeIcon } from "icons";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { searchButtonStyle } from "styles";
-import { TimeButtonProps } from "../types";
+import { DateRangeMenu } from "../../../components/lists/DateRangeMenu/DateRangeMenu.js";
+import { usePopover } from "../../../hooks/usePopover.js";
+import { HistoryIcon as TimeIcon } from "../../../icons/common.js";
+import { searchButtonStyle } from "../../../styles.js";
+import { TimeButtonProps } from "../types.js";
 
 /** Map time selections to time length in milliseconds */
 const timeOptions = {
@@ -18,13 +18,15 @@ const timeOptions = {
     "TimeHour": 3600000,
 } as const;
 
-const TimeMenu = ({
+interface TimeMenuProps {
+    anchorEl: Element | null;
+    onClose: (labelKey?: TranslationKeyCommon, timeFrame?: { after?: Date, before?: Date }) => unknown;
+}
+
+function TimeMenu({
     anchorEl,
     onClose,
-}: {
-    anchorEl: HTMLElement | null;
-    onClose: (labelKey?: TranslationKeyCommon, timeFrame?: { after?: Date, before?: Date }) => unknown;
-}) => {
+}: TimeMenuProps) {
     const { t } = useTranslation();
 
     const open = Boolean(anchorEl);
@@ -73,24 +75,24 @@ const TimeMenu = ({
             />
         </Menu>
     );
-};
+}
 
 
-export const TimeButton = ({
+export function TimeButton({
     setTimeFrame,
     timeFrame,
-}: TimeButtonProps) => {
+}: TimeButtonProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
     const [timeFrameLabel, setTimeFrameLabel] = useState<string>("");
 
     const [timeAnchorEl, openTime, closeTime] = usePopover();
-    const handleTimeClose = (labelKey?: TranslationKeyCommon, frame?: TimeFrame) => {
+    function handleTimeClose(labelKey?: TranslationKeyCommon, frame?: TimeFrame) {
         closeTime();
         setTimeFrame(frame);
         if (labelKey) setTimeFrameLabel(t(labelKey));
-    };
+    }
 
     return (
         <>
@@ -110,4 +112,4 @@ export const TimeButton = ({
             </Tooltip>
         </>
     );
-};
+}

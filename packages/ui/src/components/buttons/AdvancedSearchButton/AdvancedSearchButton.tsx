@@ -1,20 +1,19 @@
 import { FormInputBase, FormSchema, generateInitialValues, generateYupSchema, parseSearchParams, ParseSearchParamsResult, SearchType, TranslationFuncCommon } from "@local/shared";
 import { Box, Button, Grid, styled, Tooltip, Typography, useTheme } from "@mui/material";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { Formik } from "formik";
-import { FormRunView } from "forms/FormView/FormView";
-import { BuildIcon, CancelIcon, RefreshIcon, SearchIcon } from "icons";
+import { FormRunView } from "forms/FormView/FormView.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { addSearchParams, removeSearchParams, useLocation } from "route";
-import { searchButtonStyle } from "styles";
-import { convertFormikForSearch, convertSearchForFormik } from "utils/search/inputToSearch";
-import { searchTypeToParams } from "utils/search/objectToSearch";
-import { BottomActionsGrid } from "../BottomActionsGrid/BottomActionsGrid";
-import { AdvancedSearchButtonProps } from "../types";
-
-const titleId = "advanced-search-dialog-title";
+import { convertFormikForSearch, convertSearchForFormik } from "utils/search/inputToSearch.js";
+import { searchTypeToParams } from "utils/search/objectToSearch.js";
+import { BuildIcon, CancelIcon, RefreshIcon, SearchIcon } from "../../../icons/common.js";
+import { searchButtonStyle } from "../../../styles.js";
+import { ELEMENT_IDS } from "../../../utils/consts.js";
+import { BottomActionsGrid } from "../BottomActionsGrid/BottomActionsGrid.js";
+import { AdvancedSearchButtonProps } from "../types.js";
 
 function createTopBarOptions(resetForm: (() => unknown), t: TranslationFuncCommon) {
     return [
@@ -82,10 +81,10 @@ function AdvancedSearchDialog({
 
     return (
         <LargeDialog
-            id="advanced-search-dialog"
+            id={ELEMENT_IDS.AdvancedSearchDialog}
             isOpen={isOpen}
             onClose={handleClose}
-            titleId={titleId}
+            titleId={ELEMENT_IDS.AdvancedSearchDialogTitle}
         >
             <Formik<ParseSearchParamsResult>
                 enableReinitialize={true}
@@ -108,7 +107,7 @@ function AdvancedSearchDialog({
                                 display="dialog"
                                 onClose={handleClose}
                                 title={t("AdvancedSearch")}
-                                titleId={titleId}
+                                titleId={ELEMENT_IDS.AdvancedSearchDialogTitle}
                                 options={topBarOptions}
                             />
                             <FormContainer>

@@ -1,24 +1,26 @@
 import { TranslationKeyCommon } from "@local/shared";
 import { Box, Menu, MenuItem, Tooltip, Typography, useTheme } from "@mui/material";
-import { usePopover } from "hooks/usePopover";
 import i18next from "i18next";
-import { SortIcon } from "icons";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { searchButtonStyle } from "styles";
-import { SortButtonProps } from "../types";
+import { usePopover } from "../../../hooks/usePopover.js";
+import { SortIcon } from "../../../icons/common.js";
+import { searchButtonStyle } from "../../../styles.js";
+import { SortButtonProps } from "../types.js";
 
 export type LabelledSortOption<SortBy> = { label: string, value: SortBy };
 
-const SortMenu = ({
-    sortOptions,
+interface SortMenuProps {
+    anchorEl: Element | null;
+    onClose: (label?: string, value?: string) => unknown;
+    sortOptions: LabelledSortOption<string>[];
+}
+
+function SortMenu({
     anchorEl,
     onClose,
-}: {
-    sortOptions: LabelledSortOption<string>[];
-    anchorEl: HTMLElement | null;
-    onClose: (label?: string, value?: string) => unknown;
-}) => {
+    sortOptions,
+}: SortMenuProps) {
     const { t } = useTranslation();
     const open = Boolean(anchorEl);
 
@@ -53,21 +55,21 @@ const SortMenu = ({
             {menuItems}
         </Menu>
     );
-};
+}
 
-export const SortButton = ({
+export function SortButton({
     options,
     setSortBy,
     sortBy,
-}: SortButtonProps) => {
+}: SortButtonProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
     const [sortAnchorEl, openSort, closeSort] = usePopover();
-    const handleSortClose = (_label?: string, selected?: string) => {
+    function handleSortClose(_label?: string, selected?: string) {
         closeSort();
         if (selected) setSortBy(selected);
-    };
+    }
 
     /** Wrap options with labels */
     const sortOptionsLabelled = useMemo<LabelledSortOption<string>[]>(() => {
@@ -99,4 +101,4 @@ export const SortButton = ({
             </Tooltip>
         </>
     );
-};
+}

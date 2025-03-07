@@ -1,12 +1,12 @@
 import { Box, IconButtonProps, DialogTitle as MuiDialogTitle, DialogTitleProps as MuiDialogTitleProps, styled, useTheme } from "@mui/material";
-import { Title } from "components/text/Title/Title";
-import { useIsLeftHanded } from "hooks/subscriptions";
-import { CloseIcon } from "icons";
 import { forwardRef, useMemo } from "react";
 import { useLocation } from "route";
-import { noSelect } from "styles";
-import { tryOnClose } from "utils/navigation/urlTools";
-import { DialogTitleProps } from "../types";
+import { useIsLeftHanded } from "../../../hooks/subscriptions.js";
+import { CloseIcon } from "../../../icons/common.js";
+import { noSelect } from "../../../styles.js";
+import { tryOnClose } from "../../../utils/navigation/urlTools.js";
+import { Title } from "../../text/Title.js";
+import { DialogTitleProps } from "../types.js";
 
 interface StyledTitleContainerProps extends MuiDialogTitleProps {
     isLeftHanded: boolean;

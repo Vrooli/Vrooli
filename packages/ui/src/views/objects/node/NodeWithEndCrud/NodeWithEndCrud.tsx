@@ -1,25 +1,24 @@
-import { endpointGetApi, nodeTranslationValidation, nodeValidation, noopSubmit, shapeNode } from "@local/shared";
+import { endpointsApi, nodeTranslationValidation, nodeValidation, noopSubmit, shapeNode } from "@local/shared";
 import { Checkbox, FormControlLabel, Tooltip } from "@mui/material";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
-import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse.js";
+import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { Formik, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useManagedObject } from "hooks/useManagedObject";
-import { useSaveToCache } from "hooks/useSaveToCache";
-import { useTranslatedFields } from "hooks/useTranslatedFields";
-import { useUpsertActions } from "hooks/useUpsertActions";
-import { DeleteIcon } from "icons";
+import { BaseForm } from "forms/BaseForm/BaseForm.js";
+import { useSaveToCache, useUpsertActions } from "hooks/forms.js";
+import { useManagedObject } from "hooks/useManagedObject.js";
+import { useTranslatedFields } from "hooks/useTranslatedFields.js";
+import { DeleteIcon } from "icons/common.js";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { FormContainer } from "styles";
-import { getDisplay } from "utils/display/listTools";
-import { firstString } from "utils/display/stringTools";
-import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { validateFormValues } from "utils/validateFormValues";
-import { NodeWithEnd, NodeWithEndCrudProps, NodeWithEndFormProps, NodeWithEndShape } from "../types";
+import { getDisplay } from "utils/display/listTools.js";
+import { firstString } from "utils/display/stringTools.js";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools.js";
+import { validateFormValues } from "utils/validateFormValues.js";
+import { SessionContext } from "../../../../contexts.js";
+import { FormContainer } from "../../../../styles.js";
+import { NodeWithEnd, NodeWithEndCrudProps, NodeWithEndFormProps, NodeWithEndShape } from "../types.js";
 
 export function nodeWithEndInitialValues(existing: NodeWithEndShape): NodeWithEndShape {
     return { ...existing };
@@ -175,7 +174,7 @@ export function NodeWithEndCrud({
 }: NodeWithEndCrudProps) {
 
     const { isLoading: isReadLoading, object: existing, permissions, setObject: setExisting } = useManagedObject<NodeWithEndShape, NodeWithEndShape>({
-        ...endpointGetApi, // Won't be used. Need to pass an endpoint to useManagedObject
+        ...endpointsApi.findOne, // Won't be used. Need to pass an endpoint to useManagedObject
         isCreate: false,
         objectType: "Node",
         overrideObject: overrideObject as NodeWithEndShape,

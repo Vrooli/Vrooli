@@ -1,9 +1,9 @@
-import { SessionContext } from "contexts";
 import { useContext, useMemo } from "react";
-import { getDisplay } from "utils/display/listTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
-import { ChatListItemProps } from "../types";
+import { getDisplay } from "utils/display/listTools.js";
+import { getUserLanguages } from "utils/display/translationTools.js";
+import { SessionContext } from "../../../contexts.js";
+import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
+import { ChatListItemProps } from "../types.js";
 
 export function ChatListItem({
     data,

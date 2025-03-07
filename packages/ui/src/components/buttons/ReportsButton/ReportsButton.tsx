@@ -1,10 +1,10 @@
 import { Box, Typography, styled, useTheme } from "@mui/material";
-import { ReportIcon } from "icons";
 import { useCallback, useMemo } from "react";
 import { Link, useLocation } from "route";
-import { multiLineEllipsis } from "styles";
-import { getObjectReportUrl } from "utils/navigation/openObject";
-import { ReportsButtonProps } from "../types";
+import { ReportIcon } from "../../../icons/common.js";
+import { multiLineEllipsis } from "../../../styles.js";
+import { getObjectReportUrl } from "../../../utils/navigation/openObject.js";
+import { ReportsButtonProps } from "../types.js";
 
 const OuterBox = styled(Box)(({ theme }) => ({
     display: "flex",
@@ -19,10 +19,10 @@ const CountLabel = styled(Typography)(({ theme }) => ({
     color: theme.palette.background.textSecondary,
 }));
 
-export const ReportsButton = ({
+export function ReportsButton({
     reportsCount = 0,
     object,
-}: ReportsButtonProps) => {
+}: ReportsButtonProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
@@ -44,4 +44,4 @@ export const ReportsButton = ({
             <CountLabel variant="body1">{reportsCount}</CountLabel>
         </OuterBox>
     );
-};
+}

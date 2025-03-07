@@ -1,2 +1,2 @@
-export * from "./ResourceUpsert/ResourceUpsert";
+export * from "./ResourceUpsert.js";
 

@@ -1,10 +1,10 @@
-import { Headers } from "utils/display/stringTools";
-import { $createCodeNode } from "../nodes/CodeNode";
-import { type ElementNode } from "../nodes/ElementNode";
-import { type LexicalNode } from "../nodes/LexicalNode";
-import { listExport, listReplace } from "../nodes/ListNode";
+import { Headers } from "utils/display/stringTools.js";
+import { $createCodeNode } from "../nodes/CodeNode.js";
+import { type ElementNode } from "../nodes/ElementNode.js";
+import { type LexicalNode } from "../nodes/LexicalNode.js";
+import { listExport, listReplace } from "../nodes/ListNode.js";
 import { ElementTransformer } from "../types.js";
-import { $createNode, $isNode, getPreviousSibling } from "../utils";
+import { $createNode, $isNode, getPreviousSibling } from "../utils.js";
 
 const createBlockNode = (
     createNode: (match: Array<string>) => ElementNode,

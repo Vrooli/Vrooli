@@ -1,19 +1,19 @@
 import { AutocompleteOption, endpointsFeed, getObjectUrl, PopularSearchInput, PopularSearchResult, ShortcutOption } from "@local/shared";
 import { DialogContent, useTheme } from "@mui/material";
-import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { SiteSearchBar } from "components/inputs/search/SiteSearchBar/SiteSearchBar";
-import { SessionContext } from "contexts";
-import { parseData } from "hooks/useFindMany";
-import { useLazyFetch } from "hooks/useLazyFetch";
+import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle.js";
+import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
+import { SiteSearchBar } from "components/inputs/search/SiteSearchBar/SiteSearchBar.js";
+import { parseData } from "hooks/useFindMany.js";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { randomString } from "utils/codes";
-import { listToAutocomplete } from "utils/display/listTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import { actionsItems, shortcuts } from "utils/navigation/quickActions";
-import { PubSub } from "utils/pubsub";
+import { randomString } from "utils/codes.js";
+import { listToAutocomplete } from "utils/display/listTools.js";
+import { getUserLanguages } from "utils/display/translationTools.js";
+import { actionsItems, shortcuts } from "utils/navigation/quickActions.js";
+import { PubSub } from "utils/pubsub.js";
+import { SessionContext } from "../../../contexts.js";
 
 const titleId = "command-palette-dialog-title";
 

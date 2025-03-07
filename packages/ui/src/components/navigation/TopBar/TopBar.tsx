@@ -1,8 +1,8 @@
-import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
+import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle.js";
 import { forwardRef } from "react";
-import { randomString } from "utils/codes";
-import { Navbar } from "../Navbar/Navbar";
-import { TopBarProps } from "../types";
+import { randomString } from "../../../utils/codes.js";
+import { Navbar } from "../Navbar/Navbar.js";
+import { TopBarProps } from "../types.js";
 
 /**
  * Generates an app bar for both pages and dialogs

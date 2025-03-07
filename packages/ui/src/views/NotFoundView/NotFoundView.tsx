@@ -1,11 +1,11 @@
 import { LINKS } from "@local/shared";
 import { Box, Button, Stack, Typography } from "@mui/material";
-import Bunny404 from "assets/img/Bunny404.svg";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
-import { ArrowLeftIcon, HomeIcon } from "icons";
 import { useTranslation } from "react-i18next";
 import { Link } from "route";
-import { SlideImage, SlideImageContainer } from "styles";
+import Bunny404 from "../../assets/img/Bunny404.svg";
+import { TopBar } from "../../components/navigation/TopBar/TopBar.js";
+import { ArrowLeftIcon, HomeIcon } from "../../icons/common.js";
+import { SlideImage, SlideImageContainer } from "../../styles.js";
 
 function goBack() {
     window.history.back();

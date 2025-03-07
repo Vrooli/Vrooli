@@ -1,11 +1,11 @@
 import { useTheme } from "@mui/material";
-import { SessionContext } from "contexts";
-import { ChevronRightIcon } from "icons";
+import { ChevronRightIcon } from "icons/common.js";
 import { useContext, useMemo } from "react";
-import { getDisplay } from "utils/display/listTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
-import { BookmarkListListItemProps } from "../types";
+import { getDisplay } from "utils/display/listTools.js";
+import { getUserLanguages } from "utils/display/translationTools.js";
+import { SessionContext } from "../../../contexts.js";
+import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
+import { BookmarkListListItemProps } from "../types.js";
 
 export function BookmarkListListItem({
     data,

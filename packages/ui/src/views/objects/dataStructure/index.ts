@@ -1,3 +1,3 @@
-export * from "./DataStructureUpsert/DataStructureUpsert";
-export * from "./DataStructureView/DataStructureView";
+export * from "./DataStructureUpsert.js";
+export * from "./DataStructureView.js";
 

@@ -1,13 +1,13 @@
 import { Box, IconButton, Stack, useTheme } from "@mui/material";
-import { useZIndex } from "hooks/useZIndex";
-import { BotIcon, DeleteIcon, EditIcon, TeamIcon, UserIcon } from "icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { ProfilePictureInputAvatar } from "styles";
-import { extractImageUrl } from "utils/display/imageTools";
-import { placeholderColor } from "utils/display/listTools";
-import { PubSub } from "utils/pubsub";
-import { ProfilePictureInputProps } from "../types";
+import { useZIndex } from "../../../hooks/useZIndex.js";
+import { BotIcon, DeleteIcon, EditIcon, TeamIcon, UserIcon } from "../../../icons/common.js";
+import { ProfilePictureInputAvatar } from "../../../styles.js";
+import { extractImageUrl } from "../../../utils/display/imageTools.js";
+import { placeholderColor } from "../../../utils/display/listTools.js";
+import { PubSub } from "../../../utils/pubsub.js";
+import { ProfilePictureInputProps } from "../types.js";
 
 // What size image to display
 const BANNER_TARGET_SIZE = 1000;

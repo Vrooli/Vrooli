@@ -1,8 +1,8 @@
 import { useCallback, useMemo } from "react";
-import { ObjectAction, getActionsDisplayData } from "utils/actions/objectActions";
-import { ListMenu } from "../ListMenu/ListMenu";
-import { ObjectActionDialogs } from "../ObjectActionDialogs/ObjectActionDialogs";
-import { ObjectActionMenuProps } from "../types";
+import { ObjectAction, getActionsDisplayData } from "utils/actions/objectActions.js";
+import { ListMenu } from "../ListMenu/ListMenu.js";
+import { ObjectActionDialogs } from "../ObjectActionDialogs/ObjectActionDialogs.js";
+import { ObjectActionMenuProps } from "../types.js";
 
 export function ObjectActionMenu({
     actionData,

@@ -2,12 +2,12 @@ import { DropzoneFormInput, DropzoneFormInputProps } from "@local/shared";
 import { Autocomplete, Button, Chip, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
 import { Dropzone, MAX_DROPZONE_FILES } from "components/inputs/Dropzone/Dropzone";
 import { IntegerInputBase } from "components/inputs/IntegerInput/IntegerInput";
-import { TextInput } from "components/inputs/TextInput/TextInput";
+import { TextInput } from "components/inputs/TextInput/TextInput.js";
 import { useCallback, useMemo, useState } from "react";
-import { CHIP_LIST_LIMIT } from "utils/consts";
-import { PubSub } from "utils/pubsub";
-import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles";
-import { FormInputProps } from "../types";
+import { CHIP_LIST_LIMIT } from "utils/consts.js";
+import { PubSub } from "utils/pubsub.js";
+import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles.js";
+import { FormInputProps } from "../types.js";
 
 const commonFileTypes = [
     { label: "All Images", value: "image/*" },

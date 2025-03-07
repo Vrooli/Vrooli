@@ -1,8 +1,8 @@
 import { ListObject } from "@local/shared";
 import { Box, CircularProgress, List, ListItem, Popover } from "@mui/material";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
-import { noSelect } from "styles";
-import { GetTaggableItemsFunc } from "../types";
+import { noSelect } from "../../../styles.js";
+import { GetTaggableItemsFunc } from "../types.js";
 
 export interface RichInputTagDropdownData {
     anchorEl: HTMLElement | null;

@@ -2,14 +2,14 @@ import { endpointsRunRoutineIO, FormSchema, RunRoutineIOSortBy } from "@local/sh
 import { toParams } from "./base.js";
 import { searchFormLayout } from "./common.js";
 
-export function runRoutineInputSearchSchema(): FormSchema {
+export function runRoutineIOSearchSchema(): FormSchema {
     return {
-        layout: searchFormLayout("SearchRunRoutineInput"),
+        layout: searchFormLayout("SearchRunRoutineIO"),
         containers: [], //TODO
         elements: [], //TODO
     };
 }
 
-export function runRoutineInputSearchParams() {
-    return toParams(runRoutineInputSearchSchema(), endpointsRunRoutineIO, RunRoutineIOSortBy, RunRoutineIOSortBy.DateCreatedDesc);
+export function runRoutineIOSearchParams() {
+    return toParams(runRoutineIOSearchSchema(), endpointsRunRoutineIO, RunRoutineIOSortBy, RunRoutineIOSortBy.DateCreatedDesc);
 }

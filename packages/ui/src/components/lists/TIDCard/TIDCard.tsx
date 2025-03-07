@@ -1,6 +1,6 @@
 import { Box, BoxProps, Button, Typography, styled, useTheme } from "@mui/material";
-import { WarningIcon } from "icons";
-import { TIDCardProps, TIDCardSize } from "../types";
+import { WarningIcon } from "icons/common.js";
+import { TIDCardProps, TIDCardSize } from "../types.js";
 
 interface OuterCardProps extends BoxProps {
     isClickable: boolean;

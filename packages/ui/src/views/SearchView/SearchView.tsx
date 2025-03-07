@@ -1,23 +1,23 @@
 import { LINKS, ListObject, ModelType, getObjectUrlBase } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { PageTabs } from "components/PageTabs/PageTabs";
-import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
-import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList";
+import { PageTabs } from "components/PageTabs/PageTabs.js";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons.js";
+import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList.js";
 import { TopBar } from "components/navigation/TopBar/TopBar.js";
-import { SessionContext } from "contexts";
-import { useFindMany } from "hooks/useFindMany";
-import { useTabs } from "hooks/useTabs";
-import { AddIcon, SearchIcon } from "icons";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { SideActionsButton } from "styles";
-import { getCurrentUser } from "utils/authentication/session.js";
-import { ELEMENT_IDS } from "utils/consts.js";
-import { scrollIntoFocusedView } from "utils/display/scroll";
-import { PubSub } from "utils/pubsub.js";
-import { searchViewTabParams } from "utils/search/objectToSearch";
-import { SearchViewProps } from "views/types";
+import { SessionContext } from "../../contexts.js";
+import { useFindMany } from "../../hooks/useFindMany.js";
+import { useTabs } from "../../hooks/useTabs.js";
+import { AddIcon, SearchIcon } from "../../icons/common.js";
+import { SideActionsButton } from "../../styles.js";
+import { getCurrentUser } from "../../utils/authentication/session.js";
+import { ELEMENT_IDS } from "../../utils/consts.js";
+import { scrollIntoFocusedView } from "../../utils/display/scroll.js";
+import { PubSub } from "../../utils/pubsub.js";
+import { searchViewTabParams } from "../../utils/search/objectToSearch.js";
+import { SearchViewProps } from "../../views/types.js";
 
 const scrollContainerId = "main-search-scroll";
 

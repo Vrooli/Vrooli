@@ -2,14 +2,14 @@
  * Displays all search options for a team
  */
 import { Button, Divider, Grid, Stack, Typography } from "@mui/material";
-import { HelpButton } from "components/buttons/HelpButton/HelpButton";
-import { ToggleSwitch } from "components/inputs/ToggleSwitch/ToggleSwitch";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { HelpButton } from "components/buttons/HelpButton/HelpButton.js";
+import { ToggleSwitch } from "components/inputs/ToggleSwitch/ToggleSwitch.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { useFormik } from "formik";
 import { useTranslation } from "react-i18next";
-import { CookiePreferences, setCookie } from "utils/localStorage";
-import { LargeDialog } from "../LargeDialog/LargeDialog";
-import { CookieSettingsDialogProps } from "../types";
+import { CookiePreferences, setCookie } from "utils/localStorage.js";
+import { LargeDialog } from "../LargeDialog/LargeDialog.js";
+import { CookieSettingsDialogProps } from "../types.js";
 
 const titleId = "cookie-settings-dialog-title";
 const strictlyNecessaryUses = ["Authentication"] as const;
@@ -22,13 +22,15 @@ export function CookieSettingsDialog({
 }: CookieSettingsDialogProps) {
     const { t } = useTranslation();
 
-    const setPreferences = (preferences: CookiePreferences) => {
+    function setPreferences(preferences: CookiePreferences) {
         // Set preference in local storage
         setCookie("Preferences", preferences);
         // Close dialog
         handleClose(preferences);
-    };
-    const onCancel = () => { handleClose(); };
+    }
+    function onCancel() {
+        handleClose();
+    }
 
     const formik = useFormik({
         initialValues: {
@@ -42,7 +44,7 @@ export function CookieSettingsDialog({
         },
     });
 
-    const handleAcceptAllCookies = () => {
+    function handleAcceptAllCookies() {
         const preferences: CookiePreferences = {
             strictlyNecessary: true,
             performance: true,
@@ -50,7 +52,7 @@ export function CookieSettingsDialog({
             targeting: true,
         };
         setPreferences(preferences);
-    };
+    }
 
     return (
         <LargeDialog

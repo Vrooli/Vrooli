@@ -1,7 +1,7 @@
 import { Avatar, Box, Fade, SxProps, Typography, useTheme } from "@mui/material";
 import Testimonial1 from "assets/img/Testimonial1.webp";
 import Testimonial2 from "assets/img/Testimonial2.webp";
-import { UserIcon } from "icons";
+import { UserIcon } from "icons/common.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { placeholderColor } from "utils/display/listTools";
 

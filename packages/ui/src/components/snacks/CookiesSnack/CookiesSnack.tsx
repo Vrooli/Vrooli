@@ -1,18 +1,18 @@
 import { Box, Button, Grid, IconButton, Stack, Typography, useTheme } from "@mui/material";
-import { CookieSettingsDialog } from "components/dialogs/CookieSettingsDialog/CookieSettingsDialog";
-import { CloseIcon, LargeCookieIcon } from "icons";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { noSelect } from "styles";
-import { CookiePreferences, setCookie } from "utils/localStorage";
-import { CookiesSnackProps } from "../types";
+import { CloseIcon, LargeCookieIcon } from "../../../icons/common.js";
+import { noSelect } from "../../../styles.js";
+import { CookiePreferences, setCookie } from "../../../utils/localStorage.js";
+import { CookieSettingsDialog } from "../../dialogs/CookieSettingsDialog/CookieSettingsDialog";
+import { CookiesSnackProps } from "../types.js";
 
 /**
  * "This site uses cookies" consent dialog
  */
-export const CookiesSnack = ({
+export function CookiesSnack({
     handleClose,
-}: CookiesSnackProps) => {
+}: CookiesSnackProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 

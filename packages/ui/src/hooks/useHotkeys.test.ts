@@ -1,5 +1,6 @@
 import { renderHook } from "@testing-library/react";
-import { useHotkeys } from "./useHotkeys";
+import { expect } from "chai";
+import { useHotkeys } from "./useHotkeys.js";
 
 describe("useHotkeys", () => {
     let mockCallback;
@@ -45,7 +46,7 @@ describe("useHotkeys", () => {
     ];
 
     scenarios.forEach(({ keys, ctrlKey, shiftKey, altKey }) => {
-        test(`calls callback for key "${keys[0]}" with ctrlKey: ${ctrlKey}, shiftKey: ${shiftKey}, and altKey: ${altKey}`, () => {
+        it(`calls callback for key "${keys[0]}" with ctrlKey: ${ctrlKey}, shiftKey: ${shiftKey}, and altKey: ${altKey}`, () => {
             const hotkeys = [{ keys, ctrlKey, shiftKey, altKey, callback: mockCallback }];
 
             renderHook(() => useHotkeys(hotkeys, true));
@@ -55,7 +56,7 @@ describe("useHotkeys", () => {
             expect(mockCallback).toHaveBeenCalledTimes(1);
         });
 
-        test(`does not call callback for incorrect key with ctrlKey: ${ctrlKey}, shiftKey: ${shiftKey}, and altKey: ${altKey}`, () => {
+        it(`does not call callback for incorrect key with ctrlKey: ${ctrlKey}, shiftKey: ${shiftKey}, and altKey: ${altKey}`, () => {
             const hotkeys = [{ keys, ctrlKey, shiftKey, altKey, callback: mockCallback }];
 
             renderHook(() => useHotkeys(hotkeys, true));
@@ -67,7 +68,7 @@ describe("useHotkeys", () => {
         });
     });
 
-    test("does not add event listener when condition is false", () => {
+    it("does not add event listener when condition is false", () => {
         const hotkeys = [{ keys: ["a"], ctrlKey: true, callback: mockCallback }];
 
         // Render the hook with the condition set to false
@@ -80,7 +81,7 @@ describe("useHotkeys", () => {
         expect(mockCallback).not.toHaveBeenCalled();
     });
 
-    test("attaches and detaches event listener from the specified targetRef", () => {
+    it("attaches and detaches event listener from the specified targetRef", () => {
         // Create a mock element with mocked addEventListener and removeEventListener
         const mockElement = {
             addEventListener: jest.fn(),

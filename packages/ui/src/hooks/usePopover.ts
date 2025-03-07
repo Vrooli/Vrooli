@@ -1,9 +1,9 @@
 import { useState } from "react";
 
 export function usePopover(initialState = null) {
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(initialState);
+    const [anchorEl, setAnchorEl] = useState<Element | null>(initialState);
 
-    function openPopover(event: Pick<React.MouseEvent<HTMLElement>, "currentTarget">, condition = true) {
+    function openPopover(event: Pick<React.MouseEvent<Element>, "currentTarget">, condition = true) {
         if (!condition) return;
         setAnchorEl(event.currentTarget);
     }

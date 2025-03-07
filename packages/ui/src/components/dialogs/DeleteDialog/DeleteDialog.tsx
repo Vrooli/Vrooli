@@ -1,11 +1,11 @@
 import { Button, DialogContent, Stack, Typography, useTheme } from "@mui/material";
-import { TextInput } from "components/inputs/TextInput/TextInput";
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { DeleteIcon } from "icons";
+import { TextInput } from "components/inputs/TextInput/TextInput.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { DeleteIcon } from "icons/common.js";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { LargeDialog } from "../LargeDialog/LargeDialog";
-import { DeleteDialogProps } from "../types";
+import { LargeDialog } from "../LargeDialog/LargeDialog.js";
+import { DeleteDialogProps } from "../types.js";
 
 export function DeleteDialog({
     handleClose,
@@ -26,15 +26,19 @@ export function DeleteDialog({
         handleClose(wasDeleted ?? false);
     }, [handleClose]);
 
+    function onClose() {
+        close();
+    }
+
     return (
         <LargeDialog
             id="delete-dialog"
             isOpen={isOpen}
-            onClose={() => { close(); }}
+            onClose={onClose}
         >
             <TopBar
                 display="dialog"
-                onClose={() => { close(); }}
+                onClose={onClose}
                 title={t("Delete")}
             />
             <DialogContent>

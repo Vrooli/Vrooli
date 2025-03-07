@@ -1,7 +1,7 @@
 import { LanguageFormInput, getFormikFieldName } from "@local/shared";
-import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput.js";
 import { useField } from "formik";
-import { FormInputProps } from "../types";
+import { FormInputProps } from "../types.js";
 
 export function FormInputLanguage({
     disabled,

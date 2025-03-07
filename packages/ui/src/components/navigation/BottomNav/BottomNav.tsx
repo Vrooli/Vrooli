@@ -1,10 +1,10 @@
 import { BottomNavigation, useTheme } from "@mui/material";
-import { SessionContext } from "contexts";
-import { useKeyboardOpen } from "hooks/useKeyboardOpen";
+import { useKeyboardOpen } from "hooks/useKeyboardOpen.js";
 import { useContext, useMemo } from "react";
 import { useLocation } from "route";
-import { pagePaddingBottom } from "styles";
-import { actionsToBottomNav, getUserActions } from "utils/navigation/userActions";
+import { SessionContext } from "../../../contexts.js";
+import { pagePaddingBottom } from "../../../styles.js";
+import { actionsToBottomNav, getUserActions } from "../../../utils/navigation/userActions.js";
 
 export function BottomNav() {
     const session = useContext(SessionContext);

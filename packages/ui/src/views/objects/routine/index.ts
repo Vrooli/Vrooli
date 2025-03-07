@@ -1,5 +1,4 @@
-
-export * from "./RoutineMultiStepCrud/RoutineMultiStepCrud";
-export * from "./RoutineSingleStepUpsert/RoutineSingleStepUpsert";
-export * from "./RoutineSingleStepView/RoutineSingleStepView";
+export * from "./RoutineMultiStepCrud.js";
+export * from "./RoutineSingleStepUpsert.js";
+export * from "./RoutineSingleStepView.js";
 

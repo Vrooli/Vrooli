@@ -1,3 +1,2 @@
-
-export * from "./BotUpsert/BotUpsert";
+export * from "./BotUpsert.js";
 

@@ -1,9 +1,9 @@
 import { HttpMethod, ServerResponse } from "@local/shared";
-import { fetchData } from "api/fetchData";
-import { ServerResponseParser } from "api/responseParser";
-import { LazyRequestWithResult } from "api/types";
+import { fetchData } from "api/fetchData.js";
+import { ServerResponseParser } from "api/responseParser.js";
+import { LazyRequestWithResult } from "api/types.js";
 import { useCallback, useEffect, useState } from "react";
-import { useDebounce } from "./useDebounce";
+import { useDebounce } from "./useDebounce.js";
 
 type RequestState<TData> = {
     loading: boolean;

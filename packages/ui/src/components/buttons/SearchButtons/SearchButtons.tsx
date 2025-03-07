@@ -1,10 +1,9 @@
-import { SearchType } from "@local/shared";
 import { Box } from "@mui/material";
 import { useMemo } from "react";
-import { AdvancedSearchButton } from "../AdvancedSearchButton/AdvancedSearchButton";
-import { SortButton } from "../SortButton/SortButton";
-import { TimeButton } from "../TimeButton/TimeButton";
-import { SearchButtonsProps } from "../types";
+import { AdvancedSearchButton } from "../AdvancedSearchButton/AdvancedSearchButton.js";
+import { SortButton } from "../SortButton/SortButton.js";
+import { TimeButton } from "../TimeButton/TimeButton.js";
+import { SearchButtonsProps } from "../types.js";
 
 export function SearchButtons({
     advancedSearchParams,
@@ -40,7 +39,7 @@ export function SearchButtons({
                 setTimeFrame={setTimeFrame}
                 timeFrame={timeFrame}
             />
-            {searchType !== SearchType.Popular && <AdvancedSearchButton
+            {searchType !== "Popular" && <AdvancedSearchButton
                 advancedSearchParams={advancedSearchParams}
                 advancedSearchSchema={advancedSearchSchema}
                 controlsUrl={controlsUrl}

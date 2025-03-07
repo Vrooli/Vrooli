@@ -1,14 +1,14 @@
 import { AITaskInfo, ChatMessage, ChatMessageCreateInput, ChatMessageCreateWithTaskInfoInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageShape, ChatMessageUpdateInput, ChatMessageUpdateWithTaskInfoInput, ChatParticipant, ChatShape, DUMMY_ID, LlmTask, RegenerateResponseInput, Session, Success, TaskContextInfo, endpointsChatMessage, getTranslation, noop, uuid } from "@local/shared";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { SessionContext } from "contexts";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { getCurrentUser } from "utils/authentication/session";
-import { getUserLanguages } from "utils/display/translationTools";
-import { BranchMap, getCookieMessageTree, setCookieMessageTree } from "utils/localStorage";
-import { PubSub } from "utils/pubsub";
-import { UseChatTaskReturn } from "./tasks";
-import { useHistoryState } from "./useHistoryState";
-import { useLazyFetch } from "./useLazyFetch";
+import { getCurrentUser } from "utils/authentication/session.js";
+import { getUserLanguages } from "utils/display/translationTools.js";
+import { BranchMap, getCookieMessageTree, setCookieMessageTree } from "utils/localStorage.js";
+import { PubSub } from "utils/pubsub.js";
+import { SessionContext } from "../contexts.js";
+import { UseChatTaskReturn } from "./tasks.js";
+import { useHistoryState } from "./useHistoryState.js";
+import { useLazyFetch } from "./useLazyFetch.js";
 
 export type MinimumChatMessage = {
     id: string;

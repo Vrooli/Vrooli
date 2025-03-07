@@ -1,29 +1,29 @@
 import { InputType, preventFormSubmit } from "@local/shared";
 import { Box, IconButton, Stack, TextField, Tooltip, Typography, TypographyProps, styled, useTheme } from "@mui/material";
-import { HelpButton } from "components/buttons/HelpButton/HelpButton";
+import { HelpButton } from "components/buttons/HelpButton/HelpButton.js";
 import { useFormikContext } from "formik";
-import { useEditableLabel } from "hooks/useEditableLabel";
-import { CopyIcon, DeleteIcon } from "icons";
+import { useEditableLabel } from "hooks/useEditableLabel.js";
+import { CopyIcon, DeleteIcon } from "icons/common.js";
 import { ComponentType, Suspense, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { lazily } from "react-lazily";
-import { PubSub } from "utils/pubsub";
-import { FormInputCheckbox } from "../FormInputCheckbox/FormInputCheckbox";
-import { FormInputInteger } from "../FormInputInteger/FormInputInteger";
-import { FormInputLanguage } from "../FormInputLanguage/FormInputLanguage";
-import { FormInputLinkItem } from "../FormInputLinkItem/FormInputLinkItem";
-import { FormInputLinkUrl } from "../FormInputLinkUrl/FormInputLinkUrl";
-import { FormInputRadio } from "../FormInputRadio/FormInputRadio";
-import { FormInputSelector } from "../FormInputSelector/FormInputSelector";
-import { FormInputSlider } from "../FormInputSlider/FormInputSlider";
-import { FormInputSwitch } from "../FormInputSwitch/FormInputSwitch";
-import { FormInputTagSelector } from "../FormInputTagSelector/FormInputTagSelector";
-import { FormInputText } from "../FormInputText/FormInputText";
-import { FormInputProps } from "../types";
+import { PubSub } from "utils/pubsub.js";
+import { FormInputCheckbox } from "../FormInputCheckbox/FormInputCheckbox.js";
+import { FormInputInteger } from "../FormInputInteger/FormInputInteger.js";
+import { FormInputLanguage } from "../FormInputLanguage/FormInputLanguage.js";
+import { FormInputLinkItem } from "../FormInputLinkItem/FormInputLinkItem.js";
+import { FormInputLinkUrl } from "../FormInputLinkUrl/FormInputLinkUrl.js";
+import { FormInputRadio } from "../FormInputRadio/FormInputRadio.js";
+import { FormInputSelector } from "../FormInputSelector/FormInputSelector.js";
+import { FormInputSlider } from "../FormInputSlider/FormInputSlider.js";
+import { FormInputSwitch } from "../FormInputSwitch/FormInputSwitch.js";
+import { FormInputTagSelector } from "../FormInputTagSelector/FormInputTagSelector.js";
+import { FormInputText } from "../FormInputText/FormInputText.js";
+import { FormInputProps } from "../types.js";
 
 // Lazy-loading all input components is an option here, but it doesn't add much value except for the more complex components
-const { FormInputCode } = lazily(() => import("../FormInputCode/FormInputCode"));
-const { FormInputDropzone } = lazily(() => import("../FormInputDropzone/FormInputDropzone"));
+const { FormInputCode } = lazily(() => import("../FormInputCode/FormInputCode.js"));
+const { FormInputDropzone } = lazily(() => import("../FormInputDropzone/FormInputDropzone.js"));
 
 /**
  * Maps a data input type string to its corresponding component generator function
@@ -102,7 +102,7 @@ export function FormInput({
         PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
     }, [fieldData.fieldName, formikContext]);
 
-    const updateLabel = useCallback((updatedLabel: string) => { onConfigUpdate?.({ ...fieldData, label: updatedLabel }); }, []);
+    const updateLabel = useCallback((updatedLabel: string) => { onConfigUpdate?.({ ...fieldData, label: updatedLabel }); }, [fieldData, onConfigUpdate]);
     const {
         editedLabel,
         handleLabelChange,

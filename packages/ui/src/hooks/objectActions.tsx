@@ -1,22 +1,24 @@
+
 import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkListSearchInput, BookmarkListSearchResult, BookmarkSearchInput, BookmarkSearchResult, CopyInput, CopyResult, CopyType, Count, DeleteManyInput, DeleteOneInput, DeleteType, LINKS, ListObject, ModelType, ReactInput, ReactionFor, Role, Success, User, endpointsActions, endpointsBookmark, endpointsBookmarkList, endpointsReaction, exists, getReactionScore, setDotNotationValue, shapeBookmark, uuid } from "@local/shared";
-import { fetchData } from "api/fetchData";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { ServerResponseParser } from "api/responseParser";
-import { BulkDeleteDialog } from "components/dialogs/BulkDeleteDialog/BulkDeleteDialog";
-import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog";
-import { DeleteDialog } from "components/dialogs/DeleteDialog/DeleteDialog";
-import { ObjectListItemProps } from "components/lists/types";
-import { SessionContext } from "contexts";
+import { fetchData } from "api/fetchData.js";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
+import { ServerResponseParser } from "api/responseParser.js";
+import { BulkDeleteDialog } from "components/dialogs/BulkDeleteDialog/BulkDeleteDialog.js";
+import { DeleteAccountDialog } from "components/dialogs/DeleteAccountDialog/DeleteAccountDialog.js";
+import { DeleteDialog } from "components/dialogs/DeleteDialog/DeleteDialog.js";
+import { ObjectListItemProps } from "components/lists/types.js";
 import { Dispatch, SetStateAction, useCallback, useContext, useMemo, useRef, useState } from "react";
-import { SetLocation, useLocation } from "route";
-import { BulkObjectAction, BulkObjectActionComplete, getAvailableBulkActions } from "utils/actions/bulkObjectActions";
-import { ActionCompletePayloads, ActionStartPayloads, ObjectAction, ObjectActionComplete, getAvailableActions } from "utils/actions/objectActions";
-import { getCurrentUser } from "utils/authentication/session";
-import { getDisplay, getYouDot } from "utils/display/listTools";
-import { openObject, openObjectEdit } from "utils/navigation/openObject";
-import { PubSub } from "utils/pubsub";
+import { useLocation } from "route/router.js";
+import { type SetLocation } from "route/types.js";
+import { BulkObjectAction, BulkObjectActionComplete, getAvailableBulkActions } from "utils/actions/bulkObjectActions.js";
+import { ActionCompletePayloads, ActionStartPayloads, ObjectAction, ObjectActionComplete, getAvailableActions } from "utils/actions/objectActions.js";
+import { getCurrentUser } from "utils/authentication/session.js";
+import { getDisplay, getYouDot } from "utils/display/listTools.js";
+import { openObject, openObjectEdit } from "utils/navigation/openObject.js";
+import { PubSub } from "utils/pubsub.js";
 import { create } from "zustand";
-import { useLazyFetch } from "./useLazyFetch";
+import { SessionContext } from "../contexts.js";
+import { useLazyFetch } from "./useLazyFetch.js";
 
 const DEFAULT_BOOKMARK_LIST_LABEL = "Favorites";
 
@@ -469,7 +471,6 @@ export const ObjectsToDeleteConfirmLevel: Record<DeleteType, ConfirmationLevel> 
     MemberInvite: "none",
     Meeting: "minimal",
     MeetingInvite: "none",
-    Node: "none",
     Note: "minimal",
     NoteVersion: "minimal",
     Notification: "none",

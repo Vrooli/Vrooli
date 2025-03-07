@@ -1,13 +1,13 @@
 import { getReactionScore, removeModifiers } from "@local/shared";
 import { Box, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { SessionContext } from "contexts";
-import { useVoter } from "hooks/objectActions";
-import { ArrowDownIcon, ArrowUpIcon } from "icons";
+import { useVoter } from "hooks/objectActions.js";
+import { ArrowDownIcon, ArrowUpIcon } from "icons/common.js";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActionCompletePayloads, ObjectActionComplete } from "utils/actions/objectActions";
-import { getCurrentUser } from "utils/authentication/session";
-import { VoteButtonProps } from "../types";
+import { ActionCompletePayloads, ObjectActionComplete } from "utils/actions/objectActions.js";
+import { getCurrentUser } from "utils/authentication/session.js";
+import { SessionContext } from "../../../contexts.js";
+import { VoteButtonProps } from "../types.js";
 
 export function VoteButton({
     disabled = false,

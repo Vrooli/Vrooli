@@ -1,9 +1,9 @@
 import { endpointsPushDevice, PushDevice, PushDeviceCreateInput } from "@local/shared";
-import { fetchData } from "api/fetchData";
+import { fetchData } from "api/fetchData.js";
 import { ServerResponseParser } from "api/responseParser.js";
 import { requestNotificationPermission, subscribeUserToPush } from "serviceWorkerRegistration";
-import { getDeviceInfo } from "./display/device";
-import { PubSub } from "./pubsub";
+import { getDeviceInfo } from "./display/device.js";
+import { PubSub } from "./pubsub.js";
 
 /**
  * Sets up push notifications for the user

@@ -1,13 +1,13 @@
 import { MINUTES_1_MS } from "@local/shared";
 import { IconButton, ListItem, Popover, Stack, Typography, useTheme } from "@mui/material";
-import { MenuTitle } from "components/dialogs/MenuTitle/MenuTitle";
+import { MenuTitle } from "components/dialogs/MenuTitle/MenuTitle.js";
 import { useField } from "formik";
-import { usePopover } from "hooks/usePopover";
-import { ArrowDropDownIcon, ArrowDropUpIcon } from "icons";
+import { usePopover } from "hooks/usePopover.js";
+import { ArrowDropDownIcon, ArrowDropUpIcon } from "icons/common.js";
 import { useCallback, useMemo, useState } from "react";
 import { FixedSizeList } from "react-window";
-import { TextInput } from "../TextInput/TextInput";
-import { TimezoneSelectorProps } from "../types";
+import { TextInput } from "../TextInput/TextInput.js";
+import { TimezoneSelectorProps } from "../types.js";
 
 function formatOffset(offset: number) {
     const sign = offset > 0 ? "-" : "+";

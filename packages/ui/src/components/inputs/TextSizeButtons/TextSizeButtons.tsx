@@ -1,10 +1,10 @@
 import { IconButton, Slider, SliderThumb, useTheme } from "@mui/material";
 import { useThrottle } from "hooks/useThrottle";
-import { AddIcon, CaseSensitiveIcon, MinusIcon } from "icons";
+import { AddIcon, CaseSensitiveIcon, MinusIcon } from "icons/common.js";
 import { useCallback, useState } from "react";
-import { FONT_SIZE_MAX, FONT_SIZE_MIN } from "utils/consts";
-import { getCookie } from "utils/localStorage";
-import { PubSub } from "utils/pubsub";
+import { FONT_SIZE_MAX, FONT_SIZE_MIN } from "utils/consts.js";
+import { getCookie } from "utils/localStorage.js";
+import { PubSub } from "utils/pubsub.js";
 
 const THROTTLE_MS = 50;
 

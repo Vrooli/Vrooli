@@ -2,7 +2,7 @@ import { Box, BoxProps, List, Typography, styled } from "@mui/material";
 import { forwardRef } from "react";
 import { useTranslation } from "react-i18next";
 import { SxType } from "types";
-import { ListContainerProps } from "../types";
+import { ListContainerProps } from "../types.js";
 
 interface OuterBoxProps extends BoxProps {
     borderRadius?: number;

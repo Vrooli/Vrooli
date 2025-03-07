@@ -1,6 +1,6 @@
 import { Button, Chip, ChipProps, styled } from "@mui/material";
-import { ProfileAvatar } from "styles";
-import { SvgComponent } from "types";
+import { ProfileAvatar } from "../../../styles.js";
+import { SvgComponent } from "../../../types.js";
 
 export function commonIconProps() {
     return {

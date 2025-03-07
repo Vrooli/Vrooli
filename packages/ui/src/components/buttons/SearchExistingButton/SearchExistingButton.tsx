@@ -1,10 +1,10 @@
 import { Button, styled } from "@mui/material";
-import { SearchIcon } from "icons";
+import { SearchIcon } from "icons/common.js";
 
 const StyledButton = styled(Button)(({ theme }) => ({
     color: theme.palette.background.textSecondary,
     display: "flex",
-    marginTop: 2,
+    marginTop: theme.spacing(2),
     textAlign: "center",
     textTransform: "none",
 }));

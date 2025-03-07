@@ -1,5 +1,5 @@
 import { Box, IconButton, useTheme } from "@mui/material";
-import { RefreshIcon } from "icons";
+import { RefreshIcon } from "icons/common.js";
 import { useEffect, useRef, useState } from "react";
 import { getDeviceInfo } from "utils/display/device";
 

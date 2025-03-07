@@ -1,12 +1,7 @@
 import { renderHook } from "@testing-library/react";
+import { expect } from "chai";
 import { act } from "react";
-import {
-    calculateEstimatedIndex,
-    handleChangeLabel,
-    handleKeyDownLabel,
-    submitChangeLabel,
-    useEditableLabel,
-} from "./useEditableLabel";
+import { calculateEstimatedIndex, handleChangeLabel, handleKeyDownLabel, submitChangeLabel, useEditableLabel } from "./useEditableLabel.js";
 
 describe("calculateEstimatedIndex", () => {
     it("calculates the correct index based on click position", () => {
@@ -16,11 +11,11 @@ describe("calculateEstimatedIndex", () => {
     });
 
     it("returns 0 if clickX is 0", () => {
-        expect(calculateEstimatedIndex(0, 200, 10)).toBe(0);
+        expect(calculateEstimatedIndex(0, 200, 10)).to.equal(0);
     });
 
     it("returns textLength if clickX is equal to textWidth", () => {
-        expect(calculateEstimatedIndex(200, 200, 10)).toBe(10);
+        expect(calculateEstimatedIndex(200, 200, 10)).to.equal(10);
     });
 });
 
@@ -103,8 +98,8 @@ describe("useEditableLabel", () => {
             onUpdate: jest.fn(),
         }));
 
-        expect(result.current.editedLabel).toBe("initial");
-        expect(result.current.isEditingLabel).toBe(false);
+        expect(result.current.editedLabel).to.equal("initial");
+        expect(result.current.isEditingLabel).to.equal(false);
     });
 
     it("updates editedLabel when label prop changes", () => {
@@ -116,7 +111,7 @@ describe("useEditableLabel", () => {
         }));
 
         rerender({ isEditable: true, isMultiline: false, label: "updated", onUpdate: jest.fn() });
-        expect(result.current.editedLabel).toBe("updated");
+        expect(result.current.editedLabel).to.equal("updated");
     });
 
     it("starts editing label on startEditingLabel call", () => {
@@ -132,7 +127,7 @@ describe("useEditableLabel", () => {
             currentTarget: { offsetWidth: 100, getBoundingClientRect: () => ({ left: 0 }) } as any,
         } as React.MouseEvent<HTMLElement>));
 
-        expect(result.current.isEditingLabel).toBe(true);
+        expect(result.current.isEditingLabel).to.equal(true);
     });
 
     it("handles label change and updates editedLabel state", () => {
@@ -144,7 +139,7 @@ describe("useEditableLabel", () => {
         }));
 
         act(() => result.current.handleLabelChange({ target: { value: "new label" } }));
-        expect(result.current.editedLabel).toBe("new label");
+        expect(result.current.editedLabel).to.equal("new label");
     });
 
     it("submits label change when editedLabel is modified", () => {

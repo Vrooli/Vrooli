@@ -1,5 +1,5 @@
 import { MemberInvite, MemberInviteShape } from "@local/shared";
-import { CrudPropsDialog, FormProps } from "../../../types";
+import { CrudPropsDialog, FormProps } from "../../../types.js";
 
 type MemberInvitesUpsertPropsDialog = Omit<CrudPropsDialog<MemberInvite[]>, "overrideObject"> & {
     invites: MemberInviteShape[];

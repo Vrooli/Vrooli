@@ -3,14 +3,14 @@
  */
 import { getTranslation, NodeShape, NodeType, uuid } from "@local/shared";
 import { Autocomplete, Box, DialogContent, Stack, Typography, useTheme } from "@mui/material";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { TextInput } from "components/inputs/TextInput/TextInput";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { TextInput } from "components/inputs/TextInput/TextInput.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { PubSub } from "utils/pubsub";
-import { DialogTitle } from "../DialogTitle/DialogTitle";
-import { LargeDialog } from "../LargeDialog/LargeDialog";
-import { LinkDialogProps } from "../types";
+import { PubSub } from "utils/pubsub.js";
+import { DialogTitle } from "../DialogTitle/DialogTitle.js";
+import { LargeDialog } from "../LargeDialog/LargeDialog.js";
+import { LinkDialogProps } from "../types.js";
 
 const helpText =
     "This dialog allows you create new links between nodes, which specifies the order in which the nodes are executed.\n\nIn the future, links will also be able to specify conditions, which must be true in order for the path to be available.";

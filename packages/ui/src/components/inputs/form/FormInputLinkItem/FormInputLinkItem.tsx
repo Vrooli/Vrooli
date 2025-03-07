@@ -1,16 +1,16 @@
 import { LinkItemFormInput, LinkItemFormInputProps, LinkItemType, TranslationFuncCommon, getFormikFieldName } from "@local/shared";
 import { Autocomplete, Button, Chip, ListItemIcon, ListItemText, MenuItem, TextField, useTheme } from "@mui/material";
 import { LinkInputBase } from "components/inputs/LinkInput/LinkInput";
-import { TextInput } from "components/inputs/TextInput/TextInput";
+import { TextInput } from "components/inputs/TextInput/TextInput.js";
 import { useField } from "formik";
-import { ApiIcon, ArticleIcon, HelpIcon, NoteIcon, ObjectIcon, ProjectIcon, RoutineIcon, SmartContractIcon, TeamIcon, TerminalIcon, UserIcon } from "icons";
+import { ApiIcon, ArticleIcon, HelpIcon, NoteIcon, ObjectIcon, ProjectIcon, RoutineIcon, SmartContractIcon, TeamIcon, TerminalIcon, UserIcon } from "icons/common.js";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SvgComponent } from "types";
-import { CHIP_LIST_LIMIT } from "utils/consts";
-import { PubSub } from "utils/pubsub";
-import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles";
-import { FormInputProps } from "../types";
+import { CHIP_LIST_LIMIT } from "utils/consts.js";
+import { PubSub } from "utils/pubsub.js";
+import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles.js";
+import { FormInputProps } from "../types.js";
 
 type LimitTypeOption = {
     Icon: SvgComponent;
@@ -56,8 +56,13 @@ const limitTypeOptions: LimitTypeOption[] = [
     },
     {
         Icon: RoutineIcon,
-        label: t => t("common:Routine", { count: 1, defaultValue: "Routine" }),
-        value: "Routine",
+        label: t => t("common:RoutineMultiStep", { count: 1, defaultValue: "Multi-step routine (flow)" }),
+        value: "RoutineMultiStep",
+    },
+    {
+        Icon: RoutineIcon,
+        label: t => t("common:RoutineSingleStep", { count: 1, defaultValue: "Single-step routine (action)" }),
+        value: "RoutineSingleStep",
     },
     {
         Icon: SmartContractIcon,

@@ -1,3 +1,3 @@
-export * from "./MeetingUpsert/MeetingUpsert";
-export * from "./MeetingView/MeetingView";
+export * from "./MeetingUpsert.js";
+export * from "./MeetingView.js";
 

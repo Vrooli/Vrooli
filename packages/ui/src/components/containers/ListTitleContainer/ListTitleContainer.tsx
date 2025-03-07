@@ -4,8 +4,8 @@
 // Used to display popular/search results of a particular object type
 import { List, Typography } from "@mui/material";
 import { useTranslation } from "react-i18next";
-import { TitleContainer } from "../TitleContainer/TitleContainer";
-import { ListTitleContainerProps } from "../types";
+import { TitleContainer } from "../TitleContainer/TitleContainer.js";
+import { ListTitleContainerProps } from "../types.js";
 
 export function ListTitleContainer({
     children,

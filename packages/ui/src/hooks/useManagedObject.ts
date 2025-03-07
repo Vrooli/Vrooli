@@ -1,15 +1,15 @@
 import { DUMMY_ID, FindByIdInput, FindByIdOrHandleInput, FindVersionInput, ModelType, ParseSearchParamsResult, YouInflated, exists, isEqual, parseSearchParams } from "@local/shared";
-import { ServerResponseParser } from "api/responseParser";
-import { FetchInputOptions } from "api/types";
+import { ServerResponseParser } from "api/responseParser.js";
+import { FetchInputOptions } from "api/types.js";
 import { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "route";
 import { PartialWithType } from "types";
-import { defaultYou, getYou } from "utils/display/listTools";
-import { getCookiePartialData, removeCookiePartialData, setCookiePartialData } from "utils/localStorage";
-import { UrlInfo, parseSingleItemUrl } from "utils/navigation/urlTools";
-import { PubSub } from "utils/pubsub";
-import { useFormCacheStore } from "./forms";
-import { useLazyFetch } from "./useLazyFetch";
+import { defaultYou, getYou } from "utils/display/listTools.js";
+import { getCookiePartialData, removeCookiePartialData, setCookiePartialData } from "utils/localStorage.js";
+import { UrlInfo, parseSingleItemUrl } from "utils/navigation/urlTools.js";
+import { PubSub } from "utils/pubsub.js";
+import { useFormCacheStore } from "./forms.js";
+import { useLazyFetch } from "./useLazyFetch.js";
 
 type UrlObject = { __typename: ModelType | `${ModelType}`; id?: string };
 

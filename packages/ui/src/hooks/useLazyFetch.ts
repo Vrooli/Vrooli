@@ -1,6 +1,6 @@
 import { HttpMethod, ServerResponse } from "@local/shared";
 import { fetchData } from "api/fetchData";
-import { ServerResponseParser } from "api/responseParser";
+import { ServerResponseParser } from "api/responseParser.js";
 import { LazyRequestWithResult, ServerResponseWithTimestamp } from "api/types";
 import { useCallback, useRef, useState } from "react";
 

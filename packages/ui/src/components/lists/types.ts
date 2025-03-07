@@ -1,15 +1,15 @@
+import { type DraggableProvidedDragHandleProps, type DraggableProvidedDraggableProps } from "@hello-pangea/dnd";
 import { ApiVersionShape, BookmarkList, Chat, ChatInvite, ChatParticipant, CodeVersionShape, FocusMode, ListObject, Meeting, MeetingInvite, Member, MemberInvite, NavigableObject, NoteVersionShape, Notification, OrArray, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionShape, QuestionForType, Reminder, ReminderList, Report, ReportResponse, Resource, ResourceList, ResourceListFor, Role, Routine, RoutineVersion, RoutineVersionShape, RunProject, RunRoutine, SearchType, StandardVersionShape, Tag, Team, TeamShape, TimeFrame, TranslationKeyCommon, User } from "@local/shared";
-import { LineGraphProps } from "components/graphs/types";
-import { UsePressEvent } from "hooks/gestures";
-import { type UseObjectActionsReturn } from "hooks/objectActions";
-import { type UseFindManyResult } from "hooks/useFindMany";
+import { LineGraphProps } from "components/graphs/types.js";
+import { UsePressEvent } from "hooks/gestures.js";
+import { type UseObjectActionsReturn } from "hooks/objectActions.js";
+import { type UseFindManyResult } from "hooks/useFindMany.js";
 import { ReactNode } from "react";
-import { type DraggableProvidedDragHandleProps, type DraggableProvidedDraggableProps } from "react-beautiful-dnd";
 import { SvgComponent, SxType, ViewDisplayType } from "types";
-import { ObjectAction } from "utils/actions/objectActions";
-import { RelationshipButtonType } from "utils/consts";
-import { ObjectType } from "utils/navigation/openObject";
-import { ObjectListProps } from "./ObjectList/ObjectList";
+import { ObjectAction } from "utils/actions/objectActions.js";
+import { RelationshipButtonType } from "utils/consts.js";
+import { ObjectType } from "utils/navigation/openObject.js";
+import { ObjectListProps } from "./ObjectList/ObjectList.js";
 
 export interface ObjectActionsRowProps<T extends ListObject> {
     actionData: UseObjectActionsReturn;
@@ -72,7 +72,7 @@ export type RunProjectListItemProps = ObjectListItemProps<RunProject>
 export type RunRoutineListItemProps = ObjectListItemProps<RunRoutine>
 
 export interface DateRangeMenuProps {
-    anchorEl: HTMLElement | null;
+    anchorEl: Element | null;
     onClose: () => unknown;
     onSubmit: (after?: Date | undefined, before?: Date | undefined) => unknown;
     minDate?: Date;

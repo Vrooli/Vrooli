@@ -1,6 +1,6 @@
 import { Schedule, ScheduleShape, TranslationKeyCommon } from "@local/shared";
 import { SvgComponent } from "types";
-import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps } from "../../../types";
+import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps } from "../../../types.js";
 
 export type ScheduleForType = "FocusMode" | "Meeting" | "RunProject" | "RunRoutine";
 

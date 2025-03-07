@@ -1,7 +1,7 @@
 import { ListItem, Stack, Typography, useTheme } from "@mui/material";
-import { ToggleSwitch } from "components/inputs/ToggleSwitch/ToggleSwitch";
+import { ToggleSwitch } from "components/inputs/ToggleSwitch/ToggleSwitch.js";
 import { useField } from "formik";
-import { SettingsToggleListItemProps } from "../types";
+import { SettingsToggleListItemProps } from "../types.js";
 
 export const SettingsToggleListItem = ({
     description,

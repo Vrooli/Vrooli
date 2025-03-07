@@ -1,5 +1,5 @@
 import { endpointsRoutine, FormSchema, InputType, RoutineSortBy, RoutineType } from "@local/shared";
-import { ActionIcon, ApiIcon, CaseSensitiveIcon, HelpIcon, MagicIcon, RoutineIcon, SmartContractIcon, TerminalIcon } from "icons";
+import { ActionIcon, ApiIcon, CaseSensitiveIcon, HelpIcon, MagicIcon, RoutineIcon, SmartContractIcon, TerminalIcon } from "icons/common.js";
 import { SvgProps } from "types";
 import { toParams } from "./base.js";
 import { bookmarksContainer, bookmarksFields, hasCompleteVersionContainer, hasCompleteVersionFields, languagesVersionContainer, languagesVersionFields, searchFormLayout, tagsContainer, tagsFields, votesContainer, votesFields } from "./common.js";

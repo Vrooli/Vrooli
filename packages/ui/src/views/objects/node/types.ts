@@ -1,5 +1,5 @@
 import { Node, NodeEnd, NodeEndShape, NodeRoutineList, NodeRoutineListShape, NodeShape } from "@local/shared";
-import { CrudProps, FormProps } from "../../../types";
+import { CrudProps, FormProps } from "../../../types.js";
 
 export type NodeWithEnd = Node & { end: NodeEnd };
 export type NodeWithEndShape = NodeShape & { end: NodeEndShape };

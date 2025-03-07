@@ -1,5 +1,5 @@
 import { Checkbox, FormControlLabel } from "@mui/material";
-import { CheckboxInputProps } from "../types";
+import { CheckboxInputProps } from "../types.js";
 
 export function CheckboxInput({
     disabled,

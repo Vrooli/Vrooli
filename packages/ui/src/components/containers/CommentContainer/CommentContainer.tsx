@@ -3,17 +3,17 @@
  */
 import { Comment, CommentThread as ThreadType, lowercaseFirstLetter, uuidValidate } from "@local/shared";
 import { Button, Stack, useTheme } from "@mui/material";
-import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons";
-import { CommentThread } from "components/lists/CommentThread/CommentThread";
-import { useFindMany } from "hooks/useFindMany";
-import { useWindowSize } from "hooks/useWindowSize";
-import { CreateIcon } from "icons";
+import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons.js";
+import { CommentThread } from "components/lists/CommentThread/CommentThread.js";
+import { useFindMany } from "hooks/useFindMany.js";
+import { useWindowSize } from "hooks/useWindowSize.js";
+import { CreateIcon } from "icons/common.js";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { scrollIntoFocusedView } from "utils/display/scroll";
-import { CommentUpsert } from "views/objects/comment";
-import { ContentCollapse } from "../ContentCollapse/ContentCollapse";
-import { CommentContainerProps } from "../types";
+import { scrollIntoFocusedView } from "utils/display/scroll.js";
+import { CommentUpsert } from "views/objects/comment/CommentUpsert.js";
+import { ContentCollapse } from "../ContentCollapse/ContentCollapse.js";
+import { CommentContainerProps } from "../types.js";
 
 export function CommentContainer({
     forceAddCommentOpen,

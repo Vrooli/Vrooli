@@ -1,15 +1,15 @@
 import { BookmarkFor, DUMMY_ID, endpointsTag, exists, Tag, TagSearchInput, TagSearchResult, TagShape, TagSortBy } from "@local/shared";
 import { Autocomplete, AutocompleteRenderGetTagProps, AutocompleteRenderInputParams, Chip, CircularProgress, InputAdornment, ListItemText, MenuItem, Popper, PopperProps, styled } from "@mui/material";
-import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
+import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton.js";
 import { useField } from "formik";
-import { useFetch } from "hooks/useFetch";
-import { TagIcon } from "icons";
+import { useFetch } from "hooks/useFetch.js";
+import { TagIcon } from "icons/common.js";
 import { HTMLAttributes, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CHIP_LIST_LIMIT } from "utils/consts";
-import { PubSub } from "utils/pubsub";
-import { TextInput } from "../TextInput/TextInput";
-import { TagSelectorBaseProps, TagSelectorProps } from "../types";
+import { CHIP_LIST_LIMIT } from "utils/consts.js";
+import { PubSub } from "utils/pubsub.js";
+import { TextInput } from "../TextInput/TextInput.js";
+import { TagSelectorBaseProps, TagSelectorProps } from "../types.js";
 
 type TagOption = string | Tag | TagShape;
 

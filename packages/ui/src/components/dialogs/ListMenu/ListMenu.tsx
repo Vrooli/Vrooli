@@ -1,10 +1,10 @@
 import { IconButton, List, ListItem, ListItemIcon, ListItemText, Menu, useTheme } from "@mui/material";
-import { HelpButton } from "components/buttons/HelpButton/HelpButton";
-import { useZIndex } from "hooks/useZIndex";
+import { HelpButton } from "components/buttons/HelpButton/HelpButton.js";
+import { useZIndex } from "hooks/useZIndex.js";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { MenuTitle } from "../MenuTitle/MenuTitle";
-import { ListMenuProps } from "../types";
+import { MenuTitle } from "../MenuTitle/MenuTitle.js";
+import { ListMenuProps } from "../types.js";
 
 const titleId = "list-menu-title";
 

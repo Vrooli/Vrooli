@@ -1,19 +1,19 @@
-import { endpointGetTranslate, Translate, TranslateInput } from "@local/shared";
+import { endpointsTranslate, Translate, TranslateInput } from "@local/shared";
 import { IconButton, ListItem, Popover, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { TextInput } from "components/inputs/TextInput/TextInput";
-import { SessionContext } from "contexts";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { useZIndex } from "hooks/useZIndex";
-import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon } from "icons";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
+import { TextInput } from "components/inputs/TextInput/TextInput.js";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
+import { useZIndex } from "hooks/useZIndex.js";
+import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon } from "icons/common.js";
 import { MouseEvent, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FixedSizeList } from "react-window";
-import { AllLanguages, getLanguageSubtag, getUserLanguages } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
-import { ListMenu } from "../ListMenu/ListMenu";
-import { MenuTitle } from "../MenuTitle/MenuTitle";
-import { ListMenuItemData, SelectLanguageMenuProps } from "../types";
+import { AllLanguages, getLanguageSubtag, getUserLanguages } from "utils/display/translationTools.js";
+import { PubSub } from "utils/pubsub.js";
+import { SessionContext } from "../../../contexts.js";
+import { ListMenu } from "../ListMenu/ListMenu.js";
+import { MenuTitle } from "../MenuTitle/MenuTitle.js";
+import { ListMenuItemData, SelectLanguageMenuProps } from "../types.js";
 
 /**
  * Languages which support auto-translations through LibreTranslate. 
@@ -79,7 +79,7 @@ export function SelectLanguageMenu({
     }, []);
 
     // Auto-translates from source to target language
-    const [getAutoTranslation] = useLazyFetch<TranslateInput, Translate>(endpointGetTranslate);
+    const [getAutoTranslation] = useLazyFetch<TranslateInput, Translate>(endpointsTranslate.translate);
     const autoTranslate = useCallback((source: string, target: string) => {
         // Get source translation
         const sourceTranslation = languages.find(l => l === source);
@@ -110,7 +110,7 @@ export function SelectLanguageMenu({
         // Convert to list menu item data
         return autoTranslateLanguagesFiltered.map(l => ({ label: AllLanguages[l], value: l }));
     }, [languages]);
-    const [translateSourceAnchor, setTranslateSourceAnchor] = useState<HTMLElement | null>(null);
+    const [translateSourceAnchor, setTranslateSourceAnchor] = useState<Element | null>(null);
     const openTranslateSource = useCallback((ev: React.MouseEvent<any>, targetLanguage: string) => {
         // Stop propagation so that the list item is not selected
         ev.stopPropagation();
@@ -165,10 +165,10 @@ export function SelectLanguageMenu({
     }, [isEditing, searchString, session, languages]);
 
     // Popup for selecting language
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+    const [anchorEl, setAnchorEl] = useState<Element | null>(null);
     const open = Boolean(anchorEl);
     const zIndex = useZIndex(open, false, 1000);
-    const onOpen = useCallback((event: MouseEvent<HTMLElement>) => {
+    const onOpen = useCallback((event: MouseEvent<Element>) => {
         setAnchorEl(event.currentTarget);
         // Force parent to save current translation TODO this causes infinite render in multi-step routine. not sure why
         if (currentLanguage) handleCurrent(currentLanguage);
@@ -240,6 +240,8 @@ export function SelectLanguageMenu({
                             paddingRight: 1,
                         }}
                     />
+                    {/* TODO Remove this once react-window is updated */}
+                    {/* @ts-expect-error Incompatible JSX type definitions */}
                     <FixedSizeList
                         height={600}
                         width={400}

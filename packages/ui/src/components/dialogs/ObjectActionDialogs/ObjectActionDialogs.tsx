@@ -1,12 +1,12 @@
 import { BookmarkFor, ReportFor } from "@local/shared";
-import { ObjectAction } from "utils/actions/objectActions";
-import { StatsObjectView } from "views/StatsObjectView/StatsObjectView";
-import { ReportUpsert } from "views/objects/report";
-import { SelectBookmarkListDialog } from "../SelectBookmarkListDialog/SelectBookmarkListDialog";
-import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog";
-import { ObjectActionDialogsProps } from "../types";
+import { ObjectAction } from "utils/actions/objectActions.js";
+import { StatsObjectView } from "views/StatsObjectView/StatsObjectView.js";
+import { ReportUpsert } from "views/objects/report/ReportUpsert.js";
+import { SelectBookmarkListDialog } from "../SelectBookmarkListDialog/SelectBookmarkListDialog.js";
+import { ShareObjectDialog } from "../ShareObjectDialog/ShareObjectDialog.js";
+import { ObjectActionDialogsProps } from "../types.js";
 
-export const ObjectActionDialogs = ({
+export function ObjectActionDialogs({
     availableActions,
     isDeleteDialogOpen,
     isBookmarkDialogOpen,
@@ -25,7 +25,7 @@ export const ObjectActionDialogs = ({
     DeleteDialogComponent,
     object,
     objectType,
-}: ObjectActionDialogsProps) => {
+}: ObjectActionDialogsProps) {
     return (
         <>
             {/* openAddCommentDialog?: () => unknown; //TODO: implement
@@ -63,4 +63,4 @@ export const ObjectActionDialogs = ({
             />}
         </>
     );
-};
+}

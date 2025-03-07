@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { cleanup, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { expect } from "chai";
 import React from "react";
-import { render, screen, waitFor } from "../../__mocks__/testUtils";
-import { NavigationArrows, ScrollToBottomButton } from "./ChatBubbleTree";
+import { render, screen, waitFor } from "../../__mocks__/testUtils.js";
+import { NavigationArrows, ScrollToBottomButton } from "./ChatBubbleTree.js";
 
 // describe("ChatBubbleStatus Component", () => {
 //     // eslint-disable-next-line @typescript-eslint/no-unused-vars

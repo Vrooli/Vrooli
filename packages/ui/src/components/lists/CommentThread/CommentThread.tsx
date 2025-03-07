@@ -1,24 +1,24 @@
 import { BookmarkFor, Comment, CommentFor, DeleteOneInput, DeleteType, ReactionFor, ReportFor, Success, endpointsActions, getTranslation, updateArray } from "@local/shared";
 import { Avatar, Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
-import { ReportButton } from "components/buttons/ReportButton/ReportButton";
-import { ShareButton } from "components/buttons/ShareButton/ShareButton";
-import { VoteButton } from "components/buttons/VoteButton/VoteButton";
-import { TextLoading } from "components/lists/TextLoading/TextLoading";
-import { OwnerLabel } from "components/text/OwnerLabel/OwnerLabel";
-import { SessionContext } from "contexts";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { DeleteIcon, OpenThreadIcon, ReplyIcon, TeamIcon, UserIcon } from "icons";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
+import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton.js";
+import { ReportButton } from "components/buttons/ReportButton/ReportButton.js";
+import { ShareButton } from "components/buttons/ShareButton/ShareButton.js";
+import { VoteButton } from "components/buttons/VoteButton/VoteButton.js";
+import { TextLoading } from "components/lists/TextLoading/TextLoading.js";
+import { OwnerLabel } from "components/text/OwnerLabel.js";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
+import { DeleteIcon, OpenThreadIcon, ReplyIcon, TeamIcon, UserIcon } from "icons/common.js";
 import { useCallback, useContext, useMemo, useState } from "react";
-import { getCurrentUser } from "utils/authentication/session";
-import { getYou, placeholderColor } from "utils/display/listTools";
-import { displayDate } from "utils/display/stringTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import { ObjectType } from "utils/navigation/openObject";
-import { PubSub } from "utils/pubsub";
-import { CommentUpsert } from "views/objects/comment";
-import { CommentConnectorProps, CommentThreadItemProps, CommentThreadProps } from "../../types";
+import { getCurrentUser } from "utils/authentication/session.js";
+import { getYou, placeholderColor } from "utils/display/listTools.js";
+import { displayDate } from "utils/display/stringTools.js";
+import { getUserLanguages } from "utils/display/translationTools.js";
+import { ObjectType } from "utils/navigation/openObject.js";
+import { PubSub } from "utils/pubsub.js";
+import { CommentUpsert } from "views/objects/comment/CommentUpsert.js";
+import { SessionContext } from "../../../contexts.js";
+import { CommentConnectorProps, CommentThreadItemProps, CommentThreadProps } from "../../types.js";
 
 /**
  * Collapsible, vertical line for indicating a comment level. Top of line 

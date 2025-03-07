@@ -1,4 +1,4 @@
 
-export * from "./ApiUpsert/ApiUpsert";
-export * from "./ApiView/ApiView";
+export * from "./ApiUpsert.js";
+export * from "./ApiView.js";
 

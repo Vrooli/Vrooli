@@ -1,12 +1,12 @@
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogProps, Palette, styled, useTheme } from "@mui/material";
-import { useZIndex } from "hooks/useZIndex";
+import { useZIndex } from "hooks/useZIndex.js";
 import i18next from "i18next";
-import { ErrorIcon, InfoIcon, SuccessIcon, WarningIcon } from "icons";
+import { ErrorIcon, InfoIcon, SuccessIcon, WarningIcon } from "icons/common.js";
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { translateSnackMessage } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
-import { DialogTitle } from "../DialogTitle/DialogTitle";
+import { translateSnackMessage } from "utils/display/translationTools.js";
+import { PubSub } from "utils/pubsub.js";
+import { DialogTitle } from "../DialogTitle/DialogTitle.js";
 
 interface StateButton {
     label: string;

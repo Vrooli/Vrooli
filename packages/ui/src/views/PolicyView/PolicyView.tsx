@@ -1,19 +1,19 @@
 import { convertToDot, valueFromDot } from "@local/shared";
 import { Box, styled } from "@mui/material";
-import privacyMarkdown from "assets/policy/privacy.md";
-import { PageContainer } from "components/Page/Page.js";
-import { PageTabs } from "components/PageTabs/PageTabs";
-import { Footer } from "components/navigation/Footer/Footer.js";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
-import { useMarkdown } from "hooks/useMarkdown";
-import { PageTab, useTabs } from "hooks/useTabs";
 import { ChangeEvent, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { ScrollBox } from "styles";
-import { BUSINESS_DATA } from "utils/consts.js";
-import { PolicyTabsInfo, TabParamBase, policyTabParams } from "utils/search/objectToSearch";
-import { MarkdownDisplay } from "../../components/text/MarkdownDisplay/MarkdownDisplay";
+import privacyMarkdown from "../../assets/policy/privacy.md";
+import { PageContainer } from "../../components/Page/Page.js";
+import { PageTabs } from "../../components/PageTabs/PageTabs.js";
+import { Footer } from "../../components/navigation/Footer/Footer.js";
+import { TopBar } from "../../components/navigation/TopBar/TopBar.js";
+import { MarkdownDisplay } from "../../components/text/MarkdownDisplay.js";
+import { useMarkdown } from "../../hooks/useMarkdown.js";
+import { PageTab, useTabs } from "../../hooks/useTabs.js";
+import { ScrollBox } from "../../styles.js";
+import { BUSINESS_DATA } from "../../utils/consts.js";
+import { PolicyTabsInfo, TabParamBase, policyTabParams } from "../../utils/search/objectToSearch.js";
 import { PrivacyPolicyViewProps, TermsViewProps } from "../types.js";
 
 export enum PolicyTabOption {

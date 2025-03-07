@@ -1,15 +1,15 @@
 import { AutocompleteOption, ListObject, SearchType, TimeFrame, addToArray, deepClone, deleteArrayIndex, exists, lowercaseFirstLetter, parseSearchParams, updateArray } from "@local/shared";
-import { SearchQueryVariablesInput } from "components/lists/types";
-import { SessionContext } from "contexts";
+import { SearchQueryVariablesInput } from "components/lists/types.js";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { SetLocation, addSearchParams, useLocation } from "route";
-import { listToAutocomplete } from "utils/display/listTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import { searchTypeToParams } from "utils/search/objectToSearch";
-import { SearchParams } from "utils/search/schemas/base";
-import { useLazyFetch } from "./useLazyFetch";
-import { useStableCallback } from "./useStableCallback";
-import { useStableObject } from "./useStableObject";
+import { listToAutocomplete } from "utils/display/listTools.js";
+import { getUserLanguages } from "utils/display/translationTools.js";
+import { searchTypeToParams } from "utils/search/objectToSearch.js";
+import { SearchParams } from "utils/search/schemas/base.js";
+import { SessionContext } from "../contexts.js";
+import { useLazyFetch } from "./useLazyFetch.js";
+import { useStableCallback } from "./useStableCallback.js";
+import { useStableObject } from "./useStableObject.js";
 
 type UseFindManyProps = {
     canSearch?: (where: any) => boolean; // Checking against "where" can be useful to ensure that it has been updated

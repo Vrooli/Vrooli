@@ -1,12 +1,12 @@
 import { CheckCreditsPaymentParams, CheckCreditsPaymentResponse, CheckSubscriptionParams, CheckSubscriptionResponse, CreateCheckoutSessionParams, CreateCheckoutSessionResponse, CreatePortalSessionParams, CreatePortalSessionResponse, LINKS, PaymentType, StripeEndpoint, SubscriptionPricesResponse, TranslationKeyCommon, UrlTools, parseSearchParams } from "@local/shared";
 import { loadStripe } from "@stripe/stripe-js";
-import { fetchData } from "api/fetchData";
-import { SessionContext } from "contexts";
+import { fetchData } from "api/fetchData.js";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { addSearchParams, openLink, removeSearchParams, useLocation } from "route";
 import { getCurrentUser } from "utils/authentication/session.js";
 import { PubSub } from "utils/pubsub.js";
-import { useFetch } from "./useFetch";
+import { SessionContext } from "../contexts.js";
+import { useFetch } from "./useFetch.js";
 
 const stripePromise = loadStripe(process.env.VITE_STRIPE_PUBLISHABLE_KEY ?? "");
 

@@ -1,8 +1,8 @@
 import { Breadcrumbs, Link } from "@mui/material";
 import { useMemo } from "react";
 import { openLink, useLocation } from "route";
-import { noSelect } from "styles";
-import { BreadcrumbsBaseProps } from "../types";
+import { noSelect } from "../../../styles.js";
+import { BreadcrumbsBaseProps } from "../types.js";
 
 const DEFAULT_SEPARATOR = "|";
 const DEFAULT_ARIA_LABEL = "breadcrumb";

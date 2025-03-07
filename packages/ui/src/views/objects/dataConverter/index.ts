@@ -1,3 +1,3 @@
-export * from "./DataConverterUpsert/DataConverterUpsert";
-export * from "./DataConverterView/DataConverterView";
+export * from "./DataConverterUpsert.js";
+export * from "./DataConverterView.js";
 
