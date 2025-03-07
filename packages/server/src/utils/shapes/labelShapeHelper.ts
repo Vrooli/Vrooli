@@ -1,6 +1,6 @@
-import { shapeHelper, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper";
-import { RelationshipType } from "../../builders/types";
-import { prismaInstance } from "../../db/instance";
+import { shapeHelper, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper.js";
+import { RelationshipType } from "../../builders/types.js";
+import { DbProvider } from "../../db/provider.js";
 
 // Types of objects which have labels
 type LabelledObjectType = "Api" | "Chat" | "Code" | "FocusMode" | "Issue" | "Meeting" | "Note" | "Project" | "Routine" | "Schedule" | "Standard";
@@ -32,7 +32,7 @@ type LabelShapeHelperProps<
 /**
 * Add, update, or remove label data for an object.
 */
-export const labelShapeHelper = async <
+export async function labelShapeHelper<
     Types extends readonly RelationshipType[],
 >({
     data,
@@ -40,7 +40,7 @@ export const labelShapeHelper = async <
     relation = "labels",
     ...rest
 }: LabelShapeHelperProps<Types>):
-    Promise<ShapeHelperOutput<false, "id">> => {
+    Promise<ShapeHelperOutput<false, "id">> {
     // Labels get special logic because they are treated as strings in GraphQL, 
     // instead of a normal relationship object
     // If any label creates/connects, make sure they exist/not exist
@@ -55,7 +55,7 @@ export const labelShapeHelper = async <
     const initialCombined = [...initialCreate, ...initialConnect];
     if (initialCombined.length > 0) {
         // Query for all of the labels, to determine which ones exist
-        const existing = await prismaInstance.label.findMany({
+        const existing = await DbProvider.get().label.findMany({
             where: { label: { in: initialCombined } },
             select: { id: true },
         });
@@ -86,4 +86,4 @@ export const labelShapeHelper = async <
         relation,
         ...rest,
     });
-};
+}

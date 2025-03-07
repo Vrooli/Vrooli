@@ -1,4 +1,4 @@
-import { logger } from "../events";
+import { logger } from "../events/logger.js";
 
 const SPACES_IN_TAB = 2;
 

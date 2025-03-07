@@ -1,8 +1,8 @@
 import { ModelType, SessionUser } from "@local/shared";
-import { CustomError } from "../../events/error";
-import { Trigger } from "../../events/trigger";
-import { TransferModel } from "../../models/base/transfer";
-import { PreMap } from "../../models/types";
+import { CustomError } from "../../events/error.js";
+import { Trigger } from "../../events/trigger.js";
+import { TransferModel } from "../../models/base/transfer.js";
+import { PreMap } from "../../models/types.js";
 
 /**
  * Used in mutate.trigger.onCommon of version objects. Has two purposes:

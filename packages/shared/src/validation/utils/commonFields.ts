@@ -6,14 +6,14 @@
  * that format matches the fields below, there should be no errors.
  */
 import * as yup from "yup";
-import { ReportFor } from "../../api/types";
-import { uuidValidate } from "../../id/uuid";
-import { urlRegexDev } from "../../validation/utils/regex";
-import { YupMutateParams } from "../../validation/utils/types";
-import { enumToYup } from "./builders";
-import { maxNumErr, maxStrErr, minNumErr, minStrErr, reqErr } from "./errors";
-import { handleRegex, hexColorRegex, urlRegex } from "./regex";
-import { meetsMinVersion } from "./versions";
+import { ReportFor } from "../../api/types.js";
+import { uuidValidate } from "../../id/uuid.js";
+import { urlRegexDev } from "../../validation/utils/regex.js";
+import { YupMutateParams } from "../../validation/utils/types.js";
+import { enumToYup } from "./builders/convert.js";
+import { maxNumErr, maxStrErr, minNumErr, minStrErr, reqErr } from "./errors.js";
+import { handleRegex, hexColorRegex, urlRegex } from "./regex.js";
+import { meetsMinVersion } from "./versions.js";
 
 /**
  * Test for minimum version

@@ -1,5 +1,5 @@
 import { ParseSearchParamsResult, stringifySearchParams } from "@local/shared";
-import { SetLocation } from "./types";
+import { SetLocation } from "./types.js";
 
 /**
  * Opens link using routing or a new tab, depending on the link
@@ -17,4 +17,4 @@ export function openLink(setLocation: SetLocation, link: string, searchParams?: 
     else {
         setLocation(link, { searchParams });
     }
-};
+}

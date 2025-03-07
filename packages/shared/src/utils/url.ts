@@ -1,6 +1,6 @@
-import { ApiVersion, Bookmark, ChatParticipant, Code, CodeType, CodeVersion, Member, ModelType, NoteVersion, Notification, ProjectVersion, Reaction, Routine, RoutineType, RoutineVersion, RunProject, RunRoutine, Schedule, Session, Standard, StandardType, StandardVersion, View } from "../api/types";
-import { LINKS } from "../consts/ui";
-import { isOfType } from "./objects";
+import { ApiVersion, Bookmark, ChatParticipant, Code, CodeType, CodeVersion, Member, ModelType, NoteVersion, Notification, ProjectVersion, Reaction, Routine, RoutineType, RoutineVersion, RunProject, RunRoutine, Schedule, Session, Standard, StandardType, StandardVersion, View } from "../api/types.js";
+import { LINKS } from "../consts/ui.js";
+import { isOfType } from "./objects.js";
 
 export type UrlPrimitive = string | number | boolean | object;
 export type ParseSearchParamsResult = { [x: string]: UrlPrimitive | UrlPrimitive[] | ParseSearchParamsResult | null | undefined };

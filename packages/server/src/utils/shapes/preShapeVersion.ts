@@ -1,6 +1,6 @@
 import { ModelType } from "@local/shared";
-import { WithIdField } from "../../types";
-import { EmbeddingLanguageUpdateMap, preShapeEmbeddableTranslatable } from "./preShapeEmbeddableTranslatable";
+import { WithIdField } from "../../types.js";
+import { EmbeddingLanguageUpdateMap, preShapeEmbeddableTranslatable } from "./preShapeEmbeddableTranslatable.js";
 
 type PreShapeVersionParams<IdField extends string = "id"> = {
     Create: {
@@ -27,11 +27,11 @@ export type PreShapeVersionResult = {
  * 1. Calculate embeddingNeedsUpdate flag for translations relationship
  * @returns object with embeddingNeedsUpdate flag
  */
-export const preShapeVersion = <IdField extends string = "id">({
+export function preShapeVersion<IdField extends string = "id">({
     Create,
     Update,
     objectType,
-}: PreShapeVersionParams<IdField>): PreShapeVersionResult => {
+}: PreShapeVersionParams<IdField>): PreShapeVersionResult {
     const { embeddingNeedsUpdateMap } = preShapeEmbeddableTranslatable<IdField>({ Create, Update, objectType });
     return { embeddingNeedsUpdateMap };
-};
+}

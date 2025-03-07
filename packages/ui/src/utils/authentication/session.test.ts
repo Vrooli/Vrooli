@@ -1,13 +1,14 @@
 import { Session, SessionUser, uuid } from "@local/shared";
-import { checkIfLoggedIn, getCurrentUser } from "./session";
+import { expect } from "chai";
+import { checkIfLoggedIn, getCurrentUser } from "./session.js";
 
 describe("getCurrentUser", () => {
     it("should return an empty object if session is null", () => {
-        expect(getCurrentUser(null)).toEqual({});
+        expect(getCurrentUser(null)).to.deep.equal({});
     });
 
     it("should return an empty object if session is undefined", () => {
-        expect(getCurrentUser(undefined)).toEqual({});
+        expect(getCurrentUser(undefined)).to.deep.equal({});
     });
 
     it("should return an empty object if user is not logged in", () => {
@@ -15,7 +16,7 @@ describe("getCurrentUser", () => {
             isLoggedIn: false,
             users: [],
         } as unknown as Session;
-        expect(getCurrentUser(session)).toEqual({});
+        expect(getCurrentUser(session)).to.deep.equal({});
     });
 
     it("should return an empty object if users array is empty", () => {
@@ -23,7 +24,7 @@ describe("getCurrentUser", () => {
             isLoggedIn: true,
             users: [],
         } as unknown as Session;
-        expect(getCurrentUser(session)).toEqual({});
+        expect(getCurrentUser(session)).to.deep.equal({});
     });
 
     it("should return an empty object if users array is not an array", () => {
@@ -31,7 +32,7 @@ describe("getCurrentUser", () => {
             isLoggedIn: true,
             users: null,
         } as Session;
-        expect(getCurrentUser(session)).toEqual({});
+        expect(getCurrentUser(session)).to.deep.equal({});
     });
 
     it("should return an empty object if user ID is not a valid UUID", () => {
@@ -39,7 +40,7 @@ describe("getCurrentUser", () => {
             isLoggedIn: true,
             users: [{ id: "invalid-uuid" }] as SessionUser[],
         } as Session;
-        expect(getCurrentUser(session)).toEqual({});
+        expect(getCurrentUser(session)).to.deep.equal({});
     });
 
     it("should return user data if user ID is a valid UUID", () => {
@@ -54,7 +55,7 @@ describe("getCurrentUser", () => {
             isLoggedIn: true,
             users: [expectedUser],
         } as Session;
-        expect(getCurrentUser(session)).toEqual(expectedUser);
+        expect(getCurrentUser(session)).to.deep.equal(expectedUser);
     });
 });
 
@@ -63,26 +64,26 @@ describe("checkIfLoggedIn", () => {
         jest.clearAllMocks();
         global.localStorage.clear();
     });
-    afterAll(() => {
+    after(() => {
         global.localStorage.clear();
         jest.restoreAllMocks();
     });
 
     it("should return true if session is null and local storage has isLoggedIn set to true", () => {
         localStorage.setItem("isLoggedIn", "true");
-        expect(checkIfLoggedIn(null)).toBe(true);
+        expect(checkIfLoggedIn(null)).to.equal(true);
     });
 
     it("should return false if session is null and local storage does not have isLoggedIn set to true", () => {
         localStorage.setItem("isLoggedIn", "false");
-        expect(checkIfLoggedIn(null)).toBe(false);
+        expect(checkIfLoggedIn(null)).to.equal(false);
     });
 
     it("should return false is session is valid but isLoggedIn is false", () => {
         const session = {
             isLoggedIn: false,
         } as Session;
-        expect(checkIfLoggedIn(session)).toBe(false);
+        expect(checkIfLoggedIn(session)).to.equal(false);
     });
 
     it("should return true is session is true and local storage has an invalid value, since the session overrides local storage", () => {
@@ -90,7 +91,7 @@ describe("checkIfLoggedIn", () => {
             isLoggedIn: true,
         } as Session;
         localStorage.setItem("isLoggedIn", "chicken");
-        expect(checkIfLoggedIn(session)).toBe(true);
+        expect(checkIfLoggedIn(session)).to.equal(true);
     });
 
     it("should return false is session is false and local storage is invalid", () => {
@@ -98,13 +99,13 @@ describe("checkIfLoggedIn", () => {
             isLoggedIn: false,
         } as Session;
         localStorage.setItem("isLoggedIn", "chicken");
-        expect(checkIfLoggedIn(session)).toBe(false);
+        expect(checkIfLoggedIn(session)).to.equal(false);
     });
 
     it("should return true is session is valid and isLoggedIn is true", () => {
         const session = {
             isLoggedIn: true,
         } as Session;
-        expect(checkIfLoggedIn(session)).toBe(true);
+        expect(checkIfLoggedIn(session)).to.equal(true);
     });
 });

@@ -1,7 +1,7 @@
 import { Box, Dialog, DialogContent, DialogTitle, Palette, Typography, useTheme } from "@mui/material";
-import { useZIndex } from "hooks/useZIndex";
+import { useZIndex } from "hooks/useZIndex.js";
 import { useTranslation } from "react-i18next";
-import { TranscriptDialogProps } from "../types";
+import { TranscriptDialogProps } from "../types.js";
 
 const waveBarSx = (palette: Palette) => ({
     width: "8px",

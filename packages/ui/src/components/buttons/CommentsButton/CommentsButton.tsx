@@ -1,16 +1,16 @@
 import { getObjectUrl } from "@local/shared";
 import { Box, ListItemText, Stack, useTheme } from "@mui/material";
-import { CommentIcon } from "icons";
+import { CommentIcon } from "icons/common.js";
 import { useCallback, useMemo } from "react";
 import { useLocation } from "route";
-import { multiLineEllipsis } from "styles";
-import { CommentsButtonProps } from "../types";
+import { multiLineEllipsis } from "../../../styles.js";
+import { CommentsButtonProps } from "../types.js";
 
-export const CommentsButton = ({
+export function CommentsButton({
     commentsCount = 0,
     disabled = false,
     object,
-}: CommentsButtonProps) => {
+}: CommentsButtonProps) {
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
@@ -51,4 +51,4 @@ export const CommentsButton = ({
             />
         </Stack>
     );
-};
+}

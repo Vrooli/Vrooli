@@ -1,5 +1,6 @@
 import { stringifySearchParams } from "@local/shared";
-import { openLink } from "./openLink";
+import { expect } from "chai";
+import { openLink } from "./openLink.js";
 
 describe("openLink", () => {
     let setLocationMock;
@@ -30,7 +31,7 @@ describe("openLink", () => {
         jest.clearAllMocks();
     });
 
-    test("should open external link in a new tab without search params", () => {
+    it("should open external link in a new tab without search params", () => {
         const link = "https://example.com";
 
         openLink(setLocationMock, link);
@@ -39,7 +40,7 @@ describe("openLink", () => {
         expect(setLocationMock).not.toHaveBeenCalled();
     });
 
-    test("should open external link in a new tab with search params", () => {
+    it("should open external link in a new tab with search params", () => {
         const link = "https://example.com";
         const searchParams = { foo: "bar" };
         const linkWithParams = `${link}?foo=%22bar%22`;
@@ -50,7 +51,7 @@ describe("openLink", () => {
         expect(setLocationMock).not.toHaveBeenCalled();
     });
 
-    test("should push to history for internal link without search params", () => {
+    it("should push to history for internal link without search params", () => {
         const link = "/internal-page";
 
         openLink(setLocationMock, link);
@@ -59,7 +60,7 @@ describe("openLink", () => {
         expect(setLocationMock).toHaveBeenCalledWith(link, { searchParams: undefined });
     });
 
-    test("should push to history for internal link with search params", () => {
+    it("should push to history for internal link with search params", () => {
         const link = "/internal-page";
         const searchParams = { foo: "bar" };
 
@@ -69,7 +70,7 @@ describe("openLink", () => {
         expect(setLocationMock).toHaveBeenCalledWith(link, { searchParams });
     });
 
-    test("should handle internal link with origin in link", () => {
+    it("should handle internal link with origin in link", () => {
         const link = `${window.location.origin}/internal-page`;
 
         openLink(setLocationMock, link);
@@ -78,7 +79,7 @@ describe("openLink", () => {
         expect(setLocationMock).toHaveBeenCalledWith(link, { searchParams: undefined });
     });
 
-    test("should handle internal link with origin in link and search params", () => {
+    it("should handle internal link with origin in link and search params", () => {
         const link = `${window.location.origin}/internal-page`;
         const searchParams = { foo: "bar" };
 

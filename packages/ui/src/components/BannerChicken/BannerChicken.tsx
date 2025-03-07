@@ -1,9 +1,9 @@
 import { LINKS } from "@local/shared";
-import { SessionContext } from "contexts";
 import { useContext, useEffect, useMemo } from "react";
 import { useLocation } from "route";
-import { getCurrentUser } from "utils/authentication/session";
-import { PubSub } from "utils/pubsub";
+import { getCurrentUser } from "utils/authentication/session.js";
+import { PubSub } from "utils/pubsub.js";
+import { SessionContext } from "../../contexts.js";
 
 const HALF = 0.5;
 const BLACKLIST_ROUTES = [

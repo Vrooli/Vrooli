@@ -1,7 +1,7 @@
 import { ReservedSocketEvents, RoomSocketEvents, SocketEvent, SocketEventCallbackPayloads, SocketEventPayloads } from "@local/shared";
 import { io } from "socket.io-client";
-import { webSocketUrlBase } from "utils/consts";
-import { PubSub } from "utils/pubsub";
+import { webSocketUrlBase } from "utils/consts.js";
+import { PubSub } from "utils/pubsub.js";
 
 export const socket = io(webSocketUrlBase, { withCredentials: true });
 

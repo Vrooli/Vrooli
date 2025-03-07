@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { arrayToYaml, objectToYaml } from "./toYaml";
+import { expect } from "chai";
+import { arrayToYaml, objectToYaml } from "./toYaml.js";
 
 describe("YAML Conversion", () => {
 
@@ -7,7 +8,7 @@ describe("YAML Conversion", () => {
         it("converts a simple object to YAML", () => {
             const obj = { key: "value", nullKey: null, undefinedKey: undefined, numberKey: 123 };
             const expectedYaml = "key: value\nnullKey: null\nnumberKey: 123\n";
-            expect(objectToYaml(obj)).toEqual(expectedYaml);
+            expect(objectToYaml(obj)).to.deep.equal(expectedYaml);
         });
 
         it("converts nested objects to YAML", () => {
@@ -17,7 +18,7 @@ describe("YAML Conversion", () => {
   child: value
   nullChild: null
 `;
-            expect(objectToYaml(obj)).toEqual(expectedYaml);
+            expect(objectToYaml(obj)).to.deep.equal(expectedYaml);
         });
 
         it("handles multiple keys and nesting", () => {
@@ -63,7 +64,7 @@ second:
           anotherKey: null
 fourth: null
 `;
-            expect(objectToYaml(obj)).toEqual(expectedYaml);
+            expect(objectToYaml(obj)).to.deep.equal(expectedYaml);
         });
 
         it("converts objects with array values to YAML", () => {
@@ -75,24 +76,24 @@ fourth: null
     - subitem1
     - subitem2
 `;
-            expect(objectToYaml(obj)).toEqual(expectedYaml);
+            expect(objectToYaml(obj)).to.deep.equal(expectedYaml);
         });
 
         it("returns an empty string for null input", () => {
             // @ts-ignore: Testing runtime scenario
-            expect(objectToYaml(null)).toEqual("");
+            expect(objectToYaml(null)).to.deep.equal("");
         });
 
         it("returns an empty string for undefined input", () => {
             // @ts-ignore: Testing runtime scenario
-            expect(objectToYaml(undefined)).toEqual("");
+            expect(objectToYaml(undefined)).to.deep.equal("");
         });
 
         it("handles non-object inputs gracefully", () => {
             const nonObjectInputs = ["string", 123, true, []];
             nonObjectInputs.forEach(input => {
                 // @ts-ignore: Testing runtime scenario
-                expect(objectToYaml(input)).toEqual("");
+                expect(objectToYaml(input)).to.deep.equal("");
             });
         });
     });
@@ -101,13 +102,13 @@ fourth: null
         it("converts a simple array to YAML", () => {
             const arr = ["item1", "item2"];
             const expectedYaml = "- item1\n- item2\n";
-            expect(arrayToYaml(arr)).toEqual(expectedYaml);
+            expect(arrayToYaml(arr)).to.deep.equal(expectedYaml);
         });
 
         it("converts an array of objects to YAML", () => {
             const arr = [{ key: "value" }, { anotherKey: "anotherValue" }];
             const expectedYaml = "- key: value\n- anotherKey: anotherValue\n";
-            expect(arrayToYaml(arr)).toEqual(expectedYaml);
+            expect(arrayToYaml(arr)).to.deep.equal(expectedYaml);
         });
 
         it("handles nested arrays", () => {
@@ -118,24 +119,24 @@ fourth: null
 -
   - subitem3
 `;
-            expect(arrayToYaml(arr)).toEqual(expectedYaml);
+            expect(arrayToYaml(arr)).to.deep.equal(expectedYaml);
         });
 
         it("returns an empty string for null input", () => {
             // @ts-ignore: Testing runtime scenario
-            expect(arrayToYaml(null)).toEqual("");
+            expect(arrayToYaml(null)).to.deep.equal("");
         });
 
         it("returns an empty string for undefined input", () => {
             // @ts-ignore: Testing runtime scenario
-            expect(arrayToYaml(undefined)).toEqual("");
+            expect(arrayToYaml(undefined)).to.deep.equal("");
         });
 
         it("handles non-array inputs gracefully", () => {
             const nonArrayInputs = ["string", 123, true, {}];
             nonArrayInputs.forEach(input => {
                 // @ts-ignore: Testing runtime scenario
-                expect(arrayToYaml(input)).toEqual("");
+                expect(arrayToYaml(input)).to.deep.equal("");
             });
         });
     });

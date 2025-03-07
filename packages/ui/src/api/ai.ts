@@ -1,5 +1,5 @@
 import { AIServicesInfo, AITaskConfigJSON, DAYS_1_MS, importAIServiceConfig, importAITaskConfig } from "@local/shared";
-import { apiUrlBase } from "utils/consts";
+import { apiUrlBase } from "utils/consts.js";
 
 const AI_TASK_CONFIG_CACHE_KEY = "AI_CONFIG_CACHE";
 const AI_TASK_CONFIG_CACHE_DURATION = DAYS_1_MS;

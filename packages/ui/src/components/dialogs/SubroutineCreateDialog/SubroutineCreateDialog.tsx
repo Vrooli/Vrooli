@@ -1,15 +1,15 @@
 import { TranslationKeyCommon } from "@local/shared";
 import { Box, IconButton, useTheme } from "@mui/material";
-import { CardGrid } from "components/lists/CardGrid/CardGrid";
-import { TIDCard } from "components/lists/TIDCard/TIDCard";
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { Title } from "components/text/Title/Title";
-import { ArrowLeftIcon, RoutineIcon } from "icons";
+import { CardGrid } from "components/lists/CardGrid/CardGrid.js";
+import { TIDCard } from "components/lists/TIDCard/TIDCard.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { Title } from "components/text/Title.js";
+import { ArrowLeftIcon, RoutineIcon } from "icons/common.js";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SvgComponent } from "types";
-import { LargeDialog } from "../LargeDialog/LargeDialog";
-import { SubroutineCreateDialogProps } from "../types";
+import { LargeDialog } from "../LargeDialog/LargeDialog.js";
+import { SubroutineCreateDialogProps } from "../types.js";
 
 type SubroutineType = "Api" | "Code" | "Data" | "Generate" | "Prompt" | "SmartContract" | "WebContent";
 type SubroutineInfo = {
@@ -64,20 +64,20 @@ const subroutineTypes: SubroutineInfo[] = [
     },
 ];
 
-export const SubroutineCreateDialog = ({
+export function SubroutineCreateDialog({
     isOpen,
     onClose,
-}: SubroutineCreateDialogProps) => {
+}: SubroutineCreateDialogProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const display = "dialog";
 
     const [selectedType, setSelectedType] = useState<SubroutineType | null>(null);
     const [page, setPage] = useState<"select" | "create">("select");
-    const restart = () => {
+    function restart() {
         setPage("select");
         setSelectedType(null);
-    };
+    }
 
     const selectedForm = useMemo(() => {
         if (!selectedType) return null;
@@ -141,4 +141,4 @@ export const SubroutineCreateDialog = ({
             </Box>}
         </LargeDialog>
     );
-};
+}

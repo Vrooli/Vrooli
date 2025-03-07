@@ -1,6 +1,6 @@
 import { uuidValidate } from "@local/shared";
-import { shapeHelper, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper";
-import { RelationshipType } from "../../builders/types";
+import { shapeHelper, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper.js";
+import { RelationshipType } from "../../builders/types.js";
 
 // Types of objects which have tags
 type TaggedObjectType = "Api" | "Code" | "Note" | "Post" | "Project" | "Question" | "Routine" | "Standard" | "Team";
@@ -41,9 +41,9 @@ export async function tagShapeHelper<
     Promise<ShapeHelperOutput<false, "tag">> {
     // Make sure that all tag relations are objects instead of strings
     const keys = ["Create", "Connect", "Delete", "Disconnect", "Update"].map(op => `${relation}${op}` as string);
-    const tagsToObject = (tags: (string | object)[]) => {
+    function tagsToObject(tags: (string | object)[]) {
         return tags.map(t => typeof t === "string" ? uuidValidate(t) ? { id: t } : { tag: t } : t);
-    };
+    }
     keys.forEach(key => {
         if (Array.isArray(data[key])) {
             data[key] = tagsToObject(data[key]);

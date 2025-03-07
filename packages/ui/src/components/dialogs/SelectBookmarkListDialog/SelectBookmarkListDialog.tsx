@@ -3,17 +3,17 @@
  */
 import { Bookmark, BookmarkCreateInput, BookmarkFor, BookmarkList, BookmarkListCreateInput, BookmarkSearchInput, BookmarkSearchResult, Count, DeleteManyInput, DeleteType, endpointsActions, endpointsBookmark, endpointsBookmarkList, lowercaseFirstLetter, shapeBookmark, shapeBookmarkList, uuid } from "@local/shared";
 import { Box, Button, Checkbox, Divider, IconButton, List, ListItem, ListItemButton, ListItemIcon, ListItemText, TextField, Typography, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { SessionContext } from "contexts";
-import { useBookmarkListsStore } from "hooks/objectActions";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { AddIcon, ArrowLeftIcon } from "icons";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { useBookmarkListsStore } from "hooks/objectActions.js";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
+import { AddIcon, ArrowLeftIcon } from "icons/common.js";
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ELEMENT_IDS } from "utils/consts";
-import { LargeDialog } from "../LargeDialog/LargeDialog";
-import { SelectBookmarkListDialogProps } from "../types";
+import { ELEMENT_IDS } from "utils/consts.js";
+import { SessionContext } from "../../../contexts.js";
+import { LargeDialog } from "../LargeDialog/LargeDialog.js";
+import { SelectBookmarkListDialogProps } from "../types.js";
 
 const createListIconButtonStyle = {
     marginLeft: "auto",

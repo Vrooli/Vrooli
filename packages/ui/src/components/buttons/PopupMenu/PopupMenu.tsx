@@ -1,6 +1,6 @@
 import { Button, Popover, useTheme } from "@mui/material";
 import { usePopover } from "hooks/usePopover";
-import { PopupMenuProps } from "../types";
+import { PopupMenuProps } from "../types.js";
 
 const anchorOrigin = {
     vertical: "bottom",

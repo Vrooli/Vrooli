@@ -12,15 +12,15 @@
  * the team's governance structure.
  */
 import { ModelType, ObjectLimit, ObjectLimitOwner, ObjectLimitPremium, ObjectLimitPrivacy, SessionUser } from "@local/shared";
-import { PrismaDelegate } from "../builders/types";
-import { getVisibilityFunc } from "../builders/visibilityBuilder";
-import { prismaInstance } from "../db/instance";
-import { CustomError } from "../events/error";
-import { ModelMap } from "../models/base";
-import { authDataWithInput } from "../utils/authDataWithInput";
-import { AuthDataById } from "../utils/getAuthenticatedData";
-import { getParentInfo } from "../utils/getParentInfo";
-import { InputsById, QueryAction } from "../utils/types";
+import { PrismaDelegate } from "../builders/types.js";
+import { getVisibilityFunc } from "../builders/visibilityBuilder.js";
+import { DbProvider } from "../db/provider.js";
+import { CustomError } from "../events/error.js";
+import { ModelMap } from "../models/base/index.js";
+import { authDataWithInput } from "../utils/authDataWithInput.js";
+import { AuthDataById } from "../utils/getAuthenticatedData.js";
+import { InputsById, QueryAction } from "../utils/types.js";
+import { getParentInfo } from "./permissions.js";
 
 /**
  * Helper function to check if a count exceeds a number
@@ -151,7 +151,7 @@ export async function maxObjectsCheck(
             counts[typename] = counts[typename] || {};
             counts[typename]![ownerId] = counts[typename]![ownerId] || { private: 0, public: 0 };
             // Determine if object is public
-            const isPublic = validator.isPublic(combinedData, (...rest) => getParentInfo(...rest, inputsById), userData.languages);
+            const isPublic = validator.isPublic(combinedData, (...rest) => getParentInfo(...rest, inputsById));
             // Increment count
             counts[typename]![ownerId][isPublic ? "public" : "private"]++;
         }
@@ -173,7 +173,7 @@ export async function maxObjectsCheck(
             counts[authData.__typename] = counts[authData.__typename] || {};
             counts[authData.__typename]![ownerId] = counts[authData.__typename]![ownerId] || { private: 0, public: 0 };
             // Determine if object is public
-            const isPublic = validator.isPublic(authData, (...rest) => getParentInfo(...rest, inputsById), userData.languages);
+            const isPublic = validator.isPublic(authData, (...rest) => getParentInfo(...rest, inputsById));
             // Decrement count
             counts[authData.__typename]![ownerId][isPublic ? "public" : "private"]--;
         }
@@ -182,7 +182,7 @@ export async function maxObjectsCheck(
     // Loop through every object type in the counts object
     for (const objectType of Object.keys(counts)) {
         // Get delegate and validate functions for the object type
-        const delegator = prismaInstance[ModelMap.get(objectType as ModelType, true, "maxObjectsCheck 3").dbTable] as PrismaDelegate;
+        const delegator = DbProvider.get()[ModelMap.get(objectType as ModelType, true, "maxObjectsCheck 3").dbTable] as PrismaDelegate;
         const validator = ModelMap.get(objectType as ModelType, true, "maxObjectsCheck 4").validate();
         // Loop through every owner in the counts object
         for (const ownerId in counts[objectType]!) {

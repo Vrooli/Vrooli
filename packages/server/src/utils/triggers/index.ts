@@ -1,3 +1,3 @@
-export * from "./afterMutationsPlain";
-export * from "./afterMutationsRoot";
+export * from "./afterMutationsPlain.js";
+export * from "./afterMutationsRoot.js";
 

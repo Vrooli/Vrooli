@@ -1,7 +1,8 @@
+import { expect } from "chai";
 import * as yup from "yup";
-import { uuid } from "../../id";
-import { opt, req } from "./builders";
-import { MAX_DOUBLE, MAX_INT, MIN_DOUBLE, MIN_INT, bool, configCallData, configFormInput, configFormOutput, double, doublePositiveOrZero, email, endDate, endTime, handle, hexColor, id, imageFile, index, int, intPositiveOrOne, intPositiveOrZero, minVersionTest, newEndTime, newStartTime, originalStartTime, pushNotificationKeys, startTime, timezone, url, versionLabel } from "./commonFields";
+import { uuid } from "../../id/uuid.js";
+import { opt, req } from "./builders/optionality.js";
+import { MAX_DOUBLE, MAX_INT, MIN_DOUBLE, MIN_INT, bool, configCallData, configFormInput, configFormOutput, double, doublePositiveOrZero, email, endDate, endTime, handle, hexColor, id, imageFile, index, int, intPositiveOrOne, intPositiveOrZero, minVersionTest, newEndTime, newStartTime, originalStartTime, pushNotificationKeys, startTime, timezone, url, versionLabel } from "./commonFields.js";
 
 type Case = string | number | boolean | Date | null | undefined | { [x: string]: Case } | Case[];
 type ValidatorSet = {
@@ -268,10 +269,10 @@ describe("Yup validation tests", () => {
 
     Object.entries(validators).forEach(([key, { schema, valid, invalid, transforms, context }]) => {
         describe(`${key} validation`, () => {
-            const generateTestSchema = (isFieldRequired: boolean): {
+            function generateTestSchema(isFieldRequired: boolean): {
                 testSchema: yup.AnySchema,
                 contextValues: Record<string, unknown>,
-            } => {
+            } {
                 let testSchema = isFieldRequired ? req(schema) : opt(schema);
                 const contextValues: Record<string, unknown> = {};
 
@@ -288,7 +289,7 @@ describe("Yup validation tests", () => {
                     });
                 }
                 return { testSchema, contextValues };
-            };
+            }
 
             // Testing valid cases
             valid?.forEach(v => {
@@ -311,7 +312,7 @@ describe("Yup validation tests", () => {
                     // Validate the testData and check the specific field in the result
                     const validationResult = await testSchema.validate(testData);
                     const fieldResult = context ? validationResult[key] : validationResult;
-                    expect(fieldResult).toBeFalsy(); // Check if the specific field is falsy
+                    expect(fieldResult).to.not.be.ok; // Check if the specific field is falsy
                 });
             });
 
@@ -320,7 +321,7 @@ describe("Yup validation tests", () => {
                 it(`should reject invalid ${key}: ${JSON.stringify(iv)}`, async () => {
                     const { testSchema, contextValues } = generateTestSchema(true);
                     const testData = context ? { ...contextValues, [key]: iv } : iv;
-                    await expect(testSchema.validate(testData)).rejects.toThrow();
+                    await expect(testSchema.validate(testData)).rejects.to.throw();
                 });
             });
 
@@ -340,23 +341,23 @@ describe("Yup validation tests", () => {
 describe("minVersionTest function tests", () => {
     const minVersion = "1.0.0";
 
-    test("version meets the minimum version requirement", () => {
+    it("version meets the minimum version requirement", () => {
         const [, , testFn] = minVersionTest(minVersion);
-        expect(testFn("1.0.1")).toBe(true);
+        expect(testFn("1.0.1")).to.equal(true);
     });
 
-    test("version does not meet the minimum version requirement", () => {
+    it("version does not meet the minimum version requirement", () => {
         const [, , testFn] = minVersionTest(minVersion);
-        expect(testFn("0.9.9")).toBe(false);
+        expect(testFn("0.9.9")).to.equal(false);
     });
 
-    test("undefined version", () => {
+    it("undefined version", () => {
         const [, , testFn] = minVersionTest(minVersion);
-        expect(testFn(undefined)).toBe(true);
+        expect(testFn(undefined)).to.equal(true);
     });
 
-    test("minimum version as input version", () => {
+    it("minimum version as input version", () => {
         const [, , testFn] = minVersionTest(minVersion);
-        expect(testFn(minVersion)).toBe(true);
+        expect(testFn(minVersion)).to.equal(true);
     });
 });

@@ -1,19 +1,19 @@
 import { DeleteAccountInput, endpointsActions, LINKS, Session, userDeleteOneSchema as validationSchema } from "@local/shared";
 import { Button, Checkbox, DialogContent, FormControlLabel, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput";
-import { SessionContext } from "contexts";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
+import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput.js";
 import { Formik } from "formik";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { DeleteIcon } from "icons";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
+import { DeleteIcon } from "icons/common.js";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "route";
-import { getCurrentUser } from "utils/authentication/session";
-import { PubSub } from "utils/pubsub";
-import { DialogTitle } from "../DialogTitle/DialogTitle";
-import { LargeDialog } from "../LargeDialog/LargeDialog";
-import { DeleteAccountDialogProps } from "../types";
+import { getCurrentUser } from "utils/authentication/session.js";
+import { PubSub } from "utils/pubsub.js";
+import { SessionContext } from "../../../contexts.js";
+import { DialogTitle } from "../DialogTitle/DialogTitle.js";
+import { LargeDialog } from "../LargeDialog/LargeDialog.js";
+import { DeleteAccountDialogProps } from "../types.js";
 
 const titleId = "delete-object-dialog-title";
 const initialValues = {
@@ -37,41 +37,47 @@ export function DeleteAccountDialog({
     const { id, name } = useMemo(() => getCurrentUser(session), [session]);
     const [deleteAccount] = useLazyFetch<DeleteAccountInput, Session>(endpointsActions.deleteAccount);
 
+    function onClose() {
+        handleClose(false);
+    }
+
+    function onSubmit(values: DeleteAccountInput) {
+        if (!id) {
+            PubSub.get().publish("snack", { messageKey: "NoUserIdFound", severity: "Error" });
+            return;
+        }
+        fetchLazyWrapper<DeleteAccountInput, Session>({
+            fetch: deleteAccount,
+            inputs: values,
+            successMessage: () => ({ messageKey: "AccountDeleteSuccess" }),
+            onSuccess: (data) => {
+                PubSub.get().publish("session", data);
+                setLocation(LINKS.Home);
+                handleClose(true);
+            },
+            errorMessage: () => ({ messageKey: "AccountDeleteFail" }),
+            onError: () => {
+                handleClose(false);
+            },
+        });
+    }
+
     return (
         <LargeDialog
             id="delete-account-dialog"
             isOpen={isOpen}
-            onClose={() => { handleClose(false); }}
+            onClose={onClose}
             titleId={titleId}
         >
             <DialogTitle
                 id={titleId}
                 title={`Delete "${name}"`}
-                onClose={() => { handleClose(false); }}
+                onClose={onClose}
             />
             <Formik
                 enableReinitialize={true}
                 initialValues={initialValues}
-                onSubmit={(values, helpers) => {
-                    if (!id) {
-                        PubSub.get().publish("snack", { messageKey: "NoUserIdFound", severity: "Error" });
-                        return;
-                    }
-                    fetchLazyWrapper<DeleteAccountInput, Session>({
-                        fetch: deleteAccount,
-                        inputs: values,
-                        successMessage: () => ({ messageKey: "AccountDeleteSuccess" }),
-                        onSuccess: (data) => {
-                            PubSub.get().publish("session", data);
-                            setLocation(LINKS.Home);
-                            handleClose(true);
-                        },
-                        errorMessage: () => ({ messageKey: "AccountDeleteFail" }),
-                        onError: () => {
-                            handleClose(false);
-                        },
-                    });
-                }}
+                onSubmit={onSubmit}
                 validationSchema={validationSchema}
             >
                 {(formik) => <DialogContent>

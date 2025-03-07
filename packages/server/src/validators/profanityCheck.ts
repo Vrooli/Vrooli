@@ -1,12 +1,12 @@
 import { ModelType } from "@local/shared";
-import { isRelationshipArray, isRelationshipObject } from "../builders/isOfType";
-import { CustomError } from "../events/error";
-import { ModelMap } from "../models/base";
-import { authDataWithInput } from "../utils/authDataWithInput";
-import { hasProfanity } from "../utils/censor";
-import { AuthDataById } from "../utils/getAuthenticatedData";
-import { getParentInfo } from "../utils/getParentInfo";
-import { CudInputData, InputsById } from "../utils/types";
+import { isRelationshipArray, isRelationshipObject } from "../builders/isOfType.js";
+import { CustomError } from "../events/error.js";
+import { ModelMap } from "../models/base/index.js";
+import { authDataWithInput } from "../utils/authDataWithInput.js";
+import { hasProfanity } from "../utils/censor.js";
+import { AuthDataById } from "../utils/getAuthenticatedData.js";
+import { CudInputData, InputsById } from "../utils/types.js";
+import { getParentInfo } from "./permissions.js";
 
 type ProfanityFieldsToCheck = {
     tagsConnect?: string[],
@@ -20,10 +20,10 @@ type ProfanityFieldsToCheck = {
  * - Grabbing every field specified by the current object's validator's profanityFields array
  * @returns An object with every field that must be checked for profanity
  */
-const collectProfanities = (
+function collectProfanities(
     input: ProfanityFieldsToCheck,
     objectType?: `${ModelType}`,
-): Record<string, string[]> => {
+): Record<string, string[]> {
     // Initialize result
     const result: Record<string, string[]> = {};
     // Handle base case
@@ -37,7 +37,7 @@ const collectProfanities = (
         }
     }
     // Helper function to handle translations
-    const handleTranslationsArray = (translationsArray: any[], result: { [x: string]: string[] }) => {
+    function handleTranslationsArray(translationsArray: any[], result: { [x: string]: string[] }) {
         for (const translation of translationsArray) {
             for (const field in translation) {
                 // Ignore ID fields and language fields
@@ -54,7 +54,7 @@ const collectProfanities = (
                 else if (typeof translation[field] === "string") result[field] = result[field] ? [...result[field], translation[field]] : [translation[field]];
             }
         }
-    };
+    }
     // Add translationsCreate and translationsUpdate to the result
     if (isRelationshipArray(input.translationsCreate) && input.translationsCreate.length > 0) {
         handleTranslationsArray(input.translationsCreate, result);
@@ -67,17 +67,18 @@ const collectProfanities = (
         result.tagsConnect = input.tagsConnect as string[];
     }
     // Handle recursive case
-    const processNestedFields = (nestedInput: any, nestedObjectType?: `${ModelType}`) => {
+    function processNestedFields(nestedInput: any, nestedObjectType?: `${ModelType}`) {
         const newFields = collectProfanities(nestedInput, nestedObjectType);
         for (const field in newFields) {
             result[field] = result[field] ? [...result[field], ...newFields[field]] : newFields[field];
         }
-    };
+    }
     for (const key in input) {
         // Find next objectType, if any
         let nextObjectType: `${ModelType}` | undefined;
         // Strip "Create" and "Update" from the end of the key
-        const strippedKey = key.endsWith("Create") || key.endsWith("Update") ? key.slice(0, -6) : key;
+        let strippedKey = key.endsWith("Create") ? key.slice(0, -"Create".length) : key;
+        strippedKey = key.endsWith("Update") ? key.slice(0, -"Update".length) : strippedKey;
         // Translations were already handled above, so skip them here
         if (strippedKey === "translations") continue;
         // Check if stripped key is in validator's validateMap
@@ -93,7 +94,7 @@ const collectProfanities = (
         }
     }
     return result;
-};
+}
 
 /**
  * Throws an error if a object's translations contain any banned words.
@@ -105,7 +106,7 @@ const collectProfanities = (
  * Additionally, finds the validator for the object's type and checks if any additional fields - besides 
  * those found in translation objects - should be checked for censored words (e.g. username, email).
  */
-export const profanityCheck = (inputData: CudInputData[], inputsById: InputsById, authDataById: AuthDataById, languages: string[]): void => {
+export function profanityCheck(inputData: CudInputData[], inputsById: InputsById, authDataById: AuthDataById): void {
     // Find all fields which must be checked for profanity
     const fieldsToCheck: { [x: string]: string[] } = {};
     for (const item of inputData) {
@@ -118,7 +119,7 @@ export const profanityCheck = (inputData: CudInputData[], inputsById: InputsById
         const existingData = authDataById[item.input[idField]];
         const input = item.input as object;
         const combinedData = authDataWithInput(input, existingData ?? {}, inputsById, authDataById);
-        const isPublic = validate().isPublic(combinedData, (...rest) => getParentInfo(...rest, inputsById), languages);
+        const isPublic = validate().isPublic(combinedData, (...rest) => getParentInfo(...rest, inputsById));
         if (isPublic === false) continue;
         const newFields = collectProfanities(item.input as ProfanityFieldsToCheck, item.objectType);
         for (const field in newFields) {
@@ -131,4 +132,4 @@ export const profanityCheck = (inputData: CudInputData[], inputsById: InputsById
             throw new CustomError("0115", "BannedWord");
         }
     }
-};
+}

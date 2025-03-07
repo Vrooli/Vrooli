@@ -1,4 +1,5 @@
-import { base36ToUuid, decodeValue, encodeValue, parseSearchParams, stringifySearchParams, uuidToBase36 } from "./url";
+import { expect } from "chai";
+import { base36ToUuid, decodeValue, encodeValue, parseSearchParams, stringifySearchParams, uuidToBase36 } from "./url.js";
 
 describe("encodeValue and decodeValue", () => {
     const testCases = [
@@ -43,10 +44,10 @@ describe("encodeValue and decodeValue", () => {
     testCases.forEach(({ description, input, encoded, decoded }) => {
         test(description, () => {
             const encodedValue = encodeValue(input);
-            expect(encodedValue).toEqual(encoded);
+            expect(encodedValue).to.deep.equal(encoded);
 
             const decodedValue = decodeValue(encodedValue);
-            expect(decodedValue).toEqual(decoded);
+            expect(decodedValue).to.deep.equal(decoded);
         });
     });
 });
@@ -74,27 +75,27 @@ describe("parseSearchParams", () => {
 
     it("returns an empty object for empty search params", () => {
         setWindowSearch("");
-        expect(parseSearchParams()).toEqual({});
+        expect(parseSearchParams()).to.deep.equal({});
     });
 
     it("parses a single key-value pair correctly", () => {
         setWindowSearch("?key=%22value%22");
-        expect(parseSearchParams()).toEqual({ key: "value" });
+        expect(parseSearchParams()).to.deep.equal({ key: "value" });
     });
 
     it("parses multiple key-value pairs correctly", () => {
         setWindowSearch("?key1=%22value1%22&key2=%22value2%22");
-        expect(parseSearchParams()).toEqual({ key1: "value1", key2: "value2" });
+        expect(parseSearchParams()).to.deep.equal({ key1: "value1", key2: "value2" });
     });
 
     it("decodes special characters correctly", () => {
         setWindowSearch("?key%20one=%22value%2Fone%22");
-        expect(parseSearchParams()).toEqual({ "key one": "value/one" });
+        expect(parseSearchParams()).to.deep.equal({ "key one": "value/one" });
     });
 
     it("parses nested objects correctly, including nested number, boolean, and null", () => {
         setWindowSearch("?key=%7B%22nestedKey%22%3A%22nestedValue%22%2C%22nestedNumber%22%3A-123%2C%22nestedBoolean%22%3Atrue%2C%22nestedNull%22%3Anull%7D");
-        expect(parseSearchParams()).toEqual({
+        expect(parseSearchParams()).to.deep.equal({
             key: {
                 nestedKey: "nestedValue",
                 nestedNumber: -123,
@@ -106,7 +107,7 @@ describe("parseSearchParams", () => {
 
     it("parses mixed types correctly", () => {
         setWindowSearch("?string=%22value%22&number=123&boolean=true&null=null");
-        expect(parseSearchParams()).toEqual({ string: "value", number: 123, boolean: true, null: null });
+        expect(parseSearchParams()).to.deep.equal({ string: "value", number: 123, boolean: true, null: null });
     });
 
     it("returns an empty object for invalid format", () => {
@@ -115,7 +116,7 @@ describe("parseSearchParams", () => {
         console.error = jest.fn();
 
         setWindowSearch("?invalid");
-        expect(parseSearchParams()).toEqual({});
+        expect(parseSearchParams()).to.deep.equal({});
 
         // Restore console.error
         console.error = originalConsoleError;
@@ -123,14 +124,14 @@ describe("parseSearchParams", () => {
 
     it("parses a top-level array of numbers correctly", () => {
         setWindowSearch("?numbers=%5B123%2C456%2C789%5D");
-        expect(parseSearchParams()).toEqual({
+        expect(parseSearchParams()).to.deep.equal({
             numbers: [123, 456, 789],
         });
     });
 
     it("parses an array of objects nested within an object correctly", () => {
         setWindowSearch("?data=%7B%22items%22%3A%5B%7B%22id%22%3A1%2C%22name%22%3A%22Item1%22%7D%2C%7B%22id%22%3A2%2C%22name%22%3A%22Item2%22%7D%5D%7D"); // URL-encoded for {"items":[{"id":1,"name":"Item1"},{"id":2,"name":"Item2"}]}
-        expect(parseSearchParams()).toEqual({
+        expect(parseSearchParams()).to.deep.equal({
             data: {
                 items: [
                     { id: 1, name: "Item1" },
@@ -143,31 +144,31 @@ describe("parseSearchParams", () => {
 
 describe("stringifySearchParams", () => {
     it("returns an empty string for an empty object", () => {
-        expect(stringifySearchParams({})).toBe("");
+        expect(stringifySearchParams({})).to.equal("");
     });
 
     it("returns an empty string for an object with only null and undefined values", () => {
-        expect(stringifySearchParams({ key1: null, key2: undefined })).toBe("");
+        expect(stringifySearchParams({ key1: null, key2: undefined })).to.equal("");
     });
 
     it("formats a single key-value pair correctly", () => {
-        expect(stringifySearchParams({ key: "value" })).toBe("?key=%22value%22");
+        expect(stringifySearchParams({ key: "value" })).to.equal("?key=%22value%22");
     });
 
     it("formats multiple key-value pairs correctly", () => {
-        expect(stringifySearchParams({ key1: "value1", key2: "value2" })).toBe("?key1=%22value1%22&key2=%22value2%22");
+        expect(stringifySearchParams({ key1: "value1", key2: "value2" })).to.equal("?key1=%22value1%22&key2=%22value2%22");
     });
 
     it("ignores keys with null or undefined values", () => {
-        expect(stringifySearchParams({ key1: null, key2: undefined, key3: "value" })).toBe("?key3=%22value%22");
+        expect(stringifySearchParams({ key1: null, key2: undefined, key3: "value" })).to.equal("?key3=%22value%22");
     });
 
     it("encodes special characters correctly", () => {
-        expect(stringifySearchParams({ "key one": "value/one" })).toBe("?key%20one=%22value%2Fone%22");
+        expect(stringifySearchParams({ "key one": "value/one" })).to.equal("?key%20one=%22value%2Fone%22");
     });
 
     it("stringifies and encodes nested objects correctly", () => {
-        expect(stringifySearchParams({ key: { nestedKey: "nestedValue" } })).toBe("?key=%7B%22nestedKey%22%3A%22nestedValue%22%7D");
+        expect(stringifySearchParams({ key: { nestedKey: "nestedValue" } })).to.equal("?key=%7B%22nestedKey%22%3A%22nestedValue%22%7D");
     });
 });
 
@@ -295,43 +296,43 @@ describe("stringifySearchParams and parseSearchParams", () => {
             const searchParams = stringifySearchParams(input);
             setWindowSearch(searchParams);
             const parsedParams = parseSearchParams();
-            expect(parsedParams).toEqual(expected);
+            expect(parsedParams).to.deep.equal(expected);
         });
     });
 });
 
 describe("uuidToBase36 and base36ToUuid", () => {
 
-    test("converts a standard UUID to base36 and back to UUID correctly", () => {
+    it("converts a standard UUID to base36 and back to UUID correctly", () => {
         const uuid = "123e4567-e89b-12d3-a456-426614174000";
         const base36 = uuidToBase36(uuid);
         const convertedUuid = base36ToUuid(base36);
-        expect(convertedUuid).toBe(uuid);
+        expect(convertedUuid).to.equal(uuid);
     });
 
-    test("handles a UUID with all zeros", () => {
+    it("handles a UUID with all zeros", () => {
         const uuid = "00000000-0000-0000-0000-000000000000";
         const base36 = uuidToBase36(uuid);
         const convertedUuid = base36ToUuid(base36);
-        expect(convertedUuid).toBe(uuid);
+        expect(convertedUuid).to.equal(uuid);
     });
 
-    test("handles a UUID with maximal values", () => {
+    it("handles a UUID with maximal values", () => {
         const uuid = "ffffffff-ffff-ffff-ffff-ffffffffffff";
         const base36 = uuidToBase36(uuid);
         const convertedUuid = base36ToUuid(base36);
-        expect(convertedUuid).toBe(uuid);
+        expect(convertedUuid).to.equal(uuid);
     });
 
-    test("returns empty string when invalid UUID is input to uuidToBase36", () => {
+    it("returns empty string when invalid UUID is input to uuidToBase36", () => {
         const invalidUuid = "invalid-uuid-format";
         const result = uuidToBase36(invalidUuid);
-        expect(result).toBe("");
+        expect(result).to.equal("");
     });
 
-    test("returns empty string when invalid base36 is input to base36ToUuid", () => {
+    it("returns empty string when invalid base36 is input to base36ToUuid", () => {
         const invalidBase36 = "invalid-base36-format";
         const result = base36ToUuid(invalidBase36);
-        expect(result).toBe("");
+        expect(result).to.equal("");
     });
 });

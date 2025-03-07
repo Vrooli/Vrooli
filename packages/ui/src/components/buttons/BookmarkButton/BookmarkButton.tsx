@@ -1,15 +1,15 @@
 import { Bookmark, BookmarkFor, uuidValidate } from "@local/shared";
 import { Box, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { SelectBookmarkListDialog } from "components/dialogs/SelectBookmarkListDialog/SelectBookmarkListDialog";
-import { SessionContext } from "contexts";
-import { useBookmarkListsStore, useBookmarker } from "hooks/objectActions";
-import { BookmarkFilledIcon, BookmarkOutlineIcon } from "icons";
+import { SelectBookmarkListDialog } from "components/dialogs/SelectBookmarkListDialog/SelectBookmarkListDialog.js";
+import { useBookmarkListsStore, useBookmarker } from "hooks/objectActions.js";
+import { BookmarkFilledIcon, BookmarkOutlineIcon } from "icons/common.js";
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActionCompletePayloads, ObjectActionComplete } from "utils/actions/objectActions";
-import { getCurrentUser } from "utils/authentication/session";
-import { PubSub } from "utils/pubsub";
-import { BookmarkButtonProps } from "../types";
+import { ActionCompletePayloads, ObjectActionComplete } from "utils/actions/objectActions.js";
+import { getCurrentUser } from "utils/authentication/session.js";
+import { PubSub } from "utils/pubsub.js";
+import { SessionContext } from "../../../contexts.js";
+import { BookmarkButtonProps } from "../types.js";
 
 const BookmarksLabel = styled(Typography)(({ theme }) => ({
     color: theme.palette.background.textSecondary,

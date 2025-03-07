@@ -1,7 +1,8 @@
 import i18next from "i18next";
-// import { PubSub } from "../utils/pubsub"; TODO pubsub mock not working. Likely due to being a singleton class
+// import { PubSub } from "../utils/pubsub.js"; TODO pubsub mock not working. Likely due to being a singleton class
 import { ServerResponse } from "@local/shared";
-import { ServerResponseParser } from "./responseParser";
+import { expect } from "chai";
+import { ServerResponseParser } from "./responseParser.js";
 
 jest.mock("i18next");
 // jest.mock("../utils/pubsub", () => ({
@@ -23,7 +24,7 @@ describe("ServerResponseParser", () => {
                     { code: "FailedToDelete", trace: "0000-asdf" },
                 ],
             } as ServerResponse;
-            expect(ServerResponseParser.errorToCode(response)).toEqual("InputEmpty");
+            expect(ServerResponseParser.errorToCode(response)).to.deep.equal("InputEmpty");
         });
 
         it("should return \"ErrorUnknown\" if no error code is found", () => {
@@ -32,7 +33,7 @@ describe("ServerResponseParser", () => {
                     { message: "Error", trace: "0000-asdf" },
                 ],
             } as ServerResponse;
-            expect(ServerResponseParser.errorToCode(response)).toEqual("ErrorUnknown");
+            expect(ServerResponseParser.errorToCode(response)).to.deep.equal("ErrorUnknown");
         });
     });
 
@@ -47,7 +48,7 @@ describe("ServerResponseParser", () => {
                 ],
             } as ServerResponse;
             const languages = ["en"];
-            expect(ServerResponseParser.errorToMessage(response, languages)).toEqual("NotFound");
+            expect(ServerResponseParser.errorToMessage(response, languages)).to.deep.equal("NotFound");
         });
 
         it("should return translated error code if no error message is found", () => {
@@ -71,7 +72,7 @@ describe("ServerResponseParser", () => {
                     { code: "HardLockout", trace: "0000-asdf" },
                 ],
             } as ServerResponse;
-            expect(ServerResponseParser.hasErrorCode(response, "HardLockout")).toBeTruthy();
+            expect(ServerResponseParser.hasErrorCode(response, "HardLockout")).to.be.ok;
         });
 
         it("should return false if the error code does not exist in the response", () => {
@@ -80,13 +81,13 @@ describe("ServerResponseParser", () => {
                     { code: "LineBreaksBio", trace: "0000-asdf" },
                 ],
             } as ServerResponse;
-            expect(ServerResponseParser.hasErrorCode(response, "InternalError")).toBeFalsy();
+            expect(ServerResponseParser.hasErrorCode(response, "InternalError")).to.not.be.ok;
         });
     });
 
     // describe("displayServerErrors", () => {
     //     let pubsub;
-    //     beforeAll(async () => {
+    //     before(async () => {
     //         const module = await import("../utils/pubsub");
     //         console.log("got module", module.PubSub.get());
     //         pubsub = module.PubSub.get();

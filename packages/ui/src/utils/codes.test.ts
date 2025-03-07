@@ -1,10 +1,11 @@
-import { chatMatchHash, weakHash } from "./codes";
+import { expect } from "chai";
+import { chatMatchHash, weakHash } from "./codes.js";
 
 describe("weakHash", () => {
     it("generates a consistent SHA-256 hash for the given string", () => {
         const inputString = "test-string";
         const hash = weakHash(inputString);
-        expect(typeof hash).toEqual("string");
+        expect(typeof hash).to.equal("string");
     });
 });
 
@@ -17,7 +18,7 @@ describe("chatMatchHash", () => {
         const hash1 = chatMatchHash(participantIds1);
         const hash2 = chatMatchHash(participantIds2);
 
-        expect(hash1).toEqual(hash2);
+        expect(hash1).to.equal(hash2);
     });
 
     it("generates different hashes for different sets of participant user IDs", () => {
@@ -27,7 +28,7 @@ describe("chatMatchHash", () => {
         const hash1 = chatMatchHash(participantIds1);
         const hash2 = chatMatchHash(participantIds2);
 
-        expect(hash1).not.toEqual(hash2);
+        expect(hash1).to.not.equal(hash2);
     });
 
     it("generates a consistent hash for a given set of participant user IDs", () => {
@@ -36,6 +37,6 @@ describe("chatMatchHash", () => {
         const hash1 = chatMatchHash(participantIds);
         const hash2 = chatMatchHash(participantIds);
 
-        expect(hash1).toEqual(hash2);
+        expect(hash1).to.equal(hash2);
     });
 });

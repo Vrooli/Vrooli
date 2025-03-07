@@ -1,3 +1,3 @@
-export * from "./forms";
-export * from "./inputs";
+export * from "./forms.js";
+export * from "./inputs.js";
 

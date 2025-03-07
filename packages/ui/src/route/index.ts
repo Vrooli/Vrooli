@@ -1,7 +1,7 @@
-export * from "./getLastPathnamePart";
-export * from "./matcher";
-export * from "./openLink";
-export * from "./router";
-export * from "./searchParams";
-export * from "./types";
+export * from "./getLastPathnamePart.js";
+export * from "./matcher.js";
+export * from "./openLink.js";
+export * from "./router.js";
+export * from "./searchParams.js";
+export * from "./types.js";
 

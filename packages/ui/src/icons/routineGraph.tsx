@@ -1,5 +1,5 @@
 import { SvgProps } from "../types.js";
-import { SvgPath } from "./base";
+import { SvgPath } from "./base.js";
 
 export const AddEndNodeAfterIcon = (props: SvgProps) => (
     <SvgPath

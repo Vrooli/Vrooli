@@ -1,11 +1,11 @@
 import { Tooltip, useTheme } from "@mui/material";
-import { SessionContext } from "contexts";
-import { MagicIcon } from "icons";
+import { MagicIcon } from "icons/common.js";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { SideActionsButton } from "styles";
-import { getCurrentUser } from "utils/authentication/session";
-import { AutoFillButtonProps } from "../types";
+import { getCurrentUser } from "utils/authentication/session.js";
+import { SessionContext } from "../../../contexts.js";
+import { SideActionsButton } from "../../../styles.js";
+import { AutoFillButtonProps } from "../types.js";
 
 export function AutoFillButton({
     handleAutoFill,

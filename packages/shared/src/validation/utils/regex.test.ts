@@ -1,4 +1,4 @@
-import { handleRegex, hexColorRegex, urlRegex, urlRegexDev, walletAddressRegex } from "./regex";
+import { handleRegex, hexColorRegex, urlRegex, urlRegexDev, walletAddressRegex } from "./regex.js";
 
 describe("Regular Expressions Tests", () => {
     // Test suite for urlRegex
@@ -20,12 +20,12 @@ describe("Regular Expressions Tests", () => {
 
         // Test each valid URL
         test.each(validUrls)("\"%s\" should be a valid URL", (url) => {
-            expect(urlRegex.test(url)).toBeTruthy();
+            expect(urlRegex.test(url)).to.be.ok;
         });
 
         // Test each invalid URL
         test.each(invalidUrls)("\"%s\" should be an invalid URL", (url) => {
-            expect(urlRegex.test(url)).toBeFalsy();
+            expect(urlRegex.test(url)).to.not.be.ok;
         });
     });
 
@@ -48,23 +48,23 @@ describe("Regular Expressions Tests", () => {
 
         // Test each valid URL for development
         test.each(validDevUrls)("\"%s\" should be a valid development URL", (url) => {
-            expect(urlRegexDev.test(url)).toBeTruthy();
+            expect(urlRegexDev.test(url)).to.be.ok;
         });
 
         // Test each invalid URL for development
         test.each(invalidDevUrls)("\"%s\" should be an invalid development URL", (url) => {
-            expect(urlRegexDev.test(url)).toBeFalsy();
+            expect(urlRegexDev.test(url)).to.not.be.ok;
         });
 
         describe("ReDoS Vulnerability Tests for urlRegexDev", () => {
             // Function to measure execution time
-            const measureExecutionTime = (regex, input) => {
+            function measureExecutionTime(regex, input) {
                 const start = process.hrtime.bigint();
                 const result = regex.test(input);
                 const end = process.hrtime.bigint();
                 const duration = Number(end - start) / 1e6; // Convert to milliseconds
                 return { result, duration };
-            };
+            }
 
             // Benign input
             const benignInput = "ftp://example.com";
@@ -76,14 +76,14 @@ describe("Regular Expressions Tests", () => {
                 "ftp://0." + "0.".repeat(1000) + "0", // Repeats '0.' 1000 times
             ];
 
-            test("Benign input should execute quickly", () => {
+            it("Benign input should execute quickly", () => {
                 const { duration } = measureExecutionTime(urlRegexDev, benignInput);
-                expect(duration).toBeLessThan(1); // Less than 1 millisecond
+                expect(duration).to.be.lessThan(1); // Less than 1 millisecond
             });
 
             test.each(maliciousInputs)("Malicious input of length %i should not cause performance issues", (input) => {
                 const { duration } = measureExecutionTime(urlRegexDev, input);
-                expect(duration).toBeLessThan(10); // Execution should be quick
+                expect(duration).to.be.lessThan(10); // Execution should be quick
             });
         });
     });
@@ -104,12 +104,12 @@ describe("Regular Expressions Tests", () => {
 
         // Test each valid Cardano wallet address
         test.each(validWalletAddresses)("\"%s\" should be a valid Cardano wallet address", (address) => {
-            expect(walletAddressRegex.test(address)).toBeTruthy();
+            expect(walletAddressRegex.test(address)).to.be.ok;
         });
 
         // Test each invalid Cardano wallet address
         test.each(invalidWalletAddresses)("\"%s\" should be an invalid Cardano wallet address", (address) => {
-            expect(walletAddressRegex.test(address)).toBeFalsy();
+            expect(walletAddressRegex.test(address)).to.not.be.ok;
         });
     });
 
@@ -145,12 +145,12 @@ describe("Regular Expressions Tests", () => {
 
         // Test each valid handle
         test.each(validHandles)("\"%s\" should be a valid handle", (handle) => {
-            expect(handleRegex.test(handle)).toBeTruthy();
+            expect(handleRegex.test(handle)).to.be.ok;
         });
 
         // Test each invalid handle
         test.each(invalidHandles)("\"%s\" should be an invalid handle", (handle) => {
-            expect(handleRegex.test(handle)).toBeFalsy();
+            expect(handleRegex.test(handle)).to.not.be.ok;
         });
     });
 
@@ -180,12 +180,12 @@ describe("Regular Expressions Tests", () => {
 
         // Test each valid hex color
         test.each(validHexColors)("\"%s\" should be a valid hex color", (hex) => {
-            expect(hexColorRegex.test(hex)).toBeTruthy();
+            expect(hexColorRegex.test(hex)).to.be.ok;
         });
 
         // Test each invalid hex color
         test.each(invalidHexColors)("\"%s\" should be an invalid hex color", (hex) => {
-            expect(hexColorRegex.test(hex)).toBeFalsy();
+            expect(hexColorRegex.test(hex)).to.not.be.ok;
         });
     });
 });
