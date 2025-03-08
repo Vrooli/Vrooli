@@ -1,13 +1,22 @@
 import { CssBaseline, GlobalStyles, ThemeProvider } from '@mui/material';
 import type { Preview } from '@storybook/react';
+import { HttpResponse, http } from 'msw';
+import { initialize, mswLoader } from 'msw-storybook-addon';
 import React, { useCallback, useEffect, useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
-import { getGlobalStyles } from '../src/App';
+import { ContentWrap, getGlobalStyles } from '../src/App.js';
+import { ChatSideMenu } from "../src/components/dialogs/ChatSideMenu/ChatSideMenu.js";
+import { SideMenu } from "../src/components/dialogs/SideMenu/SideMenu.js";
 import { VideoPopup } from "../src/components/dialogs/media.js";
 import { ActiveChatProvider, SessionContext, ZIndexProvider } from "../src/contexts.js";
+import { useSideMenu } from "../src/hooks/useSideMenu.js";
+import { useWindowSize } from "../src/hooks/useWindowSize.js";
 import i18n from '../src/i18n';
 import { DEFAULT_THEME, themes } from '../src/utils/display/theme';
-import { PubSub, type PopupVideoPub } from '../src/utils/pubsub.js';
+import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID, type PopupVideoPub } from '../src/utils/pubsub.js';
+
+// Initialize MSW
+initialize();
 
 // Mock session for Storybook
 const mockSession = {
@@ -18,12 +27,29 @@ const mockSession = {
 };
 
 const preview: Preview = {
+    loaders: [mswLoader],
     parameters: {
         controls: {
             matchers: {
                 color: /(background|color)$/i,
                 date: /Date$/i,
             },
+        },
+        msw: {
+            // Put global request overrides here, such as requests made by the side menus
+            handlers: [
+                // focus modes
+                http.get("http://localhost:5329/api/v2/rest/focusModes", () => {
+                    return HttpResponse.json({
+                        edges: [],
+                        pageInfo: {
+                            __typename: "PageInfo" as const,
+                            endCursor: null,
+                            hasNextPage: false,
+                        }
+                    })
+                })
+            ],
         },
     },
     globalTypes: {
@@ -36,6 +62,15 @@ const preview: Preview = {
                 items: Object.keys(themes),
             },
         },
+        isLeftHanded: {
+            name: 'Is Left Handed',
+            description: 'Switch between left and right handed mode',
+            defaultValue: false,
+            toolbar: {
+                icon: 'circlehollow',
+                items: [true, false],
+            },
+        },
     },
     decorators: [
         (Story, context) => {
@@ -45,6 +80,11 @@ const preview: Preview = {
                 users: [{ ...mockSession.users[0], theme: themeMode }],
             };
             const theme = themes[themeMode];
+            const isLeftHanded = context.globals.isLeftHanded || false;
+
+            const isMobile = useWindowSize(({ width }) => width <= theme.breakpoints.values.md);
+            const { isOpen: isLeftDrawerOpen } = useSideMenu({ id: CHAT_SIDE_MENU_ID, isMobile });
+            const { isOpen: isRightDrawerOpen } = useSideMenu({ id: SIDE_MENU_ID, isMobile });
 
             const [openVideoData, setOpenVideoData] = useState<PopupVideoPub | null>(null);
             const closePopupVideo = useCallback(function closePopupVideoCallback() {
@@ -74,7 +114,17 @@ const preview: Preview = {
                                         src={openVideoData?.src ?? ""}
                                         zIndex={999999999}
                                     />
-                                    <Story />
+                                    <ContentWrap
+                                        id="content-wrap"
+                                        isLeftDrawerOpen={isLeftDrawerOpen}
+                                        isLeftHanded={isLeftHanded}
+                                        isMobile={isMobile}
+                                        isRightDrawerOpen={isRightDrawerOpen}
+                                    >
+                                        <ChatSideMenu />
+                                        <Story />
+                                        <SideMenu />
+                                    </ContentWrap>
                                 </ActiveChatProvider>
                             </ZIndexProvider>
                         </SessionContext.Provider>
