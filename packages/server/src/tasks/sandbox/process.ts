@@ -100,7 +100,7 @@ export async function doSandbox({
     }
 }
 
-export async function sandboxrocess({ data }: Job<SandboxRequestPayload>) {
+export async function sandboxProcess({ data }: Job<SandboxRequestPayload>) {
     switch (data.__process) {
         case "Sandbox":
             return doSandbox(data);

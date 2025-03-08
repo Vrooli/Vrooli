@@ -108,12 +108,16 @@ export abstract class RunPersistence {
      * @param run The run to load
      * @param userData Session data for the user running the routine
      * @param logger The logger to use for any errors
+     * @param throwIfNotLoaded When true, throws an error if the run isn't loaded.
+     * @returns The loaded run progress, or null if it isn't loaded and `throwIfNotLoaded` is false.
+     * @throws If the run isn't loaded and `throwIfNotLoaded` is true.
      */
-    public async loadProgress(
+    public async loadProgress<ThrowIfNotLoaded extends boolean = true>(
         run: RunIdentifier,
         userData: RunTriggeredBy,
         logger: PassableLogger,
-    ): Promise<RunProgress | null> {
+        throwIfNotLoaded: ThrowIfNotLoaded = true as ThrowIfNotLoaded,
+    ): Promise<ThrowIfNotLoaded extends true ? RunProgress : RunProgress | null> {
         // If we already have a run in memory with the same ID, return it
         if (this._currentRun && this._currentRun.runId === run.runId) {
             return this._currentRun;
@@ -127,7 +131,10 @@ export abstract class RunPersistence {
                 : this.fromFetchedRoutine(loaded, userData, logger);
             this._currentRun = shaped;
         }
-        return this._currentRun;
+        if (throwIfNotLoaded && !this._currentRun) {
+            throw new Error(`Run ID ${run.runId} not found in database`);
+        }
+        return this._currentRun as ThrowIfNotLoaded extends true ? RunProgress : RunProgress | null;
     }
 
     /**
@@ -481,6 +488,7 @@ export abstract class RunPersistence {
             contextSwitches,
             data: dataString,
             name: run.name,
+            startedAt: run.metrics.startedAt,
             status: run.status,
             timeElapsed,
             steps,
@@ -529,6 +537,7 @@ export abstract class RunPersistence {
             contextSwitches,
             data: dataString,
             name: run.name,
+            startedAt: run.metrics.startedAt,
             status: run.status,
             timeElapsed,
             steps,
@@ -558,9 +567,10 @@ export abstract class RunPersistence {
         const metrics: RunMetrics = {
             complexityCompleted: Math.max(storedData.completedComplexity || 0, 0),
             complexityTotal: Math.max(complexityTotal, 0),
-            timeElapsed: Math.max(storedData.timeElapsed || 0, 0),
-            stepsRun: Math.max(storedData.steps?.length || 0, 0),
             creditsSpent,
+            startedAt: storedData.startedAt,
+            stepsRun: Math.max(storedData.steps?.length || 0, 0),
+            timeElapsed: Math.max(storedData.timeElapsed || 0, 0),
         };
         return metrics;
     }
@@ -597,6 +607,7 @@ export abstract class RunPersistence {
             locationId: "", // Not used for project steps
             name: step.name,
             objectId: step.directoryInId, // The ID of the project version the directory is a part of. May be different than the project version being run if we step into a nested project
+            order: step.order,
             startedAt: step.startedAt,
             status: step.status,
             subroutineId: step.directory?.id || null,
@@ -631,6 +642,7 @@ export abstract class RunPersistence {
             locationId: step.nodeId,
             name: step.name,
             objectId: step.subroutineInId, // The ID of the routine version the node is a part of. May be different than the routine version being run if we step into a nested routine
+            order: step.order,
             startedAt: step.startedAt,
             status: step.status,
             subroutineId: step.subroutine?.id || null,

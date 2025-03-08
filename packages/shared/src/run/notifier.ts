@@ -1,6 +1,6 @@
 import { PERCENTS } from "../consts/numbers.js";
 import { SEND_PROGRESS_UPDATE_THROTTLE_MS } from "./consts.js";
-import { DeferredDecisionData, IOKey, IOMap, IOValue, Id, MapDiff, RunProgress, RunStatusChangeReason, RunTaskInfo, RunType, SubcontextUpdates } from "./types.js";
+import { BranchProgress, DeferredDecisionData, IOKey, IOMap, IOValue, Id, MapDiff, RunProgress, RunStatusChangeReason, RunTaskInfo, RunType, SubcontextUpdates } from "./types.js";
 
 /**
  * Handles emitting payloads to send run-related events to the client. This includes:
@@ -233,4 +233,22 @@ export abstract class RunNotifier {
      * @param decision The decision to make
      */
     public abstract sendDecisionRequest(runId: Id, runType: RunType, decision: DeferredDecisionData): void;
+
+    /**
+     * Sends a request to the client to fill in missing inputs for a subroutine.
+     * 
+     * @param runId The ID of the run
+     * @param runType The type of run
+     * @param branch The branch that is running the subroutine
+     */
+    public abstract sendMissingInputsRequest(runId: Id, runType: RunType, branch: BranchProgress): void;
+
+    /**
+     * Sends a request to the client to confirm manual execution of a subroutine.
+     * 
+     * @param runId The ID of the run
+     * @param runType The type of run
+     * @param branch The branch that is running the subroutine
+     */
+    public abstract sendManualExecutionConfirmationRequest(runId: Id, runType: RunType, branch: BranchProgress): void;
 }

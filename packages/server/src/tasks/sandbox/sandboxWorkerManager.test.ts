@@ -1,14 +1,10 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { CodeLanguage } from "@local/shared";
-import * as chai from "chai";
 import { expect } from "chai";
-import chaiAsPromised from "chai-as-promised";
 import sinon from "sinon";
 import { MB } from "./consts.js";
 import { SandboxChildProcessManager } from "./sandboxWorkerManager.js";
 import { RunUserCodeInput, RunUserCodeOutput } from "./types.js";
-
-chai.use(chaiAsPromised);
 
 type WorkerManager = SandboxChildProcessManager;
 

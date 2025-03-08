@@ -1,5 +1,5 @@
 import { RoutineType, RoutineVersion } from "@local/shared";
-import { generateInputAndOutputMessage, generateInputOnlyMessage, generateOutputOnlyMessage, generateTaskMessage } from "./process";
+import { generateInputAndOutputMessage, generateInputOnlyMessage, generateOutputOnlyMessage, generateTaskMessage } from "./process.js";
 
 // Helper function to create a mock RoutineVersion
 function createMockRoutineVersion(routineType: RoutineType): RoutineVersion {
@@ -45,7 +45,7 @@ describe("generateTaskMessage", () => {
             {},
             mockUserLanguages,
         );
-        expect(result).toBeUndefined();
+        expect(result).to.be.undefined;
     });
 
     it("should generate input-only message for non-Generate routine with missing inputs", () => {
@@ -56,7 +56,7 @@ describe("generateTaskMessage", () => {
             {},
             mockUserLanguages,
         );
-        expect(result).toContain("Your goal is to fill in the missing values for the list of inputs.");
+        expect(result).to.include("Your goal is to fill in the missing values for the list of inputs.");
     });
 
     it("should return undefined for Generate routine with no missing inputs and no outputs", () => {
@@ -67,7 +67,7 @@ describe("generateTaskMessage", () => {
             {},
             mockUserLanguages,
         );
-        expect(result).toBeUndefined();
+        expect(result).to.be.undefined;
     });
 
     it("should generate input and output message for Generate routine with missing inputs and outputs", () => {
@@ -78,7 +78,7 @@ describe("generateTaskMessage", () => {
             { output1: { value: undefined } },
             mockUserLanguages,
         );
-        expect(result).toContain("Your goal is to fill in the missing values for the inputs and generate values for the outputs.");
+        expect(result).to.include("Your goal is to fill in the missing values for the inputs and generate values for the outputs.");
     });
 
     it("should generate input-only message for Generate routine with missing inputs and no outputs", () => {
@@ -89,7 +89,7 @@ describe("generateTaskMessage", () => {
             {},
             mockUserLanguages,
         );
-        expect(result).toContain("Your goal is to fill in the missing values for the list of inputs.");
+        expect(result).to.include("Your goal is to fill in the missing values for the list of inputs.");
     });
 
     it("should generate output-only message for Generate routine with no missing inputs and outputs", () => {
@@ -100,7 +100,7 @@ describe("generateTaskMessage", () => {
             { output1: { value: undefined } },
             mockUserLanguages,
         );
-        expect(result).toContain("Your goal is to generate values for each output.");
+        expect(result).to.include("Your goal is to generate values for each output.");
     });
 
     it("should handle all RoutineTypes correctly", () => {
@@ -114,9 +114,9 @@ describe("generateTaskMessage", () => {
                 mockUserLanguages,
             );
             if (type === RoutineType.Generate) {
-                expect(result).toContain("Your goal is to fill in the missing values for the list of inputs.");
+                expect(result).to.include("Your goal is to fill in the missing values for the list of inputs.");
             } else {
-                expect(result).toContain("Your goal is to fill in the missing values for the list of inputs.");
+                expect(result).to.include("Your goal is to fill in the missing values for the list of inputs.");
             }
         });
     });
@@ -132,10 +132,10 @@ describe("generateInputOnlyMessage", () => {
             { input1: { value: "", isRequired: true }, input2: { value: "value2", isRequired: false } },
             mockUserLanguages,
         );
-        expect(result).toContain("Your goal is to fill in the missing values for the list of inputs.");
-        expect(result).toContain("Inputs:");
-        expect(result).toContain("\"input1\": {");
-        expect(result).toContain("\"input2\": {");
+        expect(result).to.include("Your goal is to fill in the missing values for the list of inputs.");
+        expect(result).to.include("Inputs:");
+        expect(result).to.include("\"input1\": {");
+        expect(result).to.include("\"input2\": {");
     });
 });
 
@@ -149,10 +149,10 @@ describe("generateOutputOnlyMessage", () => {
             { output1: { value: undefined }, output2: { value: undefined } },
             mockUserLanguages,
         );
-        expect(result).toContain("Your goal is to generate values for each output.");
-        expect(result).toContain("Outputs:");
-        expect(result).toContain("\"output1\": {");
-        expect(result).toContain("\"output2\": {");
+        expect(result).to.include("Your goal is to generate values for each output.");
+        expect(result).to.include("Outputs:");
+        expect(result).to.include("\"output1\": {");
+        expect(result).to.include("\"output2\": {");
     });
 });
 
@@ -167,12 +167,12 @@ describe("generateInputAndOutputMessage", () => {
             { output1: { value: undefined }, output2: { value: undefined } },
             mockUserLanguages,
         );
-        expect(result).toContain("Your goal is to fill in the missing values for the inputs and generate values for the outputs.");
-        expect(result).toContain("Inputs:");
-        expect(result).toContain("\"input1\": {");
-        expect(result).toContain("\"input2\": {");
-        expect(result).toContain("Outputs:");
-        expect(result).toContain("\"output1\": {");
-        expect(result).toContain("\"output2\": {");
+        expect(result).to.include("Your goal is to fill in the missing values for the inputs and generate values for the outputs.");
+        expect(result).to.include("Inputs:");
+        expect(result).to.include("\"input1\": {");
+        expect(result).to.include("\"input2\": {");
+        expect(result).to.include("Outputs:");
+        expect(result).to.include("\"output1\": {");
+        expect(result).to.include("\"output2\": {");
     });
 });

@@ -126,7 +126,7 @@ process.on("message", async ({ code, input, shouldSpreadInput }: SandboxWorkerIn
             evalCode += getBufferClassString(bufferId) + "\n";
         }
         // Add the function being executed
-        evalCode += code;
+        evalCode += code + "\n";
         // Add an `execute` function that will be used to execute the code
         evalCode += `
 async function execute() {

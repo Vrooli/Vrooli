@@ -1,13 +1,13 @@
-import { BranchProgress, DecisionOption, DecisionStrategyType, DeferredDecisionData, ResolvedDecisionData, ResolvedDecisionDataChooseMultiple, ResolvedDecisionDataChooseOne, RunProgress, SubroutineContext } from "./types.js";
+import { BranchProgress, DecisionOption, DeferredDecisionData, PathSelectionStrategy, ResolvedDecisionData, ResolvedDecisionDataChooseMultiple, ResolvedDecisionDataChooseOne, RunProgress, SubroutineContext } from "./types.js";
 
 /**
- * Handles making decisions when there are multiple possible next steps.
+ * Handles making path selections when there are multiple possible next steps.
  * 
  * This allows for different strategies to be used at runtime, such as 
  * user choice, random selection, or LLM-based selection.
  */
-export abstract class DecisionStrategy {
-    abstract __type: DecisionStrategyType;
+export abstract class PathSelectionHandler {
+    abstract __type: PathSelectionStrategy;
 
     /**
      * Stores the current decision options for a run, both resolved and deferred.
@@ -147,8 +147,8 @@ export abstract class DecisionStrategy {
 /**
  * Barebones decision strategy that picks the first option.
  */
-export class AutoPickFirstStrategy extends DecisionStrategy {
-    __type = DecisionStrategyType.AutoPickFirst;
+export class AutoPickFirstSelectionHandler extends PathSelectionHandler {
+    __type = PathSelectionStrategy.AutoPickFirst;
 
     async pickOne(options: DecisionOption[], decisionKey: string): Promise<ResolvedDecisionDataChooseOne> {
         const nextNode = options[0];
@@ -177,8 +177,8 @@ export class AutoPickFirstStrategy extends DecisionStrategy {
 /**
  * Decision strategy that picks a random option.
  */
-export class AutoPickRandomStrategy extends DecisionStrategy {
-    __type = DecisionStrategyType.AutoPickRandom;
+export class AutoPickRandomSelectionHandler extends PathSelectionHandler {
+    __type = PathSelectionStrategy.AutoPickRandom;
 
     async pickOne(options: DecisionOption[], decisionKey: string): Promise<ResolvedDecisionDataChooseOne> {
         const nextNode = options[Math.floor(Math.random() * options.length)];

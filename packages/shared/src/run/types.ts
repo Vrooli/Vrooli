@@ -1,6 +1,14 @@
 import { ModelType, ProjectVersion, RoutineVersion, RunStatus, RunStepStatus, SessionUser } from "../api/types.js";
+import { PassableLogger } from "../consts/commonTypes.js";
 import { ScheduleShape } from "../shape/models/models.js";
 import { LlmModel } from "./configs/bot.js";
+import { type SubroutineExecutor } from "./executor.js";
+import { type RunLimitsManager } from "./limits.js";
+import { type RunLoader } from "./loader.js";
+import { type NavigatorFactory } from "./navigator.js";
+import { type RunNotifier } from "./notifier.js";
+import { type PathSelectionHandler } from "./pathSelection.js";
+import { type RunPersistence } from "./persistence.js";
 
 /** The type of the run */
 export type RunType = "RunProject" | "RunRoutine";
@@ -101,11 +109,63 @@ export type RunRequestLimits = {
     onMaxSteps?: RunLimitBehavior;
 }
 
-export enum DecisionStrategyType {
+/** 
+ * How subroutine inputs should be generated.
+ */
+export enum InputGenerationStrategy {
+    /** Let the AI generate the inputs */
+    Auto = "Auto",
+    /** Let the user provide the inputs */
+    Manual = "Manual"
+}
+
+/**
+ * The type of path selection strategy to use for the run, 
+ * when we're in a situation where there are multiple outgoing branches 
+ * and we can only pick one or a subset of them.
+ */
+export enum PathSelectionStrategy {
+    /** Pick the first available branch */
     AutoPickFirst = "AutoPickFirst",
+    /** Use an AI model to decide which branch to pick */
     AutoPickLLM = "AutoPickLLM",
+    /** Pick a random branch */
     AutoPickRandom = "AutoPickRandom",
+    /** Let the user decide which branch to pick */
     ManualPick = "ManualPick"
+}
+
+/**
+ * How subroutines should be executed.
+ */
+export enum SubroutineExecutionStrategy {
+    /** Run the subroutine as soon as the inputs are generated */
+    Auto = "Auto",
+    /** Make the user press a button to run the subroutine */
+    Manual = "Manual"
+}
+
+export type RunDecisionConfig = {
+    /** 
+     * How subroutine inputs should be generated.
+     * 
+     * `Auto` - Let the AI generate the inputs
+     * `Manual` - Let the user provide the inputs
+     */
+    inputGeneration: InputGenerationStrategy,
+    /**
+     * The type of path selection strategy to use for the run, 
+     * when we're in a situation where there are multiple outgoing branches 
+     * and we can only pick one or a subset of them.
+     */
+    pathSelection: PathSelectionStrategy,
+    /** 
+     * How subroutines should be executed.
+     * 
+     * `Auto` - Run the subroutine as soon as the inputs are generated
+     * `Manual` - Make the user press a button to run the subroutine
+     */
+    subroutineExecution: SubroutineExecutionStrategy,
 }
 
 /**
@@ -151,9 +211,9 @@ export type RunConfig = {
     /** Bot configuration for the run */
     botConfig: RunBotConfig;
     /**
-     * The decision strategy to use for the run.
+     * The decision strategies to apply for the run.
      */
-    decisionStrategyType: DecisionStrategyType;
+    decisionConfig: RunDecisionConfig;
     /**
      * Indicates if the run should be marked as private
      */
@@ -229,6 +289,8 @@ export type RunMetrics = {
      * be sent through the API or websockets.
      */
     creditsSpent: string;
+    /** When the run was started */
+    startedAt: Date | null;
     /** How many steps (excluding the current step) have been run so far. */
     stepsRun: number;
     /** How much time (in milliseconds) has elapsed in all steps combined */
@@ -248,6 +310,8 @@ export type RunProgressStep = Location & {
     completedAt?: Date;
     /** The name of the step */
     name: string;
+    /** The order of the step in the run */
+    order: number;
     /** The status of the step */
     status: RunStepStatus;
 }
@@ -304,6 +368,8 @@ export type RunProgress = {
  * Can be used to provide more context to the user or to the AI.
  */
 export enum RunStatusChangeReason {
+    AutomaticPause = "AutomaticPause",
+    AutomaticStop = "AutomaticStop",
     Completed = "Completed",
     Error = "Error",
     MaxCredits = "MaxCredits",
@@ -369,16 +435,6 @@ export enum BranchStatus {
 }
 
 /**
- * The progress mode for a specific node in a run branch.
- * Can be stored in database with run progress to enable 
- * checking results, statistics, etc.
- * 
- * NOTE: This can't be used to restore branches for resuming a run. 
- * That information should be stored in 
- */
-export type NodeProgress = any; //TODO
-
-/**
  * Contains the context data for a subroutine in the run. 
  * This is updated as the run progresses, and is used to make decisions 
  * and help AI models generate responses.
@@ -439,6 +495,12 @@ export type BranchProgress = {
     creditsSpent: string;
     /** The current location in the run. */
     locationStack: LocationStack;
+    /** 
+     * If we're running in a manual subroutineExecution mode, this flag 
+     * lets us know if we've manually pressed the "Run" button for the subroutine.
+     * If not, we can't run the subroutine.
+     */
+    manualExecutionConfirmed: boolean;
     /** The start time for the current node, in milliseconds since epoch. */
     nodeStartTimeMs: number | null;
     /** 
@@ -451,6 +513,8 @@ export type BranchProgress = {
     processId: Id;
     /** The branch's status */
     status: BranchStatus;
+    /** The current run progress step ID linked to this branch */
+    stepId: Id | null;
     /**
      * A composite ID of `${subroutineId}.${uniqueId}` to distinguish this instance of a subroutine from others.
      * 
@@ -626,3 +690,212 @@ export type ResolvedDecisionDataChooseMultiple = ResolvedDecisionDataBase & {
  * A resolved decision state that's created as a response to a deferred decision.
  */
 export type ResolvedDecisionData = ResolvedDecisionDataChooseOne | ResolvedDecisionDataChooseMultiple;
+
+/**
+ * A map of branch IDs to their current step's location data.
+ */
+export type BranchLocationDataMap = Record<Id, LocationData & {
+    location: Location;
+    subcontext: SubroutineContext;
+}>;
+
+/**
+ * The result of executing a step (i.e. performing the action specified by 
+ * the current node, and handling any branching logic).
+ * 
+ * This is required because steps may be executed in parallel, so we defer
+ * updating branch and run progress until all steps have been executed.
+ */
+export type ExecuteStepResult = {
+    /** The ID of the branch the step was executed in */
+    branchId: Id,
+    /** The new status of the branch */
+    branchStatus: BranchStatus,
+    /** The total amount of credits spent during this step, as a stringified bigint */
+    creditsSpent: string,
+    /**
+    * Any deferred decisions that need to be made.
+    * 
+    * This should pause the branch until the decisions are resolved.
+    */
+    deferredDecisions: DeferredDecisionData[];
+    /** Any new branches that should be created as a result of this step */
+    newLocations: null | {
+        /** The initial subcontext for the new branches */
+        initialContext: SubroutineContext,
+        /** The locations to move to */
+        locations: Location[],
+        /** Whether the new branches support parallel execution */
+        supportsParallelExecution: boolean,
+    }
+    /** 
+     * Step to update in the run progress.
+     * 
+     * May be completed or active, depending on if the subroutine finished running.
+     */
+    step: RunProgressStep | null,
+    /** Information about the subroutine that was run, if any */
+    subroutineRun: null | {
+        /** Inputs generated for every subroutine that was run */
+        inputs: IOMap,
+        /** Outputs generated for every subroutine that was run */
+        outputs: IOMap,
+    }
+}
+
+/**
+ * The status of the state machine.
+ */
+export enum StateMachineStatus {
+    /** No run is active or initialized. */
+    Idle = "Idle",
+    /** A run has been initialized (`initNewRun` or `initExistingRun`) but not yet started. */
+    Initialized = "Initialized",
+    /** The run is actively processing (via `runUntilDone` or `runOneIteration`). */
+    Running = "Running",
+    /** The run has been stopped/paused, but is still initialized in the state machine and can be resumed. */
+    Paused = "Paused",
+    /** The run has been completed, so it can no longer be resumed. */
+    Completed = "Completed",
+    /** The run has failed, so it can no longer be resumed. */
+    Failed = "Failed",
+    /** The state machine is in-between statuses, so no other operations are allowed.     */
+    Transitioning = "Transitioning",
+}
+
+/**
+ * Services of the state machine. 
+ * 
+ * Services are typically passed in as constructor arguments, but 
+ * may be created internally or updated using setter methods.
+ */
+export type RunStateMachineServices = {
+    limitsManager: RunLimitsManager,
+    loader: RunLoader,
+    logger: PassableLogger,
+    navigatorFactory: NavigatorFactory,
+    notifier: RunNotifier | null,
+    pathSelectionHandler: PathSelectionHandler,
+    persistence: RunPersistence,
+    subroutineExecutor: SubroutineExecutor,
+}
+
+/**
+ * State of the state machine.
+ */
+export type RunStateMachineState = {
+    /**
+     * The pending configuration update for the current run.
+     */
+    pendingConfigUpdate: RunConfig | null,
+    /**
+     * The run identifier for the current run.
+     */
+    runIdentifier: RunIdentifier | null,
+    /**
+     * The current status of the state machine.
+     */
+    status: StateMachineStatus,
+    /**
+     * The user data for the current run.
+     */
+    userData: RunTriggeredBy | null,
+}
+
+/**
+ * The state of the state machine when it is initialized.
+ */
+export type InitializedRunState = RunStateMachineState & {
+    runIdentifier: RunIdentifier,
+    userData: RunTriggeredBy,
+}
+
+export type SubroutineOutputDisplayInfoProps = ({
+    /**
+     * The type of the output, however you want to represent it based on the standard version 
+     * linked to the input/output. 
+     * 
+     * Examples:
+     * - "JSON"
+     * - "CSV"
+     * - "Markdown"
+     * - "HTML"
+     * - "Text"
+     * - "True/False"
+     * - "List of URLs"
+     * - "JavaScript code"
+     * - "Python code"
+     * - "SQL"
+     * - "GraphQL"
+     * - "JSON Schema"
+     * - "OpenAPI (Swagger)"
+     */
+    type: string;
+    /**
+     * The schema that the input/output should conform to, if any.
+     * 
+     * This is typically a JSON Schema, but could be something else depending on how the 
+     * standard version is configured.
+     */
+    schema: string | undefined;
+    // Any other props that are relevant to the input/output can be added here, such as max length, min value, etc.
+} & { [key: string]: unknown })
+
+/**
+ * Display information for a subroutine output.
+ */
+export type SubroutineOutputDisplayInfo = {
+    /** 
+     * What value we'll set if the user or LLM don't provide one.
+     * 
+     * This should not be shown to the LLM, so as not to influence the AI's output.
+     */
+    defaultValue: unknown | undefined;
+    /** The description of the output */
+    description: string | undefined;
+    /** The name of the output */
+    name: string | undefined;
+    /** 
+     * The configuration of the input/output, if any.
+     * 
+     * With this information, we can tell the LLM something like:
+     * "Generate the following inputs:
+     * {
+     *     "inputA": {
+     *         "name": "Input A",
+     *         "description": "This is the first input",
+     *         "isRequired": true,
+     *         "type": "JSON object",
+     *         "schema": {
+     *             "propA": {
+     *                 "type": "string",
+     *                 "isRequired": true,
+     *                 "description": "This is the first property of the input"
+     *             }
+     *         }
+     *     }
+     *     //...
+     * }
+     */
+    props: SubroutineOutputDisplayInfoProps | undefined;
+    /** The existing value of the output, if any */
+    value: unknown | undefined;
+}
+
+/**
+ * Display information for a subroutine input.
+ */
+export type SubroutineInputDisplayInfo = SubroutineOutputDisplayInfo & {
+    /** Whether the input is required */
+    isRequired: boolean;
+}
+
+/**
+ * A mapping of input and output names to their current value and display information.
+ * 
+ * It's important that we have enough information for an AI to understand what each input and output is for.
+ */
+export type SubroutineIOMapping = {
+    inputs: Record<string, SubroutineInputDisplayInfo>;
+    outputs: Record<string, SubroutineOutputDisplayInfo>;
+}

@@ -6,8 +6,8 @@ import { LRUCache } from "../utils/lruCache.js";
 import { RoutineGraphType } from "../utils/routineGraph.js";
 import { GraphBpmnConfig, GraphConfig } from "./configs/routine.js";
 import { BPMM_INSTANCES_CACHE_MAX_SIZE_BYTES, BPMN_DEFINITIONS_CACHE_LIMIT, BPMN_ELEMENT_CACHE_LIMIT, BPMN_ELEMENT_CACHE_MAX_SIZE_BYTES } from "./consts.js";
-import { DecisionStrategy } from "./strategy.js";
-import { DecisionOption, DeferredDecisionData, Id, Location, RunConfig, SubroutineContext } from "./types.js";
+import { PathSelectionHandler } from "./pathSelection.js";
+import { DecisionOption, DeferredDecisionData, Id, Location, RunConfig, RunStateMachineServices, SubroutineContext } from "./types.js";
 
 /**
  * Represents how to proceed after a node has been executed
@@ -18,7 +18,7 @@ type NavigationDecison = {
      * Any deferred decisions that need to be made.
      * 
      * This occurs when we have to choose between multiple next steps, 
-     * and the `DecisionStrategy` decides requires a long or unknown amount of time 
+     * and the `PathSelectionHandler` decides requires a long or unknown amount of time 
      * to wait for a decision.
      * 
      * If any deferred decisions exist, we should not continue with the normal flow. 
@@ -59,10 +59,8 @@ type GetAvailableStartLocationsParams<Config extends GraphConfig> = {
     config: Config;
     /** Unique key to identify the decision point */
     decisionKey: string;
-    /** The decision strategy handler, which may be needed to choose which start nodes to run */
-    decisionStrategy: DecisionStrategy;
-    /** Logger to log errors */
-    logger: PassableLogger;
+    /** The state machine's services */
+    services: RunStateMachineServices;
     /** Additional subroutine information required to generate the locations */
     subroutine: DbObject<"RoutineVersion">;
     /** The current context (e.g. variables, state) for the subroutine, which may be needed to evaluate conditions */
@@ -74,8 +72,8 @@ type GetTriggeredBoundaryEventsParams<Config extends GraphConfig> = {
     config: Config;
     /** The current location (last item in the location stack) in the graph */
     location: Location;
-    /** Logger to log errors */
-    logger: PassableLogger;
+    /** The state machine's services */
+    services: RunStateMachineServices;
     /** The current context (e.g. variables, state) for the subroutine, which may be needed to evaluate conditions */
     subcontext: SubroutineContext;
 }
@@ -85,14 +83,12 @@ type GetAvailableNextLocationsParams<Config extends GraphConfig> = {
     config: Config;
     /** Unique key to identify the decision point */
     decisionKey: string;
-    /** The decision strategy handler, which may be needed to choose which start nodes to run */
-    decisionStrategy: DecisionStrategy;
     /** The current location (last item in the location stack) in the graph */
     location: Location;
-    /** Logger to log errors */
-    logger: PassableLogger;
     /** The run config. Used to determine how strict to be with certain decisions */
     runConfig: RunConfig;
+    /** The state machine's services */
+    services: RunStateMachineServices;
     /** The current context (e.g. variables, state) for the subroutine, which may be needed to evaluate conditions */
     subcontext: SubroutineContext;
 }
@@ -100,10 +96,10 @@ type GetAvailableNextLocationsParams<Config extends GraphConfig> = {
 type GetIONamesPassedIntoNodeParams<Config extends GraphConfig> = {
     /** The BPMN config to get the definitions for. */
     config: Config;
-    /** Logger to log errors */
-    logger: PassableLogger;
     /** The ID of the node to get the inputs and outputs for. */
     nodeId: string;
+    /** The state machine's services */
+    services: RunStateMachineServices;
 }
 
 /**
@@ -452,10 +448,10 @@ export class BpmnNavigator implements IRoutineStepNavigator {
     }
 
     public async getAvailableNextLocations<Config extends GraphConfig>(params: GetAvailableNextLocationsParams<Config>): Promise<NavigationDecison> {
-        const { config, decisionKey, decisionStrategy, location, logger, runConfig, subcontext } = params as unknown as GetAvailableNextLocationsParams<GraphBpmnConfig>;
+        const { config, decisionKey, location, runConfig, services, subcontext } = params as unknown as GetAvailableNextLocationsParams<GraphBpmnConfig>;
 
         // Validate the BPMN version
-        if (!this.isSupportedBpmnVersion(config, logger)) {
+        if (!this.isSupportedBpmnVersion(config, services.logger)) {
             return this.END_STATE;
         }
 
@@ -463,7 +459,7 @@ export class BpmnNavigator implements IRoutineStepNavigator {
         const definitions = await this.getDefinitions(config);
 
         // Find the current BPMN element by ID
-        const element = this.findElementById(definitions, location.locationId, logger);
+        const element = this.findElementById(definitions, location.locationId, services.logger);
         if (!element) {
             return this.END_STATE;
         }
@@ -476,7 +472,7 @@ export class BpmnNavigator implements IRoutineStepNavigator {
         // Initialize next locations
         const nextLocations: Location[] = [];
         // Group the data needed for processing
-        const data: BpmnGraphData = { config, location, logger, subcontext };
+        const data: BpmnGraphData = { config, location, logger: services.logger, subcontext };
 
         // Check for boundary events on the current node
         const triggeredBoundaryEvents = this.getBoundaryEvents(element, definitions, data).triggered;
@@ -528,7 +524,7 @@ export class BpmnNavigator implements IRoutineStepNavigator {
         // If there are no outgoing nodes at all, treat it like an end event. 
         // This should only happen with malformed BPMN diagrams.
         if (outgoingNodes.length === 0) {
-            logger.error(`No outgoing nodes found for element ${element.id}. Treating as end event.`);
+            services.logger.error(`No outgoing nodes found for element ${element.id}. Treating as end event.`);
             return this.END_STATE;
         }
 
@@ -540,7 +536,7 @@ export class BpmnNavigator implements IRoutineStepNavigator {
         if (this.isGatewayNode(element)) {
             // Check if the gateway condition is met (e.g. many gateways require all incoming flows to reach the gateway before proceeding)
             //TODO
-            const outgoingNodesResult = await this.pickOutgoingNodesForGateway(element, availableOutgoingNodes, decisionKey, decisionStrategy, data);
+            const outgoingNodesResult = await this.pickOutgoingNodesForGateway(element, availableOutgoingNodes, decisionKey, services.pathSelectionHandler, data);
             availableOutgoingNodes = outgoingNodesResult.availableOutgoingNodes;
             // If there are deferred decisions, add them to the navigation decision
             if (outgoingNodesResult.deferredDecisions.length > 0) {
@@ -551,7 +547,7 @@ export class BpmnNavigator implements IRoutineStepNavigator {
             }
             // If there are no available outgoing nodes, use configuration to determine what to do
             if (availableOutgoingNodes.length === 0) {
-                logger.error(`No outgoing nodes found for gateway ${element.id}.`);
+                services.logger.error(`No outgoing nodes found for gateway ${element.id}.`);
                 // Continue condition
                 if (runConfig.onGatewayForkFailure === "Continue") {
                     return this.END_STATE;
@@ -578,7 +574,7 @@ export class BpmnNavigator implements IRoutineStepNavigator {
 
         // If there are no available outgoing nodes, use configuration to determine what to do
         if (availableOutgoingNodes.length === 0) {
-            logger.error(`No outgoing nodes found for element ${element.id}.`);
+            services.logger.error(`No outgoing nodes found for element ${element.id}.`);
             // Continue condition
             if (runConfig.onNormalNodeFailure === "Continue") {
                 return this.END_STATE;
@@ -618,10 +614,10 @@ export class BpmnNavigator implements IRoutineStepNavigator {
     }
 
     public async getAvailableStartLocations<Config extends GraphConfig>(params: GetAvailableStartLocationsParams<Config>): Promise<NavigationDecison> {
-        const { config, decisionKey, decisionStrategy, logger, subroutine, subcontext } = params as unknown as GetAvailableStartLocationsParams<GraphBpmnConfig>;
+        const { config, decisionKey, services, subroutine, subcontext } = params as unknown as GetAvailableStartLocationsParams<GraphBpmnConfig>;
 
         // Validate the BPMN version
-        if (!this.isSupportedBpmnVersion(config, logger)) {
+        if (!this.isSupportedBpmnVersion(config, services.logger)) {
             return this.END_STATE;
         }
 
@@ -632,7 +628,7 @@ export class BpmnNavigator implements IRoutineStepNavigator {
         const startEventsByProcess = this.findStartEventsByProcess(definitions);
 
         // Choose which start events to trigger
-        const startEventsToTriggerResult = await this.getStartEventsToTrigger(startEventsByProcess, decisionKey, decisionStrategy, subcontext);
+        const startEventsToTriggerResult = await this.getStartEventsToTrigger(startEventsByProcess, decisionKey, services.pathSelectionHandler, subcontext);
         const startEvents = startEventsToTriggerResult.startEvents;
         const deferredDecisions = startEventsToTriggerResult.deferredDecisions;
 
@@ -645,7 +641,7 @@ export class BpmnNavigator implements IRoutineStepNavigator {
                 locationId: subroutine.id, // Can be anything, as it will be replaced by the start event ID
                 subroutineId: null,
             },
-            logger,
+            logger: services.logger,
             subcontext,
         };
         const nextLocations = startEvents.map((startEvent) => {
@@ -662,10 +658,10 @@ export class BpmnNavigator implements IRoutineStepNavigator {
     }
 
     public async getTriggeredBoundaryEvents<Config extends GraphConfig>(params: GetTriggeredBoundaryEventsParams<Config>): Promise<NavigationDecison> {
-        const { config, location, logger, subcontext } = params as unknown as GetTriggeredBoundaryEventsParams<GraphBpmnConfig>;
+        const { config, location, services, subcontext } = params as unknown as GetTriggeredBoundaryEventsParams<GraphBpmnConfig>;
 
         // Validate the BPMN version
-        if (!this.isSupportedBpmnVersion(config, logger)) {
+        if (!this.isSupportedBpmnVersion(config, services.logger)) {
             return this.NOOP_STATE;
         }
 
@@ -673,12 +669,12 @@ export class BpmnNavigator implements IRoutineStepNavigator {
         const definitions = await this.getDefinitions(config);
 
         // Find the current BPMN element by ID
-        const element = this.findElementById(definitions, location.locationId, logger);
+        const element = this.findElementById(definitions, location.locationId, services.logger);
         if (!element) {
             return this.NOOP_STATE;
         }
 
-        const data: BpmnGraphData = { config, location, logger, subcontext };
+        const data: BpmnGraphData = { config, location, logger: services.logger, subcontext };
 
         // Find triggered boundary events
         const triggeredBoundaryEvents = this.getBoundaryEvents(
@@ -755,14 +751,14 @@ export class BpmnNavigator implements IRoutineStepNavigator {
      * 
      * @param startEvents StartEvent elements, grouped by process ID
      * @param decisionKey The unique key to identify the decision point
-     * @param decisionStrategy The decision strategy to use
+     * @param pathSelectionHandler The path selection handler to use
      * @param subcontext The current context for the subroutine
      * @returns An object containing a list of start events to trigger and any deferred decisions
      */
     private async getStartEventsToTrigger(
         startEvents: Map<string, BpmnModdle.StartEvent[]>,
         decisionKey: string,
-        decisionStrategy: DecisionStrategy,
+        pathSelectionHandler: PathSelectionHandler,
         subcontext: SubroutineContext,
     ): Promise<{
         startEvents: BpmnModdle.StartEvent[];
@@ -785,7 +781,7 @@ export class BpmnNavigator implements IRoutineStepNavigator {
                     nodeLabel: startEvent.name || startEvent.id,
                 };
             });
-            const choice = await decisionStrategy.chooseOne(options, decisionKey, subcontext);
+            const choice = await pathSelectionHandler.chooseOne(options, decisionKey, subcontext);
             if (choice.__type === "Waiting") {
                 return { startEvents: [], deferredDecisions: [choice] };
             }
@@ -1221,7 +1217,7 @@ export class BpmnNavigator implements IRoutineStepNavigator {
      * @param gatewayElement The BPMN gateway element being evaluated.
      * @param availableOutgoingNodes The outgoing flows already filtered by condition (if any).
      * @param decisionKey The unique key to identify the decision point
-     * @param decisionStrategy The decision strategy to use for picking nodes.
+     * @param pathSelectionHandler The path selection handler to use for picking nodes.
      * @param data The BPMN graph data containing config, subcontext, etc.
      * @returns An object containing a subset (or all) of the outgoing nodes that should be taken, 
      * and any deferred decisions that need to be made.
@@ -1230,7 +1226,7 @@ export class BpmnNavigator implements IRoutineStepNavigator {
         gatewayElement: BpmnModdle.Gateway,
         availableOutgoingNodes: BpmnModdle.FlowNode[],
         decisionKey: string,
-        decisionStrategy: DecisionStrategy,
+        pathSelectionHandler: PathSelectionHandler,
         data: BpmnGraphData,
     ): Promise<{ availableOutgoingNodes: BpmnModdle.FlowNode[], deferredDecisions: DeferredDecisionData[] }> {
         const { logger, subcontext } = data;
@@ -1248,8 +1244,8 @@ export class BpmnNavigator implements IRoutineStepNavigator {
             if (availableOutgoingNodes.length <= 1) {
                 return { availableOutgoingNodes, deferredDecisions: [] };
             }
-            // If multiple are valid, ask the decisionStrategy which one to pick
-            const choice = await decisionStrategy.chooseOne(nodesAsOptions, decisionKey, subcontext);
+            // If multiple are valid, ask the selection handler which one to pick
+            const choice = await pathSelectionHandler.chooseOne(nodesAsOptions, decisionKey, subcontext);
             if (choice.__type === "Waiting") {
                 return { availableOutgoingNodes: [], deferredDecisions: [choice] };
             }
@@ -1262,7 +1258,7 @@ export class BpmnNavigator implements IRoutineStepNavigator {
         }
         // Inclusive Gateway => pick any or all that are valid.
         if (this.isElementType(gatewayElement, BpmnElementName.GatewayInclusive)) {
-            const choices = await decisionStrategy.chooseMultiple(nodesAsOptions, decisionKey, subcontext);
+            const choices = await pathSelectionHandler.chooseMultiple(nodesAsOptions, decisionKey, subcontext);
             if (choices.__type === "Waiting") {
                 return { availableOutgoingNodes: [], deferredDecisions: [choices] };
             }
@@ -1276,13 +1272,13 @@ export class BpmnNavigator implements IRoutineStepNavigator {
 
     public async getIONamesPassedIntoNode<Config extends GraphConfig>(data: GetIONamesPassedIntoNodeParams<Config>): Promise<GetIONamesPassedIntoNodeResult> {
         // Parse inputs
-        const { config, logger, nodeId } = data as unknown as GetIONamesPassedIntoNodeParams<GraphBpmnConfig>;
+        const { config, nodeId, services } = data as unknown as GetIONamesPassedIntoNodeParams<GraphBpmnConfig>;
 
         // Initialize result
         const result: GetIONamesPassedIntoNodeResult = {};
 
         // Validate the BPMN version
-        if (!this.isSupportedBpmnVersion(config, logger)) {
+        if (!this.isSupportedBpmnVersion(config, services.logger)) {
             return result;
         }
 
@@ -1290,7 +1286,7 @@ export class BpmnNavigator implements IRoutineStepNavigator {
         const definitions = await this.getDefinitions(config);
 
         // Find the node in the BPMN definitions
-        const nodeElement = this.findElementById(definitions, nodeId, logger);
+        const nodeElement = this.findElementById(definitions, nodeId, services.logger);
         if (!nodeElement) {
             return result;
         }
