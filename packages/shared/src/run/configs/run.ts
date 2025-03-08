@@ -1,7 +1,7 @@
 import { RunProject, type RunRoutine } from "../../api/types.js";
 import { type PassableLogger } from "../../consts/commonTypes.js";
 import { LATEST_RUN_CONFIG_VERSION } from "../consts.js";
-import { DecisionStrategyType, RunProgress } from "../types.js";
+import { InputGenerationStrategy, PathSelectionStrategy, RunProgress, SubroutineExecutionStrategy } from "../types.js";
 import { parseObject, stringifyObject, type StringifyMode } from "./utils.js";
 
 const DEFAULT_STRINGIFY_MODE: StringifyMode = "json";
@@ -102,7 +102,11 @@ export class RunProgressConfig {
     static defaultRunConfig(): RunProgress["config"] {
         return {
             botConfig: {},
-            decisionStrategyType: DecisionStrategyType.AutoPickFirst,
+            decisionConfig: {
+                inputGeneration: InputGenerationStrategy.Auto,
+                pathSelection: PathSelectionStrategy.AutoPickFirst,
+                subroutineExecution: SubroutineExecutionStrategy.Auto,
+            },
             isPrivate: true,
             limits: {},
             loopConfig: {},
@@ -123,6 +127,7 @@ export class RunProgressConfig {
             complexityCompleted: 0,
             complexityTotal: 0,
             creditsSpent: BigInt(0).toString(),
+            startedAt: null,
             stepsRun: 0,
             timeElapsed: 0,
         };
