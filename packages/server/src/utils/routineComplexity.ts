@@ -1,6 +1,6 @@
 import { RoutineVersionCreateInput, RoutineVersionUpdateInput } from "@local/shared";
-import { prismaInstance } from "../db/instance";
-import { CustomError } from "../events/error";
+import { DbProvider } from "../db/provider.js";
+import { CustomError } from "../events/error.js";
 
 /**
  * Weight data for a subroutine, or all subroutines in a node combined.
@@ -159,7 +159,7 @@ async function groupRoutineVersionData(ids: { id: string, parentId: string | nul
     const optionalRoutineVersionInputCounts: { [routineId: string]: number } = {};
     const allRoutineVersionInputCounts: { [routineId: string]: number } = {};
     // Query database. New routine versions will be ignored
-    const data = await prismaInstance.routine_version.findMany({
+    const data = await DbProvider.get().routine_version.findMany({
         where: { id: { in: ids.map(i => i.id) } },
         select: routineVersionSelect,
     });
@@ -262,7 +262,7 @@ export async function calculateWeightData(
     // Add new/updated links and nodes data from inputs
     for (const rVerCreateOrUpdate of inputs) {
         // Adding links
-        for (const link of rVerCreateOrUpdate.nodeLinksCreate ?? []) {
+        for (const link of (rVerCreateOrUpdate as any).nodeLinksCreate ?? []) { //TODO
             linkData[link.id] = {
                 fromId: link.fromConnect,
                 toId: link.toConnect,
@@ -270,19 +270,19 @@ export async function calculateWeightData(
             };
         }
         // Updating links
-        const linksUpdate = (rVerCreateOrUpdate as RoutineVersionUpdateInput).nodeLinksUpdate ?? [];
+        const linksUpdate = (rVerCreateOrUpdate as any).nodeLinksUpdate ?? []; //TODO RoutineVersionUpdateInput
         for (const link of linksUpdate) {
             if (link.fromConnect) linkData[link.id].fromId = link.fromConnect;
             if (link.toConnect) linkData[link.id].toId = link.toConnect;
             linkData[link.id].routineVersionId = rVerCreateOrUpdate.id;
         }
         // Removing links
-        const linksDelete = (rVerCreateOrUpdate as RoutineVersionUpdateInput).nodeLinksDelete ?? [];
+        const linksDelete = (rVerCreateOrUpdate as any).nodeLinksDelete ?? []; //TODO RoutineVersionUpdateInput
         for (const linkId of linksDelete) {
             delete linkData[linkId];
         }
         // Adding nodes
-        for (const node of rVerCreateOrUpdate.nodesCreate ?? []) {
+        for (const node of (rVerCreateOrUpdate as any).nodesCreate ?? []) { //TODO
             if (node.routineListCreate) {
                 // When adding nodes, subroutines can only be connected
                 const subroutineIds = (node.routineListCreate.itemsCreate ?? []).map(item => ({ id: item.routineVersionConnect, parentId: rVerCreateOrUpdate.id }));
@@ -302,7 +302,7 @@ export async function calculateWeightData(
             }
         }
         // Updating nodes
-        const nodesUpdate = (rVerCreateOrUpdate as RoutineVersionUpdateInput).nodesUpdate ?? [];
+        const nodesUpdate = (rVerCreateOrUpdate as any).nodesUpdate ?? []; //TODO RoutineVersionUpdateInput
         for (const node of nodesUpdate) {
             // Ignore if routine list is not being updated
             if (!node.routineListUpdate) continue;
@@ -330,7 +330,7 @@ export async function calculateWeightData(
             }
         }
         // Removing nodes
-        const nodesDelete = (rVerCreateOrUpdate as RoutineVersionUpdateInput).nodesDelete ?? [];
+        const nodesDelete = (rVerCreateOrUpdate as any).nodesDelete ?? []; //TODO RoutineVersionUpdateInput
         for (const nodeId of nodesDelete) {
             delete nodeData[nodeId];
         }

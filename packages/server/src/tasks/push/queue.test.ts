@@ -1,6 +1,7 @@
+import { expect } from "chai";
 import * as yup from "yup";
-import Bull from "../../__mocks__/bull";
-import { sendPush, setupPushQueue } from "./queue";
+import Bull from "../../__mocks__/bull.js";
+import { sendPush, setupPushQueue } from "./queue.js";
 
 /**
  * Validates the push notification task object structure.
@@ -23,18 +24,18 @@ const pushPayloadSchema = yup.object().shape({
  * @param expectedData The expected data object to validate against.
  * @param expectedOptions The expected options object to validate against.
  */
-const expectPushToBeEnqueuedWith = async (mockQueue, expectedData, expectedOptions = { delay: 0 }) => {
+async function expectPushToBeEnqueuedWith(mockQueue, expectedData, expectedOptions = { delay: 0 }) {
     expect(mockQueue.add).toHaveBeenCalled();
     const actualData = mockQueue.add.mock.calls[0][0];
     const actualOptions = mockQueue.add.mock.calls[0][1];
-    await expect(pushPayloadSchema.validate(actualData)).resolves.toEqual(expectedData);
+    await expect(pushPayloadSchema.validate(actualData)).resolves.to.deep.equal(expectedData);
     expect(actualOptions).toMatchObject(expectedOptions);
-};
+}
 
 describe("sendPush function tests", () => {
     let pushQueue;
 
-    beforeAll(async () => {
+    before(async () => {
         pushQueue = new Bull("push");
         await setupPushQueue();
     });

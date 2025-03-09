@@ -1,6 +1,7 @@
-import { MINUTES_15_MS, aiServicesInfo } from "@local/shared";
-import { CustomError } from "../../events/error";
-import { logger } from "../../events/logger";
+import { LlmServiceId, MINUTES_15_MS, aiServicesInfo } from "@local/shared";
+import { CustomError } from "../../events/error.js";
+import { logger } from "../../events/logger.js";
+import { LanguageModelService } from "./types.js";
 
 /** States a service can be in */
 export enum LlmServiceState {
@@ -38,16 +39,7 @@ const COOLDOWN_TIMES: Partial<Record<LlmServiceErrorType, number>> = {
     [LlmServiceErrorType.Overloaded]: MINUTES_15_MS,
 };
 
-/**
- * All available services
- */
-export enum LlmServiceId {
-    Anthropic = "Anthropic",
-    Mistral = "Mistral",
-    OpenAI = "OpenAI",
-}
-
-const serviceInstances: Partial<Record<LlmServiceId, any>> = {};
+const serviceInstances: Partial<Record<LlmServiceId, LanguageModelService<any>>> = {};
 
 /**
  * Singleton class for managing the states of registered LLM (Large Language Model) services, 
@@ -62,6 +54,10 @@ export class LlmServiceRegistry {
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     private constructor() { }
 
+    /**
+     * Gets the singleton instance of the LLM service registry.
+     * @returns The singleton instance of the LLM service registry.
+     */
     public static get(): LlmServiceRegistry {
         if (!LlmServiceRegistry.instance) {
             LlmServiceRegistry.instance = new LlmServiceRegistry();
@@ -89,19 +85,19 @@ export class LlmServiceRegistry {
             switch (serviceId) {
                 case LlmServiceId.Anthropic:
                     {
-                        const { AnthropicService } = await import("./services/anthropic");
+                        const { AnthropicService } = await import("./services/anthropic.js");
                         serviceInstances[LlmServiceId.Anthropic] = new AnthropicService();
                     }
                     break;
                 case LlmServiceId.Mistral:
                     {
-                        const { MistralService } = await import("./services/mistral");
+                        const { MistralService } = await import("./services/mistral.js");
                         serviceInstances[LlmServiceId.Mistral] = new MistralService();
                     }
                     break;
                 case LlmServiceId.OpenAI:
                     {
-                        const { OpenAIService } = await import("./services/openai");
+                        const { OpenAIService } = await import("./services/openai.js");
                         serviceInstances[LlmServiceId.OpenAI] = new OpenAIService();
                     }
                     break;
@@ -117,36 +113,60 @@ export class LlmServiceRegistry {
 
     /**
      * Finds the targeted language model service, based on the model name
+     * 
+     * @param model The model name to find the service for, or undefined 
+     * to use the default service.
+     * @returns The service ID for the model, or the default service ID if the model is not found.
      */
-    getServiceId = (model: string | undefined): LlmServiceId => {
-        if (!model) return LlmServiceId.OpenAI;
+    getServiceId(model: string | undefined): LlmServiceId {
+        if (!model) return aiServicesInfo.defaultService;
         if (model.includes("gpt")) return LlmServiceId.OpenAI;
         if (model.includes("claude")) return LlmServiceId.Anthropic;
         if (model.includes("stral")) return LlmServiceId.Mistral;
-        return LlmServiceId.OpenAI;
-    };
+        return aiServicesInfo.defaultService;
+    }
 
     /**
-     * Instantiates a new service, using the service's unique identifier
+     * Gets the current state of a registered LLM service.
+     * 
+     * @param serviceId The unique identifier for the LLM service.
+     * @returns The current state of the service, or Disabled if the service is not registered.
      */
-    getService = (serviceId: LlmServiceId) => {
+    getServiceState(serviceId: string): LlmServiceState {
+        return this.serviceStates.get(serviceId)?.state || LlmServiceState.Disabled;
+    }
+
+    /**
+     * Gets the specified service instance, if it is active.
+     * 
+     * @param serviceId The unique identifier for the LLM service.
+     * @returns The service instance, or throws an error if the service is not active 
+     * or not registered.
+     */
+    getService(serviceId: LlmServiceId): LanguageModelService<any> {
+        // Check if the service is active
         const state = this.getServiceState(serviceId);
         if (state !== LlmServiceState.Active) {
             throw new CustomError("0652", "ServiceDisabled", { serviceId });
         }
 
+        // Get the service instance
         const instance = serviceInstances[serviceId];
         if (!instance) {
             throw new CustomError("0251", "InternalError", { serviceId });
         }
         return instance;
-    };
+    }
 
     /** 
      * Finds the best active service to use for a given model name, 
      * or null if no active services are available.
+     * 
+     * @param model The model name to find the best service for, or undefined 
+     * to use the default service.
+     * @returns The service ID for the model, or the default service ID if the model is not found.
      */
-    getBestService = (model: string | undefined): LlmServiceId | null => {
+    getBestService(model: string | undefined): LlmServiceId | null {
         // Try requested service first
         const serviceId = this.getServiceId(model);
         if (this.getServiceState(serviceId) === LlmServiceState.Active) {
@@ -154,7 +174,7 @@ export class LlmServiceRegistry {
         }
 
         // The model name is the model string itself
-        const modelName = serviceInstances[serviceId].getModel(model);
+        const modelName = serviceInstances[serviceId]?.getModel(model);
 
         // Get fallbacks
         const fallbacksForModel = aiServicesInfo.fallbacks[modelName] || [];
@@ -168,7 +188,7 @@ export class LlmServiceRegistry {
 
         // If no active services are available, return null
         return null;
-    };
+    }
 
     registerService(serviceId: string, state: LlmServiceState = LlmServiceState.Active) {
         this.serviceStates.set(serviceId, { state });
@@ -197,18 +217,6 @@ export class LlmServiceRegistry {
             this.serviceStates.set(serviceId, service);
             this.resetServiceStateAfterCooldown(serviceId);
         }
-    }
-
-    /**
-     * Gets the current state of a registered LLM service.
-     * @param {string} serviceId - The unique identifier for the LLM service.
-     * @returns {LlmServiceState} The current state of the service
-     */
-    getServiceState(serviceId: string): LlmServiceState {
-        if (!this.serviceStates.has(serviceId)) {
-            this.registerService(serviceId);
-        }
-        return this.serviceStates.get(serviceId)?.state || LlmServiceState.Disabled;
     }
 
     /**

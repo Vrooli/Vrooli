@@ -1,6 +1,6 @@
 import { ServerError, type TranslationKeyError } from "@local/shared";
-import { randomString } from "../auth/codes";
-import { logger } from "./logger";
+import { randomString } from "../auth/codes.js";
+import { logger } from "./logger.js";
 
 const TRACE_LENGTH = 4;
 

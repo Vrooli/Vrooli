@@ -1,8 +1,8 @@
 import { ModelType } from "@local/shared";
-import { CustomError } from "../events/error";
-import { ModelMap } from "../models/base";
-import { ModelLogicType } from "../models/types";
-import { IdsByAction, InputsById } from "./types";
+import { CustomError } from "../events/error.js";
+import { ModelMap } from "../models/base/index.js";
+import { ModelLogicType } from "../models/types.js";
+import { IdsByAction, InputsById } from "./types.js";
 
 type CudOutputData<Model extends {
     ApiCreate: ModelLogicType["ApiCreate"],
@@ -15,7 +15,7 @@ type CudOutputData<Model extends {
     updateInputs: Model["ApiUpdate"][],
 }
 
-export const cudOutputsToMaps = <Model extends {
+export function cudOutputsToMaps<Model extends {
     ApiCreate: ModelLogicType["ApiCreate"],
     ApiUpdate: ModelLogicType["ApiUpdate"],
     ApiModel: ModelLogicType["ApiModel"],
@@ -25,10 +25,10 @@ export const cudOutputsToMaps = <Model extends {
 }: {
     idsByAction: IdsByAction,
     inputsById: InputsById,
-}): { [key in `${ModelType}`]?: CudOutputData<Model> } => {
+}): { [key in `${ModelType}`]?: CudOutputData<Model> } {
     const result: { [key in `${ModelType}`]?: CudOutputData<Model> } = {};
     // Helper function to initialize the result object for a given type
-    const initResult = (type: `${ModelType}`) => {
+    function initResult(type: `${ModelType}`) {
         if (!result[type]) {
             result[type] = {
                 createdIds: [],
@@ -37,7 +37,7 @@ export const cudOutputsToMaps = <Model extends {
                 updateInputs: [],
             };
         }
-    };
+    }
     // Generate createInputs
     if (idsByAction.Create) {
         for (const createdId of idsByAction.Create) {
@@ -76,4 +76,4 @@ export const cudOutputsToMaps = <Model extends {
         }
     }
     return result;
-};
+}

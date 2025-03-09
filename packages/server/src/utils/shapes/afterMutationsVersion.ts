@@ -1,7 +1,7 @@
 import { ModelType, calculateVersionsFromString } from "@local/shared";
-import { PrismaDelegate } from "../../builders/types";
-import { prismaInstance } from "../../db/instance";
-import { ModelMap } from "../../models/base";
+import { type PrismaDelegate } from "../../builders/types.js";
+import { DbProvider } from "../../db/provider.js";
+import { ModelMap } from "../../models/base/index.js";
 
 type Version = {
     id: string;
@@ -127,7 +127,7 @@ export async function afterMutationsVersion({ createdIds, deletedIds, objectType
     // Get ids from created, updated, and deletedIds
     const versionIds = [...createdIds, ...updatedIds, ...deletedIds];
     // Use version ids to query root objects
-    const rootData = await (prismaInstance[dbTableRoot] as PrismaDelegate).findMany({
+    const rootData = await (DbProvider.get()[dbTableRoot] as PrismaDelegate).findMany({
         where: { versions: { some: { id: { in: versionIds } } } },
         select: {
             id: true,
@@ -148,6 +148,6 @@ export async function afterMutationsVersion({ createdIds, deletedIds, objectType
     // Get db table for version object
     const { dbTable: dbTableVersion } = ModelMap.getLogic(["dbTable"], objectType.replace("Version", "") + "Version" as ModelType);
     // Update versions in a Prisma transaction
-    const promises = updatedVersions.map(({ where, data }) => prismaInstance[dbTableVersion].update({ where, data }));
-    await prismaInstance.$transaction(promises);
+    const promises = updatedVersions.map(({ where, data }) => DbProvider.get()[dbTableVersion].update({ where, data }));
+    await DbProvider.get().$transaction(promises);
 }

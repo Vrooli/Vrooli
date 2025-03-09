@@ -1,9 +1,9 @@
 import { AITaskInfo, LlmTask, ServerLlmTaskInfo } from "@local/shared";
 import { Job } from "bull";
-import { logger } from "../../events/logger";
-import { emitSocketEvent } from "../../sockets/events";
-import { generateTaskExec } from "../llm/converter";
-import { LlmTaskProcessPayload, changeLlmTaskStatus } from "./queue";
+import { logger } from "../../events/logger.js";
+import { emitSocketEvent } from "../../sockets/events.js";
+import { generateTaskExec } from "../llm/converter.js";
+import { LlmTaskProcessPayload, changeLlmTaskStatus } from "./queue.js";
 
 type ExecuteLlmTaskParams = {
     data: Omit<LlmTaskProcessPayload, "status">;

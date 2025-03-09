@@ -5,34 +5,34 @@ import express from "express";
 import i18next from "i18next";
 import path from "path";
 import { fileURLToPath } from "url";
-import { app } from "./app";
-import { AuthService } from "./auth/auth";
-import { SessionService } from "./auth/session";
-import { initRestApi } from "./endpoints/rest";
-import { logger } from "./events/logger";
-import { ModelMap } from "./models/base";
-import { initializeRedis } from "./redisConn";
-import { SERVER_URL, server } from "./server";
-import { setupStripe } from "./services";
-import { io, sessionSockets, userSockets } from "./sockets/io";
-import { chatSocketRoomHandlers } from "./sockets/rooms/chat";
-import { runSocketRoomHandlers } from "./sockets/rooms/run";
-import { userSocketRoomHandlers } from "./sockets/rooms/user";
-import { setupEmailQueue } from "./tasks/email/queue";
-import { setupExportQueue } from "./tasks/export/queue";
-import { setupImportQueue } from "./tasks/import/queue";
-import { setupLlmQueue } from "./tasks/llm/queue";
-import { LlmServiceRegistry } from "./tasks/llm/registry";
-import { setupLlmTaskQueue } from "./tasks/llmTask/queue";
-import { setupPushQueue } from "./tasks/push/queue";
-import { setupRunQueue } from "./tasks/run/queue";
-import { setupSandboxQueue } from "./tasks/sandbox";
-import { setupSmsQueue } from "./tasks/sms/queue";
-import { initializeProfanity } from "./utils/censor";
-import { setupDatabase } from "./utils/setupDatabase";
+import { app } from "./app.js";
+import { AuthService } from "./auth/auth.js";
+import { SessionService } from "./auth/session.js";
+import { DbProvider } from "./db/provider.js";
+import { initRestApi } from "./endpoints/rest.js";
+import { logger } from "./events/logger.js";
+import { ModelMap } from "./models/base/index.js";
+import { initializeRedis } from "./redisConn.js";
+import { SERVER_URL, server } from "./server.js";
+import { setupStripe } from "./services/stripe.js";
+import { io, sessionSockets, userSockets } from "./sockets/io.js";
+import { chatSocketRoomHandlers } from "./sockets/rooms/chat.js";
+import { runSocketRoomHandlers } from "./sockets/rooms/run.js";
+import { userSocketRoomHandlers } from "./sockets/rooms/user.js";
+import { setupEmailQueue } from "./tasks/email/queue.js";
+import { setupExportQueue } from "./tasks/export/queue.js";
+import { setupImportQueue } from "./tasks/import/queue.js";
+import { setupLlmQueue } from "./tasks/llm/queue.js";
+import { LlmServiceRegistry } from "./tasks/llm/registry.js";
+import { TokenEstimationRegistry } from "./tasks/llm/tokenEstimator.js";
+import { setupLlmTaskQueue } from "./tasks/llmTask/queue.js";
+import { setupPushQueue } from "./tasks/push/queue.js";
+import { setupRunQueue } from "./tasks/run/queue.js";
+import { setupSandboxQueue } from "./tasks/sandbox/queue.js";
+import { setupSmsQueue } from "./tasks/sms/queue.js";
+import { initializeProfanity } from "./utils/censor.js";
 
 const debug = process.env.NODE_ENV === "development";
-const QUERY_DEPTH_LIMIT = 13;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -44,6 +44,7 @@ export async function initSingletons() {
     // Initialize singletons
     await ModelMap.init();
     await LlmServiceRegistry.init();
+    await TokenEstimationRegistry.init();
 
     // Initialize censor dictionary
     initializeProfanity();
@@ -191,15 +192,15 @@ if (process.env.npm_package_name === "@local/server") {
 }
 
 // Export files for "jobs" package
-export * from "./builders";
-export * from "./db/instance";
-export * from "./events";
-export * from "./models";
-export * from "./notify";
-export * from "./redisConn";
-export * from "./server";
-export * from "./sockets/events";
-export * from "./tasks";
-export * from "./utils";
-export * from "./validators";
+export * from "./builders/index.js";
+export * from "./db/provider.js";
+export * from "./events/index.js";
+export * from "./models/index.js";
+export * from "./notify/index.js";
+export * from "./redisConn.js";
+export * from "./server.js";
+export * from "./sockets/events.js";
+export * from "./tasks/index.js";
+export * from "./utils/index.js";
+export * from "./validators/index.js";
 

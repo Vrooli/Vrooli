@@ -63,3 +63,18 @@ export function validUuid(...args: unknown[]): string | undefined {
     }
     return undefined;
 }
+
+/**
+ * Converts a value to boolean, using the following rules:
+ * - "true" -> true
+ * - "false" -> false
+ * Everything else uses Boolean(value) 
+ * 
+ * @param value The value to convert to a boolean
+ * @returns The boolean value of the input
+ */
+export function toBool(value: unknown): boolean {
+    if (value === "true") return true;
+    if (value === "false") return false;
+    return Boolean(value);
+}

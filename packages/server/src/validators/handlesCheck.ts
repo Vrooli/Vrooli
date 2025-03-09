@@ -1,8 +1,8 @@
-import { PrismaDelegate } from "../builders/types";
-import { prismaInstance } from "../db/instance";
-import { CustomError } from "../events/error";
-import { ModelMap } from "../models/base";
-import { hasProfanity } from "../utils/censor";
+import { PrismaDelegate } from "../builders/types.js";
+import { DbProvider } from "../db/provider.js";
+import { CustomError } from "../events/error.js";
+import { ModelMap } from "../models/base/index.js";
+import { hasProfanity } from "../utils/censor.js";
 
 /** 
  * Handles that are not allowed to be used, regardless if they are in the database.
@@ -124,7 +124,7 @@ export async function handlesCheck(
     // Find all existing handles that match the handles in createList and updateList.
     // There should be none, unless some of the updates are changing the existing handles to something else.
     const { dbTable } = ModelMap.getLogic(["dbTable"], forType);
-    const existingHandles = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
+    const existingHandles = await (DbProvider.get()[dbTable] as PrismaDelegate).findMany({
         where: { handle: { in: [...filteredCreateList, ...filteredUpdateList].map(x => x.handle) } },
         select: { id: true, handle: true },
     });
@@ -161,4 +161,4 @@ export async function handlesCheck(
             throw new CustomError("0019", "HandleTaken");
         }
     }
-};
+}

@@ -1,14 +1,14 @@
 import { ModelType, pascalCase, uuidValidate } from "@local/shared";
-import { isRelationshipObject } from "../builders/isOfType";
-import { PrismaDelegate } from "../builders/types";
-import { prismaInstance } from "../db/instance";
-import { CustomError } from "../events/error";
-import { logger } from "../events/logger";
-import { ModelMap } from "../models/base";
-import { Formatter, ModelLogicType, PreMap } from "../models/types";
-import { getActionFromFieldName } from "./getActionFromFieldName";
-import { InputNode } from "./inputNode";
-import { CudInputData, IdsByAction, IdsByPlaceholder, IdsByType, IdsCreateToConnect, InputsById, InputsByType, QueryAction, ResultsById } from "./types";
+import { isRelationshipObject } from "../builders/isOfType.js";
+import { PrismaDelegate } from "../builders/types.js";
+import { DbProvider } from "../db/provider.js";
+import { CustomError } from "../events/error.js";
+import { logger } from "../events/logger.js";
+import { ModelMap } from "../models/base/index.js";
+import { Formatter, ModelLogicType, PreMap } from "../models/types.js";
+import { getActionFromFieldName } from "./getActionFromFieldName.js";
+import { InputNode } from "./inputNode.js";
+import { CudInputData, IdsByAction, IdsByPlaceholder, IdsByType, IdsCreateToConnect, InputsById, InputsByType, QueryAction, ResultsById } from "./types.js";
 
 /** Information about the closest known object with a valid, **existing** ID (i.e. not a new object) in a mutation */
 type ClosestWithId = { __typename: string, id: string, path: string };
@@ -80,7 +80,7 @@ export async function fetchAndMapPlaceholder(
         }
     });
 
-    const queryResult = await (prismaInstance[dbTable] as PrismaDelegate).findUnique({
+    const queryResult = await (DbProvider.get()[dbTable] as PrismaDelegate).findUnique({
         where: { id: rootId },
         select,
     });

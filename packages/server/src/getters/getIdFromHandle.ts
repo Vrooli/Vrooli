@@ -1,5 +1,5 @@
 import { ModelType } from "@local/shared";
-import { prismaInstance } from "../db/instance";
+import { DbProvider } from "../db/provider.js";
 
 /**
  * Finds the id of an object from its handle
@@ -15,8 +15,8 @@ export async function getIdFromHandle({
     const where = { handle };
     const select = { id: true };
     const query = { where, select };
-    const id = objectType === "Team" ? await prismaInstance.team.findFirst(query) :
-        objectType === "Project" ? await prismaInstance.project.findFirst(query) :
-            await prismaInstance.user.findFirst(query);
+    const id = objectType === "Team" ? await DbProvider.get().team.findFirst(query) :
+        objectType === "Project" ? await DbProvider.get().project.findFirst(query) :
+            await DbProvider.get().user.findFirst(query);
     return id?.id;
 }

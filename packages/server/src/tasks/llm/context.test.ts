@@ -1,14 +1,15 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { TaskContextInfo } from "@local/shared";
+import { expect } from "chai";
 import { RedisClientType } from "redis";
-import pkg from "../../__mocks__/@prisma/client";
-import { RedisClientMock } from "../../__mocks__/redis";
-import { initializeRedis } from "../../redisConn";
-import { UI_URL } from "../../server";
-import { PreMapMessageData, PreMapMessageDataDelete, PreMapMessageDataUpdate } from "../../utils/chat";
-import { ChatContextCollector, ChatContextManager, MessageContextInfo, determineRespondingBots, processMentions, stringifyTaskContexts } from "./context";
-import { EstimateTokensParams } from "./service";
-import { OpenAIService } from "./services/openai";
+import pkg from "../../__mocks__/@prisma/client.js";
+import { RedisClientMock } from "../../__mocks__/redis.js";
+import { initializeRedis } from "../../redisConn.js";
+import { UI_URL } from "../../server.js";
+import { PreMapMessageData, PreMapMessageDataDelete, PreMapMessageDataUpdate } from "../../utils/chat.js";
+import { ChatContextCollector, ChatContextManager, MessageContextInfo, determineRespondingBots, processMentions, stringifyTaskContexts } from "./context.js";
+import { EstimateTokensParams } from "./service.js";
+import { OpenAIService } from "./services/openai.js";
 
 const { PrismaClient } = pkg;
 
@@ -83,7 +84,7 @@ describe("ChatContextManager", () => {
             // Verify redis data
             const currentData = RedisClientMock.__getAllMockData();
             expect(currentData[`chat:${message.chatId}`]).toContainEqual(expect.objectContaining({ value: message.messageId }));
-            expect(currentData[`message:${message.messageId}`]).toEqual(
+            expect(currentData[`message:${message.messageId}`]).to.deep.equal(
                 expect.objectContaining({
                     id: message.messageId,
                     userId: message.userId,
@@ -91,7 +92,7 @@ describe("ChatContextManager", () => {
                     translatedTokenCounts: expect.any(String),
                 }),
             );
-            expect(currentData[`children:${message.parentId}`]).toEqual(expect.arrayContaining([message.messageId]));
+            expect(currentData[`children:${message.parentId}`]).to.deep.equal(expect.arrayContaining([message.messageId]));
         });
         it(`${lmServiceName}: should add a message without a parent to Redis`, async () => {
             const message = { __type: "Create", ...message2, parentId: null } as const;
@@ -105,14 +106,14 @@ describe("ChatContextManager", () => {
             // Verify redis data
             const currentData = RedisClientMock.__getAllMockData();
             expect(currentData[`chat:${message.chatId}`]).toContainEqual(expect.objectContaining({ value: message.messageId }));
-            expect(currentData[`message:${message.messageId}`]).toEqual(
+            expect(currentData[`message:${message.messageId}`]).to.deep.equal(
                 expect.objectContaining({
                     id: message.messageId,
                     userId: message.userId,
                     translatedTokenCounts: expect.any(String),
                 }),
             );
-            expect(currentData[`children:${message.parentId}`]).not.toEqual(expect.arrayContaining([message.messageId]));
+            expect(currentData[`children:${message.parentId}`]).not.to.deep.equal(expect.arrayContaining([message.messageId]));
         });
 
         // Edit message
@@ -133,7 +134,7 @@ describe("ChatContextManager", () => {
 
             // Verify Redis data
             const currentData = RedisClientMock.__getAllMockData();
-            expect(currentData[`message:${message.messageId}`]).toEqual(
+            expect(currentData[`message:${message.messageId}`]).to.deep.equal(
                 expect.objectContaining({
                     id: message.messageId,
                     userId: message.userId,
@@ -146,7 +147,7 @@ describe("ChatContextManager", () => {
             // Verify that message is part of original parent's children
             const originalParentId = initialMessageData["message:message1"].parentId;
             const originalChildren = RedisClientMock.__getAllMockData()[`children:${originalParentId}`];
-            expect(originalChildren).toContain("message1");
+            expect(originalChildren).to.include("message1");
 
             const message: PreMapMessageData = {
                 __type: "Update",
@@ -165,15 +166,15 @@ describe("ChatContextManager", () => {
 
             // Verify Redis data
             const currentData = RedisClientMock.__getAllMockData();
-            expect(currentData[`message:${message.messageId}`]).toEqual(
+            expect(currentData[`message:${message.messageId}`]).to.deep.equal(
                 expect.objectContaining({
                     parentId: message.parentId,
                 }),
             );
             // Message should be in new parent's children
-            expect(currentData[`children:${message.parentId}`]).toEqual(expect.arrayContaining([message.messageId]));
+            expect(currentData[`children:${message.parentId}`]).to.deep.equal(expect.arrayContaining([message.messageId]));
             // Message should be removed from original parent's children
-            expect(currentData[`children:${originalParentId}`]).not.toEqual(expect.arrayContaining([message.messageId]));
+            expect(currentData[`children:${originalParentId}`]).not.to.deep.equal(expect.arrayContaining([message.messageId]));
         });
         it(`${lmServiceName}: should still work when existing message does not exist`, async () => {
             const message: PreMapMessageData = {
@@ -193,7 +194,7 @@ describe("ChatContextManager", () => {
 
             // Verify Redis data
             const currentData = RedisClientMock.__getAllMockData();
-            expect(currentData[`message:${message.messageId}`]).toEqual(
+            expect(currentData[`message:${message.messageId}`]).to.deep.equal(
                 expect.objectContaining({
                     id: message.messageId,
                     userId: message.userId,
@@ -201,7 +202,7 @@ describe("ChatContextManager", () => {
                     translatedTokenCounts: expect.any(String), // Adjust the expectation based on your token count calculation logic
                 }),
             );
-            expect(currentData[`children:${message.parentId}`]).toEqual(expect.arrayContaining([message.messageId]));
+            expect(currentData[`children:${message.parentId}`]).to.deep.equal(expect.arrayContaining([message.messageId]));
         });
         it(`${lmServiceName}: should edit message translations and update token counts`, async () => {
             const messageWithEditedTranslations: PreMapMessageData = {
@@ -222,7 +223,7 @@ describe("ChatContextManager", () => {
 
             // Verify Redis data
             const currentData = RedisClientMock.__getAllMockData();
-            expect(currentData[`message:${messageWithEditedTranslations.messageId}`]).toEqual(
+            expect(currentData[`message:${messageWithEditedTranslations.messageId}`]).to.deep.equal(
                 expect.objectContaining({
                     translatedTokenCounts: JSON.stringify(mockedTokenCounts),
                 }),
@@ -246,7 +247,7 @@ describe("ChatContextManager", () => {
 
             // Verify Redis data
             const currentData = RedisClientMock.__getAllMockData();
-            expect(currentData[`message:${message.messageId}`]).toEqual(
+            expect(currentData[`message:${message.messageId}`]).to.deep.equal(
                 expect.objectContaining({
                     id: message.messageId,
                     userId: message.userId,
@@ -262,7 +263,7 @@ describe("ChatContextManager", () => {
                 __type: "Delete",
                 chatId: "chat1",
                 messageId: "message1",
-            }
+            };
 
             await chatContextManager.deleteMessage(message);
 
@@ -272,8 +273,8 @@ describe("ChatContextManager", () => {
 
             // Verify the message and its children references are removed
             const currentData = RedisClientMock.__getAllMockData();
-            expect(currentData[`message:${message.messageId}`]).toBeUndefined();
-            expect(currentData[`children:${message.messageId}`]).toBeUndefined();
+            expect(currentData[`message:${message.messageId}`]).to.be.undefined;
+            expect(currentData[`children:${message.messageId}`]).to.be.undefined;
             expect(currentData[`chat:${message.chatId}`]).not.toContainEqual(expect.objectContaining({ value: message.messageId }));
         });
         it(`${lmServiceName}: should update children's parent references when deleting a message with children`, async () => {
@@ -307,9 +308,9 @@ describe("ChatContextManager", () => {
 
             // Make sure they're added
             const currentData = RedisClientMock.__getAllMockData();
-            expect(currentData[`children:${childMessage1.parentId}`]).toEqual(expect.arrayContaining([childMessage1.messageId, childMessage2.messageId]));
-            expect(currentData[`message:${childMessage1.messageId}`]).toEqual(expect.objectContaining({ parentId: message1.messageId }));
-            expect(currentData[`message:${childMessage2.messageId}`]).toEqual(expect.objectContaining({ parentId: message1.messageId }));
+            expect(currentData[`children:${childMessage1.parentId}`]).to.deep.equal(expect.arrayContaining([childMessage1.messageId, childMessage2.messageId]));
+            expect(currentData[`message:${childMessage1.messageId}`]).to.deep.equal(expect.objectContaining({ parentId: message1.messageId }));
+            expect(currentData[`message:${childMessage2.messageId}`]).to.deep.equal(expect.objectContaining({ parentId: message1.messageId }));
 
             // Delete the parent message (message1)
             await chatContextManager.deleteMessage({ __type: "Delete", chatId: childMessage1.chatId, messageId: childMessage1.parentId } as const);
@@ -321,20 +322,20 @@ describe("ChatContextManager", () => {
             // Verify the message and its children references are removed
             const updatedData = RedisClientMock.__getAllMockData();
             // The parent should now be message1's parent (parent1)
-            expect(updatedData[`children:${message1.parentId}`]).toEqual(expect.arrayContaining([childMessage1.messageId, childMessage2.messageId]));
-            expect(updatedData[`children:${message1.messageId}`]).toBeUndefined();
-            expect(updatedData[`message:${message1.messageId}`]).toBeUndefined();
+            expect(updatedData[`children:${message1.parentId}`]).to.deep.equal(expect.arrayContaining([childMessage1.messageId, childMessage2.messageId]));
+            expect(updatedData[`children:${message1.messageId}`]).to.be.undefined;
+            expect(updatedData[`message:${message1.messageId}`]).to.be.undefined;
             expect(updatedData[`chat:${childMessage1.chatId}`]).not.toContainEqual(expect.objectContaining({ value: message1.messageId }));
             expect(updatedData[`chat:${childMessage1.chatId}`]).toContainEqual(expect.objectContaining({ value: childMessage1.messageId }));
             expect(updatedData[`chat:${childMessage1.chatId}`]).toContainEqual(expect.objectContaining({ value: childMessage2.messageId }));
-            expect(updatedData[`message:${childMessage1.messageId}`]).toEqual(expect.objectContaining({ parentId: message1.parentId }));
-            expect(updatedData[`message:${childMessage2.messageId}`]).toEqual(expect.objectContaining({ parentId: message1.parentId }));
+            expect(updatedData[`message:${childMessage1.messageId}`]).to.deep.equal(expect.objectContaining({ parentId: message1.parentId }));
+            expect(updatedData[`message:${childMessage2.messageId}`]).to.deep.equal(expect.objectContaining({ parentId: message1.parentId }));
         });
         it(`${lmServiceName}: should gracefully handle attempts to delete a non-existent message`, async () => {
             const message = {
                 __type: "Delete",
                 chatId: "chat1",
-                messageId: "nonExistentMessage"
+                messageId: "nonExistentMessage",
             } as const;
 
             // Get starting data
@@ -344,7 +345,7 @@ describe("ChatContextManager", () => {
 
             // Verify that ending data is the same as starting data
             const endingData = RedisClientMock.__getAllMockData();
-            expect(endingData).toEqual(startingData);
+            expect(endingData).to.deep.equal(startingData);
         });
 
         // Delete chat
@@ -367,13 +368,13 @@ describe("ChatContextManager", () => {
 
             // Verify the chat and all its messages are deleted
             currentData = RedisClientMock.__getAllMockData();
-            expect(currentData[`chat:${message2.chatId}`]).toBeUndefined();
-            expect(currentData[`message:${message2.messageId}`]).toBeUndefined();
-            expect(currentData[`children:${message2.messageId}`]).toBeUndefined();
-            expect(currentData[`message:${message2.messageId}`]).toBeUndefined();
-            expect(currentData[`children:${message2.messageId}`]).toBeUndefined();
-            expect(currentData[`message:${message3.messageId}`]).toBeUndefined();
-            expect(currentData[`children:${message3.messageId}`]).toBeUndefined();
+            expect(currentData[`chat:${message2.chatId}`]).to.be.undefined;
+            expect(currentData[`message:${message2.messageId}`]).to.be.undefined;
+            expect(currentData[`children:${message2.messageId}`]).to.be.undefined;
+            expect(currentData[`message:${message2.messageId}`]).to.be.undefined;
+            expect(currentData[`children:${message2.messageId}`]).to.be.undefined;
+            expect(currentData[`message:${message3.messageId}`]).to.be.undefined;
+            expect(currentData[`children:${message3.messageId}`]).to.be.undefined;
         });
         it(`${lmServiceName}: should handle deleting an empty chat`, async () => {
             const emptyChatId = "emptyChat";
@@ -386,7 +387,7 @@ describe("ChatContextManager", () => {
 
             // Verify the empty chat is deleted
             const currentData = RedisClientMock.__getAllMockData();
-            expect(currentData[`chat:${emptyChatId}`]).toBeUndefined();
+            expect(currentData[`chat:${emptyChatId}`]).to.be.undefined;
         });
         it(`${lmServiceName}: should gracefully handle deleting a non-existent chat`, async () => {
             const nonExistentChatId = "nonExistentChat";
@@ -402,7 +403,7 @@ describe("ChatContextManager", () => {
 
             // Verify that ending data is the same as starting data
             const endingData = RedisClientMock.__getAllMockData();
-            expect(endingData).toEqual(startingData);
+            expect(endingData).to.deep.equal(startingData);
         });
 
         // Token counts
@@ -421,11 +422,11 @@ describe("ChatContextManager", () => {
             // Verify structure and reasonableness of token counts
             Object.entries(tokenCounts).forEach(([language, methods]) => {
                 estimationTypes.forEach(method => {
-                    expect(methods).toHaveProperty(method);
+                    expect(methods).to.have.property(method);
                     const count = methods[method];
-                    expect(count).toBeGreaterThanOrEqual(0); // Token count should be non-negative
-                    expect(count).toBeLessThanOrEqual(translations.find(t => t.language === language)!.text.length); // Token count should not exceed message length
-                    expect(Number.isInteger(count)).toBeTruthy(); // Token count should be an integer
+                    expect(count).to.be.at.least(0); // Token count should be non-negative
+                    expect(count).to.be.at.most(translations.find(t => t.language === language)!.text.length); // Token count should not exceed message length
+                    expect(Number.isInteger(count)).to.be.ok; // Token count should be an integer
                 });
             });
         });
@@ -433,7 +434,7 @@ describe("ChatContextManager", () => {
             const tokenCounts = chatContextManager.calculateTokenCounts([], ...estimationTypes);
 
             // Expect an empty object when no translations are provided
-            expect(tokenCounts).toEqual({});
+            expect(tokenCounts).to.deep.equal({});
         });
         it(`${lmServiceName}: should handle undefined or null estimation methods gracefully`, () => {
             // @ts-ignore: Testing runtime scenario
@@ -441,8 +442,8 @@ describe("ChatContextManager", () => {
 
             // Expect token counts to still be calculated using some default method or skipped
             Object.keys(tokenCounts).forEach(language => {
-                expect(tokenCounts[language]).toBeDefined();
-                expect(Object.keys(tokenCounts[language])).toContain("default"); // Assuming 'default' is a fallback method
+                expect(tokenCounts[language]).to.exist;
+                expect(Object.keys(tokenCounts[language])).to.include("default"); // Assuming 'default' is a fallback method
             });
         });
     });
@@ -581,10 +582,10 @@ describe("ChatContextCollector", () => {
             const contextInfo = await chatContextCollector.collectMessageContextInfo({ chatId, model, languages, latestMessage });
 
             // Expect to collect context for message6, its parent (message3), and its grandparent (message1)
-            expect(contextInfo.length).toBe(3);
-            expect(contextInfo.map(info => (info as MessageContextInfo).messageId)).toEqual(expect.arrayContaining(["message1", "message3", "message6"]));
+            expect(contextInfo.length).to.equal(3);
+            expect(contextInfo.map(info => (info as MessageContextInfo).messageId)).to.deep.equal(expect.arrayContaining(["message1", "message3", "message6"]));
             contextInfo.forEach(info => {
-                expect(info.tokenSize).toBe(100); // Based on initialMessageData
+                expect(info.tokenSize).to.equal(100); // Based on initialMessageData
             });
         });
         it(`${lmServiceName}: should handle cases with no latest message id provided`, async () => {
@@ -595,10 +596,10 @@ describe("ChatContextCollector", () => {
             const contextInfo = await chatContextCollector.collectMessageContextInfo({ chatId, model, languages });
 
             // Since the most recent message is message6, the result should be the same as the previous test
-            expect(contextInfo.length).toBe(3);
-            expect(contextInfo.map(info => (info as MessageContextInfo).messageId)).toEqual(expect.arrayContaining(["message1", "message3", "message6"]));
+            expect(contextInfo.length).to.equal(3);
+            expect(contextInfo.map(info => (info as MessageContextInfo).messageId)).to.deep.equal(expect.arrayContaining(["message1", "message3", "message6"]));
             contextInfo.forEach(info => {
-                expect(info.tokenSize).toBe(100); // Based on initialMessageData
+                expect(info.tokenSize).to.equal(100); // Based on initialMessageData
             });
         });
         it(`${lmServiceName}: should limit the context collection to the context size`, async () => {
@@ -610,7 +611,7 @@ describe("ChatContextCollector", () => {
             let contextInfo = await chatContextCollector.collectMessageContextInfo({ chatId, model, languages, latestMessage });
 
             // Given the context size of 350 and token count of 100 per message, expect to collect up to 3 messages
-            expect(contextInfo.length).toBe(3);
+            expect(contextInfo.length).to.equal(3);
 
             // Now let's lower the context size to 200 and try again
             jest.spyOn(lmService, "getContextSize").mockReturnValue(200 as any);
@@ -618,7 +619,7 @@ describe("ChatContextCollector", () => {
             contextInfo = await chatContextCollector.collectMessageContextInfo({ chatId, model, languages, latestMessage });
 
             // Given the context size of 200 and token count of 100 per message, expect to collect up to 2 messages
-            expect(contextInfo.length).toBe(2);
+            expect(contextInfo.length).to.equal(2);
         });
         it(`${lmServiceName}: should stop early when missing messages in the chain`, async () => {
             // Remove message2 from Redis
@@ -632,8 +633,8 @@ describe("ChatContextCollector", () => {
             const contextInfo = await chatContextCollector.collectMessageContextInfo({ chatId, model, languages, latestMessage });
 
             // Should be able to collect message5 and its parent (message4), but not its grandparent (message2) or any other ancestors
-            expect(contextInfo.length).toBe(2);
-            expect(contextInfo.map(info => (info as MessageContextInfo).messageId)).toEqual(expect.arrayContaining(["message4", "message5"]));
+            expect(contextInfo.length).to.equal(2);
+            expect(contextInfo.map(info => (info as MessageContextInfo).messageId)).to.deep.equal(expect.arrayContaining(["message4", "message5"]));
         });
 
         // Latest message ID
@@ -641,19 +642,19 @@ describe("ChatContextCollector", () => {
             const latestMessageId = await chatContextCollector.getLatestMessageId(redis, "chat1");
 
             // Expect the latest message ID to be 'message6', as per the initialMessageData
-            expect(latestMessageId).toBe("message6");
+            expect(latestMessageId).to.equal("message6");
         });
         it(`${lmServiceName}: should return null for an empty chat`, async () => {
             const latestMessageId = await chatContextCollector.getLatestMessageId(redis, "emptyChat");
 
             // Expect null for an empty chat
-            expect(latestMessageId).toBeNull();
+            expect(latestMessageId).to.be.null;
         });
         it(`${lmServiceName}: should return null for a non-existent chat ID`, async () => {
             const latestMessageId = await chatContextCollector.getLatestMessageId(redis, "nonExistentChatId");
 
             // Expect null for a non-existent chat ID
-            expect(latestMessageId).toBeNull();
+            expect(latestMessageId).to.be.null;
         });
 
         // Get message details
@@ -661,7 +662,7 @@ describe("ChatContextCollector", () => {
             const messageId = "message2"; // An ID from the initial Redis mock data
             const messageDetails = await chatContextCollector.getMessageDetails(redis, messageId);
 
-            expect(messageDetails).toEqual(expect.objectContaining({
+            expect(messageDetails).to.deep.equal(expect.objectContaining({
                 id: messageId,
                 parentId: "message1", // Based on initialMessageData
                 translatedTokenCounts: expect.any(Object), // Token counts are parsed JSON
@@ -678,7 +679,7 @@ describe("ChatContextCollector", () => {
                 select: expect.any(Object),
             });
 
-            expect(messageDetails).toEqual(expect.objectContaining({
+            expect(messageDetails).to.deep.equal(expect.objectContaining({
                 id: messageId,
                 parentId: "message3", // Based on Prisma mock data
                 translatedTokenCounts: expect.any(Object), // Token counts are calculated and should be an object
@@ -687,7 +688,7 @@ describe("ChatContextCollector", () => {
 
             // Verify Redis now contains the fetched message details
             const redisData = await redis.hGetAll(`message:${messageId}`);
-            expect(redisData).toEqual(expect.objectContaining({
+            expect(redisData).to.deep.equal(expect.objectContaining({
                 id: messageId,
                 parentId: "message3",
                 translatedTokenCounts: expect.any(String), // Should be JSON stringified
@@ -696,7 +697,7 @@ describe("ChatContextCollector", () => {
         });
         it(`${lmServiceName}: should return null if message details cannot be fetched from Redis or the database`, async () => {
             const messageId = "nonExistentMessage";
-            await expect(chatContextCollector.getMessageDetails(redis, messageId)).resolves.toBeNull();
+            await expect(chatContextCollector.getMessageDetails(redis, messageId)).resolves.to.be.null;
         });
 
         // Language token count
@@ -713,8 +714,8 @@ describe("ChatContextCollector", () => {
 
             const [tokenCount, language] = await chatContextCollector.getTokenCountForLanguages(redis, messageId, estimationMethod, languages);
 
-            expect(tokenCount).toBe(expectedTokenCount);
-            expect(language).toBe("en");
+            expect(tokenCount).to.equal(expectedTokenCount);
+            expect(language).to.equal("en");
         });
         it("should calculate and update token count if not available in cache", async () => {
             const messageId = "message2";
@@ -740,8 +741,8 @@ describe("ChatContextCollector", () => {
 
             const [tokenCount, language] = await chatContextCollector.getTokenCountForLanguages(redis, messageId, estimationMethod, languages);
 
-            expect(tokenCount).toBe(expectedTokenCount);
-            expect(language).toBe("fr");
+            expect(tokenCount).to.equal(expectedTokenCount);
+            expect(language).to.equal("fr");
             expect(redis.hSet).toHaveBeenCalledWith(`message:${messageId}`, "translatedTokenCounts", expect.any(String)); // Ensure cache is updated
         });
         it("should use the first available language if preferred languages are not available", async () => {
@@ -758,8 +759,8 @@ describe("ChatContextCollector", () => {
 
             const [tokenCount, language] = await chatContextCollector.getTokenCountForLanguages(redis, messageId, estimationMethod, languages);
 
-            expect(tokenCount).toBe(expectedTokenCount);
-            expect(language).toBe(fallbackLanguage);
+            expect(tokenCount).to.equal(expectedTokenCount);
+            expect(language).to.equal(fallbackLanguage);
         });
         it("should return -1 if token counts cannot be found or calculated", async () => {
             const messageId = "message4";
@@ -775,8 +776,8 @@ describe("ChatContextCollector", () => {
 
             const [tokenCount, language] = await chatContextCollector.getTokenCountForLanguages(redis, messageId, estimationMethod, languages);
 
-            expect(tokenCount).toBe(-1);
-            expect(language).toBe("");
+            expect(tokenCount).to.equal(-1);
+            expect(language).to.equal("");
         });
     });
 });
@@ -791,42 +792,42 @@ describe("processMentions", () => {
 
     it("returns an empty array for messages without mentions", () => {
         const messageContent = "This is a message without any mentions.";
-        expect(processMentions(messageContent, chat, bots)).toEqual([]);
+        expect(processMentions(messageContent, chat, bots)).to.deep.equal([]);
     });
 
     it("ignores non-mention markdown links", () => {
         const messageContent = "Here's a [@link](http://example.com) that is not a mention.";
-        expect(processMentions(messageContent, chat, bots)).toEqual([]);
+        expect(processMentions(messageContent, chat, bots)).to.deep.equal([]);
     });
 
     it("processes valid mentions correctly", () => {
         const messageContent = `Hello [@Alice](${UI_URL})!`;
-        expect(processMentions(messageContent, chat, bots)).toEqual(["bot1"]);
+        expect(processMentions(messageContent, chat, bots)).to.deep.equal(["bot1"]);
     });
 
     it("returns an empty array for mentions that do not match any bot", () => {
         const messageContent = `Hello [@Charlie](${UI_URL}/@Charlie)!`;
-        expect(processMentions(messageContent, chat, bots)).toEqual([]);
+        expect(processMentions(messageContent, chat, bots)).to.deep.equal([]);
     });
 
     it("responds to @Everyone mention by returning all bot participants", () => {
         const messageContent = `Attention [@Everyone](${UI_URL}/fdksf?asdfa="fdasfs")!`;
-        expect(processMentions(messageContent, chat, bots)).toEqual(["bot1", "bot2", "bot3"]);
+        expect(processMentions(messageContent, chat, bots)).to.deep.equal(["bot1", "bot2", "bot3"]);
     });
 
     it("filters out mentions with incorrect origin", () => {
         const messageContent = "Hello [@Alice](https://another-site.com/@Alice)!";
-        expect(processMentions(messageContent, chat, bots)).toEqual([]);
+        expect(processMentions(messageContent, chat, bots)).to.deep.equal([]);
     });
 
     it("handles malformed markdown links gracefully", () => {
         const messageContent = "This is a malformed link [@Alice](@Alice) without proper markdown.";
-        expect(processMentions(messageContent, chat, bots)).toEqual([]);
+        expect(processMentions(messageContent, chat, bots)).to.deep.equal([]);
     });
 
     it("deduplicates mentions", () => {
         const messageContent = `Hi [@Alice](${UI_URL}) and [@Alice](${UI_URL}) again!`;
-        expect(processMentions(messageContent, chat, bots)).toEqual(["bot1"]);
+        expect(processMentions(messageContent, chat, bots)).to.deep.equal(["bot1"]);
     });
 });
 
@@ -840,24 +841,24 @@ describe("determineRespondingBots", () => {
 
     it("returns an empty array if message content is blank", () => {
         const message = { userId, content: "   " };
-        expect(determineRespondingBots(message.content, message.userId, chat, bots, userId)).toEqual([]);
+        expect(determineRespondingBots(message.content, message.userId, chat, bots, userId)).to.deep.equal([]);
     });
 
     it("returns an empty array if message userId does not match", () => {
         const message = { userId: "anotherUser", content: "Hello" };
-        expect(determineRespondingBots(message.content, message.userId, chat, bots, userId)).toEqual([]);
+        expect(determineRespondingBots(message.content, message.userId, chat, bots, userId)).to.deep.equal([]);
     });
 
     it("returns an empty array if there are no bots in the chat", () => {
         const message = { userId, content: "Hello" };
-        expect(determineRespondingBots(message.content, message.userId, chat, [], userId)).toEqual([]);
+        expect(determineRespondingBots(message.content, message.userId, chat, [], userId)).to.deep.equal([]);
     });
 
     it("returns the only bot if there is one bot in a two-participant chat", () => {
         const singleBotChat = { botParticipants: ["bot1"], participantsCount: 2 };
         const singleBot = [{ id: "bot1", name: "BotOne" }];
         const message = { userId, content: "Hello" };
-        expect(determineRespondingBots(message.content, message.userId, singleBotChat, singleBot, userId)).toEqual(["bot1"]);
+        expect(determineRespondingBots(message.content, message.userId, singleBotChat, singleBot, userId)).to.deep.equal(["bot1"]);
     });
 
     // Assuming processMentions is a mockable function that has been properly mocked to return bot IDs based on mentions
@@ -865,27 +866,27 @@ describe("determineRespondingBots", () => {
         const message = { userId, content: `Hello [@BotOne](${UI_URL}/@BotOne)` };
         // Mock `processMentions` here to return ['bot1'] when called with message.content, chat, and bots
         // For demonstration purposes, this test assumes `processMentions` behavior is correctly implemented elsewhere
-        expect(determineRespondingBots(message.content, message.userId, chat, bots, userId)).toEqual(["bot1"]);
+        expect(determineRespondingBots(message.content, message.userId, chat, bots, userId)).to.deep.equal(["bot1"]);
     });
 
     it("handles unexpected input gracefully", () => {
         const message = { userId, content: null }; // Simulate an unexpected null content
         // @ts-ignore: Testing runtime scenario
-        expect(() => determineRespondingBots(message.content, message.userId, chat, bots, userId)).not.toThrow();
+        expect(() => determineRespondingBots(message.content, message.userId, chat, bots, userId)).not.to.throw();
         // @ts-ignore: Testing runtime scenario
-        expect(determineRespondingBots(message.content, message.userId, chat, bots, userId)).toEqual([]);
+        expect(determineRespondingBots(message.content, message.userId, chat, bots, userId)).to.deep.equal([]);
     });
 });
 
-describe('stringifyTaskContexts', () => {
-    const task = 'Submit Report';
+describe("stringifyTaskContexts", () => {
+    const task = "Submit Report";
 
-    test('Single context without template (data is an object)', () => {
+    it("Single context without template (data is an object)", () => {
         const contexts: TaskContextInfo[] = [
             {
-                id: 'context1',
-                data: { title: 'Annual Report', dueDate: '2023-12-31' },
-                label: 'Existing Data',
+                id: "context1",
+                data: { title: "Annual Report", dueDate: "2023-12-31" },
+                label: "Existing Data",
             },
         ];
 
@@ -893,15 +894,15 @@ describe('stringifyTaskContexts', () => {
 
         const result = stringifyTaskContexts(task, contexts);
 
-        expect(result).toBe(expectedOutput);
+        expect(result).to.equal(expectedOutput);
     });
 
-    test('Single context with null template (data is an object)', () => {
+    it("Single context with null template (data is an object)", () => {
         const contexts: TaskContextInfo[] = [
             {
-                id: 'context1',
-                data: { title: 'Annual Report', dueDate: '2023-12-31' },
-                label: 'Existing Data',
+                id: "context1",
+                data: { title: "Annual Report", dueDate: "2023-12-31" },
+                label: "Existing Data",
                 template: null,
             },
         ];
@@ -910,15 +911,15 @@ describe('stringifyTaskContexts', () => {
 
         const result = stringifyTaskContexts(task, contexts);
 
-        expect(result).toBe(expectedOutput);
+        expect(result).to.equal(expectedOutput);
     });
 
-    test('Single context without template (data is a string)', () => {
+    it("Single context without template (data is a string)", () => {
         const contexts: TaskContextInfo[] = [
             {
-                id: 'context1',
-                data: 'This is a sample string data.',
-                label: 'String Data',
+                id: "context1",
+                data: "This is a sample string data.",
+                label: "String Data",
             },
         ];
 
@@ -926,16 +927,16 @@ describe('stringifyTaskContexts', () => {
 
         const result = stringifyTaskContexts(task, contexts);
 
-        expect(result).toBe(expectedOutput);
+        expect(result).to.equal(expectedOutput);
     });
 
-    test('Single context with default template variables', () => {
+    it("Single context with default template variables", () => {
         const contexts: TaskContextInfo[] = [
             {
-                id: 'context1',
-                data: { title: 'Annual Report' },
-                label: 'Report Data',
-                template: 'Task: <TASK>\nData:\n<DATA>',
+                id: "context1",
+                data: { title: "Annual Report" },
+                label: "Report Data",
+                template: "Task: <TASK>\nData:\n<DATA>",
             },
         ];
 
@@ -943,19 +944,19 @@ describe('stringifyTaskContexts', () => {
 
         const result = stringifyTaskContexts(task, contexts);
 
-        expect(result).toBe(expectedOutput);
+        expect(result).to.equal(expectedOutput);
     });
 
-    test('Single context with custom template variables', () => {
+    it("Single context with custom template variables", () => {
         const contexts: TaskContextInfo[] = [
             {
-                id: 'context1',
-                data: { title: 'Annual Report' },
-                label: 'Report Data',
-                template: 'Here is the data for **{taskName}**:\n{dataContent}',
+                id: "context1",
+                data: { title: "Annual Report" },
+                label: "Report Data",
+                template: "Here is the data for **{taskName}**:\n{dataContent}",
                 templateVariables: {
-                    task: '{taskName}',
-                    data: '{dataContent}',
+                    task: "{taskName}",
+                    data: "{dataContent}",
                 },
             },
         ];
@@ -964,19 +965,19 @@ describe('stringifyTaskContexts', () => {
 
         const result = stringifyTaskContexts(task, contexts);
 
-        expect(result).toBe(expectedOutput);
+        expect(result).to.equal(expectedOutput);
     });
 
-    test('Single context with variable names containing regex special characters', () => {
+    it("Single context with variable names containing regex special characters", () => {
         const contexts: TaskContextInfo[] = [
             {
-                id: 'context1',
-                data: 'Sample data with special variables.',
+                id: "context1",
+                data: "Sample data with special variables.",
                 label: "",
-                template: 'Variable [task]: [task*name]\nVariable [data]: [data+content]',
+                template: "Variable [task]: [task*name]\nVariable [data]: [data+content]",
                 templateVariables: {
-                    task: '[task*name]',
-                    data: '[data+content]',
+                    task: "[task*name]",
+                    data: "[data+content]",
                 },
             },
         ];
@@ -985,21 +986,21 @@ describe('stringifyTaskContexts', () => {
 
         const result = stringifyTaskContexts(task, contexts);
 
-        expect(result).toBe(expectedOutput);
+        expect(result).to.equal(expectedOutput);
     });
 
-    test('Multiple contexts with and without templates', () => {
+    it("Multiple contexts with and without templates", () => {
         const contexts: TaskContextInfo[] = [
             {
-                id: 'context1',
-                data: { name: 'Alice' },
-                label: 'User Data',
-                template: 'User: <TASK>\nDetails:\n<DATA>',
+                id: "context1",
+                data: { name: "Alice" },
+                label: "User Data",
+                template: "User: <TASK>\nDetails:\n<DATA>",
             },
             {
-                id: 'context2',
-                data: 'Additional context information.',
-                label: 'Extra Info',
+                id: "context2",
+                data: "Additional context information.",
+                label: "Extra Info",
             },
         ];
 
@@ -1009,14 +1010,14 @@ describe('stringifyTaskContexts', () => {
 
         const result = stringifyTaskContexts(task, contexts);
 
-        expect(result).toBe(expectedOutput);
+        expect(result).to.equal(expectedOutput);
     });
 
-    test('Context without template', () => {
+    it("Context without template", () => {
         const contexts: TaskContextInfo[] = [
             {
-                id: 'context1',
-                data: 'Data without label.',
+                id: "context1",
+                data: "Data without label.",
                 label: "unused",
             },
         ];
@@ -1025,16 +1026,16 @@ describe('stringifyTaskContexts', () => {
 
         const result = stringifyTaskContexts(task, contexts);
 
-        expect(result).toBe(expectedOutput);
+        expect(result).to.equal(expectedOutput);
     });
 
-    test('Context with undefined templateVariables', () => {
+    it("Context with undefined templateVariables", () => {
         const contexts: TaskContextInfo[] = [
             {
-                id: 'context1',
-                data: 'Sample data.',
+                id: "context1",
+                data: "Sample data.",
                 label: "unused",
-                template: 'Task is <TASK> and data is <DATA>',
+                template: "Task is <TASK> and data is <DATA>",
             },
         ];
 
@@ -1042,80 +1043,80 @@ describe('stringifyTaskContexts', () => {
 
         const result = stringifyTaskContexts(task, contexts);
 
-        expect(result).toBe(expectedOutput);
+        expect(result).to.equal(expectedOutput);
     });
 
-    test('Context with null data', () => {
+    it("Context with null data", () => {
         const contexts: TaskContextInfo[] = [
             {
-                id: 'context1',
+                id: "context1",
                 data: null,
-                label: 'Null Data',
+                label: "Null Data",
             },
         ];
 
-        const expectedOutput = 'null';
+        const expectedOutput = "null";
 
         const result = stringifyTaskContexts(task, contexts);
 
-        expect(result).toBe(expectedOutput);
+        expect(result).to.equal(expectedOutput);
     });
 
-    test('Context with data as number', () => {
+    it("Context with data as number", () => {
         const contexts: TaskContextInfo[] = [
             {
-                id: 'context1',
+                id: "context1",
                 data: 42,
-                label: 'Number Data',
+                label: "Number Data",
             },
         ];
 
-        const expectedOutput = '42';
+        const expectedOutput = "42";
 
         const result = stringifyTaskContexts(task, contexts);
 
-        expect(result).toBe(expectedOutput);
+        expect(result).to.equal(expectedOutput);
     });
 
-    test('Context with data as boolean', () => {
+    it("Context with data as boolean", () => {
         const contexts: TaskContextInfo[] = [
             {
-                id: 'context1',
+                id: "context1",
                 data: true,
-                label: 'Boolean Data',
+                label: "Boolean Data",
             },
         ];
 
-        const expectedOutput = 'true';
+        const expectedOutput = "true";
 
         const result = stringifyTaskContexts(task, contexts);
 
-        expect(result).toBe(expectedOutput);
+        expect(result).to.equal(expectedOutput);
     });
 
-    test('Context with empty data', () => {
+    it("Context with empty data", () => {
         const contexts: TaskContextInfo[] = [
             {
-                id: 'context1',
+                id: "context1",
                 data: {},
-                label: 'Empty Data',
+                label: "Empty Data",
             },
         ];
 
-        const expectedOutput = '{}';
+        const expectedOutput = "{}";
 
         const result = stringifyTaskContexts(task, contexts);
 
-        expect(result).toBe(expectedOutput);
+        expect(result).to.equal(expectedOutput);
     });
 
-    test('Context with empty template', () => {
+    it("Context with empty template", () => {
         const contexts: TaskContextInfo[] = [
             {
-                id: 'context1',
-                data: 'Data with empty template.',
-                label: 'Empty Template',
-                template: '',
+                id: "context1",
+                data: "Data with empty template.",
+                label: "Empty Template",
+                template: "",
             },
         ];
 
@@ -1123,19 +1124,19 @@ describe('stringifyTaskContexts', () => {
 
         const result = stringifyTaskContexts(task, contexts);
 
-        expect(result).toBe(expectedOutput);
+        expect(result).to.equal(expectedOutput);
     });
 
-    test('Context with template variables that are not in the template', () => {
+    it("Context with template variables that are not in the template", () => {
         const contexts: TaskContextInfo[] = [
             {
-                id: 'context1',
-                data: 'Data.',
+                id: "context1",
+                data: "Data.",
                 label: "blah",
-                template: 'This is a template without variables.',
+                template: "This is a template without variables.",
                 templateVariables: {
-                    task: '{unusedTaskVar}',
-                    data: '{unusedDataVar}',
+                    task: "{unusedTaskVar}",
+                    data: "{unusedDataVar}",
                 },
             },
         ];
@@ -1144,19 +1145,19 @@ describe('stringifyTaskContexts', () => {
 
         const result = stringifyTaskContexts(task, contexts);
 
-        expect(result).toBe(expectedOutput);
+        expect(result).to.equal(expectedOutput);
     });
 
-    test('Context with overlapping variable names', () => {
+    it("Context with overlapping variable names", () => {
         const contexts: TaskContextInfo[] = [
             {
-                id: 'context1',
-                data: 'Overlapping variables test.',
-                label: 'Overlap Test',
-                template: 'Variable VAR and VARIABLE_VAR',
+                id: "context1",
+                data: "Overlapping variables test.",
+                label: "Overlap Test",
+                template: "Variable VAR and VARIABLE_VAR",
                 templateVariables: {
-                    task: 'VAR',
-                    data: 'VARIABLE_VAR',
+                    task: "VAR",
+                    data: "VARIABLE_VAR",
                 },
             },
         ];
@@ -1165,18 +1166,18 @@ describe('stringifyTaskContexts', () => {
 
         const result = stringifyTaskContexts(task, contexts);
 
-        expect(result).toBe(expectedOutput);
+        expect(result).to.equal(expectedOutput);
     });
 
-    test('Context with variables appearing multiple times', () => {
+    it("Context with variables appearing multiple times", () => {
         const contexts: TaskContextInfo[] = [
             {
-                id: 'context1',
-                data: 'Repeated data',
-                label: 'Repeat Test',
-                template: 'Data: DATA, again DATA.',
+                id: "context1",
+                data: "Repeated data",
+                label: "Repeat Test",
+                template: "Data: DATA, again DATA.",
                 templateVariables: {
-                    data: 'DATA',
+                    data: "DATA",
                 },
             },
         ];
@@ -1185,15 +1186,15 @@ describe('stringifyTaskContexts', () => {
 
         const result = stringifyTaskContexts(task, contexts);
 
-        expect(result).toBe(expectedOutput);
+        expect(result).to.equal(expectedOutput);
     });
 
-    test('Context with undefined data', () => {
+    it("Context with undefined data", () => {
         const contexts: TaskContextInfo[] = [
             {
-                id: 'context1',
+                id: "context1",
                 data: undefined,
-                label: 'Undefined Data',
+                label: "Undefined Data",
             },
         ];
 
@@ -1201,6 +1202,6 @@ describe('stringifyTaskContexts', () => {
 
         const result = stringifyTaskContexts(task, contexts);
 
-        expect(result).toBe(expectedOutput);
+        expect(result).to.equal(expectedOutput);
     });
 });

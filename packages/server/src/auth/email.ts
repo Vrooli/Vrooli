@@ -2,14 +2,14 @@ import { AUTH_PROVIDERS, DAYS_2_MS, MINUTES_15_MS, Session, TranslationKeyError 
 import { AccountStatus, PrismaPromise, active_focus_mode, email, focus_mode, premium, session, user_auth, user_language } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { Request } from "express";
-import { prismaInstance } from "../db/instance";
-import { CustomError } from "../events/error";
-import { Notify } from "../notify/notify";
-import { sendResetPasswordLink, sendVerificationLink } from "../tasks/email/queue";
-import { randomString, validateCode } from "./codes";
-import { REFRESH_TOKEN_EXPIRATION_MS } from "./jwt";
-import { RequestService } from "./request";
-import { SessionService } from "./session";
+import { DbProvider } from "../db/provider.js";
+import { CustomError } from "../events/error.js";
+import { Notify } from "../notify/notify.js";
+import { sendResetPasswordLink, sendVerificationLink } from "../tasks/email/queue.js";
+import { randomString, validateCode } from "./codes.js";
+import { REFRESH_TOKEN_EXPIRATION_MS } from "./jwt.js";
+import { RequestService } from "./request.js";
+import { SessionService } from "./session.js";
 
 export const EMAIL_VERIFICATION_TIMEOUT = DAYS_2_MS;
 const HASHING_ROUNDS = 8;
@@ -245,7 +245,7 @@ export class PasswordAuthService {
         if (this.validatePassword(password, user)) {
             const transactions: PrismaPromise<object>[] = [
                 // Remove reset password reset code and log in attempts from auth row
-                prismaInstance.user_auth.update({
+                DbProvider.get().user_auth.update({
                     where: {
                         id: passwordAuth.id,
                     },
@@ -255,7 +255,7 @@ export class PasswordAuthService {
                     },
                 }),
                 // Update log in attempts and last login attempt in user row
-                prismaInstance.user.update({
+                DbProvider.get().user.update({
                     where: { id: user.id },
                     data: {
                         logInAttempts: 0,
@@ -267,7 +267,7 @@ export class PasswordAuthService {
             // Upsert session
             if (matchingSession) {
                 transactions.push(
-                    prismaInstance.session.update({
+                    DbProvider.get().session.update({
                         where: { id: matchingSession.id },
                         data: {
                             expires_at: new Date(Date.now() + REFRESH_TOKEN_EXPIRATION_MS),
@@ -279,7 +279,7 @@ export class PasswordAuthService {
                 );
             } else {
                 transactions.push(
-                    prismaInstance.session.create({
+                    DbProvider.get().session.create({
                         data: {
                             device_info: deviceInfo,
                             expires_at: new Date(Date.now() + REFRESH_TOKEN_EXPIRATION_MS),
@@ -297,7 +297,7 @@ export class PasswordAuthService {
                     }),
                 );
             }
-            const transactionResults = await prismaInstance.$transaction(transactions);
+            const transactionResults = await DbProvider.get().$transaction(transactions);
             // transactions[0]: user_auth.update
             // transactions[1]: user.update
             // transactions[2]: session.update/create
@@ -312,7 +312,7 @@ export class PasswordAuthService {
         }
         // Reset log in fail counter if possible
         if (willResetLoginAttempts) {
-            await prismaInstance.user.update({
+            await DbProvider.get().user.update({
                 where: { id: user.id },
                 data: { logInAttempts: 1 }, // We just failed to log in, so set to 1
             });
@@ -326,7 +326,7 @@ export class PasswordAuthService {
             } else if (log_in_attempts > LOGIN_ATTEMPTS_TO_SOFT_LOCKOUT) {
                 new_status = AccountStatus.SoftLocked;
             }
-            await prismaInstance.user.update({
+            await DbProvider.get().user.update({
                 where: { id: user.id },
                 data: {
                     status: new_status,
@@ -366,7 +366,7 @@ export class PasswordAuthService {
         // If no password auth exists, create one. 
         // This may happen if the account was created with an OAuth provider.
         if (!passwordAuth) {
-            await prismaInstance.user_auth.create({
+            await DbProvider.get().user_auth.create({
                 data: {
                     ...commonAuthData,
                     provider: AUTH_PROVIDERS.Password,
@@ -378,7 +378,7 @@ export class PasswordAuthService {
         }
         // Otherwise, update existing password auth
         else {
-            await prismaInstance.user_auth.update({
+            await DbProvider.get().user_auth.update({
                 where: {
                     id: passwordAuth.id,
                 },
@@ -416,13 +416,13 @@ export class PasswordAuthService {
         languages: string[] | undefined,
     ): Promise<void> {
         // Find the email
-        let email = await prismaInstance.email.findUnique({
+        let email = await DbProvider.get().email.findUnique({
             where: { emailAddress },
             select: this.emailVerificationCodeSelect(),
         });
         // Create if not found
         if (!email) {
-            email = await prismaInstance.email.create({
+            email = await DbProvider.get().email.create({
                 data: {
                     emailAddress,
                     user: {
@@ -443,7 +443,7 @@ export class PasswordAuthService {
         // Generate new code
         const verificationCode = this.generateEmailVerificationCode();
         // Store code and request time
-        await prismaInstance.email.update({
+        await DbProvider.get().email.update({
             where: { id: email.id },
             data: {
                 verificationCode,
@@ -471,7 +471,7 @@ export class PasswordAuthService {
         languages: string[] | undefined,
     ): Promise<boolean> {
         // Find data
-        const email = await prismaInstance.email.findUnique({
+        const email = await DbProvider.get().email.findUnique({
             where: { emailAddress },
             select: {
                 id: true,
@@ -488,7 +488,7 @@ export class PasswordAuthService {
             throw new CustomError("0062", "CannotVerifyEmailCode"); // Purposefully vague with duplicate code for security
         // If email already verified, remove old verification code
         if (email.verified) {
-            await prismaInstance.email.update({
+            await DbProvider.get().email.update({
                 where: { id: email.id },
                 data: { verificationCode: null, lastVerificationCodeRequestAttempt: null },
             });
@@ -504,7 +504,7 @@ export class PasswordAuthService {
             }
             // If code is correct and not expired
             if (validateCode(code, email.verificationCode, email.lastVerificationCodeRequestAttempt, EMAIL_VERIFICATION_TIMEOUT)) {
-                await prismaInstance.email.update({
+                await DbProvider.get().email.update({
                     where: { id: email.id },
                     data: {
                         verified: true,

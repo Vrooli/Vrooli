@@ -3,17 +3,16 @@
  * This is needed to properly format data, query additional fields that can't be included in the initial query 
  * (or are in another database perhaps), handle unions, etc.
  */
-import { MB_10_BYTES, ModelType, OrArray, SessionUser, exists, getDotNotationValue, isObject, omit, setDotNotationValue } from "@local/shared";
+import { DEFAULT_LANGUAGE, LRUCache, MB_10_BYTES, ModelType, OrArray, SessionUser, exists, getDotNotationValue, isObject, omit, setDotNotationValue } from "@local/shared";
 import pkg from "lodash";
-import { CustomError } from "../events/error";
-import { ModelMap } from "../models/base";
-import { FormatMap } from "../models/formats";
-import { ApiRelMap, JoinMap, ModelLogicType } from "../models/types";
-import { RecursivePartial } from "../types";
-import { LRUCache } from "../utils/lruCache";
-import { groupPrismaData } from "./groupPrismaData";
-import { isRelationshipObject } from "./isOfType";
-import { PartialApiInfo, PrismaSelect } from "./types";
+import { CustomError } from "../events/error.js";
+import { ModelMap } from "../models/base/index.js";
+import { FormatMap } from "../models/formats.js";
+import { ApiRelMap, JoinMap, ModelLogicType } from "../models/types.js";
+import { RecursivePartial } from "../types.js";
+import { groupPrismaData } from "./groupPrismaData.js";
+import { isRelationshipObject } from "./isOfType.js";
+import { PartialApiInfo, PrismaSelect } from "./types.js";
 
 const { merge } = pkg;
 
@@ -91,7 +90,7 @@ class Unions {
         DbModel extends ModelLogicType["DbModel"],
     >(
         data: PrismaSelect["select"],
-        apiRelMap: ApiRelMap<Typename, ApiModel, DbModel>
+        apiRelMap: ApiRelMap<Typename, ApiModel, DbModel>,
     ): { [x: string]: any } {
         // Create result object
         const result: { [x: string]: any } = data;
@@ -140,7 +139,7 @@ class JoinTables {
      */
     static addToData(
         data: PrismaSelect["select"],
-        map: JoinMap | undefined
+        map: JoinMap | undefined,
     ): any {
         if (!map || Object.keys(map).length === 0) return data;
         // Iterate over join map
@@ -149,7 +148,7 @@ class JoinTables {
                 data[relationshipKey] = { select: { [joinTableName]: data[relationshipKey] } };
             }
         }
-        return data
+        return data;
     }
 
     /**
@@ -209,7 +208,7 @@ export class CountFields {
      */
     static addToData(
         data: PrismaSelect["select"],
-        countFields: { [x: string]: true } | undefined
+        countFields: { [x: string]: true } | undefined,
     ): any {
         if (!countFields || Object.keys(countFields).length === 0) return data;
         const result: Record<string, boolean> = {};
@@ -217,7 +216,7 @@ export class CountFields {
         for (const key of Object.keys(countFields)) {
             if (data[key]) {
                 // Remove "Count" suffix from key
-                const value = key.slice(0, -"Count".length);
+                const value = key.endsWith("Count") ? key.slice(0, -"Count".length) : key;
                 // Add count field to result object
                 result[value] = true;
                 delete data[key];
@@ -228,7 +227,7 @@ export class CountFields {
             ...data,
             _count: {
                 select: result,
-            }
+            },
         };
     }
 
@@ -350,7 +349,7 @@ class SupplementalFields {
      */
     static removeFromData(
         objectType: `${ModelType}`,
-        data: PrismaSelect["select"]
+        data: PrismaSelect["select"],
     ) {
         // Get supplemental info for object
         const supplementer = ModelMap.get(objectType, false)?.search?.supplemental;
@@ -407,7 +406,7 @@ export async function addSupplementalFieldsHelper<GraphQLModel extends { [x: str
     objects: ({ id: string } & { [x: string]: any })[],
     objectType: `${ModelType}`,
     partial: PartialApiInfo,
-    userData: SessionUser | null,
+    userData: Pick<SessionUser, "id" | "languages"> | null,
 }): Promise<RecursivePartial<GraphQLModel>[]> {
     if (!objects || objects.length === 0) return [];
     // Get supplemental info for object
@@ -468,7 +467,7 @@ function combineSupplements(data: { [x: string]: any }, objectsById: { [x: strin
  * @returns data array with supplemental fields added to each object
  */
 export async function addSupplementalFields(
-    userData: SessionUser | null,
+    userData: Pick<SessionUser, "id" | "languages"> | null,
     data: ({ [x: string]: any } | null | undefined)[],
     partialInfo: OrArray<PartialApiInfo>,
 ): Promise<{ [x: string]: any }[]> {
@@ -484,7 +483,7 @@ export async function addSupplementalFields(
         const objectData = ids.map((id: string) => objectIdsDataDict[id]);
         const supplemental = ModelMap.get(type as ModelType, false)?.search?.supplemental;
         const valuesWithSupplements = supplemental ?
-            await addSupplementalFieldsHelper({ languages: userData?.languages ?? ["en"], objects: objectData, objectType: type as ModelType, partial: selectFieldsDict[type], userData }) :
+            await addSupplementalFieldsHelper({ languages: userData?.languages ?? [DEFAULT_LANGUAGE], objects: objectData, objectType: type as ModelType, partial: selectFieldsDict[type], userData }) :
             objectData;
         // Supplements are calculated for an array of objects, so we must loop through 
         // Add each value to supplementsByObjectId
@@ -666,7 +665,7 @@ export class InfoConverter {
         else if (Object.prototype.hasOwnProperty.call(select, "endCursor") && Object.prototype.hasOwnProperty.call(select, "totalThreads") && Object.prototype.hasOwnProperty.call(select, "threads")) {
             select = (select as { threads: { comment: any } }).threads.comment;
         }
-        select.__cacheKey = cacheKey;
+        select = { ...select, __cacheKey: cacheKey };
         // Inject type fields
         select = Typenames.addToData(select, apiRelMap);
         if (!select)

@@ -1,7 +1,8 @@
 import { PaymentType } from "@local/shared";
+import { expect } from "chai";
 import * as yup from "yup";
-import Bull from "../../__mocks__/bull";
-import { feedbackNotifyAdmin, sendCreditCardExpiringSoon, sendMail, sendPaymentFailed, sendPaymentThankYou, sendResetPasswordLink, sendSubscriptionCanceled, sendSubscriptionEnded, sendVerificationLink, setupEmailQueue } from "./queue";
+import Bull from "../../__mocks__/bull.js";
+import { feedbackNotifyAdmin, sendCreditCardExpiringSoon, sendMail, sendPaymentFailed, sendPaymentThankYou, sendResetPasswordLink, sendSubscriptionCanceled, sendSubscriptionEnded, sendVerificationLink, setupEmailQueue } from "./queue.js";
 
 /**
  * Validates the email task object structure.
@@ -18,7 +19,7 @@ const emailSchema = yup.object().shape({
  * @param mockQueue The mocked email queue.
  * @param expectedData The expected data object to validate against.
  */
-const expectEmailToBeEnqueuedWith = async (mockQueue, expectedData) => {
+async function expectEmailToBeEnqueuedWith(mockQueue, expectedData) {
     // Check if the add function was called
     expect(mockQueue.add).toHaveBeenCalled();
 
@@ -26,18 +27,18 @@ const expectEmailToBeEnqueuedWith = async (mockQueue, expectedData) => {
     const actualData = mockQueue.add.mock.calls[0][0];
 
     // Validate the actual data against the schema
-    await expect(emailSchema.validate(actualData)).resolves.toEqual(actualData);
+    await expect(emailSchema.validate(actualData)).resolves.to.deep.equal(actualData);
 
     // If there's expected data, match it against the actual data
     if (expectedData) {
         expect(actualData).toMatchObject(expectedData);
     }
-};
+}
 
 describe("sendMail function tests", () => {
     let emailQueue;
 
-    beforeAll(async () => {
+    before(async () => {
         emailQueue = new Bull("email");
         await setupEmailQueue();
     });
@@ -64,7 +65,7 @@ describe("sendMail function tests", () => {
 
         // Additionally, check if the delay option is set correctly
         const options = emailQueue.add.mock.calls[0][1];
-        expect(options).toEqual({ delay });
+        expect(options).to.deep.equal({ delay });
     });
 
     it("enqueues an email without the html parameter", async () => {
@@ -83,7 +84,7 @@ describe("sendMail function tests", () => {
 
         // Check that no delay is set by default
         const options = emailQueue.add.mock.calls[0][1];
-        expect(options).toEqual({ delay: 0 });
+        expect(options).to.deep.equal({ delay: 0 });
     });
 
     it("enqueues an email with a delay", async () => {
@@ -99,13 +100,13 @@ describe("sendMail function tests", () => {
 
         // Check if the delay option is set correctly
         const options = emailQueue.add.mock.calls[0][1];
-        expect(options).toEqual({ delay });
+        expect(options).to.deep.equal({ delay });
     });
 
     it("throws an error if no recipient is provided", async () => {
         expect(() => {
             sendMail([], "Subject", "Text body");
-        }).toThrow();
+        }).to.throw();
     });
 });
 
@@ -114,7 +115,7 @@ describe("Email task enqueuing tests", () => {
     const originalSiteEmailUsername = process.env.SITE_EMAIL_USERNAME;
     const testEmail = "valid.email@example.com";
 
-    beforeAll(async () => {
+    before(async () => {
         emailQueue = new Bull("email");
         await setupEmailQueue();
     });
@@ -138,8 +139,8 @@ describe("Email task enqueuing tests", () => {
         // Make sure that the text and html both include `${userId1}:${code1}`
         const actualData = emailQueue.add.mock.calls[0][0];
         const partialLink = `${userId}:${code}`;
-        expect(actualData.text).toContain(partialLink);
-        expect(actualData.html).toContain(partialLink);
+        expect(actualData.text).to.include(partialLink);
+        expect(actualData.html).to.include(partialLink);
     });
 
     it("correctly enqueues email for sendVerificationLink function", async () => {
@@ -152,8 +153,8 @@ describe("Email task enqueuing tests", () => {
         // Make sure that the text and html both include `${userId1}:${code1}`
         const actualData = emailQueue.add.mock.calls[0][0];
         const partialLink = `${userId}:${code}`;
-        expect(actualData.text).toContain(partialLink);
-        expect(actualData.html).toContain(partialLink);
+        expect(actualData.text).to.include(partialLink);
+        expect(actualData.html).to.include(partialLink);
     });
 
     it("correctly enqueues feedback notification email for the admin", async () => {

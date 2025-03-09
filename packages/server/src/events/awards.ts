@@ -5,8 +5,8 @@
 
 import { AwardCategory, awardNames, awardVariants, DEFAULT_LANGUAGE, ModelType } from "@local/shared";
 import i18next from "i18next";
-import { prismaInstance } from "../db/instance";
-import { Notify } from "../notify";
+import { DbProvider } from "../db/provider.js";
+import { Notify } from "../notify/notify.js";
 
 /**
  * Given an ordered list of numbers, returns the closest lower number in the list
@@ -69,7 +69,7 @@ export function Award(userId: string, languages: string[] | undefined) {
         update: async (category: `${AwardCategory}`, newProgress: number) => {
             // Upsert the award into the database, with progress incremented
             // by the new progress
-            const award = await prismaInstance.award.upsert({
+            const award = await DbProvider.get().award.upsert({
                 where: { userId_category: { userId, category } },
                 update: { progress: { increment: newProgress } },
                 create: { userId, category, progress: newProgress },
@@ -88,7 +88,7 @@ export function Award(userId: string, languages: string[] | undefined) {
                     await Notify(languages).pushAward(transTitle, transBody).toUser(userId);
                 }
                 // Set "timeCurrentTierCompleted" to the current time
-                await prismaInstance.award.update({
+                await DbProvider.get().award.update({
                     where: { userId_category: { userId, category } },
                     data: { timeCurrentTierCompleted: new Date() },
                 });

@@ -1,8 +1,8 @@
 import { ModelType, SessionUser } from "@local/shared";
-import { PrismaDelegate } from "../../builders/types";
-import { prismaInstance } from "../../db/instance";
-import { Trigger } from "../../events/trigger";
-import { ModelMap } from "../../models/base";
+import { type PrismaDelegate } from "../../builders/types.js";
+import { DbProvider } from "../../db/provider.js";
+import { Trigger } from "../../events/trigger.js";
+import { ModelMap } from "../../models/base/index.js";
 
 /**
  * Used in mutate.trigger.afterMutations of non-root and non-version objects. 
@@ -37,7 +37,7 @@ export async function afterMutationsPlain({
     if (ownerUserField) {
         select[ownerUserField] = { select: { id: true } };
     }
-    const ownersData = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
+    const ownersData = await (DbProvider.get()[dbTable] as PrismaDelegate).findMany({
         where: { id: { in: createAndUpdateIds } },
         select,
     });

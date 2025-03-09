@@ -1,6 +1,6 @@
 import { MINUTES_15_S, VisibilityType } from "@local/shared";
-import { withRedis } from "../../redisConn";
-import { EmbeddableType } from "./types";
+import { withRedis } from "../../redisConn.js";
+import { EmbeddableType } from "./types.js";
 
 type CreateSearchEmbeddingsKeyProps = {
     /** The type of object being searched */

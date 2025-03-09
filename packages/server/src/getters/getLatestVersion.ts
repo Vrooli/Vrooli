@@ -1,8 +1,8 @@
 import { ModelType, isOfType } from "@local/shared";
-import { PrismaDelegate } from "../builders/types";
-import { prismaInstance } from "../db/instance";
-import { CustomError } from "../events/error";
-import { ModelMap } from "../models/base";
+import { PrismaDelegate } from "../builders/types.js";
+import { DbProvider } from "../db/provider.js";
+import { CustomError } from "../events/error.js";
+import { ModelMap } from "../models/base/index.js";
 
 /**
  * Finds the latest version of a versioned object, using the root object's ID OR handle
@@ -41,7 +41,7 @@ export async function getLatestVersion({
             orderBy: { versionIndex: "desc" as const },
             select: { id: true },
         };
-        const latestVersion = await (prismaInstance[model.dbTable] as PrismaDelegate).findFirst(query);
+        const latestVersion = await (DbProvider.get()[model.dbTable] as PrismaDelegate).findFirst(query);
         return latestVersion?.id;
     }
     // Handle other objects, which do have an "isComplete" field
@@ -51,7 +51,7 @@ export async function getLatestVersion({
             orderBy: { versionIndex: "desc" as const },
             select: { id: true },
         };
-        const latestVersion = await (prismaInstance[model.dbTable] as PrismaDelegate).findFirst(query);
+        const latestVersion = await (DbProvider.get()[model.dbTable] as PrismaDelegate).findFirst(query);
         return latestVersion?.id;
     }
 }

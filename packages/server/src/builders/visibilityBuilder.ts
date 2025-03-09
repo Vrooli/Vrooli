@@ -1,8 +1,8 @@
 import { DUMMY_ID, ModelType, VisibilityType } from "@local/shared";
-import { CustomError } from "../events/error";
-import { GenericModelLogic, ModelMap } from "../models/base";
-import { VisibilityFunc, VisibilityFuncInput } from "../models/types";
-import { VisibilityBuilderPrismaResult, VisibilityBuilderProps } from "./types";
+import { CustomError } from "../events/error.js";
+import { GenericModelLogic, ModelMap } from "../models/base/index.js";
+import { VisibilityFunc, VisibilityFuncInput } from "../models/types.js";
+import { VisibilityBuilderPrismaResult, VisibilityBuilderProps } from "./types.js";
 
 // Create a map of visibility types to their corresponding function names
 const visibilityFuncNames = {

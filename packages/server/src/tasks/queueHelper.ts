@@ -2,7 +2,7 @@ import { HOURS_1_S, Success, TaskStatus, TaskStatusInfo } from "@local/shared";
 import Bull, { Queue } from "bull";
 import path from "path";
 import { fileURLToPath } from "url";
-import { logger } from "../events/logger";
+import { logger } from "../events/logger.js";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const importExtension = process.env.NODE_ENV === "test" ? ".ts" : ".js";

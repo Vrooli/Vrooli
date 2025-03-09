@@ -1,8 +1,8 @@
 import { ModelType } from "@local/shared";
-import { CustomError } from "../events/error";
-import { ModelMap } from "../models/base";
-import { PermissionsMap } from "../models/types";
-import { isRelationshipObject } from "./isOfType";
+import { CustomError } from "../events/error.js";
+import { ModelMap } from "../models/base/index.js";
+import { PermissionsMap } from "../models/types.js";
+import { isRelationshipObject } from "./isOfType.js";
 
 const MAX_RECURSION_DEPTH = 50;
 
@@ -19,15 +19,13 @@ function removeFirstDotLayer(arr: string[]): string[] {
  * Recursively converts a PermissionsMap object into a real Prisma select query
  * @param mapResolver The PermissionsMap object resolver, or a recursed value
  * @param userID Current user ID
- * @param languages Preferred languages for error messages
  * @param recursionDepth The current recursion depth. Used to detect infinite recursion
  * @param omitFields Fields to omit from the selection. Supports dot notation.
  * @returns A Prisma select query
  */
 export function permissionsSelectHelper<Select extends { [x: string]: any }>(
-    mapResolver: PermissionsMap<Select> | ((userId: string | null, languages: string[]) => PermissionsMap<Select>),
+    mapResolver: PermissionsMap<Select> | ((userId: string | null) => PermissionsMap<Select>),
     userId: string | null,
-    languages: string[],
     recursionDepth = 0,
     omitFields: string[] = [],
 ): Select {
@@ -35,7 +33,7 @@ export function permissionsSelectHelper<Select extends { [x: string]: any }>(
     if (recursionDepth > MAX_RECURSION_DEPTH) {
         throw new CustomError("0386", "InternalError", { userId, recursionDepth });
     }
-    const map = typeof mapResolver === "function" ? mapResolver(userId, languages) : mapResolver;
+    const map = typeof mapResolver === "function" ? mapResolver(userId) : mapResolver;
     // Initialize result
     const result: { [x: string]: any } = {};
     // For every key in the PermissionsMap object
@@ -61,9 +59,9 @@ export function permissionsSelectHelper<Select extends { [x: string]: any }>(
                     // Child omit is curr omit with first dot level removed, combined with value[1]
                     const childOmitFields = removeFirstDotLayer(omitFields).concat(value[1]);
                     // Child map is the validator's permissionsSelect function
-                    const childMap = validate().permissionsSelect(userId, languages);
+                    const childMap = validate().permissionsSelect(userId);
                     if (childMap) {
-                        result[key] = { select: permissionsSelectHelper(childMap, userId, languages, recursionDepth + 1, childOmitFields) };
+                        result[key] = { select: permissionsSelectHelper(childMap, userId, recursionDepth + 1, childOmitFields) };
                     }
                 }
             }
@@ -71,14 +69,14 @@ export function permissionsSelectHelper<Select extends { [x: string]: any }>(
             else {
                 // Child omit is curr omit with first dot level removed
                 const childOmitFields = removeFirstDotLayer(omitFields);
-                result[key] = value.map((x: any) => permissionsSelectHelper(x, userId, languages, recursionDepth + 1), childOmitFields);
+                result[key] = value.map((x: any) => permissionsSelectHelper(x, userId, recursionDepth + 1), childOmitFields);
             }
         }
         // If the value is an object, recurse
         else if (isRelationshipObject(value)) {
             // Child omit is curr omit with first dot level removed
             const childOmitFields = removeFirstDotLayer(omitFields);
-            result[key] = permissionsSelectHelper(value, userId, languages, recursionDepth + 1, childOmitFields);
+            result[key] = permissionsSelectHelper(value, userId, recursionDepth + 1, childOmitFields);
         }
         // If the value is a ModelType, attempt to recurse using substitution
         else if (typeof value === "string" && value in ModelType) {
@@ -92,9 +90,9 @@ export function permissionsSelectHelper<Select extends { [x: string]: any }>(
                 // Child omit is curr omit with first dot level removed
                 const childOmitFields = removeFirstDotLayer(omitFields);
                 // Child map is the validator's permissionsSelect function
-                const childMap = validate().permissionsSelect(userId, languages);
+                const childMap = validate().permissionsSelect(userId);
                 if (childMap) {
-                    result[key] = { select: permissionsSelectHelper(childMap, userId, languages, recursionDepth + 1, childOmitFields) };
+                    result[key] = { select: permissionsSelectHelper(childMap, userId, recursionDepth + 1, childOmitFields) };
                 }
             }
         }

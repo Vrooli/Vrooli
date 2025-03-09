@@ -1,8 +1,8 @@
-import { LanguageModelResponseMode, LlmTask, MINUTES_1_MS, RunContext, SessionUser, Success, TaskContextInfo } from "@local/shared";
+import { LanguageModelResponseMode, LlmTask, MINUTES_1_MS, SessionUser, Success, TaskContextInfo } from "@local/shared";
 import Bull from "bull";
 import winston from "winston";
 import { PreMapUserData } from "../../utils/chat.js";
-import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, getProcessPath } from "../queueHelper";
+import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, getProcessPath } from "../queueHelper.js";
 
 /**
  * Payload for generating a bot response in a chat
@@ -17,6 +17,10 @@ export type RequestBotMessagePayload = {
      * The mode to use when generating the response
      */
     mode: LanguageModelResponseMode;
+    /**
+     * The model to use when generating the response
+     */
+    model: string;
     /** 
      * The ID of the message that triggered the bot response. 
      * 
@@ -42,10 +46,6 @@ export type RequestBotMessagePayload = {
      * The ID of the bot that should generate the response
      */
     respondingBotId: string;
-    /**
-     * The context for the current run, if any
-     */
-    runContext?: RunContext;
     /**
      * If true, we'll always suggest tasks instead of running them immediately. 
      * This is useful for things like autofilling forms.
@@ -81,7 +81,7 @@ const FOLDER = "llm";
 export async function setupLlmQueue() {
     try {
         logger = (await import(LOGGER_PATH)).logger;
-        const REDIS_URL = (await import(REDIS_CONN_PATH)).REDIS_URL;
+        const REDIS_URL = (await import(REDIS_CONN_PATH)).getRedisUrl();
         llmProcess = (await import(getProcessPath(FOLDER))).llmProcess;
 
         // Initialize the Bull queue

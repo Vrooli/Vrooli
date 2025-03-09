@@ -1,5 +1,5 @@
 import { ModelType } from "@local/shared";
-import { QueryAction } from "./types";
+import { QueryAction } from "./types.js";
 
 /**
  * Represents a node in a hierarchical tree structure built from a GraphQL mutation input.

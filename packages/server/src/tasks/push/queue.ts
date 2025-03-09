@@ -1,7 +1,7 @@
 import { Success } from "@local/shared";
 import Bull from "bull";
 import winston from "winston";
-import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, getProcessPath } from "../queueHelper";
+import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, getProcessPath } from "../queueHelper.js";
 
 export type PushSubscription = {
     endpoint: string;
@@ -27,7 +27,7 @@ const FOLDER = "push";
 export async function setupPushQueue() {
     try {
         logger = (await import(LOGGER_PATH)).logger;
-        const REDIS_URL = (await import(REDIS_CONN_PATH)).REDIS_URL;
+        const REDIS_URL = (await import(REDIS_CONN_PATH)).getRedisUrl();
         pushProcess = (await import(getProcessPath(FOLDER))).pushProcess;
 
         // Initialize the Bull queue

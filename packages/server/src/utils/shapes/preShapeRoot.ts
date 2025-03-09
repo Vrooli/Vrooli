@@ -1,9 +1,9 @@
 import { exists, ModelType, SessionUser } from "@local/shared";
-import { PrismaDelegate } from "../../builders/types";
-import { prismaInstance } from "../../db/instance";
-import { CustomError } from "../../events/error";
-import { ModelMap } from "../../models/base";
-import { transfer } from "../../models/base/transfer";
+import { type PrismaDelegate } from "../../builders/types.js";
+import { DbProvider } from "../../db/provider.js";
+import { CustomError } from "../../events/error.js";
+import { ModelMap } from "../../models/base/index.js";
+import { transfer } from "../../models/base/transfer.js";
 
 type HasCompleteVersionData = {
     hasCompleteVersion: boolean,
@@ -126,7 +126,7 @@ export async function preShapeRoot({
     // For updateList (much more complicated)
     if (Update.length > 0) {
         // Find original data
-        const originalData = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
+        const originalData = await (DbProvider.get()[dbTable] as PrismaDelegate).findMany({
             where: { id: { in: Update.map(u => u.input.id) } },
             select: originalDataSelect,
         });
@@ -173,7 +173,7 @@ export async function preShapeRoot({
     // For deleteList (fairly simple)
     if (Delete.length > 0) {
         // Find original data
-        const originalData = await (prismaInstance[dbTable] as PrismaDelegate).findMany({
+        const originalData = await (DbProvider.get()[dbTable] as PrismaDelegate).findMany({
             where: { id: { in: Delete.map(d => d.input) } },
             select: originalDataSelect,
         });

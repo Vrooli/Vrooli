@@ -1,28 +1,41 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { DAYS_1_MS, DAYS_30_MS, SECONDS_1_MS, SessionUser, uuid } from "@local/shared";
+import { expect } from "chai";
 import { generateKeyPairSync } from "crypto";
-import pkg from "../__mocks__/@prisma/client";
-import { SessionData, SessionToken } from "../types";
-import { AuthTokensService } from "./auth";
-import { ACCESS_TOKEN_EXPIRATION_MS, JsonWebToken } from "./jwt";
+import pkg from "../__mocks__/@prisma/client.js";
+import { DbProvider } from "../db/provider.js";
+import { type SessionData, type SessionToken } from "../types.js";
+import { AuthTokensService } from "./auth.js";
+import { ACCESS_TOKEN_EXPIRATION_MS, JsonWebToken } from "./jwt.js";
+import sinon from "sinon";
 
 const { PrismaClient } = pkg;
 
 describe("AuthTokensService", () => {
+    let consoleErrorStub: sinon.SinonStub;
+
+    before(async () => {
+        consoleErrorStub = sinon.stub(console, "error");
+        await DbProvider.init();
+    });
+
     beforeEach(() => {
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        jest.spyOn(console, "error").mockImplementation(() => { });
-    })
+        consoleErrorStub.resetHistory();
+    });
 
     afterEach(() => {
         PrismaClient.clearData();
-        jest.restoreAllMocks();
+    });
+
+    after(() => {
+        consoleErrorStub.restore();
     });
 
     describe("Singleton Behavior", () => {
-        test("get() should return the same instance", () => {
+        it("get() should return the same instance", () => {
             const instance1 = AuthTokensService.get();
             const instance2 = AuthTokensService.get();
-            expect(instance1).toBe(instance2);
+            expect(instance1).to.equal(instance2);
         });
     });
 
@@ -51,28 +64,28 @@ describe("AuthTokensService", () => {
         });
 
         describe("false", () => {
-            test("not an object", async () => {
+            it("not an object", async () => {
                 // @ts-ignore Testing runtime scenario
-                expect(await AuthTokensService.canRefreshToken(null)).toBe(false);
+                expect(await AuthTokensService.canRefreshToken(null)).to.equal(false);
                 // @ts-ignore Testing runtime scenario
-                expect(await AuthTokensService.canRefreshToken(undefined)).toBe(false);
+                expect(await AuthTokensService.canRefreshToken(undefined)).to.equal(false);
                 // @ts-ignore Testing runtime scenario
-                expect(await AuthTokensService.canRefreshToken("string")).toBe(false);
+                expect(await AuthTokensService.canRefreshToken("string")).to.equal(false);
                 // @ts-ignore Testing runtime scenario
-                expect(await AuthTokensService.canRefreshToken(123)).toBe(false);
+                expect(await AuthTokensService.canRefreshToken(123)).to.equal(false);
             });
 
-            test("user data not present", async () => {
+            it("user data not present", async () => {
                 const payload: SessionData = {};
-                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).to.equal(false);
             });
 
-            test("user array empty", async () => {
+            it("user array empty", async () => {
                 const payload: SessionData = { users: [] };
-                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).to.equal(false);
             });
 
-            test("missing session data", async () => {
+            it("missing session data", async () => {
                 const payload: SessionData = {
                     users: [
                         {
@@ -80,24 +93,24 @@ describe("AuthTokensService", () => {
                         },
                     ] as SessionUser[],
                 };
-                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).to.equal(false);
             });
 
-            test("missing lastRefreshAt", async () => {
+            it("missing lastRefreshAt", async () => {
                 const payload: SessionData = {
                     users: [
                         {
                             id: uuid(),
                             session: {
                                 id: sessionId,
-                            }
+                            },
                         },
                     ] as SessionUser[],
                 };
-                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).to.equal(false);
             });
 
-            test("session not in database", async () => {
+            it("session not in database", async () => {
                 const payload: SessionData = {
                     users: [
                         {
@@ -105,17 +118,17 @@ describe("AuthTokensService", () => {
                             session: {
                                 id: sessionId,
                                 lastRefreshAt,
-                            }
+                            },
                         },
                     ] as SessionUser[],
                 };
                 PrismaClient.injectData({
                     session: [],
                 });
-                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).to.equal(false);
             });
 
-            test("session is revoked", async () => {
+            it("session is revoked", async () => {
                 const payload: SessionData = {
                     users: [
                         {
@@ -123,7 +136,7 @@ describe("AuthTokensService", () => {
                             session: {
                                 id: sessionId,
                                 lastRefreshAt,
-                            }
+                            },
                         },
                     ] as SessionUser[],
                 };
@@ -135,10 +148,10 @@ describe("AuthTokensService", () => {
                         revoked: true,
                     }],
                 });
-                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).to.equal(false);
             });
 
-            test("session is expired", async () => {
+            it("session is expired", async () => {
                 const payload: SessionData = {
                     users: [
                         {
@@ -146,7 +159,7 @@ describe("AuthTokensService", () => {
                             session: {
                                 id: sessionId,
                                 lastRefreshAt,
-                            }
+                            },
                         },
                     ] as SessionUser[],
                 };
@@ -158,10 +171,10 @@ describe("AuthTokensService", () => {
                         revoked: false,
                     }],
                 });
-                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).to.equal(false);
             });
 
-            test("stored last_refresh_at does not match lastRefreshAt in payload", async () => {
+            it("stored last_refresh_at does not match lastRefreshAt in payload", async () => {
                 const payload: SessionData = {
                     users: [
                         {
@@ -169,7 +182,7 @@ describe("AuthTokensService", () => {
                             session: {
                                 id: sessionId,
                                 lastRefreshAt,
-                            }
+                            },
                         },
                     ] as SessionUser[],
                 };
@@ -183,12 +196,12 @@ describe("AuthTokensService", () => {
                         },
                     ],
                 });
-                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(false);
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).to.equal(false);
             });
         });
 
         describe("true", () => {
-            test("all conditions are met", async () => {
+            it("all conditions are met", async () => {
                 const payload: SessionData = {
                     users: [
                         {
@@ -196,64 +209,64 @@ describe("AuthTokensService", () => {
                             session: {
                                 id: sessionId,
                                 lastRefreshAt,
-                            }
+                            },
                         },
                     ] as SessionUser[],
                 };
-                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).toBe(true);
+                expect(await AuthTokensService.canRefreshToken(payload as SessionToken)).to.equal(true);
             });
         });
     });
 
     describe("isTokenCorrectType", () => {
-        test("returns false if token is null, undefined, or not a string", () => {
-            expect(AuthTokensService.isTokenCorrectType(null)).toBe(false);
-            expect(AuthTokensService.isTokenCorrectType(undefined)).toBe(false);
-            expect(AuthTokensService.isTokenCorrectType(123)).toBe(false);
+        it("returns false if token is null, undefined, or not a string", () => {
+            expect(AuthTokensService.isTokenCorrectType(null)).to.equal(false);
+            expect(AuthTokensService.isTokenCorrectType(undefined)).to.equal(false);
+            expect(AuthTokensService.isTokenCorrectType(123)).to.equal(false);
         });
 
-        test("returns true if token is a string", () => {
-            expect(AuthTokensService.isTokenCorrectType("string")).toBe(true);
+        it("returns true if token is a string", () => {
+            expect(AuthTokensService.isTokenCorrectType("string")).to.equal(true);
         });
-    })
+    });
 
     describe("isAccessTokenExpired", () => {
         describe("true", () => {
-            test("string", () => {
+            it("string", () => {
                 const payload = { accessExpiresAt: "string" };
-                expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(true);
+                expect(AuthTokensService.isAccessTokenExpired(payload as any)).to.equal(true);
             });
 
-            test("undefined", () => {
+            it("undefined", () => {
                 const payload = {};
-                expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(true);
+                expect(AuthTokensService.isAccessTokenExpired(payload as any)).to.equal(true);
             });
 
-            test("null", () => {
+            it("null", () => {
                 const payload = { accessExpiresAt: null };
-                expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(true);
+                expect(AuthTokensService.isAccessTokenExpired(payload as any)).to.equal(true);
             });
 
-            test("in the past", () => {
+            it("in the past", () => {
                 const payload = JsonWebToken.createAccessExpiresAt();
                 payload.accessExpiresAt = payload.accessExpiresAt - SECONDS_1_MS;
-                expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(true);
+                expect(AuthTokensService.isAccessTokenExpired(payload as any)).to.equal(true);
             });
 
-            test("negative number", () => {
+            it("negative number", () => {
                 // Picked a date that would be in the future if it was positive
                 const payload = JsonWebToken.createAccessExpiresAt();
                 payload.accessExpiresAt = -(payload.accessExpiresAt + SECONDS_1_MS);
-                expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(true);
+                expect(AuthTokensService.isAccessTokenExpired(payload as any)).to.equal(true);
             });
         });
 
         describe("false", () => {
-            test("in the future", () => {
+            it("in the future", () => {
                 const payload = JsonWebToken.createAccessExpiresAt();
-                expect(AuthTokensService.isAccessTokenExpired(payload as any)).toBe(false);
+                expect(AuthTokensService.isAccessTokenExpired(payload as any)).to.equal(false);
             });
-        })
+        });
     });
 
     describe("authenticateToken", () => {
@@ -285,19 +298,19 @@ describe("AuthTokensService", () => {
         });
 
         describe("throws", () => {
-            test("token is null, undefined, or not a string", async () => {
-                await expect(AuthTokensService.authenticateToken(null as any)).rejects.toThrow();
-                await expect(AuthTokensService.authenticateToken(undefined as any)).rejects.toThrow();
-                await expect(AuthTokensService.authenticateToken(123 as any)).rejects.toThrow();
+            it("token is null, undefined, or not a string", async () => {
+                await expect(AuthTokensService.authenticateToken(null as any)).rejects.to.throw();
+                await expect(AuthTokensService.authenticateToken(undefined as any)).rejects.to.throw();
+                await expect(AuthTokensService.authenticateToken(123 as any)).rejects.to.throw();
             });
 
-            test("token has invalid signature", async () => {
+            it("token has invalid signature", async () => {
                 const invalidToken = "invalid.token.here";
-                await expect(AuthTokensService.authenticateToken(invalidToken)).rejects.toThrow();
+                await expect(AuthTokensService.authenticateToken(invalidToken)).rejects.to.throw();
             });
         });
 
-        test("returns existing token and payload if token is valid and unexpired", async () => {
+        it("returns existing token and payload if token is valid and unexpired", async () => {
             const payload: SessionToken = {
                 ...JsonWebToken.get().basicToken(),
                 ...JsonWebToken.createAccessExpiresAt(),
@@ -309,12 +322,12 @@ describe("AuthTokensService", () => {
 
             const result = await AuthTokensService.authenticateToken(token);
 
-            expect(result.token).toBe(token);
+            expect(result.token).to.equal(token);
             expect(result.payload).toMatchObject(payload);
-            expect(Math.abs(result.maxAge - JsonWebToken.getMaxAge(result.payload))).toBeLessThanOrEqual(SECONDS_1_MS);
+            expect(Math.abs(result.maxAge - JsonWebToken.getMaxAge(result.payload))).to.be.at.most(SECONDS_1_MS);
         });
 
-        test("returns new token with additional data if token is valid and unexpired, and config has additionalData", async () => {
+        it("returns new token with additional data if token is valid and unexpired, and config has additionalData", async () => {
             const payload: SessionToken = {
                 ...JsonWebToken.get().basicToken(),
                 ...JsonWebToken.createAccessExpiresAt(),
@@ -327,12 +340,12 @@ describe("AuthTokensService", () => {
             const additionalData = { extraField: "extraValue" };
             const result = await AuthTokensService.authenticateToken(token, { additionalData });
 
-            expect(result.token).not.toBe(token);
+            expect(result.token).not.to.equal(token);
             expect(result.payload).toMatchObject({ ...payload, ...additionalData });
-            expect(Math.abs(result.maxAge - JsonWebToken.getMaxAge(result.payload))).toBeLessThanOrEqual(SECONDS_1_MS);
+            expect(Math.abs(result.maxAge - JsonWebToken.getMaxAge(result.payload))).to.be.at.most(SECONDS_1_MS);
         });
 
-        test("refreshes the token if access token expired and can be refreshed", async () => {
+        it("refreshes the token if access token expired and can be refreshed", async () => {
             const sessionId = uuid();
             const lastRefreshAt = new Date();
 
@@ -368,32 +381,32 @@ describe("AuthTokensService", () => {
 
             const result = await AuthTokensService.authenticateToken(token);
 
-            expect(result.token).not.toBe(token);
-            expect(result.payload).toEqual({
+            expect(result.token).not.to.equal(token);
+            expect(result.payload).to.deep.equal({
                 ...payload,
                 accessExpiresAt: expect.any(Number),
                 exp: expect.any(Number),
             });
-            expect(result.payload.exp).toBeGreaterThan(new Date().getTime() / SECONDS_1_MS);
-            expect(result.payload.accessExpiresAt).toBeGreaterThan(new Date().getTime() / SECONDS_1_MS);
-            expect(result.maxAge).toBeGreaterThan(0);
+            expect(result.payload.exp).to.be.greaterThan(new Date().getTime() / SECONDS_1_MS);
+            expect(result.payload.accessExpiresAt).to.be.greaterThan(new Date().getTime() / SECONDS_1_MS);
+            expect(result.maxAge).to.be.greaterThan(0);
 
             // Move time forward to simulate token expiration, and check if it can be refreshed again
             jest.spyOn(Date, "now").mockReturnValue(new Date().getTime() + 2 * ACCESS_TOKEN_EXPIRATION_MS);
             const result2 = await AuthTokensService.authenticateToken(result.token);
 
-            expect(result2.token).not.toBe(result.token);
-            expect(result2.payload).toEqual({
+            expect(result2.token).not.to.equal(result.token);
+            expect(result2.payload).to.deep.equal({
                 ...result.payload,
                 accessExpiresAt: expect.any(Number),
                 exp: expect.any(Number),
             });
-            expect(result2.payload.exp).toBeGreaterThan(new Date().getTime() / SECONDS_1_MS);
-            expect(result2.payload.accessExpiresAt).toBeGreaterThan(new Date().getTime() / SECONDS_1_MS);
-            expect(result2.maxAge).toBeGreaterThan(0);
+            expect(result2.payload.exp).to.be.greaterThan(new Date().getTime() / SECONDS_1_MS);
+            expect(result2.payload.accessExpiresAt).to.be.greaterThan(new Date().getTime() / SECONDS_1_MS);
+            expect(result2.maxAge).to.be.greaterThan(0);
         });
 
-        test("throws 'SessionExpired' error if token is expired and cannot be refreshed", async () => {
+        it("throws 'SessionExpired' error if token is expired and cannot be refreshed", async () => {
             const initialTime = 1000000000000;
             jest.spyOn(Date, "now").mockReturnValue(initialTime);
 
@@ -410,7 +423,7 @@ describe("AuthTokensService", () => {
                         id: uuid(),
                         session: {
                             id: sessionId,
-                            lastRefreshAt: lastRefreshAt,
+                            lastRefreshAt,
                         },
                     },
                 ] as SessionUser[],
@@ -472,7 +485,7 @@ describe("AuthTokensService", () => {
     //         jest.restoreAllMocks();
     //     });
 
-    //     test("should generate a JWT and add it to the response cookies", async () => {
+    //     it("should generate a JWT and add it to the response cookies", async () => {
     //         const apiToken = "test-api-token";
 
     //         await AuthTokensService.generateApiToken(res, apiToken);
@@ -481,15 +494,15 @@ describe("AuthTokensService", () => {
 
     //         const [cookieName, token, options] = (res.cookie as jest.Mock).mock.calls[0];
 
-    //         expect(cookieName).toBe(COOKIE.Jwt);
-    //         expect(typeof token).toBe("string");
-    //         expect(options).toEqual(JsonWebToken.getJwtCookieOptions());
+    //         expect(cookieName).to.equal(COOKIE.Jwt);
+    //         expect(typeof token).to.equal("string");
+    //         expect(options).to.deep.equal(JsonWebToken.getJwtCookieOptions());
 
     //         const payload = await JsonWebToken.get().verify(token);
-    //         expect(payload.apiToken).toBe(apiToken);
+    //         expect(payload.apiToken).to.equal(apiToken);
     //     });
 
-    //     test("should not set cookie if headers are already sent", async () => {
+    //     it("should not set cookie if headers are already sent", async () => {
     //         res.headersSent = true;
     //         const apiToken = "test-api-token";
 
@@ -532,7 +545,7 @@ describe("AuthTokensService", () => {
     //         jest.restoreAllMocks();
     //     });
 
-    //     test("should generate a JWT with session data and add it to the response cookies", async () => {
+    //     it("should generate a JWT with session data and add it to the response cookies", async () => {
     //         const session: Partial<SessionData> = {
     //             isLoggedIn: true,
     //             timeZone: "UTC",
@@ -563,18 +576,18 @@ describe("AuthTokensService", () => {
 
     //         const [cookieName, token, options] = (res.cookie as jest.Mock).mock.calls[0];
 
-    //         expect(cookieName).toBe(COOKIE.Jwt);
-    //         expect(typeof token).toBe("string");
-    //         expect(options).toEqual(JsonWebToken.getJwtCookieOptions());
+    //         expect(cookieName).to.equal(COOKIE.Jwt);
+    //         expect(typeof token).to.equal("string");
+    //         expect(options).to.deep.equal(JsonWebToken.getJwtCookieOptions());
 
     //         const payload = await JsonWebToken.get().verify(token);
 
-    //         expect(payload.isLoggedIn).toBe(true);
-    //         expect(payload.timeZone).toBe("UTC");
-    //         expect(payload.users).toEqual(session.users);
+    //         expect(payload.isLoggedIn).to.equal(true);
+    //         expect(payload.timeZone).to.equal("UTC");
+    //         expect(payload.users).to.deep.equal(session.users);
     //     });
 
-    //     test("should not set cookie if headers are already sent", async () => {
+    //     it("should not set cookie if headers are already sent", async () => {
     //         res.headersSent = true;
     //         const session: Partial<SessionData> = {};
 

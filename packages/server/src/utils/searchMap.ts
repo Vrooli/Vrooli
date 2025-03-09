@@ -1,7 +1,7 @@
 import { ModelType, RoutineType, ScheduleFor, SessionUser, TimeFrame, VisibilityType, lowercaseFirstLetter } from "@local/shared";
 import { PeriodType } from "@prisma/client";
-import { timeFrameToPrisma } from "../builders/timeFrame";
-import { visibilityBuilderPrisma } from "../builders/visibilityBuilder";
+import { timeFrameToPrisma } from "../builders/timeFrame.js";
+import { visibilityBuilderPrisma } from "../builders/visibilityBuilder.js";
 
 /**
  * Creates a partial query for the ID of a one-to-one relation.
@@ -49,7 +49,7 @@ type RequestData = {
     /** Full search input query */
     searchInput: { [x: string]: any };
     /** The current user's session token */
-    userData: SessionUser | null;
+    userData: Pick<SessionUser, "id" | "languages"> | null;
     /** The visibility of the query */
     visibility: VisibilityType;
 };

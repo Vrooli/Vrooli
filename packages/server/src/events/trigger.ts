@@ -1,12 +1,12 @@
 import { AwardCategory, BookmarkFor, ChatMessage, CopyType, IssueStatus, ModelType, PullRequestStatus, ReactionFor, ReportStatus } from "@local/shared";
-import { PasswordAuthService } from "../auth/email";
-import { prismaInstance } from "../db/instance";
-import { Notify, isObjectSubscribable } from "../notify";
-import { emitSocketEvent } from "../sockets/events";
-import { PreMapMessageData, PreMapMessageDataDelete } from "../utils/chat";
-import { Award, objectAwardCategory } from "./awards";
-import { logger } from "./logger";
-import { Reputation, objectReputationEvent } from "./reputation";
+import { PasswordAuthService } from "../auth/email.js";
+import { DbProvider } from "../db/provider.js";
+import { Notify, isObjectSubscribable } from "../notify/notify.js";
+import { emitSocketEvent } from "../sockets/events.js";
+import { PreMapMessageData, PreMapMessageDataDelete } from "../utils/chat.js";
+import { Award, objectAwardCategory } from "./awards.js";
+import { logger } from "./logger.js";
+import { Reputation, objectReputationEvent } from "./reputation.js";
 
 export type ActionTrigger = "AccountNew" |
     "ObjectComplete" | // except runs
@@ -446,7 +446,7 @@ export function Trigger(languages: string[] | undefined) {
             if (reportStatus === "ClosedDeleted") {
                 // If owners are a team, decrease reputation of all admins
                 if (objectOwner.__typename === "Team") {
-                    const admins = await prismaInstance.team.findUnique({
+                    const admins = await DbProvider.get().team.findUnique({
                         where: { id: objectOwner.id },
                         select: {
                             members: {

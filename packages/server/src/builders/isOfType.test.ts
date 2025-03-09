@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { isRelationshipArray, isRelationshipObject } from "./isOfType";
+import { expect } from "chai";
+import { isRelationshipArray, isRelationshipObject } from "./isOfType.js";
 
 describe("isRelationshipObject", () => {
     const validCases = [
@@ -25,14 +26,14 @@ describe("isRelationshipObject", () => {
     ];
 
     validCases.forEach(({ description, value }) => {
-        test(`should return true for ${description}`, () => {
-            expect(isRelationshipObject(value)).toBe(true);
+        it(`should return true for ${description}`, () => {
+            expect(isRelationshipObject(value)).to.equal(true);
         });
     });
 
     invalidCases.forEach(({ description, value }) => {
-        test(`should return false for ${description}`, () => {
-            expect(isRelationshipObject(value)).toBe(false);
+        it(`should return false for ${description}`, () => {
+            expect(isRelationshipObject(value)).to.equal(false);
         });
     });
 });
@@ -56,14 +57,14 @@ describe("isRelationshipArray", () => {
     ];
 
     validCases.forEach(({ description, value }) => {
-        test(`should return true for ${description}`, () => {
-            expect(isRelationshipArray(value)).toBe(true);
+        it(`should return true for ${description}`, () => {
+            expect(isRelationshipArray(value)).to.equal(true);
         });
     });
 
     invalidCases.forEach(({ description, value }) => {
-        test(`should return false for ${description}`, () => {
-            expect(isRelationshipArray(value)).toBe(false);
+        it(`should return false for ${description}`, () => {
+            expect(isRelationshipArray(value)).to.equal(false);
         });
     });
 });

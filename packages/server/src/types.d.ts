@@ -1,9 +1,9 @@
 import { ModelType, SessionUser } from "@local/shared";
-import pkg from "@prisma/client";
-import { PartialApiInfo } from ".";
-import { Context } from "./middleware";
+import { PartialApiInfo } from "./api/types.js";
+import { Context } from "./middleware/context.js";
 
 declare module "@local/server";
+// eslint-disable-next-line import/extensions
 export * from ".";
 
 /**
@@ -39,7 +39,7 @@ export type SessionData = {
     /** When we need to check the database to see if the token is still valid. */
     accessExpiresAt?: number | null;
     /** Public API token, if present */
-    apiToken?: boolean;
+    apiToken?: string | null;
     /** True if the request is coming from a safe origin (e.g. our own frontend) */
     fromSafeOrigin?: boolean;
     /** True if user is logged in. False if not, or if token is invalid or for an API token */
@@ -95,9 +95,6 @@ declare global {
 export type WithIdField<IdField extends string = "id"> = {
     [key in IdField]: string;
 }
-
-/** Prisma type shorthand */
-export type PrismaType = pkg.PrismaClient<pkg.Prisma.PrismaClientOptions, never, pkg.Prisma.RejectOnNotFound | pkg.Prisma.RejectPerOperation | undefined>
 
 /** Wrapper for API endpoint input types */
 export type IWrap<T> = { input: T }

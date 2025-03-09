@@ -2,19 +2,19 @@
 import { initSingletons, logger } from "@local/server";
 import { MINUTES_30_MS } from "@local/shared";
 import cron from "node-cron";
-import { cleanupRevokedSessions } from "./schedules/cleanupRevokedSessions";
-import { countBookmarks } from "./schedules/countBookmarks";
-import { countReacts } from "./schedules/countReacts";
-import { countViews } from "./schedules/countViews";
-import { generateEmbeddings } from "./schedules/embeddings";
-import { genSitemap, isSitemapMissing } from "./schedules/genSitemap";
-import { moderatePullRequests } from "./schedules/moderatePullRequests";
-import { moderateReports } from "./schedules/moderateReports";
-import { paymentsExpirePremium } from "./schedules/paymentsExpirePremium";
-import { paymentsFail } from "./schedules/paymentsFail";
-import { paymentsCreditsFreePremium } from "./schedules/paymentsFreeCredits";
-import { scheduleNotify } from "./schedules/scheduleNotify";
-import { initStatsPeriod, statsPeriodCron } from "./schedules/stats";
+import { cleanupRevokedSessions } from "./schedules/cleanupRevokedSessions.js";
+import { countBookmarks } from "./schedules/countBookmarks.js";
+import { countReacts } from "./schedules/countReacts.js";
+import { countViews } from "./schedules/countViews.js";
+import { generateEmbeddings } from "./schedules/embeddings.js";
+import { genSitemap, isSitemapMissing } from "./schedules/genSitemap.js";
+import { moderatePullRequests } from "./schedules/moderatePullRequests.js";
+import { moderateReports } from "./schedules/moderateReports.js";
+import { paymentsExpirePremium } from "./schedules/paymentsExpirePremium.js";
+import { paymentsFail } from "./schedules/paymentsFail.js";
+import { paymentsCreditsFreePremium } from "./schedules/paymentsFreeCredits.js";
+import { scheduleNotify } from "./schedules/scheduleNotify.js";
+import { initStatsPeriod, statsPeriodCron } from "./schedules/stats/index.js";
 
 /** How many jobs can run at once */
 const MAX_JOB_CONCURRENCY = 5;

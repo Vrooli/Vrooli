@@ -176,7 +176,7 @@ export type RelDelete<IDField extends string> = { [key in IDField]: string }
 export type VisibilityBuilderProps = {
     objectType: `${ModelType}`,
     searchInput: { [x: string]: any };
-    userData: SessionUser | null | undefined,
+    userData: Pick<SessionUser, "id"> | null | undefined,
     visibility?: VisibilityType | null | undefined,
 }
 

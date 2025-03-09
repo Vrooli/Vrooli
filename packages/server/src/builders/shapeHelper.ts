@@ -1,10 +1,10 @@
 import { ModelType, SessionUser, lowercaseFirstLetter, uuidValidate } from "@local/shared";
-import { CustomError } from "../events/error";
-import { ModelMap } from "../models/base";
-import { PreMap } from "../models/types";
-import { IdsCreateToConnect } from "../utils/types";
-import { shapeRelationshipData } from "./shapeRelationshipData";
-import { RelationshipType } from "./types";
+import { CustomError } from "../events/error.js";
+import { ModelMap } from "../models/base/index.js";
+import { PreMap } from "../models/types.js";
+import { IdsCreateToConnect } from "../utils/types.js";
+import { shapeRelationshipData } from "./shapeRelationshipData.js";
+import { RelationshipType } from "./types.js";
 
 type OrMany<T, IsOneToOne extends boolean> = IsOneToOne extends true ? T : T[];
 type OrBoolean<T, IsOneToOne extends boolean> = IsOneToOne extends true ? boolean : T[];

@@ -1,7 +1,7 @@
 import { exists, isObject } from "@local/shared";
 import fs from "fs";
 import pkg from "lodash";
-import { logger } from "../events/logger";
+import { logger } from "../events/logger.js";
 
 const { flatten } = pkg;
 
@@ -22,7 +22,7 @@ export function initializeProfanity() {
     } catch (error) {
         logger.error(`Could not find or read profanity file at ${profanityFile}`, { trace: "0634" });
     }
-};
+}
 
 /**
  * Determines if a string contains any banned words
@@ -31,7 +31,7 @@ export function initializeProfanity() {
  */
 export function hasProfanity(...text: (string | null | undefined)[]): boolean {
     return text.some(t => exists(t) && t.search(profanityRegex) !== -1);
-};
+}
 
 /**
  * Recursively converts an items to an array of its string values
@@ -63,7 +63,7 @@ export function toStringArray(item: any, fields: string[] | null): string[] | nu
         return [item];
     }
     return null;
-};
+}
 
 /**
  * Removes profanity from a string
@@ -83,4 +83,4 @@ export function filterProfanity(text: string, censorCharacter = "*"): string {
 
         return asterisks;
     });
-};
+}

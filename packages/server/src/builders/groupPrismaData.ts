@@ -1,7 +1,7 @@
 import { ModelType, OrArray, isObject } from "@local/shared";
 import pkg from "lodash";
-import { isRelationshipObject } from "./isOfType";
-import { PartialApiInfo } from "./types";
+import { isRelationshipObject } from "./isOfType.js";
+import { PartialApiInfo } from "./types.js";
 
 const { merge } = pkg;
 
@@ -17,7 +17,7 @@ type GroupPrismaDataReturn = {
  * @param dict2
  * @returns dict1 and dict2 combined
  */
-const combineDicts = (dict1: GroupPrismaDataReturn, dict2: GroupPrismaDataReturn): GroupPrismaDataReturn => {
+function combineDicts(dict1: GroupPrismaDataReturn, dict2: GroupPrismaDataReturn): GroupPrismaDataReturn {
     // Initialize result
     const result: GroupPrismaDataReturn = dict1;
     // Update objectTypesIdsDict
@@ -30,7 +30,7 @@ const combineDicts = (dict1: GroupPrismaDataReturn, dict2: GroupPrismaDataReturn
     // Update objectIdsDataDict
     result.objectIdsDataDict = merge(result.objectIdsDataDict, dict2.objectIdsDataDict);
     return result;
-};
+}
 
 /**
  * Combines fields from a Prisma object with arbitrarily nested relationships. Used to get 
@@ -43,10 +43,10 @@ const combineDicts = (dict1: GroupPrismaDataReturn, dict2: GroupPrismaDataReturn
  * @param data GraphQL-shaped data, where each object contains at least an ID
  * @param partialInfo API endpoint info object
  */
-export const groupPrismaData = (
+export function groupPrismaData(
     data: OrArray<{ [x: string]: any }>,
     partialInfo: OrArray<PartialApiInfo>,
-): GroupPrismaDataReturn => {
+): GroupPrismaDataReturn {
     // Check for valid input
     if (!data || !partialInfo) return {
         objectTypesIdsDict: {},
@@ -132,4 +132,4 @@ export const groupPrismaData = (
     }
     // Return dictionaries
     return result;
-};
+}

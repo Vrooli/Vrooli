@@ -49,7 +49,7 @@ export const CodeVersionModel: CodeVersionModelLogic = ({
     mutate: {
         shape: {
             pre: async (params): Promise<CodeVersionPre> => {
-                const { Create, Update, Delete, userData } = params;
+                const { Create, Update, Delete } = params;
                 await versionsCheck({
                     Create,
                     Delete,

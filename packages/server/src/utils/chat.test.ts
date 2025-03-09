@@ -1,80 +1,81 @@
-import { ChatMessageCreateResult, ChatMessageOperations, ChatMessageOperationsResult, ChatMessageOperationsSummaryResult, ChatPreBranchInfo, buildChatParticipantMessageQuery, populateMessageDataMap, prepareChatMessageOperations } from "./chat";
+import { expect } from "chai";
+import { ChatMessageCreateResult, ChatMessageOperations, ChatMessageOperationsResult, ChatMessageOperationsSummaryResult, ChatPreBranchInfo, buildChatParticipantMessageQuery, populateMessageDataMap, prepareChatMessageOperations } from "./chat.js";
 
 /**
  * Recursively checks that each object within a 'select' object
  * correctly contains only objects with a 'select' key.
  * @param obj The object to check for proper 'select' structure.
  */
-const checkSelectStructure = (obj: any) => {
+function checkSelectStructure(obj: any) {
     if (typeof obj !== "object" || obj === null) {
         throw new Error("Non-object or null found where an object was expected");
     }
     Object.keys(obj).forEach(key => {
         if (key === "select") {
-            expect(typeof obj[key]).toBe("object");
+            expect(typeof obj[key]).to.equal("object");
             checkSelectStructure(obj[key]); // Recursive call
         } else {
             // Optionally add more checks here if you need to verify other properties
         }
     });
-};
+}
 
 describe("buildChatParticipantMessageQuery", () => {
-    test("returns only last message ID selection when no message info is included", () => {
+    it("returns only last message ID selection when no message info is included", () => {
         const query = buildChatParticipantMessageQuery(["123"], false, false);
-        expect(query.orderBy).toEqual({ sequence: "desc" });
-        expect(query.take).toBe(1);
-        expect(query).toHaveProperty("select.id");
+        expect(query.orderBy).to.deep.equal({ sequence: "desc" });
+        expect(query.take).to.equal(1);
+        expect(query).to.have.property("select.id");
     });
 
-    test("includes the correct \"where\" clause for message IDs", () => {
+    it("includes the correct \"where\" clause for message IDs", () => {
         const query = buildChatParticipantMessageQuery(["123"], true, false);
-        expect(query.where).toEqual({ id: { in: ["123"] } });
+        expect(query.where).to.deep.equal({ id: { in: ["123"] } });
     });
 
-    test("includes only basic parent data when only parent message info is included", () => {
+    it("includes only basic parent data when only parent message info is included", () => {
         const query = buildChatParticipantMessageQuery(["123"], false, true);
         // Full parent info
-        expect(query.select.parent.select).toHaveProperty("id");
-        expect(query.select.parent.select).toHaveProperty("parent.select");
-        expect(query.select.parent.select).toHaveProperty("translations.select");
-        expect(query.select.parent.select).toHaveProperty("user.select");
+        expect(query.select.parent.select).to.have.property("id");
+        expect(query.select.parent.select).to.have.property("parent.select");
+        expect(query.select.parent.select).to.have.property("translations.select");
+        expect(query.select.parent.select).to.have.property("user.select");
 
         // No other message info
-        expect(query.select).not.toHaveProperty("id");
-        expect(query.select).not.toHaveProperty("translations");
-        expect(query.select).not.toHaveProperty("user");
+        expect(query.select).not.to.have.property("id");
+        expect(query.select).not.to.have.property("translations");
+        expect(query.select).not.to.have.property("user");
     });
 
-    test("includes detailed parent data when both message and parent info are included", () => {
+    it("includes detailed parent data when both message and parent info are included", () => {
         const query = buildChatParticipantMessageQuery(["123"], true, true);
         // Full parent info
-        expect(query.select.parent.select).toHaveProperty("id");
-        expect(query.select.parent.select).toHaveProperty("parent.select");
-        expect(query.select.parent.select).toHaveProperty("translations.select");
-        expect(query.select.parent.select).toHaveProperty("user.select");
+        expect(query.select.parent.select).to.have.property("id");
+        expect(query.select.parent.select).to.have.property("parent.select");
+        expect(query.select.parent.select).to.have.property("translations.select");
+        expect(query.select.parent.select).to.have.property("user.select");
 
         // Full message info
-        expect(query.select).toHaveProperty("id");
-        expect(query.select).toHaveProperty("translations.select");
-        expect(query.select).toHaveProperty("user.select");
+        expect(query.select).to.have.property("id");
+        expect(query.select).to.have.property("translations.select");
+        expect(query.select).to.have.property("user.select");
     });
 
-    test("includes only parent ID when only message info is included", () => {
+    it("includes only parent ID when only message info is included", () => {
         const query = buildChatParticipantMessageQuery(["123"], true, false);
         // Simple parent info
-        expect(query.select.parent.select).toHaveProperty("id");
-        expect(query.select.parent.select).not.toHaveProperty("parent.select");
-        expect(query.select.parent.select).not.toHaveProperty("translations.select");
-        expect(query.select.parent.select).not.toHaveProperty("user.select");
+        expect(query.select.parent.select).to.have.property("id");
+        expect(query.select.parent.select).not.to.have.property("parent.select");
+        expect(query.select.parent.select).not.to.have.property("translations.select");
+        expect(query.select.parent.select).not.to.have.property("user.select");
 
         // Full message info
-        expect(query.select).toHaveProperty("id");
-        expect(query.select).toHaveProperty("translations.select");
-        expect(query.select).toHaveProperty("user.select");
+        expect(query.select).to.have.property("id");
+        expect(query.select).to.have.property("translations.select");
+        expect(query.select).to.have.property("user.select");
     });
 
-    test("ensures select keys are properly structured in all select objects", () => {
+    it("ensures select keys are properly structured in all select objects", () => {
         const query = buildChatParticipantMessageQuery(["123"], true, true);
         // Recursively check the select structure starting from the root if needed
         checkSelectStructure(query);
@@ -92,7 +93,7 @@ describe("populateMessageDataMap", () => {
         userData = { id: "user1", languages: ["en", "es"] };
     });
 
-    test("populates message data correctly for a single message", () => {
+    it("populates message data correctly for a single message", () => {
         messages = [{
             chat: { id: "chat1" },
             id: "msg1",
@@ -103,7 +104,7 @@ describe("populateMessageDataMap", () => {
 
         populateMessageDataMap(messageMap, messages, userData);
 
-        expect(messageMap["msg1"]).toEqual({
+        expect(messageMap["msg1"]).to.deep.equal({
             __type: "Update",
             chatId: "chat1",
             messageId: "msg1",
@@ -113,7 +114,7 @@ describe("populateMessageDataMap", () => {
         });
     });
 
-    test("handles missing translations", () => {
+    it("handles missing translations", () => {
         messages = [{
             chat: { id: "chat2" },
             id: "msg2",
@@ -123,10 +124,10 @@ describe("populateMessageDataMap", () => {
 
         populateMessageDataMap(messageMap, messages, userData);
 
-        expect(messageMap["msg2"]).toBeUndefined();
+        expect(messageMap["msg2"]).to.be.undefined;
     });
 
-    test("recursively populates parent message data", () => {
+    it("recursively populates parent message data", () => {
         messages = [{
             chat: { id: "chat3" },
             id: "msg3",
@@ -142,12 +143,12 @@ describe("populateMessageDataMap", () => {
 
         populateMessageDataMap(messageMap, messages, userData);
 
-        expect(messageMap["msg3"]).toBeDefined();
-        expect(messageMap["msg2"]).toBeDefined();
-        expect(messageMap["msg2"].messageId).toBe("msg2");
+        expect(messageMap["msg3"]).to.exist;
+        expect(messageMap["msg2"]).to.exist;
+        expect(messageMap["msg2"].messageId).to.equal("msg2");
     });
 
-    test("avoids infinite loops with circular references", () => {
+    it("avoids infinite loops with circular references", () => {
         messages = [{
             chat: { id: "chat4" },
             id: "msg4",
@@ -169,10 +170,10 @@ describe("populateMessageDataMap", () => {
 
         populateMessageDataMap(messageMap, messages, userData);
 
-        expect(messageMap["msg4"]).toBeDefined();
-        expect(messageMap["msg5"]).toBeDefined();
+        expect(messageMap["msg4"]).to.exist;
+        expect(messageMap["msg5"]).to.exist;
         // This test ensures no infinite recursion, focus is on completion
-        expect(Object.keys(messageMap).length).toBe(2);
+        expect(Object.keys(messageMap).length).to.equal(2);
     });
 });
 
@@ -208,9 +209,9 @@ describe("prepareChatMessageOperations", () => {
                 };
 
                 const result = prepareChatMessageOperations(operations, branchInfo);
-                expect(result.operations).toBeUndefined();
-                expect(result.summary.Create).toHaveLength(0);
-                expect(result.summary.Update).toHaveLength(0);
+                expect(result.operations).to.be.undefined;
+                expect(result.summary.Create).to.have.lengthOf(0);
+                expect(result.summary.Update).to.have.lengthOf(0);
             });
 
             it("should handle null create operations", () => {
@@ -223,9 +224,9 @@ describe("prepareChatMessageOperations", () => {
                 };
 
                 const result = prepareChatMessageOperations(operations, branchInfo);
-                expect(result.operations).toBeUndefined();
-                expect(result.summary.Create).toHaveLength(0);
-                expect(result.summary.Update).toHaveLength(0);
+                expect(result.operations).to.be.undefined;
+                expect(result.summary.Create).to.have.lengthOf(0);
+                expect(result.summary.Update).to.have.lengthOf(0);
             });
 
             it("should handle empty array of create operations", () => {
@@ -238,9 +239,9 @@ describe("prepareChatMessageOperations", () => {
                 };
 
                 const result = prepareChatMessageOperations(operations, branchInfo);
-                expect(result.operations).toBeUndefined();
-                expect(result.summary.Create).toHaveLength(0);
-                expect(result.summary.Update).toHaveLength(0);
+                expect(result.operations).to.be.undefined;
+                expect(result.summary.Create).to.have.lengthOf(0);
+                expect(result.summary.Update).to.have.lengthOf(0);
             });
 
             it("should handle single create operation with no parent connect and no lastSequentialId", () => {
@@ -267,8 +268,8 @@ describe("prepareChatMessageOperations", () => {
                 };
 
                 const result = prepareChatMessageOperations(operations, branchInfo);
-                expect(result.operations).toEqual(expectedOperations);
-                expect(result.summary).toEqual(expectedSummary);
+                expect(result.operations).to.deep.equal(expectedOperations);
+                expect(result.summary).to.deep.equal(expectedSummary);
             });
 
             it("should handle single create operation with no parent connect and a lastSequentialId", () => {
@@ -300,8 +301,8 @@ describe("prepareChatMessageOperations", () => {
                 };
 
                 const result = prepareChatMessageOperations(operations, branchInfo);
-                expect(result.operations).toEqual(expectedOperations);
-                expect(result.summary).toEqual(expectedSummary);
+                expect(result.operations).to.deep.equal(expectedOperations);
+                expect(result.summary).to.deep.equal(expectedSummary);
             });
 
             it("should handle single create operation with a parent connect", () => {
@@ -338,8 +339,8 @@ describe("prepareChatMessageOperations", () => {
                 };
 
                 const result = prepareChatMessageOperations(operations, branchInfo);
-                expect(result.operations).toEqual(expectedOperations);
-                expect(result.summary).toEqual(expectedSummary);
+                expect(result.operations).to.deep.equal(expectedOperations);
+                expect(result.summary).to.deep.equal(expectedSummary);
             });
         });
 
@@ -378,8 +379,8 @@ describe("prepareChatMessageOperations", () => {
                     };
 
                     const result = prepareChatMessageOperations(operations, branchInfo);
-                    expect(result.operations).toEqual(expectedOperations);
-                    expect(result.summary).toEqual(expectedSummary);
+                    expect(result.operations).to.deep.equal(expectedOperations);
+                    expect(result.summary).to.deep.equal(expectedSummary);
                 });
 
                 it("sequential ID specified", () => {
@@ -420,8 +421,8 @@ describe("prepareChatMessageOperations", () => {
                     };
 
                     const result = prepareChatMessageOperations(operations, branchInfo);
-                    expect(result.operations).toEqual(expectedOperations);
-                    expect(result.summary).toEqual(expectedSummary);
+                    expect(result.operations).to.deep.equal(expectedOperations);
+                    expect(result.summary).to.deep.equal(expectedSummary);
                 });
             });
 
@@ -481,8 +482,8 @@ describe("prepareChatMessageOperations", () => {
                     };
 
                     const result = prepareChatMessageOperations(operations, branchInfo);
-                    expect(result.operations).toEqual(expectedOperations);
-                    expect(result.summary).toEqual(expectedSummary);
+                    expect(result.operations).to.deep.equal(expectedOperations);
+                    expect(result.summary).to.deep.equal(expectedSummary);
                 });
             });
 
@@ -542,8 +543,8 @@ describe("prepareChatMessageOperations", () => {
                     };
 
                     const result = prepareChatMessageOperations(operations, branchInfo);
-                    expect(result.operations).toEqual(expectedOperations);
-                    expect(result.summary).toEqual(expectedSummary);
+                    expect(result.operations).to.deep.equal(expectedOperations);
+                    expect(result.summary).to.deep.equal(expectedSummary);
                 });
             });
         });
@@ -564,7 +565,7 @@ describe("prepareChatMessageOperations", () => {
                     };
 
                     const result = prepareChatMessageOperations(operations, branchInfo);
-                    expect(() => collectIdsInNestedCreate(result.operations?.create)).not.toThrow();
+                    expect(() => collectIdsInNestedCreate(result.operations?.create)).not.to.throw();
                 });
 
                 it("two small cycles", () => {
@@ -582,7 +583,7 @@ describe("prepareChatMessageOperations", () => {
                     };
 
                     const result = prepareChatMessageOperations(operations, branchInfo);
-                    expect(() => collectIdsInNestedCreate(result.operations?.create)).not.toThrow();
+                    expect(() => collectIdsInNestedCreate(result.operations?.create)).not.to.throw();
                 });
             });
 
@@ -599,7 +600,7 @@ describe("prepareChatMessageOperations", () => {
                     messageTreeInfo: {},
                 };
 
-                expect(() => prepareChatMessageOperations(operations, branchInfo)).toThrow();
+                expect(() => prepareChatMessageOperations(operations, branchInfo)).to.throw();
             });
         });
     });
@@ -640,8 +641,8 @@ describe("prepareChatMessageOperations", () => {
                 };
 
                 const result = prepareChatMessageOperations(operations, branchInfo);
-                expect(result.operations).toEqual(expectedOperations);
-                expect(result.summary).toEqual(expectedSummary);
+                expect(result.operations).to.deep.equal(expectedOperations);
+                expect(result.summary).to.deep.equal(expectedSummary);
             });
 
             it("should disconnect children if the deleted message has no parent", () => {
@@ -673,8 +674,8 @@ describe("prepareChatMessageOperations", () => {
                 };
 
                 const result = prepareChatMessageOperations(operations, branchInfo);
-                expect(result.operations).toEqual(expectedOperations);
-                expect(result.summary).toEqual(expectedSummary);
+                expect(result.operations).to.deep.equal(expectedOperations);
+                expect(result.summary).to.deep.equal(expectedSummary);
             });
 
             describe("should handle multiple messages being deleted simultaneously", () => {
@@ -713,8 +714,8 @@ describe("prepareChatMessageOperations", () => {
                     };
 
                     const result = prepareChatMessageOperations(operations, branchInfo);
-                    expect(result.operations).toEqual(expectedOperations);
-                    expect(result.summary).toEqual(expectedSummary);
+                    expect(result.operations).to.deep.equal(expectedOperations);
+                    expect(result.summary).to.deep.equal(expectedSummary);
                 });
 
                 it("deleted message's child is also deleted", () => {
@@ -752,8 +753,8 @@ describe("prepareChatMessageOperations", () => {
                     };
 
                     const result = prepareChatMessageOperations(operations, branchInfo);
-                    expect(result.operations).toEqual(expectedOperations);
-                    expect(result.summary).toEqual(expectedSummary);
+                    expect(result.operations).to.deep.equal(expectedOperations);
+                    expect(result.summary).to.deep.equal(expectedSummary);
                 });
             });
 
@@ -767,7 +768,7 @@ describe("prepareChatMessageOperations", () => {
                     messageTreeInfo: {},
                 };
 
-                expect(() => prepareChatMessageOperations(operations, branchInfo)).toThrow();
+                expect(() => prepareChatMessageOperations(operations, branchInfo)).to.throw();
             });
         });
     });
@@ -839,8 +840,8 @@ describe("prepareChatMessageOperations", () => {
             };
 
             const result = prepareChatMessageOperations(operations, branchInfo);
-            expect(result.operations).toEqual(expectedOperations);
-            expect(result.summary).toEqual(expectedSummary);
+            expect(result.operations).to.deep.equal(expectedOperations);
+            expect(result.summary).to.deep.equal(expectedSummary);
         });
     });
 });
