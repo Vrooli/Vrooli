@@ -1,6 +1,6 @@
 // Functions for manipulating arrays, especially state arrays
 
-import { valueFromDot } from "./objectTools";
+import { valueFromDot } from "./objectTools.js";
 
 export function addToArray<T>(array: T[], value: T) {
     return [...array, value];

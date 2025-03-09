@@ -1,3 +1,5 @@
+import { type RunConfig } from "../run/types.js";
+
 export type Maybe<T> = T | null;
 export type InputMaybe<T> = Maybe<T>;
 export type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
@@ -681,6 +683,7 @@ export type ChatMessageCreateInput = BaseTranslatableCreateInput<ChatMessageTran
 
 export type ChatMessageCreateWithTaskInfoInput = {
     message: ChatMessageCreateInput;
+    model: string;
     task: LlmTask;
     taskContexts: Array<TaskContextInfoInput>;
 };
@@ -744,6 +747,7 @@ export type ChatMessageUpdateInput = BaseTranslatableUpdateInput<ChatMessageTran
 
 export type ChatMessageUpdateWithTaskInfoInput = {
     message: ChatMessageUpdateInput;
+    model: string;
     task: LlmTask;
     taskContexts: Array<TaskContextInfoInput>;
 };
@@ -904,6 +908,7 @@ export type Code = DbObject<"Code"> & {
 
 export type CodeCreateInput = {
     id: Scalars["ID"];
+    data?: InputMaybe<Scalars["String"]>;
     isPrivate: Scalars["Boolean"];
     labelsConnect?: InputMaybe<Array<Scalars["ID"]>>;
     labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
@@ -976,6 +981,7 @@ export enum CodeType {
 
 export type CodeUpdateInput = {
     id: Scalars["ID"];
+    data?: InputMaybe<Scalars["String"]>;
     isPrivate?: InputMaybe<Scalars["Boolean"]>;
     labelsConnect?: InputMaybe<Array<Scalars["ID"]>>;
     labelsCreate?: InputMaybe<Array<LabelCreateInput>>;
@@ -1000,6 +1006,7 @@ export type CodeVersion = DbObject<"CodeVersion"> & {
     completedAt?: Maybe<Scalars["Date"]>;
     content: Scalars["String"];
     created_at: Scalars["Date"];
+    data?: Maybe<Scalars["String"]>;
     default?: Maybe<Scalars["String"]>;
     directoryListings: Array<ProjectVersionDirectory>;
     directoryListingsCount: Scalars["Int"];
@@ -1569,8 +1576,7 @@ export enum ModelType {
     RunProjectOrRunRoutineSearchResult = "RunProjectOrRunRoutineSearchResult",
     RunProjectStep = "RunProjectStep",
     RunRoutine = "RunRoutine",
-    RunRoutineInput = "RunRoutineInput",
-    RunRoutineOutput = "RunRoutineOutput",
+    RunRoutineIO = "RunRoutineIO",
     RunRoutineStep = "RunRoutineStep",
     Schedule = "Schedule",
     ScheduleException = "ScheduleException",
@@ -3977,6 +3983,7 @@ export type ReadAssetsInput = {
 
 export type RegenerateResponseInput = {
     messageId: Scalars["ID"];
+    model: string;
     task: LlmTask;
     taskContexts: Array<TaskContextInfoInput>;
 };
@@ -4931,6 +4938,7 @@ export type RunProject = DbObject<"RunProject"> & {
     completedAt?: Maybe<Scalars["Date"]>;
     completedComplexity: Scalars["Int"];
     contextSwitches: Scalars["Int"];
+    data?: Maybe<Scalars["String"]>;
     isPrivate: Scalars["Boolean"];
     lastStep?: Maybe<Array<Scalars["Int"]>>;
     name: Scalars["String"];
@@ -4949,11 +4957,13 @@ export type RunProject = DbObject<"RunProject"> & {
 export type RunProjectCreateInput = {
     completedComplexity?: InputMaybe<Scalars["Int"]>;
     contextSwitches?: InputMaybe<Scalars["Int"]>;
+    data?: InputMaybe<Scalars["String"]>;
     id: Scalars["ID"];
     isPrivate: Scalars["Boolean"];
     name: Scalars["String"];
     projectVersionConnect: Scalars["ID"];
     scheduleCreate?: InputMaybe<ScheduleCreateInput>;
+    startedAt?: InputMaybe<Scalars["Date"]>;
     status: RunStatus;
     stepsCreate?: InputMaybe<Array<RunProjectStepCreateInput>>;
     teamConnect?: InputMaybe<Scalars["ID"]>;
@@ -5043,49 +5053,48 @@ export enum RunProjectSortBy {
 
 export type RunProjectStep = DbObject<"RunProjectStep"> & {
     completedAt?: Maybe<Scalars["Date"]>;
+    complexity: Scalars["Int"];
     contextSwitches: Scalars["Int"];
     directory?: Maybe<ProjectVersionDirectory>;
+    directoryInId: Scalars["ID"];
     name: Scalars["String"];
     order: Scalars["Int"];
     runProject: RunProject;
     startedAt?: Maybe<Scalars["Date"]>;
-    status: RunProjectStepStatus;
-    step: Array<Scalars["Int"]>;
+    status: RunStepStatus;
     timeElapsed?: Maybe<Scalars["Int"]>;
 };
 
 export type RunProjectStepCreateInput = {
+    complexity: Scalars["Int"];
     contextSwitches?: InputMaybe<Scalars["Int"]>;
     directoryConnect?: InputMaybe<Scalars["ID"]>;
+    directoryInId: Scalars["ID"];
     id: Scalars["ID"];
     name: Scalars["String"];
     order: Scalars["Int"];
     runProjectConnect: Scalars["ID"];
-    status?: InputMaybe<RunProjectStepStatus>;
-    step: Array<Scalars["Int"]>;
+    status?: InputMaybe<RunStepStatus>;
     timeElapsed?: InputMaybe<Scalars["Int"]>;
 };
-
-export enum RunProjectStepStatus {
-    Completed = "Completed",
-    InProgress = "InProgress",
-    Skipped = "Skipped"
-}
 
 export type RunProjectStepUpdateInput = {
     contextSwitches?: InputMaybe<Scalars["Int"]>;
     id: Scalars["ID"];
-    status?: InputMaybe<RunProjectStepStatus>;
+    status?: InputMaybe<RunStepStatus>;
     timeElapsed?: InputMaybe<Scalars["Int"]>;
 };
 
 export type RunProjectUpdateInput = {
     completedComplexity?: InputMaybe<Scalars["Int"]>;
     contextSwitches?: InputMaybe<Scalars["Int"]>;
+    data?: InputMaybe<Scalars["String"]>;
     id: Scalars["ID"];
     isPrivate?: InputMaybe<Scalars["Boolean"]>;
     scheduleCreate?: InputMaybe<ScheduleCreateInput>;
     scheduleUpdate?: InputMaybe<ScheduleUpdateInput>;
+    scheduleDelete?: InputMaybe<Scalars["Boolean"]>;
+    startedAt?: InputMaybe<Scalars["Date"]>;
     status?: InputMaybe<RunStatus>;
     stepsCreate?: InputMaybe<Array<RunProjectStepCreateInput>>;
     stepsDelete?: InputMaybe<Array<Scalars["ID"]>>;
@@ -5104,15 +5113,13 @@ export type RunRoutine = DbObject<"RunRoutine"> & {
     completedAt?: Maybe<Scalars["Date"]>;
     completedComplexity: Scalars["Int"];
     contextSwitches: Scalars["Int"];
-    inputs: Array<RunRoutineInput>;
-    inputsCount: Scalars["Int"];
+    data?: Maybe<Scalars["String"]>;
+    io: Array<RunRoutineIO>;
+    ioCount: Scalars["Int"];
     isPrivate: Scalars["Boolean"];
     lastStep?: Maybe<Array<Scalars["Int"]>>;
     name: Scalars["String"];
-    outputs: Array<RunRoutineOutput>;
-    outputsCount: Scalars["Int"];
     routineVersion?: Maybe<RoutineVersion>;
-    runProject?: Maybe<RunProject>;
     schedule?: Maybe<Schedule>;
     startedAt?: Maybe<Scalars["Date"]>;
     status: RunStatus;
@@ -5128,14 +5135,14 @@ export type RunRoutine = DbObject<"RunRoutine"> & {
 export type RunRoutineCreateInput = {
     completedComplexity?: InputMaybe<Scalars["Int"]>;
     contextSwitches?: InputMaybe<Scalars["Int"]>;
+    data?: InputMaybe<Scalars["String"]>;
     id: Scalars["ID"];
-    inputsCreate?: InputMaybe<Array<RunRoutineInputCreateInput>>;
+    ioCreate?: InputMaybe<Array<RunRoutineIOCreateInput>>;
     isPrivate: Scalars["Boolean"];
     name: Scalars["String"];
-    outputsCreate?: InputMaybe<Array<RunRoutineOutputCreateInput>>;
     routineVersionConnect: Scalars["ID"];
-    runProjectConnect?: InputMaybe<Scalars["ID"]>;
     scheduleCreate?: InputMaybe<ScheduleCreateInput>;
+    startedAt?: InputMaybe<Scalars["Date"]>;
     status: RunStatus;
     stepsCreate?: InputMaybe<Array<RunRoutineStepCreateInput>>;
     teamConnect?: InputMaybe<Scalars["ID"]>;
@@ -5144,22 +5151,28 @@ export type RunRoutineCreateInput = {
 
 export type RunRoutineEdge = Edge<RunRoutine, "RunRoutineEdge">;
 
-export type RunRoutineInput = DbObject<"RunRoutineInput"> & {
+export type RunRoutineIO = DbObject<"RunRoutineIO"> & {
     data: Scalars["String"];
-    input: RoutineVersionInput;
+    nodeInputName: Scalars["String"];
+    nodeName: Scalars["String"];
     runRoutine: RunRoutine;
+    routineVersionInput: Maybe<RoutineVersionInput>;
+    routineVersionOutput: Maybe<RoutineVersionOutput>;
 };
 
-export type RunRoutineInputCreateInput = {
+export type RunRoutineIOCreateInput = {
     data: Scalars["String"];
     id: Scalars["ID"];
-    inputConnect: Scalars["ID"];
+    nodeInputName: Scalars["String"];
+    nodeName: Scalars["String"];
     runRoutineConnect: Scalars["ID"];
+    routineVersionInputConnect: InputMaybe<Scalars["ID"]>;
+    routineVersionOutputConnect: InputMaybe<Scalars["ID"]>;
 };
 
-export type RunRoutineInputEdge = Edge<RunRoutineInput, "RunRoutineInputEdge">;
+export type RunRoutineIOEdge = Edge<RunRoutineIO, "RunRoutineIOEdge">;
 
-export type RunRoutineInputSearchInput = {
+export type RunRoutineIOSearchInput = {
     after?: InputMaybe<Scalars["String"]>;
     createdTimeFrame?: InputMaybe<TimeFrame>;
     excludeIds?: InputMaybe<Array<Scalars["ID"]>>;
@@ -5169,55 +5182,16 @@ export type RunRoutineInputSearchInput = {
     updatedTimeFrame?: InputMaybe<TimeFrame>;
 };
 
-export type RunRoutineInputSearchResult = SearchResult<RunRoutineInputEdge, "RunRoutineInputSearchResult">;
+export type RunRoutineIOSearchResult = SearchResult<RunRoutineIOEdge, "RunRoutineIOSearchResult">;
 
-export enum RunRoutineInputSortBy {
+export enum RunRoutineIOSortBy {
     DateCreatedAsc = "DateCreatedAsc",
     DateCreatedDesc = "DateCreatedDesc",
     DateUpdatedAsc = "DateUpdatedAsc",
     DateUpdatedDesc = "DateUpdatedDesc"
 }
 
-export type RunRoutineInputUpdateInput = {
-    data: Scalars["String"];
-    id: Scalars["ID"];
-};
-
-export type RunRoutineOutput = DbObject<"RunRoutineOutput"> & {
-    data: Scalars["String"];
-    output: RoutineVersionOutput;
-    runRoutine: RunRoutine;
-};
-
-export type RunRoutineOutputCreateInput = {
-    data: Scalars["String"];
-    id: Scalars["ID"];
-    outputConnect: Scalars["ID"];
-    runRoutineConnect: Scalars["ID"];
-};
-
-export type RunRoutineOutputEdge = Edge<RunRoutineOutput, "RunRoutineOutputEdge">;
-
-export type RunRoutineOutputSearchInput = {
-    after?: InputMaybe<Scalars["String"]>;
-    createdTimeFrame?: InputMaybe<TimeFrame>;
-    excludeIds?: InputMaybe<Array<Scalars["ID"]>>;
-    ids?: InputMaybe<Array<Scalars["ID"]>>;
-    runRoutineIds?: InputMaybe<Array<Scalars["ID"]>>;
-    take?: InputMaybe<Scalars["Int"]>;
-    updatedTimeFrame?: InputMaybe<TimeFrame>;
-};
-
-export type RunRoutineOutputSearchResult = SearchResult<RunRoutineOutputEdge, "RunRoutineOutputSearchResult">;
-
-export enum RunRoutineOutputSortBy {
-    DateCreatedAsc = "DateCreatedAsc",
-    DateCreatedDesc = "DateCreatedDesc",
-    DateUpdatedAsc = "DateUpdatedAsc",
-    DateUpdatedDesc = "DateUpdatedDesc"
-}
-
-export type RunRoutineOutputUpdateInput = {
+export type RunRoutineIOUpdateInput = {
     data: Scalars["String"];
     id: Scalars["ID"];
 };
@@ -5256,26 +5230,30 @@ export enum RunRoutineSortBy {
 
 export type RunRoutineStep = DbObject<"RunRoutineStep"> & {
     completedAt?: Maybe<Scalars["Date"]>;
+    complexity: Scalars["Int"];
     contextSwitches: Scalars["Int"];
     name: Scalars["String"];
+    nodeId: Scalars["String"];
     order: Scalars["Int"];
     runRoutine: RunRoutine;
     startedAt?: Maybe<Scalars["Date"]>;
-    status: RunRoutineStepStatus;
-    step: Array<Scalars["Int"]>;
+    status: RunStepStatus;
     subroutine?: Maybe<RoutineVersion>;
+    subroutineInId: Scalars["ID"];
     timeElapsed?: Maybe<Scalars["Int"]>;
 };
 
 export type RunRoutineStepCreateInput = {
+    complexity: Scalars["Int"];
     contextSwitches?: InputMaybe<Scalars["Int"]>;
     id: Scalars["ID"];
     name: Scalars["String"];
+    nodeId: Scalars["String"];
     order: Scalars["Int"];
     runRoutineConnect: Scalars["ID"];
-    status?: InputMaybe<RunRoutineStepStatus>;
-    step: Array<Scalars["Int"]>;
+    status?: InputMaybe<RunStepStatus>;
     subroutineConnect?: InputMaybe<Scalars["ID"]>;
+    subroutineInId: Scalars["ID"];
     timeElapsed?: InputMaybe<Scalars["Int"]>;
 };
 
@@ -5292,32 +5270,26 @@ export enum RunRoutineStepSortBy {
     TimeStartedDesc = "TimeStartedDesc"
 }
 
-export enum RunRoutineStepStatus {
-    Completed = "Completed",
-    InProgress = "InProgress",
-    Skipped = "Skipped"
-}
-
 export type RunRoutineStepUpdateInput = {
     contextSwitches?: InputMaybe<Scalars["Int"]>;
     id: Scalars["ID"];
-    status?: InputMaybe<RunRoutineStepStatus>;
+    status?: InputMaybe<RunStepStatus>;
     timeElapsed?: InputMaybe<Scalars["Int"]>;
 };
 
 export type RunRoutineUpdateInput = {
     completedComplexity?: InputMaybe<Scalars["Int"]>;
     contextSwitches?: InputMaybe<Scalars["Int"]>;
+    data?: InputMaybe<Scalars["String"]>;
     id: Scalars["ID"];
-    inputsCreate?: InputMaybe<Array<RunRoutineInputCreateInput>>;
-    inputsDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    inputsUpdate?: InputMaybe<Array<RunRoutineInputUpdateInput>>;
+    ioCreate?: InputMaybe<Array<RunRoutineIOCreateInput>>;
+    ioDelete?: InputMaybe<Array<Scalars["ID"]>>;
+    ioUpdate?: InputMaybe<Array<RunRoutineIOUpdateInput>>;
     isPrivate?: InputMaybe<Scalars["Boolean"]>;
-    outputsCreate?: InputMaybe<Array<RunRoutineOutputCreateInput>>;
-    outputsDelete?: InputMaybe<Array<Scalars["ID"]>>;
-    outputsUpdate?: InputMaybe<Array<RunRoutineOutputUpdateInput>>;
     scheduleCreate?: InputMaybe<ScheduleCreateInput>;
     scheduleUpdate?: InputMaybe<ScheduleUpdateInput>;
+    scheduleDelete?: InputMaybe<Scalars["Boolean"]>;
+    startedAt?: InputMaybe<Scalars["Date"]>;
     status?: InputMaybe<RunStatus>;
     stepsCreate?: InputMaybe<Array<RunRoutineStepCreateInput>>;
     stepsDelete?: InputMaybe<Array<Scalars["ID"]>>;
@@ -5337,7 +5309,14 @@ export enum RunStatus {
     Completed = "Completed",
     Failed = "Failed",
     InProgress = "InProgress",
+    Paused = "Paused",
     Scheduled = "Scheduled"
+}
+
+export enum RunStepStatus {
+    Completed = "Completed",
+    InProgress = "InProgress",
+    Skipped = "Skipped"
 }
 
 export enum RunTask {
@@ -5872,6 +5851,7 @@ export type StandardYou = {
 
 export type StartLlmTaskInput = {
     chatId: Scalars["ID"];
+    model: string;
     parentId?: InputMaybe<Scalars["ID"]>;
     respondingBotId: Scalars["ID"];
     shouldNotRunTasks: Scalars["Boolean"];
@@ -5880,8 +5860,10 @@ export type StartLlmTaskInput = {
 };
 
 export type StartRunTaskInput = {
+    config: RunConfig;
     formValues?: InputMaybe<Scalars["JSONObject"]>;
-    projectVerisonId?: InputMaybe<Scalars["ID"]>;
+    isNewRun: Scalars["Boolean"];
+    projectVersionId?: InputMaybe<Scalars["ID"]>;
     routineVersionId?: InputMaybe<Scalars["ID"]>;
     runId: Scalars["ID"];
 };
@@ -6296,6 +6278,7 @@ export enum TaskStatus {
     Canceling = "Canceling",
     Completed = "Completed",
     Failed = "Failed",
+    Paused = "Paused",
     Running = "Running",
     Scheduled = "Scheduled",
     Suggested = "Suggested"

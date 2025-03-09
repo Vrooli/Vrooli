@@ -1,19 +1,20 @@
+import { expect } from "chai";
 import { NIL, validate as uuidValidateLib } from "uuid";
-import { DUMMY_ID, uuid, uuidValidate } from "./uuid"; // adjust the path as necessary
+import { DUMMY_ID, uuid, uuidValidate } from "./uuid.js";
 
 describe("uuidFunctions", () => {
     describe("uuid", () => {
         it("generates a valid v4 UUID", () => {
             const id = uuid();
-            expect(uuidValidate(id)).toBe(true);
-            expect(uuidValidateLib(id)).toBe(true); // using the library's own validate function as a double-check
+            expect(uuidValidate(id)).to.equal(true);
+            expect(uuidValidateLib(id)).to.equal(true); // using the library's own validate function as a double-check
         });
     });
 
     describe("uuidValidate", () => {
         it("returns true for a valid v4 UUID", () => {
             const id = uuid();
-            expect(uuidValidate(id)).toBe(true);
+            expect(uuidValidate(id)).to.equal(true);
         });
 
         it("returns false for an invalid v4 UUID", () => {
@@ -28,18 +29,18 @@ describe("uuidFunctions", () => {
                 {}, // object
             ];
             invalidUuids.forEach(invalidUuid => {
-                expect(uuidValidate(invalidUuid)).toBe(false);
+                expect(uuidValidate(invalidUuid)).to.equal(false);
             });
         });
     });
 
     describe("DUMMY_ID", () => {
         it("equals the NIL UUID", () => {
-            expect(DUMMY_ID).toEqual(NIL);
+            expect(DUMMY_ID).to.deep.equal(NIL);
         });
 
         it("is considered a valid UUID", () => {
-            expect(uuidValidate(DUMMY_ID)).toBe(true);
+            expect(uuidValidate(DUMMY_ID)).to.equal(true);
         });
     });
 });

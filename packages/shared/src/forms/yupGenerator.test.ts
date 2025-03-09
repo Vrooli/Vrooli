@@ -1,11 +1,12 @@
-import { InputType } from "../consts/model";
-import { FormSchema } from "./types";
-import { generateYupSchema } from "./yupGenerator";
+import { expect } from "chai";
+import { InputType } from "../consts/model.js";
+import { FormSchema } from "./types.js";
+import { generateYupSchema } from "./yupGenerator.js";
 
 describe("generateYupSchema", () => {
     it("should return null when formSchema is null or undefined", () => {
-        expect(generateYupSchema(null as any)).toBeNull();
-        expect(generateYupSchema(undefined as any)).toBeNull();
+        expect(generateYupSchema(null as any)).to.be.null;
+        expect(generateYupSchema(undefined as any)).to.be.null;
     });
 
     it("should generate a Yup schema for required string input", async () => {
@@ -277,7 +278,7 @@ describe("generateYupSchema", () => {
 
         const validationSchema = generateYupSchema(formSchema);
 
-        expect(validationSchema!.fields).not.toHaveProperty("unsupported");
+        expect(validationSchema!.fields).not.to.have.property("unsupported");
     });
 
     it("should handle fields without yup property", () => {
@@ -296,7 +297,7 @@ describe("generateYupSchema", () => {
 
         const validationSchema = generateYupSchema(formSchema);
 
-        expect(validationSchema!.fields).not.toHaveProperty("noValidation");
+        expect(validationSchema!.fields).not.to.have.property("noValidation");
     });
 
     it("should throw an error for invalid check methods", () => {

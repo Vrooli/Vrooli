@@ -1,11 +1,15 @@
 /* eslint-disable no-magic-numbers */
 export const SECONDS_1_MS = 1000;
+export const SECONDS_5_MS = 5 * SECONDS_1_MS;
+export const SECONDS_10_MS = 10 * SECONDS_1_MS;
 
-export const MINUTES_1_MS = 60 * 1000;
+export const MINUTES_1_S = 60;
+export const MINUTES_1_MS = MINUTES_1_S * SECONDS_1_MS;
+export const MINUTES_2_S = 2 * MINUTES_1_S;
 export const MINUTES_5_MS = 5 * MINUTES_1_MS;
 export const MINUTES_10_MS = 10 * MINUTES_1_MS;
-export const MINUTES_15_S = 15 * 60;
-export const MINUTES_15_MS = MINUTES_15_S * 1000;
+export const MINUTES_15_S = 15 * MINUTES_1_S;
+export const MINUTES_15_MS = MINUTES_15_S * SECONDS_1_MS;
 export const MINUTES_30_MS = 30 * MINUTES_1_MS;
 
 export const HOURS_1_S = 60 * 60;
@@ -21,7 +25,8 @@ export const DAYS_90_MS = 90 * DAYS_1_MS;
 export const DAYS_180_MS = 180 * DAYS_1_MS;
 
 export const WEEKS_1_DAYS = 7;
-export const WEEKS_1_MS = 7 * DAYS_1_MS;
+export const WEEKS_1_S = WEEKS_1_DAYS * DAYS_1_S;
+export const WEEKS_1_MS = WEEKS_1_DAYS * DAYS_1_MS;
 
 export const MONTHS_1_DAYS = 30;
 export const MONTHS_1_MS = MONTHS_1_DAYS * DAYS_1_MS;
@@ -31,6 +36,8 @@ export const YEARS_1_MS = YEARS_1_DAYS * DAYS_1_MS;
 
 export const DOLLARS_1_CENTS = 100;
 
+export const MB_1_BYTES = 1024 * 1024;
+export const MB_2_BYTES = 2 * 1024 * 1024;
 export const MB_10_BYTES = 10 * 1024 * 1024;
 
 export const PERCENTS = 100;

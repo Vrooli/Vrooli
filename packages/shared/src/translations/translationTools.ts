@@ -1,4 +1,4 @@
-import { DEFAULT_LANGUAGE } from "../consts";
+import { DEFAULT_LANGUAGE } from "../consts/ui.js";
 
 /**
  * Retrieves an object's translation for a given language code.

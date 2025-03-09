@@ -1,7 +1,7 @@
-import { ShapeModel } from "../../consts/commonTypes";
-import { DUMMY_ID, uuid } from "../../id/uuid";
-import { exists } from "../../utils/exists";
-import { hasObjectChanged } from "../general/objectTools";
+import { ShapeModel } from "../../consts/commonTypes.js";
+import { DUMMY_ID, uuid } from "../../id/uuid.js";
+import { exists } from "../../utils/exists.js";
+import { hasObjectChanged } from "../general/objectTools.js";
 
 type OwnerPrefix = "" | "ownedBy";
 type OwnerType = "User" | "Team";

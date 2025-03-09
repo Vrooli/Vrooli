@@ -193,7 +193,7 @@ interface ContentWrapProps extends BoxProps {
     isRightDrawerOpen: boolean;
 }
 
-const ContentWrap = styled(Box, {
+export const ContentWrap = styled(Box, {
     shouldForwardProp: (prop) => prop !== "isLeftDrawerOpen" && prop !== "isLeftHanded" && prop !== "isMobile" && prop !== "isRightDrawerOpen",
 })<ContentWrapProps>(({ isLeftDrawerOpen, isLeftHanded, isMobile, isRightDrawerOpen, theme }) => {
     const leftDrawerWidth = isLeftHanded ? isRightDrawerOpen ? RIGHT_DRAWER_WIDTH : 0 : isLeftDrawerOpen ? LEFT_DRAWER_WIDTH : 0;

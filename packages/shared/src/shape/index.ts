@@ -1,3 +1,3 @@
-export * from "./general";
-export * from "./models";
+export * from "./general/index.js";
+export * from "./models/index.js";
 

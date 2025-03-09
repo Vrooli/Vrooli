@@ -6,7 +6,7 @@
  */
 export function lowercaseFirstLetter(str: string): string {
     return str.charAt(0).toLowerCase() + str.slice(1);
-};
+}
 
 /**
  * Uppercases the first letter of a string
@@ -16,7 +16,7 @@ export function lowercaseFirstLetter(str: string): string {
  */
 export function uppercaseFirstLetter(str: string): string {
     return str.charAt(0).toUpperCase() + str.slice(1);
-};
+}
 
 /**
  * Converts a string to pascalCase
@@ -26,7 +26,7 @@ export function uppercaseFirstLetter(str: string): string {
  */
 export function pascalCase(str: string): string {
     return str.split(/[-_ ]/).map(uppercaseFirstLetter).join("");
-};
+}
 
 /**
  * Converts a string to camcelCase
@@ -36,7 +36,7 @@ export function pascalCase(str: string): string {
  */
 export function camelCase(str: string): string {
     return lowercaseFirstLetter(pascalCase(str));
-};
+}
 
 /**
  * Converts a string to snake_case
@@ -54,4 +54,4 @@ export function snakeCase(str: string): string {
         .replace(/[-\s_]+/g, "_")
         // Remove leading and trailing underscores
         .replace(/^_|_$/g, "");
-};
+}

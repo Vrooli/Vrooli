@@ -1,4 +1,4 @@
-import { LlmTask, TaskStatus } from "../api/types";
+import { LlmTask, TaskStatus } from "../api/types.js";
 
 export type MessageStream = {
     /** The state of the stream */

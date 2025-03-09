@@ -10,7 +10,7 @@ import fs from "fs";
  * Reads and parses file that contains route names
  * @returns Map of route names to route paths
  */
-const getRouteMap = async (): Promise<{ [x: string]: string }> => {
+async function getRouteMap(): Promise<{ [x: string]: string }> {
     const routeMapLocation = new URL("../../../shared/src/consts/ui.ts", import.meta.url);
     const routeMapName = "LINKS";
     console.info(`Reading ${routeMapName} from ${routeMapLocation}...`);
@@ -50,12 +50,12 @@ const getRouteMap = async (): Promise<{ [x: string]: string }> => {
         console.error(error);
         return {};
     }
-};
+}
 
 /**
  * Reads and parses file containing routes. Finds sitemap data and generates a sitemap.xml file
  */
-const main = async () => {
+async function main() {
     const UI_URL = process.env.UI_URL;
     if (!UI_URL) throw new Error("UI_URL environment variable not set");
 
@@ -121,6 +121,6 @@ const main = async () => {
     } catch (error) {
         console.error(error);
     }
-};
+}
 
 main();

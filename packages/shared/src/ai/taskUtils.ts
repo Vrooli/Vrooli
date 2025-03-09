@@ -1,8 +1,8 @@
-import { uuid } from "@local/shared";
-import { LlmTask } from "../api/types";
-import { PassableLogger } from "../consts/commonTypes";
-import { getUnstructuredTaskConfig, importAITaskConfig } from "./config";
-import { AITaskProperty, CommandSection, CommandToTask, CommandTransitionTrack, ExistingTaskData, LanguageModelResponseMode, MaybeLlmTaskInfo, PartialTaskInfo, ServerLlmTaskInfo } from "./types";
+import { LlmTask } from "../api/types.js";
+import { PassableLogger } from "../consts/commonTypes.js";
+import { uuid } from "../id/uuid.js";
+import { getUnstructuredTaskConfig, importAITaskConfig } from "./config.js";
+import { AITaskProperty, CommandSection, CommandToTask, CommandTransitionTrack, ExistingTaskData, LanguageModelResponseMode, MaybeLlmTaskInfo, PartialTaskInfo, ServerLlmTaskInfo } from "./types.js";
 
 /** Properties stored as an array of [key, value, key, value, ...] */
 type CurrentLlmTaskInfo = Omit<PartialTaskInfo, "lastUpdated" | "properties" | "task"> & {

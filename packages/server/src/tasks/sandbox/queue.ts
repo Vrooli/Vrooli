@@ -19,7 +19,7 @@ const FOLDER = "sandbox";
 export async function setupSandboxQueue() {
     try {
         logger = (await import(LOGGER_PATH)).logger;
-        const REDIS_URL = (await import(REDIS_CONN_PATH)).REDIS_URL;
+        const REDIS_URL = (await import(REDIS_CONN_PATH)).getRedisUrl();
         sandboxProcess = (await import(getProcessPath(FOLDER))).sandboxProcess;
 
         // Initialize the Bull queue

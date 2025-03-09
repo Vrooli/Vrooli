@@ -1,6 +1,6 @@
 import * as Yup from "yup";
-import { InputType } from "../consts/model";
-import { FormInputBase, FormSchema, YupType } from "./types";
+import { InputType } from "../consts/model.js";
+import { FormInputBase, FormSchema, YupType } from "./types.js";
 
 /**
  * Maps input types to their yup types. 

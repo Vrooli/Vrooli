@@ -26,7 +26,7 @@ const FOLDER = "email";
 export async function setupEmailQueue() {
     try {
         logger = (await import(LOGGER_PATH)).logger;
-        const REDIS_URL = (await import(REDIS_CONN_PATH)).REDIS_URL;
+        const REDIS_URL = (await import(REDIS_CONN_PATH)).getRedisUrl();
         UI_URL = (await import(SERVER_PATH)).UI_URL;
         emailProcess = (await import(getProcessPath(FOLDER))).emailProcess;
 

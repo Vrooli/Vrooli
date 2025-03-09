@@ -1,6 +1,8 @@
-import { InputType, TagShape, TimeFrame } from "@local/shared";
-import { SearchPageTabOption } from "../consts/search";
-import { CodeLanguage } from "../consts/ui";
+import { TimeFrame } from "../api/types.js";
+import { InputType } from "../consts/model.js";
+import { SearchPageTabOption } from "../consts/search.js";
+import { CodeLanguage } from "../consts/ui.js";
+import { TagShape } from "../shape/models/models.js";
 
 /**
  * Non-input form elements
@@ -190,7 +192,7 @@ export type DropzoneFormInputProps = {
 /** Type-props pair for Dropzone input components */
 export type DropzoneFormInput = FormInputBase & {
     /** The type of the field */
-    type: InputType.Checkbox;
+    type: InputType.Dropzone;
     /** Type-specific props */
     props: DropzoneFormInputProps;
 }
@@ -332,7 +334,7 @@ export type SelectorFormInputProps<T extends SelectorFormInputOption> = {
     inputAriaLabel?: string;
     isRequired?: boolean,
     label?: string;
-    multiple?: false;
+    multiple?: boolean;
     noneOption?: boolean;
     noneText?: string;
     options: readonly T[];

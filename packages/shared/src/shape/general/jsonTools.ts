@@ -1,4 +1,4 @@
-import { isObject } from "../../utils/objects";
+import { isObject } from "../../utils/objects.js";
 
 /**
  * JSON format error object. Used when 
