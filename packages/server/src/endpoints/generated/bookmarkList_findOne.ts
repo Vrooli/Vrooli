@@ -849,8 +849,6 @@ export const bookmarkList_findOne = {
                     "directoryListingsCount": true,
                     "forksCount": true,
                     "inputsCount": true,
-                    "nodesCount": true,
-                    "nodeLinksCount": true,
                     "outputsCount": true,
                     "reportsCount": true,
                     "you": {
@@ -1089,5 +1087,5 @@ export const bookmarkList_findOne = {
             }
         }
     },
-    "__cacheKey": "2079586238"
+    "__cacheKey": "104605360"
 };

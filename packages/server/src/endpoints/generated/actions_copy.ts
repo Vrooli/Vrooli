@@ -487,8 +487,6 @@ export const actions_copy = {
         "directoryListingsCount": true,
         "forksCount": true,
         "inputsCount": true,
-        "nodesCount": true,
-        "nodeLinksCount": true,
         "outputsCount": true,
         "reportsCount": true,
         "you": {
@@ -771,5 +769,5 @@ export const actions_copy = {
             }
         }
     },
-    "__cacheKey": "1625191821"
+    "__cacheKey": "-1899920769"
 };

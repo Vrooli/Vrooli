@@ -719,13 +719,13 @@ export const notificationSubscription_findMany = {
                             "isPrivate": true,
                             "completedComplexity": true,
                             "contextSwitches": true,
+                            "data": true,
                             "startedAt": true,
                             "timeElapsed": true,
                             "completedAt": true,
                             "name": true,
                             "status": true,
-                            "inputsCount": true,
-                            "outputsCount": true,
+                            "ioCount": true,
                             "stepsCount": true,
                             "wasRunAutomatically": true,
                             "routineVersion": {
@@ -1326,8 +1326,6 @@ export const notificationSubscription_findMany = {
                         "directoryListingsCount": true,
                         "forksCount": true,
                         "inputsCount": true,
-                        "nodesCount": true,
-                        "nodeLinksCount": true,
                         "outputsCount": true,
                         "reportsCount": true,
                         "you": {
@@ -1531,5 +1529,5 @@ export const notificationSubscription_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-1872483190"
+    "__cacheKey": "-573757044"
 };

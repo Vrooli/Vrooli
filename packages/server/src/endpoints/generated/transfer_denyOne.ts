@@ -592,8 +592,6 @@ export const transfer_denyOne = {
                 "directoryListingsCount": true,
                 "forksCount": true,
                 "inputsCount": true,
-                "nodesCount": true,
-                "nodeLinksCount": true,
                 "outputsCount": true,
                 "reportsCount": true,
                 "translations": {
@@ -732,5 +730,5 @@ export const transfer_denyOne = {
         "canDelete": true,
         "canUpdate": true
     },
-    "__cacheKey": "1330949782"
+    "__cacheKey": "245601124"
 };

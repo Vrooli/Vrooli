@@ -850,8 +850,6 @@ export const bookmark_createOne = {
                 "directoryListingsCount": true,
                 "forksCount": true,
                 "inputsCount": true,
-                "nodesCount": true,
-                "nodeLinksCount": true,
                 "outputsCount": true,
                 "reportsCount": true,
                 "you": {
@@ -1089,5 +1087,5 @@ export const bookmark_createOne = {
             }
         }
     },
-    "__cacheKey": "-43031767"
+    "__cacheKey": "-2031263753"
 };

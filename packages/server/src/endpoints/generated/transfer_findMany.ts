@@ -595,8 +595,6 @@ export const transfer_findMany = {
                         "directoryListingsCount": true,
                         "forksCount": true,
                         "inputsCount": true,
-                        "nodesCount": true,
-                        "nodeLinksCount": true,
                         "outputsCount": true,
                         "reportsCount": true,
                         "translations": {
@@ -741,5 +739,5 @@ export const transfer_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-1594869740"
+    "__cacheKey": "-1107514746"
 };

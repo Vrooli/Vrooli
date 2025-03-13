@@ -660,8 +660,6 @@ export const project_findOne = {
                 "directoryListingsCount": true,
                 "forksCount": true,
                 "inputsCount": true,
-                "nodesCount": true,
-                "nodeLinksCount": true,
                 "outputsCount": true,
                 "reportsCount": true,
                 "you": {
@@ -1014,5 +1012,5 @@ export const project_findOne = {
         },
         "versionNotes": true
     },
-    "__cacheKey": "-209482086"
+    "__cacheKey": "-1543885976"
 };

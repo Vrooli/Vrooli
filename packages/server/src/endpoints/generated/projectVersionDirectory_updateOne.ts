@@ -535,8 +535,6 @@ export const projectVersionDirectory_updateOne = {
         "directoryListingsCount": true,
         "forksCount": true,
         "inputsCount": true,
-        "nodesCount": true,
-        "nodeLinksCount": true,
         "outputsCount": true,
         "reportsCount": true,
         "you": {
@@ -850,5 +848,5 @@ export const projectVersionDirectory_updateOne = {
         "description": true,
         "name": true
     },
-    "__cacheKey": "95137234"
+    "__cacheKey": "-2143557820"
 };

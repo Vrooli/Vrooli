@@ -853,8 +853,6 @@ export const bookmark_findMany = {
                         "directoryListingsCount": true,
                         "forksCount": true,
                         "inputsCount": true,
-                        "nodesCount": true,
-                        "nodeLinksCount": true,
                         "outputsCount": true,
                         "reportsCount": true,
                         "you": {
@@ -1098,5 +1096,5 @@ export const bookmark_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "617715361"
+    "__cacheKey": "-1362235117"
 };

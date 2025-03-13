@@ -354,13 +354,13 @@ export const meetingInvite_declineOne = {
                 "isPrivate": true,
                 "completedComplexity": true,
                 "contextSwitches": true,
+                "data": true,
                 "startedAt": true,
                 "timeElapsed": true,
                 "completedAt": true,
                 "name": true,
                 "status": true,
-                "inputsCount": true,
-                "outputsCount": true,
+                "ioCount": true,
                 "stepsCount": true,
                 "wasRunAutomatically": true,
                 "routineVersion": {
@@ -437,5 +437,5 @@ export const meetingInvite_declineOne = {
             "name": true
         }
     },
-    "__cacheKey": "-29124292"
+    "__cacheKey": "-1656571444"
 };

@@ -974,8 +974,6 @@ export const reaction_findMany = {
                         "directoryListingsCount": true,
                         "forksCount": true,
                         "inputsCount": true,
-                        "nodesCount": true,
-                        "nodeLinksCount": true,
                         "outputsCount": true,
                         "reportsCount": true,
                         "you": {
@@ -1127,5 +1125,5 @@ export const reaction_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "560132986"
+    "__cacheKey": "1374511980"
 };

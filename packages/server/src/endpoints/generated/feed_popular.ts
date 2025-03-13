@@ -673,8 +673,6 @@ export const feed_popular = {
                     "directoryListingsCount": true,
                     "forksCount": true,
                     "inputsCount": true,
-                    "nodesCount": true,
-                    "nodeLinksCount": true,
                     "outputsCount": true,
                     "reportsCount": true,
                     "you": {
@@ -910,5 +908,5 @@ export const feed_popular = {
         "endCursorTeam": true,
         "endCursorUser": true
     },
-    "__cacheKey": "191285290"
+    "__cacheKey": "-254330376"
 };

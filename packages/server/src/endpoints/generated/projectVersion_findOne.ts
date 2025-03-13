@@ -556,8 +556,6 @@ export const projectVersion_findOne = {
             "directoryListingsCount": true,
             "forksCount": true,
             "inputsCount": true,
-            "nodesCount": true,
-            "nodeLinksCount": true,
             "outputsCount": true,
             "reportsCount": true,
             "you": {
@@ -1014,5 +1012,5 @@ export const projectVersion_findOne = {
         "name": true
     },
     "versionNotes": true,
-    "__cacheKey": "1424441677"
+    "__cacheKey": "299827135"
 };

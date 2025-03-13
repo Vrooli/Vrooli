@@ -77,13 +77,13 @@ export const unions_runProjectOrRunRoutine = {
                 "isPrivate": true,
                 "completedComplexity": true,
                 "contextSwitches": true,
+                "data": true,
                 "startedAt": true,
                 "timeElapsed": true,
                 "completedAt": true,
                 "name": true,
                 "status": true,
-                "inputsCount": true,
-                "outputsCount": true,
+                "ioCount": true,
                 "stepsCount": true,
                 "wasRunAutomatically": true,
                 "routineVersion": {
@@ -158,5 +158,5 @@ export const unions_runProjectOrRunRoutine = {
         "endCursorRunProject": true,
         "endCursorRunRoutine": true
     },
-    "__cacheKey": "-339778715"
+    "__cacheKey": "-554099595"
 };

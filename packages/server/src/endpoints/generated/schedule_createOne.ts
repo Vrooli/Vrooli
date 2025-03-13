@@ -483,7 +483,6 @@ export const schedule_createOne = {
             "completedAt": true,
             "name": true,
             "status": true,
-            "step": true,
             "directory": {
                 "id": true,
                 "created_at": true,
@@ -516,13 +515,13 @@ export const schedule_createOne = {
         "isPrivate": true,
         "completedComplexity": true,
         "contextSwitches": true,
+        "data": true,
         "startedAt": true,
         "timeElapsed": true,
         "completedAt": true,
         "name": true,
         "status": true,
-        "inputsCount": true,
-        "outputsCount": true,
+        "ioCount": true,
         "stepsCount": true,
         "wasRunAutomatically": true,
         "routineVersion": {
@@ -665,13 +664,9 @@ export const schedule_createOne = {
             "directoryListingsCount": true,
             "forksCount": true,
             "inputsCount": true,
-            "nodesCount": true,
-            "nodeLinksCount": true,
             "outputsCount": true,
             "reportsCount": true,
-            "configCallData": true,
-            "configFormInput": true,
-            "configFormOutput": true,
+            "config": true,
             "versionNotes": true,
             "apiVersion": {
                 "id": true,
@@ -1169,108 +1164,6 @@ export const schedule_createOne = {
                     "helpText": true
                 }
             },
-            "nodes": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "columnIndex": true,
-                "nodeType": true,
-                "rowIndex": true,
-                "end": {
-                    "id": true,
-                    "wasSuccessful": true,
-                    "suggestedNextRoutineVersions": {
-                        "id": true,
-                        "complexity": true,
-                        "isAutomatable": true,
-                        "isComplete": true,
-                        "isDeleted": true,
-                        "isLatest": true,
-                        "isPrivate": true,
-                        "root": {
-                            "id": true,
-                            "isInternal": true,
-                            "isPrivate": true
-                        },
-                        "routineType": true,
-                        "translations": {
-                            "id": true,
-                            "language": true,
-                            "description": true,
-                            "instructions": true,
-                            "name": true
-                        },
-                        "versionIndex": true,
-                        "versionLabel": true
-                    }
-                },
-                "routineList": {
-                    "id": true,
-                    "isOrdered": true,
-                    "isOptional": true,
-                    "items": {
-                        "id": true,
-                        "index": true,
-                        "isOptional": true,
-                        "translations": {
-                            "id": true,
-                            "language": true,
-                            "description": true,
-                            "name": true
-                        },
-                        "routineVersion": {
-                            "id": true,
-                            "complexity": true,
-                            "isAutomatable": true,
-                            "isComplete": true,
-                            "isDeleted": true,
-                            "isLatest": true,
-                            "isPrivate": true,
-                            "root": {
-                                "id": true,
-                                "isInternal": true,
-                                "isPrivate": true
-                            },
-                            "routineType": true,
-                            "translations": {
-                                "id": true,
-                                "language": true,
-                                "description": true,
-                                "instructions": true,
-                                "name": true
-                            },
-                            "versionIndex": true,
-                            "versionLabel": true
-                        }
-                    }
-                },
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true,
-                    "name": true
-                }
-            },
-            "nodeLinks": {
-                "id": true,
-                "from": {
-                    "id": true
-                },
-                "operation": true,
-                "to": {
-                    "id": true
-                },
-                "whens": {
-                    "id": true,
-                    "condition": true,
-                    "translations": {
-                        "id": true,
-                        "language": true,
-                        "description": true,
-                        "name": true
-                    }
-                }
-            },
             "outputs": {
                 "id": true,
                 "index": true,
@@ -1456,6 +1349,123 @@ export const schedule_createOne = {
                     }
                 }
             },
+            "subroutineLinks": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "completedAt": true,
+                "isAutomatable": true,
+                "isComplete": true,
+                "isDeleted": true,
+                "isLatest": true,
+                "isPrivate": true,
+                "routineType": true,
+                "simplicity": true,
+                "timesStarted": true,
+                "timesCompleted": true,
+                "versionIndex": true,
+                "versionLabel": true,
+                "commentsCount": true,
+                "directoryListingsCount": true,
+                "forksCount": true,
+                "inputsCount": true,
+                "outputsCount": true,
+                "reportsCount": true,
+                "root": {
+                    "id": true,
+                    "created_at": true,
+                    "updated_at": true,
+                    "isInternal": true,
+                    "isPrivate": true,
+                    "issuesCount": true,
+                    "labels": {
+                        "id": true,
+                        "created_at": true,
+                        "updated_at": true,
+                        "color": true,
+                        "label": true,
+                        "you": {
+                            "canDelete": true,
+                            "canUpdate": true
+                        }
+                    },
+                    "owner": {
+                        "Team": {
+                            "id": true,
+                            "bannerImage": true,
+                            "handle": true,
+                            "profileImage": true,
+                            "you": {
+                                "canAddMembers": true,
+                                "canDelete": true,
+                                "canBookmark": true,
+                                "canReport": true,
+                                "canUpdate": true,
+                                "canRead": true,
+                                "isBookmarked": true,
+                                "isViewed": true,
+                                "yourMembership": {
+                                    "id": true,
+                                    "created_at": true,
+                                    "updated_at": true,
+                                    "isAdmin": true,
+                                    "permissions": true
+                                }
+                            }
+                        },
+                        "User": {
+                            "id": true,
+                            "created_at": true,
+                            "updated_at": true,
+                            "bannerImage": true,
+                            "handle": true,
+                            "isBot": true,
+                            "isBotDepictingPerson": true,
+                            "name": true,
+                            "profileImage": true
+                        }
+                    },
+                    "permissions": true,
+                    "questionsCount": true,
+                    "score": true,
+                    "bookmarks": true,
+                    "tags": {
+                        "id": true,
+                        "created_at": true,
+                        "tag": true,
+                        "bookmarks": true,
+                        "translations": {
+                            "id": true,
+                            "language": true,
+                            "description": true
+                        },
+                        "you": {
+                            "isOwn": true,
+                            "isBookmarked": true
+                        }
+                    },
+                    "transfersCount": true,
+                    "views": true,
+                    "you": {
+                        "canComment": true,
+                        "canDelete": true,
+                        "canBookmark": true,
+                        "canUpdate": true,
+                        "canRead": true,
+                        "canReact": true,
+                        "isBookmarked": true,
+                        "isViewed": true,
+                        "reaction": true
+                    }
+                },
+                "translations": {
+                    "id": true,
+                    "language": true,
+                    "description": true,
+                    "instructions": true,
+                    "name": true
+                }
+            },
             "suggestedNextByRoutineVersion": {
                 "id": true,
                 "complexity": true,
@@ -1521,10 +1531,10 @@ export const schedule_createOne = {
             "canRead": true
         },
         "lastStep": true,
-        "inputs": {
+        "io": {
             "id": true,
             "data": true,
-            "input": {
+            "routineVersionInput": {
                 "id": true,
                 "index": true,
                 "isRequired": true,
@@ -1651,15 +1661,35 @@ export const schedule_createOne = {
                         "name": true
                     }
                 }
-            }
-        },
-        "outputs": {
-            "id": true,
-            "data": true,
-            "output": {
+            },
+            "routineVersionOutput": {
                 "id": true,
                 "index": true,
                 "name": true,
+                "routineVersion": {
+                    "id": true,
+                    "complexity": true,
+                    "isAutomatable": true,
+                    "isComplete": true,
+                    "isDeleted": true,
+                    "isLatest": true,
+                    "isPrivate": true,
+                    "root": {
+                        "id": true,
+                        "isInternal": true,
+                        "isPrivate": true
+                    },
+                    "routineType": true,
+                    "translations": {
+                        "id": true,
+                        "language": true,
+                        "description": true,
+                        "instructions": true,
+                        "name": true
+                    },
+                    "versionIndex": true,
+                    "versionLabel": true
+                },
                 "standardVersion": {
                     "id": true,
                     "created_at": true,
@@ -1793,7 +1823,6 @@ export const schedule_createOne = {
             "completedAt": true,
             "name": true,
             "status": true,
-            "step": true,
             "subroutine": {
                 "id": true,
                 "complexity": true,
@@ -1820,5 +1849,5 @@ export const schedule_createOne = {
             }
         }
     },
-    "__cacheKey": "-2085278056"
+    "__cacheKey": "1905628061"
 };

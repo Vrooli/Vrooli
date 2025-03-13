@@ -6,13 +6,13 @@ export const runRoutine_findMany = {
             "isPrivate": true,
             "completedComplexity": true,
             "contextSwitches": true,
+            "data": true,
             "startedAt": true,
             "timeElapsed": true,
             "completedAt": true,
             "name": true,
             "status": true,
-            "inputsCount": true,
-            "outputsCount": true,
+            "ioCount": true,
             "stepsCount": true,
             "wasRunAutomatically": true,
             "routineVersion": {
@@ -85,5 +85,5 @@ export const runRoutine_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "722264837"
+    "__cacheKey": "1893261973"
 };

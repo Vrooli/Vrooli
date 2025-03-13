@@ -441,13 +441,13 @@ export const feed_home = {
             "isPrivate": true,
             "completedComplexity": true,
             "contextSwitches": true,
+            "data": true,
             "startedAt": true,
             "timeElapsed": true,
             "completedAt": true,
             "name": true,
             "status": true,
-            "inputsCount": true,
-            "outputsCount": true,
+            "ioCount": true,
             "stepsCount": true,
             "wasRunAutomatically": true,
             "routineVersion": {
@@ -516,5 +516,5 @@ export const feed_home = {
             "lastStep": true
         }
     },
-    "__cacheKey": "246014404"
+    "__cacheKey": "-103616588"
 };

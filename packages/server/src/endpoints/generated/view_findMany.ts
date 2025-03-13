@@ -794,8 +794,6 @@ export const view_findMany = {
                         "directoryListingsCount": true,
                         "forksCount": true,
                         "inputsCount": true,
-                        "nodesCount": true,
-                        "nodeLinksCount": true,
                         "outputsCount": true,
                         "reportsCount": true,
                         "translations": {
@@ -1013,5 +1011,5 @@ export const view_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "80989739"
+    "__cacheKey": "912672505"
 };

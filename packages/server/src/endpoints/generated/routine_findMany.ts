@@ -107,8 +107,6 @@ export const routine_findMany = {
                 "directoryListingsCount": true,
                 "forksCount": true,
                 "inputsCount": true,
-                "nodesCount": true,
-                "nodeLinksCount": true,
                 "outputsCount": true,
                 "reportsCount": true,
                 "you": {
@@ -136,5 +134,5 @@ export const routine_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-1945389792"
+    "__cacheKey": "1939664622"
 };

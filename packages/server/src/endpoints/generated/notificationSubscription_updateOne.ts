@@ -716,13 +716,13 @@ export const notificationSubscription_updateOne = {
                     "isPrivate": true,
                     "completedComplexity": true,
                     "contextSwitches": true,
+                    "data": true,
                     "startedAt": true,
                     "timeElapsed": true,
                     "completedAt": true,
                     "name": true,
                     "status": true,
-                    "inputsCount": true,
-                    "outputsCount": true,
+                    "ioCount": true,
                     "stepsCount": true,
                     "wasRunAutomatically": true,
                     "routineVersion": {
@@ -1323,8 +1323,6 @@ export const notificationSubscription_updateOne = {
                 "directoryListingsCount": true,
                 "forksCount": true,
                 "inputsCount": true,
-                "nodesCount": true,
-                "nodeLinksCount": true,
                 "outputsCount": true,
                 "reportsCount": true,
                 "you": {
@@ -1522,5 +1520,5 @@ export const notificationSubscription_updateOne = {
             }
         }
     },
-    "__cacheKey": "1269788244"
+    "__cacheKey": "-582128238"
 };

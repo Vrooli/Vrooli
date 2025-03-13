@@ -26,6 +26,21 @@ export const user_profileEmailUpdate = {
     "notificationSettings": true,
     "profileImage": true,
     "theme": true,
+    "apiKeys": {
+        "id": true,
+        "creditsUsed": true,
+        "disabledAt": true,
+        "limitHard": true,
+        "limitSoft": true,
+        "name": true,
+        "stopAtLimit": true
+    },
+    "apiKeysExternal": {
+        "id": true,
+        "disabledAt": true,
+        "name": true,
+        "service": true
+    },
     "emails": {
         "id": true,
         "emailAddress": true,
@@ -174,5 +189,5 @@ export const user_profileEmailUpdate = {
         "isBookmarked": true,
         "isViewed": true
     },
-    "__cacheKey": "-1221882759"
+    "__cacheKey": "774222649"
 };

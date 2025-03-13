@@ -1,9 +1,10 @@
 export const apiKey_validateOne = {
     "id": true,
     "creditsUsed": true,
-    "creditsUsedBeforeLimit": true,
+    "disabledAt": true,
+    "limitHard": true,
+    "limitSoft": true,
+    "name": true,
     "stopAtLimit": true,
-    "absoluteMax": true,
-    "resetsAt": true,
-    "__cacheKey": "-376936509"
+    "__cacheKey": "666152023"
 };

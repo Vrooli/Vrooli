@@ -355,13 +355,13 @@ export const meeting_updateOne = {
             "isPrivate": true,
             "completedComplexity": true,
             "contextSwitches": true,
+            "data": true,
             "startedAt": true,
             "timeElapsed": true,
             "completedAt": true,
             "name": true,
             "status": true,
-            "inputsCount": true,
-            "outputsCount": true,
+            "ioCount": true,
             "stepsCount": true,
             "wasRunAutomatically": true,
             "routineVersion": {
@@ -437,5 +437,5 @@ export const meeting_updateOne = {
         "link": true,
         "name": true
     },
-    "__cacheKey": "204348531"
+    "__cacheKey": "-1645726493"
 };

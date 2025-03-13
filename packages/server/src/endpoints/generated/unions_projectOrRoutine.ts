@@ -213,8 +213,6 @@ export const unions_projectOrRoutine = {
                     "directoryListingsCount": true,
                     "forksCount": true,
                     "inputsCount": true,
-                    "nodesCount": true,
-                    "nodeLinksCount": true,
                     "outputsCount": true,
                     "reportsCount": true,
                     "translations": {
@@ -233,5 +231,5 @@ export const unions_projectOrRoutine = {
         "endCursorProject": true,
         "endCursorRoutine": true
     },
-    "__cacheKey": "-1624613491"
+    "__cacheKey": "1670497627"
 };

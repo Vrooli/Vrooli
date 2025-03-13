@@ -129,8 +129,6 @@ export const routine_updateOne = {
         "directoryListingsCount": true,
         "forksCount": true,
         "inputsCount": true,
-        "nodesCount": true,
-        "nodeLinksCount": true,
         "outputsCount": true,
         "reportsCount": true,
         "you": {
@@ -144,9 +142,7 @@ export const routine_updateOne = {
             "canRead": true,
             "canReact": true
         },
-        "configCallData": true,
-        "configFormInput": true,
-        "configFormOutput": true,
+        "config": true,
         "versionNotes": true,
         "apiVersion": {
             "id": true,
@@ -644,108 +640,6 @@ export const routine_updateOne = {
                 "helpText": true
             }
         },
-        "nodes": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "columnIndex": true,
-            "nodeType": true,
-            "rowIndex": true,
-            "end": {
-                "id": true,
-                "wasSuccessful": true,
-                "suggestedNextRoutineVersions": {
-                    "id": true,
-                    "complexity": true,
-                    "isAutomatable": true,
-                    "isComplete": true,
-                    "isDeleted": true,
-                    "isLatest": true,
-                    "isPrivate": true,
-                    "root": {
-                        "id": true,
-                        "isInternal": true,
-                        "isPrivate": true
-                    },
-                    "routineType": true,
-                    "translations": {
-                        "id": true,
-                        "language": true,
-                        "description": true,
-                        "instructions": true,
-                        "name": true
-                    },
-                    "versionIndex": true,
-                    "versionLabel": true
-                }
-            },
-            "routineList": {
-                "id": true,
-                "isOrdered": true,
-                "isOptional": true,
-                "items": {
-                    "id": true,
-                    "index": true,
-                    "isOptional": true,
-                    "translations": {
-                        "id": true,
-                        "language": true,
-                        "description": true,
-                        "name": true
-                    },
-                    "routineVersion": {
-                        "id": true,
-                        "complexity": true,
-                        "isAutomatable": true,
-                        "isComplete": true,
-                        "isDeleted": true,
-                        "isLatest": true,
-                        "isPrivate": true,
-                        "root": {
-                            "id": true,
-                            "isInternal": true,
-                            "isPrivate": true
-                        },
-                        "routineType": true,
-                        "translations": {
-                            "id": true,
-                            "language": true,
-                            "description": true,
-                            "instructions": true,
-                            "name": true
-                        },
-                        "versionIndex": true,
-                        "versionLabel": true
-                    }
-                }
-            },
-            "translations": {
-                "id": true,
-                "language": true,
-                "description": true,
-                "name": true
-            }
-        },
-        "nodeLinks": {
-            "id": true,
-            "from": {
-                "id": true
-            },
-            "operation": true,
-            "to": {
-                "id": true
-            },
-            "whens": {
-                "id": true,
-                "condition": true,
-                "translations": {
-                    "id": true,
-                    "language": true,
-                    "description": true,
-                    "name": true
-                }
-            }
-        },
         "outputs": {
             "id": true,
             "index": true,
@@ -931,6 +825,134 @@ export const routine_updateOne = {
                 }
             }
         },
+        "subroutineLinks": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "completedAt": true,
+            "isAutomatable": true,
+            "isComplete": true,
+            "isDeleted": true,
+            "isLatest": true,
+            "isPrivate": true,
+            "routineType": true,
+            "simplicity": true,
+            "timesStarted": true,
+            "timesCompleted": true,
+            "versionIndex": true,
+            "versionLabel": true,
+            "commentsCount": true,
+            "directoryListingsCount": true,
+            "forksCount": true,
+            "inputsCount": true,
+            "outputsCount": true,
+            "reportsCount": true,
+            "you": {
+                "canComment": true,
+                "canCopy": true,
+                "canDelete": true,
+                "canBookmark": true,
+                "canReport": true,
+                "canRun": true,
+                "canUpdate": true,
+                "canRead": true,
+                "canReact": true
+            },
+            "root": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isInternal": true,
+                "isPrivate": true,
+                "issuesCount": true,
+                "labels": {
+                    "id": true,
+                    "created_at": true,
+                    "updated_at": true,
+                    "color": true,
+                    "label": true,
+                    "you": {
+                        "canDelete": true,
+                        "canUpdate": true
+                    }
+                },
+                "owner": {
+                    "Team": {
+                        "id": true,
+                        "bannerImage": true,
+                        "handle": true,
+                        "profileImage": true,
+                        "you": {
+                            "canAddMembers": true,
+                            "canDelete": true,
+                            "canBookmark": true,
+                            "canReport": true,
+                            "canUpdate": true,
+                            "canRead": true,
+                            "isBookmarked": true,
+                            "isViewed": true,
+                            "yourMembership": {
+                                "id": true,
+                                "created_at": true,
+                                "updated_at": true,
+                                "isAdmin": true,
+                                "permissions": true
+                            }
+                        }
+                    },
+                    "User": {
+                        "id": true,
+                        "created_at": true,
+                        "updated_at": true,
+                        "bannerImage": true,
+                        "handle": true,
+                        "isBot": true,
+                        "isBotDepictingPerson": true,
+                        "name": true,
+                        "profileImage": true
+                    }
+                },
+                "permissions": true,
+                "questionsCount": true,
+                "score": true,
+                "bookmarks": true,
+                "tags": {
+                    "id": true,
+                    "created_at": true,
+                    "tag": true,
+                    "bookmarks": true,
+                    "translations": {
+                        "id": true,
+                        "language": true,
+                        "description": true
+                    },
+                    "you": {
+                        "isOwn": true,
+                        "isBookmarked": true
+                    }
+                },
+                "transfersCount": true,
+                "views": true,
+                "you": {
+                    "canComment": true,
+                    "canDelete": true,
+                    "canBookmark": true,
+                    "canUpdate": true,
+                    "canRead": true,
+                    "canReact": true,
+                    "isBookmarked": true,
+                    "isViewed": true,
+                    "reaction": true
+                }
+            },
+            "translations": {
+                "id": true,
+                "language": true,
+                "description": true,
+                "instructions": true,
+                "name": true
+            }
+        },
         "suggestedNextByRoutineVersion": {
             "id": true,
             "complexity": true,
@@ -963,5 +985,5 @@ export const routine_updateOne = {
             "name": true
         }
     },
-    "__cacheKey": "411128649"
+    "__cacheKey": "-123644885"
 };

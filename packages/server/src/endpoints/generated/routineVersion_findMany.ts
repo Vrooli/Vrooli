@@ -21,8 +21,6 @@ export const routineVersion_findMany = {
             "directoryListingsCount": true,
             "forksCount": true,
             "inputsCount": true,
-            "nodesCount": true,
-            "nodeLinksCount": true,
             "outputsCount": true,
             "reportsCount": true,
             "you": {
@@ -136,5 +134,5 @@ export const routineVersion_findMany = {
         "endCursor": true,
         "hasNextPage": true
     },
-    "__cacheKey": "-247800787"
+    "__cacheKey": "831966239"
 };

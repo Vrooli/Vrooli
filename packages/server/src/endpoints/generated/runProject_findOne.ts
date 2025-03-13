@@ -164,7 +164,6 @@ export const runProject_findOne = {
         "completedAt": true,
         "name": true,
         "status": true,
-        "step": true,
         "directory": {
             "id": true,
             "created_at": true,
@@ -191,5 +190,5 @@ export const runProject_findOne = {
             }
         }
     },
-    "__cacheKey": "-1604524086"
+    "__cacheKey": "563855010"
 };
