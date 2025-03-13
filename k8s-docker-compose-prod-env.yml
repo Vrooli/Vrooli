@@ -191,6 +191,8 @@ spec:
               secretKeyRef:
                 name: POSTGRES_PASSWORD
                 key: POSTGRES_PASSWORD
+          - name: PGPORT
+            value: "5432"
         image: ankane/pgvector:v1.9.7
         livenessProbe:
           exec:

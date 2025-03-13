@@ -172,6 +172,7 @@ services:
       POSTGRES_PASSWORD: "${DB_PASSWORD}"
       POSTGRES_USER: "${DB_USER:-site}"
       PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
+      PGPORT: "${PORT_DB:-5432}"
     expose:
       - ${PORT_DB:-5432}
     networks:
