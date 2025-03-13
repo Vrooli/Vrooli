@@ -1,0 +1,35 @@
+{
+    "manifest_version": 3,
+    "name": "Vrooli Extension",
+    "version": "0.1.0",
+    "permissions": [
+        "activeTab",
+        "scripting",
+        "tabs",
+        "storage"
+    ],
+    "host_permissions": [
+        "https://vrooli.com/*",
+        "https://app.vrooli.com/*"
+    ],
+    "background": {
+        "service_worker": "background.js",
+        "type": "module"
+    },
+    "action": {
+        "default_popup": "index.html",
+        "default_icon": {
+            "16": "logo-16x16.png",
+            "48": "logo-48x48.png",
+            "128": "logo-128x128.png"
+        }
+    },
+    "commands": {
+        "capture-screenshot": {
+            "suggested_key": {
+                "default": "Ctrl+Shift+Y"
+            },
+            "description": "Capture browser screenshot"
+        }
+    }
+}
