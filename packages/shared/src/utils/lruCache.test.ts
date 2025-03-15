@@ -1,94 +1,101 @@
-import { LRUCache } from "./lruCache";
+import { expect } from "chai";
+import { LRUCache } from "./lruCache.js";
+import sinon from "sinon";
 
 describe("LRUCache", () => {
     let cache: LRUCache<string, number>;
+    let consoleWarnStub: sinon.SinonStub;
+
+    before(() => {
+        consoleWarnStub = sinon.stub(console, "warn");
+    });
 
     beforeEach(() => {
         // Initialize a new cache before each test with a limit of 3 items
         cache = new LRUCache<string, number>(3);
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        jest.spyOn(console, "warn").mockImplementation(() => { });
-    });
-    afterAll(() => {
-        jest.restoreAllMocks();
+        consoleWarnStub.resetHistory();
     });
 
-    test("should add items to the cache", () => {
+    after(() => {
+        consoleWarnStub.restore();
+    });
+
+    it("should add items to the cache", () => {
         cache.set("item1", 1);
-        expect(cache.get("item1")).toBe(1);
+        expect(cache.get("item1")).to.equal(1);
     });
 
-    test("should return undefined for missing items", () => {
-        expect(cache.get("missingItem")).toBeUndefined();
+    it("should return undefined for missing items", () => {
+        expect(cache.get("missingItem")).to.be.undefined;
     });
 
-    test("should update the value if the same key is added to the cache", () => {
+    it("should update the value if the same key is added to the cache", () => {
         cache.set("item", 1);
         cache.set("item", 2);
-        expect(cache.get("item")).toBe(2);
+        expect(cache.get("item")).to.equal(2);
     });
 
-    test("should maintain the max limit by evicting the least recently used item", () => {
+    it("should maintain the max limit by evicting the least recently used item", () => {
         cache.set("item1", 1);
         cache.set("item2", 2);
         cache.set("item3", 3);
         cache.set("item4", 4); // This should evict 'item1'
 
-        expect(cache.get("item1")).toBeUndefined(); // 'item1' should have been evicted
-        expect(cache.get("item2")).toBe(2);
-        expect(cache.get("item3")).toBe(3);
-        expect(cache.get("item4")).toBe(4);
+        expect(cache.get("item1")).to.be.undefined; // 'item1' should have been evicted
+        expect(cache.get("item2")).to.equal(2);
+        expect(cache.get("item3")).to.equal(3);
+        expect(cache.get("item4")).to.equal(4);
     });
 
-    test("should move the recently accessed item to the end", () => {
+    it("should move the recently accessed item to the end", () => {
         cache.set("item1", 1);
         cache.set("item2", 2);
         cache.set("item3", 3);
 
         // Access 'item1' so it becomes the most recently used
-        expect(cache.get("item1")).toBe(1);
+        expect(cache.get("item1")).to.equal(1);
 
         // Add another item, which should evict 'item2' instead of 'item1'
         cache.set("item4", 4);
 
-        expect(cache.get("item1")).toBe(1);
-        expect(cache.get("item2")).toBeUndefined();
-        expect(cache.get("item3")).toBe(3);
-        expect(cache.get("item4")).toBe(4);
+        expect(cache.get("item1")).to.equal(1);
+        expect(cache.get("item2")).to.be.undefined;
+        expect(cache.get("item3")).to.equal(3);
+        expect(cache.get("item4")).to.equal(4);
     });
 
-    test("should handle a large number of items", () => {
+    it("should handle a large number of items", () => {
         const largeCache = new LRUCache<string, number>(1000);
         for (let i = 0; i < 2000; i++) {
             largeCache.set("item" + i, i);
         }
 
         // The cache should not grow beyond 1000 items
-        expect(largeCache.size()).toBe(1000);
+        expect(largeCache.size()).to.equal(1000);
 
         // The first 1000 items should be evicted
         for (let i = 0; i < 1000; i++) {
-            expect(largeCache.get("item" + i)).toBeUndefined();
+            expect(largeCache.get("item" + i)).to.be.undefined;
         }
 
         // The last 1000 items should be present
         for (let i = 1000; i < 2000; i++) {
-            expect(largeCache.get("item" + i)).toBe(i);
+            expect(largeCache.get("item" + i)).to.equal(i);
         }
     });
 
-    test("should not add items over a certain size", () => {
+    it("should not add items over a certain size", () => {
         // Initialize a cache with a max size of 10 bytes
         const smallCache = new LRUCache<string, string>(3, 10);
 
         smallCache.set("smallItem", "small"); // This should be added
         smallCache.set("largeItem", "This is a large item"); // This should be skipped
 
-        expect(smallCache.get("smallItem")).toBe("small");
-        expect(smallCache.get("largeItem")).toBeUndefined();
+        expect(smallCache.get("smallItem")).to.equal("small");
+        expect(smallCache.get("largeItem")).to.be.undefined;
     });
 
-    test("should evict the least recently used item, respecting size limits", () => {
+    it("should evict the least recently used item, respecting size limits", () => {
         // Initialize a cache with a max size of 10 bytes
         const smallCache = new LRUCache<string, string>(3, 10);
 
@@ -97,7 +104,7 @@ describe("LRUCache", () => {
         smallCache.set("item3", "12345"); // 5 bytes, 'item1' should be evicted next if needed
 
         // Access 'item2' to make it recently used
-        expect(smallCache.get("item2")).toBe("1234567890");
+        expect(smallCache.get("item2")).to.equal("1234567890");
 
         // Attempt to add an item that would exceed the size limit
         smallCache.set("largeItem", "This is a large item"); // This should be skipped
@@ -105,10 +112,10 @@ describe("LRUCache", () => {
         // 'item1' should still be evicted as 'largeItem' wasn't added
         smallCache.set("item4", "12345"); // 'item1' should be evicted
 
-        expect(smallCache.get("item1")).toBeUndefined();
-        expect(smallCache.get("item2")).toBe("1234567890");
-        expect(smallCache.get("item3")).toBe("12345");
-        expect(smallCache.get("item4")).toBe("12345");
-        expect(smallCache.get("largeItem")).toBeUndefined(); // 'largeItem' was never added
+        expect(smallCache.get("item1")).to.be.undefined;
+        expect(smallCache.get("item2")).to.equal("1234567890");
+        expect(smallCache.get("item3")).to.equal("12345");
+        expect(smallCache.get("item4")).to.equal("12345");
+        expect(smallCache.get("largeItem")).to.be.undefined; // 'largeItem' was never added
     });
 });
