@@ -3,7 +3,9 @@ import cookie from "cookie";
 import { NextFunction, Request, Response } from "express";
 import { type JwtPayload } from "jsonwebtoken";
 import { Socket } from "socket.io";
+// eslint-disable-next-line import/extensions
 import { ExtendedError } from "socket.io/dist/namespace";
+// eslint-disable-next-line import/extensions
 import { DefaultEventsMap } from "socket.io/dist/typed-events";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
