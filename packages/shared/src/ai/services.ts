@@ -1,4 +1,4 @@
-import { TranslationKeyService } from "../types";
+import { TranslationKeyService } from "../types.js";
 
 export enum AIServiceName {
     OpenAI = "OpenAI",
@@ -44,6 +44,8 @@ export type ModelInfo = {
  * Information about the models and behavior of an AI service
  */
 type AIServiceInfo<Models extends string> = {
+    /** The default model to use for the service */
+    defaultModel: Models;
     /** True if the service can be selected */
     enabled: boolean;
     /** The service's name, which will be displayed to the user */
@@ -57,9 +59,19 @@ type AIServiceInfo<Models extends string> = {
 type LlmServiceModel = AnthropicModel | MistralModel | OpenAIModel;
 
 /**
+ * All available services
+ */
+export enum LlmServiceId {
+    Anthropic = "Anthropic",
+    Mistral = "Mistral",
+    OpenAI = "OpenAI",
+}
+
+/**
  * Information about all available AI services
  */
 export type AIServicesInfo = {
+    defaultService: LlmServiceId;
     services: {
         [AIServiceName.OpenAI]: AIServiceInfo<OpenAIModel>,
         [AIServiceName.Anthropic]: AIServiceInfo<AnthropicModel>,
@@ -81,6 +93,7 @@ export enum OpenAIModel {
     // Gpt3_5Turbo = "gpt-3.5-turbo-0125", // Deprecated
 }
 export const openAIServiceInfo: AIServiceInfo<OpenAIModel> = {
+    defaultModel: OpenAIModel.Gpt4o_Mini,
     enabled: true,
     name: "OpenAI",
     fallbackMaxTokens: 4_096, // 4K tokens
@@ -195,6 +208,7 @@ export enum AnthropicModel {
     Sonnet3_5 = "claude-3-5-sonnet-20240620",
 }
 export const anthropicServiceInfo: AIServiceInfo<AnthropicModel> = {
+    defaultModel: AnthropicModel.Sonnet3_5,
     enabled: true,
     name: "Anthropic",
     fallbackMaxTokens: 4_096, // 4K tokens
@@ -266,6 +280,7 @@ export enum MistralModel {
     Nemo = "open-mistral-nemo-2407",
 }
 export const mistralServiceInfo: AIServiceInfo<MistralModel> = {
+    defaultModel: MistralModel.Nemo,
     enabled: true,
     name: "Mistral",
     fallbackMaxTokens: 4_096, // 4K tokens
@@ -309,6 +324,7 @@ export const mistralServiceInfo: AIServiceInfo<MistralModel> = {
 };
 
 export const aiServicesInfo: AIServicesInfo = {
+    defaultService: LlmServiceId.OpenAI,
     services: {
         [AIServiceName.OpenAI]: openAIServiceInfo,
         [AIServiceName.Anthropic]: anthropicServiceInfo,
