@@ -2,14 +2,23 @@
  * Redis connection, so we don't have to keep creating new connections
  */
 import { createClient, RedisClientType } from "redis";
-import { ErrorTrace } from "./events/error";
-import { logger } from "./events/logger";
+import { ErrorTrace } from "./events/error.js";
+import { logger } from "./events/logger.js";
 
-export const REDIS_URL = process.env.REDIS_URL || "redis://redis:6379";
 const MAX_RETRIES = 5;
 
 let redisClient: RedisClientType | null = null;
 let retryCount = 0;
+
+/**
+ * Get the Redis URL from the environment variable.
+ * This is a function because it allows us to mock the Redis URL for testing.
+ * 
+ * @returns The Redis URL
+ */
+export function getRedisUrl() {
+    return process.env.REDIS_URL || "redis://redis:6379";
+}
 
 export async function createRedisClient() {
     if (retryCount >= MAX_RETRIES) {
@@ -18,6 +27,7 @@ export async function createRedisClient() {
     }
 
     logger.info("Creating Redis client.", { trace: "0184" });
+    const REDIS_URL = getRedisUrl();
     const redisClient = createClient({ url: REDIS_URL });
     redisClient.on("error", (error) => {
         retryCount++;
