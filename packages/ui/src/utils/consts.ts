@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-redeclare */
-import { InputType, NodeType, SERVER_VERSION, ValueOf } from "@local/shared";
+import { InputType, SERVER_VERSION, ValueOf } from "@local/shared";
 
 export const Forms = {
     ForgotPassword: "forgot-password",
@@ -157,12 +157,25 @@ export const webSocketUrlBase: string = isLocalhost ?
         `${process.env.VITE_SERVER_URL}` :
         `http://${process.env.VITE_SITE_IP}:${portServer}`;
 
-export const NodeWidth = {
-    [NodeType.End]: 100,
-    [NodeType.Redirect]: 100,
-    [NodeType.RoutineList]: 350,
-    [NodeType.Start]: 100,
-};
+// // Determine origin of API server
+// const isLocalhost: boolean = window.location.host.includes("localhost") || window.location.host.includes("192.168.") || window.location.host.includes("127.0.0.1");
+// const isHttps = window.location.protocol === "https:";
+// const serverUrlProvided = Boolean(process.env.VITE_SERVER_URL && process.env.VITE_SERVER_URL.length > 0);
+// const portServer: string = process.env.VITE_PORT_SERVER ?? "5329";
+
+// export const apiUrlBase: string = isLocalhost ?
+//     `${isHttps ? "https" : "http"}://${window.location.hostname}:${portServer}/api` :
+//     serverUrlProvided ?
+//         `${process.env.VITE_SERVER_URL}` :
+//         `${isHttps ? "https" : "http"}://${process.env.VITE_SITE_IP}:${portServer}/api`;
+
+// export const restBase = "/${SERVER_VERSION}/rest";
+
+// export const webSocketUrlBase: string = isLocalhost ?
+//     `${isHttps ? "wss" : "ws"}://${window.location.hostname}:${portServer}` :
+//     serverUrlProvided ?
+//         `${process.env.VITE_SERVER_URL}` :
+//         `${isHttps ? "wss" : "ws"}://${process.env.VITE_SITE_IP}:${portServer}`;
 
 /**
  * Distance before a click is considered a drag
@@ -170,22 +183,56 @@ export const NodeWidth = {
 export const DRAG_THRESHOLD = 10;
 
 export const ELEMENT_IDS = {
+    AdvancedSearchDialog: "advanced-search-dialog",
+    AdvancedSearchDialogTitle: "advanced-search-dialog-title",
     ChatSideMenuMessageTree: "chat-side-menu-message-tree",
     ChatSideMenuIcon: "chat-side-menu-icon",
-    ChatSideMenuTabs: "chat-side-menu-tabs",
     DashboardEventList: "dashboard-event-list",
     DashboardReminderList: "dashboard-reminder-list",
     DashboardResourceList: "dashboard-resource-list",
     DashboardFocusModeTabs: "dashboard-focus-mode-tabs",
+    FormRunView: "form-run-view",
+    LandingViewSlideContainerNeon: "neon-container",
+    LandingViewSlideContainerSky: "sky-container",
+    LandingViewSlideWorkflow: "revolutionize-workflow",
+    LandingViewSlideChats: "chats",
+    LandingViewSlideRoutines: "routines",
+    LandingViewSlideTeams: "teams",
+    LandingViewSlidePricing: "pricing",
+    LandingViewSlideGetStarted: "get-started",
     MyStuffTabs: "my-stuff-tabs",
-    ProViewBuyCreditsBox: "buy-credits",
     ProViewDonateBox: "donate",
     ProViewFAQBox: "faq",
     ProViewFeatures: "features",
-    ProViewSubscribeBox: "subscribe",
+    RelationshipList: "relationship-list",
+    ResourceCards: "resource-cards",
+    RoutineGenerateSettings: "routine-generate-settings",
+    RoutineMultiStepCrudDialog: "routine-multi-step-crud-dialog",
+    RoutineMultiStepCrudGraph: "routine-multi-step-crud-graph",
+    RoutineTypeForm: "routine-type-form",
+    RoutineSingleStepUpsertDialog: "routine-single-step-upsert-dialog",
+    RoutineWizardDialog: "routine-wizard-dialog",
     SearchTabs: "search-tabs",
+    SelectBookmarkListDialog: "select-bookmark-list-dialog",
     SideMenuAccountList: "side-menu-account-list",
     SideMenuDisplaySettings: "side-menu-display-settings",
     SideMenuProfileIcon: "side-menu-profile-icon",
     SideMenuQuickLinks: "side-menu-quick-links",
+    TasksRow: "tasks-row",
+    TeamUpsertDialog: "team-upsert-dialog",
+    WalletInstallDialogTitle: "wallet-install-dialog-title",
+    WalletSelectDialogTitle: "wallet-select-dialog-title",
+};
+
+export const Z_INDEX = {
+    Popup: 1000,
+    TutorialDialog: 800,
+    CommandPalette: 700,
+    CookieSettingsDialog: 200,
+    Dialog: 100,
+    TopBar: 50,
+    BottomNav: 50,
+    ActionButton: 20,
+    PageElement: 10,
+    Page: 0,
 };

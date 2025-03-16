@@ -8,6 +8,14 @@ export const SEARCH_HIGHLIGHT_ELEMENT = "search-highlight-wrap";
 export const SEARCH_HIGHLIGHT_WRAPPER = "search-highlight";
 /** Style for tutorial element highlight */
 export const TUTORIAL_HIGHLIGHT = "tutorial-highlight";
+/** Style for snack message highlight */
+export const SNACK_HIGHLIGHT = "snack-highlight";
+/** Style for node with error */
+export const NODE_HIGHLIGHT_ERROR = "node-highlight-error";
+/** Style for node with warning */
+export const NODE_HIGHLIGHT_WARNING = "node-highlight-warning";
+/** Style for selected node */
+export const NODE_HIGHLIGHT_SELECTED = "node-highlight-selected";
 
 /**
  * Highlights all instances of the search term. Accomplishes this by doing the following: 
@@ -61,11 +69,20 @@ export function highlightText(
 }
 
 /**
+ * Adds a highlight class to the provided element.
+ * @param highlightClass The class name of the highlight spans or elements to add.
+ * @param element The element to add the highlight class to.
+ */
+export function addHighlight(highlightClass: string, element: Element) {
+    element.classList.add(highlightClass);
+}
+
+/**
  * Removes all highlight spans from the given element and removes highlight classes from non-text elements.
  * @param highlightClass The class name of the highlight spans or elements to remove.
  * @param element The element to remove the highlight spans from. If not given, the entire document is used.
  */
-export function removeHighlights(highlightClass: string, element?: HTMLElement) {
+export function removeHighlights(highlightClass: string, element?: Element) {
     const root = element || document.body;
     if (!root) return;
     let highlightedElements: Element[] = [];
