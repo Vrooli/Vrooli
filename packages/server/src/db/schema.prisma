@@ -126,17 +126,34 @@ model api_version_translation {
 }
 
 model api_key {
-    id                     String   @id @default(uuid()) @db.Uuid
-    created_at             DateTime @default(now()) @db.Timestamptz(6)
-    updated_at             DateTime @default(now()) @db.Timestamptz(6)
-    key                    String   @unique @db.VarChar(255)
-    creditsUsedBeforeLimit BigInt   @default(10000000000)
-    stopAtLimit            Boolean  @default(true)
-    absoluteMax            Int?     @default(25000000000)
-    teamId                 String?  @db.Uuid
-    userId                 String?  @db.Uuid
-    team                   team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
-    user                   user?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    id          String    @id @default(uuid()) @db.Uuid
+    created_at  DateTime  @default(now()) @db.Timestamptz(6)
+    updated_at  DateTime  @default(now()) @db.Timestamptz(6)
+    creditsUsed BigInt    @default(0)
+    disabledAt  DateTime? @db.Timestamptz(6)
+    key         String    @unique @db.VarChar(255)
+    limitHard   BigInt    @default(25000000000)
+    limitSoft   BigInt?   @default(25000000000)
+    name        String    @db.VarChar(128)
+    stopAtLimit Boolean   @default(true)
+    teamId      String?   @db.Uuid
+    userId      String?   @db.Uuid
+    team        team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    user        user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model api_key_external {
+    id         String    @id @default(uuid()) @db.Uuid
+    created_at DateTime  @default(now()) @db.Timestamptz(6)
+    updated_at DateTime  @default(now()) @db.Timestamptz(6)
+    key        String    @db.VarChar(255)
+    disabledAt DateTime? @db.Timestamptz(6)
+    name       String    @db.VarChar(128)
+    service    String    @db.VarChar(128)
+    teamId     String?   @db.Uuid
+    userId     String?   @db.Uuid
+    team       team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+    user       user?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model bookmark {
@@ -830,6 +847,7 @@ model team {
     notes              note[]                      @relation("note_ownedByTeam")
     apis               api[]                       @relation("api_ownedByTeam")
     apiKeys            api_key[]
+    apiKeysExternal    api_key_external[]
     comments           comment[]                   @relation("comment_ownedByTeam")
     meetings           meeting[]
     paymentHistory     payment[]
@@ -2478,6 +2496,7 @@ model user {
     apisCreated                api[]                       @relation("api_createdBy")
     apis                       api[]                       @relation("api_ownedByUser")
     apiKeys                    api_key[]
+    apiKeysExternal            api_key_external[]
     auths                      user_auth[]
     awards                     award[]
     chatsCreated               chat[]
