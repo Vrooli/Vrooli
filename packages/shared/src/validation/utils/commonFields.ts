@@ -77,6 +77,33 @@ export function url({ env = "production" }: { env?: YupMutateParams["env"] }) {
 
 export const bool = yup.boolean().toBool();
 
+export const bigIntString = yup
+    .mixed()
+    .transform(function transformBigIntString(value, originalValue) {
+        // Allow null/undefined to pass through untransformed.
+        if (originalValue == null) {
+            return originalValue;
+        }
+        if (typeof originalValue === "string") {
+            return originalValue.trim();
+        }
+        if (typeof originalValue === "number" && !Number.isNaN(originalValue)) {
+            return originalValue.toString();
+        }
+        if (typeof originalValue === "bigint") {
+            return originalValue.toString();
+        }
+        return originalValue;
+    })
+    .test("is-bigint-string", "Must be a valid integer", function testBigIntString(value) {
+        // Allow null/undefined if the field is optional.
+        if (value == null) return true;
+        if (typeof value !== "string") {
+            return this.createError({ message: "Must be a valid integer" });
+        }
+        return /^-?\d+$/.test(value) || this.createError({ message: "Must be a valid integer" });
+    });
+
 // numbers
 export const MAX_INT = 2 ** 32 - 1;
 export const MAX_DOUBLE = 2 ** 32 - 1;
