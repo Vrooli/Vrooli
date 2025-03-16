@@ -1,28 +1,24 @@
-import { noop } from "@local/shared";
 import { Box } from "@mui/material";
 import { action } from "@storybook/addon-actions";
 import { Meta } from "@storybook/react";
-import React, { useState } from "react";
+import { useState } from "react";
 import { SearchIcon, UploadIcon } from "../../../icons/common.js";
+import { ScrollBox } from "../../../styles.js";
+import { PageContainer } from "../../Page/Page.js";
 import { AdvancedInput, ContextItem, Tool } from "./AdvancedInput.js";
 
 const outerBoxStyle = {
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "flex-end",
+    minHeight: "100vh",
+} as const;
+const innerBoxStyle = {
     maxWidth: "800px",
     padding: "20px",
     border: "1px solid #ccc",
-    margin: "auto",
+    paddingBottom: "100px",
 } as const;
-function Outer({ children }: { children: React.ReactNode }) {
-    return (
-        <Box
-            sx={outerBoxStyle}
-        >
-            {children}
-        </Box>
-    );
-}
-
-const emptyArray = [];
 
 const mockSomeTools: Tool[] = [
     {
@@ -69,16 +65,21 @@ const mockContextData: ContextItem[] = [
         src: "https://via.placeholder.com/80",
     },
 ];
-
 // Default export for Storybook
 export default {
     title: "Components/Inputs/AdvancedInput",
     component: AdvancedInput,
     decorators: [
         (Story) => (
-            <Outer>
-                <Story />
-            </Outer>
+            <PageContainer>
+                <ScrollBox>
+                    <Box sx={outerBoxStyle}>
+                        <Box sx={innerBoxStyle}>
+                            <Story />
+                        </Box>
+                    </Box>
+                </ScrollBox>
+            </PageContainer>
         ),
     ],
 } satisfies Meta<typeof AdvancedInput>;
@@ -87,62 +88,84 @@ export default {
  * Default story: minimal usage, no tools or context items.
  */
 export function Default() {
+    const [contextData, setContextData] = useState<ContextItem[]>([]);
     const [message, setMessage] = useState("");
+    const [tools, setTools] = useState<Tool[]>([]);
 
+    function onContextDataChange(updated: ContextItem[]) {
+        setContextData(updated);
+    }
     function onSubmit(msg: string) {
         action("onSubmit")(msg);
         setMessage("");
+    }
+    function onToolsChange(updated: Tool[]) {
+        setTools(updated);
     }
 
     return (
         <AdvancedInput
             enterWillSubmit={true}
-            tools={emptyArray}
-            contextData={emptyArray}
-            onToolsChange={noop}
-            onContextDataChange={noop}
+            tools={tools}
+            contextData={contextData}
+            onToolsChange={onToolsChange}
+            onContextDataChange={onContextDataChange}
             onSubmit={onSubmit}
         />
     );
 }
 
 export function WithSomeTools() {
+    const [contextData, setContextData] = useState<ContextItem[]>([]);
     const [message, setMessage] = useState("");
     const [tools, setTools] = useState<Tool[]>(mockSomeTools);
 
+    function onContextDataChange(updated: ContextItem[]) {
+        setContextData(updated);
+    }
     function onSubmit(msg: string) {
         action("onSubmit")(msg);
         setMessage("");
+    }
+    function onToolsChange(updated: Tool[]) {
+        setTools(updated);
     }
 
     return (
         <AdvancedInput
             enterWillSubmit={true}
             tools={tools}
-            contextData={emptyArray}
-            onToolsChange={(updated) => setTools(updated)}
-            onContextDataChange={noop}
+            contextData={contextData}
+            onToolsChange={onToolsChange}
+            onContextDataChange={onContextDataChange}
             onSubmit={onSubmit}
         />
     );
 }
 
 export function WithManyTools() {
+    const [contextData, setContextData] = useState<ContextItem[]>([]);
     const [message, setMessage] = useState("");
     const [tools, setTools] = useState<Tool[]>(mockManyTools);
 
+    function onContextDataChange(updated: ContextItem[]) {
+        setContextData(updated);
+    }
     function onSubmit(msg: string) {
         action("onSubmit")(msg);
         setMessage("");
+    }
+    function onToolsChange(updated: Tool[]) {
+        setTools(updated);
     }
 
     return (
         <AdvancedInput
             enterWillSubmit={true}
             tools={tools}
-            contextData={emptyArray}
-            onToolsChange={noop}
-            onContextDataChange={noop}
+            contextData={contextData}
+            onToolsChange={onToolsChange}
+            onContextDataChange={onContextDataChange}
             onSubmit={onSubmit}
         />
     );
@@ -152,21 +175,28 @@ export function WithManyTools() {
  * WithContextItems: demonstrates attaching files/images/text as context data.
  */
 export function WithContextItems() {
-    const [message, setMessage] = useState("");
     const [contextData, setContextData] = useState<ContextItem[]>(mockContextData);
+    const [message, setMessage] = useState("");
+    const [tools, setTools] = useState<Tool[]>([]);
 
+    function onContextDataChange(updated: ContextItem[]) {
+        setContextData(updated);
+    }
     function onSubmit(msg: string) {
         action("onSubmit")(msg);
         setMessage("");
+    }
+    function onToolsChange(updated: Tool[]) {
+        setTools(updated);
     }
 
     return (
         <AdvancedInput
             enterWillSubmit={true}
-            tools={emptyArray}
+            tools={tools}
             contextData={contextData}
-            onToolsChange={noop}
-            onContextDataChange={(updated) => setContextData(updated)}
+            onToolsChange={onToolsChange}
+            onContextDataChange={onContextDataChange}
             onSubmit={onSubmit}
         />
     );
@@ -176,21 +206,29 @@ export function WithContextItems() {
  * WithEnterKeyMode: toggles whether enter key submits or adds new lines.
  */
 export function WithEnterKeyMode() {
-    const [message, setMessage] = useState("");
+    const [contextData, setContextData] = useState<ContextItem[]>([]);
     const [enterWillSubmit, setEnterWillSubmit] = useState(true);
+    const [message, setMessage] = useState("");
+    const [tools, setTools] = useState<Tool[]>([]);
 
+    function onContextDataChange(updated: ContextItem[]) {
+        setContextData(updated);
+    }
     function onSubmit(msg: string) {
         action("onSubmit")(msg);
         setMessage("");
+    }
+    function onToolsChange(updated: Tool[]) {
+        setTools(updated);
     }
 
     return (
         <AdvancedInput
             enterWillSubmit={enterWillSubmit}
-            tools={emptyArray}
-            contextData={emptyArray}
-            onToolsChange={noop}
-            onContextDataChange={noop}
+            tools={tools}
+            contextData={contextData}
+            onToolsChange={onToolsChange}
+            onContextDataChange={onContextDataChange}
             onSubmit={onSubmit}
         />
     );
@@ -202,21 +240,32 @@ export function WithEnterKeyMode() {
  * toggling happens in the settings popover.)
  */
 export function WithWysiwygAndToolbar() {
+    const [contextData, setContextData] = useState<ContextItem[]>([]);
     const [message, setMessage] = useState("");
+    const [tools, setTools] = useState<Tool[]>([]);
 
+    function onContextDataChange(updated: ContextItem[]) {
+        setContextData(updated);
+    }
     function onSubmit(msg: string) {
         action("onSubmit")(msg);
         setMessage("");
+    }
+    function onToolsChange(updated: Tool[]) {
+        setTools(updated);
     }
 
     return (
         <AdvancedInput
             enterWillSubmit={true}
-            tools={emptyArray}
-            contextData={emptyArray}
-            onToolsChange={noop}
-            onContextDataChange={noop}
+            tools={tools}
+            contextData={contextData}
+            // isWysiwyg={true}
+            onToolsChange={onToolsChange}
+            onContextDataChange={onContextDataChange}
             onSubmit={onSubmit}
+        // showToolbar={true}
         />
     );
 }
+
