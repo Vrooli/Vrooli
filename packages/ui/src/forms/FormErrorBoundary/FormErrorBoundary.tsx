@@ -1,5 +1,5 @@
 import { Component } from "react";
-import { ErrorBoundaryProps } from "views/types";
+import { ErrorBoundaryProps } from "../../views/types.js";
 
 interface ErrorBoundaryState {
     hasError: boolean;
@@ -37,13 +37,45 @@ export class FormErrorBoundary extends Component<FormErrorBoundaryProps, ErrorBo
 
     render() {
         if (this.state.hasError) {
-            // You can render any custom fallback UI
             return (
-                <div style={{ color: "#f00", padding: "8px" }}>
-                    <p>Something went wrong with the form :(</p>
-                    <details style={{ whiteSpace: "pre-wrap" }}>
+                <div
+                    role="alert"
+                    style={{
+                        backgroundColor: "#a00",
+                        border: "1px solid #ffcccc",
+                        borderRadius: "4px",
+                        padding: "16px",
+                        margin: "16px 0",
+                        color: "white",
+                    }}
+                >
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            marginBottom: "8px",
+                        }}
+                    >
+                        <span
+                            style={{ fontSize: "24px", marginRight: "8px" }}
+                        >
+                            ⚠️
+                        </span>
+                        <h2 style={{ margin: 0 }}>An error occurred</h2>
+                    </div>
+                    <p style={{ margin: "0 0 8px 0" }}>
+                        There was a problem rendering the form. Please try refreshing the page or contact support if the issue persists.
+                    </p>
+                    <details
+                        style={{
+                            whiteSpace: "pre-wrap",
+                            fontFamily: "monospace",
+                            fontSize: "12px",
+                        }}
+                    >
                         {this.state.error && this.state.error.toString()}
                         <br />
+                        {this.state.componentStack}
                     </details>
                 </div>
             );

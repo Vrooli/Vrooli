@@ -1,5 +1,7 @@
 import * as yup from "yup";
-import { description, email, id, maxStrErr, name, opt, optArr, password, req } from "../utils";
+import { opt, optArr, req } from "../utils/builders/optionality.js";
+import { description, email, id, name, password } from "../utils/commonFields.js";
+import { maxStrErr } from "../utils/errors.js";
 
 export const nodeEndFormValidation = yup.object().shape({
     wasSuccessful: opt(yup.boolean()),

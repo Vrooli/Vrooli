@@ -1,6 +1,10 @@
-import { bool, description, id, name, opt, req, transRel, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
-import { projectValidation } from "./project";
-import { projectVersionDirectoryValidation } from "./projectVersionDirectory";
+import { opt, req } from "../utils/builders/optionality.js";
+import { transRel } from "../utils/builders/rel.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { bool, description, id, name, versionLabel, versionNotes } from "../utils/commonFields.js";
+import { type YupModel } from "../utils/types.js";
+import { projectValidation } from "./project.js";
+import { projectVersionDirectoryValidation } from "./projectVersionDirectory.js";
 
 export const projectVersionTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({

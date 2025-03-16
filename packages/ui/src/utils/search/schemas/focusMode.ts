@@ -1,6 +1,6 @@
-import { endpointGetFocusMode, endpointGetFocusModes, FocusModeSortBy, FormSchema } from "@local/shared";
-import { toParams } from "./base";
-import { searchFormLayout } from "./common";
+import { endpointsFocusMode, FocusModeSortBy, FormSchema } from "@local/shared";
+import { toParams } from "./base.js";
+import { searchFormLayout } from "./common.js";
 
 export function focusModeSearchSchema(): FormSchema {
     return {
@@ -11,5 +11,5 @@ export function focusModeSearchSchema(): FormSchema {
 }
 
 export function focusModeSearchParams() {
-    return toParams(focusModeSearchSchema(), endpointGetFocusModes, endpointGetFocusMode, FocusModeSortBy, FocusModeSortBy.NameAsc);
+    return toParams(focusModeSearchSchema(), endpointsFocusMode, FocusModeSortBy, FocusModeSortBy.NameAsc);
 }

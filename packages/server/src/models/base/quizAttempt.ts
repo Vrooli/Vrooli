@@ -1,13 +1,14 @@
 import { MaxObjects, QuizAttemptSortBy, quizAttemptValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { getSingleTypePermissions } from "../../validators";
-import { QuizAttemptFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { QuizAttemptModelInfo, QuizAttemptModelLogic, QuizModelInfo, QuizModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { QuizAttemptFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { QuizAttemptModelInfo, QuizAttemptModelLogic, QuizModelInfo, QuizModelLogic } from "./types.js";
 
 const __typename = "QuizAttempt" as const;
 export const QuizAttemptModel: QuizAttemptModelLogic = ({
@@ -22,7 +23,7 @@ export const QuizAttemptModel: QuizAttemptModelLogic = ({
             }),
             // Label is quiz name + created_at date
             get: (select, languages) => {
-                const quizName = ModelMap.get<QuizModelLogic>("Quiz").display().label.get(select.quiz as QuizModelInfo["PrismaModel"], languages);
+                const quizName = ModelMap.get<QuizModelLogic>("Quiz").display().label.get(select.quiz as QuizModelInfo["DbModel"], languages);
                 const date = new Date(select.created_at).toLocaleDateString();
                 return `${quizName} - ${date}`;
             },
@@ -63,11 +64,11 @@ export const QuizAttemptModel: QuizAttemptModelLogic = ({
         },
         searchStringQuery: () => ({}), // No strings to search
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<QuizAttemptModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<QuizAttemptModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -75,10 +76,10 @@ export const QuizAttemptModel: QuizAttemptModelLogic = ({
     },
     validate: () => ({
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<QuizAttemptModelInfo["PrismaSelect"]>([["quiz", "Quiz"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<QuizAttemptModelInfo["DbSelect"]>([["quiz", "Quiz"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<QuizModelLogic>("Quiz").validate().owner(data?.quiz as QuizModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<QuizModelLogic>("Quiz").validate().owner(data?.quiz as QuizModelInfo["DbModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({ id: true, quiz: "Quiz" }),
         visibility: {

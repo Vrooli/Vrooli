@@ -1,34 +1,34 @@
-import { GqlModelType } from "@local/shared";
-import { CustomError } from "../events/error";
-import { ModelMap } from "../models/base";
-import { ModelLogicType } from "../models/types";
-import { IdsByAction, InputsById } from "./types";
+import { ModelType } from "@local/shared";
+import { CustomError } from "../events/error.js";
+import { ModelMap } from "../models/base/index.js";
+import { ModelLogicType } from "../models/types.js";
+import { IdsByAction, InputsById } from "./types.js";
 
 type CudOutputData<Model extends {
-    GqlCreate: ModelLogicType["GqlCreate"],
-    GqlUpdate: ModelLogicType["GqlUpdate"],
-    GqlModel: ModelLogicType["GqlModel"],
+    ApiCreate: ModelLogicType["ApiCreate"],
+    ApiUpdate: ModelLogicType["ApiUpdate"],
+    ApiModel: ModelLogicType["ApiModel"],
 }> = {
     createdIds: string[],
-    createInputs: Model["GqlCreate"][],
+    createInputs: Model["ApiCreate"][],
     updatedIds: string[],
-    updateInputs: Model["GqlUpdate"][],
+    updateInputs: Model["ApiUpdate"][],
 }
 
-export const cudOutputsToMaps = <Model extends {
-    GqlCreate: ModelLogicType["GqlCreate"],
-    GqlUpdate: ModelLogicType["GqlUpdate"],
-    GqlModel: ModelLogicType["GqlModel"],
+export function cudOutputsToMaps<Model extends {
+    ApiCreate: ModelLogicType["ApiCreate"],
+    ApiUpdate: ModelLogicType["ApiUpdate"],
+    ApiModel: ModelLogicType["ApiModel"],
 }>({
     idsByAction,
     inputsById,
 }: {
     idsByAction: IdsByAction,
     inputsById: InputsById,
-}): { [key in `${GqlModelType}`]?: CudOutputData<Model> } => {
-    const result: { [key in `${GqlModelType}`]?: CudOutputData<Model> } = {};
+}): { [key in `${ModelType}`]?: CudOutputData<Model> } {
+    const result: { [key in `${ModelType}`]?: CudOutputData<Model> } = {};
     // Helper function to initialize the result object for a given type
-    const initResult = (type: `${GqlModelType}`) => {
+    function initResult(type: `${ModelType}`) {
         if (!result[type]) {
             result[type] = {
                 createdIds: [],
@@ -37,7 +37,7 @@ export const cudOutputsToMaps = <Model extends {
                 updateInputs: [],
             };
         }
-    };
+    }
     // Generate createInputs
     if (idsByAction.Create) {
         for (const createdId of idsByAction.Create) {
@@ -47,8 +47,8 @@ export const cudOutputsToMaps = <Model extends {
                 throw new CustomError("0529", "InternalError", { node, createdId });
             }
             const type = node.__typename;
-            initResult(type as GqlModelType);
-            result[type]!.createInputs.push(inputsById[createdId].input as Model["GqlCreate"]);
+            initResult(type as ModelType);
+            result[type]!.createInputs.push(inputsById[createdId].input as Model["ApiCreate"]);
         }
     }
     // Generate updateInputs
@@ -60,14 +60,14 @@ export const cudOutputsToMaps = <Model extends {
                 throw new CustomError("0530", "InternalError", { node, updatedId });
             }
             const type = node.__typename;
-            initResult(type as GqlModelType);
+            initResult(type as ModelType);
             // Populate the update input for the ID
-            result[type]!.updateInputs.push(inputsById[updatedId].input as Model["GqlUpdate"]);
+            result[type]!.updateInputs.push(inputsById[updatedId].input as Model["ApiUpdate"]);
         }
     }
     // Generate createdIds and updatedIds
     for (const type of Object.keys(result)) {
-        const { idField } = ModelMap.getLogic(["idField"], type as GqlModelType);
+        const { idField } = ModelMap.getLogic(["idField"], type as ModelType);
         for (const createInput of result[type].createInputs) {
             result[type].createdIds.push((createInput as { [key in typeof idField]: string })[idField]);
         }
@@ -76,4 +76,4 @@ export const cudOutputsToMaps = <Model extends {
         }
     }
     return result;
-};
+}

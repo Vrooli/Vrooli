@@ -1,5 +1,5 @@
 import { Comment, CommentFor, CommentShape } from "@local/shared";
-import { CrudPropsDialog, CrudPropsPartial, FormProps } from "../../../types";
+import { CrudPropsDialog, CrudPropsPartial, FormProps } from "../../../types.js";
 
 type CommentUpsertPropsBase = {
     language: string;

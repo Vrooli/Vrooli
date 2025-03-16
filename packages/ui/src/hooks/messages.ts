@@ -1,14 +1,14 @@
-import { AITaskInfo, ChatMessage, ChatMessageCreateInput, ChatMessageCreateWithTaskInfoInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageShape, ChatMessageUpdateInput, ChatMessageUpdateWithTaskInfoInput, ChatParticipant, ChatShape, DUMMY_ID, LlmTask, RegenerateResponseInput, Session, Success, TaskContextInfo, endpointGetChatMessageTree, endpointPostChatMessage, endpointPostRegenerateResponse, endpointPutChatMessage, getTranslation, noop, uuid } from "@local/shared";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { SessionContext } from "contexts";
+import { AITaskInfo, ChatMessage, ChatMessageCreateInput, ChatMessageCreateWithTaskInfoInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageShape, ChatMessageUpdateInput, ChatMessageUpdateWithTaskInfoInput, ChatParticipant, ChatShape, DUMMY_ID, LlmTask, RegenerateResponseInput, Session, Success, TaskContextInfo, endpointsChatMessage, getTranslation, noop, uuid } from "@local/shared";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { getCurrentUser } from "utils/authentication/session";
-import { getUserLanguages } from "utils/display/translationTools";
-import { BranchMap, getCookieMessageTree, setCookieMessageTree } from "utils/localStorage";
-import { PubSub } from "utils/pubsub";
-import { UseChatTaskReturn } from "./tasks";
-import { useHistoryState } from "./useHistoryState";
-import { useLazyFetch } from "./useLazyFetch";
+import { fetchLazyWrapper } from "../api/fetchWrapper.js";
+import { SessionContext } from "../contexts.js";
+import { getCurrentUser } from "../utils/authentication/session.js";
+import { getUserLanguages } from "../utils/display/translationTools.js";
+import { BranchMap, getCookieMessageTree, setCookieMessageTree } from "../utils/localStorage.js";
+import { PubSub } from "../utils/pubsub.js";
+import { UseChatTaskReturn } from "./tasks.js";
+import { useHistoryState } from "./useHistoryState.js";
+import { useLazyFetch } from "./useLazyFetch.js";
 
 export type MinimumChatMessage = {
     id: string;
@@ -372,7 +372,7 @@ function addMessageToTree(
  */
 export function useMessageTree(chatId?: string | null) {
     // We query messages separate from the chat, since we must traverse the message tree
-    const [getTreeData, { data: searchTreeData, loading: isTreeLoading }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointGetChatMessageTree);
+    const [getTreeData, { data: searchTreeData, loading: isTreeLoading }] = useLazyFetch<ChatMessageSearchTreeInput, ChatMessageSearchTreeResult>(endpointsChatMessage.findTree);
 
     // The message tree structure
     const [tree, setTree] = useState<MessageTree<ChatMessageShape>>({ map: new Map(), roots: [] });
@@ -549,8 +549,8 @@ export function useMessageActions({
 }: UseMessageActionsProps): UseMesssageActionsResult {
     const session = useContext(SessionContext);
 
-    const [postMessageEndpoint] = useLazyFetch<ChatMessageCreateWithTaskInfoInput, ChatMessage>(endpointPostChatMessage);
-    const [putMessageEndpoint] = useLazyFetch<ChatMessageUpdateWithTaskInfoInput, ChatMessage>(endpointPutChatMessage);
+    const [postMessageEndpoint] = useLazyFetch<ChatMessageCreateWithTaskInfoInput, ChatMessage>(endpointsChatMessage.createOne);
+    const [putMessageEndpoint] = useLazyFetch<ChatMessageUpdateWithTaskInfoInput, ChatMessage>(endpointsChatMessage.updateOne);
 
     /** Collects context data for the active task */
     const collectTaskContext = useCallback((taskInfo: AITaskInfo | null) => new Promise<TaskContextInfo | null>((resolve, reject) => {
@@ -692,7 +692,7 @@ export function useMessageActions({
         }
     }, [activeTask.task, chat, getTaskContexts, isBotOnlyChat, language, messagePosted, messagePutted, postMessageEndpoint, putMessageEndpoint, session]);
 
-    const [regenerate] = useLazyFetch<RegenerateResponseInput, Success>(endpointPostRegenerateResponse);
+    const [regenerate] = useLazyFetch<RegenerateResponseInput, Success>(endpointsChatMessage.regenerateResponse);
     /** Regenerate a bot response */
     const regenerateResponse = useCallback(async function regenerateResponseCallback({ id }: ChatMessageShape) {
         const taskContexts = await getTaskContexts();

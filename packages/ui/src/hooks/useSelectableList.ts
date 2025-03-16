@@ -1,6 +1,6 @@
 import { ListObject } from "@local/shared";
 import { useCallback, useRef, useState } from "react";
-import { UsePressEvent } from "./gestures";
+import { UsePressEvent } from "./gestures.js";
 
 type UseSelectableListReturn<T extends ListObject> = {
     isSelecting: boolean;

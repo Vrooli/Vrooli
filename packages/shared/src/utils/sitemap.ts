@@ -31,10 +31,10 @@ export type SitemapEntryContent = {
  * @param entries An object containing the sitemap entries
  * @returns An xml string representing the sitemap
  */
-export const generateSitemap = (siteName: string, entries: {
+export function generateSitemap(siteName: string, entries: {
     main?: SitemapEntryMain[];
     content?: SitemapEntryContent[];
-}): string => {
+}): string {
     // Create xml tag with encoding and version
     let xml = builder.create({ encoding: "UTF-8", version: "1.0" });
     // Open urlset tag with xmlns:xhtml attribute
@@ -80,7 +80,7 @@ export const generateSitemap = (siteName: string, entries: {
     xml = xml.up();
     // Return xml string
     return xml.end({ prettyPrint: true });
-};
+}
 
 
 /**
@@ -89,7 +89,7 @@ export const generateSitemap = (siteName: string, entries: {
  * @param fileNames The list of sitemap file names
  * @returns An xml string representing the sitemap index
  */
-export const generateSitemapIndex = (sitemapDir: string, fileNames: string[]): string => {
+export function generateSitemapIndex(sitemapDir: string, fileNames: string[]): string {
     // Create xml tag with encoding and version
     let xml = builder.create({ encoding: "UTF-8", version: "1.0" });
     // Open sitemapindex tag
@@ -105,4 +105,4 @@ export const generateSitemapIndex = (sitemapDir: string, fileNames: string[]): s
     xml = xml.up();
     // Return xml string
     return xml.end({ prettyPrint: true });
-};
+}

@@ -1,9 +1,6 @@
 /**
- * The `generated` directory is selection data generated from definitions in the ui. 
- * `logic` contains the endpoints logic, `graphql` contains 
- * the GraphQL schema and resolvers, and `rest` contains the auto-generated REST
- * endpoints.
+ * The `generated` directory is Prisma selection data for the result of each endpoint. 
+ * `logic` contains the endpoints logic, and `rest` sets up the routes for the endpoints.
  */
-export * from "./generated";
-export * from "./graphql";
+export * from "./generated/index.js";
 

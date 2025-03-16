@@ -1,13 +1,17 @@
-import { getTranslation, GqlModelType, IssueFor, IssueSearchInput, IssueSortBy, IssueStatus, issueValidation, MaxObjects } from "@local/shared";
+import { IssueFor, IssueSearchInput, IssueSortBy, IssueStatus, MaxObjects, ModelType, getTranslation, issueValidation } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { ModelMap } from ".";
-import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder";
-import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
-import { labelShapeHelper, preShapeEmbeddableTranslatable, PreShapeEmbeddableTranslatableResult, translationShapeHelper } from "../../utils/shapes";
-import { getSingleTypePermissions } from "../../validators";
-import { IssueFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { BookmarkModelLogic, IssueModelInfo, IssueModelLogic, ReactionModelLogic } from "./types";
+import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
+import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { IssueFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { type BookmarkModelLogic, type IssueModelInfo, type IssueModelLogic, type ReactionModelLogic } from "./types.js";
 
 type IssuePre = PreShapeEmbeddableTranslatableResult;
 
@@ -100,11 +104,11 @@ export const IssueModel: IssueModelLogic = ({
         },
         searchStringQuery: () => ({ OR: ["transDescriptionWrapped", "transNameWrapped"] }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<IssueModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<IssueModelInfo["ApiPermission"]>(__typename, ids, userData)),
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
                     },
@@ -114,7 +118,7 @@ export const IssueModel: IssueModelLogic = ({
     },
     validate: () => ({
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<IssueModelInfo["PrismaSelect"]>([
+        isPublic: (...rest) => oneIsPublic<IssueModelInfo["DbSelect"]>([
             ["api", "Api"],
             ["code", "Code"],
             ["note", "Note"],
@@ -180,7 +184,7 @@ export const IssueModel: IssueModelLogic = ({
                     const relation = forSearch.substring(0, forSearch.length - "Id".length);
                     return {
                         ...common,
-                        [relation]: useVisibility(reversedForMapper[relation] as GqlModelType, "Public", data),
+                        [relation]: useVisibility(reversedForMapper[relation] as ModelType, "Public", data),
                     };
                 }
                 // Otherwise, use an OR on all relations

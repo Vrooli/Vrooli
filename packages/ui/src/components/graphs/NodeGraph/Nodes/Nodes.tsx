@@ -1,16 +1,22 @@
-import { MessageWithStatus, NodeType, Status } from "@local/shared";
+/* eslint-disable no-magic-numbers */
+import { Status } from "@local/shared";
 import { Box, BoxProps, IconButton, SxProps, Tooltip, Typography, TypographyProps, styled, useTheme } from "@mui/material";
-import { ActionIcon, CloseIcon, ListBulletIcon, ListNumberIcon, NoActionIcon, RedirectIcon, SaveIcon, WarningIcon } from "icons";
+import { ActionIcon, CloseIcon, ListBulletIcon, ListNumberIcon, NoActionIcon, SaveIcon, WarningIcon } from "icons/common.js";
+import { RedirectIcon } from "icons/routineGraph.js";
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import Draggable, { DraggableData, DraggableEvent } from "react-draggable";
-import { multiLineEllipsis, noSelect } from "styles";
-import { ELEMENT_IDS } from "utils/consts";
-import { NODE_HIGHLIGHT_ERROR, NODE_HIGHLIGHT_SELECTED, NODE_HIGHLIGHT_WARNING, addHighlight, removeHighlights } from "utils/display/documentTools";
-import { getDisplay } from "utils/display/listTools";
-import { PubSub } from "utils/pubsub";
+import { ELEMENT_IDS } from "utils/consts.js";
+import { NODE_HIGHLIGHT_ERROR, NODE_HIGHLIGHT_SELECTED, NODE_HIGHLIGHT_WARNING, addHighlight, removeHighlights } from "utils/display/documentTools.js";
+import { getDisplay } from "utils/display/listTools.js";
+import { PubSub } from "utils/pubsub.js";
+import { multiLineEllipsis, noSelect } from "../../../../styles.js";
 // import { routineTypes } from "utils/search/schemas/routine";
-import { Graph, NodeLoop, NodeOperation, NodeRedirect, RoutineListItem, SomeNode, SubroutineOperation, type NodeEnd, type NodeRoutineList } from "views/objects/routine/RoutineMultiStepCrud/RoutineMultiStepCrud";
+import { Graph, NodeLoop, NodeOperation, NodeRedirect, RoutineListItem, SomeNode, SubroutineOperation, type NodeEnd, type NodeRoutineList } from "views/objects/routine/RoutineMultiStepCrud.js";
 
+type MessageWithStatus = {
+    message: string;
+    status: Status;
+}
 interface NodeBaseProps {
     isEditing: boolean;
     isLinked: boolean;
@@ -53,6 +59,12 @@ const DEFAULT_SCROLL_POSITION = { left: 0, top: 0 };
 const SHOW_LABELS_ABOVE_PERCENT = 50;
 const NODE_SHADOW = 4;
 const NODE_DRAG_CLASSNAME = "handle";
+
+enum NodeType {
+    Redirect = "Redirect",
+    RoutineList = "RoutineList",
+    End = "End",
+}
 
 const NodeWidth = {
     [NodeType.Redirect]: {

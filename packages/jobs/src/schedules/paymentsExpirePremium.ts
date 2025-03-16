@@ -1,4 +1,4 @@
-import { batch, logger, prismaInstance, sendSubscriptionEnded } from "@local/server";
+import { DbProvider, batch, logger, sendSubscriptionEnded } from "@local/server";
 import { Prisma } from "@prisma/client";
 
 const commonSelect = {
@@ -32,7 +32,7 @@ export async function paymentsExpirePremium() {
             processBatch: async (batch) => {
                 // Remove premium status for teams
                 const premiumIds = batch.map(team => team.premium?.id).filter(id => id !== null) as string[];
-                await prismaInstance.premium.updateMany({
+                await DbProvider.get().premium.updateMany({
                     data: { isActive: false }, // Don't remove credits, as they may have paid for them
                     where: { id: { in: premiumIds } },
                 });
@@ -55,7 +55,7 @@ export async function paymentsExpirePremium() {
             processBatch: async (batch) => {
                 // Remove premium status for users
                 const premiumIds = batch.map(user => user.premium?.id).filter(id => id !== null) as string[];
-                await prismaInstance.premium.updateMany({
+                await DbProvider.get().premium.updateMany({
                     data: { isActive: false }, // Don't remove credits, as they may have paid for them
                     where: { id: { in: premiumIds } },
                 });

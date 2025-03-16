@@ -1,12 +1,12 @@
 import { Status } from "@local/shared";
 import { Stack, Tooltip, Typography } from "@mui/material";
-import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
-import { usePopover } from "hooks/usePopover";
-import { RoutineIncompleteIcon, RoutineInvalidIcon, RoutineValidIcon } from "icons";
+import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow.js";
 import { useCallback, useMemo } from "react";
-import { noSelect } from "styles";
-import { MarkdownDisplay } from "../../text/MarkdownDisplay/MarkdownDisplay";
-import { StatusButtonProps } from "../types";
+import { usePopover } from "../../../hooks/usePopover.js";
+import { RoutineIncompleteIcon, RoutineInvalidIcon, RoutineValidIcon } from "../../../icons/common.js";
+import { noSelect } from "../../../styles.js";
+import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
+import { StatusButtonProps } from "../types.js";
 
 /**
  * Status indicator and slider change color to represent routine's status
@@ -33,20 +33,20 @@ const STATUS_ICON = {
  * @returns Indicator for no errors detected if no messages, just the error 
  * if one message, or a list of errors if multiple
  */
-export const formatStatusMessages = (messages: string[]) => {
+export function formatStatusMessages(messages: string[]) {
     if (!Array.isArray(messages) || messages.length === 0) return "No errors detected.";
     if (messages.length === 1) return messages[0];
     return messages.map(message => `* ${message}`).join("\n");
-};
+}
 
 /**
  * Shows valid/invalid/incomplete status of some object
  */
-export const StatusButton = ({
+export function StatusButton({
     status,
     messages,
     sx,
-}: StatusButtonProps) => {
+}: StatusButtonProps) {
 
     const statusMarkdown = useMemo(() => formatStatusMessages(messages), [messages]);
 
@@ -103,4 +103,4 @@ export const StatusButton = ({
             </PopoverWithArrow>
         </>
     );
-};
+}

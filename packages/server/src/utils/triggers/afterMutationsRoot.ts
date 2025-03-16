@@ -1,8 +1,8 @@
-import { GqlModelType, SessionUser } from "@local/shared";
-import { CustomError } from "../../events/error";
-import { Trigger } from "../../events/trigger";
-import { TransferModel } from "../../models/base/transfer";
-import { PreMap } from "../../models/types";
+import { ModelType, SessionUser } from "@local/shared";
+import { CustomError } from "../../events/error.js";
+import { Trigger } from "../../events/trigger.js";
+import { TransferModel } from "../../models/base/transfer.js";
+import { PreMap } from "../../models/types.js";
 
 /**
  * Used in mutate.trigger.onCommon of version objects. Has two purposes:
@@ -13,7 +13,7 @@ import { PreMap } from "../../models/types";
 export async function afterMutationsRoot({ createdIds, deletedIds, objectType, preMap, updatedIds, userData }: {
     createdIds: string[],
     deletedIds: string[],
-    objectType: GqlModelType | `${GqlModelType}`,
+    objectType: ModelType | `${ModelType}`,
     preMap: PreMap,
     updatedIds: string[]
     userData: SessionUser,
@@ -104,4 +104,4 @@ export async function afterMutationsRoot({ createdIds, deletedIds, objectType, p
             wasCompleteAndPublic,
         });
     }
-};
+}

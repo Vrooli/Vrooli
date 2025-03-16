@@ -1,79 +1,76 @@
-import { CalendarPageTabOption, ChatInviteStatus, ChatPageTabOption, CodeType, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, RunStatus, ScheduleFor, SearchPageTabOption, SearchType, SearchVersionPageTabOption, SignUpPageTabOption, StandardType, TeamPageTabOption, TranslationKeyCommon, UserPageTabOption, VisibilityType, YouInflated } from "@local/shared";
+import { CalendarPageTabOption, ChatInviteStatus, ChatPageTabOption, CodeType, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, RoutineType, RunStatus, ScheduleFor, SearchPageTabOption, SearchType, SearchTypeToSearchInput, SearchVersionPageTabOption, SignUpPageTabOption, StandardType, TeamPageTabOption, TranslationKeyCommon, UserPageTabOption, VisibilityType, YouInflated } from "@local/shared";
 import { Palette } from "@mui/material";
-import { PageTab } from "hooks/useTabs";
-import { AddIcon, ApiIcon, ArticleIcon, FocusModeIcon, HelpIcon, HistoryIcon, MonthIcon, NoteIcon, ObjectIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon, VisibleIcon } from "icons";
+import { ActionIcon, AddIcon, ApiIcon, ArticleIcon, FocusModeIcon, HelpIcon, HistoryIcon, MonthIcon, NoteIcon, ObjectIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon, VisibleIcon } from "icons/common.js";
 import { SvgComponent } from "types";
 import { PolicyTabOption } from "views/PolicyView/PolicyView";
-import { apiSearchParams } from "./schemas/api";
-import { apiVersionSearchParams } from "./schemas/apiVersion";
-import { SearchParams } from "./schemas/base";
-import { bookmarkSearchParams } from "./schemas/bookmark";
-import { bookmarkListSearchParams } from "./schemas/bookmarkList";
-import { chatSearchParams } from "./schemas/chat";
-import { chatInviteSearchParams } from "./schemas/chatInvite";
-import { chatMessageSearchParams } from "./schemas/chatMessage";
-import { chatParticipantSearchParams } from "./schemas/chatParticipant";
-import { codeSearchParams } from "./schemas/code";
-import { codeVersionSearchParams } from "./schemas/codeVersion";
-import { commentSearchParams } from "./schemas/comment";
-import { focusModeSearchParams } from "./schemas/focusMode";
-import { issueSearchParams } from "./schemas/issue";
-import { labelSearchParams } from "./schemas/label";
-import { meetingSearchParams } from "./schemas/meeting";
-import { meetingInviteSearchParams } from "./schemas/meetingInvite";
-import { memberSearchParams } from "./schemas/member";
-import { memberInviteSearchParams } from "./schemas/memberInvite";
-import { noteSearchParams } from "./schemas/note";
-import { noteVersionSearchParams } from "./schemas/noteVersion";
-import { notificationSearchParams } from "./schemas/notification";
-import { notificationSubscriptionSearchParams } from "./schemas/notificationSubscription";
-import { popularSearchParams } from "./schemas/popular";
-import { postSearchParams } from "./schemas/post";
-import { projectSearchParams } from "./schemas/project";
-import { projectOrRoutineSearchParams } from "./schemas/projectOrRoutine";
-import { projectOrTeamSearchParams } from "./schemas/projectOrTeam";
-import { projectVersionSearchParams } from "./schemas/projectVersion";
-import { pullRequestSearchParams } from "./schemas/pullRequest";
-import { questionSearchParams } from "./schemas/question";
-import { questionAnswerSearchParams } from "./schemas/questionAnswer";
-import { quizSearchParams } from "./schemas/quiz";
-import { quizAttemptSearchParams } from "./schemas/quizAttempt";
-import { quizQuestionSearchParams } from "./schemas/quizQuestion";
-import { quizQuestionResponseSearchParams } from "./schemas/quizQuestionResponse";
-import { reactionSearchParams } from "./schemas/reaction";
-import { reminderSearchParams } from "./schemas/reminder";
-import { reportSearchParams } from "./schemas/report";
-import { reportResponseSearchParams } from "./schemas/reportResponse";
-import { reputationHistorySearchParams } from "./schemas/reputationHistory";
-import { resourceSearchParams } from "./schemas/resource";
-import { resourceListSearchParams } from "./schemas/resourceList";
-import { roleSearchParams } from "./schemas/role";
-import { routineSearchParams } from "./schemas/routine";
-import { routineVersionSearchParams } from "./schemas/routineVersion";
-import { runProjectSearchParams } from "./schemas/runProject";
-import { runProjectOrRunRoutineSearchParams } from "./schemas/runProjectOrRunRoutine";
-import { runRoutineSearchParams } from "./schemas/runRoutine";
-import { runRoutineInputSearchParams } from "./schemas/runRoutineInput";
-import { scheduleSearchParams } from "./schemas/schedule";
-import { standardSearchParams } from "./schemas/standard";
-import { standardVersionSearchParams } from "./schemas/standardVersion";
-import { statsApiSearchParams } from "./schemas/statsApi";
-import { statsCodeSearchParams } from "./schemas/statsCode";
-import { statsProjectSearchParams } from "./schemas/statsProject";
-import { statsQuizSearchParams } from "./schemas/statsQuiz";
-import { statsRoutineSearchParams } from "./schemas/statsRoutine";
-import { statsSiteSearchParams } from "./schemas/statsSite";
-import { statsStandardSearchParams } from "./schemas/statsStandard";
-import { statsTeamSearchParams } from "./schemas/statsTeam";
-import { statsUserSearchParams } from "./schemas/statsUser";
-import { tagSearchParams } from "./schemas/tag";
-import { teamSearchParams } from "./schemas/team";
-import { transferSearchParams } from "./schemas/transfer";
-import { userSearchParams } from "./schemas/user";
-import { viewSearchParams } from "./schemas/view";
+import { apiSearchParams } from "./schemas/api.js";
+import { apiVersionSearchParams } from "./schemas/apiVersion.js";
+import { SearchParams } from "./schemas/base.js";
+import { bookmarkSearchParams } from "./schemas/bookmark.js";
+import { bookmarkListSearchParams } from "./schemas/bookmarkList.js";
+import { chatSearchParams } from "./schemas/chat.js";
+import { chatInviteSearchParams } from "./schemas/chatInvite.js";
+import { chatMessageSearchParams } from "./schemas/chatMessage.js";
+import { chatParticipantSearchParams } from "./schemas/chatParticipant.js";
+import { codeSearchParams } from "./schemas/code.js";
+import { codeVersionSearchParams } from "./schemas/codeVersion.js";
+import { commentSearchParams } from "./schemas/comment.js";
+import { focusModeSearchParams } from "./schemas/focusMode.js";
+import { issueSearchParams } from "./schemas/issue.js";
+import { labelSearchParams } from "./schemas/label.js";
+import { meetingSearchParams } from "./schemas/meeting.js";
+import { meetingInviteSearchParams } from "./schemas/meetingInvite.js";
+import { memberSearchParams } from "./schemas/member.js";
+import { memberInviteSearchParams } from "./schemas/memberInvite.js";
+import { noteSearchParams } from "./schemas/note.js";
+import { noteVersionSearchParams } from "./schemas/noteVersion.js";
+import { notificationSearchParams } from "./schemas/notification.js";
+import { notificationSubscriptionSearchParams } from "./schemas/notificationSubscription.js";
+import { popularSearchParams } from "./schemas/popular.js";
+import { postSearchParams } from "./schemas/post.js";
+import { projectSearchParams } from "./schemas/project.js";
+import { projectOrRoutineSearchParams } from "./schemas/projectOrRoutine.js";
+import { projectOrTeamSearchParams } from "./schemas/projectOrTeam.js";
+import { projectVersionSearchParams } from "./schemas/projectVersion.js";
+import { pullRequestSearchParams } from "./schemas/pullRequest.js";
+import { questionSearchParams } from "./schemas/question.js";
+import { questionAnswerSearchParams } from "./schemas/questionAnswer.js";
+import { quizSearchParams } from "./schemas/quiz.js";
+import { quizAttemptSearchParams } from "./schemas/quizAttempt.js";
+import { quizQuestionResponseSearchParams } from "./schemas/quizQuestionResponse.js";
+import { reactionSearchParams } from "./schemas/reaction.js";
+import { reminderSearchParams } from "./schemas/reminder.js";
+import { reportSearchParams } from "./schemas/report.js";
+import { reportResponseSearchParams } from "./schemas/reportResponse.js";
+import { reputationHistorySearchParams } from "./schemas/reputationHistory.js";
+import { resourceSearchParams } from "./schemas/resource.js";
+import { resourceListSearchParams } from "./schemas/resourceList.js";
+import { roleSearchParams } from "./schemas/role.js";
+import { routineSearchParams } from "./schemas/routine.js";
+import { routineVersionSearchParams } from "./schemas/routineVersion.js";
+import { runProjectSearchParams } from "./schemas/runProject.js";
+import { runProjectOrRunRoutineSearchParams } from "./schemas/runProjectOrRunRoutine.js";
+import { runRoutineSearchParams } from "./schemas/runRoutine.js";
+import { runRoutineIOSearchParams } from "./schemas/runRoutineIO.js";
+import { scheduleSearchParams } from "./schemas/schedule.js";
+import { standardSearchParams } from "./schemas/standard.js";
+import { standardVersionSearchParams } from "./schemas/standardVersion.js";
+import { statsApiSearchParams } from "./schemas/statsApi.js";
+import { statsCodeSearchParams } from "./schemas/statsCode.js";
+import { statsProjectSearchParams } from "./schemas/statsProject.js";
+import { statsQuizSearchParams } from "./schemas/statsQuiz.js";
+import { statsRoutineSearchParams } from "./schemas/statsRoutine.js";
+import { statsSiteSearchParams } from "./schemas/statsSite.js";
+import { statsStandardSearchParams } from "./schemas/statsStandard.js";
+import { statsTeamSearchParams } from "./schemas/statsTeam.js";
+import { statsUserSearchParams } from "./schemas/statsUser.js";
+import { tagSearchParams } from "./schemas/tag.js";
+import { teamSearchParams } from "./schemas/team.js";
+import { transferSearchParams } from "./schemas/transfer.js";
+import { userSearchParams } from "./schemas/user.js";
+import { viewSearchParams } from "./schemas/view.js";
 
 export type TabsInfo = {
-    IsSearchable: boolean;
     Key: string;
     Payload: object | undefined;
     WhereParams: object | undefined;
@@ -84,116 +81,134 @@ export type TabStateColors = {
     inactive: string;
 }
 
-export type TabParam<TabList extends TabsInfo> = {
+type Exact<T, Shape> =
+    T extends Shape
+    ? (Shape extends T ? T : never)
+    : never;
+
+export type TabParamBase<TabList extends TabsInfo> = {
     color?: (palette: Palette) => (string | TabStateColors)
     href?: string;
     Icon?: SvgComponent,
-    key: TabList["Key"] | `${TabList["Key"]}`;
+    key: TabList["Key"];
     titleKey: TranslationKeyCommon;
-} & (TabList["IsSearchable"] extends true ? {
+};
+export type TabParamSearchable<TabList extends TabsInfo, S extends SearchType = SearchType> = TabParamBase<TabList> & {
     searchPlaceholderKey?: TranslationKeyCommon;
-    searchType: SearchType | `${SearchType}`;
-    where: TabList["WhereParams"] extends undefined ? () => { [x: string]: any } : (params: TabList["WhereParams"]) => { [x: string]: any };
-} : object) & (TabList["Payload"] extends undefined ? object : {
+    searchType: S;
+    where: (params: TabList["WhereParams"]) => Exact<SearchTypeToSearchInput[S], SearchTypeToSearchInput[S]>;
+};
+export type TabParamPayload<TabList extends TabsInfo> = TabParamBase<TabList> & {
     data: TabList["Payload"];
-});
+};
+export type TabParam<TabList extends TabsInfo> = TabParamBase<TabList> | TabParamSearchable<TabList> | TabParamPayload<TabList>;
+
+export type TabParamSearchableList<
+    TabList extends TabsInfo,
+    S extends Array<SearchType>
+> = {
+    [Index in keyof S]: S[Index] extends SearchType
+    ? TabParamSearchable<TabList, S[Index]>
+    : never;
+}[number][];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type TabListType = readonly TabParamBase<any>[];
 
 export type SearchViewTabsInfo = {
-    IsSearchable: true;
     Key: SearchPageTabOption;
     Payload: undefined;
     WhereParams: undefined;
 }
 
-export function getTabIcon<T extends TabsInfo>(option: PageTab<T>) {
-    return option.Icon;
-}
-
-export function getTabLabel<T extends TabsInfo>(option: PageTab<T>) {
-    return option.label;
-}
-
-export const searchViewTabParams: TabParam<SearchViewTabsInfo>[] = [
+export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["Popular", "Routine", "Project", "Question", "Note", "Team", "User", "Standard", "Api", "Code"]> = [
     {
         Icon: VisibleIcon,
-        key: "All",
+        key: SearchPageTabOption.All,
         titleKey: "All",
         searchType: "Popular",
         where: () => ({}),
     },
     {
         Icon: RoutineIcon,
-        key: "Routine",
-        titleKey: "Routine",
+        key: SearchPageTabOption.RoutineMultiStep,
+        titleKey: "RoutineMultiStep",
         searchType: "Routine",
-        where: () => ({ isInternal: false }),
+        where: () => ({ isInternal: false, latestVersionRoutineType: RoutineType.MultiStep } as const),
+    },
+    {
+        Icon: ActionIcon,
+        key: SearchPageTabOption.RoutineSingleStep,
+        titleKey: "RoutineSingleStep",
+        searchType: "Routine",
+        where: () => ({ isInternal: false, latestVersionRoutineTypes: Object.values(RoutineType).filter(type => type !== RoutineType.MultiStep) }),
     },
     {
         Icon: ProjectIcon,
-        key: "Project",
+        key: SearchPageTabOption.Project,
         titleKey: "Project",
         searchType: "Project",
         where: () => ({}),
     },
     {
         Icon: HelpIcon,
-        key: "Question",
+        key: SearchPageTabOption.Question,
         titleKey: "Question",
         searchType: "Question",
         where: () => ({}),
     },
     {
         Icon: NoteIcon,
-        key: "Note",
+        key: SearchPageTabOption.Note,
         titleKey: "Note",
         searchType: "Note",
         where: () => ({}),
     },
     {
         Icon: TeamIcon,
-        key: "Team",
+        key: SearchPageTabOption.Team,
         titleKey: "Team",
         searchType: "Team",
         where: () => ({}),
     },
     {
         Icon: UserIcon,
-        key: "User",
+        key: SearchPageTabOption.User,
         titleKey: "User",
         searchType: "User",
         where: () => ({}),
     },
     {
         Icon: ArticleIcon,
-        key: "Prompt",
+        key: SearchPageTabOption.Prompt,
         titleKey: "Prompt",
         searchType: "Standard",
         where: () => ({ isInternal: false, variantLatestVersion: StandardType.Prompt }),
     },
     {
         Icon: ObjectIcon,
-        key: "DataStructure",
+        key: SearchPageTabOption.DataStructure,
         titleKey: "DataStructure",
         searchType: "Standard",
         where: () => ({ isInternal: false, variantLatestVersion: StandardType.DataStructure }),
     },
     {
         Icon: ApiIcon,
-        key: "Api",
+        key: SearchPageTabOption.Api,
         titleKey: "Api",
         searchType: "Api",
         where: () => ({}),
     },
     {
         Icon: TerminalIcon,
-        key: "DataConverter",
+        key: SearchPageTabOption.DataConverter,
         titleKey: "DataConverter",
         searchType: "Code",
         where: () => ({ codeTypeLatestVersion: CodeType.DataConvert }),
     },
     {
         Icon: SmartContractIcon,
-        key: "SmartContract",
+        key: SearchPageTabOption.SmartContract,
         titleKey: "SmartContract",
         searchType: "Code",
         where: () => ({ codeTypeLatestVersion: CodeType.SmartContract }),
@@ -201,65 +216,71 @@ export const searchViewTabParams: TabParam<SearchViewTabsInfo>[] = [
 ];
 
 export type SearchVersionViewTabsInfo = {
-    IsSearchable: true;
     Key: SearchVersionPageTabOption;
     Payload: undefined;
     WhereParams: undefined;
 }
 
-export const searchVersionViewTabParams: TabParam<SearchVersionViewTabsInfo>[] = [
+export const searchVersionViewTabParams: TabParamSearchableList<SearchVersionViewTabsInfo, ["RoutineVersion", "ProjectVersion", "NoteVersion", "StandardVersion", "ApiVersion", "CodeVersion"]> = [
     {
         Icon: RoutineIcon,
-        key: "RoutineVersion",
-        titleKey: "Routine",
+        key: SearchVersionPageTabOption.RoutineMultiStepVersion,
+        titleKey: "RoutineMultiStep",
         searchType: "RoutineVersion",
-        where: () => ({ isInternalWithRoot: false }),
+        where: () => ({ isInternalWithRoot: false, routineType: RoutineType.MultiStep }),
+    },
+    {
+        Icon: ActionIcon,
+        key: SearchVersionPageTabOption.RoutineSingleStepVersion,
+        titleKey: "RoutineSingleStep",
+        searchType: "RoutineVersion",
+        where: () => ({ isInternalWithRoot: false, routineTypes: Object.values(RoutineType).filter(type => type !== RoutineType.MultiStep) }),
     },
     {
         Icon: ProjectIcon,
-        key: "ProjectVersion",
+        key: SearchVersionPageTabOption.ProjectVersion,
         titleKey: "Project",
         searchType: "ProjectVersion",
         where: () => ({}),
     },
     {
         Icon: NoteIcon,
-        key: "NoteVersion",
+        key: SearchVersionPageTabOption.NoteVersion,
         titleKey: "Note",
         searchType: "NoteVersion",
         where: () => ({}),
     },
     {
         Icon: ArticleIcon,
-        key: "PromptVersion",
+        key: SearchVersionPageTabOption.PromptVersion,
         titleKey: "Prompt",
         searchType: "StandardVersion",
         where: () => ({ isInternalWithRoot: false, variant: StandardType.Prompt }),
     },
     {
         Icon: ObjectIcon,
-        key: "DataStructureVersion",
+        key: SearchVersionPageTabOption.DataStructureVersion,
         titleKey: "DataStructure",
         searchType: "StandardVersion",
         where: () => ({ isInternalWithRoot: false, variant: StandardType.DataStructure }),
     },
     {
         Icon: ApiIcon,
-        key: "ApiVersion",
+        key: SearchVersionPageTabOption.ApiVersion,
         titleKey: "Api",
         searchType: "ApiVersion",
         where: () => ({}),
     },
     {
         Icon: TerminalIcon,
-        key: "DataConverterVersion",
+        key: SearchVersionPageTabOption.DataConverterVersion,
         titleKey: "DataConverter",
         searchType: "CodeVersion",
         where: () => ({ codeType: CodeType.DataConvert }),
     },
     {
         Icon: SmartContractIcon,
-        key: "SmartContractVersion",
+        key: SearchVersionPageTabOption.SmartContractVersion,
         titleKey: "SmartContract",
         searchType: "CodeVersion",
         where: () => ({ codeType: CodeType.SmartContract }),
@@ -267,39 +288,38 @@ export const searchVersionViewTabParams: TabParam<SearchVersionViewTabsInfo>[] =
 ];
 
 export type CalendarTabsInfo = {
-    IsSearchable: true;
     Key: CalendarPageTabOption;
     Payload: undefined;
     WhereParams: undefined;
 }
 
-export const calendarTabParams: TabParam<CalendarTabsInfo>[] = [
+export const calendarTabParams: TabParamSearchableList<CalendarTabsInfo, ["Schedule"]> = [
     {
-        key: "All",
+        key: CalendarPageTabOption.All,
         titleKey: "All",
         searchType: "Schedule",
         where: () => ({}),
     },
     {
-        key: "Meeting",
+        key: CalendarPageTabOption.Meeting,
         titleKey: "Meeting",
         searchType: "Schedule",
         where: () => ({ scheduleFor: ScheduleFor.Meeting }),
     },
     {
-        key: "RunRoutine",
+        key: CalendarPageTabOption.RunRoutine,
         titleKey: "Routine",
         searchType: "Schedule",
         where: () => ({ scheduleFor: ScheduleFor.RunRoutine }),
     },
     {
-        key: "RunProject",
+        key: CalendarPageTabOption.RunProject,
         titleKey: "Project",
         searchType: "Schedule",
         where: () => ({ scheduleFor: ScheduleFor.RunProject }),
     },
     {
-        key: "FocusMode",
+        key: CalendarPageTabOption.FocusMode,
         titleKey: "FocusMode",
         searchType: "Schedule",
         where: () => ({ scheduleFor: ScheduleFor.FocusMode }),
@@ -307,17 +327,16 @@ export const calendarTabParams: TabParam<CalendarTabsInfo>[] = [
 ];
 
 export type ChatTabsInfo = {
-    IsSearchable: true;
     Key: ChatPageTabOption;
     Payload: undefined;
     WhereParams: undefined;
 }
 
-export const chatTabParams: TabParam<ChatTabsInfo>[] = [
+export const chatTabParams: TabParamSearchableList<ChatTabsInfo, ["Chat", "Routine", "Standard"]> = [
     {
         color: (palette) => palette.primary.contrastText,
         Icon: HistoryIcon,
-        key: "History",
+        key: ChatPageTabOption.History,
         titleKey: "Chat",
         searchType: "Chat",
         where: () => ({ visibility: VisibilityType.Own }),
@@ -325,49 +344,48 @@ export const chatTabParams: TabParam<ChatTabsInfo>[] = [
     {
         color: (palette) => palette.primary.contrastText,
         Icon: RoutineIcon,
-        key: "Routine",
+        key: ChatPageTabOption.Routine,
         titleKey: "Routine",
         searchType: "Routine",
         where: () => ({
             Public: {},
             My: { visibility: VisibilityType.Own },
-        }),
+        } as any), // Special case that uses custom return shape
     },
     {
         color: (palette) => palette.primary.contrastText,
         Icon: ArticleIcon,
-        key: "Prompt",
+        key: ChatPageTabOption.Prompt,
         titleKey: "Prompt",
         searchType: "Standard",
         where: () => ({
             Public: {},
             My: { visibility: VisibilityType.Own },
-        }),
+        } as any), // Special case that uses custom return shape
     },
 ];
 
 export type HistoryTabsInfo = {
-    IsSearchable: true;
     Key: HistoryPageTabOption;
     Payload: undefined;
     WhereParams: undefined;
 }
 
-export const historyTabParams: TabParam<HistoryTabsInfo>[] = [
+export const historyTabParams: TabParamSearchableList<HistoryTabsInfo, ["View", "BookmarkList", "RunProjectOrRunRoutine"]> = [
     {
-        key: "Viewed",
+        key: HistoryPageTabOption.Viewed,
         titleKey: "View",
         searchType: "View",
-        where: () => ({ visibility: VisibilityType.Own }),
+        where: () => ({}), // Always "Own" visibility
     },
     {
-        key: "Bookmarked",
+        key: HistoryPageTabOption.Bookmarked,
         titleKey: "Bookmark",
         searchType: "BookmarkList",
-        where: () => ({ visibility: VisibilityType.Own }),
+        where: () => ({}), // Always "Own" visibility
     },
     {
-        key: "RunsActive",
+        key: HistoryPageTabOption.RunsActive,
         titleKey: "Active",
         searchType: "RunProjectOrRunRoutine",
         where: () => ({
@@ -376,7 +394,7 @@ export const historyTabParams: TabParam<HistoryTabsInfo>[] = [
         }),
     },
     {
-        key: "RunsCompleted",
+        key: HistoryPageTabOption.RunsCompleted,
         titleKey: "Complete",
         searchType: "RunProjectOrRunRoutine",
         where: () => ({
@@ -387,38 +405,37 @@ export const historyTabParams: TabParam<HistoryTabsInfo>[] = [
 ];
 
 export type FindObjectTabsInfo = {
-    IsSearchable: true;
     Key: SearchPageTabOption | CalendarPageTabOption;
     Payload: undefined;
     WhereParams: undefined;
 }
 
-export const findObjectTabParams: TabParam<FindObjectTabsInfo>[] = [
+export const findObjectTabParams: TabParamSearchableList<FindObjectTabsInfo, ["Popular", "Routine", "Project", "Question", "Note", "Team", "User", "Standard", "Api", "Code", "FocusMode", "Meeting", "RunRoutine", "RunProject"]> = [
     ...searchViewTabParams,
     {
         Icon: FocusModeIcon,
-        key: "FocusMode",
+        key: CalendarPageTabOption.FocusMode,
         titleKey: "FocusMode",
         searchType: "FocusMode",
         where: () => ({}),
     },
     {
         Icon: TeamIcon,
-        key: "Meeting",
+        key: CalendarPageTabOption.Meeting,
         titleKey: "Meeting",
         searchType: "Meeting",
         where: () => ({}),
     },
     {
         Icon: RoutineIcon,
-        key: "RunRoutine",
+        key: CalendarPageTabOption.RunRoutine,
         titleKey: "RunRoutine",
         searchType: "RunRoutine",
         where: () => ({}),
     },
     {
         Icon: ProjectIcon,
-        key: "RunProject",
+        key: CalendarPageTabOption.RunProject,
         titleKey: "RunProject",
         searchType: "RunProject",
         where: () => ({}),
@@ -426,21 +443,20 @@ export const findObjectTabParams: TabParam<FindObjectTabsInfo>[] = [
 ];
 
 export type InboxTabsInfo = {
-    IsSearchable: true;
     Key: InboxPageTabOption;
     Payload: undefined;
     WhereParams: undefined;
 }
 
-export const inboxTabParams: TabParam<InboxTabsInfo>[] = [
+export const inboxTabParams: TabParamSearchableList<InboxTabsInfo, ["Chat", "Notification"]> = [
     {
-        key: "Message",
+        key: InboxPageTabOption.Message,
         titleKey: "Message",
         searchType: "Chat",
         where: () => ({ visibility: VisibilityType.Own }),
     },
     {
-        key: "Notification",
+        key: InboxPageTabOption.Notification,
         titleKey: "Notification",
         searchType: "Notification",
         where: () => ({ visibility: VisibilityType.Own }),
@@ -448,111 +464,109 @@ export const inboxTabParams: TabParam<InboxTabsInfo>[] = [
 ];
 
 export type SignUpTabsInfo = {
-    IsSearchable: false;
     Key: SignUpPageTabOption;
     Payload: undefined;
     WhereParams: undefined;
 }
 
-export const signUpTabParams: TabParam<SignUpTabsInfo>[] = [
+export const signUpTabParams: TabParamBase<SignUpTabsInfo>[] = [
     {
-        key: "SignUp",
+        key: SignUpPageTabOption.SignUp,
         titleKey: "SignUp",
     },
     {
-        key: "MoreInfo",
+        key: SignUpPageTabOption.MoreInfo,
         titleKey: "MoreInfo",
     },
 ];
 
 export type MyStuffTabsInfo = {
-    IsSearchable: true;
     Key: MyStuffPageTabOption;
     Payload: undefined;
     WhereParams: { userId: string };
 }
 
-export const myStuffTabParams: TabParam<MyStuffTabsInfo>[] = [
+export const myStuffTabParams: TabParamSearchableList<MyStuffTabsInfo, ["Popular", "Project", "Routine", "Schedule", "Reminder", "Note", "Question", "Team", "User", "Standard", "Api", "Code"]> = [
     {
         Icon: VisibleIcon,
-        key: "All",
+        key: MyStuffPageTabOption.All,
         titleKey: "All",
         searchType: "Popular",
         where: () => ({ visibility: VisibilityType.Own }),
     },
     {
         Icon: ProjectIcon,
-        key: "Project",
+        key: MyStuffPageTabOption.Project,
         titleKey: "Project",
         searchType: "Project",
         where: () => ({ visibility: VisibilityType.Own }),
     },
     {
         Icon: RoutineIcon,
-        key: "Routine",
+        key: MyStuffPageTabOption.Routine,
         titleKey: "Routine",
         searchType: "Routine",
         where: () => ({ isInternal: false, visibility: VisibilityType.Own }),
     },
     {
         Icon: MonthIcon,
-        key: "Schedule",
+        key: MyStuffPageTabOption.Schedule,
         titleKey: "Schedule",
         searchType: "Schedule",
         where: () => ({ visibility: VisibilityType.Own }),
     },
     {
         Icon: ReminderIcon,
-        key: "Reminder",
+        key: MyStuffPageTabOption.Reminder,
         titleKey: "Reminder",
         searchType: "Reminder",
-        where: () => ({ visibility: VisibilityType.Own }),
+        where: () => ({}), // Always "Own" visibility
     },
     {
         Icon: NoteIcon,
-        key: "Note",
+        key: MyStuffPageTabOption.Note,
         titleKey: "Note",
         searchType: "Note",
         where: () => ({ visibility: VisibilityType.Own }),
     },
     {
         Icon: HelpIcon,
-        key: "Question",
+        key: MyStuffPageTabOption.Question,
         titleKey: "Question",
         searchType: "Question",
         where: () => ({ visibility: VisibilityType.Own }),
     },
     {
         Icon: TeamIcon,
-        key: "Team",
+        key: MyStuffPageTabOption.Team,
         titleKey: "Team",
         searchType: "Team",
         where: ({ userId }) => ({ memberUserIds: [userId] }),
     },
     {
         Icon: UserIcon,
-        key: "User",
+        key: MyStuffPageTabOption.User,
         titleKey: "Bot",
         searchType: "User",
         where: ({ userId }) => ({ visibility: VisibilityType.Own, isBot: true, excludeIds: [userId] }),
     },
     {
         Icon: StandardIcon,
-        key: "Standard",
+        key: MyStuffPageTabOption.Standard,
         titleKey: "Standard",
         searchType: "Standard",
         where: () => ({ visibility: VisibilityType.Own }),
     },
     {
         Icon: ApiIcon,
-        key: "Api",
+        key: MyStuffPageTabOption.Api,
         titleKey: "Api",
         searchType: "Api",
         where: () => ({ visibility: VisibilityType.Own }),
     },
     {
         Icon: TerminalIcon,
-        key: "Code",
+        key: MyStuffPageTabOption.Code,
         titleKey: "Code",
         searchType: "Code",
         where: () => ({ visibility: VisibilityType.Own }),
@@ -560,27 +574,26 @@ export const myStuffTabParams: TabParam<MyStuffTabsInfo>[] = [
 ];
 
 export type MemberTabsInfo = {
-    IsSearchable: true;
     Key: MemberManagePageTabOption;
     Payload: undefined;
     WhereParams: { teamId: string };
 }
 
-export const memberTabParams: TabParam<MemberTabsInfo>[] = [
+export const memberTabParams: TabParamSearchableList<MemberTabsInfo, ["Member", "MemberInvite", "User"]> = [
     {
-        key: "Members",
+        key: MemberManagePageTabOption.Members,
         titleKey: "Member",
         searchType: "Member",
         where: ({ teamId }) => ({ teamId }),
     },
     {
-        key: "Invites",
+        key: MemberManagePageTabOption.Invites,
         titleKey: "Invite",
         searchType: "MemberInvite",
         where: ({ teamId }) => ({ teamId, statuses: [MemberInviteStatus.Pending, MemberInviteStatus.Declined] }),
     },
     {
-        key: "NonMembers",
+        key: MemberManagePageTabOption.NonMembers,
         titleKey: "NonMembers",
         searchType: "User",
         where: ({ teamId }) => ({ notMemberInTeamId: teamId, notInvitedToTeamId: teamId }),
@@ -588,7 +601,6 @@ export const memberTabParams: TabParam<MemberTabsInfo>[] = [
 ];
 
 export type TeamTabsInfo = {
-    IsSearchable: true;
     Key: TeamPageTabOption;
     Payload: undefined;
     WhereParams: {
@@ -604,24 +616,24 @@ function teamTabColor(palette: Palette) {
     } as const;
 }
 
-export const teamTabParams: TabParam<TeamTabsInfo>[] = [
+export const teamTabParams: TabParamSearchableList<TeamTabsInfo, ["Resource", "Project", "Member"]> = [
     {
         color: teamTabColor,
-        key: "Resource",
+        key: TeamPageTabOption.Resource,
         titleKey: "Resource",
         searchType: "Resource",
         where: () => ({}),
     },
     {
         color: teamTabColor,
-        key: "Project",
+        key: TeamPageTabOption.Project,
         titleKey: "Project",
         searchType: "Project",
         where: ({ teamId, permissions }) => ({ ownedByTeamId: teamId, hasCompleteVersion: !permissions.canUpdate ? true : undefined, visibility: VisibilityType.OwnOrPublic }),
     },
     {
         color: teamTabColor,
-        key: "Member",
+        key: TeamPageTabOption.Member,
         titleKey: "Member",
         searchType: "Member",
         where: ({ teamId }) => ({ teamId }),
@@ -629,7 +641,6 @@ export const teamTabParams: TabParam<TeamTabsInfo>[] = [
 ];
 
 export type UserTabsInfo = {
-    IsSearchable: true;
     Key: UserPageTabOption;
     Payload: undefined;
     WhereParams: {
@@ -645,17 +656,17 @@ function userTabColor(palette: Palette) {
     } as const;
 }
 
-export const userTabParams: TabParam<UserTabsInfo>[] = [
+export const userTabParams: TabParamSearchableList<UserTabsInfo, ["User", "Project", "Team"]> = [
     {
         color: userTabColor,
-        key: "Details",
+        key: UserPageTabOption.Details,
         titleKey: "Details",
         searchType: "User", // Ignored
         where: () => ({}),
     },
     {
         color: userTabColor,
-        key: "Project",
+        key: UserPageTabOption.Project,
         titleKey: "Project",
         searchPlaceholderKey: "SearchProject",
         searchType: "Project",
@@ -663,7 +674,7 @@ export const userTabParams: TabParam<UserTabsInfo>[] = [
     },
     {
         color: userTabColor,
-        key: "Team",
+        key: UserPageTabOption.Team,
         titleKey: "Team",
         searchPlaceholderKey: "SearchTeam",
         searchType: "Team",
@@ -672,28 +683,27 @@ export const userTabParams: TabParam<UserTabsInfo>[] = [
 ];
 
 export type ParticipantTabsInfo = {
-    IsSearchable: true;
     Key: ParticipantManagePageTabOption;
     Payload: undefined;
     WhereParams: { chatId: string };
 }
 
-export const participantTabParams: TabParam<ParticipantTabsInfo>[] = [
+export const participantTabParams: TabParamSearchableList<ParticipantTabsInfo, ["ChatParticipant", "ChatInvite", "User"]> = [
     {
-        key: "ChatParticipant",
+        key: ParticipantManagePageTabOption.ChatParticipant,
         titleKey: "Participant",
         searchType: "ChatParticipant",
         where: ({ chatId }) => ({ chatId }),
     },
     {
-        key: "ChatInvite",
+        key: ParticipantManagePageTabOption.ChatInvite,
         titleKey: "Invite",
         searchType: "ChatInvite",
         where: ({ chatId }) => ({ chatId, statuses: [ChatInviteStatus.Pending, ChatInviteStatus.Declined] }),
     },
     {
         Icon: AddIcon,
-        key: "Add",
+        key: ParticipantManagePageTabOption.Add,
         titleKey: "SearchUser",
         searchType: "User",
         where: ({ chatId }) => ({ notInChatId: chatId }),
@@ -701,20 +711,19 @@ export const participantTabParams: TabParam<ParticipantTabsInfo>[] = [
 ];
 
 export type PolicyTabsInfo = {
-    IsSearchable: false;
     Key: PolicyTabOption;
     Payload: undefined;
     WhereParams: undefined;
 }
 
-export const policyTabParams: TabParam<PolicyTabsInfo>[] = [
+export const policyTabParams: TabParamBase<PolicyTabsInfo>[] = [
     {
         href: LINKS.Privacy,
-        key: "Privacy",
+        key: PolicyTabOption.Privacy,
         titleKey: "Privacy",
     }, {
         href: LINKS.Terms,
-        key: "Terms",
+        key: PolicyTabOption.Terms,
         titleKey: "Terms",
     },
 ];
@@ -755,7 +764,6 @@ export const searchTypeToParams: { [key in SearchType]: () => SearchParams } = {
     QuestionAnswer: questionAnswerSearchParams,
     Quiz: quizSearchParams,
     QuizAttempt: quizAttemptSearchParams,
-    QuizQuestion: quizQuestionSearchParams,
     QuizQuestionResponse: quizQuestionResponseSearchParams,
     Reaction: reactionSearchParams,
     Reminder: reminderSearchParams,
@@ -770,7 +778,7 @@ export const searchTypeToParams: { [key in SearchType]: () => SearchParams } = {
     RunProject: runProjectSearchParams,
     RunProjectOrRunRoutine: runProjectOrRunRoutineSearchParams,
     RunRoutine: runRoutineSearchParams,
-    RunRoutineInput: runRoutineInputSearchParams,
+    RunRoutineIO: runRoutineIOSearchParams,
     Schedule: scheduleSearchParams,
     Standard: standardSearchParams,
     StandardVersion: standardVersionSearchParams,

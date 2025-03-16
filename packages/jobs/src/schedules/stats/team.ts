@@ -1,4 +1,4 @@
-import { batch, batchGroup, logger, prismaInstance } from "@local/server";
+import { batch, batchGroup, DbProvider, logger } from "@local/server";
 import { PeriodType, Prisma } from "@prisma/client";
 
 type BatchRunRoutinesResult = Record<string, {
@@ -102,7 +102,7 @@ export async function logTeamStats(
             objectType: "Team",
             processBatch: async (batch) => {
                 const runRoutineStats = await batchRunRoutines(batch.map(team => team.id), periodStart, periodEnd);
-                await prismaInstance.stats_team.createMany({
+                await DbProvider.get().stats_team.createMany({
                     data: batch.map(team => ({
                         teamId: team.id,
                         periodStart,

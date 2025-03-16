@@ -1,6 +1,6 @@
 import { DEFAULT_LANGUAGE, ServerError, ServerErrorTranslated, ServerErrorUntranslated, ServerResponse, TranslationKeyError, exists } from "@local/shared";
 import i18next from "i18next";
-import { PubSub } from "utils/pubsub";
+import { PubSub } from "../utils/pubsub.js";
 
 const DEFAULT_ERROR_CODE = "ErrorUnknown";
 const DEFAULT_ERROR_MESSAGE = "Unknown error occurred.";

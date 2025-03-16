@@ -2,10 +2,10 @@
 import { LINKS, Session, TranslationKeyCommon } from "@local/shared";
 import { Badge, BottomNavigationAction, Button, IconButton, SxProps, Theme } from "@mui/material";
 import i18next from "i18next";
-import { CreateAccountIcon, CreateIcon, GridIcon, HelpIcon, HomeIcon, NotificationsAllIcon, PremiumIcon, SearchIcon } from "icons";
+import { CreateAccountIcon, CreateIcon, GridIcon, HelpIcon, HomeIcon, NotificationsAllIcon, PremiumIcon, SearchIcon } from "icons/common.js";
 import { SetLocation, openLink } from "route";
 import { SvgComponent } from "types";
-import { checkIfLoggedIn } from "utils/authentication/session";
+import { checkIfLoggedIn } from "utils/authentication/session.js";
 
 export enum NAV_ACTION_TAGS {
     Home = "Home",

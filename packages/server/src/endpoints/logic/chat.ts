@@ -1,41 +1,33 @@
-import { Chat, ChatCreateInput, ChatSearchInput, ChatUpdateInput, FindByIdInput } from "@local/shared";
-import { createOneHelper } from "../../actions/creates";
-import { readManyHelper, readOneHelper } from "../../actions/reads";
-import { updateOneHelper } from "../../actions/updates";
-import { RequestService } from "../../auth/request";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { Chat, ChatCreateInput, ChatSearchInput, ChatSearchResult, ChatUpdateInput, FindByIdInput } from "@local/shared";
+import { createOneHelper } from "../../actions/creates.js";
+import { readManyHelper, readOneHelper } from "../../actions/reads.js";
+import { updateOneHelper } from "../../actions/updates.js";
+import { RequestService } from "../../auth/request.js";
+import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsChat = {
-    Query: {
-        chat: GQLEndpoint<FindByIdInput, FindOneResult<Chat>>;
-        chats: GQLEndpoint<ChatSearchInput, FindManyResult<Chat>>;
-    },
-    Mutation: {
-        chatCreate: GQLEndpoint<ChatCreateInput, CreateOneResult<Chat>>;
-        chatUpdate: GQLEndpoint<ChatUpdateInput, UpdateOneResult<Chat>>;
-    }
+    findOne: ApiEndpoint<FindByIdInput, Chat>;
+    findMany: ApiEndpoint<ChatSearchInput, ChatSearchResult>;
+    createOne: ApiEndpoint<ChatCreateInput, Chat>;
+    updateOne: ApiEndpoint<ChatUpdateInput, Chat>;
 }
 
 const objectType = "Chat";
-export const ChatEndpoints: EndpointsChat = {
-    Query: {
-        chat: async (_, { input }, { req }, info) => {
-            await RequestService.get().rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, req });
-        },
-        chats: async (_, { input }, { req }, info) => {
-            await RequestService.get().rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, req });
-        },
+export const chat: EndpointsChat = {
+    findOne: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return readOneHelper({ info, input, objectType, req });
     },
-    Mutation: {
-        chatCreate: async (_, { input }, { req }, info) => {
-            await RequestService.get().rateLimit({ maxUser: 100, req });
-            return createOneHelper({ info, input, objectType, req });
-        },
-        chatUpdate: async (_, { input }, { req }, info) => {
-            await RequestService.get().rateLimit({ maxUser: 250, req });
-            return updateOneHelper({ info, input, objectType, req });
-        },
+    findMany: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return readManyHelper({ info, input, objectType, req });
+    },
+    createOne: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 100, req });
+        return createOneHelper({ info, input, objectType, req });
+    },
+    updateOne: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 250, req });
+        return updateOneHelper({ info, input, objectType, req });
     },
 };

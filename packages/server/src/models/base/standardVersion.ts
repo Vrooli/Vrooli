@@ -1,23 +1,29 @@
 import { MaxObjects, SessionUser, StandardCreateInput, StandardVersionCreateInput, StandardVersionSortBy, StandardVersionTranslationCreateInput, StandardVersionTranslationUpdateInput, getTranslation, standardVersionValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { randomString } from "../../auth/codes";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
-import { sortify } from "../../utils/objectTools";
-import { PreShapeVersionResult, afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
-import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
-import { StandardVersionFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { StandardModelInfo, StandardModelLogic, StandardVersionModelInfo, StandardVersionModelLogic } from "./types";
+import { randomString } from "../../auth/codes.js";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
+import { sortify } from "../../utils/objectTools.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { afterMutationsVersion } from "../../utils/shapes/afterMutationsVersion.js";
+import { preShapeVersion, type PreShapeVersionResult } from "../../utils/shapes/preShapeVersion.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { lineBreaksCheck } from "../../validators/lineBreaksCheck.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { versionsCheck } from "../../validators/versionsCheck.js";
+import { StandardVersionFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { StandardModelInfo, StandardModelLogic, StandardVersionModelInfo, StandardVersionModelLogic } from "./types.js";
 
 type StandardVersionPre = PreShapeVersionResult;
 
 //     // TODO perform unique checks: Check if standard with same createdByUserId, createdByTeamId, name, and version already exists with the same creator
 //     //TODO when updating, not allowed to update existing, completed version
 //     // TODO when deleting, anonymize standards which are being used by inputs/outputs
-//     // const standard = await prismaInstance.standard_version.findUnique({
+//     // const standard = await DbProvider.get().standard_version.findUnique({
 //     //     where: { id },
 //     //     select: {
 //     //                 _count: {
@@ -51,7 +57,7 @@ function querier() {
             // const props = sortify(data.props);
             // const yup = data.yup ? sortify(data.yup) : null;
             // // Find all standards that match the given standard
-            // const standards = await prismaInstance.standard_version.findMany({
+            // const standards = await DbProvider.get().standard_version.findMany({
             //     where: {
             //         root: {
             //             isInternal: (isInternal === true || isInternal === false) ? isInternal : undefined,
@@ -238,11 +244,11 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<StandardVersionModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<StandardVersionModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -252,10 +258,10 @@ export const StandardVersionModel: StandardVersionModelLogic = ({
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<StandardVersionModelInfo["PrismaSelect"]>([["root", "Standard"]], data, ...rest),
+            oneIsPublic<StandardVersionModelInfo["DbSelect"]>([["root", "Standard"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<StandardModelLogic>("Standard").validate().owner(data?.root as StandardModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<StandardModelLogic>("Standard").validate().owner(data?.root as StandardModelInfo["DbModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

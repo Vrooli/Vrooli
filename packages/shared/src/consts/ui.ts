@@ -1,4 +1,4 @@
-import { ValueOf } from ".";
+import { ValueOf } from "./commonTypes.js";
 
 export const LINKS = {
     About: "/about",

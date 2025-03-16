@@ -1,23 +1,29 @@
-import { DAYS_1_MS, DEFAULT_LANGUAGE, GqlModelType, HOURS_1_MS, IssueStatus, LINKS, MINUTES_1_MS, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, ReportStatus, SessionUser, SubscribableObject, Success } from "@local/shared";
+import { DAYS_1_MS, DEFAULT_LANGUAGE, DeferredDecisionData, HOURS_1_MS, IssueStatus, LINKS, MINUTES_1_MS, ModelType, NotificationSettingsUpdateInput, PullRequestStatus, PushDevice, ReportStatus, SessionUser, SubscribableObject, Success } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import i18next, { TFuncKey } from "i18next";
-import { selectHelper } from "../builders/selectHelper";
-import { toPartialGqlInfo } from "../builders/toPartialGqlInfo";
-import { GraphQLInfo, PartialGraphQLInfo, PrismaDelegate } from "../builders/types";
-import { prismaInstance } from "../db/instance";
-import { CustomError } from "../events/error";
-import { logger } from "../events/logger";
-import { subscribableMapper } from "../events/subscriber";
-import { ModelMap } from "../models/base";
-import { PushDeviceModel } from "../models/base/pushDevice";
-import { TeamModelLogic } from "../models/base/types";
-import { withRedis } from "../redisConn";
-import { sendMail } from "../tasks/email/queue";
-import { sendPush } from "../tasks/push/queue";
-import { batch } from "../utils/batch";
-import { findRecipientsAndLimit, updateNotificationSettings } from "./notificationSettings";
+import i18next, { type TFuncKey } from "i18next";
+import { InfoConverter } from "../builders/infoConverter.js";
+import { type PartialApiInfo, type PrismaDelegate } from "../builders/types.js";
+import { DbProvider } from "../db/provider.js";
+import { CustomError } from "../events/error.js";
+import { logger } from "../events/logger.js";
+import { subscribableMapper } from "../events/subscriber.js";
+import { ModelMap } from "../models/base/index.js";
+import { PushDeviceModel } from "../models/base/pushDevice.js";
+import { type TeamModelLogic } from "../models/base/types.js";
+import { withRedis } from "../redisConn.js";
+import { sendMail } from "../tasks/email/queue.js";
+import { sendPush } from "../tasks/push/queue.js";
+import { findRecipientsAndLimit, updateNotificationSettings } from "./notificationSettings.js";
 
+/**
+ * The icon of the app.
+ */
 const APP_ICON = "https://vrooli.com/apple-touch-icon.webp";
+
+/**
+ * When using the body for the title, this is the maximum number of characters to display.
+ */
+const MAX_BODY_TITLE_LENGTH = 10;
 
 export type NotificationUrgency = "low" | "normal" | "critical";
 
@@ -53,21 +59,42 @@ type PushToUser = {
 }
 
 type PushParams = {
+    /** If provided, uses this body instead of the bodyKey */
+    body?: string,
+    /** Translation key for the body */
     bodyKey?: TransKey,
+    /** Category of the notification */
     category: NotificationCategory,
+    /** When the notification is clicked, this link will be opened */
     link?: string,
+    /** If provided, uses this title instead of the titleKey */
+    title?: string,
+    /** Translation key for the title */
     titleKey?: TransKey,
+    /** List of users to send the notification to */
     users: PushToUser[]
 }
 
 type NotifyResultParams = {
+    /** If provided, uses this body instead of the bodyKey */
+    body?: string,
+    /** Translation key for the body */
     bodyKey?: TransKey,
+    /** Variables for the body */
     bodyVariables?: { [key: string]: string | number },
+    /** Category of the notification */
     category: NotificationCategory,
+    /** Languages of the notification */
     languages: string[] | undefined,
+    /** When the notification is clicked, this link will be opened */
     link?: string,
+    /** If true, the notification will not be displayed (but the app will may be awakened in the background) */
     silent?: boolean,
+    /** If provided, uses this title instead of the titleKey */
+    title?: string,
+    /** Translation key for the title */
     titleKey?: TransKey,
+    /** Variables for the title */
     titleVariables?: { [key: string]: string | number },
 }
 
@@ -76,7 +103,7 @@ type NotifyResultParams = {
  * @param objectType The object type to check
  * @returns True if the object type can be subscribed to
  */
-export function isObjectSubscribable<T extends keyof typeof GqlModelType>(objectType: T): boolean {
+export function isObjectSubscribable<T extends keyof typeof ModelType>(objectType: T): boolean {
     return objectType in SubscribableObject;
 }
 
@@ -87,9 +114,11 @@ export function isObjectSubscribable<T extends keyof typeof GqlModelType>(object
  * open the app.
  */
 async function push({
+    body,
     bodyKey,
     category,
     link,
+    title,
     titleKey,
     users,
 }: PushParams) {
@@ -100,12 +129,26 @@ async function push({
     const userBodies: { [userId: string]: string } = {};
     for (const user of users) {
         const lng = user.languages && user.languages.length > 0 ? user.languages[0] : DEFAULT_LANGUAGE;
-        const title: string | undefined = titleKey ? i18next.t(`notify:${titleKey}`, { lng, ...(user.titleVariables ?? {}) }) : undefined;
-        const body: string | undefined = bodyKey ? i18next.t(`notify:${bodyKey}`, { lng, ...(user.bodyVariables ?? {}) }) : undefined;
+        const bodyText: string | undefined =
+            body
+                ? body
+                : bodyKey
+                    ? i18next.t(`notify:${bodyKey}`, { lng, ...(user.bodyVariables ?? {}) })
+                    : undefined;
+        let titleText: string | undefined =
+            title
+                ? title
+                : titleKey
+                    ? i18next.t(`notify:${titleKey}`, { lng, ...(user.titleVariables ?? {}) })
+                    : undefined;
+        // If no title, use shortened body
+        if (!titleText && bodyText) {
+            titleText = `${bodyText.substring(0, MAX_BODY_TITLE_LENGTH)}...`;
+        }
         // At least one of title or body must be defined
-        if (!title && !body) throw new CustomError("0362", "InternalError");
-        userTitles[user.userId] = title ?? `${body!.substring(0, 10)}...`; // If no title, use shortened body
-        userBodies[user.userId] = body ?? title!;
+        if (!titleText && !bodyText) throw new CustomError("0362", "InternalError");
+        userTitles[user.userId] = titleText ?? "";
+        userBodies[user.userId] = bodyText ?? "";
     }
     await withRedis({
         process: async (redisClient) => {
@@ -153,7 +196,7 @@ async function push({
                 }
             }
             // Store the notifications in the database
-            await prismaInstance.notification.createMany({
+            await DbProvider.get().notification.createMany({
                 data: users.map(({ userId }) => ({
                     category,
                     title: userTitles[userId],
@@ -192,7 +235,7 @@ type NotifyResultType = {
     toOwner: (owner: { __typename: "User" | "Team", id: string }, excludedUsers?: string[] | string) => Promise<unknown>,
     toSubscribers: (objectType: SubscribableObject | `${SubscribableObject}`, objectId: string, excludedUsers?: string[] | string) => Promise<unknown>,
     toChatParticipants: (chatId: string, excludedUsers?: string[] | string) => Promise<unknown>,
-    toAll: (objectType: GqlModelType | `${GqlModelType}`, objectId: string, owner: Owner | null | undefined, excludedUsers?: string | string[]) => Promise<unknown>,
+    toAll: (objectType: ModelType | `${ModelType}`, objectId: string, owner: Owner | null | undefined, excludedUsers?: string | string[]) => Promise<unknown>,
 }
 
 /**
@@ -216,11 +259,11 @@ async function replaceLabels(
     // the object's translated label
     let labelTranslations: { [key: string]: string } = {};
     // Helper function to query for label translations
-    async function findTranslations(objectType: `${GqlModelType}`, objectId: string) {
+    async function findTranslations(objectType: `${ModelType}`, objectId: string) {
         // Ignore if already translated
         if (Object.keys(labelTranslations).length > 0) return;
         const { dbTable, display } = ModelMap.getLogic(["dbTable", "display"], objectType, true, "replaceLabels 1");
-        const labels = await (prismaInstance[dbTable] as PrismaDelegate).findUnique({
+        const labels = await (DbProvider.get()[dbTable] as PrismaDelegate).findUnique({
             where: { id: objectId },
             select: display().label.select(),
         });
@@ -236,9 +279,9 @@ async function replaceLabels(
                 const match = (titleVariables[key] as string).match(labelRegex);
                 if (match) {
                     // Find label translations
-                    await findTranslations(match[1] as GqlModelType, match[2]);
+                    await findTranslations(match[1] as ModelType, match[2]);
                     // In each params, replace the matching substring with the label
-                    const { display } = ModelMap.getLogic(["display"], match[1] as GqlModelType, true, "replaceLabels 2");
+                    const { display } = ModelMap.getLogic(["display"], match[1] as ModelType, true, "replaceLabels 2");
                     for (let i = 0; i < result.length; i++) {
                         result[i][key] = (result[i][key] as string).replace(match[0], display().label.get(labelTranslations, result[i].languages));
                     }
@@ -256,9 +299,9 @@ async function replaceLabels(
                 const match = (bodyVariables[key] as string).match(labelRegex);
                 if (match) {
                     // Find label translations
-                    await findTranslations(match[1] as GqlModelType, match[2]);
+                    await findTranslations(match[1] as ModelType, match[2]);
                     // In each params, replace the matching substring with the label
-                    const { display } = ModelMap.getLogic(["display"], match[1] as GqlModelType, true, "replaceLabels 3");
+                    const { display } = ModelMap.getLogic(["display"], match[1] as ModelType, true, "replaceLabels 3");
                     for (let i = 0; i < result.length; i++) {
                         result[i][key] = (result[i][key] as string).replace(match[0], display().label.get(labelTranslations, result[i].languages));
                     }
@@ -280,18 +323,18 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
          * @param userId The user's id
          */
         toUser: async (userId) => {
-            const { bodyKey, bodyVariables, category, link, titleKey, titleVariables, silent, languages } = notification;
+            const { body, bodyKey, bodyVariables, category, link, title, titleKey, titleVariables, silent, languages } = notification;
             // Shape and translate the notification for the user
             const users = await replaceLabels(bodyVariables, titleVariables, silent, [{ languages, userId }]);
             // Send the notification
-            await push({ bodyKey, category, link, titleKey, users });
+            await push({ body, bodyKey, category, link, title, titleKey, users });
         },
         /**
          * Sends a notification to multiple users
          * @param userIds The users' ids
          */
         toUsers: async (userIds) => {
-            const { bodyKey, bodyVariables, category, link, titleKey, titleVariables, silent, languages } = notification;
+            const { body, bodyKey, bodyVariables, category, link, title, titleKey, titleVariables, silent, languages } = notification;
             // Shape and translate the notification for each user
             const users = await replaceLabels(
                 bodyVariables,
@@ -303,7 +346,7 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
                     delays: typeof data === "string" ? undefined : data.delays,
                 })));
             // Send the notification to each user
-            await push({ bodyKey, category, link, titleKey, users });
+            await push({ body, bodyKey, category, link, title, titleKey, users });
         },
         /**
          * Sends a notification to a team
@@ -312,7 +355,7 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
          * (usually the user who triggered the notification)
          */
         toTeam: async (teamId, excludedUsers) => {
-            const { bodyKey, bodyVariables, category, link, titleKey, titleVariables, silent, languages } = notification;
+            const { body, bodyKey, bodyVariables, category, link, title, titleKey, titleVariables, silent, languages } = notification;
             // Find every admin of the team, excluding the user who triggered the notification
             const adminData = await ModelMap.get<TeamModelLogic>("Team").query.findAdminInfo(teamId, excludedUsers);
             // Shape and translate the notification for each admin
@@ -321,7 +364,7 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
                 userId: id,
             })));
             // Send the notification to each admin
-            await push({ bodyKey, category, link, titleKey, users });
+            await push({ body, bodyKey, category, link, title, titleKey, users });
         },
         /**
          * Sends a notification to an owner of an object
@@ -343,7 +386,8 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
          */
         toSubscribers: async (objectType, objectId, excludedUsers) => {
             try {
-                const { bodyKey, bodyVariables, category, link, titleKey, titleVariables, silent, languages } = notification;
+                const { body, bodyKey, bodyVariables, category, link, title, titleKey, titleVariables, silent, languages } = notification;
+                const { batch } = await import("../utils/batch.js");
                 await batch<Prisma.notification_subscriptionFindManyArgs>({
                     objectType: "NotificationSubscription",
                     processBatch: async (batch: { subscriberId: string, silent: boolean }[]) => {
@@ -354,7 +398,7 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
                             userId: subscriberId,
                         })));
                         // Send the notification to each subscriber
-                        await push({ bodyKey, category, link, titleKey, users });
+                        await push({ body, bodyKey, category, link, title, titleKey, users });
                     },
                     select: { subscriberId: true, silent: true },
                     where: {
@@ -380,7 +424,8 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
          */
         toChatParticipants: async (chatId, excludedUsers) => {
             try {
-                const { bodyKey, bodyVariables, category, link, titleKey, titleVariables, silent, languages } = notification;
+                const { body, bodyKey, bodyVariables, category, link, title, titleKey, titleVariables, silent, languages } = notification;
+                const { batch } = await import("../utils/batch.js");
                 await batch<Prisma.chat_participantsFindManyArgs>({
                     objectType: "ChatParticipant",
                     processBatch: async (batch: { user: { id: string } }[]) => {
@@ -390,7 +435,7 @@ function NotifyResult(notification: NotifyResultParams): NotifyResultType {
                             userId: user.id,
                         })));
                         // Send the notification to each participant
-                        await push({ bodyKey, category, link, titleKey, users });
+                        await push({ body, bodyKey, category, link, title, titleKey, users });
                     },
                     select: { user: { select: { id: true } } },
                     where: typeof excludedUsers === "string"
@@ -449,22 +494,22 @@ export function Notify(languages: string[] | undefined) {
             expires?: Date,
             name?: string,
             userData: SessionUser,
-            info: GraphQLInfo | PartialGraphQLInfo,
+            info: PartialApiInfo,
         }): Promise<PushDevice> => {
-            const partialInfo = toPartialGqlInfo(info, PushDeviceModel.format.gqlRelMap, true);
+            const partialInfo = InfoConverter.get().fromApiToPartialApi(info, PushDeviceModel.format.apiRelMap, true);
             let select: { [key: string]: any } | undefined;
             let result: any = {};
             try {
-                select = selectHelper(partialInfo)?.select;
+                select = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo)?.select;
                 // Check if the device is already registered
-                const device = await prismaInstance.push_device.findUnique({
+                const device = await DbProvider.get().push_device.findUnique({
                     where: { endpoint },
                     select: { id: true },
                 });
                 // If it is, update the auth and p256dh keys
                 if (device) {
                     logger.info(`device already registered: ${JSON.stringify(device)}`);
-                    result = await prismaInstance.push_device.update({
+                    result = await DbProvider.get().push_device.update({
                         where: { id: device.id },
                         data: { auth, p256dh, expires },
                         select,
@@ -472,7 +517,7 @@ export function Notify(languages: string[] | undefined) {
                 }
                 // If it isn't, create a new device
                 else {
-                    result = await prismaInstance.push_device.create({
+                    result = await DbProvider.get().push_device.create({
                         data: {
                             endpoint,
                             auth,
@@ -496,14 +541,14 @@ export function Notify(languages: string[] | undefined) {
          */
         unregisterPushDevice: async (deviceId: string, userId: string): Promise<Success> => {
             // Check if the device is registered to the user
-            const device = await prismaInstance.push_device.findUnique({
+            const device = await DbProvider.get().push_device.findUnique({
                 where: { id: deviceId },
                 select: { userId: true },
             });
             if (!device || device.userId !== userId)
                 throw new CustomError("0307", "PushDeviceNotFound");
             // If it is, delete it  
-            const deletedDevice = await prismaInstance.push_device.delete({ where: { id: deviceId } });
+            const deletedDevice = await DbProvider.get().push_device.delete({ where: { id: deviceId } });
             return { __typename: "Success" as const, success: Boolean(deletedDevice) };
         },
         /**
@@ -561,7 +606,7 @@ export function Notify(languages: string[] | undefined) {
         pushIssueStatusChange: (
             issueId: string,
             objectId: string,
-            objectType: GqlModelType | `${GqlModelType}`,
+            objectType: ModelType | `${ModelType}`,
             status: Exclude<IssueStatus, "Draft"> | `${Exclude<IssueStatus, "Draft">}`,
         ): NotifyResultType => NotifyResult({
             bodyKey: `IssueStatus${status}Body`,
@@ -579,6 +624,14 @@ export function Notify(languages: string[] | undefined) {
             link: `/messages/${messageId}`,
             titleKey: "MessageReceivedTitle",
         }),
+        pushNewDecisionRequest: (decision: DeferredDecisionData, runType: "RunProject" | "RunRoutine", runId: string): NotifyResultType => NotifyResult({
+            body: decision.message,
+            bodyKey: "NewDecisionRequestBody",
+            bodyVariables: { objectName: `<Label|${runType}:${runId}>` },
+            category: "Run",
+            languages,
+            titleKey: "NewDecisionRequestTitle",
+        }),
         pushNewDeviceSignIn: (): NotifyResultType => NotifyResult({
             bodyKey: "NewDeviceBody",
             category: "Security",
@@ -591,7 +644,7 @@ export function Notify(languages: string[] | undefined) {
             languages,
             titleKey: "NewEmailVerificationTitle",
         }),
-        pushNewQuestionOnObject: (objectType: `${GqlModelType}`, objectId: string, questionId: string): NotifyResultType => NotifyResult({
+        pushNewQuestionOnObject: (objectType: `${ModelType}`, objectId: string, questionId: string): NotifyResultType => NotifyResult({
             bodyKey: "NewQuestionOnObjectBody",
             bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
             category: "NewQuestionOrIssue",
@@ -599,7 +652,7 @@ export function Notify(languages: string[] | undefined) {
             link: `/questions/${questionId}`,
             titleKey: "NewQuestionOnObjectTitle",
         }),
-        pushNewObjectInTeam: (objectType: `${GqlModelType}`, objectId: string, teamId: string): NotifyResultType => NotifyResult({
+        pushNewObjectInTeam: (objectType: `${ModelType}`, objectId: string, teamId: string): NotifyResultType => NotifyResult({
             bodyKey: "NewObjectInTeamBody",
             bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, teamName: `<Label|Team:${teamId}>` },
             category: "NewObjectInTeam",
@@ -608,7 +661,7 @@ export function Notify(languages: string[] | undefined) {
             titleKey: "NewObjectInTeamTitle",
             titleVariables: { teamName: `<Label|Team:${teamId}>` },
         }),
-        pushNewObjectInProject: (objectType: `${GqlModelType}`, objectId: string, projectId: string): NotifyResultType => NotifyResult({
+        pushNewObjectInProject: (objectType: `${ModelType}`, objectId: string, projectId: string): NotifyResultType => NotifyResult({
             bodyKey: "NewObjectInProjectBody",
             bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, projectName: `<Label|Project:${projectId}>` },
             category: "NewObjectInProject",
@@ -617,7 +670,7 @@ export function Notify(languages: string[] | undefined) {
             titleKey: "NewObjectInProjectTitle",
             titleVariables: { projectName: `<Label|Project:${projectId}>` },
         }),
-        pushObjectReceivedBookmark: (objectType: `${GqlModelType}`, objectId: string, totalBookmarks: number): NotifyResultType => NotifyResult({
+        pushObjectReceivedBookmark: (objectType: `${ModelType}`, objectId: string, totalBookmarks: number): NotifyResultType => NotifyResult({
             bodyKey: "ObjectReceivedBookmarkBody",
             bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, count: totalBookmarks },
             category: "ObjectActivity",
@@ -625,7 +678,7 @@ export function Notify(languages: string[] | undefined) {
             link: `/${LINKS[objectType]}/${objectId}`,
             titleKey: "ObjectReceivedBookmarkTitle",
         }),
-        pushObjectReceivedComment: (objectType: `${GqlModelType}`, objectId: string, totalComments: number): NotifyResultType => NotifyResult({
+        pushObjectReceivedComment: (objectType: `${ModelType}`, objectId: string, totalComments: number): NotifyResultType => NotifyResult({
             bodyKey: "ObjectReceivedCommentBody",
             bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, count: totalComments },
             category: "ObjectActivity",
@@ -633,14 +686,14 @@ export function Notify(languages: string[] | undefined) {
             link: `/${LINKS[objectType]}/${objectId}?comments`,
             titleKey: "ObjectReceivedCommentTitle",
         }),
-        pushObjectReceivedCopy: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
+        pushObjectReceivedCopy: (objectType: `${ModelType}`, objectId: string): NotifyResultType => NotifyResult({
             category: "ObjectActivity",
             languages,
             link: `/${LINKS[objectType]}/${objectId}`,
             titleKey: "ObjectReceivedCopyTitle",
             titleVariables: { objectName: `<Label|${objectType}:${objectId}>` },
         }),
-        pushObjectReceivedUpvote: (objectType: `${GqlModelType}`, objectId: string, totalScore: number): NotifyResultType => NotifyResult({
+        pushObjectReceivedUpvote: (objectType: `${ModelType}`, objectId: string, totalScore: number): NotifyResultType => NotifyResult({
             bodyKey: "ObjectReceivedUpvoteBody",
             bodyVariables: { objectName: `<Label|${objectType}:${objectId}>`, count: totalScore },
             category: "ObjectActivity",
@@ -655,7 +708,7 @@ export function Notify(languages: string[] | undefined) {
         pushReportStatusChange: (
             reportId: string,
             objectId: string,
-            objectType: GqlModelType | `${GqlModelType}`,
+            objectType: ModelType | `${ModelType}`,
             status: ReportStatus | `${ReportStatus}`,
         ): NotifyResultType => NotifyResult({
             bodyKey: `ReportStatus${status}Body`,
@@ -668,7 +721,7 @@ export function Notify(languages: string[] | undefined) {
         pushPullRequestStatusChange: (
             reportId: string,
             objectId: string,
-            objectType: GqlModelType | `${GqlModelType}`,
+            objectType: ModelType | `${ModelType}`,
             status: Exclude<PullRequestStatus, "Draft"> | `${Exclude<PullRequestStatus, "Draft">}`,
         ): NotifyResultType => NotifyResult({
             bodyKey: `PullRequestStatus${status}Body`,
@@ -710,7 +763,7 @@ export function Notify(languages: string[] | undefined) {
             link: `/runs/${runId}`,
             titleKey: "RunFailedAutomaticallyTitle",
         }),
-        pushScheduleReminder: (scheduleForId: string, scheduleForType: GqlModelType, startTime: Date): NotifyResultType => NotifyResult({
+        pushScheduleReminder: (scheduleForId: string, scheduleForType: ModelType, startTime: Date): NotifyResultType => NotifyResult({
             bodyKey: "ScheduleUserBody",
             bodyVariables: { title: `<Label|${scheduleForType}:${scheduleForId}>`, startLabel: getEventStartLabel(startTime) },
             category: "Schedule",
@@ -745,7 +798,7 @@ export function Notify(languages: string[] | undefined) {
             link: `/${LINKS[objectType]}/transfers/${transferId}`,
             titleKey: "TransferRequestReceiveTitle",
         }),
-        pushTransferAccepted: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
+        pushTransferAccepted: (objectType: `${ModelType}`, objectId: string): NotifyResultType => NotifyResult({
             bodyKey: "TransferAcceptedTitle",
             bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
             category: "Transfer",
@@ -753,7 +806,7 @@ export function Notify(languages: string[] | undefined) {
             link: `/${LINKS[objectType]}/${objectId}`,
             titleKey: "TransferAcceptedTitle",
         }),
-        pushTransferRejected: (objectType: `${GqlModelType}`, objectId: string): NotifyResultType => NotifyResult({
+        pushTransferRejected: (objectType: `${ModelType}`, objectId: string): NotifyResultType => NotifyResult({
             bodyKey: "TransferRejectedTitle",
             bodyVariables: { objectName: `<Label|${objectType}:${objectId}>` },
             category: "Transfer",

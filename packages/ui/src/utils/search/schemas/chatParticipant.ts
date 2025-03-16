@@ -1,11 +1,15 @@
-import { ChatParticipantSortBy, FormSchema, endpointGetChatParticipant, endpointGetChatParticipants } from "@local/shared";
-import { toParams } from "./base";
-import { searchFormLayout } from "./common";
+import { ChatParticipantSortBy, FormSchema, endpointsChatParticipant } from "@local/shared";
+import { toParams } from "./base.js";
+import { searchFormLayout } from "./common.js";
 
-export const chatParticipantSearchSchema = (): FormSchema => ({
-    layout: searchFormLayout("SearchChatParticipant"),
-    containers: [], //TODO
-    elements: [], //TODO
-});
+export function chatParticipantSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchChatParticipant"),
+        containers: [], //TODO
+        elements: [], //TODO
+    };
+}
 
-export const chatParticipantSearchParams = () => toParams(chatParticipantSearchSchema(), endpointGetChatParticipants, endpointGetChatParticipant, ChatParticipantSortBy, ChatParticipantSortBy.DateUpdatedDesc);
+export function chatParticipantSearchParams() {
+    return toParams(chatParticipantSearchSchema(), endpointsChatParticipant, ChatParticipantSortBy, ChatParticipantSortBy.DateUpdatedDesc);
+}

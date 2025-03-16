@@ -1,11 +1,11 @@
 import { useEffect } from "react";
-import { INSERT_ORDERED_LIST_COMMAND, INSERT_PARAGRAPH_COMMAND, INSERT_UNORDERED_LIST_COMMAND, REMOVE_LIST_COMMAND } from "../commands";
-import { COMMAND_PRIORITY_LOW } from "../consts";
-import { useLexicalComposerContext } from "../context";
-import { $handleListInsertParagraph, insertList, removeList } from "../nodes/ListNode";
-import { mergeRegister } from "../utils";
+import { INSERT_ORDERED_LIST_COMMAND, INSERT_PARAGRAPH_COMMAND, INSERT_UNORDERED_LIST_COMMAND, REMOVE_LIST_COMMAND } from "../commands.js";
+import { COMMAND_PRIORITY_LOW } from "../consts.js";
+import { useLexicalComposerContext } from "../context.js";
+import { $handleListInsertParagraph, insertList, removeList } from "../nodes/ListNode.js";
+import { mergeRegister } from "../utils.js";
 
-export const ListPlugin = (): null => {
+export function ListPlugin(): null {
     const editor = useLexicalComposerContext();
 
     useEffect(() => {
@@ -52,4 +52,4 @@ export const ListPlugin = (): null => {
     }, [editor]);
 
     return null;
-};
+}

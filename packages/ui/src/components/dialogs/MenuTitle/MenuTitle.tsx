@@ -1,8 +1,8 @@
 import { Box, IconButton, useTheme } from "@mui/material";
-import { Title } from "components/text/Title/Title";
-import { CloseIcon } from "icons";
-import { noSelect } from "styles";
-import { MenuTitleProps } from "../types";
+import { CloseIcon } from "../../../icons/common.js";
+import { noSelect } from "../../../styles.js";
+import { Title } from "../../text/Title.js";
+import { MenuTitleProps } from "../types.js";
 
 export function MenuTitle({
     ariaLabel,

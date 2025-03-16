@@ -1,20 +1,21 @@
 import { LINKS, SOCIALS } from "@local/shared";
 import { BottomNavigation, BottomNavigationAction, Box, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
-import { CopyrightBreadcrumbs } from "components/breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs";
-import { ArticleIcon, GitHubIcon, InfoIcon, StatsIcon, XIcon } from "icons";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { openLink, useLocation } from "route";
-import { noSelect } from "styles";
-import { SvgComponent } from "types";
-import { ContactInfoProps } from "../types";
+import { ArticleIcon, GitHubIcon, InfoIcon, StatsIcon, XIcon } from "../../../icons/common.js";
+import { openLink } from "../../../route/openLink.js";
+import { useLocation } from "../../../route/router.js";
+import { noSelect } from "../../../styles.js";
+import { SvgComponent } from "../../../types.js";
+import { CopyrightBreadcrumbs } from "../../breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs.js";
+import { ContactInfoProps } from "../types.js";
 
 type NavActionListData = [string, string, string, SvgComponent]
 
-export const ContactInfo = ({
+export function ContactInfo({
     sx,
     ...props
-}: ContactInfoProps) => {
+}: ContactInfoProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -109,4 +110,4 @@ export const ContactInfo = ({
             <CopyrightBreadcrumbs sx={{ color: palette.background.textPrimary }} />
         </Box>
     );
-};
+}

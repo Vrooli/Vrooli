@@ -1,9 +1,10 @@
-import { Box, Button, IconButton, Palette, Typography, useTheme } from "@mui/material";
-import { CloseIcon, CopyIcon, ErrorIcon, InfoIcon, SuccessIcon, WarningIcon } from "icons";
+import { Box, BoxProps, Button, IconButton, Palette, Typography, styled, useTheme } from "@mui/material";
+import { CloseIcon, CopyIcon, ErrorIcon, InfoIcon, SuccessIcon, WarningIcon } from "icons/common.js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SvgComponent } from "types";
-import { PubSub } from "utils/pubsub";
-import { BasicSnackProps } from "../types";
+import { SNACK_HIGHLIGHT, addHighlight, removeHighlights } from "utils/display/documentTools";
+import { PubSub } from "utils/pubsub.js";
+import { BasicSnackProps } from "../types.js";
 
 export enum SnackSeverity {
     Error = "Error",
@@ -11,6 +12,9 @@ export enum SnackSeverity {
     Success = "Success",
     Warning = "Warning",
 }
+
+const DEFAULT_AUTO_HIDE_DURATION_MS = 5000;
+const SWIPE_THRESHOLD_PX = 10;
 
 function iconColor(severity: SnackSeverity | `${SnackSeverity}` | undefined, palette: Palette) {
     switch (severity) {
@@ -26,6 +30,56 @@ function iconColor(severity: SnackSeverity | `${SnackSeverity}` | undefined, pal
             return palette.primary.light;
     }
 }
+
+interface OuterBoxProps extends BoxProps {
+    isOpen: boolean;
+    touchPosition: number | null;
+}
+const OuterBox = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "isOpen" && prop !== "touchPosition",
+})<OuterBoxProps>(({ isOpen, theme, touchPosition }) => ({
+    display: "flex",
+    pointerEvents: "auto",
+    justifyContent: "space-between",
+    alignItems: "center",
+    transform: isOpen
+        ? touchPosition !== null
+            ? `translateX(${touchPosition}px)` // Swipe-to-close functionality
+            : "translateX(0)" // Original position when open
+        : "translateX(-150%)", // Slide out of view when closed
+    transition: touchPosition ? "none" : "transform 0.4s ease-in-out",
+    padding: theme.spacing(1),
+    borderRadius: theme.shape.borderRadius,
+    boxShadow: theme.shadows[8],
+    background: theme.palette.background.paper,
+    color: theme.palette.background.textPrimary,
+    maxWidth: "600px",
+    [theme.breakpoints.down("sm")]: {
+        maxWidth: `calc(100% - ${theme.spacing(1)})`,
+    },
+}));
+
+const MessageBox = styled(Box)(() => ({
+    flex: 1, // take up available space
+    marginLeft: "4px",
+    maxHeight: "25vh",
+    overflowY: "auto",
+}));
+
+const MessageText = styled(Typography)(() => ({
+    marginLeft: "4px",
+    overflowWrap: "break-word",
+    wordWrap: "break-word",
+}));
+
+const ActionButton = styled(Button)(({ theme }) => ({
+    color: theme.palette.secondary.main,
+    marginLeft: "16px",
+    padding: "4px",
+    border: `1px solid ${theme.palette.secondary.main}`,
+    borderRadius: "8px",
+}));
+
 /**
  * Basic snack item in the snack stack. 
  * Look changes based on severity. 
@@ -61,7 +115,7 @@ export function BasicSnack({
     const handleTouchMove = useCallback(function handleTouchMoveCallback(e: TouchEvent) {
         if (touchStart === null) return;
         const moveDistance = e.targetTouches[0].clientX - touchStart;
-        if (Math.abs(moveDistance) > 10) {  // Threshold to determine a swipe
+        if (Math.abs(moveDistance) > SWIPE_THRESHOLD_PX) {  // Threshold to determine a swipe
             e.preventDefault();   // Prevent scrolling other elements, like the page
         }
         setTouchPosition(e.targetTouches[0].clientX - touchStart);
@@ -111,7 +165,7 @@ export function BasicSnack({
             timeoutRef.current = setTimeout(() => {
                 handleClose();
             }, 400);
-        }, autoHideDuration ?? 5000);
+        }, autoHideDuration ?? DEFAULT_AUTO_HIDE_DURATION_MS);
     }, [autoHideDuration, handleClose]);
     // Start close timeout automatically
     useEffect(() => {
@@ -129,18 +183,24 @@ export function BasicSnack({
     }, [message]);
 
     // Clear timeout when interacting with the snack
-    const handleMouseEnter = () => {
+    function handleMouseEnter() {
         if (timeoutRef.current) {
             clearTimeout(timeoutRef.current);
         }
-        setIsHovered(true);
-    };
+        if (snackRef.current) {
+            addHighlight(SNACK_HIGHLIGHT, snackRef.current);
+            setIsHovered(true);
+        }
+    }
 
     // Restart timeout when done interacting with the snack
-    const handleMouseLeave = () => {
+    function handleMouseLeave() {
         startAutoHideTimeout();
-        setIsHovered(false);
-    };
+        if (snackRef.current) {
+            removeHighlights(SNACK_HIGHLIGHT, snackRef.current);
+            setIsHovered(false);
+        }
+    }
 
     useEffect(() => {
         // Log snack errors if in development
@@ -164,74 +224,38 @@ export function BasicSnack({
     }, [severity]);
 
     return (
-        <Box
-            ref={snackRef}
+        <OuterBox
+            isOpen={open}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            sx={{
-                display: "flex",
-                pointerEvents: "auto",
-                justifyContent: "space-between",
-                alignItems: "center",
-                maxWidth: { xs: "100%", sm: "600px" },
-                transform: open
-                    ? touchPosition !== null
-                        ? `translateX(${touchPosition}px)` // Swipe-to-close functionality
-                        : "translateX(0)" // Original position when open
-                    : "translateX(-150%)", // Slide out of view when closed
-                transition: touchPosition ? "none" : "transform 0.4s ease-in-out",
-                padding: 1,
-                borderRadius: 2,
-                border: `2px solid ${isHovered ? palette.primary.main : palette.background.paper}`,
-                boxShadow: 8,
-                background: palette.background.paper,
-                color: palette.background.textPrimary,
-            }}>
-            {/* Icon */}
+            ref={snackRef}
+            touchPosition={touchPosition}
+        >
             {isHovered ? (
                 <IconButton onClick={copyMessage}>
                     <CopyIcon fill={palette.secondary.main} />
                 </IconButton>
             ) : (
-                <Icon fill={iconColor(severity, palette)} />
+                <Box width="40px" height="40px" display="flex" justifyContent="center" alignItems="center">
+                    <Icon fill={iconColor(severity, palette)} width="24px" height="24px" />
+                </Box>
             )}
-            {/* Message */}
-            <Box sx={{
-                flex: 1, // take up available space
-                marginLeft: "4px",
-                maxHeight: "25vh",
-                overflowY: "auto",
-            }}>
-                <Typography
-                    variant="body1"
-                    sx={{
-                        marginLeft: "4px",
-                        overflowWrap: "break-word",
-                        wordWrap: "anywhere",
-                    }}>
+            <MessageBox>
+                <MessageText variant="body1">
                     {message}
-                </Typography>
-            </Box>
-            {/* Button */}
+                </MessageText>
+            </MessageBox>
             {buttonText && buttonClicked && (
-                <Button
+                <ActionButton
                     variant="text"
-                    sx={{
-                        color: palette.secondary.main,
-                        marginLeft: "16px",
-                        padding: "4px",
-                        border: `1px solid ${palette.secondary.main}`,
-                        borderRadius: "8px",
-                    }}
                     onClick={buttonClicked}
                 >
                     {buttonText}
-                </Button>
+                </ActionButton>
             )}
-            {/* Close icon */}
             <IconButton onClick={handleClose}>
                 <CloseIcon fill={palette.background.textPrimary} />
             </IconButton>
-        </Box>
+        </OuterBox>
     );
 }

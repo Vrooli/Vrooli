@@ -1,9 +1,9 @@
 import { HttpMethod, ServerResponse, TranslationKeyCommon, TranslationKeyError, exists } from "@local/shared";
 import { useCallback } from "react";
-import { PubSub } from "utils/pubsub";
-import { fetchData } from "./fetchData";
-import { ServerResponseParser } from "./responseParser";
-import { LazyRequestWithResult } from "./types";
+import { PubSub } from "../utils/pubsub.js";
+import { fetchData } from "./fetchData.js";
+import { ServerResponseParser } from "./responseParser.js";
+import { LazyRequestWithResult } from "./types.js";
 
 const DEFAULT_SPINNER_DELAY_MS = 1000;
 

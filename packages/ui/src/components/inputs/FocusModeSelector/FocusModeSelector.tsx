@@ -1,15 +1,15 @@
-import { ActiveFocusMode, FocusMode, FocusModeSearchInput, FocusModeSearchResult, FocusModeStopCondition, LINKS, MaxObjects, Session, SetActiveFocusModeInput, endpointGetFocusModes, endpointPutFocusModeActive } from "@local/shared";
-import { fetchData } from "api/fetchData";
-import { ServerResponseParser } from "api/responseParser";
-import { SessionContext } from "contexts";
-import { FocusModeIcon } from "icons";
+import { ActiveFocusMode, FocusMode, FocusModeSearchInput, FocusModeSearchResult, FocusModeStopCondition, LINKS, MaxObjects, Session, SetActiveFocusModeInput, endpointsFocusMode } from "@local/shared";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
-import { getCurrentUser } from "utils/authentication/session";
-import { PubSub } from "utils/pubsub";
 import { create } from "zustand";
-import { SelectorBase } from "../Selector/Selector";
+import { fetchData } from "../../../api/fetchData.js";
+import { ServerResponseParser } from "../../../api/responseParser.js";
+import { SessionContext } from "../../../contexts.js";
+import { FocusModeIcon } from "../../../icons/common.js";
+import { useLocation } from "../../../route/router.js";
+import { getCurrentUser } from "../../../utils/authentication/session.js";
+import { PubSub } from "../../../utils/pubsub.js";
+import { SelectorBase } from "../Selector/Selector.js";
 
 type FocusModeOption = Omit<FocusMode, "__typename">;
 
@@ -46,7 +46,7 @@ export const useFocusModesStore = create<FocusModesState>()((set, get) => ({
 
         try {
             const response = await fetchData<FocusModeSearchInput, FocusModeSearchResult>({
-                ...endpointGetFocusModes,
+                ...endpointsFocusMode.findMany,
                 inputs: {},
                 signal,
             });
@@ -117,7 +117,7 @@ export const useFocusModesStore = create<FocusModesState>()((set, get) => ({
         // Update active focus mode in database
         try {
             const response = await fetchData<SetActiveFocusModeInput, ActiveFocusMode>({
-                ...endpointPutFocusModeActive,
+                ...endpointsFocusMode.setActive,
                 inputs: {
                     id: activeFocusMode?.focusMode.id,
                     stopCondition: activeFocusMode?.stopCondition,

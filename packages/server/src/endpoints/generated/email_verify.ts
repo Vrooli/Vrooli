@@ -1,4 +1,4 @@
 export const email_verify = {
-  "success": true,
-  "__typename": "Email"
-} as const;
+    "success": true,
+    "__cacheKey": "1826958523"
+};

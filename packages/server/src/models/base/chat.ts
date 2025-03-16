@@ -1,16 +1,19 @@
 import { ChatInviteStatus, ChatSortBy, chatValidation, getTranslation, MaxObjects, uuidValidate } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { prismaInstance } from "../../db/instance";
-import { defaultPermissions, getEmbeddableString } from "../../utils";
-import { ChatPre, populatePreMapForChatUpdates, prepareChatMessageOperations } from "../../utils/chat";
-import { labelShapeHelper, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
-import { getSingleTypePermissions } from "../../validators";
-import { ChatFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { ChatModelInfo, ChatModelLogic, TeamModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { DbProvider } from "../../db/provider.js";
+import { ChatPre, populatePreMapForChatUpdates, prepareChatMessageOperations } from "../../utils/chat.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
+import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
+import { preShapeEmbeddableTranslatable } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { ChatFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { ChatModelInfo, ChatModelLogic, TeamModelLogic } from "./types.js";
 
 const __typename = "Chat" as const;
 export const ChatModel: ChatModelLogic = ({
@@ -57,7 +60,7 @@ export const ChatModel: ChatModelLogic = ({
                 // Find all bots
                 let bots: ChatPre["bots"] = [];
                 if (invitedUsers.length) {
-                    bots = await prismaInstance.user.findMany({
+                    bots = await DbProvider.get().user.findMany({
                         where: {
                             id: { in: invitedUsers },
                             isBot: true,
@@ -196,11 +199,11 @@ export const ChatModel: ChatModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<ChatModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ChatModelInfo["ApiPermission"]>(__typename, ids, userData)),
                         // hasUnread: await ModelMap.get<ChatModelLogic>("Chat").query.getHasUnread(userData?.id, ids, __typename),
                     },
                 };

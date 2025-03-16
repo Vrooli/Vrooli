@@ -1,11 +1,15 @@
-import { endpointGetMemberInvite, endpointGetMemberInvites, FormSchema, MemberInviteSortBy } from "@local/shared";
-import { toParams } from "./base";
-import { searchFormLayout } from "./common";
+import { endpointsMemberInvite, FormSchema, MemberInviteSortBy } from "@local/shared";
+import { toParams } from "./base.js";
+import { searchFormLayout } from "./common.js";
 
-export const memberInviteSearchSchema = (): FormSchema => ({
-    layout: searchFormLayout("SearchMemberInvite"),
-    containers: [], //TODO
-    elements: [], //TODO
-});
+export function memberInviteSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchMemberInvite"),
+        containers: [], //TODO
+        elements: [], //TODO
+    };
+}
 
-export const memberInviteSearchParams = () => toParams(memberInviteSearchSchema(), endpointGetMemberInvites, endpointGetMemberInvite, MemberInviteSortBy, MemberInviteSortBy.DateCreatedDesc);
+export function memberInviteSearchParams() {
+    return toParams(memberInviteSearchSchema(), endpointsMemberInvite, MemberInviteSortBy, MemberInviteSortBy.DateCreatedDesc);
+}

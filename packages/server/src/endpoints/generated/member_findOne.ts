@@ -1,110 +1,10 @@
 export const member_findOne = {
-  "id": true,
-  "created_at": true,
-  "updated_at": true,
-  "isAdmin": true,
-  "permissions": true,
-  "roles": {
     "id": true,
     "created_at": true,
     "updated_at": true,
-    "name": true,
+    "isAdmin": true,
     "permissions": true,
-    "membersCount": true,
-    "team": {
-      "id": true,
-      "bannerImage": true,
-      "handle": true,
-      "profileImage": true,
-      "you": {
-        "canAddMembers": true,
-        "canDelete": true,
-        "canBookmark": true,
-        "canReport": true,
-        "canUpdate": true,
-        "canRead": true,
-        "isBookmarked": true,
-        "isViewed": true,
-        "yourMembership": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "isAdmin": true,
-          "permissions": true
-        }
-      },
-      "__typename": "Team"
-    },
-    "translations": {
-      "id": true,
-      "language": true,
-      "description": true
-    },
-    "__typename": "Role"
-  },
-  "you": {
-    "canDelete": true,
-    "canUpdate": true
-  },
-  "team": {
-    "id": true,
-    "bannerImage": true,
-    "handle": true,
-    "created_at": true,
-    "updated_at": true,
-    "isOpenToNewMembers": true,
-    "isPrivate": true,
-    "commentsCount": true,
-    "membersCount": true,
-    "profileImage": true,
-    "reportsCount": true,
-    "bookmarks": true,
-    "tags": {
-      "id": true,
-      "created_at": true,
-      "tag": true,
-      "bookmarks": true,
-      "translations": {
-        "id": true,
-        "language": true,
-        "description": true
-      },
-      "you": {
-        "isOwn": true,
-        "isBookmarked": true
-      },
-      "__typename": "Tag"
-    },
-    "translations": {
-      "id": true,
-      "language": true,
-      "bio": true,
-      "name": true
-    },
-    "you": {
-      "canAddMembers": true,
-      "canDelete": true,
-      "canBookmark": true,
-      "canReport": true,
-      "canUpdate": true,
-      "canRead": true,
-      "isBookmarked": true,
-      "isViewed": true,
-      "yourMembership": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "isAdmin": true,
-        "permissions": true
-      }
-    },
-    "members": {
-      "id": true,
-      "created_at": true,
-      "updated_at": true,
-      "isAdmin": true,
-      "permissions": true,
-      "roles": {
+    "roles": {
         "id": true,
         "created_at": true,
         "updated_at": true,
@@ -112,11 +12,73 @@ export const member_findOne = {
         "permissions": true,
         "membersCount": true,
         "team": {
-          "id": true,
-          "bannerImage": true,
-          "handle": true,
-          "profileImage": true,
-          "you": {
+            "id": true,
+            "bannerImage": true,
+            "handle": true,
+            "profileImage": true,
+            "you": {
+                "canAddMembers": true,
+                "canDelete": true,
+                "canBookmark": true,
+                "canReport": true,
+                "canUpdate": true,
+                "canRead": true,
+                "isBookmarked": true,
+                "isViewed": true,
+                "yourMembership": {
+                    "id": true,
+                    "created_at": true,
+                    "updated_at": true,
+                    "isAdmin": true,
+                    "permissions": true
+                }
+            }
+        },
+        "translations": {
+            "id": true,
+            "language": true,
+            "description": true
+        }
+    },
+    "you": {
+        "canDelete": true,
+        "canUpdate": true
+    },
+    "team": {
+        "id": true,
+        "bannerImage": true,
+        "handle": true,
+        "created_at": true,
+        "updated_at": true,
+        "isOpenToNewMembers": true,
+        "isPrivate": true,
+        "commentsCount": true,
+        "membersCount": true,
+        "profileImage": true,
+        "reportsCount": true,
+        "bookmarks": true,
+        "tags": {
+            "id": true,
+            "created_at": true,
+            "tag": true,
+            "bookmarks": true,
+            "translations": {
+                "id": true,
+                "language": true,
+                "description": true
+            },
+            "you": {
+                "isOwn": true,
+                "isBookmarked": true
+            }
+        },
+        "translations": {
+            "id": true,
+            "language": true,
+            "bio": true,
+            "name": true
+        },
+        "you": {
             "canAddMembers": true,
             "canDelete": true,
             "canBookmark": true,
@@ -126,27 +88,172 @@ export const member_findOne = {
             "isBookmarked": true,
             "isViewed": true,
             "yourMembership": {
-              "id": true,
-              "created_at": true,
-              "updated_at": true,
-              "isAdmin": true,
-              "permissions": true
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true
             }
-          },
-          "__typename": "Team"
         },
-        "translations": {
-          "id": true,
-          "language": true,
-          "description": true
+        "members": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "isAdmin": true,
+            "permissions": true,
+            "roles": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "name": true,
+                "permissions": true,
+                "membersCount": true,
+                "team": {
+                    "id": true,
+                    "bannerImage": true,
+                    "handle": true,
+                    "profileImage": true,
+                    "you": {
+                        "canAddMembers": true,
+                        "canDelete": true,
+                        "canBookmark": true,
+                        "canReport": true,
+                        "canUpdate": true,
+                        "canRead": true,
+                        "isBookmarked": true,
+                        "isViewed": true,
+                        "yourMembership": {
+                            "id": true,
+                            "created_at": true,
+                            "updated_at": true,
+                            "isAdmin": true,
+                            "permissions": true
+                        }
+                    }
+                },
+                "translations": {
+                    "id": true,
+                    "language": true,
+                    "description": true
+                }
+            },
+            "you": {
+                "canDelete": true,
+                "canUpdate": true
+            },
+            "user": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "bannerImage": true,
+                "handle": true,
+                "isBot": true,
+                "isBotDepictingPerson": true,
+                "name": true,
+                "profileImage": true,
+                "bookmarks": true,
+                "reportsReceivedCount": true,
+                "you": {
+                    "canDelete": true,
+                    "canReport": true,
+                    "canUpdate": true,
+                    "isBookmarked": true,
+                    "isViewed": true
+                },
+                "translations": {
+                    "id": true,
+                    "language": true,
+                    "bio": true
+                }
+            }
         },
-        "__typename": "Role"
-      },
-      "you": {
-        "canDelete": true,
-        "canUpdate": true
-      },
-      "user": {
+        "roles": {
+            "id": true,
+            "created_at": true,
+            "updated_at": true,
+            "name": true,
+            "permissions": true,
+            "membersCount": true,
+            "translations": {
+                "id": true,
+                "language": true,
+                "description": true
+            },
+            "members": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "isAdmin": true,
+                "permissions": true,
+                "roles": {
+                    "id": true,
+                    "created_at": true,
+                    "updated_at": true,
+                    "name": true,
+                    "permissions": true,
+                    "membersCount": true,
+                    "team": {
+                        "id": true,
+                        "bannerImage": true,
+                        "handle": true,
+                        "profileImage": true,
+                        "you": {
+                            "canAddMembers": true,
+                            "canDelete": true,
+                            "canBookmark": true,
+                            "canReport": true,
+                            "canUpdate": true,
+                            "canRead": true,
+                            "isBookmarked": true,
+                            "isViewed": true,
+                            "yourMembership": {
+                                "id": true,
+                                "created_at": true,
+                                "updated_at": true,
+                                "isAdmin": true,
+                                "permissions": true
+                            }
+                        }
+                    },
+                    "translations": {
+                        "id": true,
+                        "language": true,
+                        "description": true
+                    }
+                },
+                "you": {
+                    "canDelete": true,
+                    "canUpdate": true
+                },
+                "user": {
+                    "id": true,
+                    "created_at": true,
+                    "updated_at": true,
+                    "bannerImage": true,
+                    "handle": true,
+                    "isBot": true,
+                    "isBotDepictingPerson": true,
+                    "name": true,
+                    "profileImage": true,
+                    "bookmarks": true,
+                    "reportsReceivedCount": true,
+                    "you": {
+                        "canDelete": true,
+                        "canReport": true,
+                        "canUpdate": true,
+                        "isBookmarked": true,
+                        "isViewed": true
+                    },
+                    "translations": {
+                        "id": true,
+                        "language": true,
+                        "bio": true
+                    }
+                }
+            }
+        }
+    },
+    "user": {
         "id": true,
         "created_at": true,
         "updated_at": true,
@@ -159,139 +266,18 @@ export const member_findOne = {
         "bookmarks": true,
         "reportsReceivedCount": true,
         "you": {
-          "canDelete": true,
-          "canReport": true,
-          "canUpdate": true,
-          "isBookmarked": true,
-          "isViewed": true
-        },
-        "translations": {
-          "id": true,
-          "language": true,
-          "bio": true
-        },
-        "__typename": "User"
-      },
-      "__typename": "Member"
-    },
-    "roles": {
-      "id": true,
-      "created_at": true,
-      "updated_at": true,
-      "name": true,
-      "permissions": true,
-      "membersCount": true,
-      "translations": {
-        "id": true,
-        "language": true,
-        "description": true
-      },
-      "members": {
-        "id": true,
-        "created_at": true,
-        "updated_at": true,
-        "isAdmin": true,
-        "permissions": true,
-        "roles": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "name": true,
-          "permissions": true,
-          "membersCount": true,
-          "team": {
-            "id": true,
-            "bannerImage": true,
-            "handle": true,
-            "profileImage": true,
-            "you": {
-              "canAddMembers": true,
-              "canDelete": true,
-              "canBookmark": true,
-              "canReport": true,
-              "canUpdate": true,
-              "canRead": true,
-              "isBookmarked": true,
-              "isViewed": true,
-              "yourMembership": {
-                "id": true,
-                "created_at": true,
-                "updated_at": true,
-                "isAdmin": true,
-                "permissions": true
-              }
-            },
-            "__typename": "Team"
-          },
-          "translations": {
-            "id": true,
-            "language": true,
-            "description": true
-          },
-          "__typename": "Role"
-        },
-        "you": {
-          "canDelete": true,
-          "canUpdate": true
-        },
-        "user": {
-          "id": true,
-          "created_at": true,
-          "updated_at": true,
-          "bannerImage": true,
-          "handle": true,
-          "isBot": true,
-          "isBotDepictingPerson": true,
-          "name": true,
-          "profileImage": true,
-          "bookmarks": true,
-          "reportsReceivedCount": true,
-          "you": {
             "canDelete": true,
             "canReport": true,
             "canUpdate": true,
             "isBookmarked": true,
             "isViewed": true
-          },
-          "translations": {
+        },
+        "botSettings": true,
+        "translations": {
             "id": true,
             "language": true,
             "bio": true
-          },
-          "__typename": "User"
-        },
-        "__typename": "Member"
-      },
-      "__typename": "Role"
+        }
     },
-    "__typename": "Team"
-  },
-  "user": {
-    "id": true,
-    "created_at": true,
-    "updated_at": true,
-    "bannerImage": true,
-    "handle": true,
-    "isBot": true,
-    "isBotDepictingPerson": true,
-    "name": true,
-    "profileImage": true,
-    "bookmarks": true,
-    "reportsReceivedCount": true,
-    "you": {
-      "canDelete": true,
-      "canReport": true,
-      "canUpdate": true,
-      "isBookmarked": true,
-      "isViewed": true
-    },
-    "botSettings": true,
-    "translations": {
-      "id": true,
-      "language": true,
-      "bio": true
-    },
-    "__typename": "User"
-  },
-  "__typename": "Member"
-} as const;
+    "__cacheKey": "2055730280"
+};

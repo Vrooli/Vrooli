@@ -1,23 +1,23 @@
-import { GqlModelType, LINKS, ListObject, SearchType, getObjectUrlBase } from "@local/shared";
+import { LINKS, ListObject, ModelType, getObjectUrlBase } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { PageTabs } from "components/PageTabs/PageTabs";
-import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
-import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList";
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts";
-import { useFindMany } from "hooks/useFindMany";
-import { useTabs } from "hooks/useTabs";
-import { AddIcon, SearchIcon } from "icons";
+import { PageTabs } from "components/PageTabs/PageTabs.js";
+import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons.js";
+import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
-import { SideActionsButton } from "styles";
-import { getCurrentUser } from "utils/authentication/session";
-import { ELEMENT_IDS } from "utils/consts";
-import { scrollIntoFocusedView } from "utils/display/scroll";
-import { PubSub } from "utils/pubsub";
-import { searchViewTabParams } from "utils/search/objectToSearch";
-import { SearchViewProps } from "views/types";
+import { useLocation } from "route/router.js";
+import { SessionContext } from "../../contexts.js";
+import { useFindMany } from "../../hooks/useFindMany.js";
+import { useTabs } from "../../hooks/useTabs.js";
+import { AddIcon, SearchIcon } from "../../icons/common.js";
+import { SideActionsButton } from "../../styles.js";
+import { getCurrentUser } from "../../utils/authentication/session.js";
+import { ELEMENT_IDS } from "../../utils/consts.js";
+import { scrollIntoFocusedView } from "../../utils/display/scroll.js";
+import { PubSub } from "../../utils/pubsub.js";
+import { searchViewTabParams } from "../../utils/search/objectToSearch.js";
+import { SearchViewProps } from "../../views/types.js";
 
 const scrollContainerId = "main-search-scroll";
 
@@ -48,16 +48,16 @@ export function SearchView({
         controlsUrl: display === "page",
         searchType,
         take: 20,
-        where: where(),
+        where: where(undefined),
     });
 
     const onCreateStart = useCallback(function onCreateStartCallback() {
         // If tab is 'All', go to "Create" page
-        if (searchType === SearchType.Popular) {
+        if (searchType === "Popular") {
             setLocation(LINKS.Create);
             return;
         }
-        const addUrl = `${getObjectUrlBase({ __typename: searchType as `${GqlModelType}` })}/add`;
+        const addUrl = `${getObjectUrlBase({ __typename: searchType as `${ModelType}` })}/add`;
         // If not logged in, redirect to login page
         if (!userId) {
             PubSub.get().publish("snack", { messageKey: "NotLoggedIn", severity: "Error" });
@@ -78,7 +78,7 @@ export function SearchView({
                     onClose={onClose}
                     title={t("Search")}
                     titleBehaviorDesktop="ShowIn"
-                    below={<PageTabs
+                    below={<PageTabs<typeof searchViewTabParams>
                         ariaLabel="Search tabs"
                         fullWidth
                         id={ELEMENT_IDS.SearchTabs}

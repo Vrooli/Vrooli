@@ -1,18 +1,18 @@
-import { exists } from "./exists";
+import { exists } from "./exists.js";
 
 describe("exists", () => {
     it("should return true for values that are not null and not undefined", () => {
-        expect(exists(0)).toBe(true);
-        expect(exists("")).toBe(true);
-        expect(exists("Hello")).toBe(true);
-        expect(exists([])).toBe(true);
-        expect(exists({})).toBe(true);
-        expect(exists(false)).toBe(true);
+        expect(exists(0)).to.equal(true);
+        expect(exists("")).to.equal(true);
+        expect(exists("Hello")).to.equal(true);
+        expect(exists([])).to.equal(true);
+        expect(exists({})).to.equal(true);
+        expect(exists(false)).to.equal(true);
     });
 
     it("should return false for null and undefined values", () => {
-        expect(exists(null)).toBe(false);
-        expect(exists(undefined)).toBe(false);
+        expect(exists(null)).to.equal(false);
+        expect(exists(undefined)).to.equal(false);
     });
 
     it("should work with generic types", () => {
@@ -21,8 +21,8 @@ describe("exists", () => {
 
         if (exists(sample)) {
             // Demonstrating type narrowing. The type of sample is narrowed to SampleType here.
-            expect(sample.name).toBe("John");
-            expect(sample.age).toBe(25);
+            expect(sample.name).to.equal("John");
+            expect(sample.age).to.equal(25);
         } else {
             fail("Sample should exist");
         }

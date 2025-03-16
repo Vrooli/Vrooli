@@ -1,2 +1,2 @@
-export * from "./ReportUpsert/ReportUpsert";
+export * from "./ReportUpsert.js";
 

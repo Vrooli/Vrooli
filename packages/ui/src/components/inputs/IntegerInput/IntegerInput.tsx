@@ -1,7 +1,7 @@
 import { Box, FormControl, FormHelperText, Input, InputLabel, Palette, Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useMemo } from "react";
-import { IntegerInputBaseProps, IntegerInputProps } from "../types";
+import { IntegerInputBaseProps, IntegerInputProps } from "../types.js";
 
 export function getNumberInRange(
     updatedNumber: number,

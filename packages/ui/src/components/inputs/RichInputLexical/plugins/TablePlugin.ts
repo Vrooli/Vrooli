@@ -1,19 +1,20 @@
-import { useEffect } from "react";
-import { CONTROLLED_TEXT_INSERTION_COMMAND, DELETE_CHARACTER_COMMAND, DELETE_LINE_COMMAND, DELETE_WORD_COMMAND, FOCUS_COMMAND, FORMAT_ELEMENT_COMMAND, FORMAT_TEXT_COMMAND, INSERT_PARAGRAPH_COMMAND, INSERT_TABLE_COMMAND, KEY_ARROW_DOWN_COMMAND, KEY_ARROW_LEFT_COMMAND, KEY_ARROW_RIGHT_COMMAND, KEY_ARROW_UP_COMMAND, KEY_BACKSPACE_COMMAND, KEY_DELETE_COMMAND, KEY_ESCAPE_COMMAND, KEY_TAB_COMMAND, SELECTION_CHANGE_COMMAND, SELECTION_INSERT_CLIPBOARD_NODES_COMMAND } from "../commands";
-import { COMMAND_PRIORITY_CRITICAL, COMMAND_PRIORITY_EDITOR, COMMAND_PRIORITY_HIGH } from "../consts";
-import { useLexicalComposerContext } from "../context";
-import { LexicalEditor } from "../editor";
-import { ElementNode } from "../nodes/ElementNode";
-import { type LexicalNode } from "../nodes/LexicalNode";
-import { type TableCellNode } from "../nodes/TableCellNode";
-import { $createTableNodeWithDimensions, TableNode } from "../nodes/TableNode";
-import { type TableRowNode } from "../nodes/TableRowNode";
-import { $createPoint, $createRangeSelection, $createRangeSelectionFromDom, $getPreviousSelection, RangeSelection, getTable } from "../selection";
-import { BaseSelection, CustomDomElement, ElementFormatType, InsertTableCommandPayload, LexicalCommand, NodeKey, PointType, TableDOMCell, TableDOMTable, TableMapType, TableMapValueType, TableSelectionShape, TextFormatType } from "../types";
-import { isCurrentlyReadOnlyMode } from "../updates";
-import { $computeTableMap, $createNode, $findMatchingParent, $getNearestNodeFromDOMNode, $getNodeByKey, $getRoot, $getSelection, $insertNodeToNearestRoot, $isNode, $isRangeSelection, $nodesOfType, $normalizeSelection, $setSelection, getDOMSelection, getIndexWithinParent, getNextSibling, getParent, getParents, getPreviousSibling, isSelected } from "../utils";
 
-export const TablePlugin = ({
+import { useEffect } from "react";
+import { CONTROLLED_TEXT_INSERTION_COMMAND, DELETE_CHARACTER_COMMAND, DELETE_LINE_COMMAND, DELETE_WORD_COMMAND, FOCUS_COMMAND, FORMAT_ELEMENT_COMMAND, FORMAT_TEXT_COMMAND, INSERT_PARAGRAPH_COMMAND, INSERT_TABLE_COMMAND, KEY_ARROW_DOWN_COMMAND, KEY_ARROW_LEFT_COMMAND, KEY_ARROW_RIGHT_COMMAND, KEY_ARROW_UP_COMMAND, KEY_BACKSPACE_COMMAND, KEY_DELETE_COMMAND, KEY_ESCAPE_COMMAND, KEY_TAB_COMMAND, SELECTION_CHANGE_COMMAND, SELECTION_INSERT_CLIPBOARD_NODES_COMMAND } from "../commands.js";
+import { COMMAND_PRIORITY_CRITICAL, COMMAND_PRIORITY_EDITOR, COMMAND_PRIORITY_HIGH } from "../consts.js";
+import { useLexicalComposerContext } from "../context.js";
+import { LexicalEditor } from "../editor.js";
+import { ElementNode } from "../nodes/ElementNode.js";
+import { type LexicalNode } from "../nodes/LexicalNode.js";
+import { type TableCellNode } from "../nodes/TableCellNode.js";
+import { $createTableNodeWithDimensions, TableNode } from "../nodes/TableNode.js";
+import { type TableRowNode } from "../nodes/TableRowNode.js";
+import { $createPoint, $createRangeSelection, $createRangeSelectionFromDom, $getPreviousSelection, RangeSelection, getTable } from "../selection.js";
+import { BaseSelection, CustomDomElement, ElementFormatType, InsertTableCommandPayload, LexicalCommand, NodeKey, PointType, TableDOMCell, TableDOMTable, TableMapType, TableMapValueType, TableSelectionShape, TextFormatType } from "../types.js";
+import { isCurrentlyReadOnlyMode } from "../updates.js";
+import { $computeTableMap, $createNode, $findMatchingParent, $getNearestNodeFromDOMNode, $getNodeByKey, $getRoot, $getSelection, $insertNodeToNearestRoot, $isNode, $isRangeSelection, $nodesOfType, $normalizeSelection, $setSelection, getDOMSelection, getIndexWithinParent, getNextSibling, getParent, getParents, getPreviousSibling, isSelected } from "../utils.js";
+
+export function TablePlugin({
     hasCellMerge = true,
     hasCellBackgroundColor = true,
     hasTabHandler = true,
@@ -21,7 +22,7 @@ export const TablePlugin = ({
     hasCellMerge?: boolean;
     hasCellBackgroundColor?: boolean;
     hasTabHandler?: boolean;
-}): JSX.Element | null => {
+}): JSX.Element | null {
     const editor = useLexicalComposerContext();
 
     useEffect(() => {
@@ -172,7 +173,7 @@ export const TablePlugin = ({
     }, [editor, hasCellBackgroundColor, hasCellMerge]);
 
     return null;
-};
+}
 
 const $insertFirst = (parent: ElementNode, node: LexicalNode): void => {
     const firstChild = parent.getFirstChild();

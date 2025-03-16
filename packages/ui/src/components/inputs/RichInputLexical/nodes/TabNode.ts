@@ -1,7 +1,7 @@
-import { IS_UNMERGEABLE } from "../consts";
-import { DOMConversionMap, NodeConstructorPayloads, NodeType, SerializedTabNode, TextDetailType, TextModeType } from "../types";
-import { $createNode } from "../utils";
-import { TextNode } from "./TextNode";
+import { IS_UNMERGEABLE } from "../consts.js";
+import { DOMConversionMap, NodeConstructorPayloads, NodeType, SerializedTabNode, TextDetailType, TextModeType } from "../types.js";
+import { $createNode } from "../utils.js";
+import { TextNode } from "./TextNode.js";
 
 export class TabNode extends TextNode {
     static __type: NodeType = "Tab";

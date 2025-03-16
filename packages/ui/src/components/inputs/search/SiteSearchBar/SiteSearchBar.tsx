@@ -1,19 +1,19 @@
 import { AutocompleteOption, BookmarkFor } from "@local/shared";
 import { Autocomplete, AutocompleteHighlightChangeReason, AutocompleteRenderInputParams, CircularProgress, IconButton, Input, ListItemIcon, ListItemText, MenuItem, Paper, Popper, PopperProps, Tooltip, styled, useTheme } from "@mui/material";
-import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton";
-import { MicrophoneButton } from "components/buttons/MicrophoneButton/MicrophoneButton";
-import { SessionContext } from "contexts";
-import { useDebounce } from "hooks/useDebounce";
-import { ActionIcon, ApiIcon, BookmarkFilledIcon, DeleteIcon, HelpIcon, HistoryIcon, NoteIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon, VisibleIcon } from "icons";
+import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton.js";
+import { MicrophoneButton } from "components/buttons/MicrophoneButton/MicrophoneButton.js";
+import { useDebounce } from "hooks/useDebounce.js";
+import { ActionIcon, ApiIcon, BookmarkFilledIcon, DeleteIcon, HelpIcon, HistoryIcon, NoteIcon, PlayIcon, ProjectIcon, RoutineIcon, SearchIcon, ShortcutIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon, VisibleIcon } from "icons/common.js";
 import { ChangeEvent, FormEvent, HTMLAttributes, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SvgComponent } from "types";
-import { getCurrentUser } from "utils/authentication/session";
-import { randomString } from "utils/codes";
-import { DUMMY_LIST_LENGTH } from "utils/consts";
-import { getLocalStorageKeys } from "utils/localStorage";
-import { performAction } from "utils/navigation/quickActions";
-import { SiteSearchBarProps } from "../types";
+import { getCurrentUser } from "utils/authentication/session.js";
+import { randomString } from "utils/codes.js";
+import { DUMMY_LIST_LENGTH } from "utils/consts.js";
+import { getLocalStorageKeys } from "utils/localStorage.js";
+import { performAction } from "utils/navigation/quickActions.js";
+import { SessionContext } from "../../../../contexts.js";
+import { SiteSearchBarProps } from "../types.js";
 
 type OptionHistory = { timestamp: number, option: AutocompleteOption };
 

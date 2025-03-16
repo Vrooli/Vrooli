@@ -1,16 +1,16 @@
 import { ReportStatus } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
-import { ListItemChip, ListItemStyleColor, ObjectListItemBase } from "components/lists/ObjectListItemBase/ObjectListItemBase";
-import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
-import { SessionContext } from "contexts";
+import { ListItemChip, ListItemStyleColor, ObjectListItemBase } from "components/lists/ObjectListItemBase/ObjectListItemBase.js";
+import { DateDisplay } from "components/text/DateDisplay.js";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { getDisplay } from "utils/display/listTools";
-import { firstString } from "utils/display/stringTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import { ReportListItemProps } from "../types";
+import { getDisplay } from "utils/display/listTools.js";
+import { firstString } from "utils/display/stringTools.js";
+import { getUserLanguages } from "utils/display/translationTools.js";
+import { SessionContext } from "../../../contexts.js";
+import { ReportListItemProps } from "../types.js";
 
-const statusToColor = (status: ReportStatus | undefined): ListItemStyleColor => {
+function statusToColor(status: ReportStatus | undefined): ListItemStyleColor {
     if (!status) return "Default";
     switch (status) {
         case ReportStatus.Open:
@@ -24,7 +24,7 @@ const statusToColor = (status: ReportStatus | undefined): ListItemStyleColor => 
             return "Red";
         default: return "Default";
     }
-};
+}
 
 export function ReportListItem({
     data,

@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable react-perf/jsx-no-new-object-as-prop */
+import { expect } from "chai";
 import { Formik } from "formik";
 import { act } from "react";
-import { fireEvent, render, screen } from "../../../__mocks__/testUtils";
-import { TextInput, TranslatedTextInput } from "./TextInput";
+import { fireEvent, render, screen } from "../../../__mocks__/testUtils.js";
+import { TextInput, TranslatedTextInput } from "./TextInput.js";
 
 describe("TextInput", () => {
     it("renders with label and placeholder", () => {

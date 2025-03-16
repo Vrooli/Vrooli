@@ -100,13 +100,8 @@ else
 fi
 
 # Run bash script tests
-if [[ "$TEST" =~ ^[Yy]([Ee][Ss])?$ ]]; then
-    header "Running bash script tests (bats)..."
-    "${HERE}/tests/__runTests.sh"
-    if [ $? -ne 0 ]; then
-        error "Failed to run bash script tests"
-        exit 1
-    fi
+if is_yes "$TEST"; then
+    run_step "Running bash script tests (bats)" "${HERE}/tests/__runTests.sh"
 else
     warning "Skipping bash script tests..."
 fi
@@ -115,59 +110,37 @@ fi
 cd ${HERE}/../packages/shared
 
 # Run tests
-if [[ "$TEST" =~ ^[Yy]([Ee][Ss])?$ ]]; then
-    header "Running unit tests for shared..."
-    yarn test
-    header "Type checking shared..."
-    yarn type-check
-    if [ $? -ne 0 ]; then
-        error "Failed to run unit tests for shared"
-        exit 1
-    fi
+if is_yes "$TEST"; then
+    run_step "Running unit tests for shared..." "yarn test"
+    run_step "Type checking shared..." "yarn type-check"
 else
     warning "Skipping unit tests for shared..."
     warning "Skipping type checking for shared..."
 fi
 
+# Build shared
+run_step "Building shared" "${HERE}/shared.sh"
+
 # Navigate to server directory
 cd ${HERE}/../packages/server
 
 # Run tests
-if [[ "$TEST" =~ ^[Yy]([Ee][Ss])?$ ]]; then
-    header "Running unit tests for server..."
-    yarn test
-    header "Type checking server..."
-    yarn type-check
-    if [ $? -ne 0 ]; then
-        error "Failed to run unit tests for server"
-        exit 1
-    fi
+if is_yes "$TEST"; then
+    run_step "Running unit tests for server..." "yarn test"
+    run_step "Type checking server..." "yarn type-check"
 else
     warning "Skipping unit tests for server..."
     warning "Skipping type checking for server..."
 fi
 
-# Build shared
-info "Building shared..."
-"${HERE}/shared.sh"
-if [ $? -ne 0 ]; then
-    error "Failed to build shared"
-    exit 1
-fi
-
 # Build server
-info "Building server..."
-yarn pre-build-production && yarn build && yarn post-build
-if [ $? -ne 0 ]; then
-    error "Failed to build server"
-    exit 1
-fi
+run_step "Building server" "yarn build && yarn post-build"
 
 # Navigate to UI directory
 cd ${HERE}/../packages/ui
 
 # Run tests
-if [[ "$TEST" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+if is_yes "$TEST"; then
     header "Running unit tests for UI..."
     yarn test
     header "Type checking UI..."
@@ -195,34 +168,17 @@ echo "VITE_GOOGLE_TRACKING_ID=${GOOGLE_TRACKING_ID}" >>.env
 # Set trap to remove .env file on exit
 trap "rm ${HERE}/../packages/ui/.env" EXIT
 
-# Generate query/mutation selectors
-if [[ "$API_GENERATE" =~ ^[Yy]([Ee][Ss])?$ ]]; then
-    info "Generating GraphQL query/mutation selectors... (this may take a minute)"
-    NODE_OPTIONS="--max-old-space-size=4096" npx tsx ./src/tools/api/gqlSelects.ts
-    if [ $? -ne 0 ]; then
-        error "Failed to generate query/mutation selectors"
-        echo "${HERE}/../packages/ui/src/tools/api/gqlSelects.ts"
-        # This IS a critical error, so we'll exit
-        exit 1
-    fi
-    info "Generating OpenAPI schema..."
-    cd ${HERE}/../packages/shared
-    NODE_OPTIONS="--max-old-space-size=4096" && npx tsx ./src/tools/gqlToJson.ts
-    if [ $? -ne 0 ]; then
-        error "Failed to generate OpenAPI schema"
-        echo "${HERE}/../packages/shared/src/tools/gqlToJson.ts"
-        # This is NOT a critical error, so we'll continue
-    fi
-    cd ${HERE}/../packages/ui
+# Generate API information
+if is_yes "$API_GENERATE"; then
+    script_location="${HERE}/../packages/server/src/__tools/api/buildAPIPrismaSelects.ts"
+    run_step "Generating Prisma 'select' objects for each endpoint..." "NODE_OPTIONS=\"--max-old-space-size=4096\" npx vite-node ${script_location}"
+
+    script_location="${HERE}/../packages/shared/src/__tools/api/buildOpenAPISchema.ts"
+    run_step "Generating OpenAPI schema" "NODE_OPTIONS=\"--max-old-space-size=4096\" npx vite-node ${script_location}"
 fi
 
 # Build React app
-info "Building React app..."
-yarn build
-if [ $? -ne 0 ]; then
-    error "Failed to build React app"
-    exit 1
-fi
+run_step "Building React app" "yarn build"
 
 # Normalize UI_URL to ensure it ends with exactly one "/"
 export UI_URL="${UI_URL%/}/"
@@ -230,11 +186,8 @@ DOMAIN=$(echo "${UI_URL%/}" | sed -E 's|https?://([^/]+)|\1|')
 echo "Got domain ${DOMAIN} from UI_URL ${UI_URL}"
 
 # Generate sitemap.xml
-npx tsx ./src/tools/sitemap.ts
-if [ $? -ne 0 ]; then
-    error "Failed to generate sitemap.xml using ${HERE}/../packages/ui/src/tools/sitemap.ts"
-    # This is not a critical error, so we won't exit
-fi
+script_location="${HERE}/../packages/ui/src/__tools/sitemap/sitemap.ts"
+run_step "Generating sitemap.xml" "npx tsx ${script_location}"
 
 # Replace placeholder url in public files
 sed -i'' "s|<UI_URL>|${UI_URL}|g" "${HERE}/../packages/ui/dist/manifest.dark.manifest"
@@ -281,7 +234,7 @@ if [ ! -f "${KEYSTORE_PATH}" ]; then
     prompt "Keystore file not found. This is needed to upload the app the Google Play store. Would you like to create the file? (Y/n)"
     read -n1 -r REPLY
     echo
-    if [[ $REPLY =~ ^[Yy]([Ee][Ss])?$ ]]; then
+    if is_yes "$REPLY"; then
         # Generate the keystore file
         header "Generating keystore file..."
         info "Before we begin, you'll need to provide some information for the keystore certificate:"
@@ -296,11 +249,7 @@ if [ ! -f "${KEYSTORE_PATH}" ]; then
         prompt "Press any key to continue..."
         read -n1 -r -s
 
-        keytool -genkey -v -keystore "${KEYSTORE_PATH}" -alias "${KEYSTORE_ALIAS}" -keyalg RSA -keysize 2048 -validity 10000 -storepass "${KEYSTORE_PASSWORD}"
-        if [ $? -ne 0 ]; then
-            echo "Keystore file could not be generated. The app cannot be uploaded to the Google Play store without it."
-            exit 1
-        fi
+        run_step "Generating keystore file for Google Play Store" "keytool -genkey -v -keystore \"${KEYSTORE_PATH}\" -alias \"${KEYSTORE_ALIAS}\" -keyalg RSA -keysize 2048 -validity 10000 -storepass \"${KEYSTORE_PASSWORD}\""
     fi
 fi
 
@@ -393,12 +342,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 trap "rm production-docker-images.tar*" EXIT
-info "Compressing Docker images..."
-gzip -f production-docker-images.tar
-if [ $? -ne 0 ]; then
-    error "Failed to compress Docker images"
-    exit 1
-fi
+run_step "Compressing Docker images..." "gzip -f production-docker-images.tar"
 
 # Send docker images to Docker Hub
 if [ -z "$USE_KUBERNETES" ]; then
@@ -407,7 +351,7 @@ if [ -z "$USE_KUBERNETES" ]; then
     echo
 fi
 
-if [ "${USE_KUBERNETES}" = "n" ] || [ "${USE_KUBERNETES}" = "N" ]; then
+if ! is_yes "$USE_KUBERNETES"; then
     if [ -z "$DEPLOY_VPS" ]; then
         prompt "Would you like to send the build to the production server? (y/N)"
         read -n1 -r DEPLOY_VPS
@@ -415,7 +359,7 @@ if [ "${USE_KUBERNETES}" = "n" ] || [ "${USE_KUBERNETES}" = "N" ]; then
     fi
 fi
 
-if [[ "$USE_KUBERNETES" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+if is_yes "$USE_KUBERNETES"; then
     # Update build version in Kubernetes config
     if [ "${SHOULD_UPDATE_VERSION}" = true ]; then
         K8S_CONFIG_FILE="${HERE}/../k8s-docker-compose-prod-env.yml"
@@ -456,7 +400,7 @@ if [[ "$USE_KUBERNETES" =~ ^[Yy]([Ee][Ss])?$ ]]; then
         exit 1
     fi
     success "build.tar.gz uploaded to s3://${S3_BUCKET}/${S3_PATH}!"
-elif [[ "$DEPLOY_VPS" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+elif is_yes "$DEPLOY_VPS"; then
     # Copy build to VPS
     "${HERE}/keylessSsh.sh" -e ${ENV_FILE}
     BUILD_DIR="/var/tmp/${VERSION}/"

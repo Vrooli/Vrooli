@@ -1,9 +1,9 @@
 import { ReservedSocketEvents, RoomSocketEvents, SocketEvent, SocketEventHandler, SocketEventPayloads } from "@local/shared";
 import { Socket } from "socket.io";
-import { AuthTokensService } from "../auth/auth";
-import { SessionService } from "../auth/session";
-import { SessionData } from "../types";
-import { io, sessionSockets, userSockets } from "./io";
+import { AuthTokensService } from "../auth/auth.js";
+import { SessionService } from "../auth/session.js";
+import { SessionData } from "../types.js";
+import { io, sessionSockets, userSockets } from "./io.js";
 
 type EmitSocketEvent = Exclude<SocketEvent, ReservedSocketEvents | RoomSocketEvents>;
 type OnSocketEvent = Exclude<SocketEvent, ReservedSocketEvents>;
@@ -53,6 +53,18 @@ export function emitSocketEvent<T extends EmitSocketEvent>(event: T, roomId: str
 export function onSocketEvent<T extends OnSocketEvent>(socket: Socket, event: T, handler: SocketEventHandler<T>) {
     socket.on(event, handler as never);
 }
+
+/**
+ * Checks if a specific room has open connections.
+ *
+ * @param roomId - The ID of the room to check.
+ * @returns true if the room has one or more open connections, false otherwise.
+ */
+export function roomHasOpenConnections(roomId: string): boolean {
+    const room = io.sockets.adapter.rooms.get(roomId);
+    return room ? room.size > 0 : false;
+}
+
 
 /**
  * Closes all socket connections for a user. 

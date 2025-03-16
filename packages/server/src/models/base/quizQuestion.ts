@@ -1,14 +1,13 @@
-import { MaxObjects, QuizQuestionSortBy, getTranslation, quizQuestionValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { translationShapeHelper } from "../../utils/shapes";
-import { getSingleTypePermissions } from "../../validators";
-import { QuizQuestionFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { QuizModelInfo, QuizModelLogic, QuizQuestionModelInfo, QuizQuestionModelLogic } from "./types";
+import { MaxObjects, getTranslation, quizQuestionValidation } from "@local/shared";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { QuizQuestionFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { QuizModelInfo, QuizModelLogic, QuizQuestionModelInfo, QuizQuestionModelLogic } from "./types.js";
 
 const __typename = "QuizQuestion" as const;
 export const QuizQuestionModel: QuizQuestionModelLogic = ({
@@ -41,40 +40,13 @@ export const QuizQuestionModel: QuizQuestionModelLogic = ({
         },
         yup: quizQuestionValidation,
     },
-    search: {
-        defaultSort: QuizQuestionSortBy.OrderAsc,
-        sortBy: QuizQuestionSortBy,
-        searchFields: {
-            createdTimeFrame: true,
-            translationLanguages: true,
-            quizId: true,
-            standardId: true,
-            userId: true,
-            responseId: true,
-            updatedTimeFrame: true,
-        },
-        searchStringQuery: () => ({
-            OR: [
-                "transQuestionTextWrapped",
-            ],
-        }),
-        supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
-                return {
-                    you: {
-                        ...(await getSingleTypePermissions<QuizQuestionModelInfo["GqlPermission"]>(__typename, ids, userData)),
-                    },
-                };
-            },
-        },
-    },
+    search: undefined,
     validate: () => ({
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<QuizQuestionModelInfo["PrismaSelect"]>([["quiz", "Quiz"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<QuizQuestionModelInfo["DbSelect"]>([["quiz", "Quiz"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<QuizModelLogic>("Quiz").validate().owner(data?.quiz as QuizModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<QuizModelLogic>("Quiz").validate().owner(data?.quiz as QuizModelInfo["DbModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({
             id: true,

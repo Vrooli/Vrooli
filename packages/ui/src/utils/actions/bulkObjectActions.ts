@@ -1,8 +1,8 @@
 import { BookmarkFor, CopyType, DeleteType, ListObject, ReportFor, Session, TranslationKeyCommon } from "@local/shared";
 import { ListMenuItemData } from "components/dialogs/types";
-import { AddIcon, BookmarkFilledIcon, BookmarkOutlineIcon, CopyIcon, DeleteIcon, ReportIcon } from "icons";
+import { AddIcon, BookmarkFilledIcon, BookmarkOutlineIcon, CopyIcon, DeleteIcon, ReportIcon } from "icons/common.js";
 import { SvgComponent } from "types";
-import { checkIfLoggedIn } from "utils/authentication/session";
+import { checkIfLoggedIn } from "utils/authentication/session.js";
 import { getYou } from "utils/display/listTools";
 
 /**

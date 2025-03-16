@@ -8,7 +8,7 @@
         "sourceType": "module",
         "project": [
             "./tsconfig.json",
-            "./tsconfig.test.json",
+            "./tsconfig.test.json"
         ]
-    },
+    }
 }

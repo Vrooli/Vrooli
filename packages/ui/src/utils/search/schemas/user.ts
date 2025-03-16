@@ -1,6 +1,6 @@
-import { endpointGetUser, endpointGetUsers, FormSchema, InputType, UserSortBy } from "@local/shared";
-import { toParams } from "./base";
-import { bookmarksContainer, bookmarksFields, languagesContainer, languagesFields, searchFormLayout } from "./common";
+import { endpointsUser, FormSchema, InputType, UserSortBy } from "@local/shared";
+import { toParams } from "./base.js";
+import { bookmarksContainer, bookmarksFields, languagesContainer, languagesFields, searchFormLayout } from "./common.js";
 
 export function userSearchSchema(): FormSchema {
     return {
@@ -29,5 +29,5 @@ export function userSearchSchema(): FormSchema {
 }
 
 export function userSearchParams() {
-    return toParams(userSearchSchema(), endpointGetUsers, endpointGetUser, UserSortBy, UserSortBy.BookmarksDesc);
+    return toParams(userSearchSchema(), endpointsUser, UserSortBy, UserSortBy.BookmarksDesc);
 }

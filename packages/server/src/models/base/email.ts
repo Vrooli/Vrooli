@@ -1,11 +1,11 @@
 import { emailValidation, MaxObjects } from "@local/shared";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { prismaInstance } from "../../db/instance";
-import { CustomError } from "../../events/error";
-import { Trigger } from "../../events/trigger";
-import { defaultPermissions } from "../../utils";
-import { EmailFormat } from "../formats";
-import { EmailModelLogic } from "./types";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { DbProvider } from "../../db/provider.js";
+import { CustomError } from "../../events/error.js";
+import { Trigger } from "../../events/trigger.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { EmailFormat } from "../formats.js";
+import { EmailModelLogic } from "./types.js";
 
 const __typename = "Email" as const;
 export const EmailModel: EmailModelLogic = ({
@@ -24,22 +24,22 @@ export const EmailModel: EmailModelLogic = ({
                 // Prevent creating emails if at least one is already in use
                 if (Create.length) {
                     const emailAddresses = Create.map(x => x.input.emailAddress);
-                    const existingEmails = await prismaInstance.email.findMany({
+                    const existingEmails = await DbProvider.get().email.findMany({
                         where: { emailAddress: { in: emailAddresses } },
                     });
                     if (existingEmails.length > 0) throw new CustomError("0044", "EmailInUse", { emailAddresses });
                 }
                 // Prevent deleting emails if it will leave you with less than one verified authentication method
                 if (Delete.length) {
-                    const allEmails = await prismaInstance.email.findMany({
+                    const allEmails = await DbProvider.get().email.findMany({
                         where: { user: { id: userData.id } },
                         select: { id: true, verified: true },
                     });
                     const remainingVerifiedEmailsCount = allEmails.filter(x => !Delete.some(d => d.input === x.id) && x.verified).length;
-                    const verifiedPhonesCount = await prismaInstance.phone.count({
+                    const verifiedPhonesCount = await DbProvider.get().phone.count({
                         where: { user: { id: userData.id }, verified: true },
                     });
-                    const verifiedWalletsCount = await prismaInstance.wallet.count({
+                    const verifiedWalletsCount = await DbProvider.get().wallet.count({
                         where: { user: { id: userData.id }, verified: true },
                     });
                     if (remainingVerifiedEmailsCount + verifiedPhonesCount + verifiedWalletsCount < 1)

@@ -1,9 +1,9 @@
 import { Collapse, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { useIsLeftHanded } from "hooks/subscriptions";
-import { CloseIcon, EllipsisIcon } from "icons";
+import { CloseIcon, EllipsisIcon } from "icons/common.js";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { EllipsisActionButtonProps } from "../types";
+import { EllipsisActionButtonProps } from "../types.js";
 
 export function EllipsisActionButton({
     children,

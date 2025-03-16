@@ -1,11 +1,11 @@
-import { API_CREDITS_FREE } from "@local/shared";
-import { prismaInstance } from "../db/instance";
-import { CustomError } from "../events/error";
-import { sendSmsVerification } from "../tasks/sms/queue";
-import { randomString, validateCode } from "./codes";
+import { API_CREDITS_FREE, MINUTES_15_S, MINUTES_2_S } from "@local/shared";
+import { DbProvider } from "../db/provider.js";
+import { CustomError } from "../events/error.js";
+import { sendSmsVerification } from "../tasks/sms/queue.js";
+import { randomString, validateCode } from "./codes.js";
 
-export const PHONE_VERIFICATION_TIMEOUT = 15 * 60 * 1000; // 15 minutes
-const PHONE_VERIFICATION_RATE_LIMIT = 2 * 60 * 1000; // 2 minutes
+export const PHONE_VERIFICATION_TIMEOUT_MS = MINUTES_15_S;
+const PHONE_VERIFICATION_RATE_LIMIT_MS = MINUTES_2_S;
 const DEFAULT_PHONE_VERIFICATION_CODE_LENGTH = 8;
 
 /**
@@ -14,7 +14,7 @@ const DEFAULT_PHONE_VERIFICATION_CODE_LENGTH = 8;
  */
 export function generatePhoneVerificationCode(length = DEFAULT_PHONE_VERIFICATION_CODE_LENGTH): string {
     return randomString(length, "0123456789");
-};
+}
 
 const phoneSelect = {
     id: true,
@@ -37,13 +37,13 @@ export async function setupPhoneVerificationCode(
     userId: string,
 ): Promise<void> {
     // Find the phone
-    let phone = await prismaInstance.phone.findUnique({
+    let phone = await DbProvider.get().phone.findUnique({
         where: { phoneNumber },
         select: phoneSelect,
     });
     // Create if not found
     if (!phone) {
-        phone = await prismaInstance.phone.create({
+        phone = await DbProvider.get().phone.create({
             data: {
                 phoneNumber,
                 user: {
@@ -62,19 +62,19 @@ export async function setupPhoneVerificationCode(
         throw new CustomError("0059", "PhoneAlreadyVerified");
     }
     // Check if code was sent recently
-    if (phone.lastVerificationCodeRequestAttempt && new Date().getTime() - new Date(phone.lastVerificationCodeRequestAttempt).getTime() < PHONE_VERIFICATION_RATE_LIMIT) {
+    if (phone.lastVerificationCodeRequestAttempt && new Date().getTime() - new Date(phone.lastVerificationCodeRequestAttempt).getTime() < PHONE_VERIFICATION_RATE_LIMIT_MS) {
         throw new CustomError("0058", "PhoneCodeSentRecently");
     }
     // Generate new code
     const verificationCode = generatePhoneVerificationCode();
     // Store code and request time
-    await prismaInstance.phone.update({
+    await DbProvider.get().phone.update({
         where: { id: phone.id },
         data: { verificationCode, lastVerificationCodeRequestAttempt: new Date().toISOString() },
     });
     // Send new verification text
     sendSmsVerification(phoneNumber, verificationCode);
-};
+}
 
 // TODO 2: Since credits are issued once per user AND once per phone number, we need to make sure that 1) the phone number is stored in a standard format 2) we disconnect phone numbers when removing them from accounts (and set verification stuff to false/null, EXCEPT for lastVerifiedTime), rather than deleting them
 /**
@@ -90,7 +90,7 @@ export async function validatePhoneVerificationCode(
     code: string,
 ): Promise<boolean> {
     // Find data
-    const phone = await prismaInstance.phone.findUnique({
+    const phone = await DbProvider.get().phone.findUnique({
         where: { phoneNumber },
         select: {
             id: true,
@@ -110,20 +110,20 @@ export async function validatePhoneVerificationCode(
         throw new CustomError("0351", "PhoneNotYours");
     // If phone already verified, remove old verification code
     if (phone.verified) {
-        await prismaInstance.phone.update({
+        await DbProvider.get().phone.update({
             where: { id: phone.id },
             data: { verificationCode: null, lastVerificationCodeRequestAttempt: null },
         });
         return true;
     }
     // If code is incorrect or expired
-    if (!validateCode(code, phone.verificationCode, phone.lastVerificationCodeRequestAttempt, PHONE_VERIFICATION_TIMEOUT)) {
+    if (!validateCode(code, phone.verificationCode, phone.lastVerificationCodeRequestAttempt, PHONE_VERIFICATION_TIMEOUT_MS)) {
         // NOTE: With emails, we might automatically try again. 
         // We won't do this for phones, as texts are expensive.
         return false;
     }
     // If we're here, the code is valid
-    await prismaInstance.phone.update({
+    await DbProvider.get().phone.update({
         where: { id: phone.id },
         data: {
             verified: true,
@@ -133,7 +133,7 @@ export async function validatePhoneVerificationCode(
         },
     });
     // If this is the first time verifying (both for the user and the phone), give free credits
-    const userData = await prismaInstance.user.findUnique({
+    const userData = await DbProvider.get().user.findUnique({
         where: { id: userId },
         select: {
             premium: {
@@ -148,7 +148,7 @@ export async function validatePhoneVerificationCode(
     if (userData) {
         const hasReceivedFreeTrial = userData.premium?.hasReceivedFreeTrial === true;
         if (!hasReceivedFreeTrial && !hasPhoneBeenVerifiedBefore) {
-            await prismaInstance.user.update({
+            await DbProvider.get().user.update({
                 where: { id: userId },
                 data: {
                     premium: {
@@ -168,4 +168,4 @@ export async function validatePhoneVerificationCode(
         }
     }
     return true;
-};
+}

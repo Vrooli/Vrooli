@@ -1,8 +1,8 @@
 import { ChatUpdateInput, getTranslation, SessionUser } from "@local/shared";
-import { prismaInstance } from "../db/instance";
-import { CustomError } from "../events/error";
-import { logger } from "../events/logger";
-import { PreShapeEmbeddableTranslatableResult } from "./shapes/preShapeEmbeddableTranslatable";
+import { DbProvider } from "../db/provider.js";
+import { CustomError } from "../events/error.js";
+import { logger } from "../events/logger.js";
+import { PreShapeEmbeddableTranslatableResult } from "./shapes/preShapeEmbeddableTranslatable.js";
 
 export type PreMapMessageDataCreate = {
     __type: "Create";
@@ -325,7 +325,7 @@ export async function getChatParticipantData({
     const notSelectingLastMessage = includeMessageInfo === true || includeMessageParentInfo === true;
     const messageQuery = buildChatParticipantMessageQuery(messageIds, includeMessageInfo == true, includeMessageParentInfo === true);
     // Query chat information from database
-    const chatInfo = await prismaInstance.chat.findMany({
+    const chatInfo = await DbProvider.get().chat.findMany({
         where: chatSelect,
         select: {
             id: true,
@@ -352,7 +352,7 @@ export async function getChatParticipantData({
             _count: { select: { participants: true } },
         },
     });
-    console.log('got chat info', chatInfo.length)
+    console.log("got chat info", chatInfo.length);
     // Parse chat and bot information
     chatInfo.forEach(chat => {
         // Find bots you are allowed to talk to
@@ -618,8 +618,8 @@ export function prepareChatMessageOperations(
 
     return {
         operations: operationsResult,
-        summary
-    }
+        summary,
+    };
 }
 
 /**
@@ -639,7 +639,7 @@ export async function populatePreMapForChatUpdates({
         return { branchInfo };
     }
     // Fetch chat information
-    const chats = await prismaInstance.chat.findMany({
+    const chats = await DbProvider.get().chat.findMany({
         where: { id: { in: chatIds } },
         select: {
             id: true,
@@ -667,7 +667,7 @@ export async function populatePreMapForChatUpdates({
     }, [] as string[]);
     // If there are any messages being deleted, fetch each message's parent ID and child IDs
     if (deletedMessageIds.length > 0) {
-        const messages = await prismaInstance.chat_message.findMany({
+        const messages = await DbProvider.get().chat_message.findMany({
             where: { id: { in: deletedMessageIds } },
             select: {
                 id: true,

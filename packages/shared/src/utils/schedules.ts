@@ -1,6 +1,6 @@
 import { Moment } from "moment-timezone";
-import { type Schedule, type ScheduleRecurrence } from "../api/generated/graphqlTypes";
-import { HOURS_1_MS, MINUTES_1_MS, YEARS_1_MS } from "../consts/numbers";
+import { type Schedule, type ScheduleRecurrence } from "../api/types.js";
+import { HOURS_1_MS, MINUTES_1_MS, YEARS_1_MS } from "../consts/numbers.js";
 
 const DAYS_IN_WEEK = 7;
 const OCCURRENCE_LOOP_LIMIT = 5000;

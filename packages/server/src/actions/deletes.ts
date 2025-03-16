@@ -1,7 +1,7 @@
 import { Count, Success } from "@local/shared";
-import { RequestService } from "../auth/request";
-import { cudHelper } from "./cuds";
-import { DeleteManyHelperProps, DeleteOneHelperProps } from "./types";
+import { RequestService } from "../auth/request.js";
+import { cudHelper } from "./cuds.js";
+import { DeleteManyHelperProps, DeleteOneHelperProps } from "./types.js";
 
 /**
  * Helper function for deleting one object in a single line
@@ -14,12 +14,12 @@ export async function deleteOneHelper({
     const userData = RequestService.assertRequestFrom(req, { isUser: true });
     // Delete object. cudHelper will check permissions and handle triggers
     const deleted = (await cudHelper({
+        info: {},
         inputData: [{
             action: "Delete",
             input: input.id,
             objectType: input.objectType,
         }],
-        partialInfo: {},
         userData,
     }))[0];
     return { __typename: "Success" as const, success: deleted === true };
@@ -38,12 +38,12 @@ export async function deleteManyHelper({
     // Delete objects. cudHelper will check permissions and handle triggers
     const deleted = await cudHelper({
         // deleteMany: input.ids,
+        info: {},
         inputData: input.objects.map(({ id, objectType }) => ({
             action: "Delete",
             input: id,
             objectType,
         })),
-        partialInfo: {},
         userData,
     });
     return { __typename: "Count" as const, count: deleted.filter(d => d === true).length };

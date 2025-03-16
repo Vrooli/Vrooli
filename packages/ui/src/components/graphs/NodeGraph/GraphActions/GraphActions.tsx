@@ -1,12 +1,9 @@
-/**
- * Used to create/update a link between two routine nodes
- */
 import { Box, IconButton, Tooltip, styled, useTheme } from "@mui/material";
-import { useWindowSize } from "hooks/useWindowSize";
-import { AddLinkIcon, CompressIcon, RedoIcon, UndoIcon } from "icons";
+import { useWindowSize } from "hooks/useWindowSize.js";
+import { AddLinkIcon, CompressIcon, RedoIcon, UndoIcon } from "icons/common.js";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { GraphActionsProps } from "../types";
+import { GraphActionsProps } from "../types.js";
 
 const ActionsContainer = styled(Box)(({ theme }) => ({
     display: "flex",

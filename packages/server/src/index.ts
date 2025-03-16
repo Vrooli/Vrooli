@@ -1,44 +1,38 @@
-import { ApolloServer } from "@apollo/server";
-import { expressMiddleware } from "@apollo/server/express4";
-import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHttpServer";
-import { HttpStatus, SERVER_VERSION, i18nConfig } from "@local/shared";
+import { HttpStatus, i18nConfig } from "@local/shared";
 import cookie from "cookie";
 import cors from "cors";
 import express from "express";
-import { graphqlUploadExpress } from "graphql-upload";
 import i18next from "i18next";
 import path from "path";
 import { fileURLToPath } from "url";
-import { app } from "./app";
-import { AuthService } from "./auth/auth";
-import { SessionService } from "./auth/session";
-import { schema } from "./endpoints";
-import * as restRoutes from "./endpoints/rest";
-import { logger } from "./events/logger";
-import { context, depthLimit } from "./middleware";
-import { ModelMap } from "./models/base";
-import { initializeRedis } from "./redisConn";
-import { SERVER_URL, server } from "./server";
-import { setupStripe } from "./services";
-import { io, sessionSockets, userSockets } from "./sockets/io";
-import { chatSocketRoomHandlers } from "./sockets/rooms/chat";
-import { runSocketRoomHandlers } from "./sockets/rooms/run";
-import { userSocketRoomHandlers } from "./sockets/rooms/user";
-import { setupEmailQueue } from "./tasks/email/queue";
-import { setupExportQueue } from "./tasks/export/queue";
-import { setupImportQueue } from "./tasks/import/queue";
-import { setupLlmQueue } from "./tasks/llm/queue";
-import { LlmServiceRegistry } from "./tasks/llm/registry";
-import { setupLlmTaskQueue } from "./tasks/llmTask/queue";
-import { setupPushQueue } from "./tasks/push/queue";
-import { setupRunQueue } from "./tasks/run/queue";
-import { setupSandboxQueue } from "./tasks/sandbox";
-import { setupSmsQueue } from "./tasks/sms/queue";
-import { initializeProfanity } from "./utils/censor";
-import { setupDatabase } from "./utils/setupDatabase";
+import { app } from "./app.js";
+import { AuthService } from "./auth/auth.js";
+import { SessionService } from "./auth/session.js";
+import { DbProvider } from "./db/provider.js";
+import { initRestApi } from "./endpoints/rest.js";
+import { logger } from "./events/logger.js";
+import { ModelMap } from "./models/base/index.js";
+import { initializeRedis } from "./redisConn.js";
+import { SERVER_URL, server } from "./server.js";
+import { setupStripe } from "./services/stripe.js";
+import { io, sessionSockets, userSockets } from "./sockets/io.js";
+import { chatSocketRoomHandlers } from "./sockets/rooms/chat.js";
+import { runSocketRoomHandlers } from "./sockets/rooms/run.js";
+import { userSocketRoomHandlers } from "./sockets/rooms/user.js";
+import { setupEmailQueue } from "./tasks/email/queue.js";
+import { setupExportQueue } from "./tasks/export/queue.js";
+import { setupImportQueue } from "./tasks/import/queue.js";
+import { setupLlmQueue } from "./tasks/llm/queue.js";
+import { LlmServiceRegistry } from "./tasks/llm/registry.js";
+import { TokenEstimationRegistry } from "./tasks/llm/tokenEstimator.js";
+import { setupLlmTaskQueue } from "./tasks/llmTask/queue.js";
+import { setupPushQueue } from "./tasks/push/queue.js";
+import { setupRunQueue } from "./tasks/run/queue.js";
+import { setupSandboxQueue } from "./tasks/sandbox/queue.js";
+import { setupSmsQueue } from "./tasks/sms/queue.js";
+import { initializeProfanity } from "./utils/censor.js";
 
 const debug = process.env.NODE_ENV === "development";
-const QUERY_DEPTH_LIMIT = 13;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -50,6 +44,7 @@ export async function initSingletons() {
     // Initialize singletons
     await ModelMap.init();
     await LlmServiceRegistry.init();
+    await TokenEstimationRegistry.init();
 
     // Initialize censor dictionary
     initializeProfanity();
@@ -108,11 +103,12 @@ async function main() {
 
     // For authentication
     app.use((req, res, next) => {
+        console.log("in here. Current time:", new Date());
         // Exclude webhooks, as they have their own authentication methods
         if (req.originalUrl.startsWith("/webhooks")) {
             next();
         } else {
-            // Include everything else, which should include REST, GraphQL, and websockets
+            // Include everything else, which should include REST endpoints and websockets
             AuthService.authenticateRequest(req, res, next);
         }
     });
@@ -142,33 +138,7 @@ async function main() {
     app.use("/ai/configs", express.static(path.join(__dirname, "../../shared/dist/ai/configs")));
 
     // Set up REST API
-    Object.keys(restRoutes).forEach((key) => {
-        app.use(`/api/${SERVER_VERSION}/rest`, restRoutes[key]);
-    });
-
-    // Set up image uploading for GraphQL
-    app.use(`/api/${SERVER_VERSION}/graphql`, graphqlUploadExpress({ maxFileSize: 10000000, maxFiles: 100 }));
-
-    // GraphQL server for latest API version, if needed. We use GraphQL to generate 
-    // types, so this needs to run at least in development.
-    if (debug) {
-        const apolloServerLatest = new ApolloServer({
-            cache: "bounded",
-            introspection: debug,
-            schema,
-            plugins: [ApolloServerPluginDrainHttpServer({ httpServer: server as any })], // https://github.com/apollographql/apollo-server/issues/7796
-            validationRules: [depthLimit(QUERY_DEPTH_LIMIT)], // Prevents DoS attack from arbitrarily-nested query
-        });
-        // Start server
-        await apolloServerLatest.start();
-        // Configure server with ExpressJS settings and path
-        app.use(
-            `/api/${SERVER_VERSION}/graphql`,
-            expressMiddleware(apolloServerLatest, {
-                context: async ({ req, res }) => context({ req, res }), // Pass req and res to your context function
-            }),
-        );
-    }
+    await initRestApi(app);
 
     // Set up websocket server
     // Authenticate new connections (this is not called for each event)
@@ -222,15 +192,15 @@ if (process.env.npm_package_name === "@local/server") {
 }
 
 // Export files for "jobs" package
-export * from "./builders";
-export * from "./db/instance";
-export * from "./events";
-export * from "./models";
-export * from "./notify";
-export * from "./redisConn";
-export * from "./server";
-export * from "./sockets/events";
-export * from "./tasks";
-export * from "./utils";
-export * from "./validators";
+export * from "./builders/index.js";
+export * from "./db/provider.js";
+export * from "./events/index.js";
+export * from "./models/index.js";
+export * from "./notify/index.js";
+export * from "./redisConn.js";
+export * from "./server.js";
+export * from "./sockets/events.js";
+export * from "./tasks/index.js";
+export * from "./utils/index.js";
+export * from "./validators/index.js";
 

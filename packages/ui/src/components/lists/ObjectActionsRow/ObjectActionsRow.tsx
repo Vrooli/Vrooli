@@ -1,15 +1,15 @@
 import { ListObject } from "@local/shared";
 import { Box, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { ObjectActionDialogs } from "components/dialogs/ObjectActionDialogs/ObjectActionDialogs";
-import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
-import { SessionContext } from "contexts";
-import { EllipsisIcon } from "icons";
+import { ObjectActionDialogs } from "components/dialogs/ObjectActionDialogs/ObjectActionDialogs.js";
+import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
+import { EllipsisIcon } from "icons/common.js";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ObjectAction, getActionsDisplayData, getAvailableActions } from "utils/actions/objectActions";
-import { getDisplay } from "utils/display/listTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import { ObjectActionsRowProps } from "../types";
+import { ObjectAction, getActionsDisplayData, getAvailableActions } from "utils/actions/objectActions.js";
+import { getDisplay } from "utils/display/listTools.js";
+import { getUserLanguages } from "utils/display/translationTools.js";
+import { SessionContext } from "../../../contexts.js";
+import { ObjectActionsRowProps } from "../types.js";
 
 const MAX_ACTIONS_BEFORE_OVERFLOW = 5;
 

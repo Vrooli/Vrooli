@@ -1,45 +1,45 @@
-import { ActiveFocusMode, endpointPostAuthValidateSession, endpointPutFocusModeActive, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
+import { ActiveFocusMode, endpointsAuth, endpointsFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
 import { Box, BoxProps, createTheme, CssBaseline, GlobalStyles, styled, StyledEngineProvider, Theme, ThemeProvider } from "@mui/material";
-import { fetchAIConfig } from "api/ai";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { ServerResponseParser } from "api/responseParser";
-import { SERVER_CONNECT_MESSAGE_ID } from "api/socket";
-import { BannerChicken } from "components/BannerChicken/BannerChicken";
-import { Celebration } from "components/Celebration/Celebration";
-import { AlertDialog } from "components/dialogs/AlertDialog/AlertDialog";
-import { ChatSideMenu } from "components/dialogs/ChatSideMenu/ChatSideMenu";
-import { ImagePopup, VideoPopup } from "components/dialogs/media";
-import { ProDialog } from "components/dialogs/ProDialog/ProDialog";
-import { SideMenu } from "components/dialogs/SideMenu/SideMenu";
-import { TutorialDialog } from "components/dialogs/TutorialDialog/TutorialDialog";
-import { BottomNav } from "components/navigation/BottomNav/BottomNav";
-import { CommandPalette } from "components/navigation/CommandPalette/CommandPalette";
-import { FindInPage } from "components/navigation/FindInPage/FindInPage";
-import { PullToRefresh } from "components/PullToRefresh/PullToRefresh";
-import { SnackStack } from "components/snacks/SnackStack/SnackStack";
-import { FullPageSpinner } from "components/Spinners/Spinners";
-import { ActiveChatProvider, SessionContext, ZIndexProvider } from "contexts";
-import { useHashScroll } from "hooks/hash";
-import { useHotkeys } from "hooks/useHotkeys";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { useSideMenu } from "hooks/useSideMenu";
-import { useSocketConnect } from "hooks/useSocketConnect";
-import { useSocketUser } from "hooks/useSocketUser";
-import { useWindowSize } from "hooks/useWindowSize";
 import i18next from "i18next";
-import { vrooliIconPath } from "icons/common";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Routes } from "Routes";
-import { getSiteLanguage, guestSession } from "utils/authentication/session";
-import { LEFT_DRAWER_WIDTH, RIGHT_DRAWER_WIDTH } from "utils/consts";
-import { getDeviceInfo } from "utils/display/device";
-import { NODE_HIGHLIGHT_ERROR, NODE_HIGHLIGHT_SELECTED, NODE_HIGHLIGHT_WARNING, SEARCH_HIGHLIGHT_CURRENT, SEARCH_HIGHLIGHT_WRAPPER, SNACK_HIGHLIGHT, TUTORIAL_HIGHLIGHT } from "utils/display/documentTools";
-import { DEFAULT_THEME, themes } from "utils/display/theme";
-import { getCookie, getStorageItem, setCookie, ThemeType } from "utils/localStorage";
-import { CHAT_SIDE_MENU_ID, PopupImagePub, PopupVideoPub, PubSub, SIDE_MENU_ID } from "utils/pubsub";
-import { CI_MODE } from "./i18n";
+import { fetchAIConfig } from "./api/ai.js";
+import { fetchLazyWrapper } from "./api/fetchWrapper.js";
+import { ServerResponseParser } from "./api/responseParser.js";
+import { SERVER_CONNECT_MESSAGE_ID } from "./api/socket.js";
+import { BannerChicken } from "./components/BannerChicken.js";
+import { Celebration } from "./components/Celebration/Celebration.js";
+import { AlertDialog } from "./components/dialogs/AlertDialog/AlertDialog.js";
+import { ChatSideMenu } from "./components/dialogs/ChatSideMenu/ChatSideMenu.js";
+import { ImagePopup, VideoPopup } from "./components/dialogs/media.js";
+import { ProDialog } from "./components/dialogs/ProDialog/ProDialog.js";
+import { SideMenu } from "./components/dialogs/SideMenu/SideMenu.js";
+import { TutorialDialog } from "./components/dialogs/TutorialDialog.js";
+import { BottomNav } from "./components/navigation/BottomNav/BottomNav.js";
+import { CommandPalette } from "./components/navigation/CommandPalette/CommandPalette.js";
+import { FindInPage } from "./components/navigation/FindInPage/FindInPage.js";
+import { PullToRefresh } from "./components/PullToRefresh/PullToRefresh.js";
+import { SnackStack } from "./components/snacks/SnackStack/SnackStack.js";
+import { FullPageSpinner } from "./components/Spinners/Spinners.js";
+import { ActiveChatProvider, SessionContext } from "./contexts.js";
+import { useHashScroll } from "./hooks/hash.js";
+import { useHotkeys } from "./hooks/useHotkeys.js";
+import { useLazyFetch } from "./hooks/useLazyFetch.js";
+import { useSideMenu } from "./hooks/useSideMenu.js";
+import { useSocketConnect } from "./hooks/useSocketConnect.js";
+import { useSocketUser } from "./hooks/useSocketUser.js";
+import { useWindowSize } from "./hooks/useWindowSize.js";
+import { CI_MODE } from "./i18n.js";
+import { vrooliIconPath } from "./icons/common.js";
+import { Routes } from "./Routes.js";
+import { getSiteLanguage, guestSession } from "./utils/authentication/session.js";
+import { LEFT_DRAWER_WIDTH, RIGHT_DRAWER_WIDTH, Z_INDEX } from "./utils/consts.js";
+import { getDeviceInfo } from "./utils/display/device.js";
+import { NODE_HIGHLIGHT_ERROR, NODE_HIGHLIGHT_SELECTED, NODE_HIGHLIGHT_WARNING, SEARCH_HIGHLIGHT_CURRENT, SEARCH_HIGHLIGHT_WRAPPER, SNACK_HIGHLIGHT, TUTORIAL_HIGHLIGHT } from "./utils/display/documentTools.js";
+import { DEFAULT_THEME, themes } from "./utils/display/theme.js";
+import { getCookie, getStorageItem, setCookie, ThemeType } from "./utils/localStorage.js";
+import { CHAT_SIDE_MENU_ID, PopupImagePub, PopupVideoPub, PubSub, SIDE_MENU_ID } from "./utils/pubsub.js";
 
-function getGlobalStyles(theme: Theme) {
+export function getGlobalStyles(theme: Theme) {
     return {
         html: {
             backgroundColor: theme.palette.background.default,
@@ -67,6 +67,8 @@ function getGlobalStyles(theme: Theme) {
             fontWeight: 400,
             overflowX: "hidden",
             overflowY: "auto",
+            // Disable padding for storybook
+            padding: "0!important",
         },
         // Custom IconButton hover highlighting, which doesn't hide background color
         ".MuiIconButton-root": {
@@ -126,7 +128,7 @@ function getGlobalStyles(theme: Theme) {
         ],
         // Ensure popovers are displayed above everything else
         ".MuiPopover-root": {
-            zIndex: 20000,
+            zIndex: Z_INDEX.Popup,
         },
     };
 }
@@ -158,7 +160,7 @@ function findThemeWithoutSession(): Theme {
     return withIsLeftHanded(withFontSize(themes[theme], fontSize), isLefthanded);
 }
 
-const MainBox = styled(Box)(({ theme }) => ({
+export const MainBox = styled(Box)(({ theme }) => ({
     display: "flex",
     flexDirection: "row",
     minHeight: "100vh",
@@ -191,7 +193,7 @@ interface ContentWrapProps extends BoxProps {
     isRightDrawerOpen: boolean;
 }
 
-const ContentWrap = styled(Box, {
+export const ContentWrap = styled(Box, {
     shouldForwardProp: (prop) => prop !== "isLeftDrawerOpen" && prop !== "isLeftHanded" && prop !== "isMobile" && prop !== "isRightDrawerOpen",
 })<ContentWrapProps>(({ isLeftDrawerOpen, isLeftHanded, isMobile, isRightDrawerOpen, theme }) => {
     const leftDrawerWidth = isLeftHanded ? isRightDrawerOpen ? RIGHT_DRAWER_WIDTH : 0 : isLeftDrawerOpen ? LEFT_DRAWER_WIDTH : 0;
@@ -227,8 +229,8 @@ export function App() {
     const [openVideoData, setOpenVideoData] = useState<PopupVideoPub | null>(null);
     const [isProDialogOpen, setIsProDialogOpen] = useState(false);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const [validateSession] = useLazyFetch<ValidateSessionInput, Session>(endpointPostAuthValidateSession);
-    const [setActiveFocusMode] = useLazyFetch<SetActiveFocusModeInput, ActiveFocusMode>(endpointPutFocusModeActive);
+    const [validateSession] = useLazyFetch<ValidateSessionInput, Session>(endpointsAuth.validateSession);
+    const [setActiveFocusMode] = useLazyFetch<SetActiveFocusModeInput, ActiveFocusMode>(endpointsFocusMode.setActive);
     const isSettingActiveFocusMode = useRef<boolean>(false);
     const isMobile = useWindowSize(({ width }) => width <= theme.breakpoints.values.md);
     const { isOpen: isLeftDrawerOpen } = useSideMenu({ id: CHAT_SIDE_MENU_ID, isMobile });
@@ -471,60 +473,58 @@ https://github.com/Vrooli/Vrooli
                 <ThemeProvider theme={theme}>
                     <GlobalStyles styles={getGlobalStyles} />
                     <SessionContext.Provider value={session}>
-                        <ZIndexProvider>
-                            <ActiveChatProvider>
-                                <MainBox id="App" component="main">
-                                    {/* Popups and other components that don't effect layout */}
-                                    <PullToRefresh />
-                                    <CommandPalette />
-                                    <FindInPage />
-                                    <Celebration />
-                                    <AlertDialog />
-                                    <SnackStack />
-                                    <ProDialog
-                                        isOpen={isProDialogOpen}
-                                        onClose={closeProDialog}
-                                    />
-                                    <TutorialDialog
-                                        isOpen={isTutorialOpen}
-                                        onClose={closeTutorial}
-                                        onOpen={openTutorial}
-                                    />
-                                    <ImagePopup
-                                        alt="Tutorial content"
-                                        open={!!openImageData}
-                                        onClose={closePopupImage}
-                                        src={openImageData?.src ?? ""}
-                                        zIndex={999999999}
-                                    />
-                                    <VideoPopup
-                                        open={!!openVideoData}
-                                        onClose={closePopupVideo}
-                                        src={openVideoData?.src ?? ""}
-                                        zIndex={999999999}
-                                    />
-                                    {/* Main content*/}
-                                    <ContentWrap
-                                        id="content-wrap"
-                                        isLeftDrawerOpen={isLeftDrawerOpen}
-                                        isLeftHanded={isLeftHanded}
-                                        isMobile={isMobile}
-                                        isRightDrawerOpen={isRightDrawerOpen}
-                                    >
-                                        <ChatSideMenu />
-                                        {isLoading && <FullPageSpinner />}
-                                        <Routes sessionChecked={session !== undefined} />
-                                        <SideMenu />
-                                    </ContentWrap>
-                                    {/* Below main content */}
-                                    <BannerChicken
-                                        backgroundColor={theme.palette.background.default}
-                                        isMobile={isMobile}
-                                    />
-                                    <BottomNav />
-                                </MainBox>
-                            </ActiveChatProvider>
-                        </ZIndexProvider>
+                        <ActiveChatProvider>
+                            <MainBox id="App" component="main">
+                                {/* Popups and other components that don't effect layout */}
+                                <PullToRefresh />
+                                <CommandPalette />
+                                <FindInPage />
+                                <Celebration />
+                                <AlertDialog />
+                                <SnackStack />
+                                <ProDialog
+                                    isOpen={isProDialogOpen}
+                                    onClose={closeProDialog}
+                                />
+                                <TutorialDialog
+                                    isOpen={isTutorialOpen}
+                                    onClose={closeTutorial}
+                                    onOpen={openTutorial}
+                                />
+                                <ImagePopup
+                                    alt="Tutorial content"
+                                    open={!!openImageData}
+                                    onClose={closePopupImage}
+                                    src={openImageData?.src ?? ""}
+                                    zIndex={Z_INDEX.Popup}
+                                />
+                                <VideoPopup
+                                    open={!!openVideoData}
+                                    onClose={closePopupVideo}
+                                    src={openVideoData?.src ?? ""}
+                                    zIndex={Z_INDEX.Popup}
+                                />
+                                {/* Main content*/}
+                                <ContentWrap
+                                    id="content-wrap"
+                                    isLeftDrawerOpen={isLeftDrawerOpen}
+                                    isLeftHanded={isLeftHanded}
+                                    isMobile={isMobile}
+                                    isRightDrawerOpen={isRightDrawerOpen}
+                                >
+                                    <ChatSideMenu />
+                                    {isLoading && <FullPageSpinner />}
+                                    <Routes sessionChecked={session !== undefined} />
+                                    <SideMenu />
+                                </ContentWrap>
+                                {/* Below main content */}
+                                <BannerChicken
+                                    backgroundColor={theme.palette.background.default}
+                                    isMobile={isMobile}
+                                />
+                                <BottomNav />
+                            </MainBox>
+                        </ActiveChatProvider>
                     </SessionContext.Provider>
                 </ThemeProvider>
             </StyledEngineProvider>

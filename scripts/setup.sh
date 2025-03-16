@@ -458,7 +458,7 @@ setup_docker_internet() {
         prompt "Would you like to update /etc/docker/daemon.json to use Google DNS (8.8.8.8)? (y/n): " choice
         read -n1 -r choice
         echo
-        if [[ "$choice" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+        if is_yes "$choice"; then
             update_docker_daemon
             restart_docker
             info "Docker DNS updated. Retesting Docker internet access..."
@@ -517,7 +517,7 @@ setup_development_environment() {
     fi
 
     # If reinstalling modules, delete all node_modules directories before installing dependencies
-    if [[ "$REINSTALL_MODULES" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+    if is_yes "$REINSTALL_MODULES"; then
         header "Deleting all node_modules directories"
         find "${HERE}/.." -maxdepth 4 -name "node_modules" -type d -exec rm -rf {} \;
         header "Deleting yarn.lock"
@@ -593,7 +593,7 @@ populate_vault() {
         read -n1 -r ENV_FILES_SET_UP
         echo
     fi
-    if [[ "$ENV_FILES_SET_UP" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+    if is_yes "$ENV_FILES_SET_UP"; then
         if [ "${ENVIRONMENT}" = "development" ]; then
             info "Setting up secrets for development environment..."
             "${HERE}/setSecrets.sh" -e development

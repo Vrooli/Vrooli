@@ -1,15 +1,16 @@
 import { renderHook } from "@testing-library/react";
+import { expect } from "chai";
 import { act } from "react";
-import { useObjectContextMenu } from "./useObjectContextMenu";
+import { useObjectContextMenu } from "./useObjectContextMenu.js";
 
 describe("useObjectContextMenu", () => {
-    test("initial state is correct", () => {
+    it("initial state is correct", () => {
         const { result } = renderHook(() => useObjectContextMenu());
-        expect(result.current.anchorEl).toBeNull();
-        expect(result.current.object).toBeNull();
+        expect(result.current.anchorEl).to.be.null;
+        expect(result.current.object).to.be.null;
     });
 
-    test("handleContextMenu sets anchorEl and object", () => {
+    it("handleContextMenu sets anchorEl and object", () => {
         const { result } = renderHook(() => useObjectContextMenu());
         const dummyTarget = document.createElement("div");
         const dummyObject = { id: "1", name: "Test Object" };
@@ -18,11 +19,11 @@ describe("useObjectContextMenu", () => {
             result.current.handleContextMenu(dummyTarget, dummyObject);
         });
 
-        expect(result.current.anchorEl).toEqual(dummyTarget);
-        expect(result.current.object).toEqual(dummyObject);
+        expect(result.current.anchorEl).to.deep.equal(dummyTarget);
+        expect(result.current.object).to.deep.equal(dummyObject);
     });
 
-    test("handleContextMenu does nothing if object is null", () => {
+    it("handleContextMenu does nothing if object is null", () => {
         const { result } = renderHook(() => useObjectContextMenu());
         const dummyTarget = document.createElement("div");
 
@@ -30,11 +31,11 @@ describe("useObjectContextMenu", () => {
             result.current.handleContextMenu(dummyTarget, null);
         });
 
-        expect(result.current.anchorEl).toBeNull();
-        expect(result.current.object).toBeNull();
+        expect(result.current.anchorEl).to.be.null;
+        expect(result.current.object).to.be.null;
     });
 
-    test("closeContextMenu resets anchorEl but keeps object", () => {
+    it("closeContextMenu resets anchorEl but keeps object", () => {
         const { result } = renderHook(() => useObjectContextMenu());
         const dummyTarget = document.createElement("div");
         const dummyObject = { id: "1", name: "Test Object" };
@@ -49,7 +50,7 @@ describe("useObjectContextMenu", () => {
             result.current.closeContextMenu();
         });
 
-        expect(result.current.anchorEl).toBeNull();
-        expect(result.current.object).toEqual(dummyObject); // object remains the same
+        expect(result.current.anchorEl).to.be.null;
+        expect(result.current.object).to.deep.equal(dummyObject); // object remains the same
     });
 });

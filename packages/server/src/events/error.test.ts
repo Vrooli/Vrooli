@@ -1,6 +1,7 @@
-import { logger as mockLogger } from "./__mocks__/logger";
-import { CustomError } from "./error";
-import { logger } from "./logger";
+import { expect } from "chai";
+import { logger as mockLogger } from "./__mocks__/logger.js";
+import { CustomError } from "./error.js";
+import { logger } from "./logger.js";
 
 jest.mock("i18next");
 
@@ -26,14 +27,14 @@ describe("CustomError", () => {
     it("should generate an error with a correct message", () => {
         const error = new CustomError("TEST", "CouldNotReadObject");
 
-        expect(error.message).toMatch(/CouldNotReadObject: TEST-/);
+        expect(error.message).to.match(/CouldNotReadObject: TEST-/);
         expect(logger.error).toHaveBeenCalled();
     });
 
     it("should generate an error with a correct message", () => {
         const error = new CustomError("TEST", "MaxFileSizeExceeded");
 
-        expect(error.message).toMatch(/MaxFileSizeExceeded: TEST-/);
+        expect(error.message).to.match(/MaxFileSizeExceeded: TEST-/);
         expect(logger.error).toHaveBeenCalled();
     });
 });

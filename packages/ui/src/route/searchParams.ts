@@ -1,5 +1,5 @@
 import { ParseSearchParamsResult, parseSearchParams } from "@local/shared";
-import { SetLocation } from "./types";
+import { SetLocation } from "./types.js";
 
 
 /**

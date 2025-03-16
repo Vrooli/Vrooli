@@ -1,5 +1,9 @@
 import * as yup from "yup";
-import { bool, description, id, maxStrErr, minNumErr, minStrErr, opt, req, YupModel, yupObj } from "../utils";
+import { opt, req } from "../utils/builders/optionality.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { bool, description, id } from "../utils/commonFields.js";
+import { maxStrErr, minNumErr, minStrErr } from "../utils/errors.js";
+import { type YupModel } from "../utils/types.js";
 
 const index = yup.number().integer().min(0, minNumErr);
 const name = yup.string().trim().removeEmptyString().min(1, minStrErr).max(50, maxStrErr);

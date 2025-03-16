@@ -1,4 +1,4 @@
-import { batch, logger, prismaInstance } from "@local/server";
+import { DbProvider, batch, logger } from "@local/server";
 import { DAYS_90_MS } from "@local/shared";
 import { Prisma } from "@prisma/client";
 
@@ -15,7 +15,7 @@ export async function cleanupRevokedSessions() {
             processBatch: async (batch) => {
                 const sessionIds = batch.map(session => session.id);
                 // Delete sessions
-                const { count } = await prismaInstance.session.deleteMany({
+                const { count } = await DbProvider.get().session.deleteMany({
                     where: { id: { in: sessionIds } },
                 });
                 totalDeleted += count;

@@ -1,13 +1,14 @@
-import { GqlModelType, MaxObjects, ResourceListFor, ResourceListSearchInput, ResourceListSortBy, getTranslation, resourceListValidation, uppercaseFirstLetter } from "@local/shared";
+import { MaxObjects, ModelType, ResourceListFor, ResourceListSearchInput, ResourceListSortBy, getTranslation, resourceListValidation, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
-import { ModelMap } from ".";
-import { findFirstRel } from "../../builders/findFirstRel";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { translationShapeHelper } from "../../utils/shapes";
-import { ResourceListFormat } from "../formats";
-import { ResourceListModelInfo, ResourceListModelLogic } from "./types";
+import { findFirstRel } from "../../builders/findFirstRel.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility, useVisibilityMapper } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { ResourceListFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { ResourceListModelInfo, ResourceListModelLogic } from "./types.js";
 
 const forMapper: { [key in ResourceListFor]: keyof Prisma.resource_listUpsertArgs["create"] } = {
     ApiVersion: "apiVersion",
@@ -78,17 +79,17 @@ export const ResourceListModel: ResourceListModelLogic = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({
             id: true,
-            ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, key as GqlModelType])),
+            ...Object.fromEntries(Object.entries(forMapper).map(([key, value]) => [value, key as ModelType])),
         }),
         permissionResolvers: defaultPermissions,
         owner: (data, userId) => {
             if (!data) return {};
             const [resourceOnType, resourceOnData] = findFirstRel(data, Object.values(forMapper));
             if (!resourceOnType || !resourceOnData) return {};
-            return ModelMap.get(uppercaseFirstLetter(resourceOnType) as GqlModelType).validate().owner(resourceOnData, userId);
+            return ModelMap.get(uppercaseFirstLetter(resourceOnType) as ModelType).validate().owner(resourceOnData, userId);
         },
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<ResourceListModelInfo["PrismaSelect"]>(Object.entries(forMapper).map(([key, value]) => [value, key as GqlModelType]), ...rest),
+        isPublic: (...rest) => oneIsPublic<ResourceListModelInfo["DbSelect"]>(Object.entries(forMapper).map(([key, value]) => [value, key as ModelType]), ...rest),
         visibility: {
             own: function getOwn(data) {
                 const searchInput = data.searchInput as ResourceListSearchInput;
@@ -99,7 +100,7 @@ export const ResourceListModel: ResourceListModelLogic = ({
                 );
                 if (forSearch) {
                     const relation = forSearch.substring(0, forSearch.length - "Id".length);
-                    return { [relation]: useVisibility(reversedForMapper[relation] as GqlModelType, "Own", data) };
+                    return { [relation]: useVisibility(reversedForMapper[relation] as ModelType, "Own", data) };
                 }
                 // Otherwise, use an OR on all relations
                 return {
@@ -125,7 +126,7 @@ export const ResourceListModel: ResourceListModelLogic = ({
                 );
                 if (forSearch) {
                     const relation = forSearch.substring(0, forSearch.length - "Id".length);
-                    return { [relation]: useVisibility(reversedForMapper[relation] as GqlModelType, "OwnPrivate", data) };
+                    return { [relation]: useVisibility(reversedForMapper[relation] as ModelType, "OwnPrivate", data) };
                 }
                 // Otherwise, use an OR on all relations
                 return {
@@ -143,7 +144,7 @@ export const ResourceListModel: ResourceListModelLogic = ({
                 );
                 if (forSearch) {
                     const relation = forSearch.substring(0, forSearch.length - "Id".length);
-                    return { [relation]: useVisibility(reversedForMapper[relation] as GqlModelType, "OwnPublic", data) };
+                    return { [relation]: useVisibility(reversedForMapper[relation] as ModelType, "OwnPublic", data) };
                 }
                 // Otherwise, use an OR on all relations
                 return {
@@ -161,7 +162,7 @@ export const ResourceListModel: ResourceListModelLogic = ({
                 );
                 if (forSearch) {
                     const relation = forSearch.substring(0, forSearch.length - "Id".length);
-                    return { [relation]: useVisibility(reversedForMapper[relation] as GqlModelType, "Public", data) };
+                    return { [relation]: useVisibility(reversedForMapper[relation] as ModelType, "Public", data) };
                 }
                 // Otherwise, use an OR on all relations
                 return {

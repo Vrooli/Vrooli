@@ -1,11 +1,11 @@
-import { GqlModelType, MaxObjects, NotificationSubscriptionSortBy, notificationSubscriptionValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { subscribableMapper } from "../../events/subscriber";
-import { defaultPermissions } from "../../utils";
-import { NotificationSubscriptionFormat } from "../formats";
-import { NotificationSubscriptionModelLogic } from "./types";
+import { MaxObjects, ModelType, NotificationSubscriptionSortBy, notificationSubscriptionValidation } from "@local/shared";
+import { noNull } from "../../builders/noNull.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { subscribableMapper } from "../../events/subscriber.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { NotificationSubscriptionFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { NotificationSubscriptionModelLogic } from "./types.js";
 
 const __typename = "NotificationSubscription" as const;
 export const NotificationSubscriptionModel: NotificationSubscriptionModelLogic = ({
@@ -16,11 +16,11 @@ export const NotificationSubscriptionModel: NotificationSubscriptionModelLogic =
             select: () => ({
                 id: true,
                 ...Object.fromEntries(Object.entries(subscribableMapper).map(([key, value]) =>
-                    [value, { select: ModelMap.get(key as GqlModelType).display().label.select() }])),
+                    [value, { select: ModelMap.get(key as ModelType).display().label.select() }])),
             }),
             get: (select, languages) => {
                 for (const [key, value] of Object.entries(subscribableMapper)) {
-                    if (select[value]) return ModelMap.get(key as GqlModelType).display().label.get(select[value], languages);
+                    if (select[value]) return ModelMap.get(key as ModelType).display().label.get(select[value], languages);
                 }
                 return "";
             },
@@ -55,7 +55,7 @@ export const NotificationSubscriptionModel: NotificationSubscriptionModelLogic =
             OR: [
                 "descriptionWrapped",
                 "titleWrapped",
-                ...Object.entries(subscribableMapper).map(([key, value]) => ({ [value]: ModelMap.getLogic(["search"], key as GqlModelType).search.searchStringQuery() })),
+                ...Object.entries(subscribableMapper).map(([key, value]) => ({ [value]: ModelMap.getLogic(["search"], key as ModelType).search.searchStringQuery() })),
             ],
         }),
     },

@@ -1,3 +1,3 @@
-export * from "./ScheduleUpsert/ScheduleUpsert";
-export * from "./ScheduleView/ScheduleView";
+export * from "./ScheduleUpsert.js";
+export * from "./ScheduleView.js";
 

@@ -1,8 +1,7 @@
 import { FocusModeStopCondition, Session, SessionUser, uuidValidate } from "@local/shared";
 import { Request } from "express";
-import { CustomError } from "../events/error";
-import { SessionData } from "../types";
-import { UserDataForPasswordAuth } from "./email";
+import { CustomError } from "../events/error.js";
+import { UserDataForPasswordAuth } from "./email.js";
 
 export class SessionService {
     private static instance: SessionService;
@@ -21,7 +20,7 @@ export class SessionService {
     * @param session The Request's session property
     * @returns First userId in Session object, or null if not found/invalid
     */
-    static getUser(session: Pick<SessionData, "users">): SessionUser | null {
+    static getUser<User extends { id: string }>(session: { users?: User[] | null | undefined }): User | null {
         if (!session || !Array.isArray(session?.users) || session.users.length === 0) return null;
         const user = session.users[0];
         return user !== undefined && typeof user.id === "string" && uuidValidate(user.id) ? user : null;

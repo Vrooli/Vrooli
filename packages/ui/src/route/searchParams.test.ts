@@ -1,4 +1,5 @@
-import { addSearchParams, keepSearchParams, removeSearchParams, setSearchParams } from "./searchParams";
+import { expect } from "chai";
+import { addSearchParams, keepSearchParams, removeSearchParams, setSearchParams } from "./searchParams.js";
 
 // Mock setLocation function
 const mockSetLocation = jest.fn();

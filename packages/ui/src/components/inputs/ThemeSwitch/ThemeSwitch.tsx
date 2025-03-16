@@ -1,14 +1,14 @@
-import { ProfileUpdateInput, User, endpointPutProfile } from "@local/shared";
+import { ProfileUpdateInput, User, endpointsUser } from "@local/shared";
 import { Box, Typography, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { DarkModeIcon, LightModeIcon } from "icons";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { noSelect } from "styles";
-import { SxType } from "types";
-import { PubSub } from "utils/pubsub";
-import { ToggleSwitch } from "../ToggleSwitch/ToggleSwitch";
+import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
+import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { DarkModeIcon, LightModeIcon } from "../../../icons/common.js";
+import { noSelect } from "../../../styles.js";
+import { SxType } from "../../../types.js";
+import { PubSub } from "../../../utils/pubsub.js";
+import { ToggleSwitch } from "../ToggleSwitch/ToggleSwitch.js";
 
 type ThemeSwitchProps = {
     updateServer: boolean;
@@ -22,7 +22,7 @@ export function ThemeSwitch({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);
+    const [fetch, { loading: isUpdating }] = useLazyFetch<ProfileUpdateInput, User>(endpointsUser.profileUpdate);
     const handleChange = useCallback(() => {
         if (isUpdating) return;
         const newTheme = palette.mode === "light" ? "dark" : "light";

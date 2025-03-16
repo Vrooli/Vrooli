@@ -2,11 +2,11 @@ import { uuid } from "@local/shared";
 import { Box, BoxProps, styled } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { translateSnackMessage } from "utils/display/translationTools";
-import { PubSub, TranslatedSnackMessage, UntranslatedSnackMessage } from "utils/pubsub";
-import { BasicSnack, SnackSeverity } from "../BasicSnack/BasicSnack";
-import { CookiesSnack } from "../CookiesSnack/CookiesSnack";
-import { BasicSnackProps } from "../types";
+import { translateSnackMessage } from "utils/display/translationTools.js";
+import { PubSub, TranslatedSnackMessage, UntranslatedSnackMessage } from "utils/pubsub.js";
+import { BasicSnack, SnackSeverity } from "../BasicSnack/BasicSnack.js";
+import { CookiesSnack } from "../CookiesSnack/CookiesSnack.js";
+import { BasicSnackProps } from "../types.js";
 
 const MAX_SNACKS = 3;
 

@@ -1,4 +1,4 @@
-import { batch, logger, prismaInstance, sendPaymentFailed } from "@local/server";
+import { DbProvider, batch, logger, sendPaymentFailed } from "@local/server";
 import { PaymentStatus, PaymentType, WEEKS_1_MS } from "@local/shared";
 import { Prisma } from "@prisma/client";
 
@@ -14,7 +14,7 @@ export async function paymentsFail() {
             processBatch: async (batch) => {
                 // Set payments to failed
                 const paymentIds = batch.map(payment => payment.id);
-                await prismaInstance.payment.updateMany({
+                await DbProvider.get().payment.updateMany({
                     data: { status: PaymentStatus.Failed },
                     where: { id: { in: paymentIds } },
                 });

@@ -1,12 +1,12 @@
 import { Box, ClickAwayListener, Palette, Popper, PopperPlacementType, useTheme } from "@mui/material";
-import { useHotkeys } from "hooks/useHotkeys";
-import { useZIndex } from "hooks/useZIndex";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { PopoverWithArrowProps } from "../types";
+import { useHotkeys } from "../../../hooks/useHotkeys.js";
+import { Z_INDEX } from "../../../utils/consts.js";
+import { PopoverWithArrowProps } from "../types.js";
 
 /** Size of arrow pointing to anchor */
 const ARROW_SIZE = 10;
-const Z_INDEX_OFFSET = 1000;
+const TIMEOUT_TO_PREVENT_TOUCH_MULTIPLE_EVENTS_MS = 250;
 
 type Direction = "top" | "bottom" | "left" | "right";
 
@@ -48,7 +48,6 @@ export function PopoverWithArrow({
 }: PopoverWithArrowProps) {
     const { palette } = useTheme();
     const isOpen = Boolean(anchorEl);
-    const zIndex = useZIndex(isOpen, false, Z_INDEX_OFFSET);
     const [canTouch, setCanTouch] = useState(false);
     const [actualPlacement, setActualPlacement] = useState<Direction | null>(null);
 
@@ -76,7 +75,7 @@ export function PopoverWithArrow({
             timeoutRef.current = setTimeout(() => {
                 timeoutRef.current = null;
                 setCanTouch(true);
-            }, 250);
+            }, TIMEOUT_TO_PREVENT_TOUCH_MULTIPLE_EVENTS_MS);
         }
         else { stopTimeout(); }
         return () => { stopTimeout(); };
@@ -124,10 +123,10 @@ export function PopoverWithArrow({
 
     const popoverStyle = useMemo(function popoverStyleMemo() {
         return {
-            zIndex: zIndex + Z_INDEX_OFFSET,
+            zIndex: Z_INDEX.Popup,
             ...sxs?.root,
         } as const;
-    }, [sxs?.root, zIndex]);
+    }, [sxs?.root]);
 
     const innerBoxStyle = useMemo(function innerBoxStyleMemo() {
         return {

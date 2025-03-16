@@ -1,14 +1,11 @@
 import { apiKeyValidation, MaxObjects, uuid } from "@local/shared";
-import { ModelMap } from ".";
-import { randomString } from "../../auth/codes";
-import { noNull } from "../../builders/noNull";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions } from "../../utils";
-import { ApiKeyFormat } from "../formats";
-import { ApiKeyModelLogic, TeamModelLogic } from "./types";
-
-const KEY_DISPLAY_CUTOFF_LENGTH = 8; // Should be an even number
-const KEY_LENGTH = 64;
+import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
+import { noNull } from "../../builders/noNull.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { ApiKeyFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { ApiKeyModelLogic, TeamModelLogic } from "./types.js";
 
 const __typename = "ApiKey" as const;
 export const ApiKeyModel: ApiKeyModelLogic = ({
@@ -16,13 +13,9 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
     dbTable: "api_key",
     display: () => ({
         label: {
-            select: () => ({ id: true, key: true }),
-            // Of the form "1234...5678"
+            select: () => ({ id: true, name: true }),
             get: (select) => {
-                // Make sure key is at least 8 characters long
-                // (should always be, but you never know)
-                if (select.key.length < KEY_DISPLAY_CUTOFF_LENGTH) return select.key;
-                return select.key.slice(0, (KEY_DISPLAY_CUTOFF_LENGTH / 2)) + "..." + select.key.slice(-(KEY_DISPLAY_CUTOFF_LENGTH / 2));
+                return select.name;
             },
         },
     }),
@@ -31,18 +24,23 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
         shape: {
             create: async ({ userData, data }) => ({
                 id: uuid(),
-                key: randomString(KEY_LENGTH),
-                creditsUsedBeforeLimit: data.creditsUsedBeforeLimit,
+                creditsUsedBeforeLimit: 0,
+                disabledAt: data.disabled === true ? new Date() : data.disabled === false ? null : undefined,
+                limitHard: BigInt(data.limitHard),
+                limitSoft: data.limitSoft ? BigInt(data.limitSoft) : null,
+                key: ApiKeyEncryptionService.generateSiteKey(),
+                name: data.name,
                 stopAtLimit: data.stopAtLimit,
-                absoluteMax: data.absoluteMax,
                 team: data.teamConnect ? { connect: { id: data.teamConnect } } : undefined,
                 user: data.teamConnect ? undefined : { connect: { id: userData.id } },
 
             }),
             update: async ({ data }) => ({
-                creditsUsedBeforeLimit: noNull(data.creditsUsedBeforeLimit),
+                disabledAt: data.disabled === true ? new Date() : data.disabled === false ? null : undefined,
+                limitHard: data.limitHard ? BigInt(data.limitHard) : undefined,
+                limitSoft: data.limitSoft ? BigInt(data.limitSoft) : data.limitSoft === null ? null : undefined,
+                name: noNull(data.name),
                 stopAtLimit: noNull(data.stopAtLimit),
-                absoluteMax: noNull(data.absoluteMax),
             }),
         },
         yup: apiKeyValidation,

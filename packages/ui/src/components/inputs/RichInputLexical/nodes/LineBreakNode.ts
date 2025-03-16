@@ -1,7 +1,7 @@
-import { DOM_TEXT_TYPE } from "../consts";
-import { DOMConversionMap, DOMConversionOutput, NodeConstructorPayloads, NodeType, SerializedLexicalNode } from "../types";
-import { $createNode } from "../utils";
-import { LexicalNode } from "./LexicalNode";
+import { DOM_TEXT_TYPE } from "../consts.js";
+import { DOMConversionMap, DOMConversionOutput, NodeConstructorPayloads, NodeType, SerializedLexicalNode } from "../types.js";
+import { $createNode } from "../utils.js";
+import { LexicalNode } from "./LexicalNode.js";
 
 /**
  * Used when a line is empty

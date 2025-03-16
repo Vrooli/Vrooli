@@ -1,5 +1,7 @@
-import { render, screen } from "../../__mocks__/testUtils";
-import { DiagonalWaveLoader } from "./Spinners";
+import { expect } from "chai";
+import React from "react";
+import { render, screen } from "../../__mocks__/testUtils.js";
+import { DiagonalWaveLoader } from "./Spinners.js";
 
 describe("<DiagonalWaveLoader />", () => {
     // Test 1: Renders without crashing

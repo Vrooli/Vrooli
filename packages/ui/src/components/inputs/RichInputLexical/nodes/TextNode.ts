@@ -1,11 +1,11 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-import { COMPOSITION_SUFFIX, DETAIL_TYPE_TO_DETAIL, DOM_ELEMENT_TYPE, DOM_TEXT_TYPE, IS_DIRECTIONLESS, IS_FIREFOX, IS_SEGMENTED, IS_TOKEN, IS_UNMERGEABLE, TEXT_FLAGS, TEXT_MODE_TO_TYPE, TEXT_TYPE_TO_MODE } from "../consts";
-import { $updateElementSelectionOnCreateDeleteNode, RangeSelection, adjustPointOffsetForMergedSibling, internalMakeRangeSelection } from "../selection";
-import { applyTextTransformers, findAppliedTextTransformers, hasFormat, hasTextFormat, toggleTextFormatType } from "../transformers/textFormatTransformers";
-import { BaseSelection, DOMConversionMap, DOMConversionOutput, DOMExportOutput, NodeConstructorPayloads, NodeType, SerializedTextNode, TextDetailType, TextFormatTransformer, TextFormatType, TextModeType } from "../types";
-import { errorOnReadOnly } from "../updates";
-import { $createNode, $getCompositionKey, $getSelection, $isNode, $isRangeSelection, $setCompositionKey, getIndexWithinParent, getNextSibling, getParent, getPreviousSibling, internalMarkSiblingsAsDirty, isHTMLElement } from "../utils";
-import { LexicalNode } from "./LexicalNode";
+
+import { COMPOSITION_SUFFIX, DETAIL_TYPE_TO_DETAIL, DOM_ELEMENT_TYPE, DOM_TEXT_TYPE, IS_DIRECTIONLESS, IS_FIREFOX, IS_SEGMENTED, IS_TOKEN, IS_UNMERGEABLE, TEXT_FLAGS, TEXT_MODE_TO_TYPE, TEXT_TYPE_TO_MODE } from "../consts.js";
+import { $updateElementSelectionOnCreateDeleteNode, RangeSelection, adjustPointOffsetForMergedSibling, internalMakeRangeSelection } from "../selection.js";
+import { applyTextTransformers, findAppliedTextTransformers, hasFormat, hasTextFormat, toggleTextFormatType } from "../transformers/textFormatTransformers.js";
+import { BaseSelection, DOMConversionMap, DOMConversionOutput, DOMExportOutput, NodeConstructorPayloads, NodeType, SerializedTextNode, TextDetailType, TextFormatTransformer, TextFormatType, TextModeType } from "../types.js";
+import { errorOnReadOnly } from "../updates.js";
+import { $createNode, $getCompositionKey, $getSelection, $isNode, $isRangeSelection, $setCompositionKey, getIndexWithinParent, getNextSibling, getParent, getPreviousSibling, internalMarkSiblingsAsDirty, isHTMLElement } from "../utils.js";
+import { LexicalNode } from "./LexicalNode.js";
 
 function diffComposedText(a: string, b: string): [number, number, string] {
     const aLength = a.length;

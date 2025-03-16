@@ -1,14 +1,14 @@
-// NOTE: Much of this file is taken from the lexical package, which is licensed under the MIT license. 
+
 // We have copied the code here for customization purposes, such as replacing the default code block component
-import { LexicalEditor } from "./editor";
-import { type ElementNode } from "./nodes/ElementNode";
-import { type LexicalNode } from "./nodes/LexicalNode";
-import { type TextNode } from "./nodes/TextNode";
-import { type CodeBlockNode } from "./plugins/CodePlugin";
-import { $createRangeSelection } from "./selection";
-import { hasFormat } from "./transformers/textFormatTransformers";
-import { ElementTransformer, LexicalTransformer, TextFormatTransformer, TextMatchTransformer } from "./types";
-import { $createNode, $findMatchingParent, $getRoot, $getSelection, $isNode, $isRangeSelection, $isRootOrShadowRoot, $setSelection, getNextSibling, getNextSiblings, getParent, getPreviousSibling, isAttachedToRoot } from "./utils";
+import { LexicalEditor } from "./editor.js";
+import { type ElementNode } from "./nodes/ElementNode.js";
+import { type LexicalNode } from "./nodes/LexicalNode.js";
+import { type TextNode } from "./nodes/TextNode.js";
+import { type CodeBlockNode } from "./plugins/CodePlugin.js";
+import { $createRangeSelection } from "./selection.js";
+import { hasFormat } from "./transformers/textFormatTransformers.js";
+import { ElementTransformer, LexicalTransformer, TextFormatTransformer, TextMatchTransformer } from "./types.js";
+import { $createNode, $findMatchingParent, $getRoot, $getSelection, $isNode, $isRangeSelection, $isRootOrShadowRoot, $setSelection, getNextSibling, getNextSiblings, getParent, getPreviousSibling, isAttachedToRoot } from "./utils.js";
 
 /**
  * Matches the opening or closing line of a code block in markdown content.

@@ -1,9 +1,9 @@
-import { GqlModelType } from "@local/shared";
-import { ApiKeyModelInfo, ApiModelInfo, ApiVersionModelInfo, AwardModelInfo, BookmarkListModelInfo, BookmarkModelInfo, ChatInviteModelInfo, ChatMessageModelInfo, ChatModelInfo, ChatParticipantModelInfo, CodeModelInfo, CodeVersionModelInfo, CommentModelInfo, EmailModelInfo, FocusModeFilterModelInfo, FocusModeModelInfo, IssueModelInfo, LabelModelInfo, MeetingInviteModelInfo, MeetingModelInfo, MemberInviteModelInfo, MemberModelInfo, NodeEndModelInfo, NodeLinkModelInfo, NodeLinkWhenModelInfo, NodeLoopModelInfo, NodeLoopWhileModelInfo, NodeModelInfo, NodeRoutineListItemModelInfo, NodeRoutineListModelInfo, NoteModelInfo, NoteVersionModelInfo, NotificationModelInfo, NotificationSubscriptionModelInfo, PaymentModelInfo, PhoneModelInfo, PostModelInfo, PremiumModelInfo, ProjectModelInfo, ProjectVersionDirectoryModelInfo, ProjectVersionModelInfo, PullRequestModelInfo, PushDeviceModelInfo, QuestionAnswerModelInfo, QuestionModelInfo, QuizAttemptModelInfo, QuizModelInfo, QuizQuestionModelInfo, QuizQuestionResponseModelInfo, ReactionModelInfo, ReactionSummaryModelInfo, ReminderItemModelInfo, ReminderListModelInfo, ReminderModelInfo, ReportModelInfo, ReportResponseModelInfo, ResourceListModelInfo, ResourceModelInfo, RoleModelInfo, RoutineModelInfo, RoutineVersionInputModelInfo, RoutineVersionModelInfo, RoutineVersionOutputModelInfo, RunProjectModelInfo, RunProjectStepModelInfo, RunRoutineInputModelInfo, RunRoutineModelInfo, RunRoutineOutputModelInfo, RunRoutineStepModelInfo, ScheduleExceptionModelInfo, ScheduleModelInfo, ScheduleRecurrenceModelInfo, SessionModelInfo, StandardModelInfo, StandardVersionModelInfo, StatsApiModelInfo, StatsCodeModelInfo, StatsProjectModelInfo, StatsQuizModelInfo, StatsRoutineModelInfo, StatsSiteModelInfo, StatsStandardModelInfo, StatsTeamModelInfo, StatsUserModelInfo, TagModelInfo, TeamModelInfo, TransferModelInfo, UserModelInfo, ViewModelInfo, WalletModelInfo } from "./base/types";
-import { Formatter } from "./types";
+import { ModelType } from "@local/shared";
+import { ApiKeyExternalModelInfo, ApiKeyModelInfo, ApiModelInfo, ApiVersionModelInfo, AwardModelInfo, BookmarkListModelInfo, BookmarkModelInfo, ChatInviteModelInfo, ChatMessageModelInfo, ChatModelInfo, ChatParticipantModelInfo, CodeModelInfo, CodeVersionModelInfo, CommentModelInfo, EmailModelInfo, FocusModeFilterModelInfo, FocusModeModelInfo, IssueModelInfo, LabelModelInfo, MeetingInviteModelInfo, MeetingModelInfo, MemberInviteModelInfo, MemberModelInfo, NoteModelInfo, NoteVersionModelInfo, NotificationModelInfo, NotificationSubscriptionModelInfo, PaymentModelInfo, PhoneModelInfo, PostModelInfo, PremiumModelInfo, ProjectModelInfo, ProjectVersionDirectoryModelInfo, ProjectVersionModelInfo, PullRequestModelInfo, PushDeviceModelInfo, QuestionAnswerModelInfo, QuestionModelInfo, QuizAttemptModelInfo, QuizModelInfo, QuizQuestionModelInfo, QuizQuestionResponseModelInfo, ReactionModelInfo, ReactionSummaryModelInfo, ReminderItemModelInfo, ReminderListModelInfo, ReminderModelInfo, ReportModelInfo, ReportResponseModelInfo, ResourceListModelInfo, ResourceModelInfo, RoleModelInfo, RoutineModelInfo, RoutineVersionInputModelInfo, RoutineVersionModelInfo, RoutineVersionOutputModelInfo, RunProjectModelInfo, RunProjectStepModelInfo, RunRoutineIOModelInfo, RunRoutineModelInfo, RunRoutineStepModelInfo, ScheduleExceptionModelInfo, ScheduleModelInfo, ScheduleRecurrenceModelInfo, SessionModelInfo, StandardModelInfo, StandardVersionModelInfo, StatsApiModelInfo, StatsCodeModelInfo, StatsProjectModelInfo, StatsQuizModelInfo, StatsRoutineModelInfo, StatsSiteModelInfo, StatsStandardModelInfo, StatsTeamModelInfo, StatsUserModelInfo, TagModelInfo, TeamModelInfo, TransferModelInfo, UserModelInfo, ViewModelInfo, WalletModelInfo } from "./base/types.js";
+import { Formatter } from "./types.js";
 
 export const ApiFormat: Formatter<ApiModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Api",
         createdBy: "User",
         owner: {
@@ -53,17 +53,30 @@ export const ApiFormat: Formatter<ApiModelInfo> = {
 };
 
 export const ApiKeyFormat: Formatter<ApiKeyModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "ApiKey",
     },
     prismaRelMap: {
         __typename: "ApiKey",
     },
     countFields: {},
+    hiddenFields: ["key"],
 };
 
+export const ApiKeyExternalFormat: Formatter<ApiKeyExternalModelInfo> = {
+    apiRelMap: {
+        __typename: "ApiKeyExternal",
+    },
+    prismaRelMap: {
+        __typename: "ApiKeyExternal",
+    },
+    countFields: {},
+    hiddenFields: ["key"],
+};
+
+
 export const ApiVersionFormat: Formatter<ApiVersionModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "ApiVersion",
         comments: "Comment",
         directoryListings: "ProjectVersionDirectory",
@@ -93,7 +106,7 @@ export const ApiVersionFormat: Formatter<ApiVersionModelInfo> = {
 };
 
 export const AwardFormat: Formatter<AwardModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Award",
     },
     prismaRelMap: {
@@ -104,7 +117,7 @@ export const AwardFormat: Formatter<AwardModelInfo> = {
 };
 
 export const BookmarkFormat: Formatter<BookmarkModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Bookmark",
         by: "User",
         list: "BookmarkList",
@@ -152,7 +165,7 @@ export const BookmarkFormat: Formatter<BookmarkModelInfo> = {
 };
 
 export const BookmarkListFormat: Formatter<BookmarkListModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "BookmarkList",
         bookmarks: "Bookmark",
     },
@@ -166,7 +179,7 @@ export const BookmarkListFormat: Formatter<BookmarkListModelInfo> = {
 };
 
 export const ChatFormat: Formatter<ChatModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Chat",
         team: "Team",
         restrictedToRoles: "Role",
@@ -195,7 +208,7 @@ export const ChatFormat: Formatter<ChatModelInfo> = {
 };
 
 export const ChatInviteFormat: Formatter<ChatInviteModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "ChatInvite",
         chat: "Chat",
         user: "User",
@@ -210,7 +223,7 @@ export const ChatInviteFormat: Formatter<ChatInviteModelInfo> = {
 };
 
 export const ChatMessageFormat: Formatter<ChatMessageModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "ChatMessage",
         chat: "Chat",
         parent: "ChatMessage",
@@ -235,7 +248,7 @@ export const ChatMessageFormat: Formatter<ChatMessageModelInfo> = {
 };
 
 export const ChatParticipantFormat: Formatter<ChatParticipantModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "ChatParticipant",
         chat: "Chat",
         user: "User",
@@ -250,7 +263,7 @@ export const ChatParticipantFormat: Formatter<ChatParticipantModelInfo> = {
 };
 
 export const CommentFormat: Formatter<CommentModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Comment",
         owner: {
             ownedByTeam: "Team",
@@ -305,7 +318,7 @@ export const CommentFormat: Formatter<CommentModelInfo> = {
 };
 
 export const EmailFormat: Formatter<EmailModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Email",
     },
     prismaRelMap: {
@@ -316,7 +329,7 @@ export const EmailFormat: Formatter<EmailModelInfo> = {
 };
 
 export const FocusModeFormat: Formatter<FocusModeModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "FocusMode",
         filters: "FocusModeFilter",
         labels: "Label",
@@ -338,7 +351,7 @@ export const FocusModeFormat: Formatter<FocusModeModelInfo> = {
 };
 
 export const FocusModeFilterFormat: Formatter<FocusModeFilterModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "FocusModeFilter",
         focusMode: "FocusMode",
         tag: "Tag",
@@ -352,7 +365,7 @@ export const FocusModeFilterFormat: Formatter<FocusModeFilterModelInfo> = {
 };
 
 export const IssueFormat: Formatter<IssueModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Issue",
         closedBy: "User",
         comments: "Comment",
@@ -400,7 +413,7 @@ export const IssueFormat: Formatter<IssueModelInfo> = {
 };
 
 export const LabelFormat: Formatter<LabelModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Label",
         apis: "Api",
         focusModes: "FocusMode",
@@ -457,7 +470,7 @@ export const LabelFormat: Formatter<LabelModelInfo> = {
 };
 
 export const MeetingFormat: Formatter<MeetingModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Meeting",
         attendees: "User",
         invites: "MeetingInvite",
@@ -489,7 +502,7 @@ export const MeetingFormat: Formatter<MeetingModelInfo> = {
 };
 
 export const MeetingInviteFormat: Formatter<MeetingInviteModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "MeetingInvite",
         meeting: "Meeting",
         user: "User",
@@ -503,7 +516,7 @@ export const MeetingInviteFormat: Formatter<MeetingInviteModelInfo> = {
 };
 
 export const MemberFormat: Formatter<MemberModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Member",
         roles: "Role",
         team: "Team",
@@ -519,7 +532,7 @@ export const MemberFormat: Formatter<MemberModelInfo> = {
 };
 
 export const MemberInviteFormat: Formatter<MemberInviteModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "MemberInvite",
         team: "Team",
         user: "User",
@@ -528,129 +541,12 @@ export const MemberInviteFormat: Formatter<MemberInviteModelInfo> = {
         __typename: "MemberInvite",
         team: "Team",
         user: "User",
-    },
-    countFields: {},
-};
-
-export const NodeFormat: Formatter<NodeModelInfo> = {
-    gqlRelMap: {
-        __typename: "Node",
-        end: "NodeEnd",
-        loop: "NodeLoop",
-        routineList: "NodeRoutineList",
-        routineVersion: "RoutineVersion",
-    },
-    prismaRelMap: {
-        __typename: "Node",
-        end: "NodeEnd",
-        loop: "NodeLoop",
-        next: "NodeLink",
-        previous: "NodeLink",
-        routineList: "NodeRoutineList",
-        routineVersion: "RoutineVersion",
-        runSteps: "RunRoutineStep",
-    },
-    countFields: {},
-};
-
-export const NodeEndFormat: Formatter<NodeEndModelInfo> = {
-    gqlRelMap: {
-        __typename: "NodeEnd",
-        node: "Node",
-        suggestedNextRoutineVersions: "RoutineVersion",
-    },
-    prismaRelMap: {
-        __typename: "NodeEnd",
-        node: "Node",
-        suggestedNextRoutineVersions: "RoutineVersion",
-    },
-    joinMap: { suggestedNextRoutineVersions: "toRoutineVersion" },
-    countFields: {},
-};
-
-export const NodeLinkFormat: Formatter<NodeLinkModelInfo> = {
-    gqlRelMap: {
-        __typename: "NodeLink",
-        from: "Node",
-        to: "Node",
-        routineVersion: "RoutineVersion",
-        whens: "NodeLinkWhen",
-    },
-    prismaRelMap: {
-        __typename: "NodeLink",
-        from: "Node",
-        to: "Node",
-        routineVersion: "RoutineVersion",
-        whens: "NodeLinkWhen",
-    },
-    countFields: {},
-};
-
-export const NodeLinkWhenFormat: Formatter<NodeLinkWhenModelInfo> = {
-    gqlRelMap: {
-        __typename: "NodeLinkWhen",
-    },
-    prismaRelMap: {
-        __typename: "NodeLinkWhen",
-        link: "NodeLink",
-    },
-    countFields: {},
-};
-
-export const NodeLoopFormat: Formatter<NodeLoopModelInfo> = {
-    gqlRelMap: {
-        __typename: "NodeLoop",
-        whiles: "NodeLoopWhile",
-    },
-    prismaRelMap: {
-        __typename: "NodeLoop",
-        node: "Node",
-        whiles: "NodeLoopWhile",
-    },
-    countFields: {},
-};
-
-export const NodeLoopWhileFormat: Formatter<NodeLoopWhileModelInfo> = {
-    gqlRelMap: {
-        __typename: "NodeLoopWhile",
-    },
-    prismaRelMap: {
-        __typename: "NodeLoopWhile",
-        loop: "NodeLoop",
-    },
-    countFields: {},
-};
-
-export const NodeRoutineListFormat: Formatter<NodeRoutineListModelInfo> = {
-    gqlRelMap: {
-        __typename: "NodeRoutineList",
-        items: "NodeRoutineListItem",
-        node: "Node",
-    },
-    prismaRelMap: {
-        __typename: "NodeRoutineList",
-        items: "NodeRoutineListItem",
-        node: "Node",
-    },
-    countFields: {},
-};
-
-export const NodeRoutineListItemFormat: Formatter<NodeRoutineListItemModelInfo> = {
-    gqlRelMap: {
-        __typename: "NodeRoutineListItem",
-        list: "NodeRoutineList",
-        routineVersion: "RoutineVersion",
-    },
-    prismaRelMap: {
-        __typename: "NodeRoutineListItem",
-        list: "NodeRoutineList",
-        routineVersion: "RoutineVersion",
     },
     countFields: {},
 };
 
 export const NoteFormat: Formatter<NoteModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Note",
         createdBy: "User",
         issues: "Issue",
@@ -696,7 +592,7 @@ export const NoteFormat: Formatter<NoteModelInfo> = {
 };
 
 export const NoteVersionFormat: Formatter<NoteVersionModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "NoteVersion",
         comments: "Comment",
         directoryListings: "ProjectVersionDirectory",
@@ -723,7 +619,7 @@ export const NoteVersionFormat: Formatter<NoteVersionModelInfo> = {
 };
 
 export const NotificationFormat: Formatter<NotificationModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Notification",
     },
     prismaRelMap: {
@@ -733,7 +629,7 @@ export const NotificationFormat: Formatter<NotificationModelInfo> = {
 };
 
 export const NotificationSubscriptionFormat: Formatter<NotificationSubscriptionModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "NotificationSubscription",
         object: {
             api: "Api",
@@ -779,7 +675,7 @@ export const NotificationSubscriptionFormat: Formatter<NotificationSubscriptionM
 };
 
 export const TeamFormat: Formatter<TeamModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Team",
         apis: "Api",
         codes: "Code",
@@ -860,7 +756,7 @@ export const TeamFormat: Formatter<TeamModelInfo> = {
 };
 
 export const PaymentFormat: Formatter<PaymentModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Payment",
         team: "Team",
         user: "User",
@@ -874,7 +770,7 @@ export const PaymentFormat: Formatter<PaymentModelInfo> = {
 };
 
 export const PhoneFormat: Formatter<PhoneModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Phone",
     },
     prismaRelMap: {
@@ -885,7 +781,7 @@ export const PhoneFormat: Formatter<PhoneModelInfo> = {
 };
 
 export const PostFormat: Formatter<PostModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Post",
         comments: "Comment",
         owner: {
@@ -923,7 +819,7 @@ export const PostFormat: Formatter<PostModelInfo> = {
 };
 
 export const PremiumFormat: Formatter<PremiumModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Premium",
     },
     prismaRelMap: {
@@ -935,7 +831,7 @@ export const PremiumFormat: Formatter<PremiumModelInfo> = {
 };
 
 export const ProjectFormat: Formatter<ProjectModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Project",
         createdBy: "User",
         issues: "Issue",
@@ -986,7 +882,7 @@ export const ProjectFormat: Formatter<ProjectModelInfo> = {
 };
 
 export const ProjectVersionFormat: Formatter<ProjectVersionModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "ProjectVersion",
         comments: "Comment",
         directories: "ProjectVersionDirectory",
@@ -1025,7 +921,7 @@ export const ProjectVersionFormat: Formatter<ProjectVersionModelInfo> = {
 };
 
 export const ProjectVersionDirectoryFormat: Formatter<ProjectVersionDirectoryModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "ProjectVersionDirectory",
         parentDirectory: "ProjectVersionDirectory",
         projectVersion: "ProjectVersion",
@@ -1057,7 +953,7 @@ export const ProjectVersionDirectoryFormat: Formatter<ProjectVersionDirectoryMod
 };
 
 export const PullRequestFormat: Formatter<PullRequestModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "PullRequest",
         createdBy: "User",
         comments: "Comment",
@@ -1106,7 +1002,7 @@ export const PullRequestFormat: Formatter<PullRequestModelInfo> = {
 };
 
 export const PushDeviceFormat: Formatter<PushDeviceModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "PushDevice",
     },
     prismaRelMap: {
@@ -1117,7 +1013,7 @@ export const PushDeviceFormat: Formatter<PushDeviceModelInfo> = {
 };
 
 export const QuestionFormat: Formatter<QuestionModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Question",
         createdBy: "User",
         answers: "QuestionAnswer",
@@ -1166,7 +1062,7 @@ export const QuestionFormat: Formatter<QuestionModelInfo> = {
 };
 
 export const QuestionAnswerFormat: Formatter<QuestionAnswerModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "QuestionAnswer",
         bookmarkedBy: "User",
         createdBy: "User",
@@ -1188,7 +1084,7 @@ export const QuestionAnswerFormat: Formatter<QuestionAnswerModelInfo> = {
 };
 
 export const QuizFormat: Formatter<QuizModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Quiz",
         attempts: "QuizAttempt",
         createdBy: "User",
@@ -1214,7 +1110,7 @@ export const QuizFormat: Formatter<QuizModelInfo> = {
 };
 
 export const QuizAttemptFormat: Formatter<QuizAttemptModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "QuizAttempt",
         quiz: "Quiz",
         responses: "QuizQuestionResponse",
@@ -1232,7 +1128,7 @@ export const QuizAttemptFormat: Formatter<QuizAttemptModelInfo> = {
 };
 
 export const QuizQuestionFormat: Formatter<QuizQuestionModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "QuizQuestion",
         quiz: "Quiz",
         responses: "QuizQuestionResponse",
@@ -1250,7 +1146,7 @@ export const QuizQuestionFormat: Formatter<QuizQuestionModelInfo> = {
 };
 
 export const QuizQuestionResponseFormat: Formatter<QuizQuestionResponseModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "QuizQuestionResponse",
         quizAttempt: "QuizAttempt",
         quizQuestion: "QuizQuestion",
@@ -1264,7 +1160,7 @@ export const QuizQuestionResponseFormat: Formatter<QuizQuestionResponseModelInfo
 };
 
 export const ReactionFormat: Formatter<ReactionModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Reaction",
         by: "User",
         to: {
@@ -1307,7 +1203,7 @@ export const ReactionFormat: Formatter<ReactionModelInfo> = {
 };
 
 export const ReactionSummaryFormat: Formatter<ReactionSummaryModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "ReactionSummary",
     },
     prismaRelMap: {
@@ -1317,7 +1213,7 @@ export const ReactionSummaryFormat: Formatter<ReactionSummaryModelInfo> = {
 };
 
 export const ReminderFormat: Formatter<ReminderModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Reminder",
         reminderItems: "ReminderItem",
         reminderList: "ReminderList",
@@ -1331,7 +1227,7 @@ export const ReminderFormat: Formatter<ReminderModelInfo> = {
 };
 
 export const ReminderItemFormat: Formatter<ReminderItemModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "ReminderItem",
         reminder: "Reminder",
     },
@@ -1343,7 +1239,7 @@ export const ReminderItemFormat: Formatter<ReminderItemModelInfo> = {
 };
 
 export const ReminderListFormat: Formatter<ReminderListModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "ReminderList",
         focusMode: "FocusMode",
         reminders: "Reminder",
@@ -1357,7 +1253,7 @@ export const ReminderListFormat: Formatter<ReminderListModelInfo> = {
 };
 
 export const ReportFormat: Formatter<ReportModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Report",
         responses: "ReportResponse",
         createdFor: {
@@ -1405,7 +1301,7 @@ export const ReportFormat: Formatter<ReportModelInfo> = {
 };
 
 export const ReportResponseFormat: Formatter<ReportResponseModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "ReportResponse",
         report: "Report",
     },
@@ -1420,7 +1316,7 @@ export const ReportResponseFormat: Formatter<ReportResponseModelInfo> = {
 };
 
 export const ResourceFormat: Formatter<ResourceModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Resource",
         list: "ResourceList",
     },
@@ -1432,7 +1328,7 @@ export const ResourceFormat: Formatter<ResourceModelInfo> = {
 };
 
 export const ResourceListFormat: Formatter<ResourceListModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "ResourceList",
         resources: "Resource",
         listFor: {
@@ -1465,7 +1361,7 @@ export const ResourceListFormat: Formatter<ResourceListModelInfo> = {
 };
 
 export const RoleFormat: Formatter<RoleModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Role",
         members: "Member",
         team: "Team",
@@ -1482,7 +1378,7 @@ export const RoleFormat: Formatter<RoleModelInfo> = {
 };
 
 export const RoutineFormat: Formatter<RoutineModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Routine",
         createdBy: "User",
         owner: {
@@ -1531,7 +1427,7 @@ export const RoutineFormat: Formatter<RoutineModelInfo> = {
 };
 
 export const RoutineVersionFormat: Formatter<RoutineVersionModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "RoutineVersion",
         apiVersion: "ApiVersion",
         codeVersion: "CodeVersion",
@@ -1539,13 +1435,12 @@ export const RoutineVersionFormat: Formatter<RoutineVersionModelInfo> = {
         directoryListings: "ProjectVersionDirectory",
         forks: "Routine",
         inputs: "RoutineVersionInput",
-        nodes: "Node",
-        nodeLinks: "NodeLink",
         outputs: "RoutineVersionOutput",
         pullRequest: "PullRequest",
         resourceList: "ResourceList",
         reports: "Report",
         root: "Routine",
+        subroutineLinks: "RoutineVersion",
         suggestedNextByRoutineVersion: "RoutineVersion",
     },
     prismaRelMap: {
@@ -1555,16 +1450,16 @@ export const RoutineVersionFormat: Formatter<RoutineVersionModelInfo> = {
         comments: "Comment",
         directoryListings: "ProjectVersionDirectory",
         reports: "Report",
-        nodes: "Node",
-        nodeLinks: "NodeLink",
         resourceList: "ResourceList",
         root: "Routine",
         forks: "Routine",
         inputs: "RoutineVersionInput",
         outputs: "RoutineVersionOutput",
+        parentRoutineLinks: "RoutineVersion",
         pullRequest: "PullRequest",
         runRoutines: "RunRoutine",
         runSteps: "RunRoutineStep",
+        subroutineLinks: "RoutineVersion",
         suggestedNextByRoutineVersion: "RoutineVersion",
     },
     joinMap: {
@@ -1575,8 +1470,6 @@ export const RoutineVersionFormat: Formatter<RoutineVersionModelInfo> = {
         directoryListingsCount: true,
         forksCount: true,
         inputsCount: true,
-        nodeLinksCount: true,
-        nodesCount: true,
         outputsCount: true,
         reportsCount: true,
         suggestedNextByRoutineVersionCount: true,
@@ -1585,7 +1478,7 @@ export const RoutineVersionFormat: Formatter<RoutineVersionModelInfo> = {
 };
 
 export const RoutineVersionInputFormat: Formatter<RoutineVersionInputModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "RoutineVersionInput",
         routineVersion: "RoutineVersion",
         standardVersion: "StandardVersion",
@@ -1594,13 +1487,13 @@ export const RoutineVersionInputFormat: Formatter<RoutineVersionInputModelInfo> 
         __typename: "RoutineVersionInput",
         routineVersion: "RoutineVersion",
         standardVersion: "StandardVersion",
-        runInputs: "RunRoutineInput",
+        runIO: "RunRoutineIO",
     },
     countFields: {},
 };
 
 export const RoutineVersionOutputFormat: Formatter<RoutineVersionOutputModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "RoutineVersionOutput",
         routineVersion: "RoutineVersion",
         standardVersion: "StandardVersion",
@@ -1609,12 +1502,13 @@ export const RoutineVersionOutputFormat: Formatter<RoutineVersionOutputModelInfo
         __typename: "RoutineVersionOutput",
         routineVersion: "RoutineVersion",
         standardVersion: "StandardVersion",
+        runIO: "RunRoutineIO",
     },
     countFields: {},
 };
 
 export const RunProjectFormat: Formatter<RunProjectModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "RunProject",
         projectVersion: "ProjectVersion",
         schedule: "Schedule",
@@ -1636,7 +1530,7 @@ export const RunProjectFormat: Formatter<RunProjectModelInfo> = {
 };
 
 export const RunProjectStepFormat: Formatter<RunProjectStepModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "RunProjectStep",
         directory: "ProjectVersionDirectory",
         runProject: "RunProject",
@@ -1650,73 +1544,54 @@ export const RunProjectStepFormat: Formatter<RunProjectStepModelInfo> = {
 };
 
 export const RunRoutineFormat: Formatter<RunRoutineModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "RunRoutine",
-        inputs: "RunRoutineInput",
-        outputs: "RunRoutineOutput",
+        io: "RunRoutineIO",
         team: "Team",
         routineVersion: "RoutineVersion",
-        runProject: "RunProject",
         schedule: "Schedule",
         steps: "RunRoutineStep",
         user: "User",
     },
     prismaRelMap: {
         __typename: "RunRoutine",
-        inputs: "RunRoutineInput",
-        outputs: "RunRoutineOutput",
+        io: "RunRoutineIO",
         team: "Team",
         routineVersion: "RoutineVersion",
-        runProject: "RunProject",
         schedule: "Schedule",
         steps: "RunRoutineStep",
         user: "User",
     },
     countFields: {
-        inputsCount: true,
-        outputsCount: true,
+        ioCount: true,
         stepsCount: true,
     },
 };
 
-export const RunRoutineInputFormat: Formatter<RunRoutineInputModelInfo> = {
-    gqlRelMap: {
-        __typename: "RunRoutineInput",
-        input: "RoutineVersionInput",
+export const RunRoutineIOFormat: Formatter<RunRoutineIOModelInfo> = {
+    apiRelMap: {
+        __typename: "RunRoutineIO",
         runRoutine: "RunRoutine",
+        routineVersionInput: "RoutineVersionInput",
+        routineVersionOutput: "RoutineVersionOutput",
     },
     prismaRelMap: {
-        __typename: "RunRoutineInput",
-        input: "RunRoutineInput",
+        __typename: "RunRoutineIO",
         runRoutine: "RunRoutine",
-    },
-    countFields: {},
-};
-
-export const RunRoutineOutputFormat: Formatter<RunRoutineOutputModelInfo> = {
-    gqlRelMap: {
-        __typename: "RunRoutineOutput",
-        output: "RoutineVersionOutput",
-        runRoutine: "RunRoutine",
-    },
-    prismaRelMap: {
-        __typename: "RunRoutineOutput",
-        output: "RunRoutineOutput",
-        runRoutine: "RunRoutine",
+        routineVersionInput: "RoutineVersionInput",
+        routineVersionOutput: "RoutineVersionOutput",
     },
     countFields: {},
 };
 
 export const RunRoutineStepFormat: Formatter<RunRoutineStepModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "RunRoutineStep",
-        node: "Node",
         runRoutine: "RunRoutine",
         subroutine: "RoutineVersion",
     },
     prismaRelMap: {
         __typename: "RunRoutineStep",
-        node: "Node",
         runRoutine: "RunRoutine",
         subroutine: "RoutineVersion",
     },
@@ -1724,7 +1599,7 @@ export const RunRoutineStepFormat: Formatter<RunRoutineStepModelInfo> = {
 };
 
 export const ScheduleFormat: Formatter<ScheduleModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Schedule",
         exceptions: "ScheduleException",
         labels: "Label",
@@ -1749,7 +1624,7 @@ export const ScheduleFormat: Formatter<ScheduleModelInfo> = {
 };
 
 export const ScheduleExceptionFormat: Formatter<ScheduleExceptionModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "ScheduleException",
         schedule: "Schedule",
     },
@@ -1761,7 +1636,7 @@ export const ScheduleExceptionFormat: Formatter<ScheduleExceptionModelInfo> = {
 };
 
 export const ScheduleRecurrenceFormat: Formatter<ScheduleRecurrenceModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "ScheduleRecurrence",
         schedule: "Schedule",
     },
@@ -1773,7 +1648,7 @@ export const ScheduleRecurrenceFormat: Formatter<ScheduleRecurrenceModelInfo> = 
 };
 
 export const CodeFormat: Formatter<CodeModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Code",
         createdBy: "User",
         issues: "Issue",
@@ -1819,7 +1694,7 @@ export const CodeFormat: Formatter<CodeModelInfo> = {
 };
 
 export const CodeVersionFormat: Formatter<CodeVersionModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "CodeVersion",
         comments: "Comment",
         directoryListings: "ProjectVersionDirectory",
@@ -1850,7 +1725,7 @@ export const CodeVersionFormat: Formatter<CodeVersionModelInfo> = {
 };
 
 export const SessionFormat: Formatter<SessionModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Session",
     },
     prismaRelMap: {
@@ -1860,7 +1735,7 @@ export const SessionFormat: Formatter<SessionModelInfo> = {
 };
 
 export const StandardFormat: Formatter<StandardModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Standard",
         createdBy: "User",
         issues: "Issue",
@@ -1908,7 +1783,7 @@ export const StandardFormat: Formatter<StandardModelInfo> = {
 };
 
 export const StandardVersionFormat: Formatter<StandardVersionModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "StandardVersion",
         comments: "Comment",
         directoryListings: "ProjectVersionDirectory",
@@ -1938,7 +1813,7 @@ export const StandardVersionFormat: Formatter<StandardVersionModelInfo> = {
 };
 
 export const StatsApiFormat: Formatter<StatsApiModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "StatsApi",
     },
     prismaRelMap: {
@@ -1949,7 +1824,7 @@ export const StatsApiFormat: Formatter<StatsApiModelInfo> = {
 };
 
 export const StatsTeamFormat: Formatter<StatsTeamModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "StatsTeam",
     },
     prismaRelMap: {
@@ -1960,7 +1835,7 @@ export const StatsTeamFormat: Formatter<StatsTeamModelInfo> = {
 };
 
 export const StatsProjectFormat: Formatter<StatsProjectModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "StatsProject",
     },
     prismaRelMap: {
@@ -1971,7 +1846,7 @@ export const StatsProjectFormat: Formatter<StatsProjectModelInfo> = {
 };
 
 export const StatsQuizFormat: Formatter<StatsQuizModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "StatsQuiz",
     },
     prismaRelMap: {
@@ -1982,7 +1857,7 @@ export const StatsQuizFormat: Formatter<StatsQuizModelInfo> = {
 };
 
 export const StatsRoutineFormat: Formatter<StatsRoutineModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "StatsRoutine",
     },
     prismaRelMap: {
@@ -1993,7 +1868,7 @@ export const StatsRoutineFormat: Formatter<StatsRoutineModelInfo> = {
 };
 
 export const StatsSiteFormat: Formatter<StatsSiteModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "StatsSite",
     },
     prismaRelMap: {
@@ -2003,7 +1878,7 @@ export const StatsSiteFormat: Formatter<StatsSiteModelInfo> = {
 };
 
 export const StatsCodeFormat: Formatter<StatsCodeModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "StatsCode",
     },
     prismaRelMap: {
@@ -2014,7 +1889,7 @@ export const StatsCodeFormat: Formatter<StatsCodeModelInfo> = {
 };
 
 export const StatsStandardFormat: Formatter<StatsStandardModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "StatsStandard",
     },
     prismaRelMap: {
@@ -2025,7 +1900,7 @@ export const StatsStandardFormat: Formatter<StatsStandardModelInfo> = {
 };
 
 export const StatsUserFormat: Formatter<StatsUserModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "StatsUser",
     },
     prismaRelMap: {
@@ -2036,7 +1911,7 @@ export const StatsUserFormat: Formatter<StatsUserModelInfo> = {
 };
 
 export const TagFormat: Formatter<TagModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Tag",
         apis: "Api",
         codes: "Code",
@@ -2080,7 +1955,7 @@ export const TagFormat: Formatter<TagModelInfo> = {
 };
 
 export const TransferFormat: Formatter<TransferModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Transfer",
         fromOwner: {
             fromTeam: "Team",
@@ -2121,7 +1996,7 @@ export const TransferFormat: Formatter<TransferModelInfo> = {
 };
 
 export const UserFormat: Formatter<UserModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "User",
         comments: "Comment",
         emails: "Email",
@@ -2200,7 +2075,7 @@ export const UserFormat: Formatter<UserModelInfo> = {
 };
 
 export const ViewFormat: Formatter<ViewModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "View",
         by: "User",
         to: {
@@ -2237,7 +2112,7 @@ export const ViewFormat: Formatter<ViewModelInfo> = {
 };
 
 export const WalletFormat: Formatter<WalletModelInfo> = {
-    gqlRelMap: {
+    apiRelMap: {
         __typename: "Wallet",
         team: "Team",
         user: "User",
@@ -2251,7 +2126,7 @@ export const WalletFormat: Formatter<WalletModelInfo> = {
 };
 
 /** Maps model types to their respective formatter logic */
-export const FormatMap: { [key in GqlModelType]?: Formatter<any> } = {
+export const FormatMap: { [key in ModelType]?: Formatter<any> } = {
     Api: ApiFormat,
     ApiKey: ApiKeyFormat,
     ApiVersion: ApiVersionFormat,
@@ -2274,14 +2149,6 @@ export const FormatMap: { [key in GqlModelType]?: Formatter<any> } = {
     MeetingInvite: MeetingInviteFormat,
     Member: MemberFormat,
     MemberInvite: MemberInviteFormat,
-    Node: NodeFormat,
-    NodeEnd: NodeEndFormat,
-    NodeLink: NodeLinkFormat,
-    NodeLinkWhen: NodeLinkWhenFormat,
-    NodeLoop: NodeLoopFormat,
-    NodeLoopWhile: NodeLoopWhileFormat,
-    NodeRoutineList: NodeRoutineListFormat,
-    NodeRoutineListItem: NodeRoutineListItemFormat,
     Note: NoteFormat,
     NoteVersion: NoteVersionFormat,
     Notification: NotificationFormat,
@@ -2318,8 +2185,7 @@ export const FormatMap: { [key in GqlModelType]?: Formatter<any> } = {
     RunProject: RunProjectFormat,
     RunProjectStep: RunProjectStepFormat,
     RunRoutine: RunRoutineFormat,
-    RunRoutineInput: RunRoutineInputFormat,
-    RunRoutineOutput: RunRoutineOutputFormat,
+    RunRoutineIO: RunRoutineIOFormat,
     RunRoutineStep: RunRoutineStepFormat,
     Schedule: ScheduleFormat,
     ScheduleException: ScheduleExceptionFormat,

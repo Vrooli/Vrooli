@@ -1,13 +1,13 @@
-import { MistralModel, mistralServiceInfo } from "@local/shared";
+import { LlmServiceId, MistralModel, mistralServiceInfo } from "@local/shared";
 import MistralClient, { ChatCompletionResponse } from "@mistralai/mistralai";
-import { CustomError } from "../../../events/error";
-import { logger } from "../../../events/logger";
-import { LlmServiceErrorType, LlmServiceId, LlmServiceRegistry } from "../registry";
-import { EstimateTokensParams, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetOutputTokenLimitParams, GetOutputTokenLimitResult, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, generateDefaultContext, getDefaultConfigObject, getDefaultMaxOutputTokensRestrained, getDefaultResponseCost, tokenEstimationDefault } from "../service";
+import { CustomError } from "../../../events/error.js";
+import { logger } from "../../../events/logger.js";
+import { LlmServiceErrorType, LlmServiceRegistry } from "../registry.js";
+import { generateDefaultContext, getDefaultConfigObject, getDefaultMaxOutputTokensRestrained, getDefaultResponseCost } from "../service.js";
+import { TokenEstimationRegistry } from "../tokenEstimator.js";
+import { EstimateTokensParams, EstimateTokensResult, GenerateContextParams, GenerateResponseParams, GetConfigObjectParams, GetOutputTokenLimitParams, GetOutputTokenLimitResult, GetResponseCostParams, LanguageModelContext, LanguageModelMessage, LanguageModelService, TokenEstimatorType } from "../types.js";
 
-type MistralTokenModel = "default";
-
-export class MistralService implements LanguageModelService<MistralModel, MistralTokenModel> {
+export class MistralService implements LanguageModelService<MistralModel> {
     public __id = LlmServiceId.Mistral;
     private client: MistralClient;
     private defaultModel: MistralModel = MistralModel.Nemo;
@@ -17,7 +17,7 @@ export class MistralService implements LanguageModelService<MistralModel, Mistra
     }
 
     estimateTokens(params: EstimateTokensParams) {
-        return tokenEstimationDefault(params);
+        return TokenEstimationRegistry.get().estimateTokens(TokenEstimatorType.Tiktoken, params);
     }
 
     async getConfigObject(params: GetConfigObjectParams) {
@@ -70,7 +70,6 @@ export class MistralService implements LanguageModelService<MistralModel, Mistra
         maxTokens,
         messages,
         model,
-        userData,
     }: GenerateResponseParams) {
         // Generate response
         const params = {
@@ -111,7 +110,7 @@ export class MistralService implements LanguageModelService<MistralModel, Mistra
 
         let accumulatedMessage = "";
         // NOTE: Mistral's API might not provide token usage when streaming. You'll need to estimate it yourself.
-        const inputTokens = this.estimateTokens({ model, text: messages.map(m => m.content).join("\n") }).tokens;
+        const inputTokens = this.estimateTokens({ aiModel: model, text: messages.map(m => m.content).join("\n") }).tokens;
         let accumulatedOutputTokens = 0;
 
         try {
@@ -120,7 +119,7 @@ export class MistralService implements LanguageModelService<MistralModel, Mistra
             for await (const chunk of chatStreamResponse) {
                 const content = chunk.choices[0]?.delta?.content || "";
                 accumulatedMessage += content;
-                const outputTokens = this.estimateTokens({ model, text: content }).tokens;
+                const outputTokens = this.estimateTokens({ aiModel: model, text: content }).tokens;
                 accumulatedOutputTokens += outputTokens;
                 const cost = this.getResponseCost({
                     model,
@@ -136,7 +135,7 @@ export class MistralService implements LanguageModelService<MistralModel, Mistra
                 model,
                 usage: {
                     input: inputTokens,
-                    output: this.estimateTokens({ model, text: accumulatedMessage }).tokens,
+                    output: this.estimateTokens({ aiModel: model, text: accumulatedMessage }).tokens,
                 },
             });
             yield { __type: "end" as const, message: accumulatedMessage, cost };
@@ -150,7 +149,7 @@ export class MistralService implements LanguageModelService<MistralModel, Mistra
                 model,
                 usage: {
                     input: inputTokens,
-                    output: this.estimateTokens({ model, text: accumulatedMessage }).tokens,
+                    output: this.estimateTokens({ aiModel: model, text: accumulatedMessage }).tokens,
                 },
             });
             yield { __type: "error" as const, message: accumulatedMessage, cost };
@@ -179,13 +178,8 @@ export class MistralService implements LanguageModelService<MistralModel, Mistra
         return getDefaultResponseCost(params, this);
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    getEstimationMethod(_model?: string | null | undefined): "default" {
-        return "default";
-    }
-
-    getEstimationTypes() {
-        return ["default"] as const;
+    getEstimationInfo(model?: string | null): Pick<EstimateTokensResult, "estimationModel" | "encoding"> {
+        return TokenEstimationRegistry.get().getEstimationInfo(TokenEstimatorType.Tiktoken, model);
     }
 
     getModel(model?: string | null) {

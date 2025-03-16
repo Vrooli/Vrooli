@@ -1,11 +1,11 @@
-import { SessionContext } from "contexts";
-import { LanguageIcon } from "icons";
+import { LanguageIcon } from "icons/common.js";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getSiteLanguage, siteLanguages } from "utils/authentication/session";
-import { AllLanguages } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
-import { SelectorBase } from "../Selector/Selector";
+import { getSiteLanguage, siteLanguages } from "utils/authentication/session.js";
+import { AllLanguages } from "utils/display/translationTools.js";
+import { PubSub } from "utils/pubsub.js";
+import { SessionContext } from "../../../contexts.js";
+import { SelectorBase } from "../Selector/Selector.js";
 
 function handleRequestLanguage() {
     // Open link to new issue on github with title "Support for language <enter_language_here>"

@@ -1,9 +1,9 @@
 import { getObjectSlug, getObjectUrlBase } from "@local/shared";
 import { IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { ReportIcon } from "icons";
 import { useCallback, useMemo } from "react";
-import { useLocation } from "route";
-import { ReportsLinkProps } from "../types";
+import { ReportIcon } from "../../../icons/common.js";
+import { useLocation } from "../../../route/router.js";
+import { ReportsLinkProps } from "../types.js";
 
 const CountLabel = styled(Typography)(({ theme }) => ({
     marginLeft: theme.spacing(0.5),

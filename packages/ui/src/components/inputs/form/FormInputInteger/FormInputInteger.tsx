@@ -1,12 +1,12 @@
 import { IntegerFormInput, IntegerFormInputProps, getFormikFieldName } from "@local/shared";
 import { Button, Typography, useTheme } from "@mui/material";
-import { IntegerInputBase } from "components/inputs/IntegerInput/IntegerInput";
-import { TextInput } from "components/inputs/TextInput/TextInput";
+import { IntegerInputBase } from "components/inputs/IntegerInput/IntegerInput.js";
+import { TextInput } from "components/inputs/TextInput/TextInput.js";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles";
-import { FormInputProps } from "../types";
+import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "../styles.js";
+import { FormInputProps } from "../types.js";
 
 export function FormInputInteger({
     disabled,

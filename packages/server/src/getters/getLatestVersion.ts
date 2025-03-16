@@ -1,8 +1,8 @@
-import { GqlModelType, isOfType } from "@local/shared";
-import { PrismaDelegate } from "../builders/types";
-import { prismaInstance } from "../db/instance";
-import { CustomError } from "../events/error";
-import { ModelMap } from "../models/base";
+import { ModelType, isOfType } from "@local/shared";
+import { PrismaDelegate } from "../builders/types.js";
+import { DbProvider } from "../db/provider.js";
+import { CustomError } from "../events/error.js";
+import { ModelMap } from "../models/base/index.js";
 
 /**
  * Finds the latest version of a versioned object, using the root object's ID OR handle
@@ -15,12 +15,12 @@ export async function getLatestVersion({
     handleRoot,
 }: {
     includeIncomplete?: boolean,
-    objectType: `${GqlModelType.ApiVersion
-    | GqlModelType.CodeVersion
-    | GqlModelType.NoteVersion
-    | GqlModelType.ProjectVersion
-    | GqlModelType.RoutineVersion
-    | GqlModelType.StandardVersion
+    objectType: `${ModelType.ApiVersion
+    | ModelType.CodeVersion
+    | ModelType.NoteVersion
+    | ModelType.ProjectVersion
+    | ModelType.RoutineVersion
+    | ModelType.StandardVersion
     }`,
     idRoot?: string | null,
     handleRoot?: string | null,
@@ -41,7 +41,7 @@ export async function getLatestVersion({
             orderBy: { versionIndex: "desc" as const },
             select: { id: true },
         };
-        const latestVersion = await (prismaInstance[model.dbTable] as PrismaDelegate).findFirst(query);
+        const latestVersion = await (DbProvider.get()[model.dbTable] as PrismaDelegate).findFirst(query);
         return latestVersion?.id;
     }
     // Handle other objects, which do have an "isComplete" field
@@ -51,7 +51,7 @@ export async function getLatestVersion({
             orderBy: { versionIndex: "desc" as const },
             select: { id: true },
         };
-        const latestVersion = await (prismaInstance[model.dbTable] as PrismaDelegate).findFirst(query);
+        const latestVersion = await (DbProvider.get()[model.dbTable] as PrismaDelegate).findFirst(query);
         return latestVersion?.id;
     }
 }

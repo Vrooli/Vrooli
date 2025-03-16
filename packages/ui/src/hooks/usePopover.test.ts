@@ -1,17 +1,18 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { renderHook } from "@testing-library/react";
+import { expect } from "chai";
 import { act } from "react";
-import { usePopover } from "./usePopover";
+import { usePopover } from "./usePopover.js";
 
 describe("usePopover", () => {
-    test("initial state should be null", () => {
+    it("initial state should be null", () => {
         const { result } = renderHook(() => usePopover());
         const [anchorEl] = result.current;
 
-        expect(anchorEl).toBeNull();
+        expect(anchorEl).to.be.null;
     });
 
-    test("opens the popover when the condition is true", () => {
+    it("opens the popover when the condition is true", () => {
         const { result } = renderHook(() => usePopover());
         const [, openPopover] = result.current;
 
@@ -22,10 +23,10 @@ describe("usePopover", () => {
 
         const [anchorEl] = result.current;
         expect(anchorEl).toBeInstanceOf(HTMLElement);
-        expect(anchorEl).not.toBeNull();
+        expect(anchorEl).not.to.be.null;
     });
 
-    test("does not open the popover when the condition is false", () => {
+    it("does not open the popover when the condition is false", () => {
         const { result } = renderHook(() => usePopover());
         const [, openPopover] = result.current;
 
@@ -35,10 +36,10 @@ describe("usePopover", () => {
         });
 
         const [anchorEl] = result.current;
-        expect(anchorEl).toBeNull();
+        expect(anchorEl).to.be.null;
     });
 
-    test("closes the popover correctly", () => {
+    it("closes the popover correctly", () => {
         const { result } = renderHook(() => usePopover());
         const [, openPopover, closePopover] = result.current;
 
@@ -54,26 +55,26 @@ describe("usePopover", () => {
         });
 
         const [anchorEl] = result.current;
-        expect(anchorEl).toBeNull();
+        expect(anchorEl).to.be.null;
     });
 
-    test("isPopoverOpen returns the correct state", () => {
+    it("isPopoverOpen returns the correct state", () => {
         const { result } = renderHook(() => usePopover());
         const [, openPopover, , isPopoverOpen] = result.current;
 
-        expect(isPopoverOpen).toBeFalsy();
+        expect(isPopoverOpen).to.not.be.ok;
 
         act(() => {
             // @ts-ignore: Testing runtime scenario
             openPopover({ currentTarget: document.createElement("button") });
         });
 
-        expect(result.current[3]).toBeTruthy();
+        expect(result.current[3]).to.be.ok;
 
         act(() => {
             result.current[2](); // closePopover
         });
 
-        expect(result.current[3]).toBeFalsy();
+        expect(result.current[3]).to.not.be.ok;
     });
 });

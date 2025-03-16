@@ -1,6 +1,6 @@
 import { Server } from "socket.io";
-import { RequestService } from "../auth/request";
-import { server } from "../server";
+import { RequestService } from "../auth/request.js";
+import { server } from "../server.js";
 
 /**
  * Active socket IDs by user ID

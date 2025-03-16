@@ -1,34 +1,34 @@
-import { API_CREDITS_MULTIPLIER, ActionOption, HistoryPageTabOption, LINKS, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User, endpointPostAuthLogout, endpointPostAuthSwitchCurrentAccount, endpointPutProfile, noop, profileValidation, shapeProfile } from "@local/shared";
+import { API_CREDITS_MULTIPLIER, ActionOption, HistoryPageTabOption, LINKS, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User, endpointsAuth, endpointsUser, noop, profileValidation, shapeProfile } from "@local/shared";
 import { Avatar, Box, Collapse, Divider, IconButton, Link, List, ListItem, ListItemIcon, ListItemText, Palette, SwipeableDrawer, Typography, styled, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { SocketService } from "api/socket";
-import { FocusModeSelector } from "components/inputs/FocusModeSelector/FocusModeSelector";
-import { LanguageSelector } from "components/inputs/LanguageSelector/LanguageSelector";
-import { LeftHandedCheckbox } from "components/inputs/LeftHandedCheckbox/LeftHandedCheckbox";
-import { TextSizeButtons } from "components/inputs/TextSizeButtons/TextSizeButtons";
-import { ThemeSwitch } from "components/inputs/ThemeSwitch/ThemeSwitch";
-import { ContactInfo } from "components/navigation/ContactInfo/ContactInfo";
-import { SessionContext } from "contexts";
 import { useFormik } from "formik";
-import { useIsLeftHanded } from "hooks/subscriptions";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { useSideMenu } from "hooks/useSideMenu";
-import { useWindowSize } from "hooks/useWindowSize";
-import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, InfoIcon, LogOutIcon, MonthIcon, PlusIcon, PremiumIcon, RoutineActiveIcon, SettingsIcon, UserIcon } from "icons";
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
-import { noSelect } from "styles";
-import { SvgComponent } from "types";
-import { getCurrentUser, guestSession } from "utils/authentication/session";
-import { ELEMENT_IDS, RIGHT_DRAWER_WIDTH } from "utils/consts";
-import { extractImageUrl } from "utils/display/imageTools";
-import { removeCookie } from "utils/localStorage";
-import { openObject } from "utils/navigation/openObject";
-import { Actions, performAction, toActionOption } from "utils/navigation/quickActions";
-import { NAV_ACTION_TAGS, NavAction, getUserActions } from "utils/navigation/userActions";
-import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID, SideMenuPayloads } from "utils/pubsub";
+import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
+import { SocketService } from "../../../api/socket.js";
+import { SessionContext } from "../../../contexts.js";
+import { useIsLeftHanded } from "../../../hooks/subscriptions.js";
+import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useSideMenu } from "../../../hooks/useSideMenu.js";
+import { useWindowSize } from "../../../hooks/useWindowSize.js";
+import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, InfoIcon, LogOutIcon, MonthIcon, PlusIcon, PremiumIcon, RoutineActiveIcon, SettingsIcon, UserIcon } from "../../../icons/common.js";
+import { useLocation } from "../../../route/router.js";
+import { noSelect } from "../../../styles.js";
+import { SvgComponent } from "../../../types.js";
+import { getCurrentUser, guestSession } from "../../../utils/authentication/session.js";
+import { ELEMENT_IDS, RIGHT_DRAWER_WIDTH } from "../../../utils/consts.js";
+import { extractImageUrl } from "../../../utils/display/imageTools.js";
+import { removeCookie } from "../../../utils/localStorage.js";
+import { openObject } from "../../../utils/navigation/openObject.js";
+import { Actions, performAction } from "../../../utils/navigation/quickActions.js";
+import { NAV_ACTION_TAGS, NavAction, getUserActions } from "../../../utils/navigation/userActions.js";
+import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID, SideMenuPayloads } from "../../../utils/pubsub.js";
+import { FocusModeSelector } from "../../inputs/FocusModeSelector/FocusModeSelector.js";
+import { LanguageSelector } from "../../inputs/LanguageSelector/LanguageSelector.js";
+import { LeftHandedCheckbox } from "../../inputs/LeftHandedCheckbox/LeftHandedCheckbox.js";
+import { TextSizeButtons } from "../../inputs/TextSizeButtons/TextSizeButtons.js";
+import { ThemeSwitch } from "../../inputs/ThemeSwitch/ThemeSwitch.js";
+import { ContactInfo } from "../../navigation/ContactInfo/ContactInfo.js";
 
 /**
  * Maximum accounts to sign in with. 
@@ -143,7 +143,7 @@ export function SideMenu() {
     }, [breakpoints, isOpen]);
 
     // Handle update. Only updates when menu closes, and account settings have changed.
-    const [fetch] = useLazyFetch<ProfileUpdateInput, User>(endpointPutProfile);
+    const [fetch] = useLazyFetch<ProfileUpdateInput, User>(endpointsUser.profileUpdate);
     const formik = useFormik({
         initialValues: {
             theme: getCurrentUser(session).theme ?? "light",
@@ -186,7 +186,7 @@ export function SideMenu() {
         closeDisplaySettings();
     }, [close, closeAdditionalResources, closeDisplaySettings, formik]);
 
-    const [switchCurrentAccount] = useLazyFetch<SwitchCurrentAccountInput, Session>(endpointPostAuthSwitchCurrentAccount);
+    const [switchCurrentAccount] = useLazyFetch<SwitchCurrentAccountInput, Session>(endpointsAuth.switchCurrentAccount);
     const handleUserClick = useCallback((event: React.MouseEvent<HTMLElement>, user: SessionUser) => {
         // Close menu if not persistent
         if (isMobile) handleClose(event);
@@ -217,7 +217,7 @@ export function SideMenu() {
         if (isMobile) handleClose(event);
     }, [handleClose, isMobile, setLocation]);
 
-    const [logOut] = useLazyFetch<undefined, Session>(endpointPostAuthLogout);
+    const [logOut] = useLazyFetch<undefined, Session>(endpointsAuth.logout);
     const handleLogOut = useCallback((event: React.MouseEvent<HTMLElement>) => {
         if (isMobile) handleClose(event);
         const user = getCurrentUser(session);
@@ -242,15 +242,15 @@ export function SideMenu() {
         setLocation(LINKS.Home);
     }, [handleClose, isMobile, session, logOut, setLocation]);
 
-    function handleOpen(event: React.MouseEvent<HTMLElement>, link: string) {
+    const handleOpen = useCallback(function handleOpenCallback(event: React.MouseEvent<HTMLElement>, link: string) {
         setLocation(link);
         if (isMobile) handleClose(event);
-    }
+    }, [handleClose, isMobile, setLocation]);
 
-    function handleAction(event: React.MouseEvent<HTMLElement>, action: ActionOption) {
+    const handleAction = useCallback(function handleActionCallback(event: React.MouseEvent<HTMLElement>, action: ActionOption) {
         if (isMobile) handleClose(event);
         performAction(action, session);
-    }
+    }, [handleClose, isMobile, session]);
 
     const accounts = useMemo(() => session?.users ?? [], [session?.users]);
     const profileListItems = accounts.map((account) => {
@@ -294,7 +294,7 @@ export function SideMenu() {
             { label: t("Award", { count: 2 }), Icon: AwardIcon, link: LINKS.Awards, action: null },
             { label: t("Pro"), Icon: PremiumIcon, link: LINKS.Pro, action: null },
             { label: t("Settings"), Icon: SettingsIcon, link: LINKS.Settings, action: null },
-            { label: t("Tutorial"), Icon: HelpIcon, action: toActionOption(Actions.tutorial) },
+            { label: t("Tutorial"), Icon: HelpIcon, action: Actions.tutorial },
         ] as const;
     }, [t]);
 

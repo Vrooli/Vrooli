@@ -1,5 +1,5 @@
-import { CustomError } from "../events/error";
-import { logger } from "../events/logger";
+import { CustomError } from "../events/error.js";
+import { logger } from "../events/logger.js";
 
 /**
  * Recursively sorts keys of an object alphabetically. 

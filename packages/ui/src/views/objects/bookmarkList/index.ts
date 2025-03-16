@@ -1,3 +1,3 @@
-export * from "./BookmarkListUpsert/BookmarkListUpsert";
-export * from "./BookmarkListView/BookmarkListView";
+export * from "./BookmarkListUpsert.js";
+export * from "./BookmarkListView.js";
 

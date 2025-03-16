@@ -1,6 +1,6 @@
-import { GqlModelType } from "@local/shared";
-import { ModelMap } from "../../models/base";
-import { WithIdField } from "../../types";
+import { ModelType } from "@local/shared";
+import { ModelMap } from "../../models/base/index.js";
+import { WithIdField } from "../../types.js";
 
 type PreShapeEmbeddableTranslatableParams<IdField extends string = "id"> = {
     Create: {
@@ -15,7 +15,7 @@ type PreShapeEmbeddableTranslatableParams<IdField extends string = "id"> = {
             translationsDelete?: string[] | null | undefined,
         }
     }[],
-    objectType: GqlModelType | `${GqlModelType}`,
+    objectType: ModelType | `${ModelType}`,
 };
 
 /** Map of language codes to boolean indicating if embedding needs update */
@@ -29,11 +29,11 @@ export type PreShapeEmbeddableTranslatableResult = {
  * that come with search embeddings.
  * @returns object with embeddingNeedsUpdate flag
  */
-export const preShapeEmbeddableTranslatable = <IdField extends string = "id">({
+export function preShapeEmbeddableTranslatable<IdField extends string = "id">({
     Create,
     Update,
     objectType,
-}: PreShapeEmbeddableTranslatableParams<IdField>): PreShapeEmbeddableTranslatableResult => {
+}: PreShapeEmbeddableTranslatableParams<IdField>): PreShapeEmbeddableTranslatableResult {
     // Initialize map
     const embeddingNeedsUpdateMap: Record<string, { [language in string]: boolean }> = {};
     // Get id field
@@ -50,4 +50,4 @@ export const preShapeEmbeddableTranslatable = <IdField extends string = "id">({
         };
     }
     return { embeddingNeedsUpdateMap };
-};
+}

@@ -1,16 +1,17 @@
 import { Box, BoxProps, Typography, styled, useTheme } from "@mui/material";
 import { FormikProps } from "formik";
-import { useWindowSize } from "hooks/useWindowSize";
-import { RefreshIcon, SaveIcon, WarningIcon } from "icons";
+import { useWindowSize } from "hooks/useWindowSize.js";
+import { RefreshIcon, SaveIcon, WarningIcon } from "icons/common.js";
 import { RefObject, useCallback, useEffect, useState } from "react";
 
 type AutoSaveIndicatorProps = {
     formikRef: RefObject<FormikProps<object>>;
+    savedIndicatorTimeoutMs?: number;
 }
 
 type SaveStatus = "Saving" | "Saved" | "Unsaved";
 
-const SAVED_INDICATOR_TIMEOUT_MS = 3000;
+const DEFAULT_SAVED_INDICATOR_TIMEOUT_MS = 3000;
 const CHECK_SAVE_STATUS_INTERVAL_MS = 1000;
 
 const statusToIconColor = {
@@ -68,6 +69,7 @@ const AutoSaveAlert = styled(Box, {
 
 export function AutoSaveIndicator({
     formikRef,
+    savedIndicatorTimeoutMs = DEFAULT_SAVED_INDICATOR_TIMEOUT_MS,
 }: AutoSaveIndicatorProps) {
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
@@ -78,6 +80,11 @@ export function AutoSaveIndicator({
     const toggleShowLabelOnMobile = useCallback(function toggleShowLabelOnMobileCallback() {
         setShowLabelOnMobile((prev) => !prev);
     }, []);
+    const handleKeyDown = useCallback(function handleKeyDownCallback(event: React.KeyboardEvent<HTMLDivElement>) {
+        if (event.key === "Enter" || event.key === " ") {
+            toggleShowLabelOnMobile();
+        }
+    }, [toggleShowLabelOnMobile]);
 
     useEffect(function checkStatusTimeout() {
         let timeoutId: NodeJS.Timeout;
@@ -95,7 +102,7 @@ export function AutoSaveIndicator({
                 } else {
                     setSaveStatus("Saved");
                     // Hide the indicator after 3 seconds when saved
-                    timeoutId = setTimeout(() => setIsVisible(false), SAVED_INDICATOR_TIMEOUT_MS);
+                    timeoutId = setTimeout(() => setIsVisible(false), savedIndicatorTimeoutMs);
                 }
             }
         }
@@ -106,7 +113,7 @@ export function AutoSaveIndicator({
             clearInterval(intervalId);
             clearTimeout(timeoutId);
         };
-    }, [formikRef]);
+    }, [formikRef, savedIndicatorTimeoutMs]);
 
     const Icon = statusToIcon[saveStatus];
     return (
@@ -114,6 +121,8 @@ export function AutoSaveIndicator({
             isLabelVisible={!isMobile || showLabelOnMobile}
             isVisible={isVisible}
             onClick={toggleShowLabelOnMobile}
+            onKeyDown={handleKeyDown}
+            role="button"
             status={saveStatus}
         >
             <Icon

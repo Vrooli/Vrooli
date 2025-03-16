@@ -1,8 +1,8 @@
-import { TEXT_FLAGS } from "../consts";
-import { RangeSelection } from "../selection";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, ElementFormatType, NodeConstructorPayloads, NodeType, SerializedParagraphNode, TextFormatType } from "../types";
-import { $createNode, $isNode, getNextSibling, getPreviousSibling, isHTMLElement } from "../utils";
-import { ElementNode } from "./ElementNode";
+import { TEXT_FLAGS } from "../consts.js";
+import { RangeSelection } from "../selection.js";
+import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, ElementFormatType, NodeConstructorPayloads, NodeType, SerializedParagraphNode, TextFormatType } from "../types.js";
+import { $createNode, $isNode, getNextSibling, getPreviousSibling, isHTMLElement } from "../utils.js";
+import { ElementNode } from "./ElementNode.js";
 
 export class ParagraphNode extends ElementNode {
     static __type: NodeType = "Paragraph";

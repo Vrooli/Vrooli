@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { LIST_INDENT_SIZE } from "../consts";
-import { type LexicalEditor } from "../editor";
-import { CustomDomElement, DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, ElementTransformer, ListNodeTagType, ListType, NodeConstructorPayloads, NodeType, SerializedListNode } from "../types";
-import { $createNode, $getAllListItems, $getListDepth, $getNearestNodeOfType, $getSelection, $getTopListNode, $isLeafNode, $isNode, $isRangeSelection, $isRootOrShadowRoot, $removeHighestEmptyListParent, addClassNamesToElement, append, getNextSibling, getNextSiblings, getParent, getPreviousSibling, isHTMLElement, isNestedListNode, normalizeClassNames, removeClassNamesFromElement, wrapInListItem } from "../utils";
-import { ElementNode } from "./ElementNode";
-import { type LexicalNode } from "./LexicalNode";
-import { type ListItemNode } from "./ListItemNode";
-import { type ParagraphNode } from "./ParagraphNode";
+import { LIST_INDENT_SIZE } from "../consts.js";
+import { type LexicalEditor } from "../editor.js";
+import { CustomDomElement, DOMConversionMap, DOMConversionOutput, DOMExportOutput, EditorConfig, ElementTransformer, ListNodeTagType, ListType, NodeConstructorPayloads, NodeType, SerializedListNode } from "../types.js";
+import { $createNode, $getAllListItems, $getListDepth, $getNearestNodeOfType, $getSelection, $getTopListNode, $isLeafNode, $isNode, $isRangeSelection, $isRootOrShadowRoot, $removeHighestEmptyListParent, addClassNamesToElement, append, getNextSibling, getNextSiblings, getParent, getPreviousSibling, isHTMLElement, isNestedListNode, normalizeClassNames, removeClassNamesFromElement, wrapInListItem } from "../utils.js";
+import { ElementNode } from "./ElementNode.js";
+import { type LexicalNode } from "./LexicalNode.js";
+import { type ListItemNode } from "./ListItemNode.js";
+import { type ParagraphNode } from "./ParagraphNode.js";
 
 export class ListNode extends ElementNode {
     static __type: NodeType = "List";

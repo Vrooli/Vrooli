@@ -1,9 +1,11 @@
 // import { AUTH_ROUTE_PREFIX, OAUTH_PROVIDERS, getOAuthCallbackRoute, getOAuthInitRoute } from "@local/shared";
-// import { PrismaClient } from "@prisma/client";
+// import pkg from "@prisma/client";
 // import { Request, Response } from "express";
 // import passport from "passport";
 // import { Strategy as GoogleStrategy, Profile } from "passport-google-oauth20";
 // import { app } from "../app";
+
+// const { PrismaClient } = pkg;
 
 // //TODO need to use this file in server/index.ts
 

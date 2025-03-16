@@ -2,9 +2,8 @@
     "extends": "./tsconfig.json",
     "exclude": [],
     "include": [
-        "**/*.spec.ts",
         "**/*.test.ts",
-        "**/config",
-        "**/__mocks__",
+        "**/*.test.tsx",
+        "**/__test",
     ]
 }

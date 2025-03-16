@@ -1,7 +1,7 @@
-import { AITaskInfo, ChatPageTabOption, LlmTask, Session, TaskContextInfo, TranslationKeyCommon, TranslationKeyError } from "@local/shared";
-import { AlertDialogSeverity } from "components/dialogs/AlertDialog/AlertDialog";
-import { SnackSeverity } from "components/snacks/BasicSnack/BasicSnack";
-import { ThemeType } from "./localStorage";
+import { AITaskInfo, LlmTask, Session, TaskContextInfo, TranslationKeyCommon, TranslationKeyError } from "@local/shared";
+import { AlertDialogSeverity } from "../components/dialogs/AlertDialog/AlertDialog.js";
+import { SnackSeverity } from "../components/snacks/BasicSnack/BasicSnack.js";
+import { ThemeType } from "./localStorage.js";
 
 export type TranslatedSnackMessage<KeyList = TranslationKeyCommon | TranslationKeyError> = {
     messageKey: KeyList;
@@ -201,7 +201,6 @@ export interface EventPayloads {
     clearSnack: ClearSnackPub;
     commandPalette: void;
     cookies: void;
-    fastUpdate: { on?: boolean, duration?: number };
     findInPage: void;
     fontSize: number;
     isLeftHanded: boolean;
@@ -213,6 +212,7 @@ export interface EventPayloads {
     nodeDrop: { nodeId: string, position: { x: number, y: number } };
     popupImage: PopupImagePub;
     popupVideo: PopupVideoPub;
+    proDialog: void;
     requestTaskContext: RequestTaskContextPub;
     richInputToolbarViewSize: RichInputToolbarViewSize;
     session: Session | undefined;
@@ -224,7 +224,7 @@ export interface EventPayloads {
 }
 
 const defaultPayloads: Partial<{ [K in keyof EventPayloads]: EventPayloads[K] }> = {
-    fastUpdate: { on: true, duration: 1000 },
+    // Add default payloads here
 };
 
 export type PubType = keyof EventPayloads;

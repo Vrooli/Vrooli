@@ -1,11 +1,11 @@
-import { copyIconPath } from "icons";
-import { PubSub } from "utils/pubsub";
-import { CODE_BLOCK_COMMAND } from "../commands";
-import { COMMAND_PRIORITY_HIGH } from "../consts";
-import { useLexicalComposerContext } from "../context";
-import { ElementNode } from "../nodes/ElementNode";
-import { DOMConversionMap, DOMConversionOutput, NodeConstructorPayloads, NodeType, SerializedCodeBlockNode } from "../types";
-import { $createNode, $getSelection, $isNode, $isRangeSelection, getParent } from "../utils";
+import { copyIconPath } from "icons/common.js";
+import { PubSub } from "utils/pubsub.js";
+import { CODE_BLOCK_COMMAND } from "../commands.js";
+import { COMMAND_PRIORITY_HIGH } from "../consts.js";
+import { useLexicalComposerContext } from "../context.js";
+import { ElementNode } from "../nodes/ElementNode.js";
+import { DOMConversionMap, DOMConversionOutput, NodeConstructorPayloads, NodeType, SerializedCodeBlockNode } from "../types.js";
+import { $createNode, $getSelection, $isNode, $isRangeSelection, getParent } from "../utils.js";
 
 const LANGUAGE_DATA_ATTRIBUTE = "data-highlight-language";
 

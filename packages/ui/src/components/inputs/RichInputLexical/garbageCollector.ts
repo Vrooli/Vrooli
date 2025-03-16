@@ -1,7 +1,7 @@
-import { EditorState, LexicalEditor } from "./editor";
-import { ElementNode } from "./nodes/ElementNode";
-import { IntentionallyMarkedAsDirtyElement, NodeKey, NodeMap } from "./types";
-import { $isNode, cloneDecorators, getNextSibling, isAttachedToRoot } from "./utils";
+import { EditorState, LexicalEditor } from "./editor.js";
+import { ElementNode } from "./nodes/ElementNode.js";
+import { IntentionallyMarkedAsDirtyElement, NodeKey, NodeMap } from "./types.js";
+import { $isNode, cloneDecorators, getNextSibling, isAttachedToRoot } from "./utils.js";
 
 export function $garbageCollectDetachedDecorators(
     editor: LexicalEditor,

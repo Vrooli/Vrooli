@@ -1,9 +1,9 @@
 import { ChatParticipantSortBy, chatParticipantValidation, MaxObjects } from "@local/shared";
-import { ModelMap } from ".";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions } from "../../utils";
-import { ChatParticipantFormat } from "../formats";
-import { ChatModelInfo, ChatModelLogic, ChatParticipantModelLogic, UserModelInfo, UserModelLogic } from "./types";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { ChatParticipantFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { ChatModelInfo, ChatModelLogic, ChatParticipantModelLogic, UserModelInfo, UserModelLogic } from "./types.js";
 
 const __typename = "ChatParticipant" as const;
 export const ChatParticipantModel: ChatParticipantModelLogic = ({
@@ -13,7 +13,7 @@ export const ChatParticipantModel: ChatParticipantModelLogic = ({
         // Label is the user's label
         label: {
             select: () => ({ id: true, user: { select: ModelMap.get<UserModelLogic>("User").display().label.select() } }),
-            get: (select, languages) => ModelMap.get<UserModelLogic>("User").display().label.get(select.user as UserModelInfo["PrismaModel"], languages),
+            get: (select, languages) => ModelMap.get<UserModelLogic>("User").display().label.get(select.user as UserModelInfo["DbModel"], languages),
         },
     }),
     format: ChatParticipantFormat,
@@ -45,8 +45,8 @@ export const ChatParticipantModel: ChatParticipantModelLogic = ({
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
         owner: (data) => ({
-            Team: (data?.chat as ChatModelInfo["PrismaModel"])?.team,
-            User: (data?.chat as ChatModelInfo["PrismaModel"])?.creator,
+            Team: (data?.chat as ChatModelInfo["DbModel"])?.team,
+            User: (data?.chat as ChatModelInfo["DbModel"])?.creator,
         }),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({

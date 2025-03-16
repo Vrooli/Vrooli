@@ -3,7 +3,7 @@ import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWit
 import { scaleLinear } from "d3-scale";
 import { curveMonotoneX, line } from "d3-shape";
 import { useMemo, useRef, useState } from "react";
-import { LineGraphProps } from "../types";
+import { LineGraphProps } from "../types.js";
 
 type Point = {
     x: number,

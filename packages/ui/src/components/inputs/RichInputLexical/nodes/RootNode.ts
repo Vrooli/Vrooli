@@ -1,9 +1,9 @@
-import { NO_DIRTY_NODES } from "../consts";
-import { NodeConstructorPayloads, NodeType, SerializedRootNode } from "../types";
-import { getActiveEditor, isCurrentlyReadOnlyMode } from "../updates";
-import { $createNode, $getRoot, $isNode } from "../utils";
-import { ElementNode } from "./ElementNode";
-import { type LexicalNode } from "./LexicalNode";
+import { NO_DIRTY_NODES } from "../consts.js";
+import { NodeConstructorPayloads, NodeType, SerializedRootNode } from "../types.js";
+import { getActiveEditor, isCurrentlyReadOnlyMode } from "../updates.js";
+import { $createNode, $getRoot, $isNode } from "../utils.js";
+import { ElementNode } from "./ElementNode.js";
+import { type LexicalNode } from "./LexicalNode.js";
 
 export class RootNode extends ElementNode {
     static __type: NodeType = "Root";

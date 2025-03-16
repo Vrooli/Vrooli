@@ -1,5 +1,5 @@
-import { FindManyArgs, batch, logger, prismaInstance } from "@local/server";
-import { GqlModelType, camelCase, getReactionScore, uppercaseFirstLetter } from "@local/shared";
+import { DbProvider, FindManyArgs, batch, logger } from "@local/server";
+import { ModelType, camelCase, getReactionScore, uppercaseFirstLetter } from "@local/shared";
 
 /**
  * Processes reactions for a single object, calculating the total score and building a map of reaction summaries.
@@ -50,7 +50,7 @@ type ReactionSummaryUpdateOperation = {
 async function updateReactionsForTable(tableName: string): Promise<void> {
     try {
         await batch({
-            objectType: uppercaseFirstLetter(camelCase(tableName)) as GqlModelType,
+            objectType: uppercaseFirstLetter(camelCase(tableName)) as ModelType,
             processBatch: async (batch) => {
                 for (const object of batch) {
                     const { totalScore, reactionSummaries } = await processReactionsForObject(tableName, object.id);
@@ -97,7 +97,7 @@ async function updateReactionsForTable(tableName: string): Promise<void> {
                             },
                         };
 
-                        await prismaInstance[tableName].update({
+                        await DbProvider.get()[tableName].update({
                             where: { id: object.id },
                             data: updateData,
                         });

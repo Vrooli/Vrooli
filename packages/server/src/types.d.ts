@@ -1,10 +1,9 @@
-import { GqlModelType, SessionUser } from "@local/shared";
-import pkg from "@prisma/client";
-import { GraphQLResolveInfo } from "graphql";
-import { PartialGraphQLInfo } from ".";
-import { Context } from "./middleware";
+import { ModelType, SessionUser } from "@local/shared";
+import { PartialApiInfo } from "./api/types.js";
+import { Context } from "./middleware/context.js";
 
 declare module "@local/server";
+// eslint-disable-next-line import/extensions
 export * from ".";
 
 /**
@@ -40,7 +39,7 @@ export type SessionData = {
     /** When we need to check the database to see if the token is still valid. */
     accessExpiresAt?: number | null;
     /** Public API token, if present */
-    apiToken?: boolean;
+    apiToken?: string | null;
     /** True if the request is coming from a safe origin (e.g. our own frontend) */
     fromSafeOrigin?: boolean;
     /** True if user is logged in. False if not, or if token is invalid or for an API token */
@@ -74,10 +73,20 @@ declare module "winston" {
     }
 }
 
+export type RequestFile = {
+    fieldname: string;
+    originalname: string;
+    encoding: string;
+    mimetype: string;
+    buffer: Buffer;
+    size: number;
+}
+
 // Request type
 declare global {
     namespace Express {
         interface Request {
+            files?: RequestFile[];
             session: SessionData;
         }
     }
@@ -87,14 +96,11 @@ export type WithIdField<IdField extends string = "id"> = {
     [key in IdField]: string;
 }
 
-/** Prisma type shorthand */
-export type PrismaType = pkg.PrismaClient<pkg.Prisma.PrismaClientOptions, never, pkg.Prisma.RejectOnNotFound | pkg.Prisma.RejectPerOperation | undefined>
-
-/** Wrapper for GraphQL input types */
+/** Wrapper for API endpoint input types */
 export type IWrap<T> = { input: T }
 
 /**
- * Type for converting GraphQL objects (where nullables are set based on database), 
+ * Type for converting API endpoint objects (where nullables are set based on database), 
  * to fully OPTIONAL objects (including relationships)
  */
 export type RecursivePartial<T> = {
@@ -114,26 +120,13 @@ export type RecursivePartialNullable<T> = {
     : T[P] | null
 };
 
-/** Return type of find one queries */
-export type FindOneResult<T> = RecursivePartial<T> | null
+export type ApiEndpoint<T, U> = (
+    data: T extends undefined ? undefined : IWrap<T>,
+    context: Context,
+    info: PartialApiInfo
+) => Promise<U extends Array<infer V> ? RecursivePartial<V>[] : RecursivePartial<U>>;
 
-/** Return type of find many queries */
-export type FindManyResult<T> = {
-    pageInfo: {
-        hasNextPage: boolean,
-        endCursor?: string | null
-    },
-    edges: Array<{ cursor: string, node: RecursivePartial<T> }>
-}
-
-export type CreateOneResult<T> = FindOneResult<T>
-export type CreateManyResult<T> = FindOneResult<T>[]
-export type UpdateOneResult<T> = FindOneResult<T>
-export type UpdateManyResult<T> = FindOneResult<T>[]
-
-export type GQLEndpoint<T, U> = (parent: undefined, data: T extends undefined ? undefined : IWrap<T>, context: Context, info: GraphQLResolveInfo | PartialGraphQLInfo) => Promise<U>;
-
-export type UnionResolver = { __resolveType: (obj: any) => `${GqlModelType}` };
+export type UnionResolver = { __resolveType: (obj: any) => `${ModelType}` };
 
 /** Either a promise or a value */
 export type PromiseOrValue<T> = Promise<T> | T;

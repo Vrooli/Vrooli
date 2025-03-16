@@ -1,5 +1,5 @@
-import { ModelMap, PrismaDelegate, Trigger, batch, findFirstRel, logger, prismaInstance } from "@local/server";
-import { GqlModelType, ReportStatus, ReportSuggestedAction, uppercaseFirstLetter } from "@local/shared";
+import { DbProvider, ModelMap, PrismaDelegate, Trigger, batch, findFirstRel, logger } from "@local/server";
+import { ModelType, ReportStatus, ReportSuggestedAction, uppercaseFirstLetter } from "@local/shared";
 import pkg, { Prisma } from "@prisma/client";
 
 // Constants for calculating when a moderation action for a report should be accepted
@@ -137,7 +137,7 @@ async function moderateReport(
     if (acceptedAction) {
         // Update report
         const status = actionToStatus(acceptedAction);
-        await prismaInstance.report.update({
+        await DbProvider.get().report.update({
             where: { id: report.id },
             data: { status },
         });
@@ -199,7 +199,7 @@ async function moderateReport(
         // Trigger activity
         await Trigger(["en"]).reportActivity({
             objectId: objectData.id,
-            objectType: objectType as GqlModelType,
+            objectType: objectType as ModelType,
             objectOwner,
             reportContributors: report.responses.map(r => r.createdBy?.id).filter(id => id) as string[],
             reportCreatedById: (report as any).createdBy?.id ?? null,
@@ -208,7 +208,7 @@ async function moderateReport(
             userUpdatingReportId: null,
         });
         // Get Prisma table for the object type
-        const { dbTable } = ModelMap.getLogic(["dbTable"], objectType as GqlModelType);
+        const { dbTable } = ModelMap.getLogic(["dbTable"], objectType as ModelType);
         // Perform moderation action
         switch (acceptedAction) {
             // How delete works:
@@ -216,13 +216,13 @@ async function moderateReport(
             // If the object can be soft-deleted, soft-delete it.
             case ReportSuggestedAction.Delete:
                 if (softDeletableTypes.includes(objectType)) {
-                    await (prismaInstance[dbTable] as PrismaDelegate).update({
+                    await (DbProvider.get()[dbTable] as PrismaDelegate).update({
                         where: { id: objectData.id },
                         data: { isDeleted: true },
                     });
                 }
                 else {
-                    await (prismaInstance[dbTable] as PrismaDelegate).delete({ where: { id: objectData.id } });
+                    await (DbProvider.get()[dbTable] as PrismaDelegate).delete({ where: { id: objectData.id } });
                 }
                 break;
             case ReportSuggestedAction.FalseReport:
@@ -235,7 +235,7 @@ async function moderateReport(
                     return;
                 }
                 // Hide the object
-                await (prismaInstance[dbTable] as PrismaDelegate).update({
+                await (DbProvider.get()[dbTable] as PrismaDelegate).update({
                     where: { id: objectData.id },
                     data: { isPrivate: true },
                 });

@@ -1,41 +1,33 @@
-import { FindByIdInput, ReportResponse, ReportResponseCreateInput, ReportResponseSearchInput, ReportResponseUpdateInput } from "@local/shared";
-import { createOneHelper } from "../../actions/creates";
-import { readManyHelper, readOneHelper } from "../../actions/reads";
-import { updateOneHelper } from "../../actions/updates";
-import { RequestService } from "../../auth/request";
-import { CreateOneResult, FindManyResult, FindOneResult, GQLEndpoint, UpdateOneResult } from "../../types";
+import { FindByIdInput, ReportResponse, ReportResponseCreateInput, ReportResponseSearchInput, ReportResponseSearchResult, ReportResponseUpdateInput } from "@local/shared";
+import { createOneHelper } from "../../actions/creates.js";
+import { readManyHelper, readOneHelper } from "../../actions/reads.js";
+import { updateOneHelper } from "../../actions/updates.js";
+import { RequestService } from "../../auth/request.js";
+import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsReportResponse = {
-    Query: {
-        reportResponse: GQLEndpoint<FindByIdInput, FindOneResult<ReportResponse>>;
-        reportResponses: GQLEndpoint<ReportResponseSearchInput, FindManyResult<ReportResponse>>;
-    },
-    Mutation: {
-        reportResponseCreate: GQLEndpoint<ReportResponseCreateInput, CreateOneResult<ReportResponse>>;
-        reportResponseUpdate: GQLEndpoint<ReportResponseUpdateInput, UpdateOneResult<ReportResponse>>;
-    }
+    findOne: ApiEndpoint<FindByIdInput, ReportResponse>;
+    findMany: ApiEndpoint<ReportResponseSearchInput, ReportResponseSearchResult>;
+    createOne: ApiEndpoint<ReportResponseCreateInput, ReportResponse>;
+    updateOne: ApiEndpoint<ReportResponseUpdateInput, ReportResponse>;
 }
 
 const objectType = "ReportResponse";
-export const ReportResponseEndpoints: EndpointsReportResponse = {
-    Query: {
-        reportResponse: async (_, { input }, { req }, info) => {
-            await RequestService.get().rateLimit({ maxUser: 1000, req });
-            return readOneHelper({ info, input, objectType, req });
-        },
-        reportResponses: async (_, { input }, { req }, info) => {
-            await RequestService.get().rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, req });
-        },
+export const reportResponse: EndpointsReportResponse = {
+    findOne: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return readOneHelper({ info, input, objectType, req });
     },
-    Mutation: {
-        reportResponseCreate: async (_, { input }, { req }, info) => {
-            await RequestService.get().rateLimit({ maxUser: 100, req });
-            return createOneHelper({ info, input, objectType, req });
-        },
-        reportResponseUpdate: async (_, { input }, { req }, info) => {
-            await RequestService.get().rateLimit({ maxUser: 250, req });
-            return updateOneHelper({ info, input, objectType, req });
-        },
+    findMany: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return readManyHelper({ info, input, objectType, req });
+    },
+    createOne: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 100, req });
+        return createOneHelper({ info, input, objectType, req });
+    },
+    updateOne: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 250, req });
+        return updateOneHelper({ info, input, objectType, req });
     },
 };

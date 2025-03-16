@@ -1,2 +1,2 @@
-export * from "./stripe";
+export * from "./stripe.js";
 

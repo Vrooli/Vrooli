@@ -1,7 +1,7 @@
 import { Job } from "bull";
 import webpush from "web-push";
-import { logger } from "../../events/logger";
-import { PushPayload, PushSubscription } from "./queue";
+import { logger } from "../../events/logger.js";
+import { PushPayload, PushSubscription } from "./queue.js";
 
 let vapidDetailsSet = false;
 

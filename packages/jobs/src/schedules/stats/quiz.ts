@@ -1,4 +1,4 @@
-import { batch, batchGroup, logger, prismaInstance } from "@local/server";
+import { DbProvider, batch, batchGroup, logger } from "@local/server";
 import { QuizAttemptStatus } from "@local/shared";
 import { PeriodType, Prisma } from "@prisma/client";
 
@@ -110,7 +110,7 @@ export async function logQuizStats(
                 // have been started or completed within the period
                 const attemptCountsByQuiz = await batchAttemptCounts(batch.map(quiz => quiz.id), periodStart, periodEnd);
                 // Create stats for each routine
-                await prismaInstance.stats_quiz.createMany({
+                await DbProvider.get().stats_quiz.createMany({
                     data: batch.map(quiz => {
                         const attemptCounts = attemptCountsByQuiz[quiz.id];
                         if (!attemptCounts) return;

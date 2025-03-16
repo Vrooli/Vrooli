@@ -1,11 +1,11 @@
 import { LINKS } from "@local/shared";
 import { Autocomplete, AutocompleteChangeDetails, AutocompleteChangeReason, AutocompleteHighlightChangeReason, IconButton, Input, ListItemText, MenuItem, Paper, Popper, PopperProps, useTheme } from "@mui/material";
-import { SessionContext } from "contexts";
-import { ApiIcon, HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ObjectIcon, ProfileIcon, SearchIcon, VisibleIcon, WalletIcon } from "icons";
+import { ApiIcon, HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ObjectIcon, ProfileIcon, SearchIcon, VisibleIcon, WalletIcon } from "icons/common.js";
 import { ChangeEvent, FormEvent, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { PreSearchItem, SearchItem, findSearchResults, shapeSearchText, translateSearchItems } from "utils/search/siteToSearch";
-import { SettingsSearchBarProps } from "../types";
+import { PreSearchItem, SearchItem, findSearchResults, shapeSearchText, translateSearchItems } from "utils/search/siteToSearch.js";
+import { SessionContext } from "../../../../contexts.js";
+import { SettingsSearchBarProps } from "../types.js";
 
 const DEFAULT_DEBOUNCE_MS = 200;
 

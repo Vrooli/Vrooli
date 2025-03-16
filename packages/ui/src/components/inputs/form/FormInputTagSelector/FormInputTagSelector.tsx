@@ -1,7 +1,7 @@
 import { Tag, TagSelectorFormInput, TagShape } from "@local/shared";
-import { TagSelectorBase } from "components/inputs/TagSelector/TagSelector";
+import { TagSelectorBase } from "components/inputs/TagSelector/TagSelector.js";
 import { useField } from "formik";
-import { FormInputProps } from "../types";
+import { FormInputProps } from "../types.js";
 
 export function FormInputTagSelector({
     disabled,

@@ -6,14 +6,14 @@
  * that format matches the fields below, there should be no errors.
  */
 import * as yup from "yup";
-import { ReportFor } from "../../api/generated/graphqlTypes";
-import { uuidValidate } from "../../id/uuid";
-import { urlRegexDev } from "../../validation/utils/regex";
-import { YupMutateParams } from "../../validation/utils/types";
-import { enumToYup } from "./builders";
-import { maxNumErr, maxStrErr, minNumErr, minStrErr, reqErr } from "./errors";
-import { handleRegex, hexColorRegex, urlRegex } from "./regex";
-import { meetsMinVersion } from "./versions";
+import { ReportFor } from "../../api/types.js";
+import { uuidValidate } from "../../id/uuid.js";
+import { urlRegexDev } from "../../validation/utils/regex.js";
+import { YupMutateParams } from "../../validation/utils/types.js";
+import { enumToYup } from "./builders/convert.js";
+import { maxNumErr, maxStrErr, minNumErr, minStrErr, reqErr } from "./errors.js";
+import { handleRegex, hexColorRegex, urlRegex } from "./regex.js";
+import { meetsMinVersion } from "./versions.js";
 
 /**
  * Test for minimum version
@@ -76,6 +76,33 @@ export function url({ env = "production" }: { env?: YupMutateParams["env"] }) {
 }
 
 export const bool = yup.boolean().toBool();
+
+export const bigIntString = yup
+    .mixed()
+    .transform(function transformBigIntString(value, originalValue) {
+        // Allow null/undefined to pass through untransformed.
+        if (originalValue == null) {
+            return originalValue;
+        }
+        if (typeof originalValue === "string") {
+            return originalValue.trim();
+        }
+        if (typeof originalValue === "number" && !Number.isNaN(originalValue)) {
+            return originalValue.toString();
+        }
+        if (typeof originalValue === "bigint") {
+            return originalValue.toString();
+        }
+        return originalValue;
+    })
+    .test("is-bigint-string", "Must be a valid integer", function testBigIntString(value) {
+        // Allow null/undefined if the field is optional.
+        if (value == null) return true;
+        if (typeof value !== "string") {
+            return this.createError({ message: "Must be a valid integer" });
+        }
+        return /^-?\d+$/.test(value) || this.createError({ message: "Must be a valid integer" });
+    });
 
 // numbers
 export const MAX_INT = 2 ** 32 - 1;

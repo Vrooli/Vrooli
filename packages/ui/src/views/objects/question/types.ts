@@ -1,5 +1,5 @@
 import { Question, QuestionShape } from "@local/shared";
-import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps } from "../../../types";
+import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps } from "../../../types.js";
 
 type QuestionUpsertPropsPage = CrudPropsPage;
 type QuestionUpsertPropsDialog = CrudPropsDialog<Question>;

@@ -1,5 +1,5 @@
 import { Box, IconButton, Modal, ModalProps, styled } from "@mui/material";
-import { CloseIcon, PlayIcon } from "icons";
+import { CloseIcon, PlayIcon } from "icons/common.js";
 import { useCallback } from "react";
 
 interface ImageModalProps extends Omit<ModalProps, "zIndex"> {

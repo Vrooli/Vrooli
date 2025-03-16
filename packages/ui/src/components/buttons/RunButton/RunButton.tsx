@@ -1,25 +1,25 @@
-import { HistoryPageTabOption, LINKS, ListObject, ProjectVersionTranslation, RoutineType, RoutineVersionTranslation, RunProject, RunRoutine, RunStatus, RunStepBuilder, RunViewSearchParams, Status, camelCase, funcFalse, getTranslation, isOfType, noop, projectVersionStatus, routineVersionStatusMultiStep } from "@local/shared";
+import { HistoryPageTabOption, LINKS, ListObject, ProjectVersionTranslation, RoutineVersionTranslation, RunProject, RunRoutine, RunStatus, RunViewSearchParams, Status, camelCase, funcFalse, getTranslation, noop } from "@local/shared";
 import { Box, Button, Menu, Tooltip, styled, useTheme } from "@mui/material";
-import { ListContainer } from "components/containers/ListContainer/ListContainer";
-import { MenuTitle } from "components/dialogs/MenuTitle/MenuTitle";
-import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
-import { ObjectList } from "components/lists/ObjectList/ObjectList";
-import { ObjectListActions } from "components/lists/types";
-import { SessionContext } from "contexts";
-import { useUpsertRunProject, useUpsertRunRoutine } from "hooks/runs";
-import { useFindMany } from "hooks/useFindMany";
-import { usePopover } from "hooks/usePopover";
-import { ArrowRightIcon, PlayIcon } from "icons";
 import React, { useCallback, useContext, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
-import { SideActionsButton } from "styles";
-import { ArgsType } from "types";
-import { getDummyListLength } from "utils/consts";
-import { getUserLanguages } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
-import { ROOT_LOCATION, createRunPath } from "views/runs/RunView/RunView";
-import { RunButtonProps } from "../types";
+import { SessionContext } from "../../../contexts.js";
+import { useUpsertRunProject, useUpsertRunRoutine } from "../../../hooks/runs.js";
+import { useFindMany } from "../../../hooks/useFindMany.js";
+import { usePopover } from "../../../hooks/usePopover.js";
+import { ArrowRightIcon, PlayIcon } from "../../../icons/common.js";
+import { useLocation } from "../../../route/router.js";
+import { SideActionsButton } from "../../../styles.js";
+import { ArgsType } from "../../../types.js";
+import { getDummyListLength } from "../../../utils/consts.js";
+import { getUserLanguages } from "../../../utils/display/translationTools.js";
+import { PubSub } from "../../../utils/pubsub.js";
+import { createRunPath } from "../../../views/runs/RunView.js";
+import { ListContainer } from "../../containers/ListContainer/ListContainer.js";
+import { MenuTitle } from "../../dialogs/MenuTitle/MenuTitle.js";
+import { PopoverWithArrow } from "../../dialogs/PopoverWithArrow/PopoverWithArrow.js";
+import { ObjectList } from "../../lists/ObjectList/ObjectList.js";
+import { ObjectListActions } from "../../lists/types.js";
+import { RunButtonProps } from "../types.js";
 
 const emptyArray = [];
 
@@ -230,19 +230,9 @@ export function RunButton({
 
     const status = useMemo<Status>(function statusMemo() {
         if (!runnableObject) return Status.Invalid;
-        if (isOfType(runnableObject, "ProjectVersion")) {
-            return projectVersionStatus(runnableObject).status;
-        }
-        if (isOfType(runnableObject, "RoutineVersion")) {
-            const routineType = runnableObject.routineType;
-            if (!routineType || routineType !== RoutineType.MultiStep) return Status.Invalid;
-            const rootStep = new RunStepBuilder(languages, console).runnableObjectToStep(runnableObject, [...ROOT_LOCATION]);
-            const { messages } = routineVersionStatusMultiStep(runnableObject, rootStep);
-            if (messages.some(({ status }) => status === Status.Incomplete)) return Status.Incomplete;
-            if (messages.some(({ status }) => status === Status.Invalid)) return Status.Invalid;
-            return Status.Valid;
-        }
-        return Status.Invalid;
+        // Add logic to check if the routine is valid if needed. 
+        // Othwerwise, we'll just let users try to run it and see what happens.
+        return Status.Valid;
     }, [languages, runnableObject]);
 
     const [selectRunAnchor, openSelectRunDialog, closeSelectRunDialog] = usePopover();

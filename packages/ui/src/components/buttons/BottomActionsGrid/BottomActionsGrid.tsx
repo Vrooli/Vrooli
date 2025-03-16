@@ -2,10 +2,10 @@
  * Prompts user to select which link the new node should be added on
  */
 import { Grid, useTheme } from "@mui/material";
-import { useKeyboardOpen } from "hooks/useKeyboardOpen";
+import { useKeyboardOpen } from "hooks/useKeyboardOpen.js";
 import { useMemo } from "react";
-import { pagePaddingBottom } from "styles";
-import { BottomActionsGridProps } from "../types";
+import { pagePaddingBottom } from "../../../styles.js";
+import { BottomActionsGridProps } from "../types.js";
 
 export function BottomActionsGrid({
     children,

@@ -1,14 +1,15 @@
 import { TFuncKey, TFunction } from "i18next";
-import award from "./translations/locales/en/award.json" assert { type: "json" };
-import common from "./translations/locales/en/common.json" assert { type: "json" };
-import error from "./translations/locales/en/error.json" assert { type: "json" };
-import langs from "./translations/locales/en/langs.json" assert { type: "json" };
-import notify from "./translations/locales/en/notify.json" assert { type: "json" };
-import service from "./translations/locales/en/service.json" assert { type: "json" };
-// import validate from "./translations/locales/en/validate.json" assert { type: "json" };
+import award from "./translations/locales/en/award.json" with { type: "json" };
+import common from "./translations/locales/en/common.json" with { type: "json" };
+import error from "./translations/locales/en/error.json" with { type: "json" };
+import langs from "./translations/locales/en/langs.json" with { type: "json" };
+import notify from "./translations/locales/en/notify.json" with { type: "json" };
+import service from "./translations/locales/en/service.json" with { type: "json" };
+// import validate from "./translations/locales/en/validate.json" with { type: "json" };
 import "yup";
 
 declare module "@local/shared";
+// eslint-disable-next-line import/extensions
 export * from ".";
 
 declare module "i18next" {
@@ -56,3 +57,5 @@ export type TranslationFuncService = TFunction<"service", undefined, "service">
 export type TranslationFunc = TFunction<"award" | "common" | "error" | "langs" | "notify" | "service", undefined, "award" | "common" | "error" | "langs" | "notify" | "service">
 
 export type OrArray<T> = T | T[];
+export type ArrayElement<T> = T extends (infer E)[] ? E : T;
+export type DefinedArrayElement<T> = T extends (infer E)[] ? E : NonNullable<T>;

@@ -1,20 +1,16 @@
 import { StatsProjectSearchInput, StatsProjectSearchResult } from "@local/shared";
-import { readManyHelper } from "../../actions/reads";
-import { RequestService } from "../../auth/request";
-import { GQLEndpoint } from "../../types";
+import { readManyHelper } from "../../actions/reads.js";
+import { RequestService } from "../../auth/request.js";
+import { ApiEndpoint } from "../../types.js";
 
 export type EndpointsStatsProject = {
-    Query: {
-        statsProject: GQLEndpoint<StatsProjectSearchInput, StatsProjectSearchResult>;
-    },
+    findMany: ApiEndpoint<StatsProjectSearchInput, StatsProjectSearchResult>;
 }
 
 const objectType = "StatsProject";
-export const StatsProjectEndpoints: EndpointsStatsProject = {
-    Query: {
-        statsProject: async (_, { input }, { req }, info) => {
-            await RequestService.get().rateLimit({ maxUser: 1000, req });
-            return readManyHelper({ info, input, objectType, req });
-        },
+export const statsProject: EndpointsStatsProject = {
+    findMany: async ({ input }, { req }, info) => {
+        await RequestService.get().rateLimit({ maxUser: 1000, req });
+        return readManyHelper({ info, input, objectType, req });
     },
 };

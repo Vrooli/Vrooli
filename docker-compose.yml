@@ -60,6 +60,7 @@ services:
       DB_PULL: "${DB_PULL}"
       JWT_PRIV: "${JWT_PRIV}"
       JWT_PUB: "${JWT_PUB}"
+      EXTERNAL_SITE_KEY: "${EXTERNAL_SITE_KEY}"
       OPENAI_API_KEY: "${OPENAI_API_KEY}"
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
       MISTRAL_API_KEY: "${MISTRAL_API_KEY}"
@@ -131,6 +132,7 @@ services:
       DB_PULL: "${DB_PULL}"
       JWT_PRIV: "${JWT_PRIV}"
       JWT_PUB: "${JWT_PUB}"
+      EXTERNAL_SITE_KEY: "${EXTERNAL_SITE_KEY}"
       OPENAI_API_KEY: "${OPENAI_API_KEY}"
       ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY}"
       MISTRAL_API_KEY: "${MISTRAL_API_KEY}"
@@ -171,6 +173,7 @@ services:
       POSTGRES_PASSWORD: "${DB_PASSWORD}"
       POSTGRES_USER: "${DB_USER:-site}"
       PROJECT_DIR: "${PROJECT_DIR:-/srv/app}"
+      PGPORT: "${PORT_DB:-5432}"
     expose:
       - ${PORT_DB:-5432}
     networks:

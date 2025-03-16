@@ -1,10 +1,10 @@
 import { DEFAULT_LANGUAGE, MaxObjects } from "@local/shared";
 import i18next from "i18next";
-import { ModelMap } from ".";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions } from "../../utils";
-import { PremiumFormat } from "../formats";
-import { PremiumModelLogic, TeamModelLogic } from "./types";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { PremiumFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { PremiumModelLogic, TeamModelLogic } from "./types.js";
 
 const __typename = "Premium" as const;
 export const PremiumModel: PremiumModelLogic = ({

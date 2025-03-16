@@ -1,25 +1,24 @@
 import { Box, BoxProps, Button, IconButton, Input, Palette, Paper, Popover, PopoverProps, styled, useTheme } from "@mui/material";
-import { PageTabs } from "components/PageTabs/PageTabs";
-import { MicrophoneButton } from "components/buttons/MicrophoneButton/MicrophoneButton";
-import { useDebounce } from "hooks/useDebounce";
-import { PageTab, useTabs } from "hooks/useTabs";
-import { useZIndex } from "hooks/useZIndex";
-import { AddIcon, AirplaneIcon, AwardIcon, CompleteIcon, FoodIcon, HistoryIcon, ProjectIcon, ReportIcon, RoutineValidIcon, SearchIcon, VrooliIcon } from "icons";
 import { ChangeEvent, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { VariableSizeList } from "react-window";
-import { TabParam } from "utils/search/objectToSearch";
+import { useDebounce } from "../../hooks/useDebounce.js";
+import { PageTab, useTabs } from "../../hooks/useTabs.js";
+import { AddIcon, AirplaneIcon, AwardIcon, CompleteIcon, FoodIcon, HistoryIcon, ProjectIcon, ReportIcon, RoutineValidIcon, SearchIcon, VrooliIcon } from "../../icons/common.js";
+import { Z_INDEX } from "../../utils/consts.js";
+import { TabParamBase } from "../../utils/search/objectToSearch.js";
+import { PageTabs } from "../PageTabs/PageTabs.js";
+import { MicrophoneButton } from "../buttons/MicrophoneButton/MicrophoneButton.js";
 // import emojis from "./data/emojis";
 
 // const KNOWN_FAILING_EMOJIS = ["2640-fe0f", "2642-fe0f", "2695-fe0f"];
-const Z_INDEX_OFFSET = 1000;
 const SUGGESTED_EMOJIS_LIMIT = 20;
 const SKIN_OPTION_WIDTH_WITH_SPACING = 28;
 const SEARCH_STRING_DEBOUNCE_MS = 200;
 const NATIVE_PICKER_FAIL_TIMEOUT_MS = 500;
 
 type FallbackEmojiPickerProps = {
-    anchorEl: HTMLElement | null;
+    anchorEl: Element | null;
     onClose: () => unknown;
     onSelect: (emoji: string) => unknown;
 };
@@ -37,7 +36,6 @@ enum CategoryTabOption {
 }
 
 type EmojiTabsInfo = {
-    IsSearchable: false;
     Key: CategoryTabOption;
     Payload: undefined;
     WhereParams: undefined;
@@ -52,50 +50,50 @@ function iconColor(palette: Palette) {
     return palette.mode === "light" ? palette.secondary.light : palette.background.textPrimary;
 }
 
-const categoryTabParams: TabParam<EmojiTabsInfo>[] = [{
+const categoryTabParams: TabParamBase<EmojiTabsInfo>[] = [{
     color: iconColor,
     Icon: HistoryIcon,
-    key: "Suggested",
+    key: CategoryTabOption.Suggested,
     titleKey: "EmojisSuggested",
 }, {
     color: iconColor,
     Icon: RoutineValidIcon,
-    key: "Smileys",
+    key: CategoryTabOption.Smileys,
     titleKey: "EmojisSmileys",
 }, {
     color: iconColor,
     Icon: VrooliIcon,
-    key: "Nature",
+    key: CategoryTabOption.Nature,
     titleKey: "EmojisNature",
 }, {
     color: iconColor,
     Icon: FoodIcon,
-    key: "Food",
+    key: CategoryTabOption.Food,
     titleKey: "EmojisFood",
 }, {
     color: iconColor,
     Icon: AirplaneIcon,
-    key: "Places",
+    key: CategoryTabOption.Places,
     titleKey: "EmojisPlaces",
 }, {
     color: iconColor,
     Icon: AwardIcon,
-    key: "Activities",
+    key: CategoryTabOption.Activities,
     titleKey: "EmojisActivities",
 }, {
     color: iconColor,
     Icon: ProjectIcon,
-    key: "Objects",
+    key: CategoryTabOption.Objects,
     titleKey: "EmojisObjects",
 }, {
     color: iconColor,
     Icon: CompleteIcon,
-    key: "Symbols",
+    key: CategoryTabOption.Symbols,
     titleKey: "EmojisSymbols",
 }, {
     color: iconColor,
     Icon: ReportIcon,
-    key: "Flags",
+    key: CategoryTabOption.Flags,
     titleKey: "EmojisFlags",
 }];
 
@@ -522,7 +520,6 @@ export function FallbackEmojiPicker({
 }: FallbackEmojiPickerProps) {
     const { t } = useTranslation();
     const { palette } = useTheme();
-    const zIndex = useZIndex(Boolean(anchorEl), false, Z_INDEX_OFFSET);
 
     const listRef = useRef<VariableSizeList | null>(null);
 
@@ -541,7 +538,7 @@ export function FallbackEmojiPicker({
     function getInputProps() {
         return {
             enterKeyHint: "search",
-        };
+        } as const;
     }
     useEffect(function updateListSizeOnSearchStringChange() {
         if (listRef.current) {
@@ -616,13 +613,13 @@ export function FallbackEmojiPicker({
     useEffect(function getSuggestedEmojisCallback() {
         setSuggestedEmojis(getSuggested());
     }, []);
-    const filteredTabs: PageTab<EmojiTabsInfo>[] = useMemo(() => {
+    const filteredTabs: PageTab<TabParamBase<EmojiTabsInfo>>[] = useMemo(() => {
         return tabs.filter(tab => {
             if (tab.key === CategoryTabOption.Suggested) {
                 return suggestedEmojis.length > 0;
             }
             return true;
-        }) as PageTab<EmojiTabsInfo>[];
+        });
     }, [suggestedEmojis, tabs]);
 
     const handleSelect = useCallback(function handleSelectCallback({ emoji, unified }: EmojiSelectProps) {
@@ -670,7 +667,7 @@ export function FallbackEmojiPicker({
 
     const setActiveCategory = useCallback(function setActiveCategoryCallback(
         _: ChangeEvent<unknown> | undefined,
-        newCategory: PageTab<EmojiTabsInfo>,
+        newCategory: PageTab<TabParamBase<EmojiTabsInfo>>,
         disableScroll = false,
     ) {
         if (disableScroll) {
@@ -722,7 +719,7 @@ export function FallbackEmojiPicker({
             anchorEl={anchorEl}
             open={Boolean(anchorEl)}
             onClose={onClose}
-            zIndex={zIndex}
+            zIndex={Z_INDEX.Popup}
         >
             <MainBox
                 id="emoji-picker-main"
@@ -794,6 +791,8 @@ export function FallbackEmojiPicker({
                 <EmojiPickerBody id="emoji-picker-body">
                     {isLoading && <div>Loading...</div>}
                     {!isLoading && (
+                        // TODO Remove this once @types/react-window is updated
+                        // @ts-expect-error Incompatible JSX type definitions
                         <VariableSizeList
                             ref={listRef}
                             height={320}
@@ -856,7 +855,7 @@ export function EmojiPicker({
 }) {
     // Hidden input for native emoji picker
     const inputRef = useRef<HTMLInputElement>(null);
-    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+    const [anchorEl, setAnchorEl] = useState<Element | null>(null);
 
     function supportsNativeEmojiPicker() {
         // See https://developer.mozilla.org/en-US/docs/Web/API/HTMLInputElement/showPicker
@@ -864,7 +863,7 @@ export function EmojiPicker({
         return false;
     }
 
-    function handleButtonClick(event) {
+    function handleButtonClick(event: React.MouseEvent<Element>) {
         // Get target now, or it will be null after the timeout
         const anchorEl = event.currentTarget;
 

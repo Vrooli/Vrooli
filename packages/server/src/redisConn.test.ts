@@ -1,110 +1,114 @@
-import { RedisClientMock } from "./__mocks__/redis";
-import { logger as mockLogger } from "./events/__mocks__/logger";
-import { logger } from "./events/logger";
-import { createRedisClient, initializeRedis, withRedis } from "./redisConn";
+import { expect } from "chai";
+import sinon from "sinon";
+import { logger } from "./events/logger.js";
+import { createRedisClient, initializeRedis, withRedis } from "./redisConn.js";
 
-jest.mock("./events/logger");
+describe("Redis Integration Tests", function redisIntegrationTests() {
+    let loggerErrorStub: sinon.SinonStub;
+    let loggerInfoStub: sinon.SinonStub;
 
-const originalEnv = process.env;
-const REDIS_URL = "redis:6379";
-
-describe("createRedisClient function tests", () => {
-    beforeEach(() => {
-        jest.clearAllMocks();
-        process.env = { ...originalEnv, REDIS_URL };
+    before(() => {
+        loggerErrorStub = sinon.stub(logger, "error");
+        loggerInfoStub = sinon.stub(logger, "info");
     });
 
-    afterAll(() => {
-        process.env = originalEnv;
+    after(() => {
+        loggerErrorStub.restore();
+        loggerInfoStub.restore();
     });
 
-    it("should create and connect a Redis client successfully", async () => {
-        await expect(createRedisClient()).resolves.not.toThrow();
-        expect(RedisClientMock.instance?.url).toBe(`redis://${REDIS_URL}`);
+    describe("createRedisClient function tests", () => {
+        it("should create and connect a Redis client successfully", async () => {
+            this.timeout(5_000);
+
+            const client = await createRedisClient();
+            expect(client).to.not.be.null;
+            expect(client?.isReady).to.be.true;
+            await client?.quit();
+        });
+
+        it("should handle 'error' events correctly", async () => {
+            this.timeout(5_000);
+            loggerErrorStub.reset();
+
+            const client = await createRedisClient();
+            const testError = new Error("Test error");
+            client?.emit("error", testError);
+
+            expect(loggerErrorStub.calledOnce).to.be.true;
+            expect(loggerErrorStub.firstCall.args[0]).to.equal("Error occured while connecting or accessing redis server");
+            await client?.quit();
+        });
+
+        it("should handle 'end' events correctly", async () => {
+            this.timeout(5_000);
+            loggerInfoStub.reset();
+
+            const client = await createRedisClient();
+            client?.emit("end");
+
+            // Check last call
+            const calls = loggerInfoStub.getCalls();
+            const lastCall = calls[calls.length - 1];
+            expect(lastCall?.args[0]).to.equal("Redis client closed.");
+            await client?.quit();
+        });
     });
 
-    it("should handle 'error' events correctly", async () => {
-        const testError = new Error("Test error");
-        await createRedisClient();
+    describe("initializeRedis function tests", () => {
+        it("should initialize a new Redis client when not already initialized", async () => {
+            this.timeout(5_000);
 
-        // Simulate an 'error' event being emitted
-        RedisClientMock.instance?.__emit("error", testError);
+            const client = await initializeRedis();
+            expect(client).to.not.be.null;
+            expect(client?.isReady).to.be.true;
+            await client?.quit();
+        });
 
-        // Verify that the logger.error was called with the correct parameters
-        expect(logger.error).toHaveBeenCalledWith("Error occured while connecting or accessing redis server", expect.objectContaining({ trace: "0002", error: testError }));
+        it("should not initialize a new Redis client if one is already initialized", async () => {
+            this.timeout(5_000);
+
+            const client1 = await initializeRedis();
+            const client2 = await initializeRedis();
+            expect(client1).to.equal(client2);
+            await client1?.quit();
+        });
+
+        it("should return the existing Redis client when already initialized", async () => {
+            this.timeout(5_000);
+
+            const client1 = await initializeRedis();
+            const client2 = await initializeRedis();
+            expect(client1).to.equal(client2);
+            await client1?.quit();
+        });
     });
 
-    it("should handle 'end' events correctly", async () => {
-        await createRedisClient();
+    describe("withRedis", () => {
+        it("executes process successfully", async () => {
+            this.timeout(5_000);
 
-        // Simulate an 'end' event being emitted
-        RedisClientMock.instance?.__emit("end");
+            const processStub = sinon.stub().resolves("some value");
+            const success = await withRedis({ process: processStub, trace: "testTrace", traceObject: {} });
 
-        // Verify that the logger.info was called with the correct parameters
-        expect(logger.info).toHaveBeenCalledWith("Redis client closed.", expect.objectContaining({ trace: "0208" }));
-    });
-});
+            expect(success).to.be.true;
+            expect(processStub.calledOnce).to.be.true;
+            await (await createRedisClient())?.quit();
+        });
 
-describe("initializeRedis function tests", () => {
-    beforeEach(() => {
-        // Resetting RedisClientMock before each test
-        RedisClientMock.resetMock();
-        jest.clearAllMocks();
-    });
+        it("handles process errors, logs them", async () => {
+            this.timeout(5_000);
+            loggerErrorStub.reset();
 
-    it("should initialize a new Redis client when not already initialized", async () => {
-        expect(RedisClientMock.instantiationCount).toBe(0);
-        await initializeRedis();
-        expect(RedisClientMock.instantiationCount).toBe(1);
-    });
+            const testError = new Error("Test error");
+            const processStub = sinon.stub().rejects(testError);
 
-    it("should not initialize a new Redis client if one is already initialized", async () => {
-        expect(RedisClientMock.instantiationCount).toBe(0);
-        await initializeRedis();
-        await initializeRedis();
-        expect(RedisClientMock.instantiationCount).toBe(1);
-    });
+            const success = await withRedis({ process: processStub, trace: "testTrace", traceObject: {} });
 
-    it("should return the existing Redis client when already initialized", async () => {
-        const redisClient1 = await initializeRedis();
-        const redisClient2 = await initializeRedis();
-        expect(redisClient1).toBe(redisClient2);
-    });
-});
-
-describe("withRedis", () => {
-    let mockProcess;
-    let originalLoggerMethods;
-
-    beforeEach(() => {
-        jest.clearAllMocks();
-        mockProcess = jest.fn();
-        // Save the original logger methods
-        originalLoggerMethods = { ...logger };
-        // Replace the logger methods with mocks
-        Object.assign(logger, mockLogger); // Ensure mockLogger is defined or use jest.fn() for each method you need to mock
-    });
-
-    afterEach(() => {
-        // Restore the original logger methods after each test
-        Object.assign(logger, originalLoggerMethods);
-    });
-
-    test("executes process successfully", async () => {
-        mockProcess.mockResolvedValueOnce("some value"); // Simulate successful process execution
-        const result = await withRedis({ process: mockProcess, trace: "testTrace", traceObject: {} });
-
-        expect(result).toBe(true);
-        expect(mockProcess).toHaveBeenCalled();
-    });
-
-    test("handles process errors, logs them", async () => {
-        const testError = new Error("Test error");
-        mockProcess.mockRejectedValueOnce(testError); // Simulate an error thrown by the process
-        const result = await withRedis({ process: mockProcess, trace: "testTrace", traceObject: {} });
-
-        expect(result).toBe(false);
-        expect(mockProcess).toHaveBeenCalled();
-        expect(logger.error).toHaveBeenCalled();
+            expect(success).to.be.false;
+            expect(processStub.calledOnce).to.be.true;
+            expect(loggerErrorStub.calledOnce).to.be.true;
+            await (await createRedisClient())?.quit();
+        });
     });
 });

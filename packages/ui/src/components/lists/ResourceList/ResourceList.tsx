@@ -1,38 +1,39 @@
 // Displays a list of resources. If the user can modify the list, 
 // it will display options for adding, removing, and sorting
-import { Count, DUMMY_ID, DeleteManyInput, DeleteType, ListObject, Resource, ResourceList as ResourceListType, ResourceUsedFor, TranslationKeyCommon, endpointPostDeleteMany, updateArray } from "@local/shared";
+import { DragDropContext, Draggable, DropResult, Droppable } from "@hello-pangea/dnd";
+import { Count, DUMMY_ID, DeleteManyInput, DeleteType, ListObject, Resource, ResourceList as ResourceListType, ResourceUsedFor, TranslationKeyCommon, endpointsActions, updateArray } from "@local/shared";
 import { Box, Button, IconButton, ListItem, ListItemText, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu";
-import { ResourceListInputProps } from "components/inputs/types";
-import { ObjectList } from "components/lists/ObjectList/ObjectList";
-import { TextLoading } from "components/lists/TextLoading/TextLoading";
-import { ObjectListActions } from "components/lists/types";
-import { SessionContext } from "contexts";
 import { useField } from "formik";
-import { UsePressEvent, usePress } from "hooks/gestures";
-import { useBulkObjectActions, useObjectActions } from "hooks/objectActions";
-import { useDebounce } from "hooks/useDebounce";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { useObjectContextMenu } from "hooks/useObjectContextMenu";
-import { useSelectableList } from "hooks/useSelectableList";
-import { AddIcon, CloseIcon, DeleteIcon, EditIcon, LinkIcon, OpenInNewIcon } from "icons";
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { DragDropContext, Draggable, DropResult, Droppable } from "react-beautiful-dnd";
 import { useTranslation } from "react-i18next";
-import { openLink, useLocation } from "route";
-import { CardBox, multiLineEllipsis } from "styles";
-import { ArgsType } from "types";
-import { ObjectAction } from "utils/actions/objectActions";
-import { DUMMY_LIST_LENGTH, DUMMY_LIST_LENGTH_SHORT, ELEMENT_IDS } from "utils/consts";
-import { getResourceIcon } from "utils/display/getResourceIcon";
-import { getDisplay } from "utils/display/listTools";
-import { firstString } from "utils/display/stringTools";
-import { getUserLanguages } from "utils/display/translationTools";
-import { getResourceType, getResourceUrl } from "utils/navigation/openObject";
-import { PubSub } from "utils/pubsub";
-import { ResourceUpsert, resourceInitialValues } from "views/objects/resource";
-import { ResourceCardProps, ResourceListHorizontalProps, ResourceListItemProps, ResourceListProps, ResourceListVerticalProps } from "../types";
+import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
+import { SessionContext } from "../../../contexts.js";
+import { UsePressEvent, usePress } from "../../../hooks/gestures.js";
+import { useBulkObjectActions, useObjectActions } from "../../../hooks/objectActions.js";
+import { useDebounce } from "../../../hooks/useDebounce.js";
+import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useObjectContextMenu } from "../../../hooks/useObjectContextMenu.js";
+import { useSelectableList } from "../../../hooks/useSelectableList.js";
+import { AddIcon, CloseIcon, DeleteIcon, EditIcon, LinkIcon, OpenInNewIcon } from "../../../icons/common.js";
+import { openLink } from "../../../route/openLink.js";
+import { useLocation } from "../../../route/router.js";
+import { CardBox, multiLineEllipsis } from "../../../styles.js";
+import { ArgsType } from "../../../types.js";
+import { ObjectAction } from "../../../utils/actions/objectActions.js";
+import { DUMMY_LIST_LENGTH, DUMMY_LIST_LENGTH_SHORT, ELEMENT_IDS } from "../../../utils/consts.js";
+import { getResourceIcon } from "../../../utils/display/getResourceIcon.js";
+import { getDisplay } from "../../../utils/display/listTools.js";
+import { firstString } from "../../../utils/display/stringTools.js";
+import { getUserLanguages } from "../../../utils/display/translationTools.js";
+import { getResourceType, getResourceUrl } from "../../../utils/navigation/openObject.js";
+import { PubSub } from "../../../utils/pubsub.js";
+import { ResourceUpsert, resourceInitialValues } from "../../../views/objects/resource/ResourceUpsert.js";
+import { ObjectActionMenu } from "../../dialogs/ObjectActionMenu/ObjectActionMenu.js";
+import { ResourceListInputProps } from "../../inputs/types.js";
+import { ObjectList } from "../../lists/ObjectList/ObjectList.js";
+import { TextLoading } from "../../lists/TextLoading/TextLoading.js";
+import { ObjectListActions } from "../../lists/types.js";
+import { ResourceCardProps, ResourceListHorizontalProps, ResourceListItemProps, ResourceListProps, ResourceListVerticalProps } from "../types.js";
 
 const StyledListItem = styled(ListItem)(({ theme }) => ({
     display: "flex",
@@ -536,7 +537,7 @@ export function ResourceList(props: ResourceListProps) {
         });
     }, [closeAddDialog, handleUpdate, list]);
 
-    const [deleteMutation] = useLazyFetch<DeleteManyInput, Count>(endpointPostDeleteMany);
+    const [deleteMutation] = useLazyFetch<DeleteManyInput, Count>(endpointsActions.deleteMany);
     const onDelete = useCallback((item: Resource) => {
         if (!list) return;
         if (mutate && item.id) {

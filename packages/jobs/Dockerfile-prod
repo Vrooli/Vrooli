@@ -1,5 +1,5 @@
 # Stage 0: Copy required files and install dependencies
-FROM node:18-alpine AS stage0
+FROM node:18-alpine3.20 AS stage0
 
 # Set working directory
 ARG PROJECT_DIR
@@ -21,11 +21,11 @@ RUN yarn install --production
 
 # Install modclean and clean node_modules.
 # Also install prisma for database migrations.
-RUN yarn global add modclean prisma@5.7.1
+RUN yarn global add modclean prisma@6.1.0
 RUN modclean --run
 
 # Stage 1: Copy required files
-FROM node:18-alpine AS stage1
+FROM node:18-alpine3.20 AS stage1
 
 # Set working directory
 ARG PROJECT_DIR

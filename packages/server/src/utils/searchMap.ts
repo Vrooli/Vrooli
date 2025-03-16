@@ -1,7 +1,7 @@
-import { GqlModelType, RoutineType, ScheduleFor, SessionUser, TimeFrame, VisibilityType, lowercaseFirstLetter } from "@local/shared";
+import { ModelType, RoutineType, ScheduleFor, SessionUser, TimeFrame, VisibilityType, lowercaseFirstLetter } from "@local/shared";
 import { PeriodType } from "@prisma/client";
-import { timeFrameToPrisma } from "../builders/timeFrame";
-import { visibilityBuilderPrisma } from "../builders/visibilityBuilder";
+import { timeFrameToPrisma } from "../builders/timeFrame.js";
+import { visibilityBuilderPrisma } from "../builders/visibilityBuilder.js";
 
 /**
  * Creates a partial query for the ID of a one-to-one relation.
@@ -45,11 +45,11 @@ function oneToManyIds<RelField extends string>(ids: string[], relField: RelField
  */
 type RequestData = {
     /** The object type being queried */
-    objectType: GqlModelType | `${GqlModelType}`;
+    objectType: ModelType | `${ModelType}`;
     /** Full search input query */
     searchInput: { [x: string]: any };
     /** The current user's session token */
-    userData: SessionUser | null;
+    userData: Pick<SessionUser, "id" | "languages"> | null;
     /** The visibility of the query */
     visibility: VisibilityType;
 };
@@ -231,6 +231,25 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
             },
         };
     },
+    latestVersionRoutineTypes: (routineTypes: RoutineType[], { visibility }) => {
+        // If visibility is "Public", then we must use "isLatestPublic" flag
+        if (visibility === VisibilityType.Public) {
+            return { versions: { some: { isLatestPublic: true, routineType: { in: routineTypes } } } };
+        }
+        // Otherwise, use "isLatest" flag or "isLatestPublic" flag. The visibility builder will handle omitting objects you're not allowed to see.
+        // TODO probably flawed if using visibility "All"
+        return {
+            versions: {
+                some: {
+                    OR: [
+                        { isLatest: true },
+                        { isLatestPublic: true },
+                    ],
+                    routineType: { in: routineTypes },
+                },
+            },
+        };
+    },
     /**
      * Example: limitTo(["Routine", "Standard"]) => ({ OR: [{ routineId: { NOT: null } }, { standardId: { NOT: null } }] })
      */
@@ -313,6 +332,7 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
     routinesId: (id: string) => oneToManyId(id, "routines"),
     routinesIds: (ids: string[]) => oneToManyIds(ids, "routines"),
     routineType: (routineType: RoutineType) => ({ routineType }),
+    routineTypes: (routineTypes: RoutineType[]) => ({ routineType: { in: routineTypes } }),
     routineVersionId: (id: string) => oneToOneId(id, "routineVersion"),
     routineVersionsId: (id: string) => oneToManyId(id, "routineVersions"),
     runProjectTeamId: (id: string) => ({ runProject: { team: { id } } }),
@@ -425,12 +445,12 @@ export const SearchMap: { [key in string]?: SearchFunction } = {
     updatedTimeFrame: (time: TimeFrame) => timeFrameToPrisma("updated_at", time),
     userId: (id: string) => oneToOneId(id, "user"),
     usersId: (id: string) => oneToManyId(id, "users"),
-    variant: (variant: string) => variant ? ({ variant: { contains: variant.trim(), mode: "insensitive" } }) : {},
-    variantLatestVersion: (type: string) => type ? ({
+    variant: (variant: string) => variant ? ({ variant: { equals: variant } }) : {}, // Treated as an emum
+    variantLatestVersion: (variant: string) => variant ? ({
         versions: {
             some: {
                 isLatest: true,
-                variant: { contains: type.trim(), mode: "insensitive" },
+                variant: { equals: variant }, // Treated as an emum
             },
         },
     }) : {},

@@ -1,9 +1,9 @@
 import { Breakpoints, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Dimensions } from "types";
-import { getCookie, removeCookie, setCookie } from "utils/localStorage";
-import { PubSub, RichInputToolbarViewSize } from "utils/pubsub";
-import { useDimensions } from "./useDimensions";
+import { getCookie, removeCookie, setCookie } from "utils/localStorage.js";
+import { PubSub, RichInputToolbarViewSize } from "utils/pubsub.js";
+import { useDimensions } from "./useDimensions.js";
 
 /**
  * Tracks if the site should display in left-handed mode.

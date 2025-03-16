@@ -1,21 +1,21 @@
-import { CodeBlockNode } from "../plugins/CodePlugin";
-import { DOMConversionCache, LexicalNodeClass, NodeType } from "../types";
-import { DecoratorNode } from "./DecoratorNode";
-import { ElementNode } from "./ElementNode";
-import { HashtagNode } from "./HashtagNode";
-import { HeadingNode } from "./HeadingNode";
-import { LineBreakNode } from "./LineBreakNode";
-import { LinkNode } from "./LinkNode";
-import { ListItemNode } from "./ListItemNode";
-import { ListNode } from "./ListNode";
-import { ParagraphNode } from "./ParagraphNode";
-import { QuoteNode } from "./QuoteNode";
-import { RootNode } from "./RootNode";
-import { TabNode } from "./TabNode";
-import { TableCellNode } from "./TableCellNode";
-import { TableNode } from "./TableNode";
-import { TableRowNode } from "./TableRowNode";
-import { TextNode } from "./TextNode";
+import { CodeBlockNode } from "../plugins/CodePlugin.js";
+import { DOMConversionCache, LexicalNodeClass, NodeType } from "../types.js";
+import { DecoratorNode } from "./DecoratorNode.js";
+import { ElementNode } from "./ElementNode.js";
+import { HashtagNode } from "./HashtagNode.js";
+import { HeadingNode } from "./HeadingNode.js";
+import { LineBreakNode } from "./LineBreakNode.js";
+import { LinkNode } from "./LinkNode.js";
+import { ListItemNode } from "./ListItemNode.js";
+import { ListNode } from "./ListNode.js";
+import { ParagraphNode } from "./ParagraphNode.js";
+import { QuoteNode } from "./QuoteNode.js";
+import { RootNode } from "./RootNode.js";
+import { TabNode } from "./TabNode.js";
+import { TableCellNode } from "./TableCellNode.js";
+import { TableNode } from "./TableNode.js";
+import { TableRowNode } from "./TableRowNode.js";
+import { TextNode } from "./TextNode.js";
 
 /**
  * Maps the node types to the LexicalNode classes and HTML -> LexicalNode conversion functions.

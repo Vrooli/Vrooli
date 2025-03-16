@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { getCookie, setCookie } from "utils/localStorage";
-import { PubSub, SideMenuPayloads, SideMenuPub } from "utils/pubsub";
+import { getCookie, setCookie } from "utils/localStorage.js";
+import { PubSub, SideMenuPayloads, SideMenuPub } from "utils/pubsub.js";
 
 const COOKIE_PREFIX = "SideMenuState";
 

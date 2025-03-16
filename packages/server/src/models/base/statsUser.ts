@@ -1,10 +1,11 @@
 import { DEFAULT_LANGUAGE, MaxObjects, StatsUserSortBy } from "@local/shared";
 import i18next from "i18next";
-import { ModelMap } from ".";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { StatsUserFormat } from "../formats";
-import { StatsUserModelInfo, StatsUserModelLogic, UserModelInfo, UserModelLogic } from "./types";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { StatsUserFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { StatsUserModelInfo, StatsUserModelLogic, UserModelInfo, UserModelLogic } from "./types.js";
 
 const __typename = "StatsUser" as const;
 export const StatsUserModel: StatsUserModelLogic = ({
@@ -15,7 +16,7 @@ export const StatsUserModel: StatsUserModelLogic = ({
             select: () => ({ id: true, user: { select: ModelMap.get<UserModelLogic>("User").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE,
-                objectName: ModelMap.get<UserModelLogic>("User").display().label.get(select.user as UserModelInfo["PrismaModel"], languages),
+                objectName: ModelMap.get<UserModelLogic>("User").display().label.get(select.user as UserModelInfo["DbModel"], languages),
             }),
         },
     }),
@@ -37,9 +38,9 @@ export const StatsUserModel: StatsUserModelLogic = ({
             user: "User",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<UserModelLogic>("User").validate().owner(data?.user as UserModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<UserModelLogic>("User").validate().owner(data?.user as UserModelInfo["DbModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<StatsUserModelInfo["PrismaSelect"]>([["user", "User"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<StatsUserModelInfo["DbSelect"]>([["user", "User"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {

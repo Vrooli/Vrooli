@@ -1,6 +1,6 @@
 import { RoutineVersionCreateInput, RoutineVersionUpdateInput } from "@local/shared";
-import { prismaInstance } from "../db/instance";
-import { CustomError } from "../events/error";
+import { DbProvider } from "../db/provider.js";
+import { CustomError } from "../events/error.js";
 
 /**
  * Weight data for a subroutine, or all subroutines in a node combined.
@@ -54,7 +54,7 @@ export function calculateShortestLongestWeightedPath(
      * @returns [shortest, longest] The shortest and longest distance. -1 if doesn't 
      * end with a start node (i.e. caught in a loop)
      */
-    const getShortLong = (currentNodeId: string, visitedEdges: { fromId: string, toId: string }[], currShortest: number, currLongest: number): [number, number] => {
+    function getShortLong(currentNodeId: string, visitedEdges: { fromId: string, toId: string }[], currShortest: number, currLongest: number): [number, number] {
         const fromEdges = edgesByNode[currentNodeId];
         // If no from edges, must be start node. Return currShortest and currLongest unchanged
         if (!fromEdges || fromEdges.length === 0) return [currShortest, currLongest];
@@ -85,7 +85,7 @@ export function calculateShortestLongestWeightedPath(
         const shortest = edgeShorts.length > 0 ? Math.min(...edgeShorts) : -1;
         const longest = edgeLongs.length > 0 ? Math.max(...edgeLongs) : -1;
         return [shortest, longest];
-    };
+    }
     // Find all of the end nodes, by finding all nodes without any outgoing edges
     const endNodes = Object.keys(nodes).filter(nodeId => !edges.find(e => e.fromId === nodeId));
     // Calculate the shortest and longest for each end node
@@ -95,7 +95,7 @@ export function calculateShortestLongestWeightedPath(
         Math.min(...distances.map(d => d[0])),
         Math.max(...distances.map(d => d[1])),
     ];
-};
+}
 
 /**
  * Select query for calculating the complexity of a routine version
@@ -159,14 +159,14 @@ async function groupRoutineVersionData(ids: { id: string, parentId: string | nul
     const optionalRoutineVersionInputCounts: { [routineId: string]: number } = {};
     const allRoutineVersionInputCounts: { [routineId: string]: number } = {};
     // Query database. New routine versions will be ignored
-    const data = await prismaInstance.routine_version.findMany({
+    const data = await DbProvider.get().routine_version.findMany({
         where: { id: { in: ids.map(i => i.id) } },
         select: routineVersionSelect,
     });
     // Add existing links, nodes data, subroutineItemData, and input counts
     for (const routineVersion of data) {
         // Links
-        for (const link of routineVersion.nodeLinks) {
+        for (const link of (routineVersion as any).nodeLinks) { //TODO
             linkData[link.id] = {
                 fromId: link.fromId,
                 toId: link.toId,
@@ -174,7 +174,7 @@ async function groupRoutineVersionData(ids: { id: string, parentId: string | nul
             };
         }
         // Nodes and subroutineItemData
-        for (const node of routineVersion.nodes) {
+        for (const node of (routineVersion as any).nodes) { //TODO
             if (node.routineList) {
                 nodeData[node.id] = {
                     routineVersionId: routineVersion.id,
@@ -210,7 +210,7 @@ async function groupRoutineVersionData(ids: { id: string, parentId: string | nul
         optionalRoutineVersionInputCounts,
         allRoutineVersionInputCounts,
     };
-};
+}
 
 type CalculateComplexityResult = {
     updatingSubroutineIds: string[],
@@ -262,7 +262,7 @@ export async function calculateWeightData(
     // Add new/updated links and nodes data from inputs
     for (const rVerCreateOrUpdate of inputs) {
         // Adding links
-        for (const link of rVerCreateOrUpdate.nodeLinksCreate ?? []) {
+        for (const link of (rVerCreateOrUpdate as any).nodeLinksCreate ?? []) { //TODO
             linkData[link.id] = {
                 fromId: link.fromConnect,
                 toId: link.toConnect,
@@ -270,19 +270,19 @@ export async function calculateWeightData(
             };
         }
         // Updating links
-        const linksUpdate = (rVerCreateOrUpdate as RoutineVersionUpdateInput).nodeLinksUpdate ?? [];
+        const linksUpdate = (rVerCreateOrUpdate as any).nodeLinksUpdate ?? []; //TODO RoutineVersionUpdateInput
         for (const link of linksUpdate) {
             if (link.fromConnect) linkData[link.id].fromId = link.fromConnect;
             if (link.toConnect) linkData[link.id].toId = link.toConnect;
             linkData[link.id].routineVersionId = rVerCreateOrUpdate.id;
         }
         // Removing links
-        const linksDelete = (rVerCreateOrUpdate as RoutineVersionUpdateInput).nodeLinksDelete ?? [];
+        const linksDelete = (rVerCreateOrUpdate as any).nodeLinksDelete ?? []; //TODO RoutineVersionUpdateInput
         for (const linkId of linksDelete) {
             delete linkData[linkId];
         }
         // Adding nodes
-        for (const node of rVerCreateOrUpdate.nodesCreate ?? []) {
+        for (const node of (rVerCreateOrUpdate as any).nodesCreate ?? []) { //TODO
             if (node.routineListCreate) {
                 // When adding nodes, subroutines can only be connected
                 const subroutineIds = (node.routineListCreate.itemsCreate ?? []).map(item => ({ id: item.routineVersionConnect, parentId: rVerCreateOrUpdate.id }));
@@ -302,7 +302,7 @@ export async function calculateWeightData(
             }
         }
         // Updating nodes
-        const nodesUpdate = (rVerCreateOrUpdate as RoutineVersionUpdateInput).nodesUpdate ?? [];
+        const nodesUpdate = (rVerCreateOrUpdate as any).nodesUpdate ?? []; //TODO RoutineVersionUpdateInput
         for (const node of nodesUpdate) {
             // Ignore if routine list is not being updated
             if (!node.routineListUpdate) continue;
@@ -330,7 +330,7 @@ export async function calculateWeightData(
             }
         }
         // Removing nodes
-        const nodesDelete = (rVerCreateOrUpdate as RoutineVersionUpdateInput).nodesDelete ?? [];
+        const nodesDelete = (rVerCreateOrUpdate as any).nodesDelete ?? []; //TODO RoutineVersionUpdateInput
         for (const nodeId of nodesDelete) {
             delete nodeData[nodeId];
         }
@@ -414,4 +414,4 @@ export async function calculateWeightData(
         });
     }
     return { updatingSubroutineIds, dataWeights };
-};
+}

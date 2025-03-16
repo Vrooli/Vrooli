@@ -1,12 +1,13 @@
 import { MaxObjects, RoleSortBy, getTranslation, roleValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { translationShapeHelper } from "../../utils/shapes";
-import { RoleFormat } from "../formats";
-import { RoleModelInfo, RoleModelLogic, TeamModelInfo, TeamModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { RoleFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { RoleModelInfo, RoleModelLogic, TeamModelInfo, TeamModelLogic } from "./types.js";
 
 const __typename = "Role" as const;
 export const RoleModel: RoleModelLogic = ({
@@ -70,9 +71,9 @@ export const RoleModel: RoleModelLogic = ({
         maxObjects: MaxObjects[__typename],
         permissionsSelect: () => ({ id: true, team: "Team" }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<TeamModelLogic>("Team").validate().owner(data?.team as TeamModelInfo["PrismaModel"], userId),
-        isDeleted: (data, languages) => ModelMap.get<TeamModelLogic>("Team").validate().isDeleted(data.team as TeamModelInfo["PrismaModel"], languages),
-        isPublic: (...rest) => oneIsPublic<RoleModelInfo["PrismaSelect"]>([["team", "Team"]], ...rest),
+        owner: (data, userId) => ModelMap.get<TeamModelLogic>("Team").validate().owner(data?.team as TeamModelInfo["DbModel"], userId),
+        isDeleted: (data) => ModelMap.get<TeamModelLogic>("Team").validate().isDeleted(data.team as TeamModelInfo["DbModel"]),
+        isPublic: (...rest) => oneIsPublic<RoleModelInfo["DbSelect"]>([["team", "Team"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {

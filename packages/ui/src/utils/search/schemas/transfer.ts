@@ -1,6 +1,6 @@
-import { endpointGetTransfer, endpointGetTransfers, FormSchema, TransferSortBy } from "@local/shared";
-import { toParams } from "./base";
-import { searchFormLayout } from "./common";
+import { endpointsTransfer, FormSchema, TransferSortBy } from "@local/shared";
+import { toParams } from "./base.js";
+import { searchFormLayout } from "./common.js";
 
 export function transferSearchSchema(): FormSchema {
     return {
@@ -11,6 +11,6 @@ export function transferSearchSchema(): FormSchema {
 }
 
 export function transferSearchParams() {
-    return toParams(transferSearchSchema(), endpointGetTransfers, endpointGetTransfer, TransferSortBy, TransferSortBy.DateCreatedDesc);
+    return toParams(transferSearchSchema(), endpointsTransfer, TransferSortBy, TransferSortBy.DateCreatedDesc);
 }
 

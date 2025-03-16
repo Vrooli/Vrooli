@@ -1,17 +1,20 @@
 import { ApiSortBy, apiValidation, MaxObjects } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions } from "../../utils/defaultPermissions";
-import { oneIsPublic } from "../../utils/oneIsPublic";
-import { rootObjectDisplay } from "../../utils/rootObjectDisplay";
-import { labelShapeHelper, ownerFields, preShapeRoot, PreShapeRootResult, tagShapeHelper } from "../../utils/shapes";
-import { afterMutationsRoot } from "../../utils/triggers/afterMutationsRoot";
-import { getSingleTypePermissions } from "../../validators/permissions";
-import { ApiFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { ApiModelInfo, ApiModelLogic, ApiVersionModelLogic, BookmarkModelLogic, ReactionModelLogic, TeamModelLogic, ViewModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { rootObjectDisplay } from "../../utils/rootObjectDisplay.js";
+import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
+import { ownerFields } from "../../utils/shapes/ownerFields.js";
+import { preShapeRoot, type PreShapeRootResult } from "../../utils/shapes/preShapeRoot.js";
+import { tagShapeHelper } from "../../utils/shapes/tagShapeHelper.js";
+import { afterMutationsRoot } from "../../utils/triggers/afterMutationsRoot.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { ApiFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { type ApiModelInfo, type ApiModelLogic, type ApiVersionModelLogic, type BookmarkModelLogic, type ReactionModelLogic, type TeamModelLogic, type ViewModelLogic } from "./types.js";
 
 type ApiPre = PreShapeRootResult;
 
@@ -95,11 +98,11 @@ export const ApiModel: ApiModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<ApiModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ApiModelInfo["ApiPermission"]>(__typename, ids, userData)),
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
                         reaction: await ModelMap.get<ReactionModelLogic>("Reaction").query.getReactions(userData?.id, ids, __typename),
@@ -123,7 +126,7 @@ export const ApiModel: ApiModelLogic = ({
             data.isDeleted === false &&
             (
                 (data.ownedByUser === null && data.ownedByTeam === null) ||
-                oneIsPublic<ApiModelInfo["PrismaSelect"]>([
+                oneIsPublic<ApiModelInfo["DbSelect"]>([
                     ["ownedByTeam", "Team"],
                     ["ownedByUser", "User"],
                 ], data, ...rest)

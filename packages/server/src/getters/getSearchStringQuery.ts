@@ -1,18 +1,18 @@
-import { GqlModelType } from "@local/shared";
-import { isRelationshipObject } from "../builders/isOfType";
-import { ModelMap } from "../models/base";
-import { SearchStringQuery, SearchStringQueryParams } from "../models/types";
-import { SearchStringMap } from "../utils/searchStringMap";
+import { ModelType } from "@local/shared";
+import { isRelationshipObject } from "../builders/isOfType.js";
+import { ModelMap } from "../models/base/index.js";
+import { SearchStringQuery, SearchStringQueryParams } from "../models/types.js";
+import { SearchStringMap } from "../utils/searchStringMap.js";
 
 /**
  * @param queryParams Data required to replace keys
  * @param query The query object to convert
- * @returns Fully-converted Prisma query, ready to be passed into prismaInstance.findMany()
+ * @returns Fully-converted Prisma query, ready to be passed into DbProvider.get().findMany()
  */
-const getSearchStringQueryHelper = <Where extends { [x: string]: any }>(
+function getSearchStringQueryHelper<Where extends { [x: string]: any }>(
     queryParams: SearchStringQueryParams,
     query: SearchStringQuery<Where>,
-): Where => {
+): Where {
     // Loop through [key, value] pairs in query
     const where: Where = {} as Where;
     for (const [key, value] of Object.entries(query)) {
@@ -46,26 +46,26 @@ const getSearchStringQueryHelper = <Where extends { [x: string]: any }>(
         }
     }
     return where;
-};
+}
 
 /**
  * Converts a searchStringQuery object into a Prisma search query. 
  * This is accomplished by recursively converting any keys in the searchStringQuery object 
  * to their corresponding Prisma query (stored in SearchStringMap).
- * @returns Fully-converted Prisma query, ready to be passed into prismaInstance.findMany()
+ * @returns Fully-converted Prisma query, ready to be passed into DbProvider.get().findMany()
  */
-export const getSearchStringQuery = <Where extends { [x: string]: any }>({
+export function getSearchStringQuery<Where extends { [x: string]: any }>({
     languages,
     objectType,
     searchString,
 }: {
     languages?: string[] | undefined;
-    objectType: `${GqlModelType}`;
+    objectType: `${ModelType}`;
     searchString: string;
-}): Where => {
+}): Where {
     if (searchString.length === 0) return {} as Where;
     // Get searcher
     const { search } = ModelMap.getLogic(["search"], objectType);
     const insensitive = ({ contains: searchString.trim(), mode: "insensitive" as const });
     return getSearchStringQueryHelper({ insensitive, languages, searchString }, search.searchStringQuery());
-};
+}

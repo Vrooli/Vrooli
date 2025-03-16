@@ -1,20 +1,20 @@
-import { Award, AwardCategory, AwardSearchInput, AwardSearchResult, TranslationKeyAward, endpointPostAwards } from "@local/shared";
+import { Award, AwardCategory, AwardSearchInput, AwardSearchResult, TranslationKeyAward, endpointsAward } from "@local/shared";
 import { Box, Typography } from "@mui/material";
-import { CompletionBar } from "components/CompletionBar/CompletionBar";
-import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
-import { CardGrid } from "components/lists/CardGrid/CardGrid";
-import { TIDCard } from "components/lists/TIDCard/TIDCard";
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { SessionContext } from "contexts";
-import { useFetch } from "hooks/useFetch";
-import { AwardIcon } from "icons";
+import { CompletionBar } from "components/CompletionBar/CompletionBar.js";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse.js";
+import { CardGrid } from "components/lists/CardGrid/CardGrid.js";
+import { TIDCard } from "components/lists/TIDCard/TIDCard.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { useFetch } from "hooks/useFetch.js";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ScrollBox } from "styles";
-import { AwardDisplay } from "types";
-import { awardToDisplay } from "utils/display/awardsDisplay";
-import { getUserLanguages } from "utils/display/translationTools";
-import { AwardsViewProps } from "views/types";
+import { AwardDisplay } from "types.js";
+import { awardToDisplay } from "utils/display/awardsDisplay.js";
+import { getUserLanguages } from "utils/display/translationTools.js";
+import { AwardsViewProps } from "views/types.js";
+import { SessionContext } from "../../contexts.js";
+import { AwardIcon } from "../../icons/common.js";
+import { ScrollBox } from "../../styles.js";
 
 // Category array for sorting
 const categoryList = Object.values(AwardCategory);
@@ -122,7 +122,7 @@ export function AwardsView({
         return noProgressAwards.map(a => awardToDisplay(a, t));
     });
     const { data, refetch, loading } = useFetch<AwardSearchInput, AwardSearchResult>({
-        ...endpointPostAwards,
+        ...endpointsAward.findMany,
     });
     useEffect(() => {
         if (!data) return;

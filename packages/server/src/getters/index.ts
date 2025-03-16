@@ -1,5 +1,5 @@
-export * from "./getIdFromHandle";
-export * from "./getLabels";
-export * from "./getLatestVersion";
-export * from "./getSearchStringQuery";
+export * from "./getIdFromHandle.js";
+export * from "./getLabels.js";
+export * from "./getLatestVersion.js";
+export * from "./getSearchStringQuery.js";
 

@@ -1,18 +1,20 @@
+/* eslint-disable no-magic-numbers */
 import { initSingletons, logger } from "@local/server";
 import { MINUTES_30_MS } from "@local/shared";
 import cron from "node-cron";
-import { cleanupRevokedSessions } from "./schedules/cleanupRevokedSessions";
-import { countBookmarks } from "./schedules/countBookmarks";
-import { countReacts } from "./schedules/countReacts";
-import { generateEmbeddings } from "./schedules/embeddings";
-import { genSitemap, isSitemapMissing } from "./schedules/genSitemap";
-import { moderatePullRequests } from "./schedules/moderatePullRequests";
-import { moderateReports } from "./schedules/moderateReports";
-import { paymentsExpirePremium } from "./schedules/paymentsExpirePremium";
-import { paymentsFail } from "./schedules/paymentsFail";
-import { paymentsCreditsFreePremium } from "./schedules/paymentsFreeCredits";
-import { scheduleNotify } from "./schedules/scheduleNotify";
-import { initStatsPeriod, statsPeriodCron } from "./schedules/stats";
+import { cleanupRevokedSessions } from "./schedules/cleanupRevokedSessions.js";
+import { countBookmarks } from "./schedules/countBookmarks.js";
+import { countReacts } from "./schedules/countReacts.js";
+import { countViews } from "./schedules/countViews.js";
+import { generateEmbeddings } from "./schedules/embeddings.js";
+import { genSitemap, isSitemapMissing } from "./schedules/genSitemap.js";
+import { moderatePullRequests } from "./schedules/moderatePullRequests.js";
+import { moderateReports } from "./schedules/moderateReports.js";
+import { paymentsExpirePremium } from "./schedules/paymentsExpirePremium.js";
+import { paymentsFail } from "./schedules/paymentsFail.js";
+import { paymentsCreditsFreePremium } from "./schedules/paymentsFreeCredits.js";
+import { scheduleNotify } from "./schedules/scheduleNotify.js";
+import { initStatsPeriod, statsPeriodCron } from "./schedules/stats/index.js";
 
 /** How many jobs can run at once */
 const MAX_JOB_CONCURRENCY = 5;
@@ -99,6 +101,11 @@ const cronJobs: CronJobDefinition[] = [
     {
         description: "verify react counts",
         jobFunction: countReacts,
+        schedule: generateCronJob(null, null, 1, "*", "*"), // Off-peak time on the 1st of every month
+    },
+    {
+        description: "verify view counts",
+        jobFunction: countViews,
         schedule: generateCronJob(null, null, 1, "*", "*"), // Off-peak time on the 1st of every month
     },
     {
@@ -219,7 +226,7 @@ class CronJobQueue {
 
     private async runWithTimeout(job: JobFunction, schedule: CronSchedule, description: string) {
         const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error(`Job timeout: ${description}`)), JOB_TIMEOUT_MS)
+            setTimeout(() => reject(new Error(`Job timeout: ${description}`)), JOB_TIMEOUT_MS),
         );
         await Promise.race([job(schedule), timeoutPromise]);
     }

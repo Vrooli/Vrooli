@@ -1,6 +1,6 @@
-import { ActiveFocusMode, FocusMode, FocusModeStopCondition, Schedule } from "../api/generated/graphqlTypes";
-import { MINUTES_1_MS } from "../consts/numbers";
-import { calculateOccurrences } from "./schedules";
+import { ActiveFocusMode, FocusMode, FocusModeStopCondition, Schedule } from "../api/types.js";
+import { MINUTES_1_MS } from "../consts/numbers.js";
+import { calculateOccurrences } from "./schedules.js";
 
 /**
  * Finds which focus modes are active for a given time frame, based on the focus 

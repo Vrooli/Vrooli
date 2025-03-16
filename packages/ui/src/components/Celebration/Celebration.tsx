@@ -1,7 +1,7 @@
 import { uuid } from "@local/shared";
 import { useEffect, useRef, useState } from "react";
 import { useReward } from "react-rewards";
-import { CelebrationType, PubSub } from "utils/pubsub";
+import { CelebrationType, PubSub } from "utils/pubsub.js";
 
 const DEFAULT_CELEBRATION_TYPE: CelebrationType = "confetti";
 const DEFAULT_EMOJI = "🎉";

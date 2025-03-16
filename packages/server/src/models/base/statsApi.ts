@@ -1,10 +1,11 @@
 import { DEFAULT_LANGUAGE, MaxObjects, StatsApiSortBy } from "@local/shared";
 import i18next from "i18next";
-import { ModelMap } from ".";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { StatsApiFormat } from "../formats";
-import { ApiModelInfo, ApiModelLogic, StatsApiModelInfo, StatsApiModelLogic } from "./types";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { StatsApiFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { ApiModelInfo, ApiModelLogic, StatsApiModelInfo, StatsApiModelLogic } from "./types.js";
 
 const __typename = "StatsApi" as const;
 export const StatsApiModel: StatsApiModelLogic = ({
@@ -15,7 +16,7 @@ export const StatsApiModel: StatsApiModelLogic = ({
             select: () => ({ id: true, api: { select: ModelMap.get<ApiModelLogic>("Api").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE,
-                objectName: ModelMap.get<ApiModelLogic>("Api").display().label.get(select.api as ApiModelInfo["PrismaModel"], languages),
+                objectName: ModelMap.get<ApiModelLogic>("Api").display().label.get(select.api as ApiModelInfo["DbModel"], languages),
             }),
         },
     }),
@@ -37,9 +38,9 @@ export const StatsApiModel: StatsApiModelLogic = ({
             api: "Api",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<ApiModelLogic>("Api").validate().owner(data?.api as ApiModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ApiModelLogic>("Api").validate().owner(data?.api as ApiModelInfo["DbModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<StatsApiModelInfo["PrismaSelect"]>([["api", "Api"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<StatsApiModelInfo["DbSelect"]>([["api", "Api"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {

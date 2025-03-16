@@ -1,9 +1,9 @@
 import { stringifySearchParams } from "@local/shared";
 import { Box, Button, Checkbox, Stack, Typography, styled } from "@mui/material";
 import BunnyCrash from "assets/img/BunnyCrash.svg";
-import { HomeIcon, RefreshIcon } from "icons";
+import { HomeIcon, RefreshIcon } from "icons/common.js";
 import { Component } from "react";
-import { ErrorBoundaryProps } from "../../views/types";
+import { ErrorBoundaryProps } from "../../views/types.js";
 
 interface ErrorBoundaryState {
     hasError: boolean;

@@ -1,14 +1,15 @@
 import { LabelSortBy, labelValidation, MaxObjects } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { translationShapeHelper } from "../../utils/shapes";
-import { getSingleTypePermissions } from "../../validators";
-import { LabelFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { LabelModelInfo, LabelModelLogic, TeamModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { LabelFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { LabelModelInfo, LabelModelLogic, TeamModelLogic } from "./types.js";
 
 const __typename = "Label" as const;
 export const LabelModel: LabelModelLogic = ({
@@ -63,11 +64,11 @@ export const LabelModel: LabelModelLogic = ({
         },
         searchStringQuery: () => ({ OR: ["labelWrapped", "transDescriptionWrapped"] }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<LabelModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<LabelModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -89,7 +90,7 @@ export const LabelModel: LabelModelLogic = ({
         isDeleted: () => false,
         isPublic: (data, ...rest) =>
             (data.ownedByUser === null && data.ownedByTeam === null) ||
-            oneIsPublic<LabelModelInfo["PrismaSelect"]>([
+            oneIsPublic<LabelModelInfo["DbSelect"]>([
                 ["ownedByTeam", "Team"],
                 ["ownedByUser", "User"],
             ], data, ...rest),

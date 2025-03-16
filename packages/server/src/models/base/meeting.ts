@@ -1,15 +1,18 @@
 import { MaxObjects, MeetingSortBy, getTranslation, meetingValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, getEmbeddableString } from "../../utils";
-import { PreShapeEmbeddableTranslatableResult, labelShapeHelper, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
-import { afterMutationsPlain } from "../../utils/triggers";
-import { getSingleTypePermissions } from "../../validators";
-import { MeetingFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { MeetingModelInfo, MeetingModelLogic, TeamModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
+import { labelShapeHelper } from "../../utils/shapes/labelShapeHelper.js";
+import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { afterMutationsPlain } from "../../utils/triggers/afterMutationsPlain.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { MeetingFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { MeetingModelInfo, MeetingModelLogic, TeamModelLogic } from "./types.js";
 
 type MeetingPre = PreShapeEmbeddableTranslatableResult;
 
@@ -118,11 +121,11 @@ export const MeetingModel: MeetingModelLogic = ({
         }),
         supplemental: {
             dbFields: ["teamId"],
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<MeetingModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<MeetingModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },

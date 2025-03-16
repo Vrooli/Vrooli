@@ -1,17 +1,17 @@
-import { DUMMY_ID, FindByIdInput, FindByIdOrHandleInput, FindVersionInput, GqlModelType, ParseSearchParamsResult, YouInflated, exists, isEqual, parseSearchParams } from "@local/shared";
-import { ServerResponseParser } from "api/responseParser";
-import { FetchInputOptions } from "api/types";
+import { DUMMY_ID, FindByIdInput, FindByIdOrHandleInput, FindVersionInput, ModelType, ParseSearchParamsResult, YouInflated, exists, isEqual, parseSearchParams } from "@local/shared";
+import { ServerResponseParser } from "api/responseParser.js";
+import { FetchInputOptions } from "api/types.js";
 import { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { PartialWithType } from "types";
-import { defaultYou, getYou } from "utils/display/listTools";
-import { getCookiePartialData, removeCookiePartialData, setCookiePartialData } from "utils/localStorage";
-import { UrlInfo, parseSingleItemUrl } from "utils/navigation/urlTools";
-import { PubSub } from "utils/pubsub";
-import { useFormCacheStore } from "./forms";
-import { useLazyFetch } from "./useLazyFetch";
+import { defaultYou, getYou } from "utils/display/listTools.js";
+import { getCookiePartialData, removeCookiePartialData, setCookiePartialData } from "utils/localStorage.js";
+import { UrlInfo, parseSingleItemUrl } from "utils/navigation/urlTools.js";
+import { PubSub } from "utils/pubsub.js";
+import { useFormCacheStore } from "./forms.js";
+import { useLazyFetch } from "./useLazyFetch.js";
 
-type UrlObject = { __typename: GqlModelType | `${GqlModelType}`; id?: string };
+type UrlObject = { __typename: ModelType | `${ModelType}`; id?: string };
 
 type FetchInput = FindByIdInput | FindVersionInput | FindByIdOrHandleInput;
 
@@ -38,7 +38,7 @@ interface UseManagedObjectParams<
     /** The endpoint to fetch data from */
     endpoint: string;
     /** The GraphQL object type (e.g., 'BookmarkList') */
-    objectType: GqlModelType | `${GqlModelType}`;
+    objectType: ModelType | `${ModelType}`;
     /** If true, the hook will not attempt to fetch or load data */
     disabled?: boolean;
     /** If true, shows error snack when fetching fails */
@@ -184,9 +184,9 @@ export function initializeObjectState<
     urlParams,
 }: {
     disabled: boolean;
-    getFormCacheData: ((objectType: GqlModelType | `${GqlModelType}`, id: string) => object | null),
+    getFormCacheData: ((objectType: ModelType | `${ModelType}`, id: string) => object | null),
     isCreate: boolean;
-    objectType: GqlModelType | `${GqlModelType}`;
+    objectType: ModelType | `${ModelType}`;
     overrideObject?: Partial<PData>;
     transform?: TFunc;
     urlParams: UrlInfo;
@@ -315,7 +315,7 @@ export function fetchDataUsingUrl(
 }
 
 type GetCachedDataProps = {
-    objectType: GqlModelType | `${GqlModelType}`;
+    objectType: ModelType | `${ModelType}`;
     urlParams: UrlInfo;
 };
 /**

@@ -1,6 +1,7 @@
 export const SuppFields = {
     Api: ["you"],
     ApiKey: [],
+    ApiKeyExternal: [],
     ApiVersion: ["you"],
     Award: ["title", "description"],
     Bookmark: [],
@@ -65,8 +66,7 @@ export const SuppFields = {
     RunProject: ["lastStep", "you"],
     RunProjectStep: [],
     RunRoutine: ["lastStep", "you"],
-    RunRoutineInput: [],
-    RunRoutineOutput: [],
+    RunRoutineIO: [],
     RunRoutineStep: [],
     Schedule: [],
     ScheduleException: [],

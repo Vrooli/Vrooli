@@ -1,4 +1,5 @@
-import { sanitizeFilename } from "./ShareObjectDialog";
+import { expect } from "chai";
+import { sanitizeFilename } from "./ShareObjectDialog.js";
 
 describe("sanitizeFilename", () => {
     it("should replace invalid characters with underscores", () => {
@@ -38,7 +39,7 @@ describe("sanitizeFilename", () => {
         // Expect all underscores
         const result = sanitizeFilename(filename);
         const allUnderscores = result.split("").every((char) => char === "_");
-        expect(allUnderscores).toBe(true);
+        expect(allUnderscores).to.equal(true);
     });
 
     it("should handle complex filenames with mixed issues", () => {

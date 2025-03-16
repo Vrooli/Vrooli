@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { InputType, UrlPrimitive } from "@local/shared";
-import { FormSchema } from "../../forms/types";
-import { arrayToSearch, convertFormikForSearch, convertSearchForFormik, inputTypeToSearch, nonEmptyString, nonZeroNumber, searchToArray, searchToInputType, stringToTagObject, tagObjectToString, validBoolean, validPrimitive } from "./inputToSearch";
+import { FormSchema, InputType, UrlPrimitive } from "@local/shared";
+import { expect } from "chai";
+import { arrayToSearch, convertFormikForSearch, convertSearchForFormik, inputTypeToSearch, nonEmptyString, nonZeroNumber, searchToArray, searchToInputType, stringToTagObject, tagObjectToString, validBoolean, validPrimitive } from "./inputToSearch.js";
 
 describe("arrayToSearch", () => {
     // Mock number converter. Filters out values that are not numbers or are less than 0, and rounds them to the nearest integer
@@ -14,31 +14,31 @@ describe("arrayToSearch", () => {
     }
 
     it("should return undefined for non-array inputs", () => {
-        expect(arrayToSearch(null, convertString)).toBeUndefined();
-        expect(arrayToSearch("string", convertString)).toBeUndefined();
-        expect(arrayToSearch(123, convertNumber)).toBeUndefined();
-        expect(arrayToSearch({}, convertNumber)).toBeUndefined();
+        expect(arrayToSearch(null, convertString)).to.be.undefined;
+        expect(arrayToSearch("string", convertString)).to.be.undefined;
+        expect(arrayToSearch(123, convertNumber)).to.be.undefined;
+        expect(arrayToSearch({}, convertNumber)).to.be.undefined;
     });
 
     it("should return undefined for an empty array", () => {
-        expect(arrayToSearch([], convertNumber)).toBeUndefined();
+        expect(arrayToSearch([], convertNumber)).to.be.undefined;
     });
 
     it("should apply the converter function to each item in the array", () => {
         const testArray = [1, 2.3, 3.7];
         arrayToSearch(testArray, convertNumber);
-        expect(arrayToSearch(testArray, convertNumber)).toEqual([1, 2, 4]);
+        expect(arrayToSearch(testArray, convertNumber)).to.deep.equal([1, 2, 4]);
     });
 
     it("should filter out undefined values returned by the converter", () => {
         const inputArray = [1, -1, 2, 0, 3, ""];
         const expectedResult = [1, 2, 3];
-        expect(arrayToSearch(inputArray, convertNumber)).toEqual(expectedResult);
+        expect(arrayToSearch(inputArray, convertNumber)).to.deep.equal(expectedResult);
     });
 
     it("should return undefined if all converted values are undefined", () => {
         const inputArray = [-1, 0, "", "   "];
-        expect(arrayToSearch(inputArray, convertNumber)).toBeUndefined();
+        expect(arrayToSearch(inputArray, convertNumber)).to.be.undefined;
     });
 });
 
@@ -56,30 +56,30 @@ describe("searchToArray", () => {
 
     it("should return undefined for non-array inputs", () => {
         // @ts-ignore: Testing runtime scenario
-        expect(searchToArray(null, convertString)).toBeUndefined();
-        expect(searchToArray("string", convertString)).toBeUndefined();
-        expect(searchToArray(123, convertNumber)).toBeUndefined();
-        expect(searchToArray({}, convertNumber)).toBeUndefined();
+        expect(searchToArray(null, convertString)).to.be.undefined;
+        expect(searchToArray("string", convertString)).to.be.undefined;
+        expect(searchToArray(123, convertNumber)).to.be.undefined;
+        expect(searchToArray({}, convertNumber)).to.be.undefined;
     });
 
     it("should return an empty array for an empty array input", () => {
-        expect(searchToArray([], convertNumber)).toEqual([]);
+        expect(searchToArray([], convertNumber)).to.deep.equal([]);
     });
 
     it("should apply the converter function to each item in the array", () => {
         const testArray = ["1", "2.3", "3.7"];
-        expect(searchToArray(testArray, convertNumber)).toEqual([1, 2, 4]);
+        expect(searchToArray(testArray, convertNumber)).to.deep.equal([1, 2, 4]);
     });
 
     it("should filter out undefined values returned by the converter", () => {
         const inputArray = ["1", "-1", "2", "0", "3", ""];
         const expectedResult = [1, 2, 3];
-        expect(searchToArray(inputArray, convertNumber)).toEqual(expectedResult);
+        expect(searchToArray(inputArray, convertNumber)).to.deep.equal(expectedResult);
     });
 
     it("should return an empty array if all converted values are undefined", () => {
         const inputArray = ["-1", "0", "", "   "];
-        expect(searchToArray(inputArray, convertNumber)).toEqual([]);
+        expect(searchToArray(inputArray, convertNumber)).to.deep.equal([]);
     });
 });
 
@@ -102,7 +102,7 @@ describe("arrayToSearch and searchToArray", () => {
         const converted = arrayToSearch(numbersArray, convertNumber);
         // @ts-ignore: Testing runtime scenario
         const reverted = searchToArray(converted, convertNumber);
-        expect(reverted).toEqual([1, 2, 5]);
+        expect(reverted).to.deep.equal([1, 2, 5]);
     });
 
     it("should correctly round-trip convert tag objects", () => {
@@ -115,7 +115,7 @@ describe("arrayToSearch and searchToArray", () => {
         const converted = arrayToSearch(tagArray, tagObjectToString);
         // @ts-ignore: Testing runtime scenario
         const reverted = searchToArray(converted, stringToTagObject);
-        expect(reverted).toEqual([
+        expect(reverted).to.deep.equal([
             { __typename: "Tag", tag: "JavaScript" },
             { __typename: "Tag", tag: "React" },
         ]);
@@ -130,7 +130,7 @@ describe("arrayToSearch and searchToArray", () => {
         const converted = arrayToSearch(mixedArray, tagObjectToString);
         // @ts-ignore: Testing runtime scenario
         const reverted = searchToArray(converted, stringToTagObject);
-        expect(reverted).toEqual([{ __typename: "Tag", tag: "NodeJS" }]);
+        expect(reverted).to.deep.equal([{ __typename: "Tag", tag: "NodeJS" }]);
     });
 
     it("should return empty array for all-invalid conversions", () => {
@@ -143,43 +143,43 @@ describe("arrayToSearch and searchToArray", () => {
         const converted = arrayToSearch(invalidTags, tagObjectToString);
         // @ts-ignore: Testing runtime scenario
         const reverted = searchToArray(converted, stringToTagObject);
-        expect(reverted).toEqual([]);
+        expect(reverted).to.deep.equal([]);
     });
 });
 
 describe("tagObjectToString", () => {
     it("should convert valid tag objects to their string representation", () => {
-        expect(tagObjectToString({ tag: "JavaScript" })).toBe("JavaScript");
-        expect(tagObjectToString({ tag: " HTML5 " })).toBe("HTML5");
+        expect(tagObjectToString({ tag: "JavaScript" })).to.equal("JavaScript");
+        expect(tagObjectToString({ tag: " HTML5 " })).to.equal("HTML5");
     });
 
     it("should return undefined for invalid or empty tags", () => {
-        expect(tagObjectToString({ tag: "" })).toBeUndefined();
-        expect(tagObjectToString({ tag: "     " })).toBeUndefined();
-        expect(tagObjectToString({})).toBeUndefined();
+        expect(tagObjectToString({ tag: "" })).to.be.undefined;
+        expect(tagObjectToString({ tag: "     " })).to.be.undefined;
+        expect(tagObjectToString({})).to.be.undefined;
     });
 
     it("should handle null and non-object inputs gracefully", () => {
-        expect(tagObjectToString(null)).toBeUndefined();
-        expect(tagObjectToString(undefined)).toBeUndefined();
-        expect(tagObjectToString("string")).toBeUndefined();
+        expect(tagObjectToString(null)).to.be.undefined;
+        expect(tagObjectToString(undefined)).to.be.undefined;
+        expect(tagObjectToString("string")).to.be.undefined;
     });
 });
 
 describe("stringToTagObject", () => {
     it("should convert valid strings to Tag objects", () => {
-        expect(stringToTagObject("React")).toEqual({ __typename: "Tag", tag: "React" });
-        expect(stringToTagObject(" VueJS ")).toEqual({ __typename: "Tag", tag: "VueJS" });
+        expect(stringToTagObject("React")).to.deep.equal({ __typename: "Tag", tag: "React" });
+        expect(stringToTagObject(" VueJS ")).to.deep.equal({ __typename: "Tag", tag: "VueJS" });
     });
 
     it("should return undefined for invalid or empty strings", () => {
-        expect(stringToTagObject("")).toBeUndefined();
-        expect(stringToTagObject("   ")).toBeUndefined();
+        expect(stringToTagObject("")).to.be.undefined;
+        expect(stringToTagObject("   ")).to.be.undefined;
     });
 
     it("should handle non-string inputs", () => {
-        expect(stringToTagObject(null)).toBeUndefined();
-        expect(stringToTagObject(123)).toBeUndefined();
+        expect(stringToTagObject(null)).to.be.undefined;
+        expect(stringToTagObject(123)).to.be.undefined;
     });
 });
 
@@ -187,7 +187,7 @@ describe("Round-Trip Tag Conversion", () => {
     it("should preserve tag data through conversions", () => {
         const validTags = ["NodeJS", "Express", "   Angular  "];
         const roundTripResults = validTags.map(tag => stringToTagObject(tagObjectToString({ tag })));
-        expect(roundTripResults).toEqual([
+        expect(roundTripResults).to.deep.equal([
             { __typename: "Tag", tag: "NodeJS" },
             { __typename: "Tag", tag: "Express" },
             { __typename: "Tag", tag: "Angular" }, // Trimmed in both conversions
@@ -197,120 +197,120 @@ describe("Round-Trip Tag Conversion", () => {
     it("should return undefined for invalid conversions", () => {
         const invalidTags = ["", " ", {}, { tag: "   " }, { notTag: "VueJS" }, { tag: "boop" }];
         const roundTripResults = invalidTags.map(tag => stringToTagObject(tagObjectToString(tag)));
-        expect(roundTripResults).toEqual([undefined, undefined, undefined, undefined, undefined, { __typename: "Tag", tag: "boop" }]);
+        expect(roundTripResults).to.deep.equal([undefined, undefined, undefined, undefined, undefined, { __typename: "Tag", tag: "boop" }]);
     });
 });
 
 describe("nonZeroNumber", () => {
     it("returns a number if it is non-zero", () => {
-        expect(nonZeroNumber(5)).toBe(5);
-        expect(nonZeroNumber(-2)).toBe(-2);
-        expect(nonZeroNumber(3.5)).toBe(3.5);
+        expect(nonZeroNumber(5)).to.equal(5);
+        expect(nonZeroNumber(-2)).to.equal(-2);
+        expect(nonZeroNumber(3.5)).to.equal(3.5);
     });
 
     it("returns undefined for zero, non-number inputs, or non-finite numbers", () => {
-        expect(nonZeroNumber(0)).toBeUndefined();
-        expect(nonZeroNumber("string")).toBeUndefined();
-        expect(nonZeroNumber(NaN)).toBeUndefined();
-        expect(nonZeroNumber(Infinity)).toBeUndefined();
-        expect(nonZeroNumber(-Infinity)).toBeUndefined();
+        expect(nonZeroNumber(0)).to.be.undefined;
+        expect(nonZeroNumber("string")).to.be.undefined;
+        expect(nonZeroNumber(NaN)).to.be.undefined;
+        expect(nonZeroNumber(Infinity)).to.be.undefined;
+        expect(nonZeroNumber(-Infinity)).to.be.undefined;
     });
 
     it("parses strings into numbers if valid and non-zero", () => {
-        expect(nonZeroNumber("10")).toBe(10);
-        expect(nonZeroNumber("-3.5")).toBe(-3.5);
-        expect(nonZeroNumber("0")).toBeUndefined();
-        expect(nonZeroNumber("string")).toBeUndefined();
+        expect(nonZeroNumber("10")).to.equal(10);
+        expect(nonZeroNumber("-3.5")).to.equal(-3.5);
+        expect(nonZeroNumber("0")).to.be.undefined;
+        expect(nonZeroNumber("string")).to.be.undefined;
     });
 });
 
 describe("nonEmptyString", () => {
     it("returns the trimmed string if not empty", () => {
-        expect(nonEmptyString(" Hello World ")).toBe("Hello World");
-        expect(nonEmptyString("Test")).toBe("Test");
+        expect(nonEmptyString(" Hello World ")).to.equal("Hello World");
+        expect(nonEmptyString("Test")).to.equal("Test");
     });
 
     it("returns undefined for empty or whitespace-only strings", () => {
-        expect(nonEmptyString("")).toBeUndefined();
-        expect(nonEmptyString("     ")).toBeUndefined();
-        expect(nonEmptyString("\n\t")).toBeUndefined();
+        expect(nonEmptyString("")).to.be.undefined;
+        expect(nonEmptyString("     ")).to.be.undefined;
+        expect(nonEmptyString("\n\t")).to.be.undefined;
     });
 
     it("handles non-string inputs gracefully", () => {
-        expect(nonEmptyString(123)).toBeUndefined();
-        expect(nonEmptyString(null)).toBeUndefined();
-        expect(nonEmptyString(undefined)).toBeUndefined();
+        expect(nonEmptyString(123)).to.be.undefined;
+        expect(nonEmptyString(null)).to.be.undefined;
+        expect(nonEmptyString(undefined)).to.be.undefined;
     });
 });
 
 describe("validBoolean", () => {
     it("returns the boolean value if input is boolean", () => {
-        expect(validBoolean(true)).toBe(true);
-        expect(validBoolean(false)).toBe(false);
+        expect(validBoolean(true)).to.equal(true);
+        expect(validBoolean(false)).to.equal(false);
     });
 
     it("parses \"true\" and \"false\" strings to boolean", () => {
-        expect(validBoolean("true")).toBe(true);
-        expect(validBoolean("false")).toBe(false);
+        expect(validBoolean("true")).to.equal(true);
+        expect(validBoolean("false")).to.equal(false);
     });
 
     it("returns undefined for non-boolean and incorrect string inputs", () => {
-        expect(validBoolean("yes")).toBeUndefined();
-        expect(validBoolean("no")).toBeUndefined();
-        expect(validBoolean(0)).toBeUndefined();
-        expect(validBoolean(1)).toBeUndefined();
-        expect(validBoolean(null)).toBeUndefined();
-        expect(validBoolean(undefined)).toBeUndefined();
-        expect(validBoolean("")).toBeUndefined();
-        expect(validBoolean(" ")).toBeUndefined();
+        expect(validBoolean("yes")).to.be.undefined;
+        expect(validBoolean("no")).to.be.undefined;
+        expect(validBoolean(0)).to.be.undefined;
+        expect(validBoolean(1)).to.be.undefined;
+        expect(validBoolean(null)).to.be.undefined;
+        expect(validBoolean(undefined)).to.be.undefined;
+        expect(validBoolean("")).to.be.undefined;
+        expect(validBoolean(" ")).to.be.undefined;
     });
 });
 
 describe("validPrimitive", () => {
     it("returns the value for valid boolean inputs", () => {
-        expect(validPrimitive(true)).toBe(true);
-        expect(validPrimitive(false)).toBe(false);
+        expect(validPrimitive(true)).to.equal(true);
+        expect(validPrimitive(false)).to.equal(false);
     });
 
     it("returns the value for non-zero numbers", () => {
-        expect(validPrimitive(42)).toBe(42);
-        expect(validPrimitive(-3.14)).toBe(-3.14);
+        expect(validPrimitive(42)).to.equal(42);
+        expect(validPrimitive(-3.14)).to.equal(-3.14);
     });
 
     it("returns undefined for zero and non-finite numbers", () => {
-        expect(validPrimitive(0)).toBeUndefined();
-        expect(validPrimitive(NaN)).toBeUndefined();
-        expect(validPrimitive(Infinity)).toBeUndefined();
+        expect(validPrimitive(0)).to.be.undefined;
+        expect(validPrimitive(NaN)).to.be.undefined;
+        expect(validPrimitive(Infinity)).to.be.undefined;
     });
 
     it("returns the trimmed string if not empty", () => {
-        expect(validPrimitive(" Hello ")).toBe("Hello");
-        expect(validPrimitive("World")).toBe("World");
+        expect(validPrimitive(" Hello ")).to.equal("Hello");
+        expect(validPrimitive("World")).to.equal("World");
     });
 
     it("returns undefined for empty or whitespace-only strings", () => {
-        expect(validPrimitive("")).toBeUndefined();
-        expect(validPrimitive("    ")).toBeUndefined();
+        expect(validPrimitive("")).to.be.undefined;
+        expect(validPrimitive("    ")).to.be.undefined;
     });
 
     it("handles and returns non-array, non-Date objects", () => {
         const obj = { key: "value" };
         const anotherObj = new RegExp("pattern");
-        expect(validPrimitive(obj)).toBe(obj);
-        expect(validPrimitive(anotherObj)).toBe(anotherObj);
+        expect(validPrimitive(obj)).to.equal(obj);
+        expect(validPrimitive(anotherObj)).to.equal(anotherObj);
     });
 
     it("returns undefined for arrays, Dates, and null values", () => {
-        expect(validPrimitive([1, 2, 3])).toBeUndefined();
-        expect(validPrimitive(new Date())).toBeUndefined();
-        expect(validPrimitive(null)).toBeUndefined();
+        expect(validPrimitive([1, 2, 3])).to.be.undefined;
+        expect(validPrimitive(new Date())).to.be.undefined;
+        expect(validPrimitive(null)).to.be.undefined;
     });
 
     it("returns undefined for unsupported types", () => {
-        expect(validPrimitive(undefined)).toBeUndefined();
+        expect(validPrimitive(undefined)).to.be.undefined;
         // eslint-disable-next-line @typescript-eslint/no-empty-function
-        expect(validPrimitive(() => { })).toBeUndefined();
-        expect(validPrimitive(Symbol("sym"))).toBeUndefined();
+        expect(validPrimitive(() => { })).to.be.undefined;
+        expect(validPrimitive(Symbol("sym"))).to.be.undefined;
     });
 });
 
@@ -318,125 +318,125 @@ describe("inputTypeToSearch", () => {
     const tagObject = { tag: "Technology" };
 
     it("handles Checkbox input correctly", () => {
-        expect(inputTypeToSearch[InputType.Checkbox]([true, false])).toEqual([true, false]);
-        expect(inputTypeToSearch[InputType.Checkbox]([])).toBeUndefined();
-        expect(inputTypeToSearch[InputType.Checkbox](["not boolean"])).toBeUndefined();
+        expect(inputTypeToSearch[InputType.Checkbox]([true, false])).to.deep.equal([true, false]);
+        expect(inputTypeToSearch[InputType.Checkbox]([])).to.be.undefined;
+        expect(inputTypeToSearch[InputType.Checkbox](["not boolean"])).to.be.undefined;
     });
 
     it("returns undefined for Dropzone as it is not supported", () => {
-        expect(inputTypeToSearch[InputType.Dropzone]("file")).toBeUndefined();
+        expect(inputTypeToSearch[InputType.Dropzone]("file")).to.be.undefined;
     });
 
     it("handles IntegerInput correctly", () => {
-        expect(inputTypeToSearch[InputType.IntegerInput]("3")).toBe(3);
-        expect(inputTypeToSearch[InputType.IntegerInput]("invalid")).toBeUndefined();
+        expect(inputTypeToSearch[InputType.IntegerInput]("3")).to.equal(3);
+        expect(inputTypeToSearch[InputType.IntegerInput]("invalid")).to.be.undefined;
     });
 
     it("handles JSON input correctly", () => {
-        expect(inputTypeToSearch[InputType.JSON]("{\"key\": \"value\"}")).toBe("{\"key\": \"value\"}");
-        expect(inputTypeToSearch[InputType.JSON]("")).toBeUndefined();
+        expect(inputTypeToSearch[InputType.JSON]("{\"key\": \"value\"}")).to.equal("{\"key\": \"value\"}");
+        expect(inputTypeToSearch[InputType.JSON]("")).to.be.undefined;
     });
 
     it("handles LanguageInput correctly", () => {
-        expect(inputTypeToSearch[InputType.LanguageInput](["English", "French"])).toEqual(["English", "French"]);
-        expect(inputTypeToSearch[InputType.LanguageInput]([])).toBeUndefined();
+        expect(inputTypeToSearch[InputType.LanguageInput](["English", "French"])).to.deep.equal(["English", "French"]);
+        expect(inputTypeToSearch[InputType.LanguageInput]([])).to.be.undefined;
     });
 
     it("handles Radio input correctly", () => {
-        expect(inputTypeToSearch[InputType.Radio]("Selected")).toBe("Selected");
-        expect(inputTypeToSearch[InputType.Radio]("")).toBeUndefined();
+        expect(inputTypeToSearch[InputType.Radio]("Selected")).to.equal("Selected");
+        expect(inputTypeToSearch[InputType.Radio]("")).to.be.undefined;
     });
 
     it("handles Selector input correctly", () => {
-        expect(inputTypeToSearch[InputType.Selector]("valid string")).toBe("valid string");
-        expect(inputTypeToSearch[InputType.Selector]({ key: "value" })).toEqual({ key: "value" });
-        expect(inputTypeToSearch[InputType.Selector](true)).toBe(true);
-        expect(inputTypeToSearch[InputType.Selector]("")).toBeUndefined();
+        expect(inputTypeToSearch[InputType.Selector]("valid string")).to.equal("valid string");
+        expect(inputTypeToSearch[InputType.Selector]({ key: "value" })).to.deep.equal({ key: "value" });
+        expect(inputTypeToSearch[InputType.Selector](true)).to.equal(true);
+        expect(inputTypeToSearch[InputType.Selector]("")).to.be.undefined;
     });
 
     it("handles Slider input correctly", () => {
-        expect(inputTypeToSearch[InputType.Slider]("5.5")).toBe(5.5);
-        expect(inputTypeToSearch[InputType.Slider]("invalid")).toBeUndefined();
+        expect(inputTypeToSearch[InputType.Slider]("5.5")).to.equal(5.5);
+        expect(inputTypeToSearch[InputType.Slider]("invalid")).to.be.undefined;
     });
 
     it("handles Switch input correctly", () => {
-        expect(inputTypeToSearch[InputType.Switch](true)).toBe(true);
-        expect(inputTypeToSearch[InputType.Switch](false)).toBe(false);
+        expect(inputTypeToSearch[InputType.Switch](true)).to.equal(true);
+        expect(inputTypeToSearch[InputType.Switch](false)).to.equal(false);
     });
 
     it("handles TagSelector input correctly", () => {
-        expect(inputTypeToSearch[InputType.TagSelector]([tagObject, { tag: "Science" }])).toEqual(["Technology", "Science"]);
-        expect(inputTypeToSearch[InputType.TagSelector]([])).toBeUndefined();
+        expect(inputTypeToSearch[InputType.TagSelector]([tagObject, { tag: "Science" }])).to.deep.equal(["Technology", "Science"]);
+        expect(inputTypeToSearch[InputType.TagSelector]([])).to.be.undefined;
     });
 
     it("handles Text input correctly", () => {
-        expect(inputTypeToSearch[InputType.Text]("Hello")).toBe("Hello");
-        expect(inputTypeToSearch[InputType.Text]("")).toBeUndefined();
+        expect(inputTypeToSearch[InputType.Text]("Hello")).to.equal("Hello");
+        expect(inputTypeToSearch[InputType.Text]("")).to.be.undefined;
     });
 });
 
 describe("searchToInputType", () => {
     it("handles Checkbox input correctly", () => {
-        expect(searchToInputType[InputType.Checkbox](["true", "false"])).toEqual([true, false]);
-        expect(searchToInputType[InputType.Checkbox](["invalid"])).toEqual([undefined]);
-        expect(searchToInputType[InputType.Checkbox]([])).toEqual([]);
+        expect(searchToInputType[InputType.Checkbox](["true", "false"])).to.deep.equal([true, false]);
+        expect(searchToInputType[InputType.Checkbox](["invalid"])).to.deep.equal([undefined]);
+        expect(searchToInputType[InputType.Checkbox]([])).to.deep.equal([]);
     });
 
     it("returns undefined for Dropzone as it is not supported", () => {
-        expect(searchToInputType[InputType.Dropzone]("file")).toBeUndefined();
+        expect(searchToInputType[InputType.Dropzone]("file")).to.be.undefined;
     });
 
     it("handles IntegerInput correctly", () => {
-        expect(searchToInputType[InputType.IntegerInput]("3")).toBe(3);
-        expect(searchToInputType[InputType.IntegerInput]("0")).toBeUndefined();
-        expect(searchToInputType[InputType.IntegerInput]("invalid")).toBeUndefined();
+        expect(searchToInputType[InputType.IntegerInput]("3")).to.equal(3);
+        expect(searchToInputType[InputType.IntegerInput]("0")).to.be.undefined;
+        expect(searchToInputType[InputType.IntegerInput]("invalid")).to.be.undefined;
     });
 
     it("handles JSON input correctly", () => {
-        expect(searchToInputType[InputType.JSON]("{\"key\": \"value\"}")).toBe("{\"key\": \"value\"}");
-        expect(searchToInputType[InputType.JSON]("")).toBeUndefined();
+        expect(searchToInputType[InputType.JSON]("{\"key\": \"value\"}")).to.equal("{\"key\": \"value\"}");
+        expect(searchToInputType[InputType.JSON]("")).to.be.undefined;
     });
 
     it("handles LanguageInput correctly", () => {
-        expect(searchToInputType[InputType.LanguageInput](["English", "French"])).toEqual(["English", "French"]);
-        expect(searchToInputType[InputType.LanguageInput]([])).toEqual([]);
+        expect(searchToInputType[InputType.LanguageInput](["English", "French"])).to.deep.equal(["English", "French"]);
+        expect(searchToInputType[InputType.LanguageInput]([])).to.deep.equal([]);
     });
 
     it("handles Radio input correctly", () => {
-        expect(searchToInputType[InputType.Radio]("Selected")).toBe("Selected");
-        expect(searchToInputType[InputType.Radio]("")).toBeUndefined();
+        expect(searchToInputType[InputType.Radio]("Selected")).to.equal("Selected");
+        expect(searchToInputType[InputType.Radio]("")).to.be.undefined;
     });
 
     it("handles Selector input correctly", () => {
-        expect(searchToInputType[InputType.Selector]("valid string")).toBe("valid string");
-        expect(searchToInputType[InputType.Selector]({ key: "value" })).toEqual({ key: "value" });
-        expect(searchToInputType[InputType.Selector](true)).toBe(true);
-        expect(searchToInputType[InputType.Selector]("")).toBeUndefined();
+        expect(searchToInputType[InputType.Selector]("valid string")).to.equal("valid string");
+        expect(searchToInputType[InputType.Selector]({ key: "value" })).to.deep.equal({ key: "value" });
+        expect(searchToInputType[InputType.Selector](true)).to.equal(true);
+        expect(searchToInputType[InputType.Selector]("")).to.be.undefined;
     });
 
     it("handles Slider input correctly", () => {
-        expect(searchToInputType[InputType.Slider]("5.5")).toBe(5.5);
-        expect(searchToInputType[InputType.Slider]("0")).toBeUndefined();
-        expect(searchToInputType[InputType.Slider]("invalid")).toBeUndefined();
+        expect(searchToInputType[InputType.Slider]("5.5")).to.equal(5.5);
+        expect(searchToInputType[InputType.Slider]("0")).to.be.undefined;
+        expect(searchToInputType[InputType.Slider]("invalid")).to.be.undefined;
     });
 
     it("handles Switch input correctly", () => {
-        expect(searchToInputType[InputType.Switch](true)).toBe(true);
-        expect(searchToInputType[InputType.Switch](false)).toBe(false);
-        expect(searchToInputType[InputType.Switch]("true")).toBe(true);
-        expect(searchToInputType[InputType.Switch]("false")).toBe(false);
+        expect(searchToInputType[InputType.Switch](true)).to.equal(true);
+        expect(searchToInputType[InputType.Switch](false)).to.equal(false);
+        expect(searchToInputType[InputType.Switch]("true")).to.equal(true);
+        expect(searchToInputType[InputType.Switch]("false")).to.equal(false);
     });
 
     it("handles TagSelector input correctly", () => {
         const tagStrings = ["Technology", "Science"];
         const expectedTags = [{ __typename: "Tag", tag: "Technology" }, { __typename: "Tag", tag: "Science" }];
-        expect(searchToInputType[InputType.TagSelector](tagStrings)).toEqual(expectedTags);
-        expect(searchToInputType[InputType.TagSelector]([])).toEqual([]);
+        expect(searchToInputType[InputType.TagSelector](tagStrings)).to.deep.equal(expectedTags);
+        expect(searchToInputType[InputType.TagSelector]([])).to.deep.equal([]);
     });
 
     it("handles Text input correctly", () => {
-        expect(searchToInputType[InputType.Text]("Hello")).toBe("Hello");
-        expect(searchToInputType[InputType.Text]("")).toBeUndefined();
+        expect(searchToInputType[InputType.Text]("Hello")).to.equal("Hello");
+        expect(searchToInputType[InputType.Text]("")).to.be.undefined;
     });
 });
 
@@ -468,7 +468,7 @@ describe("convertFormikForSearch", () => {
             tagSelectorField: ["Technology", "Innovation"],
         };
 
-        expect(convertFormikForSearch(formValues, mockSchema)).toEqual(expectedResult);
+        expect(convertFormikForSearch(formValues, mockSchema)).to.deep.equal(expectedResult);
     });
 
     it("ignores fields that are not in Formik values", () => {
@@ -480,7 +480,7 @@ describe("convertFormikForSearch", () => {
             integerField: 42,
         };
 
-        expect(convertFormikForSearch(formValues, mockSchema)).toEqual(expectedResult);
+        expect(convertFormikForSearch(formValues, mockSchema)).to.deep.equal(expectedResult);
     });
 
     it("does not include fields with unsupported types or undefined conversion results", () => {
@@ -490,7 +490,7 @@ describe("convertFormikForSearch", () => {
             dropzoneField: "fileData", // Unsupported
         };
 
-        expect(convertFormikForSearch(formValues, mockSchema)).toEqual({});
+        expect(convertFormikForSearch(formValues, mockSchema)).to.deep.equal({});
     });
 
     it("correctly handles empty and null values", () => {
@@ -501,7 +501,7 @@ describe("convertFormikForSearch", () => {
             tagSelectorField: null,
         };
 
-        expect(convertFormikForSearch(formValues, mockSchema)).toEqual({});
+        expect(convertFormikForSearch(formValues, mockSchema)).to.deep.equal({});
     });
 });
 
@@ -534,7 +534,7 @@ describe("convertSearchForFormik", () => {
             radioField: "Selected",
         };
 
-        expect(convertSearchForFormik(urlValues, mockSchema)).toEqual(expectedResult);
+        expect(convertSearchForFormik(urlValues, mockSchema)).to.deep.equal(expectedResult);
     });
 
     it("sets undefined for fields not present in URL values", () => {
@@ -550,7 +550,7 @@ describe("convertSearchForFormik", () => {
             radioField: undefined,
         };
 
-        expect(convertSearchForFormik(urlValues, mockSchema)).toEqual(expectedResult);
+        expect(convertSearchForFormik(urlValues, mockSchema)).to.deep.equal(expectedResult);
     });
 
     it("handles invalid data types correctly", () => {
@@ -570,7 +570,7 @@ describe("convertSearchForFormik", () => {
             radioField: undefined,
         };
 
-        expect(convertSearchForFormik(urlValues, mockSchema)).toEqual(expectedResult);
+        expect(convertSearchForFormik(urlValues, mockSchema)).to.deep.equal(expectedResult);
     });
 
     it("manages missing and null fields appropriately", () => {
@@ -587,7 +587,7 @@ describe("convertSearchForFormik", () => {
             radioField: undefined,
         };
 
-        expect(convertSearchForFormik(urlValues, mockSchema)).toEqual(expectedResult);
+        expect(convertSearchForFormik(urlValues, mockSchema)).to.deep.equal(expectedResult);
     });
 });
 
@@ -614,7 +614,7 @@ describe("Round-trip Data Conversion", () => {
         const serializedValues = convertFormikForSearch(originalFormValues, mockSchema);
         const deserializedValues = convertSearchForFormik(serializedValues, mockSchema);
 
-        expect(deserializedValues).toEqual({
+        expect(deserializedValues).to.deep.equal({
             checkboxField: [true, false],
             integerField: 42,
             textField: "Hello world",
@@ -632,7 +632,7 @@ describe("Round-trip Data Conversion", () => {
         const serializedValues = convertFormikForSearch(partialFormValues, mockSchema);
         const deserializedValues = convertSearchForFormik(serializedValues, mockSchema);
 
-        expect(deserializedValues).toEqual({
+        expect(deserializedValues).to.deep.equal({
             checkboxField: undefined,
             integerField: 42,
             textField: "Hello world",
@@ -653,7 +653,7 @@ describe("Round-trip Data Conversion", () => {
         const serializedValues = convertFormikForSearch(invalidFormValues, mockSchema);
         const deserializedValues = convertSearchForFormik(serializedValues, mockSchema);
 
-        expect(deserializedValues).toEqual({
+        expect(deserializedValues).to.deep.equal({
             checkboxField: undefined, // Invalid values filtered out
             integerField: undefined, // Not a number
             textField: undefined, // Empty string

@@ -1,6 +1,7 @@
+import { expect } from "chai";
 import * as yup from "yup";
-import Bull from "../../__mocks__/bull";
-import { sendSms, sendSmsVerification, setupSmsQueue } from "./queue";
+import Bull from "../../__mocks__/bull.js";
+import { sendSms, sendSmsVerification, setupSmsQueue } from "./queue.js";
 
 /**
  * Validates the SMS task object structure.
@@ -15,19 +16,19 @@ const smsSchema = yup.object().shape({
  * @param mockQueue The mocked SMS queue.
  * @param expectedData The expected data object to validate against.
  */
-const expectSmsToBeEnqueuedWith = async (mockQueue, expectedData) => {
+async function expectSmsToBeEnqueuedWith(mockQueue, expectedData) {
     expect(mockQueue.add).toHaveBeenCalled();
     const actualData = mockQueue.add.mock.calls[0][0];
-    await expect(smsSchema.validate(actualData)).resolves.toEqual(actualData);
+    await expect(smsSchema.validate(actualData)).resolves.to.deep.equal(actualData);
     if (expectedData) {
         expect(actualData).toMatchObject(expectedData);
     }
-};
+}
 
 describe("sendSms function tests", () => {
     let smsQueue;
 
-    beforeAll(async () => {
+    before(async () => {
         smsQueue = new Bull("sms");
         await setupSmsQueue();
     });
@@ -52,14 +53,14 @@ describe("sendSms function tests", () => {
         const body = "Test SMS body";
         expect(() => {
             sendSms([], body);
-        }).toThrow();
+        }).to.throw();
     });
 });
 
 describe("sendSmsVerification function tests", () => {
     let smsQueue;
 
-    beforeAll(async () => {
+    before(async () => {
         smsQueue = new Bull("sms");
         await setupSmsQueue();
     });

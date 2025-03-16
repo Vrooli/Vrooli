@@ -3,16 +3,16 @@
  */
 import { getObjectUrl } from "@local/shared";
 import { Box, List, ListItem, ListItemIcon, ListItemText, Stack, useTheme } from "@mui/material";
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { DownloadIcon, EmailIcon, LinkIcon, ObjectIcon, QrCodeIcon, ShareIcon } from "icons";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { DownloadIcon, EmailIcon, LinkIcon, ObjectIcon, QrCodeIcon, ShareIcon } from "icons/common.js";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import QRCode from "react-qr-code";
-import { getDisplay } from "utils/display/listTools";
-import { ObjectType } from "utils/navigation/openObject";
-import { PubSub } from "utils/pubsub";
-import { LargeDialog } from "../LargeDialog/LargeDialog";
-import { ShareObjectDialogProps } from "../types";
+import { getDisplay } from "utils/display/listTools.js";
+import { ObjectType } from "utils/navigation/openObject.js";
+import { PubSub } from "utils/pubsub.js";
+import { LargeDialog } from "../LargeDialog/LargeDialog.js";
+import { ShareObjectDialogProps } from "../types.js";
 
 // Title for social media posts
 const postTitle: { [key in ObjectType]?: string } = {
@@ -24,7 +24,7 @@ const postTitle: { [key in ObjectType]?: string } = {
     "User": "Check out this user on Vrooli",
 };
 
-export const sanitizeFilename = (filename: string) => {
+export function sanitizeFilename(filename: string) {
     const invalidChars = /[<>:"/\\|?*]/g;
     // eslint-disable-next-line no-control-regex
     const controlChars = /[\x00-\x1f\x80-\x9f]/g;
@@ -42,16 +42,16 @@ export const sanitizeFilename = (filename: string) => {
     }
 
     return sanitized;
-};
+}
 
-const canBrowserShare = (data: ShareData) => {
+function canBrowserShare(data: ShareData) {
     if (!navigator.share || !navigator.canShare) {
         return false;
     }
     return navigator.canShare(data);
-};
+}
 
-const omitFields = (obj: unknown, ...fieldsToOmit: string[]): unknown => {
+function omitFields(obj: unknown, ...fieldsToOmit: string[]): unknown {
     // Base case: if it's not an object, return it as is
     if (obj === null || typeof obj !== "object") {
         return obj;
@@ -68,40 +68,42 @@ const omitFields = (obj: unknown, ...fieldsToOmit: string[]): unknown => {
         }
     }
     return result;
-};
+}
 // When sharing, we'll remove any fields specific to you, or related to ownership
 const omittedFields = ["you", "createdBy", "createdById"];
 
-const prepareObjectForShare = (object: any): any => omitFields(object, ...omittedFields);
+function prepareObjectForShare(object: any): any {
+    return omitFields(object, ...omittedFields);
+}
 
 const titleId = "share-object-dialog-title";
 
-export const ShareObjectDialog = ({
+export function ShareObjectDialog({
     object,
     open,
     onClose,
-}: ShareObjectDialogProps) => {
+}: ShareObjectDialogProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
     const title = useMemo(() => object && object.__typename in postTitle ? postTitle[object.__typename] : "Check out this object on Vrooli", [object]);
     const url = useMemo(() => object ? getObjectUrl(object) : window.location.href.split("?")[0].split("#")[0], [object]);
 
-    const copyLink = () => {
+    function copyLink() {
         navigator.clipboard.writeText(`${window.location.origin}${url}`);
         PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
-    };
+    }
 
-    const copyObject = () => {
+    function copyObject() {
         navigator.clipboard.writeText(JSON.stringify(prepareObjectForShare(object), null, 2));
         PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
-    };
+    }
 
-    const shareLink = async () => {
+    async function shareLink() {
         navigator.share({ title, url });
-    };
+    }
 
-    const shareObject = async () => {
+    async function shareObject() {
         if (!object) return;
         try {
             const jsonString = JSON.stringify(prepareObjectForShare(object), null, 2);  // Pretty-printed
@@ -127,11 +129,13 @@ export const ShareObjectDialog = ({
         } catch (err) {
             console.error(`The file could not be shared: ${err}`);
         }
-    };
+    }
 
     const [isQrCodeVisible, setIsQrCodeVisible] = useState(false);
-    const toggleQrCode = () => setIsQrCodeVisible(!isQrCodeVisible);
-    const downloadQrCode = async () => {
+    function toggleQrCode() {
+        setIsQrCodeVisible(!isQrCodeVisible);
+    }
+    async function downloadQrCode() {
         const qrCode = document.getElementById("qr-code-box")?.firstChild as SVGSVGElement;
         if (!qrCode || !object) return;
 
@@ -142,7 +146,7 @@ export const ShareObjectDialog = ({
 
         // Load SVG into image
         const img = new Image();
-        img.onload = function () {
+        img.onload = function onLoadHandler() {
             // Create canvas
             const canvas = document.createElement("canvas");
             canvas.width = img.width;
@@ -164,7 +168,7 @@ export const ShareObjectDialog = ({
         };
 
         img.src = svgUrl;
-    };
+    }
 
 
     return (
@@ -269,4 +273,4 @@ export const ShareObjectDialog = ({
             </Stack>}
         </LargeDialog>
     );
-};
+}

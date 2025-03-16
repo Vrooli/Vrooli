@@ -6,44 +6,51 @@
  * @param keyPath The dot notation string specifying the object property.
  * @returns The value of the object property specified by the dot notation string, or undefined if the property does not exist.
  */
-export function getDotNotationValue(obj: object | undefined, keyPath: string) {
+export function getDotNotationValue(obj: object | undefined, keyPath: string): unknown {
+    // Handle undefined object
     if (!obj) return undefined;
-    // Split the key path into an array of keys, making sure to handle array indices
-    const keys = keyPath.split(/(\w+|\[\d+\])/g)
-        .map((key) => key.replace(/^\[|\]$/g, ""))
-        .filter((key) => !["", "."].includes(key));
-    // Set the current value to the input object
-    let currentValue: any = obj;
-    // Loop through all the keys in the key path
+
+    // Extract keys, including array indices; return empty array if no matches
+    const keys = (keyPath.match(/\w+|\[\d+\]/g) || []).map((key) => key.replace(/^\[|\]$/g, ""));
+
+    // Start with the input object
+    let currentValue: unknown = obj;
+
+    // Traverse the key path
     for (const key of keys) {
-        // Check if the current value is an array and the key is an array index
+        // Type guard to ensure currentValue is an object or array
+        if (currentValue === null || typeof currentValue !== "object") {
+            return undefined;
+        }
+
+        // Handle array indices
         if (Array.isArray(currentValue) && /^\d+$/.test(key)) {
             const index = parseInt(key, 10);
-            // Return undefined if the index is out of range
             if (index < 0 || index >= currentValue.length) {
                 return undefined;
             }
             currentValue = currentValue[index];
         } else {
-            // Return undefined if the key is not a property of the current value
-            if (!currentValue || !(key in currentValue)) {
+            // Handle object properties using type assertion after checks
+            const currentObj = currentValue as Record<string, unknown>;
+            if (!(key in currentObj)) {
                 return undefined;
             }
-            currentValue = currentValue[key];
+            currentValue = currentObj[key];
         }
     }
-    // Return the value
+
     return currentValue;
 }
 
 /**
  * Sets data in an object using dot notation (ex: 'parent.child.property' or 'array[1].property')
  */
-export const setDotNotationValue = <T extends Record<string, any>>(
+export function setDotNotationValue<T extends Record<string, any>>(
     object: T,
     notation: string,
     value: any,
-): T => {
+): T {
     if (!object || !notation) return object;
     // Split the key path into an array of keys, making sure to handle array indices
     const keys = notation.split(/(\w+|\[\d+\])/g)
@@ -72,7 +79,7 @@ export const setDotNotationValue = <T extends Record<string, any>>(
     }
     // Return the updated object
     return object;
-};
+}
 
 /**
  * Splits an array of dot notation strings into top-level fields and their corresponding remainders.
@@ -87,7 +94,7 @@ export const setDotNotationValue = <T extends Record<string, any>>(
  *   // fields: ["first", "another"]
  *   // remainders: ["second.third", "example.string"]
  */
-export const splitDotNotation = (input: string[], removeEmpty = false): [string[], string[]] => {
+export function splitDotNotation(input: string[], removeEmpty = false): [string[], string[]] {
     const topLevelFields: string[] = [];
     const remainders: string[] = [];
 
@@ -111,7 +118,7 @@ export const splitDotNotation = (input: string[], removeEmpty = false): [string[
     }
 
     return [topLevelFields, remainders];
-};
+}
 
 /**
  * Checks if the value is an object.
@@ -132,12 +139,12 @@ export function isObject(value: unknown): value is object {
  * @returns True if the object is of one of the provided types, false otherwise. 
  * The function is type safe, so code called after this function will be aware of the type of the object.
  */
-export const isOfType = <T extends string>(obj: any, ...types: T[]): obj is { __typename: T } => {
+export function isOfType<T extends string>(obj: any, ...types: T[]): obj is { __typename: T } {
     if (!obj || !obj.__typename) return false;
     return types.includes(obj.__typename);
-};
+}
 
-export const deepClone = <T>(obj: T): T => {
+export function deepClone<T>(obj: T): T {
     if (obj === null) return null as T;
     if (obj instanceof Date) return new Date(obj.getTime()) as unknown as T;
 
@@ -158,7 +165,7 @@ export const deepClone = <T>(obj: T): T => {
         }
         return objCopy as T;
     }
-};
+}
 
 /**
  * Deeply merges two objects, ensuring all properties in the reference object are present in the target object.
@@ -167,7 +174,7 @@ export const deepClone = <T>(obj: T): T => {
  * @param reference - The default object providing fallback values.
  * @returns A new object with properties from both target and reference.
  */
-export const mergeDeep = <T>(target: T, reference: T): T => {
+export function mergeDeep<T>(target: T, reference: T): T {
     if (target === null || typeof target !== "object" || Array.isArray(target)) {
         return target !== undefined && target !== null ? target : reference;
     }
@@ -183,4 +190,4 @@ export const mergeDeep = <T>(target: T, reference: T): T => {
     }
 
     return result;
-};
+}

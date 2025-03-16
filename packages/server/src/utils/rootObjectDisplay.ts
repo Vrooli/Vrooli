@@ -1,5 +1,5 @@
 import { DotNotation } from "@local/shared";
-import { Displayer, ModelLogic, ModelLogicType } from "../models/types";
+import { Displayer, ModelLogic, ModelLogicType } from "../models/types.js";
 
 /**
  * Finds the most appropriate version to display for a root object.
@@ -10,7 +10,7 @@ import { Displayer, ModelLogic, ModelLogicType } from "../models/types";
  * @param versions 
  * @returns 
  */
-const findBestVersion = (versions: any[]): any | undefined => {
+function findBestVersion(versions: any[]): any | undefined {
     if (versions.length === 0) return undefined;
     // 1. Version marked isLatest
     let latest = versions.find(v => v.isLatest);
@@ -23,7 +23,7 @@ const findBestVersion = (versions: any[]): any | undefined => {
     // 3. Private version with highest version index
     latest = versions[0];
     return latest;
-};
+}
 
 /**
  * All root objects share the same logic to display their label for push notifications.
@@ -31,28 +31,30 @@ const findBestVersion = (versions: any[]): any | undefined => {
  * @param versionModelLogic The logic for the version model associated with the root object.
  * @returns Displayer object
  */
-export const rootObjectDisplay = <
+export function rootObjectDisplay<
     RootModel extends ModelLogicType,
     VersionModel extends ModelLogicType,
-    VersionSuppFields extends readonly DotNotation<VersionModel["GqlModel"]>[]
+    VersionSuppFields extends readonly DotNotation<VersionModel["ApiModel"]>[]
 >(
     versionModelLogic: ModelLogic<VersionModel, VersionSuppFields>,
-): ReturnType<Displayer<RootModel>> => ({
-    label: {
-        select: () => ({
-            versions: {
-                select: {
-                    ...versionModelLogic.display().label.select(),
-                    isLatest: true,
-                    isPrivate: true,
-                    versionIndex: true,
+): ReturnType<Displayer<RootModel>> {
+    return {
+        label: {
+            select: () => ({
+                versions: {
+                    select: {
+                        ...versionModelLogic.display().label.select(),
+                        isLatest: true,
+                        isPrivate: true,
+                        versionIndex: true,
+                    },
                 },
+            }),
+            get: (select, languages) => {
+                const version = findBestVersion(select.versions);
+                if (!version) return "";
+                return versionModelLogic.display().label.get(version, languages);
             },
-        }),
-        get: (select, languages) => {
-            const version = findBestVersion(select.versions);
-            if (!version) return "";
-            return versionModelLogic.display().label.get(version, languages);
         },
-    },
-});
+    };
+}

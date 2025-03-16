@@ -1,3 +1,3 @@
 
-export * from "./CommentUpsert/CommentUpsert";
+export * from "./CommentUpsert.js";
 

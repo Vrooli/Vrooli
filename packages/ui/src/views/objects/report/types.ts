@@ -1,5 +1,5 @@
 import { Report, ReportFor, ReportShape } from "@local/shared";
-import { CrudPropsDialog, FormProps } from "../../../types";
+import { CrudPropsDialog, FormProps } from "../../../types.js";
 
 type ReportUpsertPropsDialog = Omit<CrudPropsDialog<Report>, "overrideObject"> & {
     createdFor: { __typename: ReportFor, id: string };

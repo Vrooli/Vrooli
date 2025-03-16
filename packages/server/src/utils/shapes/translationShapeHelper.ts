@@ -1,7 +1,7 @@
-import { GqlModelType } from "@local/shared";
-import { shapeHelper, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper";
-import { RelationshipType } from "../../builders/types";
-import { EmbeddingLanguageUpdateMap } from "./preShapeEmbeddableTranslatable";
+import { ModelType } from "@local/shared";
+import { shapeHelper, ShapeHelperOutput, ShapeHelperProps } from "../../builders/shapeHelper.js";
+import { RelationshipType } from "../../builders/types.js";
+import { EmbeddingLanguageUpdateMap } from "./preShapeEmbeddableTranslatable.js";
 
 type TranslationShapeHelperProps<
     Types extends readonly RelationshipType[],
@@ -12,14 +12,14 @@ type TranslationShapeHelperProps<
 /**
 * Add, update, or remove translation data for an object.
 */
-export const translationShapeHelper = async <
+export async function translationShapeHelper<
     Types extends readonly RelationshipType[],
 >({
     data,
     embeddingNeedsUpdate = {}, // Only used for embeddable translations 
     ...rest
 }: TranslationShapeHelperProps<Types>):
-    Promise<ShapeHelperOutput<false, "id">> => {
+    Promise<ShapeHelperOutput<false, "id">> {
     return shapeHelper({
         data: {
             translationsCreate: data.translationsCreate?.map(({ language, ...rest }) => ({
@@ -34,9 +34,10 @@ export const translationShapeHelper = async <
             })),
         },
         isOneToOne: false,
-        objectType: "Translation" as GqlModelType,
+        objectType: "Translation" as ModelType,
         parentRelationshipName: "",
         relation: "translations",
         ...rest,
     });
-};
+}
+

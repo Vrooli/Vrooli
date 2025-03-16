@@ -1,11 +1,15 @@
-import { endpointGetQuiz, endpointGetQuizzes, FormSchema, QuizSortBy } from "@local/shared";
-import { toParams } from "./base";
-import { searchFormLayout } from "./common";
+import { endpointsQuiz, FormSchema, QuizSortBy } from "@local/shared";
+import { toParams } from "./base.js";
+import { searchFormLayout } from "./common.js";
 
-export const quizSearchSchema = (): FormSchema => ({
-    layout: searchFormLayout("SearchQuiz"),
-    containers: [], //TODO
-    elements: [], //TODO
-});
+export function quizSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchQuiz"),
+        containers: [], //TODO
+        elements: [], //TODO
+    };
+}
 
-export const quizSearchParams = () => toParams(quizSearchSchema(), endpointGetQuizzes, endpointGetQuiz, QuizSortBy, QuizSortBy.BookmarksDesc);
+export function quizSearchParams() {
+    return toParams(quizSearchSchema(), endpointsQuiz, QuizSortBy, QuizSortBy.BookmarksDesc);
+}

@@ -1,5 +1,5 @@
 import { GutterMarker } from "@codemirror/view";
-import { ErrorIcon, WarningIcon } from "icons";
+import { ErrorIcon, WarningIcon } from "icons/common.js";
 import ReactDOMServer from "react-dom/server";
 
 export class ErrorMarker extends GutterMarker {

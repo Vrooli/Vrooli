@@ -1,8 +1,8 @@
 import { IconButton, Tooltip, useTheme } from "@mui/material";
-import { ReportIcon } from "icons";
+import { ReportIcon } from "icons/common.js";
 import { useCallback, useMemo, useState } from "react";
 import { ReportUpsert } from "views/objects/report";
-import { ReportButtonProps } from "../types";
+import { ReportButtonProps } from "../types.js";
 
 export function ReportButton({
     forId,

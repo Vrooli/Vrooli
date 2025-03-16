@@ -1,13 +1,13 @@
 import { Box, Dialog, DialogContent, IconButton, Palette, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
-import { TextInput } from "components/inputs/TextInput/TextInput";
-import { useHotkeys } from "hooks/useHotkeys";
-import { ArrowDownIcon, ArrowUpIcon, CaseSensitiveIcon, CloseIcon, RegexIcon, WholeWordIcon } from "icons";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { keyComboToString } from "utils/display/device";
-import { SEARCH_HIGHLIGHT_CURRENT, highlightText } from "utils/display/documentTools";
-import { PubSub } from "utils/pubsub";
+import { useHotkeys } from "../../../hooks/useHotkeys.js";
+import { ArrowDownIcon, ArrowUpIcon, CaseSensitiveIcon, CloseIcon, RegexIcon, WholeWordIcon } from "../../../icons/common.js";
+import { keyComboToString } from "../../../utils/display/device.js";
+import { SEARCH_HIGHLIGHT_CURRENT, highlightText } from "../../../utils/display/documentTools.js";
+import { PubSub } from "../../../utils/pubsub.js";
+import { TextInput } from "../../inputs/TextInput/TextInput.js";
 
 function commonButtonSx(palette: Palette, isEnabled: boolean) {
     return {

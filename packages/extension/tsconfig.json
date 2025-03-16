@@ -1,0 +1,58 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        // NOTE: If changing to or from "commonjs", make sure package.json and .swcrc are updated as well
+        "module": "ESNext",
+        "baseUrl": "./src",
+        "rootDir": "./src",
+        "outDir": "./dist",
+        "useDefineForClassFields": true,
+        "lib": [
+            "DOM",
+            "DOM.Iterable",
+            "ESNext"
+        ],
+        "allowJs": false,
+        "skipLibCheck": true,
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "strict": true,
+        "forceConsistentCasingInFileNames": true,
+        "moduleResolution": "node",
+        "noFallthroughCasesInSwitch": true,
+        // "noUncheckedIndexedAccess": true,
+        "resolveJsonModule": true,
+        "incremental": true,
+        "isolatedModules": true,
+        "noEmit": true,
+        "noImplicitAny": false,
+        "removeComments": true,
+        "jsx": "react-jsx",
+        "types": [
+            "mocha",
+            "chrome"
+        ]
+    },
+    "include": [
+        "src",
+        "fonts.d.ts",
+        "types.d.ts",
+    ],
+    "exclude": [
+        "**/*.spec.ts",
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/__test",
+        "**/coverage",
+        "**/config",
+        "**/node_modules",
+        "**/dist",
+        "**/tools",
+        "**/.*/",
+    ],
+    "references": [
+        {
+            "path": "./tsconfig.node.json"
+        }
+    ]
+}

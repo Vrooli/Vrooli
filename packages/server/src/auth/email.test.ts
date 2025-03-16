@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { PasswordAuthService } from "./email";
+import { expect } from "chai";
+import { PasswordAuthService } from "./email.js";
 
 describe("PasswordAuthService", () => {
     describe("generateEmailVerificationCode", () => {
@@ -18,12 +19,12 @@ describe("PasswordAuthService", () => {
 
             codes.forEach(code => {
                 // Ensure the code doesn't contain slashes
-                expect(code).not.toMatch(/\//);
+                expect(code).not.to.match(/\//);
 
                 // Ensure every character in the code is URL-safe
                 Array.from(code).forEach(char => {
                     // @ts-ignore: expect-message
-                    expect(isUrlSafeCharacter(char), `Character is ${char}`).toBeTruthy();
+                    expect(isUrlSafeCharacter(char), `Character is ${char}`).to.be.ok;
                 });
             });
         });
@@ -32,7 +33,7 @@ describe("PasswordAuthService", () => {
         validLengths.forEach(length => {
             it(`should generate a code of exactly ${length} characters`, () => {
                 const code = PasswordAuthService.generateEmailVerificationCode(length);
-                expect(code.length).toBe(length);
+                expect(code.length).to.equal(length);
             });
         });
 
@@ -40,7 +41,7 @@ describe("PasswordAuthService", () => {
         invalidLengths.forEach(length => {
             it(`should throw an error when length is ${JSON.stringify(length)}`, () => {
                 // @ts-ignore: Testing runtime scenario
-                expect(() => PasswordAuthService.generateEmailVerificationCode(length)).toThrow();
+                expect(() => PasswordAuthService.generateEmailVerificationCode(length)).to.throw();
             });
         });
     });

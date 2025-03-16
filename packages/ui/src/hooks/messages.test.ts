@@ -1,7 +1,9 @@
 import { ChatMessage, DUMMY_ID } from "@local/shared";
 import { renderHook } from "@testing-library/react";
+import { expect } from "chai";
 import { act } from "react";
-import { MessageNode, MinimumChatMessage, useMessageTree } from "./messages";
+import sinon from "sinon";
+import { MessageNode, MinimumChatMessage, useMessageTree } from "./messages.js";
 
 /** First test case: Result should have messages in order from ID 1 to 10, each with node having a single child */
 const case1: MinimumChatMessage[] = [
@@ -777,7 +779,7 @@ function runCommonTests(caseData: MinimumChatMessage[], chatId: string, caseTitl
             });
 
             const { map, roots } = result.current.tree;
-            expect(() => assertTreeIntegrity(map, roots, skip)).not.toThrow();
+            expect(() => assertTreeIntegrity(map, roots, skip)).not.to.throw();
         });
 
         it(`${caseTitle} - Result has the same number of messages as the input`, () => {
@@ -793,7 +795,7 @@ function runCommonTests(caseData: MinimumChatMessage[], chatId: string, caseTitl
                 totalNodes += countNodesInTree(map, rootId);
             }
 
-            expect(totalNodes).toBe(caseData.length);
+            expect(totalNodes).to.equal(caseData.length);
         });
 
         it(`${caseTitle} - Roots and children are ordered by sequence`, () => {
@@ -807,18 +809,18 @@ function runCommonTests(caseData: MinimumChatMessage[], chatId: string, caseTitl
 
             for (let i = 0; i < roots.length - 1; i++) {
                 const nextSequence = map.get(roots[i + 1])?.message?.sequence;
-                expect(typeof nextSequence).toBe("number");
-                expect(map.get(roots[i])?.message?.sequence).toBeLessThan(nextSequence ?? 0);
+                expect(typeof nextSequence).to.equal("number");
+                expect(map.get(roots[i])?.message?.sequence).to.be.lessThan(nextSequence ?? 0);
             }
 
             function checkChildOrder(messageId: string) {
                 const node = map.get(messageId);
-                expect(node).toBeDefined();
+                expect(node).to.exist;
                 if (!node) return;
                 for (let i = 0; i < node.children.length - 1; i++) {
                     const nextSequence = map.get(node.children[i + 1])?.message?.sequence;
-                    expect(typeof nextSequence).toBe("number");
-                    expect(map.get(node.children[i])?.message?.sequence).toBeLessThan(nextSequence ?? 0);
+                    expect(typeof nextSequence).to.equal("number");
+                    expect(map.get(node.children[i])?.message?.sequence).to.be.lessThan(nextSequence ?? 0);
                 }
                 node.children.forEach(checkChildOrder);
             }
@@ -842,13 +844,13 @@ function runCommonTests(caseData: MinimumChatMessage[], chatId: string, caseTitl
                 });
 
                 const { map: originalMap, roots: originalRoots } = originalResult.current.tree;
-                expect(() => assertTreeIntegrity(originalMap, originalRoots, skip)).not.toThrow();
+                expect(() => assertTreeIntegrity(originalMap, originalRoots, skip)).not.to.throw();
 
                 const { map: shuffledMap, roots: shuffledRoots } = shuffledResult.current.tree;
-                expect(() => assertTreeIntegrity(shuffledMap, shuffledRoots, skip)).not.toThrow();
+                expect(() => assertTreeIntegrity(shuffledMap, shuffledRoots, skip)).not.to.throw();
 
                 // Check that the trees have the same structure
-                expect(treesHaveSameStructure(originalMap, originalRoots, shuffledRoots)).toBe(true);
+                expect(treesHaveSameStructure(originalMap, originalRoots, shuffledRoots)).to.equal(true);
             }
         });
     });
@@ -856,14 +858,22 @@ function runCommonTests(caseData: MinimumChatMessage[], chatId: string, caseTitl
 
 describe("useMessageTree Hook", () => {
     const chatId = DUMMY_ID;
-    beforeAll(() => {
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        jest.spyOn(console, "error").mockImplementation(() => { });
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        jest.spyOn(console, "warn").mockImplementation(() => { });
+    let consoleErrorStub: sinon.SinonStub;
+    let consoleWarnStub: sinon.SinonStub;
+
+    before(() => {
+        consoleErrorStub = sinon.stub(console, "error");
+        consoleWarnStub = sinon.stub(console, "warn");
     });
-    afterAll(() => {
-        jest.restoreAllMocks();
+
+    beforeEach(() => {
+        consoleErrorStub.resetHistory();
+        consoleWarnStub.resetHistory();
+    });
+
+    after(() => {
+        consoleErrorStub.restore();
+        consoleWarnStub.restore();
     });
 
     runCommonTests(case1, chatId, "Case 1");
@@ -876,10 +886,10 @@ describe("useMessageTree Hook", () => {
 
         const { map, roots } = result.current.tree;
 
-        expect(roots).toHaveLength(1);
+        expect(roots).to.have.lengthOf(1);
         const rootId = roots[0];
         const isValidStructure = verifySingleNodeStructureAndSequentialIds(map, rootId, "1");
-        expect(isValidStructure).toBe(true);
+        expect(isValidStructure).to.equal(true);
     });
 
     runCommonTests(case2, chatId, "Case 2");
@@ -892,14 +902,14 @@ describe("useMessageTree Hook", () => {
 
         const { map, roots } = result.current.tree;
 
-        expect(roots).toHaveLength(2);
+        expect(roots).to.have.lengthOf(2);
         const firstRootId = roots[0];
         const firstRoot = map.get(firstRootId);
         const secondRootId = roots[1];
 
-        expect(firstRoot?.children).toHaveLength(0);
+        expect(firstRoot?.children).to.have.lengthOf(0);
         const isValidStructureForSecondRoot = verifySingleNodeStructureAndSequentialIds(map, secondRootId, "2");
-        expect(isValidStructureForSecondRoot).toBe(true);
+        expect(isValidStructureForSecondRoot).to.equal(true);
     });
 
     runCommonTests(case3, chatId, "Case 3");
@@ -912,18 +922,18 @@ describe("useMessageTree Hook", () => {
 
         const { map, roots } = result.current.tree;
 
-        expect(roots).toHaveLength(1);
+        expect(roots).to.have.lengthOf(1);
         const rootId = roots[0];
         const root = map.get(rootId);
 
-        expect(root?.children).toHaveLength(1);
+        expect(root?.children).to.have.lengthOf(1);
         const childId = root?.children[0];
         const child = map.get(childId ?? "");
 
-        expect(child?.children).toHaveLength(3);
+        expect(child?.children).to.have.lengthOf(3);
         for (const grandchildId of (child?.children ?? [])) {
             const grandchild = map.get(grandchildId);
-            expect(grandchild?.children).toHaveLength(2);
+            expect(grandchild?.children).to.have.lengthOf(2);
         }
     });
 
@@ -937,24 +947,32 @@ describe("useMessageTree Hook", () => {
 
         const { map, roots } = result.current.tree;
 
-        expect(roots).toHaveLength(1);
+        expect(roots).to.have.lengthOf(1);
         const rootId = roots[0];
         const root = map.get(rootId);
 
-        expect(root?.children).toHaveLength(1);
+        expect(root?.children).to.have.lengthOf(1);
     });
 });
 
 describe("MessageTree Operations", () => {
     const chatId = DUMMY_ID;
-    beforeAll(() => {
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        jest.spyOn(console, "error").mockImplementation(() => { });
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        jest.spyOn(console, "warn").mockImplementation(() => { });
+    let consoleErrorStub: sinon.SinonStub;
+    let consoleWarnStub: sinon.SinonStub;
+
+    before(() => {
+        consoleErrorStub = sinon.stub(console, "error");
+        consoleWarnStub = sinon.stub(console, "warn");
     });
-    afterAll(() => {
-        jest.restoreAllMocks();
+
+    beforeEach(() => {
+        consoleErrorStub.resetHistory();
+        consoleWarnStub.resetHistory();
+    });
+
+    after(() => {
+        consoleErrorStub.restore();
+        consoleWarnStub.restore();
     });
 
     const initialMessages = [...case3];
@@ -983,8 +1001,8 @@ describe("MessageTree Operations", () => {
 
         // Find and verify the newly added message
         const newMessageNode = result.current.tree.map.get(newMessage.id);
-        expect(newMessageNode).toBeDefined();
-        expect(newMessageNode!.message.id).toBe(newMessage.id);
+        expect(newMessageNode).to.exist;
+        expect(newMessageNode!.message.id).to.equal(newMessage.id);
     });
 
     it("Add Message - Won't add the same message twice", () => {
@@ -1001,7 +1019,7 @@ describe("MessageTree Operations", () => {
             result.current.addMessages([newMessage] as ChatMessage[]);
         });
 
-        expect(result.current.tree.map.size).toBe(initialNodeCount);
+        expect(result.current.tree.map.size).to.equal(initialNodeCount);
     });
 
     it("Add Message - Won't add the same messages (plural) twice", () => {
@@ -1019,7 +1037,7 @@ describe("MessageTree Operations", () => {
             result.current.addMessages(case4 as ChatMessage[]);
         });
 
-        expect(result.current.tree.map.size).toBe(case4.length);
+        expect(result.current.tree.map.size).to.equal(case4.length);
     });
 
     it("Edit Message - Edits the newly added message", () => {
@@ -1043,8 +1061,8 @@ describe("MessageTree Operations", () => {
         });
 
         const updatedNode = result.current.tree.map.get(updatedMessage.id);
-        expect(updatedNode).toBeDefined();
-        expect(updatedNode!.message).toEqual(updatedMessage);
+        expect(updatedNode).to.exist;
+        expect(updatedNode!.message).to.deep.equal(updatedMessage);
     });
 
     it("Edit Message - Doesn't edit if the message is missing", () => {
@@ -1069,7 +1087,7 @@ describe("MessageTree Operations", () => {
 
         const updatedNode = result.current.tree.map.get(updatedMessage.id);
         // Expect the node to be undefined since it wasn't added
-        expect(updatedNode).toBeUndefined();
+        expect(updatedNode).to.be.undefined;
     });
 
     it("Remove Message - Removes the edited message", () => {
@@ -1084,7 +1102,7 @@ describe("MessageTree Operations", () => {
         });
 
         const removedNode = result.current.tree.map.get(newMessage.id);
-        expect(removedNode).toBeUndefined();
+        expect(removedNode).to.be.undefined;
     });
 
     it("Clear Messages - Resets the message tree", () => {
@@ -1095,8 +1113,8 @@ describe("MessageTree Operations", () => {
         });
 
         // Verify that the tree is not empty
-        expect(result.current.tree.map.size).toBeGreaterThan(0);
-        expect(result.current.tree.roots.length).toBeGreaterThan(0);
+        expect(result.current.tree.map.size).to.be.greaterThan(0);
+        expect(result.current.tree.roots.length).to.be.greaterThan(0);
 
         // Clear the message tree
         act(() => {
@@ -1104,8 +1122,8 @@ describe("MessageTree Operations", () => {
         });
 
         // Verify that the message tree is reset
-        expect(result.current.tree.map.size).toBe(0);
-        expect(result.current.tree.roots).toHaveLength(0);
+        expect(result.current.tree.map.size).to.equal(0);
+        expect(result.current.tree.roots).to.have.lengthOf(0);
     });
 
     it("Clear Messages - Clearing then adding back messages is the same as just adding messages", () => {
@@ -1126,7 +1144,7 @@ describe("MessageTree Operations", () => {
         // Verify that the resulting trees are the same
         const { map: result1Map, roots: result1Roots } = result1.current.tree;
         const { map: result2Map, roots: result2Roots } = result2.current.tree;
-        expect(treesHaveSameStructure(result1Map, result1Roots, result2Roots)).toBe(true);
+        expect(treesHaveSameStructure(result1Map, result1Roots, result2Roots)).to.equal(true);
     });
 });
 

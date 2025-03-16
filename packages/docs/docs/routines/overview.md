@@ -82,8 +82,8 @@ Design a user interface layer for interaction with routines:
 - **Input Interfaces**: Create user-friendly methods for inputting data into routines.
 - **Result Delivery**: Establish how users will receive outputs from routines.
 
-### Testing with Jest
-To perform unit, integration, and end-to-end testing, we use [Jest](https://jestjs.io/). [See our Jest guide](/docs/jest.html) for more information.
+### Testing 
+To perform unit, integration, and end-to-end testing, we use [Chai](https://github.com/chaijs/chai). [See our testing guide](/docs/tests.html) for more information.
 
 ### Performance and Logging
 

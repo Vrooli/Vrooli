@@ -1,19 +1,22 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
+import { expect } from "chai";
 import * as yup from "yup";
-import { uuid } from "../../../id";
-import { opt } from "./opt";
-import { yupObj } from "./yupObj"; // Update with the actual path
+import { uuid } from "../../../id/uuid.js";
+import { opt } from "./optionality.js";
+import { yupObj } from "./yupObj.js"; // Update with the actual path
 
 describe("yupObj", () => {
     // Helper function to create a dummy YupModel
-    const createDummyYupModel = (...fields: string[]) => ({
-        create: (d) => yupObj({
-            ...fields.reduce((acc, curr) => ({ ...acc, [curr]: yup.string().required() }), {}),
-        }, [], [], d),
-        update: (d) => yupObj({
-            ...fields.reduce((acc, curr) => ({ ...acc, [curr]: yup.string().required() }), {}),
-        }, [], [], d),
-    });
+    function createDummyYupModel(...fields: string[]) {
+        return {
+            create: (d) => yupObj({
+                ...fields.reduce((acc, curr) => ({ ...acc, [curr]: yup.string().required() }), {}),
+            }, [], [], d),
+            update: (d) => yupObj({
+                ...fields.reduce((acc, curr) => ({ ...acc, [curr]: yup.string().required() }), {}),
+            }, [], [], d),
+        };
+    }
 
     // // Test basic field creation
     it("should create an object schema with provided fields", async () => {
@@ -26,7 +29,7 @@ describe("yupObj", () => {
         const unstripped = { testField: "test", extraField: "test" };
         const stripped = { testField: "test" };
         await expect(schema.validate(stripped)).resolves.toEqual(stripped);
-        await expect(schema.validate({})).rejects.toThrow();
+        await expect(schema.validate({})).rejects.to.throw();
         await expect(schema.validate({ testField: 1 })).resolves.toEqual({ testField: "1" });
         // Extra fields are kept in validation, but stripped in casting
         await expect(schema.validate(unstripped)).resolves.toEqual(unstripped);
@@ -46,7 +49,7 @@ describe("yupObj", () => {
         const unstripped = { testField: "boop", dummyRelCreate: { dummyField: "test", anotherField: "yeet" } };
         const stripped = { testField: "boop", dummyRelCreate: { dummyField: "test" } };
         await expect(schema.validate(unstripped)).resolves.toEqual(unstripped);
-        await expect(schema.validate({})).rejects.toThrow();
+        await expect(schema.validate({})).rejects.to.throw();
         expect(schema.cast(unstripped, { stripUnknown: true })).toEqual(stripped);
     });
     it("should handle one-to-one optional Create relationships correctly", async () => {
@@ -62,7 +65,7 @@ describe("yupObj", () => {
         const withoutRel = { testField: "boop" };
         await expect(schema.validate(withRel)).resolves.toEqual(withRel);
         await expect(schema.validate(withoutRel)).resolves.toEqual(withoutRel);
-        await expect(schema.validate({})).rejects.toThrow();
+        await expect(schema.validate({})).rejects.to.throw();
         // Doesn't strip optional relationships
         expect(schema.cast(withRel, { stripUnknown: true })).toEqual(withRel);
     });
@@ -97,7 +100,7 @@ describe("yupObj", () => {
         );
         const withoutRel = { testField: "boop" };
         const withRel = { testField: "boop", dummyRelCreate: [{ dummyField: "test" }] };
-        await expect(schema.validate(withoutRel)).rejects.toThrow();
+        await expect(schema.validate(withoutRel)).rejects.to.throw();
         await expect(schema.validate(withRel)).resolves.toEqual(withRel);
         expect(schema.cast(withRel, { stripUnknown: true })).toEqual(withRel);
     });
@@ -135,7 +138,7 @@ describe("yupObj", () => {
         // Validation should pass when extra fields are provided
         await expect(schema.validate(unstripped)).resolves.toEqual(unstripped);
         await expect(schema.validate(strippedCorrectly)).resolves.toEqual(strippedCorrectly);
-        await expect(schema.validate(strippedIncorrectly)).rejects.toThrow();
+        await expect(schema.validate(strippedIncorrectly)).rejects.to.throw();
         // Casting should strip extra fields
         expect(schema.cast(unstripped, { stripUnknown: true })).toEqual(strippedCorrectly);
         expect(schema.cast(strippedCorrectly, { stripUnknown: true })).toEqual(strippedCorrectly);
@@ -191,10 +194,10 @@ describe("yupObj", () => {
         const field1Only = { field1: "test" };
         const field2Only = { field2: "test" };
         const noFields = {};
-        await expect(schema.validate(bothFields)).rejects.toThrow();
+        await expect(schema.validate(bothFields)).rejects.to.throw();
         await expect(schema.validate(field1Only)).resolves.toEqual(field1Only);
         await expect(schema.validate(field2Only)).resolves.toEqual(field2Only);
-        await expect(schema.validate(noFields)).rejects.toThrow();
+        await expect(schema.validate(noFields)).rejects.to.throw();
         expect(schema.cast(field1Only, { stripUnknown: true })).toEqual(field1Only);
         expect(schema.cast(field2Only, { stripUnknown: true })).toEqual(field2Only);
     });
@@ -212,7 +215,7 @@ describe("yupObj", () => {
         const field1Only = { field1: "test" };
         const field2Only = { field2: "test" };
         const noFields = {};
-        await expect(schema.validate(bothFields)).rejects.toThrow();
+        await expect(schema.validate(bothFields)).rejects.to.throw();
         await expect(schema.validate(field1Only)).resolves.toEqual(field1Only);
         await expect(schema.validate(field2Only)).resolves.toEqual(field2Only);
         await expect(schema.validate(noFields)).resolves.toEqual(noFields);
@@ -236,10 +239,10 @@ describe("yupObj", () => {
         const field1Only = { rel1Create: { dummyField: "test" } };
         const field2Only = { rel2Create: { dummyField: "test" } };
         const noFields = {};
-        await expect(schema.validate(bothFields)).rejects.toThrow();
+        await expect(schema.validate(bothFields)).rejects.to.throw();
         await expect(schema.validate(field1Only)).resolves.toEqual(field1Only);
         await expect(schema.validate(field2Only)).resolves.toEqual(field2Only);
-        await expect(schema.validate(noFields)).rejects.toThrow();
+        await expect(schema.validate(noFields)).rejects.to.throw();
         expect(schema.cast(field1Only, { stripUnknown: true })).toEqual(field1Only);
         expect(schema.cast(field2Only, { stripUnknown: true })).toEqual(field2Only);
     });
@@ -258,10 +261,10 @@ describe("yupObj", () => {
         const field1Only = { rel1Create: { dummyField: "test" } };
         const field2Only = { rel1Update: { dummyField: "test" } };
         const noFields = {};
-        await expect(schema.validate(bothFields)).rejects.toThrow();
+        await expect(schema.validate(bothFields)).rejects.to.throw();
         await expect(schema.validate(field1Only)).resolves.toEqual(field1Only);
         await expect(schema.validate(field2Only)).resolves.toEqual(field2Only);
-        await expect(schema.validate(noFields)).rejects.toThrow();
+        await expect(schema.validate(noFields)).rejects.to.throw();
         expect(schema.cast(field1Only, { stripUnknown: true })).toEqual(field1Only);
         expect(schema.cast(field2Only, { stripUnknown: true })).toEqual(field2Only);
     });
@@ -280,10 +283,10 @@ describe("yupObj", () => {
         const field1Only = { field1: "test" };
         const field2Only = { rel1Create: { dummyField: "test" } };
         const noFields = {};
-        await expect(schema.validate(bothFields)).rejects.toThrow();
+        await expect(schema.validate(bothFields)).rejects.to.throw();
         await expect(schema.validate(field1Only)).resolves.toEqual(field1Only);
         await expect(schema.validate(field2Only)).resolves.toEqual(field2Only);
-        await expect(schema.validate(noFields)).rejects.toThrow();
+        await expect(schema.validate(noFields)).rejects.to.throw();
         expect(schema.cast(field1Only, { stripUnknown: true })).toEqual(field1Only);
         expect(schema.cast(field2Only, { stripUnknown: true })).toEqual(field2Only);
     });

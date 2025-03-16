@@ -1,12 +1,12 @@
 import { Box, IconButton, InputAdornment, Stack, TextField, Tooltip, useTheme } from "@mui/material";
-import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog";
-import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
+import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog.js";
+import { MarkdownDisplay } from "components/text/MarkdownDisplay.js";
 import { useField } from "formik";
-import { LinkIcon, SearchIcon } from "icons";
+import { LinkIcon, SearchIcon } from "icons/common.js";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { getDisplay } from "utils/display/listTools";
-import { LinkInputBaseProps, LinkInputProps } from "../types";
+import { LinkInputBaseProps, LinkInputProps } from "../types.js";
 
 const MAX_LINK_TITLE_CHARS = 100;
 

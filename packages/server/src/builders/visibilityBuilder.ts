@@ -1,8 +1,8 @@
-import { DUMMY_ID, GqlModelType, VisibilityType } from "@local/shared";
-import { CustomError } from "../events/error";
-import { GenericModelLogic, ModelMap } from "../models/base";
-import { VisibilityFunc, VisibilityFuncInput } from "../models/types";
-import { VisibilityBuilderPrismaResult, VisibilityBuilderProps } from "./types";
+import { DUMMY_ID, ModelType, VisibilityType } from "@local/shared";
+import { CustomError } from "../events/error.js";
+import { GenericModelLogic, ModelMap } from "../models/base/index.js";
+import { VisibilityFunc, VisibilityFuncInput } from "../models/types.js";
+import { VisibilityBuilderPrismaResult, VisibilityBuilderProps } from "./types.js";
 
 // Create a map of visibility types to their corresponding function names
 const visibilityFuncNames = {
@@ -18,7 +18,7 @@ export function getVisibilityFunc<
     ModelLogic extends GenericModelLogic,
     Throw extends boolean = true,
 >(
-    objectType: GqlModelType | `${GqlModelType}`,
+    objectType: ModelType | `${ModelType}`,
     visibilityType: VisibilityType | `${VisibilityType}`,
     throwIfNotFound: Throw = true as Throw,
 ): Throw extends true ? VisibilityFunc<any> : (VisibilityFunc<any> | null) {
@@ -58,7 +58,7 @@ export function visibilityBuilderPrisma({
 }
 
 export function useVisibility<T extends GenericModelLogic, Throw extends boolean = true>(
-    objectType: GqlModelType | `${GqlModelType}`,
+    objectType: ModelType | `${ModelType}`,
     which: VisibilityType | `${VisibilityType}`,
     data: VisibilityFuncInput,
     throwIfNotFound: Throw = true as Throw,
@@ -87,7 +87,7 @@ export function useVisibilityMapper<ForMapper extends Record<string, string>>(
 ) {
     return Object.entries(forMapper)
         .map(([key, value]) => { // Find visibility function for each key
-            return [value, useVisibility(key as GqlModelType, which, data, throwIfNotFound)];
+            return [value, useVisibility(key as ModelType, which, data, throwIfNotFound)];
         })
         .filter(([, visibility]) => visibility) // Remove entries with no visibility
         .map(([key, visibility]) => ({ [key]: visibility })); // Convert to Prisma query format

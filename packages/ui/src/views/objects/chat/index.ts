@@ -1,1 +1,1 @@
-export * from "./ChatCrud/ChatCrud";
+export * from "./ChatCrud.js";

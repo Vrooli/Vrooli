@@ -1,7 +1,7 @@
 import { LINKS } from "@local/shared";
 import { useTranslation } from "react-i18next";
-import { BreadcrumbsBase } from "../BreadcrumbsBase/BreadcrumbsBase";
-import { PolicyBreadcrumbsProps } from "../types";
+import { BreadcrumbsBase } from "../BreadcrumbsBase/BreadcrumbsBase.js";
+import { PolicyBreadcrumbsProps } from "../types.js";
 
 export function PolicyBreadcrumbs({
     ...props
@@ -15,4 +15,4 @@ export function PolicyBreadcrumbs({
         ariaLabel: "Policies breadcrumb",
         ...props,
     });
-};
+}

@@ -1,5 +1,9 @@
-import { bool, description, id, intPositiveOrOne, name, opt, req, transRel, YupModel, yupObj } from "../utils";
-import { quizQuestionValidation } from "./quizQuestion";
+import { opt, req } from "../utils/builders/optionality.js";
+import { transRel } from "../utils/builders/rel.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { bool, description, id, intPositiveOrOne, name } from "../utils/commonFields.js";
+import { type YupModel } from "../utils/types.js";
+import { quizQuestionValidation } from "./quizQuestion.js";
 
 export const quizTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: () => ({

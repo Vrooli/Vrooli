@@ -1,5 +1,5 @@
 import { Notify, ScheduleSubscriptionContext, batch, findFirstRel, logger, parseJsonOrDefault, scheduleExceptionsWhereInTimeframe, scheduleRecurrencesWhereInTimeframe, schedulesWhereInTimeframe, withRedis } from "@local/server";
-import { GqlModelType, calculateOccurrences, uppercaseFirstLetter } from "@local/shared";
+import { ModelType, calculateOccurrences, uppercaseFirstLetter } from "@local/shared";
 import { Prisma } from "@prisma/client";
 
 /**
@@ -26,7 +26,7 @@ async function scheduleNotifications(
                         return;
                     }
                     const scheduleForId = objectData[0].id;
-                    const scheduleForType = uppercaseFirstLetter(objectField.slice(0, -1)) as GqlModelType;
+                    const scheduleForType = uppercaseFirstLetter(objectField.slice(0, -1)) as ModelType;
                     // Find notification preferences for each subscriber
                     const subscriberPrefs: { [userId: string]: ScheduleSubscriptionContext["reminders"] } = {};
                     for (const subscription of batch) {

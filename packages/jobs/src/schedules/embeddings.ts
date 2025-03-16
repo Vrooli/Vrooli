@@ -8,8 +8,8 @@
  * like "Artificial Intelligence (AI)", "LLM", and "Machine Learning", even if "ai" 
  * is not directly in the tag's name/description.
  */
-import { EmbeddableType, FindManyArgs, GenericModelLogic, ModelMap, batch, getEmbeddings, logger, prismaInstance } from "@local/server";
-import { GqlModelType, RunStatus } from "@local/shared";
+import { DbProvider, EmbeddableType, FindManyArgs, GenericModelLogic, ModelMap, batch, getEmbeddings, logger } from "@local/server";
+import { ModelType, RunStatus } from "@local/shared";
 import { Prisma } from "@prisma/client";
 
 // WARNING: Setting this to true will cause the embeddings to be recalculated for all objects. 
@@ -52,10 +52,10 @@ async function updateEmbedding(
     id: string,
     embeddings: number[],
 ): Promise<void> {
-    const tableName = ModelMap.get(isTranslatable ? (objectType + "Translation" as GqlModelType) : objectType).dbTable;
+    const tableName = ModelMap.get(isTranslatable ? (objectType + "Translation" as ModelType) : objectType).dbTable;
     const embeddingsText = `ARRAY[${embeddings.join(", ")}]`;
     // Use raw query to update the embedding, because the Prisma client doesn't support Postgres vectors
-    await prismaInstance.$executeRawUnsafe(`UPDATE ${tableName} SET "embedding" = ${embeddingsText}, "embeddingNeedsUpdate" = false WHERE id = $1::UUID;`, id);
+    await DbProvider.get().$executeRawUnsafe(`UPDATE ${tableName} SET "embedding" = ${embeddingsText}, "embeddingNeedsUpdate" = false WHERE id = $1::UUID;`, id);
 }
 
 /**

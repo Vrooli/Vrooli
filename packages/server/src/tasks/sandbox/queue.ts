@@ -1,8 +1,8 @@
 import { Success, TaskStatus, TaskStatusInfo } from "@local/shared";
 import Bull from "bull";
 import winston from "winston";
-import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, changeTaskStatus, getProcessPath, getTaskStatuses } from "../queueHelper";
-import { SandboxProcessPayload } from "./types";
+import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, changeTaskStatus, getProcessPath, getTaskStatuses } from "../queueHelper.js";
+import { SandboxProcessPayload } from "./types.js";
 
 export type SandboxTestPayload = {
     __process: "Test";
@@ -19,7 +19,7 @@ const FOLDER = "sandbox";
 export async function setupSandboxQueue() {
     try {
         logger = (await import(LOGGER_PATH)).logger;
-        const REDIS_URL = (await import(REDIS_CONN_PATH)).REDIS_URL;
+        const REDIS_URL = (await import(REDIS_CONN_PATH)).getRedisUrl();
         sandboxProcess = (await import(getProcessPath(FOLDER))).sandboxProcess;
 
         // Initialize the Bull queue

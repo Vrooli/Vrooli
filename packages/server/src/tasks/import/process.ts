@@ -1,10 +1,13 @@
 import { Job } from "bull";
-import { logger } from "../../events/logger";
-import { ImportProcessPayload } from "./queue";
+import { importData } from "../../builders/importExport.js";
+import { logger } from "../../events/logger.js";
+import { ImportProcessPayload } from "./queue.js";
 
 export async function importProcess(job: Job<ImportProcessPayload>) {
     try {
-        //TODO
+        const { data, config } = job.data;
+        const result = await importData(data, config);
+        return result;
     } catch (err) {
         logger.error("Error importing data", { trace: "0500" });
     }

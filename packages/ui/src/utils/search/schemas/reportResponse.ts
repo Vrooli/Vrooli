@@ -1,11 +1,15 @@
-import { endpointGetReportResponse, endpointGetReportResponses, FormSchema, ReportResponseSortBy } from "@local/shared";
-import { toParams } from "./base";
-import { searchFormLayout } from "./common";
+import { endpointsReportResponse, FormSchema, ReportResponseSortBy } from "@local/shared";
+import { toParams } from "./base.js";
+import { searchFormLayout } from "./common.js";
 
-export const reportResponseSearchSchema = (): FormSchema => ({
-    layout: searchFormLayout("SearchReportResponse"),
-    containers: [], //TODO
-    elements: [], //TODO
-});
+export function reportResponseSearchSchema(): FormSchema {
+    return {
+        layout: searchFormLayout("SearchReportResponse"),
+        containers: [], //TODO
+        elements: [], //TODO
+    };
+}
 
-export const reportResponseSearchParams = () => toParams(reportResponseSearchSchema(), endpointGetReportResponses, endpointGetReportResponse, ReportResponseSortBy, ReportResponseSortBy.DateCreatedDesc);
+export function reportResponseSearchParams() {
+    return toParams(reportResponseSearchSchema(), endpointsReportResponse, ReportResponseSortBy, ReportResponseSortBy.DateCreatedDesc);
+}

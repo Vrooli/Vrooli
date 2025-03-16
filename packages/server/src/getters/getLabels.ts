@@ -1,9 +1,9 @@
-import { GqlModelType } from "@local/shared";
-import { PrismaDelegate } from "../builders/types";
-import { prismaInstance } from "../db/instance";
-import { CustomError } from "../events/error";
-import { logger } from "../events/logger";
-import { ModelMap } from "../models/base";
+import { ModelType } from "@local/shared";
+import { PrismaDelegate } from "../builders/types.js";
+import { DbProvider } from "../db/provider.js";
+import { CustomError } from "../events/error.js";
+import { logger } from "../events/logger.js";
+import { ModelMap } from "../models/base/index.js";
 
 const MAX_LABEL_LENGTH = 50;
 
@@ -19,7 +19,7 @@ const MAX_LABEL_LENGTH = 50;
  */
 export async function getLabels(
     objects: { id: string, languages: string[] }[] | string[],
-    objectType: `${GqlModelType}`,
+    objectType: `${ModelType}`,
     languages: string[],
     errorTrace: string,
 ): Promise<string[]> {
@@ -33,7 +33,7 @@ export async function getLabels(
     try {
         where = { id: { in: objectsWithLanguages.map(x => x.id) } };
         select = typeof model.display().label.select === "function" ? model.display().label.select() : model.display().label.select;
-        labelsData = await (prismaInstance[model.dbTable] as PrismaDelegate).findMany({
+        labelsData = await (DbProvider.get()[model.dbTable] as PrismaDelegate).findMany({
             where,
             select,
         });

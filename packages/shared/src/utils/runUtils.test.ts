@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Node, NodeLink, NodeType, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionYou, Routine, RoutineType, RoutineVersion, RoutineVersionInput, RoutineVersionOutput, RoutineVersionYou, RunProject, RunProjectStep, RunRoutine, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, RunStatus } from "../api/generated/graphqlTypes";
+import { Node, NodeLink, NodeType, Project, ProjectVersion, ProjectVersionDirectory, ProjectVersionYou, Routine, RoutineType, RoutineVersion, RoutineVersionInput, RoutineVersionOutput, RoutineVersionYou, RunProject, RunProjectStep, RunRoutine, RunRoutineInput, RunRoutineStep, RunRoutineStepStatus, RunStatus } from "../api/types";
 import { InputType } from "../consts";
 import { FormSchema, FormStructureType } from "../forms";
 import { uuid, uuidValidate } from "../id/uuid";

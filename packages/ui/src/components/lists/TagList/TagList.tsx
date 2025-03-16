@@ -1,14 +1,14 @@
 import { Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { useMemo } from "react";
-import { ListItemChip } from "../ObjectListItemBase/ObjectListItemBase";
-import { TagListProps } from "../types";
+import { ListItemChip } from "../ObjectListItemBase/ObjectListItemBase.js";
+import { TagListProps } from "../types.js";
 
-export const TagList = ({
+export function TagList({
     maxCharacters = 50,
     parentId,
     sx,
     tags,
-}: TagListProps) => {
+}: TagListProps) {
     const { palette } = useTheme();
 
     const [chips, numTagsCutOff] = useMemo(() => {
@@ -60,4 +60,4 @@ export const TagList = ({
             </Stack>
         </Tooltip>
     );
-};
+}

@@ -1,22 +1,22 @@
 import { CodeLanguage, Status, TranslationKeyLangs, isEqual } from "@local/shared";
 import { Box, Grid, IconButton, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { HelpButton } from "components/buttons/HelpButton/HelpButton";
-import { StatusButton } from "components/buttons/StatusButton/StatusButton";
-import { SelectorBase } from "components/inputs/Selector/Selector";
+import { HelpButton } from "components/buttons/HelpButton/HelpButton.js";
+import { StatusButton } from "components/buttons/StatusButton/StatusButton.js";
+import { SelectorBase } from "components/inputs/Selector/Selector.js";
 import { useField } from "formik";
 import { Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 // import { isJson } from "@local/shared"; // Update this so that we can lint JSON standard input type (different from normal JSON)
-import { ActiveChatContext, SessionContext } from "contexts";
-import { generateContextLabel } from "hooks/tasks";
-import { useDebounce } from "hooks/useDebounce";
-import { CopyIcon, MagicIcon, OpenThreadIcon, RedoIcon, RefreshIcon, UndoIcon } from "icons";
+import { generateContextLabel } from "hooks/tasks.js";
+import { useDebounce } from "hooks/useDebounce.js";
+import { CopyIcon, MagicIcon, OpenThreadIcon, RedoIcon, RefreshIcon, UndoIcon } from "icons/common.js";
 import React from "react";
 import { SvgComponent } from "types";
-import { getCurrentUser } from "utils/authentication/session";
-import { generateContext } from "utils/display/stringTools";
-import { CHAT_SIDE_MENU_ID, PubSub } from "utils/pubsub";
-import { CodeInputBaseProps, CodeInputProps } from "../types";
+import { getCurrentUser } from "utils/authentication/session.js";
+import { generateContext } from "utils/display/stringTools.js";
+import { CHAT_SIDE_MENU_ID, PubSub } from "utils/pubsub.js";
+import { SessionContext } from "../../../contexts.js";
+import { CodeInputBaseProps, CodeInputProps } from "../types.js";
 
 // Stub types for code splitting
 type Extension = {
@@ -549,7 +549,7 @@ export function CodeInputBase({
 
         async function loadGutter() {
             const { gutter } = await import("@codemirror/view");
-            const { ErrorMarker, WarnMarker } = await import("./codeMirrorMarkers");
+            const { ErrorMarker, WarnMarker } = await import("./codeMirrorMarkers.js");
             return gutter({
                 lineMarker: (view, line) => {
                     const severity = getSeverityForLine(line, errors, view as unknown as EditorView);

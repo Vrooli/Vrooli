@@ -1,13 +1,13 @@
-import { endpointPutNotification, FindByIdInput, Success } from "@local/shared";
+import { endpointsNotification, FindByIdInput, Success } from "@local/shared";
 import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { VisibleIcon } from "icons";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
+import { VisibleIcon } from "icons/common.js";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { PubSub } from "utils/pubsub";
-import { ListItemChip, ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
-import { NotificationListItemProps } from "../types";
+import { PubSub } from "utils/pubsub.js";
+import { ListItemChip, ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
+import { NotificationListItemProps } from "../types.js";
 
 export function NotificationListItem({
     data,
@@ -17,7 +17,7 @@ export function NotificationListItem({
     const { palette } = useTheme();
     const { t } = useTranslation();
 
-    const [markAsReadMutation, { errors: markErrors }] = useLazyFetch<FindByIdInput, Success>(endpointPutNotification);
+    const [markAsReadMutation, { errors: markErrors }] = useLazyFetch<FindByIdInput, Success>(endpointsNotification.markAsRead);
     const onMarkAsRead = useCallback(() => {
         if (!data) {
             PubSub.get().publish("snack", { messageKey: "CouldNotReadObject", severity: "Error" });

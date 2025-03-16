@@ -1,14 +1,20 @@
 import { MaxObjects, ProjectVersionSortBy, getTranslation, projectVersionValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
-import { PreShapeVersionResult, afterMutationsVersion, preShapeVersion, translationShapeHelper } from "../../utils/shapes";
-import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
-import { ProjectVersionFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { ProjectModelInfo, ProjectModelLogic, ProjectVersionModelInfo, ProjectVersionModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { afterMutationsVersion } from "../../utils/shapes/afterMutationsVersion.js";
+import { preShapeVersion, type PreShapeVersionResult } from "../../utils/shapes/preShapeVersion.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { lineBreaksCheck } from "../../validators/lineBreaksCheck.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { versionsCheck } from "../../validators/versionsCheck.js";
+import { ProjectVersionFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { ProjectModelInfo, ProjectModelLogic, ProjectVersionModelInfo, ProjectVersionModelLogic } from "./types.js";
 
 type ProjectVersionPre = PreShapeVersionResult;
 
@@ -94,7 +100,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //     async searchContents(
     //         req: Request,
     //         input: ProjectVersionContentsSearchInput,
-    //         info: GraphQLInfo | PartialGraphQLInfo,
+    //         info: PartialApiInfo,
     //         nestLimit: number = 2,
     //     ): Promise<ProjectVersionContentsSearchResult> {
     //         // Partially convert info type
@@ -127,7 +133,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //         const orderByIsValid = ModelMap.get<CommentModelLogic>("Comment").search.sortBy[orderByField] === undefined
     //         const orderBy = orderByIsValid ? SortMap[input.sortBy ?? ModelMap.get<CommentModelLogic>("Comment").search.defaultSort] : undefined;
     //         // Find requested search array
-    //         const searchResults = await prismaInstance.comment.findMany({
+    //         const searchResults = await DbProvider.get().comment.findMany({
     //             where,
     //             orderBy,
     //             take: input.take ?? 10,
@@ -135,7 +141,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //             cursor: input.after ? {
     //                 id: input.after
     //             } : undefined,
-    //             ...selectHelper(partialInfo)
+    //             ...InfoConverter.get().fromPartialApiToPrismaSelect(partialInfo)
     //         });
     //         // If there are no results
     //         if (searchResults.length === 0) return {
@@ -144,7 +150,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //             threads: [],
     //         }
     //         // Query total in thread, if cursor is not provided (since this means this data was already given to the user earlier)
-    //         const totalInThread = input.after ? undefined : await prismaInstance.comment.count({
+    //         const totalInThread = input.after ? undefined : await DbProvider.get().comment.count({
     //             where: { ...where }
     //         });
     //         // Calculate end cursor
@@ -166,7 +172,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
     //         }
     //         let comments: any = flattenThreads(childThreads);
     //         // Shape comments and add supplemental fields
-    //         comments = comments.map((c: any) => modelToGql(c, partialInfo as PartialGraphQLInfo));
+    //         comments = comments.map((c: any) => InfoConverter.get().fromDbToApi(c, partialInfo as PartialApiInfo));
     //         comments = await addSupplementalFields(getUser(req.session), comments, partialInfo);
     //         // Put comments back into "threads" object, using another helper function. 
     //         // Comments can be matched by their ID
@@ -237,11 +243,11 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<ProjectVersionModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ProjectVersionModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -251,10 +257,10 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<ProjectVersionModelInfo["PrismaSelect"]>([["root", "Project"]], data, ...rest),
+            oneIsPublic<ProjectVersionModelInfo["DbSelect"]>([["root", "Project"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<ProjectModelLogic>("Project").validate().owner(data?.root as ProjectModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ProjectModelLogic>("Project").validate().owner(data?.root as ProjectModelInfo["DbModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

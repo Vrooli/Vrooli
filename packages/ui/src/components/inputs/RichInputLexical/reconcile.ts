@@ -1,10 +1,10 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-import { ELEMENT_FORMAT_TO_TYPE, FULL_RECONCILE } from "./consts";
-import { EditorState, LexicalEditor } from "./editor";
-import { ElementNode } from "./nodes/ElementNode";
-import { type RootNode } from "./nodes/RootNode";
-import { CustomDomElement, EditorConfig, IntentionallyMarkedAsDirtyElement, MutatedNodes, NodeKey, NodeMap, RegisteredNodes } from "./types";
-import { $isNode, cloneDecorators, getElementByKeyOrThrow, setMutatedNode } from "./utils";
+
+import { ELEMENT_FORMAT_TO_TYPE, FULL_RECONCILE } from "./consts.js";
+import { EditorState, LexicalEditor } from "./editor.js";
+import { ElementNode } from "./nodes/ElementNode.js";
+import { type RootNode } from "./nodes/RootNode.js";
+import { CustomDomElement, EditorConfig, IntentionallyMarkedAsDirtyElement, MutatedNodes, NodeKey, NodeMap, RegisteredNodes } from "./types.js";
+import { $isNode, cloneDecorators, getElementByKeyOrThrow, setMutatedNode } from "./utils.js";
 
 /**
  * Alignment (e.g. left, right, center) if it's an element node, 

@@ -1,4 +1,7 @@
-import { email, id, req, YupModel, yupObj } from "../utils";
+import { req } from "../utils/builders/optionality.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { email, id } from "../utils/commonFields.js";
+import { type YupModel } from "../utils/types.js";
 
 export const emailValidation: YupModel<["create"]> = {
     create: (d) => yupObj({

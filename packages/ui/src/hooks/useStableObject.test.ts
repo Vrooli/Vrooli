@@ -1,5 +1,6 @@
 import { renderHook } from "@testing-library/react";
-import { useStableObject } from "./useStableObject";
+import { expect } from "chai";
+import { useStableObject } from "./useStableObject.js";
 
 describe("useStableObject", () => {
     it("should maintain the same reference for unchanged objects", () => {
@@ -11,7 +12,7 @@ describe("useStableObject", () => {
         const firstRef = result.current;
         rerender({ obj: { a: 1, b: { c: 2 } } }); // Same value, different reference
 
-        expect(result.current).toBe(firstRef);
+        expect(result.current).to.equal(firstRef);
     });
 
     it("should update the reference for changed objects", () => {
@@ -23,7 +24,7 @@ describe("useStableObject", () => {
         const firstRef = result.current;
         rerender({ obj: { a: 1, b: { c: 3 } } }); // Different value
 
-        expect(result.current).not.toBe(firstRef);
+        expect(result.current).not.to.equal(firstRef);
     });
 
     it("should handle primitives correctly", () => {
@@ -35,11 +36,11 @@ describe("useStableObject", () => {
         const firstRef = result.current;
         rerender({ val: 5 }); // Same value
 
-        expect(result.current).toBe(firstRef);
+        expect(result.current).to.equal(firstRef);
 
         rerender({ val: 6 }); // Different value
 
-        expect(result.current).not.toBe(firstRef);
+        expect(result.current).not.to.equal(firstRef);
     });
 
     it("should update the reference for arrays with changed content", () => {
@@ -51,7 +52,7 @@ describe("useStableObject", () => {
         const firstRef = result.current;
         rerender({ arr: [1, 2, { a: 4 }] }); // Array with different content
 
-        expect(result.current).not.toBe(firstRef);
+        expect(result.current).not.to.equal(firstRef);
     });
 
     it("should maintain the same reference for unchanged nested objects", () => {
@@ -63,7 +64,7 @@ describe("useStableObject", () => {
         const firstRef = result.current;
         rerender({ obj: { a: 1, b: { c: 2, d: { e: 3 } } } }); // Same nested object
 
-        expect(result.current).toBe(firstRef);
+        expect(result.current).to.equal(firstRef);
     });
 
     it("should handle null and undefined correctly", () => {
@@ -74,15 +75,15 @@ describe("useStableObject", () => {
         const firstRef = result.current;
         rerender({ obj: null }); // Still null
 
-        expect(result.current).toBe(firstRef);
+        expect(result.current).to.equal(firstRef);
 
         rerender({ obj: undefined }); // Change to undefined
 
-        expect(result.current).not.toBe(firstRef);
+        expect(result.current).not.to.equal(firstRef);
 
         const secondRef = result.current;
         rerender({ obj: undefined }); // Still undefined
 
-        expect(result.current).toBe(secondRef);
+        expect(result.current).to.equal(secondRef);
     });
 });

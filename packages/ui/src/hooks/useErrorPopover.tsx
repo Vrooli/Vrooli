@@ -1,6 +1,6 @@
 import { exists, uppercaseFirstLetter } from "@local/shared";
 import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
-import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
+import { MarkdownDisplay } from "components/text/MarkdownDisplay";
 import { useCallback, useMemo, useState } from "react";
 import { FormErrors } from "types";
 

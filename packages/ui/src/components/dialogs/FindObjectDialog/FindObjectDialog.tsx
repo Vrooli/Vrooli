@@ -1,43 +1,44 @@
 import { AutocompleteOption, FindByIdInput, FindVersionInput, FormInputBase, ListObject, SearchType, funcFalse, getObjectUrl } from "@local/shared";
-import { Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
-import { PageTabs } from "components/PageTabs/PageTabs";
-import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList";
-import { TIDCard } from "components/lists/TIDCard/TIDCard";
-import { TopBar } from "components/navigation/TopBar/TopBar";
-import { useFindMany } from "hooks/useFindMany";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { useTabs } from "hooks/useTabs";
-import { AddIcon, SearchIcon } from "icons";
+import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { lazily } from "react-lazily";
-import { removeSearchParams, useLocation } from "route";
-import { SideActionsButton } from "styles";
-import { getDisplay } from "utils/display/listTools";
-import { scrollIntoFocusedView } from "utils/display/scroll";
-import { findObjectTabParams, searchTypeToParams } from "utils/search/objectToSearch";
-import { SearchParams } from "utils/search/schemas/base";
-import { CrudProps } from "../../../types";
-import { FindObjectDialogProps, FindObjectDialogType, FindObjectType } from "../types";
+import { Z_INDEX } from "utils/consts.js";
+import { useFindMany } from "../../../hooks/useFindMany.js";
+import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useTabs } from "../../../hooks/useTabs.js";
+import { AddIcon } from "../../../icons/common.js";
+import { useLocation } from "../../../route/router.js";
+import { removeSearchParams } from "../../../route/searchParams.js";
+import { SideActionsButton } from "../../../styles.js";
+import { CrudProps } from "../../../types.js";
+import { getDisplay } from "../../../utils/display/listTools.js";
+import { findObjectTabParams, searchTypeToParams } from "../../../utils/search/objectToSearch.js";
+import { SearchParams } from "../../../utils/search/schemas/base.js";
+import { PageTabs } from "../../PageTabs/PageTabs.js";
+import { SideActionsButtons } from "../../buttons/SideActionsButtons/SideActionsButtons.js";
+import { LargeDialog } from "../../dialogs/LargeDialog/LargeDialog.js";
+import { SearchList, SearchListScrollContainer } from "../../lists/SearchList/SearchList.js";
+import { TIDCard } from "../../lists/TIDCard/TIDCard.js";
+import { FindObjectDialogProps, FindObjectDialogType, FindObjectType } from "../types.js";
 
-const { ApiUpsert } = lazily(() => import("../../../views/objects/api/ApiUpsert/ApiUpsert"));
-const { BotUpsert } = lazily(() => import("../../../views/objects/bot/BotUpsert/BotUpsert"));
-const { DataConverterUpsert } = lazily(() => import("../../../views/objects/dataConverter/DataConverterUpsert/DataConverterUpsert"));
-const { DataStructureUpsert } = lazily(() => import("../../../views/objects/dataStructure/DataStructureUpsert/DataStructureUpsert"));
-const { FocusModeUpsert } = lazily(() => import("../../../views/objects/focusMode/FocusModeUpsert/FocusModeUpsert"));
-const { MeetingUpsert } = lazily(() => import("../../../views/objects/meeting/MeetingUpsert/MeetingUpsert"));
-const { NoteCrud } = lazily(() => import("../../../views/objects/note/NoteCrud/NoteCrud"));
-const { ProjectCrud } = lazily(() => import("../../../views/objects/project/ProjectCrud/ProjectCrud"));
-const { PromptUpsert } = lazily(() => import("../../../views/objects/prompt/PromptUpsert/PromptUpsert"));
-const { QuestionUpsert } = lazily(() => import("../../../views/objects/question/QuestionUpsert/QuestionUpsert"));
-const { ReminderCrud } = lazily(() => import("../../../views/objects/reminder/ReminderCrud/ReminderCrud"));
-const { RoutineUpsert } = lazily(() => import("../../../views/objects/routine/RoutineUpsert/RoutineUpsert"));
-const { RunProjectUpsert } = lazily(() => import("../../../views/objects/runProject/RunProjectUpsert/RunProjectUpsert"));
-const { RunRoutineUpsert } = lazily(() => import("../../../views/objects/runRoutine/RunRoutineUpsert/RunRoutineUpsert"));
-const { SmartContractUpsert } = lazily(() => import("../../../views/objects/smartContract/SmartContractUpsert/SmartContractUpsert"));
-const { TeamUpsert } = lazily(() => import("../../../views/objects/team/TeamUpsert/TeamUpsert"));
+const { ApiUpsert } = lazily(() => import("../../../views/objects/api/ApiUpsert.js"));
+const { BotUpsert } = lazily(() => import("../../../views/objects/bot/BotUpsert.js"));
+const { DataConverterUpsert } = lazily(() => import("../../../views/objects/dataConverter/DataConverterUpsert.js"));
+const { DataStructureUpsert } = lazily(() => import("../../../views/objects/dataStructure/DataStructureUpsert.js"));
+const { FocusModeUpsert } = lazily(() => import("../../../views/objects/focusMode/FocusModeUpsert.js"));
+const { MeetingUpsert } = lazily(() => import("../../../views/objects/meeting/MeetingUpsert.js"));
+const { NoteCrud } = lazily(() => import("../../../views/objects/note/NoteCrud.js"));
+const { ProjectCrud } = lazily(() => import("../../../views/objects/project/ProjectCrud.js"));
+const { PromptUpsert } = lazily(() => import("../../../views/objects/prompt/PromptUpsert.js"));
+const { QuestionUpsert } = lazily(() => import("../../../views/objects/question/QuestionUpsert.js"));
+const { ReminderCrud } = lazily(() => import("../../../views/objects/reminder/ReminderCrud.js"));
+const { RoutineMultiStepCrud } = lazily(() => import("../../../views/objects/routine/RoutineMultiStepCrud.js"));
+const { RoutineSingleStepUpsert } = lazily(() => import("../../../views/objects/routine/RoutineSingleStepUpsert.js"));
+const { RunProjectUpsert } = lazily(() => import("../../../views/objects/runProject/RunProjectUpsert.js"));
+const { RunRoutineUpsert } = lazily(() => import("../../../views/objects/runRoutine/RunRoutineUpsert.js"));
+const { SmartContractUpsert } = lazily(() => import("../../../views/objects/smartContract/SmartContractUpsert.js"));
+const { TeamUpsert } = lazily(() => import("../../../views/objects/team/TeamUpsert.js"));
 
 type UpsertView = (props: CrudProps<ListObject>) => JSX.Element;
 
@@ -70,7 +71,8 @@ const createMap: { [K in FindObjectType]: UpsertView } = {
     Prompt: PromptUpsert as UpsertView,
     Question: QuestionUpsert as UpsertView,
     Reminder: ReminderCrud as UpsertView,
-    Routine: RoutineUpsert as UpsertView,
+    RoutineMultiStep: RoutineMultiStepCrud as UpsertView,
+    RoutineSingleStep: RoutineSingleStepUpsert as UpsertView,
     RunProject: RunProjectUpsert as UpsertView,
     RunRoutine: RunRoutineUpsert as UpsertView,
     SmartContract: SmartContractUpsert as UpsertView,
@@ -122,8 +124,14 @@ export function convertRootObjectToVersion(item: RootObject, versionId: string):
 
 
 const scrollContainerId = "find-object-search-scroll";
+const searchBarId = `${scrollContainerId}-search-bar`;
 const searchTitleId = "search-vrooli-for-link-title";
-const dialogStyle = { paper: { maxWidth: "min(100%, 600px)" } } as const;
+const autoFocusDelayMs = 100;
+const dialogStyle = {
+    paper: {
+        maxWidth: "min(100%, 600px)",
+    },
+} as const;
 
 /**
  * Dialog for selecting or creating an object
@@ -137,9 +145,20 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
     onlyVersioned,
     where,
 }: FindObjectDialogProps<Find>) {
-    const { palette } = useTheme();
+    const { palette, spacing } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+
+    useEffect(function focusSearchBar() {
+        if (isOpen) {
+            setTimeout(() => {
+                const inputElement = document.getElementById(searchBarId);
+                if (inputElement) {
+                    inputElement.focus();
+                }
+            }, autoFocusDelayMs);
+        }
+    }, [isOpen]);
 
     const filteredTabs = useMemo(() => getFilteredTabs(limitTo, onlyVersioned), [limitTo, onlyVersioned]);
     const {
@@ -210,7 +229,7 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
 
     const onCreateStart = useCallback((e: React.MouseEvent<HTMLElement>) => {
         // If tab is 'All', open menu to select type
-        if (searchType === SearchType.Popular) setSelectCreateTypeAnchorEl(e.currentTarget);
+        if (searchType === "Popular") setSelectCreateTypeAnchorEl(e.currentTarget);
         // Otherwise, open create dialog for current tab
         else setCreateObjectType(currTab.searchType.replace("Version", "") as FindObjectType ?? null); //TODO prob breaks for Code and Standard
     }, [currTab, searchType]);
@@ -218,6 +237,9 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
         if (type) setCreateObjectType(type);
         else setSelectCreateTypeAnchorEl(null);
     }, []);
+    const onSelectCreateTypeCloseNoArg = useCallback(() => {
+        onSelectCreateTypeClose();
+    }, [onSelectCreateTypeClose]);
 
     const handleCreated = useCallback((item: object) => {
         onClose(item);
@@ -315,8 +337,6 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
         setSelectCreateTypeAnchorEl(null);
     }, [createObjectType]);
 
-    function focusSearch() { scrollIntoFocusedView("search-bar-find-object-search-list"); }
-
     const findManyData = useFindMany<ListObject>({
         controlsUrl: false,
         searchType,
@@ -334,6 +354,22 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
         }
         return createObjectType ? { __typename } : undefined;
     }, [createObjectType]);
+
+    const searchListStyles = useMemo(function searchListStylesMemo() {
+        return {
+            buttons: {
+                borderBottom: `1px solid ${palette.divider}`,
+                paddingTop: spacing(0.5),
+                padding: spacing(0.5),
+            },
+            searchBarAndButtonsBox: {
+                backgroundColor: palette.background.default,
+                position: "sticky",
+                top: 0,
+                zIndex: Z_INDEX.PageElement + 1,
+            },
+        };
+    }, [palette, spacing]);
 
     return (
         <>
@@ -353,22 +389,28 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
                 anchorEl={selectCreateTypeAnchorEl}
                 disableScrollLock={true}
                 open={Boolean(selectCreateTypeAnchorEl)}
-                onClose={() => onSelectCreateTypeClose()}
+                onClose={onSelectCreateTypeCloseNoArg}
             >
                 {/* Never show 'All' */}
-                {findObjectTabParams.filter((t) => ![SearchType.Popular]
+                {findObjectTabParams.filter((t) => !["Popular"]
                     .includes(t.searchType as SearchType))
-                    .map(({ Icon, key, searchType, titleKey }) => (
-                        <MenuItem
-                            key={key}
-                            onClick={() => onSelectCreateTypeClose(key as FindObjectType)}
-                        >
-                            {Icon && <ListItemIcon>
-                                <Icon fill={palette.background.textPrimary} />
-                            </ListItemIcon>}
-                            <ListItemText primary={t(titleKey, { count: 1, defaultValue: titleKey })} />
-                        </MenuItem>
-                    ))}
+                    .map(({ Icon, key, titleKey }) => {
+                        function handleClick() {
+                            onSelectCreateTypeClose(key as FindObjectType);
+                        }
+
+                        return (
+                            <MenuItem
+                                key={key}
+                                onClick={handleClick}
+                            >
+                                {Icon && <ListItemIcon>
+                                    <Icon fill={palette.background.textPrimary} />
+                                </ListItemIcon>}
+                                <ListItemText primary={t(titleKey, { count: 1, defaultValue: titleKey })} />
+                            </MenuItem>
+                        );
+                    })}
             </Menu>}
             {/* Main content */}
             <LargeDialog
@@ -378,66 +420,70 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
                 titleId={searchTitleId}
                 sxs={dialogStyle}
             >
-                <SearchListScrollContainer id={scrollContainerId}>
-                    <TopBar
-                        display="dialog"
-                        onClose={handleCancel}
-                        title={t("SearchVrooli")}
-                        titleBehaviorDesktop="ShowIn"
-                        below={tabs.length > 1 && Boolean(currTab) && <PageTabs
+                {tabs.length > 1 && Boolean(currTab) && (
+                    <Box bgcolor="primary.dark" p={2}>
+                        <PageTabs<typeof findObjectTabParams>
                             ariaLabel="Search tabs"
                             currTab={currTab}
                             fullWidth
                             ignoreIcons={true}
                             onChange={handleTabChange}
                             tabs={tabs}
-                        />}
-                    />
+                        />
+                    </Box>
+                )}
+                {!selectedObject && (
+                    <SearchListScrollContainer id={scrollContainerId}>
+                        <SearchList
+                            {...findManyData}
+                            canNavigate={funcFalse}
+                            display="dialog"
+                            onItemClick={onInputSelect}
+                            scrollContainerId={scrollContainerId}
+                            searchBarVariant="basic"
+                            searchPlaceholder={t("Search") + "..."}
+                            sxs={searchListStyles}
+                        />
+                    </SearchListScrollContainer>
+                )}
+                {/* If object selected (and supports versioning), display buttons to select version */}
+                {selectedObject && (
+                    <Stack spacing={2} direction="column" m={2}>
+                        <Typography variant="h6" mt={2} textAlign="center">
+                            Select a version
+                        </Typography>
+                        {[...(selectedObject.versions ?? [])].sort((a, b) => b.versionIndex - a.versionIndex).map((version, index) => {
+                            function handleClick() {
+                                onVersionSelect(version);
+                            }
 
-                    {/* Search list to find object */}
-                    {!selectedObject && <SearchList
-                        {...findManyData}
-                        canNavigate={funcFalse}
-                        display="dialog"
-                        onItemClick={onInputSelect}
-                        scrollContainerId={scrollContainerId}
-                    />}
-                    {/* If object selected (and supports versioning), display buttons to select version */}
-                    {selectedObject && (
-                        <Stack spacing={2} direction="column" m={2}>
-                            <Typography variant="h6" mt={2} textAlign="center">
-                                Select a version
-                            </Typography>
-                            {[...(selectedObject.versions ?? [])].sort((a, b) => b.versionIndex - a.versionIndex).map((version, index) => (
+                            return (
                                 <TIDCard
                                     buttonText={t("Select")}
                                     description={getDisplay(version as any).subtitle}
                                     key={index}
                                     Icon={findObjectTabParams.find((t) => t.searchType === (version as any).__typename)?.Icon}
-                                    onClick={() => onVersionSelect(version)}
+                                    onClick={handleClick}
                                     title={`${version.versionLabel} - ${getDisplay(version as any).title}`}
                                 />
-                            ))}
-                            {/* Remove selection button */}
-                            <Button
-                                fullWidth
-                                color="secondary"
-                                onClick={() => setSelectedObject(null)}
-                                variant="outlined"
-                            >
-                                Select a different object
-                            </Button>
-                        </Stack>
-                    )}
-                    <SideActionsButtons display="dialog">
-                        <SideActionsButton aria-label="filter-list" onClick={focusSearch}>
-                            <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                        </SideActionsButton>
-                        <SideActionsButton aria-label="create-new" onClick={onCreateStart}>
-                            <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                        </SideActionsButton>
-                    </SideActionsButtons>
-                </SearchListScrollContainer>
+                            );
+                        })}
+                        {/* Remove selection button */}
+                        <Button
+                            fullWidth
+                            color="secondary"
+                            onClick={() => setSelectedObject(null)}
+                            variant="outlined"
+                        >
+                            Select a different object
+                        </Button>
+                    </Stack>
+                )}
+                <SideActionsButtons display="dialog">
+                    <SideActionsButton aria-label="create-new" onClick={onCreateStart}>
+                        <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    </SideActionsButton>
+                </SideActionsButtons>
             </LargeDialog>
         </>
     );

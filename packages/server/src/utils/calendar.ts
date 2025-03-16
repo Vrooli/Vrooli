@@ -1,67 +1,85 @@
-import fs from "fs";
-import ical, { CalendarResponse } from "node-ical";
+import { RequestFile } from "@local/server";
+import { CalendarResponse, DateWithTimeZone } from "node-ical";
 
 /**
  * Parses an iCalendar file.
  * 
- * @param file - The iCalendar file to parse. This should be provided as an Apollo Server `Upload`.
+ * @param file The iCalendar file to parse
  * @returns A promise that resolves to the parsed events in the iCalendar file.
  */
-export const parseICalFile = async (file: Express.Multer.File): Promise<CalendarResponse> => {
-    // Directly parse the file using its path
-    const events = await ical.async.parseFile(file.path);
+export async function parseICalFile(file: RequestFile): Promise<CalendarResponse> {
+    // return new Promise((resolve, reject) => {
+    //     const writeStream = fs.createWriteStream(filePath);
 
-    // After parsing, you might want to remove the uploaded file
-    fs.unlinkSync(file.path);
+    //     file.pipe(writeStream);
 
-    return events;
-};
+    //     writeStream.on("finish", async () => {
+    //         try {
+    //             const events = await ical.async.parseFile(filePath);
+    //             fs.unlinkSync(filePath); // Clean up temporary file
+    //             resolve(events);
+    //         } catch (error) {
+    //             reject(error);
+    //         }
+    //     });
 
-// /**
-//  * Creates an iCalendar event from a schedule.
-//  * 
-//  * @param schedule - The schedule to create the event from.
-//  * @param recurrence - The recurrence related to the schedule.
-//  * @returns A promise that resolves to the iCalendar event.
-//  */
-// export const createICalEvent = (schedule: {
-//     id: string;
-//     startTime: Date;
-//     endTime: Date;
-//     timezone: string;
-// }, recurrence: {
-//     recurrenceType: string;
-//     interval: number;
-//     dayOfWeek: number;
-//     dayOfMonth: number;
-//     month: number;
-//     endDate: Date;
-// }): string => {
-//     // Create an iCal event from the schedule and recurrence
-//     const event: ical.CalendarComponent = {
-//         type: "VEVENT",
-//         uid: schedule.id,
-//         start: new Date(schedule.startTime),
-//         end: new Date(schedule.endTime),
-//         dtstamp: new Date(),
-//         tz: schedule.timezone,
-//         rrule: {
-//             freq: recurrence.recurrenceType,
-//             interval: recurrence.interval,
-//             byday: recurrence.dayOfWeek,
-//             bymonthday: recurrence.dayOfMonth,
-//             bymonth: recurrence.month,
-//             until: new Date(recurrence.endDate),
-//         },
-//     };
+    //     writeStream.on("error", (error) => reject(error));
+    // });
+    //TODO
+    return {} as any;
+}
 
-//     const calendar: ical.CalendarResponse = {
-//         type: "VCALENDAR",
-//         tz: schedule.timezone,
-//         prodid: "-//Your Company//Your Product//EN",
-//         version: "2.0",
-//         components: [event],
-//     } as const;
+/**
+ * Creates an iCalendar event from a schedule.
+ * 
+ * @param schedule - The schedule to create the event from.
+ * @param recurrence - The recurrence related to the schedule.
+ * @returns A string representing the iCalendar event.
+ */
+export function createICalEvent(
+    schedule: {
+        id: string;
+        startTime: Date;
+        endTime: Date;
+        timezone: string;
+    },
+    recurrence?: {
+        recurrenceType: string;
+        interval?: number;
+        dayOfWeek?: number;
+        dayOfMonth?: number;
+        month?: number;
+        endDate?: Date;
+    },
+): CalendarResponse {
+    function convertToDateWithTimeZone(date: Date, tz: string): DateWithTimeZone {
+        return { ...date, tz };
+    }
 
-//     return ical.stringify(calendar);
-// };
+    const event = {
+        type: "VEVENT",
+        uid: schedule.id,
+        start: convertToDateWithTimeZone(schedule.startTime, schedule.timezone),
+        end: convertToDateWithTimeZone(schedule.endTime, schedule.timezone),
+        dtstamp: convertToDateWithTimeZone(new Date(), schedule.timezone),
+        ...(recurrence && {
+            rrule: {
+                freq: recurrence.recurrenceType,
+                interval: recurrence.interval || 1,
+                byday: recurrence.dayOfWeek,
+                bymonthday: recurrence.dayOfMonth,
+                bymonth: recurrence.month,
+                until: recurrence.endDate,
+            },
+        }),
+    } as const;
+
+    const calendar: CalendarResponse = {
+        type: "VCALENDAR",
+        prodid: "-//Your Company//Your Product//EN",
+        version: "2.0",
+        components: [event],
+    } as any;// TODO
+
+    return calendar;
+}

@@ -1,9 +1,9 @@
 import { FormControl, FormControlProps, FormHelperText, IconButton, InputAdornment, InputLabel, LinearProgress, OutlinedInput, useTheme } from "@mui/material";
 import { useField } from "formik";
-import { InvisibleIcon, LockIcon, VisibleIcon } from "icons";
+import { InvisibleIcon, LockIcon, VisibleIcon } from "icons/common.js";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { PasswordTextInputProps } from "../types";
+import { PasswordTextInputProps } from "../types.js";
 
 type PasswordStrengthProps = {
     label: string;

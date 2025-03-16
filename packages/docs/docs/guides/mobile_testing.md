@@ -12,10 +12,10 @@ For a remote server, the URL can either be the IP address and UI port, or domain
 ### Local Server
 For a local server, the URL can be tricky to find. It depends on the type of device you're using for testing.
 
-For an emulator in Android Studio, simply use `10.0.2.2:<UI_PORT>`.
+For an emulator in Android Studio (recommended), simply use `10.0.2.2:<UI_PORT>`.
 
-For a physical device, use the local IP address of your development machine followed by the UI port. There are a few ways to find the local IP address:
-- In Windows (even if you're using WSL), run `ipconfig` in the command line and look for the IPv4 address under the `Wi-Fi` section.
+For a physical device, use the `http://<IP_ADDRESS>:<PORT>`. There are a few ways to find the local IP address:
+- In Windows (even if you're using WSL), run `(Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias "Wi-Fi*").IPAddress` in Command Prompt.
 - TODO I haven't tested other operating systems yet, so please add instructions for other operating systems if you know how to find the local IP address.
 
 ## Using an Emulator (Android Studio)

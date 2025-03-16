@@ -1,13 +1,14 @@
 import { MaxObjects, MemberInviteSortBy, memberInviteValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { getSingleTypePermissions } from "../../validators";
-import { MemberInviteFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { MemberInviteModelInfo, MemberInviteModelLogic, TeamModelLogic, UserModelInfo, UserModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { MemberInviteFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { MemberInviteModelInfo, MemberInviteModelLogic, TeamModelLogic, UserModelInfo, UserModelLogic } from "./types.js";
 
 const __typename = "MemberInvite" as const;
 export const MemberInviteModel: MemberInviteModelLogic = ({
@@ -17,7 +18,7 @@ export const MemberInviteModel: MemberInviteModelLogic = ({
         // Label is the member label
         label: {
             select: () => ({ id: true, user: { select: ModelMap.get<UserModelLogic>("User").display().label.select() } }),
-            get: (select, languages) => ModelMap.get<UserModelLogic>("User").display().label.get(select.user as UserModelInfo["PrismaModel"], languages),
+            get: (select, languages) => ModelMap.get<UserModelLogic>("User").display().label.get(select.user as UserModelInfo["DbModel"], languages),
         },
     }),
     format: MemberInviteFormat,
@@ -58,11 +59,11 @@ export const MemberInviteModel: MemberInviteModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<MemberInviteModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<MemberInviteModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -85,7 +86,7 @@ export const MemberInviteModel: MemberInviteModelLogic = ({
             User: data?.user,
         }),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<MemberInviteModelInfo["PrismaSelect"]>([["team", "Team"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<MemberInviteModelInfo["DbSelect"]>([["team", "Team"]], ...rest),
         // Not sure which search methods are needed, so we'll add them as needed
         visibility: {
             own: function getOwn(data) {
@@ -93,7 +94,7 @@ export const MemberInviteModel: MemberInviteModelLogic = ({
                     OR: [
                         { team: useVisibility("Team", "OwnOrPublic", data) },
                         { user: { id: data.userId } },
-                    ]
+                    ],
                 };
             },
             ownOrPublic: null,

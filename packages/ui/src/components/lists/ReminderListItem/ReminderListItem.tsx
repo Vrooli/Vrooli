@@ -1,15 +1,15 @@
 // Used to display popular/search results of a particular object type
-import { endpointPutReminder, Reminder, ReminderUpdateInput, shapeReminder } from "@local/shared";
+import { endpointsReminder, Reminder, ReminderUpdateInput, shapeReminder } from "@local/shared";
 import { Checkbox, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
 import { CompletionBar } from "components/CompletionBar/CompletionBar";
 import { ObjectListItemBase } from "components/lists/ObjectListItemBase/ObjectListItemBase";
-import { ReminderListItemProps } from "components/lists/types";
-import { useObjectActions } from "hooks/objectActions";
-import { useLazyFetch } from "hooks/useLazyFetch";
-import { DeleteIcon, ScheduleIcon } from "icons";
+import { ReminderListItemProps } from "components/lists/types.js";
+import { useObjectActions } from "hooks/objectActions.js";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
+import { DeleteIcon, ScheduleIcon } from "icons/common.js";
 import { useCallback, useMemo } from "react";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 
 //  // Internal state
 //  const [allReminders, setAllReminders] = useState<Reminder[]>(reminders);
@@ -66,7 +66,7 @@ export function ReminderListItem({
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
-    const [updateMutation, { errors: updateErrors }] = useLazyFetch<ReminderUpdateInput, Reminder>(endpointPutReminder);
+    const [updateMutation, { errors: updateErrors }] = useLazyFetch<ReminderUpdateInput, Reminder>(endpointsReminder.updateOne);
 
     // State of the checkbox
     const { checked, checkDisabled, checkTooltip } = useMemo(() => {

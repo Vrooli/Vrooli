@@ -1,7 +1,7 @@
 import { useMemo } from "react";
-import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase";
-import { RoleList } from "../RoleList/RoleList";
-import { MemberListItemProps } from "../types";
+import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
+import { RoleList } from "../RoleList/RoleList.js";
+import { MemberListItemProps } from "../types.js";
 
 export function MemberListItem({
     data,

@@ -1,7 +1,7 @@
-import { PIXEL_VALUE_REG_EXP } from "../consts";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, NodeConstructorPayloads, NodeType, SerializedTableCellNode, TableCellHeaderState, TableCellHeaderStates } from "../types";
-import { $createNode, $isNode, getParent } from "../utils";
-import { ElementNode } from "./ElementNode";
+import { PIXEL_VALUE_REG_EXP } from "../consts.js";
+import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, NodeConstructorPayloads, NodeType, SerializedTableCellNode, TableCellHeaderState, TableCellHeaderStates } from "../types.js";
+import { $createNode, $isNode, getParent } from "../utils.js";
+import { ElementNode } from "./ElementNode.js";
 
 export class TableCellNode extends ElementNode {
     static __type: NodeType = "TableCell";

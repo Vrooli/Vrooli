@@ -1,11 +1,11 @@
 import { ListObject, getObjectUrl } from "@local/shared";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { DEFAULT_MIN_ROWS } from "utils/consts";
-import { getDisplay } from "utils/display/listTools";
-import { Headers, TextStyleResult, getLineAtIndex, getTextSelection, insertBulletList, insertCheckboxList, insertCode, insertHeader, insertLink, insertNumberList, insertQuote, insertTable, padSelection, replaceText } from "utils/display/stringTools";
-import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown";
-import { TextInput } from "../TextInput/TextInput";
-import { RichInputAction, RichInputMarkdownProps } from "../types";
+import { DEFAULT_MIN_ROWS } from "utils/consts.js";
+import { getDisplay } from "utils/display/listTools.js";
+import { Headers, TextStyleResult, getLineAtIndex, getTextSelection, insertBulletList, insertCheckboxList, insertCode, insertHeader, insertLink, insertNumberList, insertQuote, insertTable, padSelection, replaceText } from "utils/display/stringTools.js";
+import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown.js";
+import { TextInput } from "../TextInput/TextInput.js";
+import { RichInputAction, RichInputMarkdownProps } from "../types.js";
 
 type TextStyle = Extract<RichInputAction, "Bold" | "Code" | "Header1" | "Header2" | "Header3" | "Header4" | "Header5" | "Header6" | "Italic" | "Link" | "ListBullet" | "ListCheckbox" | "ListNumber" | "Quote" | "Spoiler" | "Strikethrough" | "Underline">;
 

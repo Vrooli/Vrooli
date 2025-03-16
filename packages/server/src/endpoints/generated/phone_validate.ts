@@ -1,4 +1,4 @@
 export const phone_validate = {
-  "success": true,
-  "__typename": "Phone"
-} as const;
+    "success": true,
+    "__cacheKey": "1826958523"
+};

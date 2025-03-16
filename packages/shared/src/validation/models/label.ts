@@ -1,5 +1,10 @@
 import * as yup from "yup";
-import { description, hexColor, id, maxStrErr, opt, req, transRel, YupModel, yupObj } from "../utils";
+import { opt, req } from "../utils/builders/optionality.js";
+import { transRel } from "../utils/builders/rel.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { description, hexColor, id } from "../utils/commonFields.js";
+import { maxStrErr } from "../utils/errors.js";
+import { type YupModel } from "../utils/types.js";
 
 const label = yup.string().trim().removeEmptyString().max(128, maxStrErr);
 

@@ -1,10 +1,10 @@
 import { MaxObjects, QuestionAnswerSortBy, getTranslation, questionAnswerValidation } from "@local/shared";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions } from "../../utils";
-import { translationShapeHelper } from "../../utils/shapes";
-import { QuestionAnswerFormat } from "../formats";
-import { QuestionAnswerModelLogic } from "./types";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { QuestionAnswerFormat } from "../formats.js";
+import { QuestionAnswerModelLogic } from "./types.js";
 
 const __typename = "QuestionAnswer" as const;
 export const QuestionAnswerModel: QuestionAnswerModelLogic = ({

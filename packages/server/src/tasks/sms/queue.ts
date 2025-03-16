@@ -1,8 +1,8 @@
 import { BUSINESS_NAME, Success } from "@local/shared";
 import Bull from "bull";
 import winston from "winston";
-import { CustomError } from "../../events/error";
-import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, getProcessPath } from "../queueHelper";
+import { CustomError } from "../../events/error.js";
+import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, getProcessPath } from "../queueHelper.js";
 
 export type SmsProcessPayload = {
     to: string[];
@@ -18,7 +18,7 @@ const FOLDER = "sms";
 export async function setupSmsQueue() {
     try {
         logger = (await import(LOGGER_PATH)).logger;
-        const REDIS_URL = (await import(REDIS_CONN_PATH)).REDIS_URL;
+        const REDIS_URL = (await import(REDIS_CONN_PATH)).getRedisUrl();
         smsProcess = (await import(getProcessPath(FOLDER))).smsProcess;
 
         // Initialize the Bull queue

@@ -1,6 +1,8 @@
-import { InputType, TagShape, TimeFrame } from "@local/shared";
-import { SearchPageTabOption } from "../consts/search";
-import { CodeLanguage } from "../consts/ui";
+import { TimeFrame } from "../api/types.js";
+import { InputType } from "../consts/model.js";
+import { SearchPageTabOption } from "../consts/search.js";
+import { CodeLanguage } from "../consts/ui.js";
+import { TagShape } from "../shape/models/models.js";
 
 /**
  * Non-input form elements
@@ -128,6 +130,8 @@ export interface FormInputBase extends FormElementBase {
 
 /** Checkbox-specific form input props */
 export interface CheckboxFormInputProps {
+    /** Allow users to input custom values */
+    allowCustomValues?: boolean;
     color?: "primary" | "secondary" | "default";
     /** Array of booleans. One for each option in props */
     defaultValue?: boolean[];
@@ -136,6 +140,8 @@ export interface CheckboxFormInputProps {
         label: string;
         value: string;
     }[];
+    /** Maximum number of custom values allowed */
+    maxCustomValues?: number;
     /**
      * The maximum number of checkboxes that can be selected. 
      * If 0 or not set, there is no limit.
@@ -186,7 +192,7 @@ export type DropzoneFormInputProps = {
 /** Type-props pair for Dropzone input components */
 export type DropzoneFormInput = FormInputBase & {
     /** The type of the field */
-    type: InputType.Checkbox;
+    type: InputType.Dropzone;
     /** Type-specific props */
     props: DropzoneFormInputProps;
 }
@@ -328,7 +334,7 @@ export type SelectorFormInputProps<T extends SelectorFormInputOption> = {
     inputAriaLabel?: string;
     isRequired?: boolean,
     label?: string;
-    multiple?: false;
+    multiple?: boolean;
     noneOption?: boolean;
     noneText?: string;
     options: readonly T[];

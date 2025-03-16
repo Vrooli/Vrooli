@@ -1,5 +1,5 @@
 import { TranslationKeyError } from "@local/shared";
-import { CustomError } from "../events/error";
+import { CustomError } from "../events/error.js";
 
 /**
  * Makes sure there are no more than k line breaks in the specified fields

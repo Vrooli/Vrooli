@@ -1,10 +1,10 @@
 import { IconButton, List, ListItem, ListItemIcon, ListItemText, Menu, useTheme } from "@mui/material";
-import { HelpButton } from "components/buttons/HelpButton/HelpButton";
-import { useZIndex } from "hooks/useZIndex";
+import { HelpButton } from "components/buttons/HelpButton/HelpButton.js";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { MenuTitle } from "../MenuTitle/MenuTitle";
-import { ListMenuProps } from "../types";
+import { Z_INDEX } from "utils/consts.js";
+import { MenuTitle } from "../MenuTitle/MenuTitle.js";
+import { ListMenuProps } from "../types.js";
 
 const titleId = "list-menu-title";
 
@@ -20,7 +20,6 @@ const transformOrigin = {
     vertical: "top",
     horizontal: "center",
 } as const;
-const zIndexOffset = 1000;
 
 export function ListMenu<T>({
     id,
@@ -34,7 +33,6 @@ export function ListMenu<T>({
     const { t } = useTranslation();
 
     const open = Boolean(anchorEl);
-    const zIndex = useZIndex(open, false, zIndexOffset);
 
     const items = useMemo(() => data?.map(({
         label,
@@ -105,7 +103,7 @@ export function ListMenu<T>({
             onClose={handleClose}
             tabIndex={-1}
             sx={{
-                zIndex,
+                zIndex: Z_INDEX.Popup,
                 "& .MuiMenu-paper": {
                     background: palette.background.default,
                 },

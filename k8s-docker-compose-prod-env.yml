@@ -191,6 +191,8 @@ spec:
               secretKeyRef:
                 name: POSTGRES_PASSWORD
                 key: POSTGRES_PASSWORD
+          - name: PGPORT
+            value: "5432"
         image: ankane/pgvector:v1.9.7
         livenessProbe:
           exec:
@@ -635,6 +637,11 @@ spec:
                 secretKeyRef:
                   name: JWT_PUB
                   key: JWT_PUB
+            - name: EXTERNAL_SITE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: EXTERNAL_SITE_KEY
+                  key: EXTERNAL_SITE_KEY
             - name: OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:

@@ -1,17 +1,18 @@
-import { GqlModelType, lowercaseFirstLetter } from "@local/shared";
+import { ModelType, lowercaseFirstLetter } from "@local/shared";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
-import { CustomError } from "../../events/error";
-import { logger } from "../../events/logger";
-import { Displayer, Duplicator, Formatter, ModelLogic, Mutater, Searcher, Validator } from "../types";
+import { CustomError } from "../../events/error.js";
+import { logger } from "../../events/logger.js";
+import { Danger, Displayer, Duplicator, Formatter, ModelLogic, Mutater, Searcher, Validator } from "../types.js";
 
 export type GenericModelLogic = ModelLogic<any, any, any>;
-type ObjectMap = { [key in GqlModelType]: GenericModelLogic | Record<string, never> };
-type LogicProps = "dbTable" | "dbTranslationTable" | "display" | "duplicate" | "format" | "idField" | "mutate" | "search" | "validate";
+type ObjectMap = { [key in ModelType]: GenericModelLogic | Record<string, never> };
+type LogicProps = "danger" | "dbTable" | "dbTranslationTable" | "display" | "duplicate" | "format" | "idField" | "mutate" | "search" | "validate";
 type GetLogicReturn<
     Logic extends LogicProps,
 > = {
+    danger: "danger" extends Logic ? Danger : never,
     dbTable: "dbTable" extends Logic ? string : never,
     dbTranslationTable: "dbTranslationTable" extends Logic ? string : never,
     display: "display" extends Logic ? Displayer<any> : never,
@@ -50,7 +51,7 @@ export class ModelMap {
     private constructor() { }
 
     private async initializeMap() {
-        const modelNames = Object.keys(GqlModelType) as (keyof typeof ModelMap.prototype.map)[];
+        const modelNames = Object.keys(ModelType) as (keyof typeof ModelMap.prototype.map)[];
         const dirname = path.dirname(fileURLToPath(import.meta.url));
 
         // Create a promise for each model import and process them in parallel
@@ -76,6 +77,7 @@ export class ModelMap {
                 }
             } catch (error) {
                 this.map[modelName] = {};
+                console.log(`qqqq Failed to load model ${modelName}Model at ${modelPath}. There is likely a circular dependency. Try changing all imports to be relative`, error);
                 logger.warning(`Failed to load model ${modelName}Model at ${modelPath}. There is likely a circular dependency. Try changing all imports to be relative`, { trace: "0202", error });
             }
         });
@@ -84,7 +86,7 @@ export class ModelMap {
         await Promise.all(importPromises);
     }
 
-    public static isModel(objectType: GqlModelType | `${GqlModelType}`): boolean {
+    public static isModel(objectType: ModelType | `${ModelType}`): boolean {
         if (!ModelMap.instance) {
             const caller = getCallerFunctionName();
             throw new Error(`ModelMap was never initialized by caller ${caller}`);
@@ -97,7 +99,7 @@ export class ModelMap {
         T extends GenericModelLogic,
         ThrowError extends boolean = true,
     >(
-        objectType: GqlModelType | `${GqlModelType}` | undefined,
+        objectType: ModelType | `${ModelType}` | undefined,
         throwErrorIfNotFound: ThrowError = true as ThrowError,
         errorTrace?: string,
     ): ThrowError extends true ? T : (T | undefined) {
@@ -112,6 +114,7 @@ export class ModelMap {
         const isModelObject = this.isModel(objectType);
         if (!isModelObject && throwErrorIfNotFound) {
             const caller = errorTrace ?? getCallerFunctionName();
+            console.error(`qqqq ModelMap.get: ${objectType} is not a model object`, ModelMap.instance);
             throw new CustomError("0024", "InternalError", { caller, objectType });
         }
         return (isModelObject ? ModelMap.instance.map[objectType] : undefined) as ThrowError extends true ? T : (T | undefined);
@@ -122,7 +125,7 @@ export class ModelMap {
         ThrowError extends boolean = true,
     >(
         props: Logic,
-        objectType: `${GqlModelType}`,
+        objectType: `${ModelType}`,
         throwErrorIfNotFound: ThrowError = true as ThrowError,
         errorTrace?: string,
     ): ThrowError extends true ? GetLogicReturn<Logic[number]> : Undefinable<GetLogicReturn<Logic[number]>> {

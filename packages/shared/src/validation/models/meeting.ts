@@ -1,6 +1,10 @@
-import { bool, description, id, name, opt, req, transRel, url, YupModel, yupObj } from "../utils";
-import { meetingInviteValidation } from "./meetingInvite";
-import { scheduleValidation } from "./schedule";
+import { opt, req } from "../utils/builders/optionality.js";
+import { transRel } from "../utils/builders/rel.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { bool, description, id, name, url } from "../utils/commonFields.js";
+import { type YupModel } from "../utils/types.js";
+import { meetingInviteValidation } from "./meetingInvite.js";
+import { scheduleValidation } from "./schedule.js";
 
 export const meetingTranslationValidation: YupModel<["create", "update"]> = transRel({
     create: (d) => ({

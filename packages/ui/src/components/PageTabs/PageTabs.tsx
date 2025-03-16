@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { Box, BoxProps, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { PageTabsProps } from "components/types";
-import { useWindowSize } from "hooks/useWindowSize";
+import { useWindowSize } from "hooks/useWindowSize.js";
 import { createRef, memo, useCallback, useEffect, useMemo, useRef } from "react";
-import { TabStateColors, TabsInfo } from "utils/search/objectToSearch";
+import { TabListType, TabStateColors } from "utils/search/objectToSearch";
 
 const DRAG_END_DELAY_MS = 50;
 const RESIZE_UPDATE_UNDERLINE_DELAY_MS = 100;
@@ -109,7 +109,7 @@ const TabItem = memo(function TabItem({
     );
 });
 
-export function PageTabs<TabList extends TabsInfo>({
+export function PageTabs<TabList extends TabListType = TabListType>({
     ariaLabel,
     currTab,
     fullWidth = false,

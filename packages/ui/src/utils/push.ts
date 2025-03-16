@@ -1,9 +1,9 @@
-import { endpointPostPushDevice, PushDevice, PushDeviceCreateInput } from "@local/shared";
-import { fetchData } from "api/fetchData";
-import { ServerResponseParser } from "api/responseParser";
+import { endpointsPushDevice, PushDevice, PushDeviceCreateInput } from "@local/shared";
+import { fetchData } from "api/fetchData.js";
+import { ServerResponseParser } from "api/responseParser.js";
 import { requestNotificationPermission, subscribeUserToPush } from "serviceWorkerRegistration";
-import { getDeviceInfo } from "./display/device";
-import { PubSub } from "./pubsub";
+import { getDeviceInfo } from "./display/device.js";
+import { PubSub } from "./pubsub.js";
 
 /**
  * Sets up push notifications for the user
@@ -42,7 +42,7 @@ export async function setupPush(showErrorWhenNotSupported = true): Promise<PushD
         // Call pushDeviceCreate
         try {
             const response = await fetchData<PushDeviceCreateInput, PushDevice>({
-                ...endpointPostPushDevice,
+                ...endpointsPushDevice.createOne,
                 inputs: {
                     endpoint: subscription.endpoint,
                     expires: subscription.expirationTime ?? undefined,

@@ -1,8 +1,8 @@
-import { CopyHelperProps } from "./types";
+import { CopyHelperProps } from "./types.js";
 
 /**
  * Helper function for forking an object in a single line
- * @returns GraphQL Success response object
+ * @returns API endpoint Success response object
  */
 export async function copyHelper({
     info,

@@ -1,4 +1,4 @@
-import { SessionUser, TaskStatus } from "@local/shared";
+import { CodeLanguage, SessionUser, TaskStatus } from "@local/shared";
 
 export type SandboxProcessPayload = {
     __process: "Sandbox";
@@ -29,38 +29,44 @@ export type RunUserCodeInput = Pick<SandboxProcessPayload, "input" | "shouldSpre
     /**
      * The user code to be executed. Will be run in a secure sandboxed environment, 
      * with no access to the file system or network.
+     * 
+     * NOTE: To preserve escape characters, use a String.raw template literal.
+     * Example: `String.raw`function test() { return "Hello, world!"; }`,
      */
     code: string;
+    /**
+     * The language of the user code.
+     * 
+     * Any language not supported by the sandbox (which will probably only be JavaScript for a long time) will be rejected.
+     */
+    codeLanguage: CodeLanguage;
 }
 
-export type WorkerThreadInput = Omit<RunUserCodeInput, "input"> & {
+export type SandboxWorkerInput = Omit<RunUserCodeInput, "input"> & {
     input: string;
 }
 
-export type WorkerThreadMessageError = {
+export type SandboxWorkerMessageError = {
     __type: "error";
     error: string;
 }
-export type WorkerThreadMessageLog = {
+export type SandboxWorkerMessageLog = {
     __type: "log";
     log: string;
 }
-export type WorkerThreadMessageOutput = {
-    __type: "output";
-    output: unknown;
+export type SandboxWorkerMessageHeartbeat = {
+    __type: "heartbeat";
 }
-export type WorkerThreadMessageReady = {
+export type SandboxWorkerMessageOutput = {
+    __type: "output";
+    output: string;
+}
+export type SandboxWorkerMessageReady = {
     __type: "ready";
 }
-export type WorkerThreadOutput = WorkerThreadMessageError | WorkerThreadMessageLog | WorkerThreadMessageOutput | WorkerThreadMessageReady;
-
-export interface RunUserCodeOutput {
-    /**
-     * The error message if an error occurred during execution, or undefined if successful.
-     */
+export type SandboxWorkerMessage = SandboxWorkerMessageError | SandboxWorkerMessageLog | SandboxWorkerMessageHeartbeat | SandboxWorkerMessageOutput | SandboxWorkerMessageReady;
+export type RunUserCodeOutput = {
+    __type: "error" | "output";
     error?: string;
-    /**
-     * The output of the user code execution, or undefined if an error occurred or no output was provided.
-     */
     output?: unknown;
 }

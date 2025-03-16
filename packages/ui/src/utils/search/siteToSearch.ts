@@ -2,7 +2,7 @@ import { Session, TranslationKeyCommon } from "@local/shared";
 import { FilterOptionsState } from "@mui/material";
 import i18next from "i18next";
 import { SvgComponent } from "types";
-import { getSiteLanguage } from "utils/authentication/session";
+import { getSiteLanguage } from "utils/authentication/session.js";
 import { normalizeText, removeEmojis, removePunctuation } from "utils/display/documentTools";
 
 /**
@@ -58,7 +58,7 @@ export interface SearchItem {
  * @param text The text to shape.
  * @returns The shaped text.
  */
-export const shapeSearchText = (text: string) => {
+export function shapeSearchText(text: string) {
     if (!text) {
         console.warn("No text provided to shapeSearchText");
         return "";
@@ -74,14 +74,14 @@ export const shapeSearchText = (text: string) => {
     // Lowercase
     shaped = shaped.toLowerCase();
     return shaped;
-};
+}
 
 /**
  * Converts a list of PreSearchItems into a list of SearchItems.
  * @param items The list of PreSearchItems to convert.
  * @param session The current session.
  */
-export const translateSearchItems = (items: PreSearchItem[], session: Session | null | undefined): SearchItem[] => {
+export function translateSearchItems(items: PreSearchItem[], session: Session | null | undefined): SearchItem[] {
     const lng = getSiteLanguage(session);
     return items.map(item => {
         const label = i18next.t(`common:${item.label}`, { ...(item.labelArgs ?? {}), lng });
@@ -106,7 +106,7 @@ export const translateSearchItems = (items: PreSearchItem[], session: Session | 
             value: item.value,
         };
     });
-};
+}
 
 /**
  * Finds matches for the given search term in the given list of search items
@@ -114,7 +114,7 @@ export const translateSearchItems = (items: PreSearchItem[], session: Session | 
  * @param state The state of the autocomplete search bar
  * @returns A list of matches.
  */
-export const findSearchResults = (items: SearchItem[], { inputValue }: FilterOptionsState<SearchItem>): SearchItem[] => {
+export function findSearchResults(items: SearchItem[], { inputValue }: FilterOptionsState<SearchItem>): SearchItem[] {
     // Shape the search term
     const shapedTerm = shapeSearchText(inputValue);
     // Filter out items which don't contain the shaped search term in their keywords
@@ -139,4 +139,4 @@ export const findSearchResults = (items: SearchItem[], { inputValue }: FilterOpt
             }
         }
     });
-};
+}

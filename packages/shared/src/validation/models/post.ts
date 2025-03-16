@@ -1,6 +1,9 @@
-import { bool, id, opt, req, YupModel, yupObj } from "../utils";
-import { resourceListValidation } from "./resourceList";
-import { tagValidation } from "./tag";
+import { opt, req } from "../utils/builders/optionality.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { bool, id } from "../utils/commonFields.js";
+import { type YupModel } from "../utils/types.js";
+import { resourceListValidation } from "./resourceList.js";
+import { tagValidation } from "./tag.js";
 
 export const postValidation: YupModel<["create", "update"]> = {
     create: (d) => yupObj({

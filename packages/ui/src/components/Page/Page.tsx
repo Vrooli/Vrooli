@@ -1,13 +1,13 @@
 import { LINKS, UrlTools } from "@local/shared";
 import { Box, BoxProps, styled, useTheme } from "@mui/material";
-import { SessionContext } from "contexts";
-import { useElementDimensions } from "hooks/useDimensions";
-import { useWindowSize } from "hooks/useWindowSize";
 import { useContext, useEffect, useMemo } from "react";
-import { Redirect, useLocation } from "route";
-import { bottomNavHeight, pagePaddingBottom } from "styles";
-import { PageProps, SxType } from "types";
-import { PubSub } from "utils/pubsub";
+import { SessionContext } from "../../contexts.js";
+import { useElementDimensions } from "../../hooks/useDimensions.js";
+import { useWindowSize } from "../../hooks/useWindowSize.js";
+import { Redirect, useLocation } from "../../route/router.js";
+import { bottomNavHeight, pagePaddingBottom } from "../../styles.js";
+import { PageProps, SxType } from "../../types.js";
+import { PubSub } from "../../utils/pubsub.js";
 
 /**
  * Sets up CSS variables that can be shared across components.
@@ -139,6 +139,7 @@ export function Page({
             </PageContainer>);
         }
         if (sessionChecked && pathname !== LINKS.Signup) {
+            console.log("Redirecting to signup page...", sessionChecked, pathname, mustBeLoggedIn, session);
             PubSub.get().publish("snack", { messageKey: "PageRestricted", severity: "Error" });
             return <Redirect to={UrlTools.linkWithSearchParams(LINKS.Signup, { redirect: pathname })} />;
         }

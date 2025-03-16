@@ -1,9 +1,10 @@
 import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
-import { usePopover } from "hooks/usePopover";
-import { AddIcon, BranchIcon, DeleteIcon, EditIcon } from "icons";
+import { usePopover } from "hooks/usePopover.js";
+import { AddIcon, DeleteIcon, EditIcon } from "icons/common.js";
+import { BranchIcon } from "icons/routineGraph.js";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ELEMENT_IDS } from "utils/consts";
-import { Graph, LinkOperation, NodeLink } from "views/objects/routine/RoutineMultiStepCrud/RoutineMultiStepCrud";
+import { ELEMENT_IDS } from "utils/consts.js";
+import { Graph, LinkOperation, NodeLink } from "views/objects/routine/RoutineMultiStepCrud.js";
 
 type Point = {
     x: number;

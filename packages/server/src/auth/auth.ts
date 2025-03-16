@@ -3,16 +3,18 @@ import cookie from "cookie";
 import { NextFunction, Request, Response } from "express";
 import { type JwtPayload } from "jsonwebtoken";
 import { Socket } from "socket.io";
+// eslint-disable-next-line import/extensions
 import { ExtendedError } from "socket.io/dist/namespace";
+// eslint-disable-next-line import/extensions
 import { DefaultEventsMap } from "socket.io/dist/typed-events";
-import { prismaInstance } from "../db/instance";
-import { CustomError } from "../events/error";
-import { logger } from "../events/logger";
-import { ApiToken, RecursivePartial, SessionData, SessionToken } from "../types";
-import { ResponseService } from "../utils/response";
-import { JsonWebToken, REFRESH_TOKEN_EXPIRATION_MS } from "./jwt";
-import { RequestService } from "./request";
-import { SessionService } from "./session";
+import { DbProvider } from "../db/provider.js";
+import { CustomError } from "../events/error.js";
+import { logger } from "../events/logger.js";
+import { ApiToken, RecursivePartial, SessionData, SessionToken } from "../types.js";
+import { ResponseService } from "../utils/response.js";
+import { JsonWebToken, REFRESH_TOKEN_EXPIRATION_MS } from "./jwt.js";
+import { RequestService } from "./request.js";
+import { SessionService } from "./session.js";
 
 type AuthenticateTokenConfig = {
     /**
@@ -74,7 +76,7 @@ export class AuthTokensService {
             return false;
         }
         // Fetch session from database
-        const storedSession = await prismaInstance.session.findUnique({
+        const storedSession = await DbProvider.get().session.findUnique({
             where: { id: sessionId },
             select: {
                 expires_at: true,
@@ -266,7 +268,7 @@ export class AuthService {
         if (!req.session.fromSafeOrigin) {
             const trace = "0451";
             logger.error("Error authenticating request", { trace });
-            return ResponseService.sendError(res, { trace, code: "UnsafeOrigin" }, HttpStatus.Unauthorized);
+            return ResponseService.sendError(res, { trace, code: "UnsafeOrigin" }, HttpStatus.Forbidden);
         }
         try {
             // Authenticate token if it exists

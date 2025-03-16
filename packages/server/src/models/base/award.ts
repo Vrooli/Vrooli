@@ -1,10 +1,10 @@
 import { AwardSortBy, DEFAULT_LANGUAGE, MaxObjects, TranslationKeyAward, awardNames } from "@local/shared";
 import i18next from "i18next";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions } from "../../utils";
-import { AwardFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { AwardModelLogic } from "./types";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { AwardFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { AwardModelLogic } from "./types.js";
 
 const __typename = "Award" as const;
 export const AwardModel: AwardModelLogic = ({
@@ -32,8 +32,8 @@ export const AwardModel: AwardModelLogic = ({
         searchStringQuery: () => ({}),
         supplemental: {
             dbFields: ["category", "progress"],
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, objects, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, objects, userData }) => {
                 // Find name and description of highest tier achieved
                 const titles: (string | null)[] = [];
                 const descriptions: (string | null)[] = [];

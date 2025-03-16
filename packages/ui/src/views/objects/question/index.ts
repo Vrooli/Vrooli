@@ -1,3 +1,3 @@
-export * from "./QuestionUpsert/QuestionUpsert";
-export * from "./QuestionView/QuestionView";
+export * from "./QuestionUpsert.js";
+export * from "./QuestionView.js";
 

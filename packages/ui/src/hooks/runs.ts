@@ -1,9 +1,9 @@
-import { DUMMY_ID, RunProject, RunProjectCreateInput, RunProjectUpdateInput, RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput, RunStatus, RunTaskInfo, RunnableProjectVersion, RunnableRoutineVersion, StartRunTaskInput, Success, TaskStatus, endpointPostRunProject, endpointPostRunRoutine, endpointPostStartRunTask, endpointPutRunProject, endpointPutRunRoutine, uuid, uuidValidate } from "@local/shared";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { SocketService } from "api/socket";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { PubSub } from "utils/pubsub";
-import { useLazyFetch } from "./useLazyFetch";
+import { DUMMY_ID, RunProject, RunProjectCreateInput, RunProjectUpdateInput, RunRoutine, RunRoutineCreateInput, RunRoutineUpdateInput, RunStatus, RunTaskInfo, endpointsRunProject, endpointsRunRoutine, uuid, uuidValidate } from "@local/shared";
+import { fetchLazyWrapper } from "api/fetchWrapper.js";
+import { SocketService } from "api/socket.js";
+import { useCallback, useEffect, useRef } from "react";
+import { PubSub } from "utils/pubsub.js";
+import { useLazyFetch } from "./useLazyFetch.js";
 
 type CreateRunRoutineProps = Partial<RunRoutineCreateInput> & {
     objectId: string;
@@ -16,8 +16,8 @@ type UpdateRunRoutineProps = RunRoutineUpdateInput & {
 }
 
 export function useUpsertRunRoutine() {
-    const [createRunRoutine, { loading: isCreatingRunRoutine }] = useLazyFetch<RunRoutineCreateInput, RunRoutine>(endpointPostRunRoutine);
-    const [updateRunRoutine, { loading: isUpdatingRunRoutine }] = useLazyFetch<RunRoutineUpdateInput, RunRoutine>(endpointPutRunRoutine);
+    const [createRunRoutine, { loading: isCreatingRunRoutine }] = useLazyFetch<RunRoutineCreateInput, RunRoutine>(endpointsRunRoutine.createOne);
+    const [updateRunRoutine, { loading: isUpdatingRunRoutine }] = useLazyFetch<RunRoutineUpdateInput, RunRoutine>(endpointsRunRoutine.updateOne);
 
     const createRun = useCallback(function createRunCallback({
         objectId,
@@ -77,8 +77,8 @@ type UpdateRunProjectProps = RunProjectUpdateInput & {
 }
 
 export function useUpsertRunProject() {
-    const [createRunProject, { loading: isCreatingRunProject }] = useLazyFetch<RunProjectCreateInput, RunProject>(endpointPostRunProject);
-    const [updateRunProject, { loading: isUpdatingRunProject }] = useLazyFetch<RunProjectUpdateInput, RunProject>(endpointPutRunProject);
+    const [createRunProject, { loading: isCreatingRunProject }] = useLazyFetch<RunProjectCreateInput, RunProject>(endpointsRunProject.createOne);
+    const [updateRunProject, { loading: isUpdatingRunProject }] = useLazyFetch<RunProjectUpdateInput, RunProject>(endpointsRunProject.updateOne);
 
     const createRun = useCallback(function createRunCallback({
         objectId,
@@ -128,96 +128,69 @@ export function useUpsertRunProject() {
 }
 
 type UseSocketRunProps = {
-    getFormValues: () => (object | undefined);
-    handleRunUpdate: (run: RunProject | RunRoutine) => unknown;
-    run: RunProject | RunRoutine | null | undefined;
-    runnableObject: RunnableProjectVersion | RunnableRoutineVersion | null | undefined;
+    applyRunUpdate: (callback: (existingRun: RunProject | RunRoutine | null) => RunProject | RunRoutine | null) => void;
+    runId: string | undefined;
+    runType: "RunProject" | "RunRoutine" | undefined;
 }
 
 export function processRunTaskUpdate(
-    handleTaskInfoUpdate: (taskInfo: RunTaskInfo) => unknown,
-    handleRunUpdate: (run: RunProject | RunRoutine) => unknown,
+    applyRunUpdate: UseSocketRunProps["applyRunUpdate"],
     payload: RunTaskInfo,
 ) {
-    if (payload.status === TaskStatus.Failed) {
+    // Display errors
+    if (payload.runStatus === RunStatus.Failed) {
+        // Can use payload.runStatusChangeReason if you want to display a specific error message (just make sure there's a translation key for it)
         PubSub.get().publish("snack", { messageKey: "ActionFailed", severity: "Error" });
     }
-    // Update the task info
-    handleTaskInfoUpdate(payload);
-    // Update the run if needed
-    if (payload.run) {
-        handleRunUpdate(payload.run);
-    }
+    // Update run with new information
+    applyRunUpdate((existingRun) => {
+        if (!existingRun || existingRun.id !== payload.runId) return existingRun;
+        if (payload.activeNodes) {
+            //...
+        }
+        if (payload.inputsCreated) {
+            //...
+        }
+        if (payload.outputsCreated) {
+            //...
+        }
+        if (payload.percentComplete) {
+            //...
+        }
+        return existingRun;
+    });
 }
 
 export function useSocketRun({
-    getFormValues,
-    handleRunUpdate,
-    run,
-    runnableObject,
+    applyRunUpdate,
+    runId,
+    runType,
 }: UseSocketRunProps) {
 
     // Handle connection/disconnection
     const prevRunId = useRef<string | undefined>(undefined);
     useEffect(function connectToRunEffect() {
-        if (!run?.id || run.id === DUMMY_ID) return;
-        if (prevRunId.current === run.id) return;
-        prevRunId.current = run.id;
+        // Make sure we have sufficient data to connect to the run room
+        if (!runId || runId === DUMMY_ID || !runType) return;
+        // Prevent reconnection if the run ID hasn't changed
+        if (prevRunId.current === runId) return;
+        prevRunId.current = runId;
 
-        SocketService.get().emitEvent("joinRunRoom", { runId: run.id, runType: run.__typename }, (response) => {
+        SocketService.get().emitEvent("joinRunRoom", { runId, runType }, (response) => {
             if (response.error) {
                 PubSub.get().publish("snack", { messageKey: "RunRoomJoinFailed", severity: "Error" });
             }
         });
 
         return () => {
-            SocketService.get().emitEvent("leaveRunRoom", { runId: run.id }, (response) => {
+            SocketService.get().emitEvent("leaveRunRoom", { runId }, (response) => {
                 if (response.error) {
                     console.error("Failed to leave run room", response.error);
                 }
             });
         };
-    }, [run?.id, run?.__typename]);
-
-    // Store refs for parameters to reduce the number of dependencies of socket event handlers. 
-    // This reduces the number of times the socket events are connected/disconnected.
-    const runRef = useRef(run);
-    runRef.current = run;
-    const runnableObjectRef = useRef(runnableObject);
-    runnableObjectRef.current = runnableObject;
-
-    const [subroutineTaskInfo, setSubroutineTaskInfo] = useState<RunTaskInfo | null>(null);
-    const [startTask, { loading: isGeneratingOutputs }] = useLazyFetch<StartRunTaskInput, Success>(endpointPostStartRunTask);
-    // const [cancelTask] = useLazyFetch<CancelTaskInput, Success>(endpointPostCancelTask);
-
-    const handleRunSubroutine = useCallback(function handleGenerateOutputsCallback() {
-        const formValues = getFormValues();
-        if (
-            !runnableObjectRef.current
-            || runnableObjectRef.current.__typename !== "RoutineVersion"
-            || !runRef.current
-            || runRef.current.__typename !== "RunRoutine"
-        ) return;
-        fetchLazyWrapper<StartRunTaskInput, Success>({
-            fetch: startTask,
-            inputs: {
-                formValues,
-                routineVersionId: runnableObjectRef.current.id,
-                runId: runRef.current.id,
-            },
-            spinnerDelay: null, // Disable spinner since this is a background task
-            successCondition: (data) => data && data.success === true,
-            errorMessage: () => ({ messageKey: "ActionFailed" }),
-            // Socket event should update task data on success, so we don't need to do anything here
-        });
-    }, [getFormValues, startTask]);
+    }, [runId, runType]);
 
     // Handle incoming data
-    useEffect(() => SocketService.get().onEvent("runTask", (payload) => processRunTaskUpdate(setSubroutineTaskInfo, handleRunUpdate, payload)), [handleRunUpdate]);
-
-    return {
-        handleRunSubroutine,
-        isGeneratingOutputs,
-        subroutineTaskInfo,
-    };
+    useEffect(() => SocketService.get().onEvent("runTask", (payload) => processRunTaskUpdate(applyRunUpdate, payload)), [applyRunUpdate]);
 }

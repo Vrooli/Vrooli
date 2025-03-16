@@ -381,7 +381,7 @@ export const MaxObjects = {
         User: 5000,
         Team: 50000,
     },
-    RunRoutineInput: 100000,
+    RunRoutineIO: 100000,
     RunRoutineStep: 100000,
     Schedule: {
         User: {

@@ -7,14 +7,14 @@
  * @param version Version string
  * @returns Major, moderate, and minor versions
  */
-export const calculateVersionsFromString = (version: string): { major: number, moderate: number, minor: number } => {
+export function calculateVersionsFromString(version: string): { major: number, moderate: number, minor: number } {
     const [major, moderate, minor] = version.split(".").map(v => parseInt(v));
     return {
         major: major || 0,
         moderate: moderate || 0,
         minor: minor || 0,
     };
-};
+}
 
 /**
 * Determines mimimum version. This is either: 
@@ -24,7 +24,7 @@ export const calculateVersionsFromString = (version: string): { major: number, m
 * @param versions The list of versions
 * @returns The minimum version
 */
-export const getMinVersion = (versions: string[]): string => {
+export function getMinVersion(versions: string[]): string {
     // If no versions, return 0.0.1
     if (versions.length === 0) return "0.0.1";
     // Sort using meetsMinVersion, which determines if a version is greater than or equal to another version
@@ -32,7 +32,7 @@ export const getMinVersion = (versions: string[]): string => {
     // Get the highest version
     const highestVersion = versions[versions.length - 1];
     return highestVersion ?? "0.0.1";
-};
+}
 
 /**
  * Determines if a version is greater than or equal to the minimum version
@@ -40,7 +40,7 @@ export const getMinVersion = (versions: string[]): string => {
  * @param minimumVersion Minimum version string
  * @returns True if version is greater than or equal to minimum version
  */
-export const meetsMinVersion = (version: string, minimumVersion: string): boolean => {
+export function meetsMinVersion(version: string, minimumVersion: string): boolean {
     // Parse versions
     const { major: major1, moderate: moderate1, minor: minor1 } = calculateVersionsFromString(version);
     const { major: major2, moderate: moderate2, minor: minor2 } = calculateVersionsFromString(minimumVersion);
@@ -52,4 +52,4 @@ export const meetsMinVersion = (version: string, minimumVersion: string): boolea
     if (major1 === major2 && moderate1 === moderate2 && minor1 < minor2) return false;
     // Otherwise, return true
     return true;
-};
+}

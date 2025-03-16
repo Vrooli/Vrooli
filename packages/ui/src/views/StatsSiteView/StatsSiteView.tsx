@@ -1,19 +1,19 @@
-import { DAYS_1_MS, endpointGetStatsSite, MONTHS_1_MS, StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult, WEEKS_1_MS, YEARS_1_MS } from "@local/shared";
+import { DAYS_1_MS, endpointsStatsSite, MONTHS_1_MS, StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult, WEEKS_1_MS, YEARS_1_MS } from "@local/shared";
 import { Card, CardContent, Typography, useTheme } from "@mui/material";
-import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse.js";
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { DateRangeMenu } from "components/lists/DateRangeMenu/DateRangeMenu";
 import { LineGraphCard } from "components/lists/LineGraphCard/LineGraphCard";
-import { TopBar } from "components/navigation/TopBar/TopBar";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
 import { PageTabs } from "components/PageTabs/PageTabs";
-import { useLazyFetch } from "hooks/useLazyFetch";
+import { useLazyFetch } from "hooks/useLazyFetch.js";
 import { PageTab, useTabs } from "hooks/useTabs";
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { statsDisplay } from "utils/display/statsDisplay";
 import { displayDate } from "utils/display/stringTools";
-import { TabParam } from "utils/search/objectToSearch";
-import { StatsSiteViewProps } from "../types";
+import { TabParamBase } from "utils/search/objectToSearch";
+import { StatsSiteViewProps } from "../types.js";
 
 /**
  * Stats page tabs. While stats data is stored using PeriodType 
@@ -59,29 +59,30 @@ type StatsSiteTabsInfo = {
     WhereParams: undefined;
 };
 
-export const statsSiteTabParams: TabParam<StatsSiteTabsInfo>[] = [
+export const statsSiteTabParams: TabParamBase<StatsSiteTabsInfo>[] = [
     {
-        key: "Daily",
+        key: StatsTabOption.Daily,
         titleKey: "Daily",
     }, {
-        key: "Weekly",
+        key: StatsTabOption.Weekly,
         titleKey: "Weekly",
     },
     {
-        key: "Monthly",
+        key: StatsTabOption.Monthly,
         titleKey: "Monthly",
     },
     {
-        key: "Yearly",
+        key: StatsTabOption.Yearly,
         titleKey: "Yearly",
     },
     {
-        key: "AllTime",
+        key: StatsTabOption.AllTime,
         titleKey: "AllTime",
     },
 ];
 
 // Stats should not be earlier than February 2023.
+// eslint-disable-next-line no-magic-numbers
 const MIN_DATE = new Date(2023, 1, 1);
 
 /**
@@ -96,15 +97,17 @@ export function StatsSiteView({
 
     // Period time frame. Defaults to past 24 hours.
     const [period, setPeriod] = useState<{ after: Date, before: Date }>({
-        after: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        after: new Date(Date.now() - DAYS_1_MS),
         before: new Date(),
     });
     // Menu for picking date range.
-    const [dateRangeAnchorEl, setCustomRangeAnchorEl] = useState<HTMLElement | null>(null);
-    const handleDateRangeOpen = (event: any) => setCustomRangeAnchorEl(event.currentTarget);
-    const handleDateRangeClose = () => {
+    const [dateRangeAnchorEl, setCustomRangeAnchorEl] = useState<Element | null>(null);
+    function handleDateRangeOpen(event: any) {
+        setCustomRangeAnchorEl(event.currentTarget);
+    }
+    function handleDateRangeClose() {
         setCustomRangeAnchorEl(null);
-    };
+    }
     const handleDateRangeSubmit = useCallback((newAfter?: Date | undefined, newBefore?: Date | undefined) => {
         setPeriod({
             after: newAfter || period.after,
@@ -114,7 +117,7 @@ export function StatsSiteView({
     }, [period.after, period.before]);
 
     const { currTab, setCurrTab, tabs } = useTabs({ id: "stats-site-tabs", tabParams: statsSiteTabParams, display });
-    const handleTabChange = useCallback((_event: ChangeEvent<unknown>, tab: PageTab<StatsSiteTabsInfo>) => {
+    const handleTabChange = useCallback((_event: ChangeEvent<unknown>, tab: PageTab<TabParamBase<StatsSiteTabsInfo>>) => {
         setCurrTab(tab);
         // Reset date range based on tab selection.
         const period = tabPeriods[tab.key];
@@ -125,7 +128,7 @@ export function StatsSiteView({
 
     // Handle querying stats data.
     const [getStats, { data: statsData, loading }] = useLazyFetch<StatsSiteSearchInput, StatsSiteSearchResult>({
-        ...endpointGetStatsSite,
+        ...endpointsStatsSite.findMany,
         inputs: {
             periodType: tabPeriodTypes[currTab.key] as StatPeriodType,
             periodTimeFrame: {

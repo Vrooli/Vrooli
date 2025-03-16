@@ -1,5 +1,5 @@
 import { RunRoutine, RunRoutineShape } from "@local/shared";
-import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps } from "../../../types";
+import { CrudPropsDialog, CrudPropsPage, FormProps, ObjectViewProps } from "../../../types.js";
 
 type RunRoutineUpsertPropsPage = CrudPropsPage;
 type RunRoutineUpsertPropsDialog = CrudPropsDialog<RunRoutine>;

@@ -1,23 +1,23 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { $insertDataTransferForRichText, copyToClipboard } from "./clipboard";
-import { CUT_COMMAND, PASTE_COMMAND } from "./commands";
-import { CAN_USE_DOM, COMPOSITION_SUFFIX, DOM_TEXT_TYPE, HAS_DIRTY_NODES, IGNORE_TAGS, IS_APPLE, IS_APPLE_WEBKIT, IS_FIREFOX, IS_IOS, IS_SAFARI } from "./consts";
-import { type EditorState, type LexicalEditor } from "./editor";
-import { LexicalNodes } from "./nodes";
-import { type DecoratorNode } from "./nodes/DecoratorNode";
-import { type ElementNode } from "./nodes/ElementNode";
-import { type LexicalNode } from "./nodes/LexicalNode";
-import { type LineBreakNode } from "./nodes/LineBreakNode";
-import { type ListItemNode } from "./nodes/ListItemNode";
-import { type ListNode } from "./nodes/ListNode";
-import { type ParagraphNode } from "./nodes/ParagraphNode";
-import { type RootNode } from "./nodes/RootNode";
-import { type TableCellNode } from "./nodes/TableCellNode";
-import { type TableNode } from "./nodes/TableNode";
-import { type TextNode } from "./nodes/TextNode";
-import { $getCharacterOffsets, $getPreviousSelection, $updateElementSelectionOnCreateDeleteNode, NodeSelection, Point, RangeSelection, moveSelectionPointToSibling } from "./selection";
-import { BaseSelection, CommandPayloadType, CustomDomElement, DOMChildConversion, DOMConversion, DOMConversionFn, DOMConversionOutput, EditorConfig, IntentionallyMarkedAsDirtyElement, LexicalNodeClass, MutatedNodes, NodeConstructorPayloads, NodeConstructors, NodeKey, NodeMap, NodeMutation, ObjectClass, PasteCommandType, PointType, RegisteredNodes, ShadowRootNode, Spread, TableMapType, TableMapValueType } from "./types";
-import { errorOnInfiniteTransforms, errorOnReadOnly, getActiveEditor, getActiveEditorState, isCurrentlyReadOnlyMode, updateEditor } from "./updates";
+import { $insertDataTransferForRichText, copyToClipboard } from "./clipboard.js";
+import { CUT_COMMAND, PASTE_COMMAND } from "./commands.js";
+import { CAN_USE_DOM, COMPOSITION_SUFFIX, DOM_TEXT_TYPE, HAS_DIRTY_NODES, IGNORE_TAGS, IS_APPLE, IS_APPLE_WEBKIT, IS_FIREFOX, IS_IOS, IS_SAFARI } from "./consts.js";
+import { type EditorState, type LexicalEditor } from "./editor.js";
+import { type DecoratorNode } from "./nodes/DecoratorNode.js";
+import { type ElementNode } from "./nodes/ElementNode.js";
+import { type LexicalNode } from "./nodes/LexicalNode.js";
+import { type LineBreakNode } from "./nodes/LineBreakNode.js";
+import { type ListItemNode } from "./nodes/ListItemNode.js";
+import { type ListNode } from "./nodes/ListNode.js";
+import { type ParagraphNode } from "./nodes/ParagraphNode.js";
+import { type RootNode } from "./nodes/RootNode.js";
+import { type TableCellNode } from "./nodes/TableCellNode.js";
+import { type TableNode } from "./nodes/TableNode.js";
+import { type TextNode } from "./nodes/TextNode.js";
+import { LexicalNodes } from "./nodes/index.js";
+import { $getCharacterOffsets, $getPreviousSelection, $updateElementSelectionOnCreateDeleteNode, NodeSelection, Point, RangeSelection, moveSelectionPointToSibling } from "./selection.js";
+import { BaseSelection, CommandPayloadType, CustomDomElement, DOMChildConversion, DOMConversion, DOMConversionFn, DOMConversionOutput, EditorConfig, IntentionallyMarkedAsDirtyElement, LexicalNodeClass, MutatedNodes, NodeConstructorPayloads, NodeConstructors, NodeKey, NodeMap, NodeMutation, ObjectClass, PasteCommandType, PointType, RegisteredNodes, ShadowRootNode, Spread, TableMapType, TableMapValueType } from "./types.js";
+import { errorOnInfiniteTransforms, errorOnReadOnly, getActiveEditor, getActiveEditorState, isCurrentlyReadOnlyMode, updateEditor } from "./updates.js";
 
 export function getWindow(editor: LexicalEditor): Window {
     const windowObj = editor._window;

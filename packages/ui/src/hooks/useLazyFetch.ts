@@ -1,8 +1,8 @@
 import { HttpMethod, ServerResponse } from "@local/shared";
-import { fetchData } from "api/fetchData";
-import { ServerResponseParser } from "api/responseParser";
-import { LazyRequestWithResult, ServerResponseWithTimestamp } from "api/types";
 import { useCallback, useRef, useState } from "react";
+import { fetchData } from "../api/fetchData.js";
+import { ServerResponseParser } from "../api/responseParser.js";
+import { LazyRequestWithResult, ServerResponseWithTimestamp } from "../api/types.js";
 
 type RequestState<TData> = {
     data: TData | undefined;

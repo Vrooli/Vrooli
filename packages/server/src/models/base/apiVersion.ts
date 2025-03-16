@@ -1,14 +1,20 @@
 import { ApiVersionSortBy, apiVersionValidation, getTranslation, MaxObjects } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, getEmbeddableString, oneIsPublic } from "../../utils";
-import { afterMutationsVersion, preShapeVersion, PreShapeVersionResult, translationShapeHelper } from "../../utils/shapes";
-import { getSingleTypePermissions, lineBreaksCheck, versionsCheck } from "../../validators";
-import { ApiVersionFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { ApiModelInfo, ApiModelLogic, ApiVersionModelInfo, ApiVersionModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { afterMutationsVersion } from "../../utils/shapes/afterMutationsVersion.js";
+import { preShapeVersion, type PreShapeVersionResult } from "../../utils/shapes/preShapeVersion.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { lineBreaksCheck } from "../../validators/lineBreaksCheck.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { versionsCheck } from "../../validators/versionsCheck.js";
+import { ApiVersionFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { ModelMap } from "./index.js";
+import { ApiModelInfo, ApiModelLogic, ApiVersionModelInfo, ApiVersionModelLogic } from "./types.js";
 
 type ApiVersionPre = PreShapeVersionResult;
 
@@ -133,11 +139,11 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<ApiVersionModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<ApiVersionModelInfo["ApiPermission"]>(__typename, ids, userData)),
                     },
                 };
             },
@@ -147,10 +153,10 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
         isDeleted: (data) => data.isDeleted || data.root.isDeleted,
         isPublic: (data, ...rest) => data.isPrivate === false &&
             data.isDeleted === false &&
-            oneIsPublic<ApiVersionModelInfo["PrismaSelect"]>([["root", "Api"]], data, ...rest),
+            oneIsPublic<ApiVersionModelInfo["DbSelect"]>([["root", "Api"]], data, ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<ApiModelLogic>("Api").validate().owner(data?.root as ApiModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ApiModelLogic>("Api").validate().owner(data?.root as ApiModelInfo["DbModel"], userId),
         permissionsSelect: () => ({
             id: true,
             isDeleted: true,

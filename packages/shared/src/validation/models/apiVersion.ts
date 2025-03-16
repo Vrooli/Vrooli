@@ -1,7 +1,12 @@
 import * as yup from "yup";
-import { bool, details, id, maxStrErr, minStrErr, name, opt, req, summary, transRel, url, versionLabel, versionNotes, YupModel, yupObj } from "../utils";
-import { apiValidation } from "./api";
-import { resourceListValidation } from "./resourceList";
+import { opt, req } from "../utils/builders/optionality.js";
+import { transRel } from "../utils/builders/rel.js";
+import { yupObj } from "../utils/builders/yupObj.js";
+import { bool, details, id, name, summary, url, versionLabel, versionNotes } from "../utils/commonFields.js";
+import { maxStrErr, minStrErr } from "../utils/errors.js";
+import { type YupModel } from "../utils/types.js";
+import { apiValidation } from "./api.js";
+import { resourceListValidation } from "./resourceList.js";
 
 // eslint-disable-next-line no-magic-numbers
 export const schemaLanguage = yup.string().trim().removeEmptyString().min(1, minStrErr).max(128, maxStrErr);

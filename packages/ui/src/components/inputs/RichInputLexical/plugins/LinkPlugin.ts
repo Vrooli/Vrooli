@@ -1,11 +1,11 @@
 import { useEffect } from "react";
-import { PASTE_COMMAND, TOGGLE_LINK_COMMAND } from "../commands";
-import { COMMAND_PRIORITY_LOW } from "../consts";
-import { useLexicalComposerContext } from "../context";
-import { ElementNode } from "../nodes/ElementNode";
-import { type LinkNode } from "../nodes/LinkNode";
-import { LinkAttributes } from "../types";
-import { $createNode, $getAncestor, $getSelection, $isNode, $isRangeSelection, getParent, getPreviousSibling, mergeRegister, objectKlassEquals } from "../utils";
+import { PASTE_COMMAND, TOGGLE_LINK_COMMAND } from "../commands.js";
+import { COMMAND_PRIORITY_LOW } from "../consts.js";
+import { useLexicalComposerContext } from "../context.js";
+import { ElementNode } from "../nodes/ElementNode.js";
+import { type LinkNode } from "../nodes/LinkNode.js";
+import { LinkAttributes } from "../types.js";
+import { $createNode, $getAncestor, $getSelection, $isNode, $isRangeSelection, getParent, getPreviousSibling, mergeRegister, objectKlassEquals } from "../utils.js";
 
 type Props = {
     validateUrl?: (url: string) => boolean;

@@ -1,17 +1,20 @@
 import * as Serialization from "@emurgo/cardano-serialization-lib-nodejs";
-import { logger } from "../events/logger";
-import { randomString } from "./codes";
-import * as MessageSigning from "./message_signing/rust/pkg/emurgo_message_signing";
+import { logger } from "../events/logger.js";
+import { randomString } from "./codes.js";
+import * as MessageSigning from "./message_signing/rust/pkg/emurgo_message_signing.js";
+
+const DEFAULT_NONCE_LENGTH = 64;
+const MAX_NONCE_LENGTH = 2048;
 
 /**
  * Converts a serialized wallet address to Bech32 format
  * @param address Serialized wallet address
  * @returns Bech32 format of wallet address
  */
-export const serializedAddressToBech32 = (address: string) => {
+export function serializedAddressToBech32(address: string) {
     const addressBytes = Serialization.Address.from_bytes(Buffer.from(address, "hex"));
     return addressBytes.to_bech32();
-};
+}
 
 /**
  * Generates signable nonce, which includes human-readable description
@@ -19,16 +22,16 @@ export const serializedAddressToBech32 = (address: string) => {
  * @param length Length of nonce to generate
  * @returns Hex string of nonce
  */
-export const generateNonce = async (
+export async function generateNonce(
     description = "Please sign this message so we can verify your wallet:",
-    length = 64,
-) => {
-    if (length <= 0 || length > 2048) throw new Error("Length must be bewteen 1 and 2048");
+    length = DEFAULT_NONCE_LENGTH,
+) {
+    if (length <= 0 || length > MAX_NONCE_LENGTH) throw new Error("Length must be bewteen 1 and 2048");
     // Generate nonce (payload)
     const payload = randomString(length);
     // Return description + nonce
     return Buffer.from(`${description} ${payload}`).toString("hex");
-};
+}
 
 /**
  * Determines if a wallet address signed a message (payload)
@@ -37,7 +40,7 @@ export const generateNonce = async (
  * @param coseSign1Hex Hex string of signed payload (signed by user's wallet)
  * @returns True if payload was signed by wallet address
  */
-export const verifySignedMessage = (address: string, payload: string, coseSign1Hex: string) => {
+export function verifySignedMessage(address: string, payload: string, coseSign1Hex: string) {
     const coseSign1 = MessageSigning.COSESign1.from_bytes(Buffer.from(coseSign1Hex, "hex"));
     const payloadCose: Uint8Array | undefined = coseSign1.payload();
 
@@ -66,13 +69,13 @@ export const verifySignedMessage = (address: string, payload: string, coseSign1H
     const signature = Serialization.Ed25519Signature.from_bytes(coseSign1.signature());
     const data = coseSign1.signed_data().to_bytes();
     return publicKeyCose.verify(data, signature);
-};
+}
 
-const verifyPayload = (payload: string, payloadCose: Uint8Array) => {
+function verifyPayload(payload: string, payloadCose: Uint8Array) {
     return Buffer.from(payloadCose).compare(Buffer.from(payload, "hex")) === 0;
-};
+}
 
-const verifyAddress = (address: string, addressCose: Serialization.Address, publicKeyCose: Serialization.PublicKey) => {
+function verifyAddress(address: string, addressCose: Serialization.Address, publicKeyCose: Serialization.PublicKey) {
     const checkAddress = Serialization.Address.from_bytes(Buffer.from(address, "hex"));
     if (addressCose.to_bech32() !== checkAddress.to_bech32()) return false;
     // check if RewardAddress
@@ -93,4 +96,4 @@ const verifyAddress = (address: string, addressCose: Serialization.Address, publ
         logger.error("Caught error validating wallet address", { trace: "0005", error });
     }
     return false;
-};
+}

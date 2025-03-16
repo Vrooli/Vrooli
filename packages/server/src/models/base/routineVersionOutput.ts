@@ -1,12 +1,13 @@
 import { MaxObjects, routineVersionOutputValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { translationShapeHelper } from "../../utils/shapes";
-import { RoutineVersionOutputFormat } from "../formats";
-import { RoutineVersionModelInfo, RoutineVersionModelLogic, RoutineVersionOutputModelInfo, RoutineVersionOutputModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { RoutineVersionOutputFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { RoutineVersionModelInfo, RoutineVersionModelLogic, RoutineVersionOutputModelInfo, RoutineVersionOutputModelLogic } from "./types.js";
 
 const __typename = "RoutineVersionOutput" as const;
 export const RoutineVersionOutputModel: RoutineVersionOutputModelLogic = ({
@@ -20,7 +21,7 @@ export const RoutineVersionOutputModel: RoutineVersionOutputModelLogic = ({
                 name: true,
                 routineVersion: { select: ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").display().label.select() },
             }),
-            get: (select, languages) => select.name ?? ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").display().label.get(select.routineVersion as RoutineVersionModelInfo["PrismaModel"], languages),
+            get: (select, languages) => select.name ?? ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").display().label.get(select.routineVersion as RoutineVersionModelInfo["DbModel"], languages),
         },
     }),
     format: RoutineVersionOutputFormat,
@@ -46,10 +47,10 @@ export const RoutineVersionOutputModel: RoutineVersionOutputModelLogic = ({
     search: undefined,
     validate: () => ({
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<RoutineVersionOutputModelInfo["PrismaSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<RoutineVersionOutputModelInfo["DbSelect"]>([["routineVersion", "RoutineVersion"]], ...rest),
         isTransferable: false,
         maxObjects: MaxObjects[__typename],
-        owner: (data, userId) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().owner(data?.routineVersion as RoutineVersionModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<RoutineVersionModelLogic>("RoutineVersion").validate().owner(data?.routineVersion as RoutineVersionModelInfo["DbModel"], userId),
         permissionResolvers: defaultPermissions,
         permissionsSelect: () => ({ id: true, routineVersion: "RoutineVersion" }),
         visibility: {

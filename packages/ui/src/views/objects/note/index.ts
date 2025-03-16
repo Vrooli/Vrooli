@@ -1,2 +1,2 @@
 
-export * from "./NoteCrud/NoteCrud";
+export * from "./NoteCrud.js";

@@ -1,9 +1,9 @@
-import { Headers, headerMarkdowns } from "utils/display/stringTools";
-import { RangeSelection } from "../selection";
-import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, ElementFormatType, NodeConstructorPayloads, NodeType, SerializedHeadingNode } from "../types";
-import { $createNode, isHTMLElement } from "../utils";
-import { ElementNode } from "./ElementNode";
-import { type ParagraphNode } from "./ParagraphNode";
+import { Headers, headerMarkdowns } from "utils/display/stringTools.js";
+import { RangeSelection } from "../selection.js";
+import { DOMConversionMap, DOMConversionOutput, DOMExportOutput, ElementFormatType, NodeConstructorPayloads, NodeType, SerializedHeadingNode } from "../types.js";
+import { $createNode, isHTMLElement } from "../utils.js";
+import { ElementNode } from "./ElementNode.js";
+import { type ParagraphNode } from "./ParagraphNode.js";
 
 export class HeadingNode extends ElementNode {
     static __type: NodeType = "Heading";

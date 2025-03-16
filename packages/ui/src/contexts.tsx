@@ -1,46 +1,14 @@
-import { Chat, ChatCreateInput, ChatParticipantShape, ChatShape, DUMMY_ID, FindByIdInput, Session, VALYXA_ID, endpointGetChat, endpointPostChat, noop, uuidValidate } from "@local/shared";
-import { fetchLazyWrapper } from "api/fetchWrapper";
-import { ServerResponseParser } from "api/responseParser";
-import { useLazyFetch } from "hooks/useLazyFetch";
+import { Chat, ChatCreateInput, ChatParticipantShape, ChatShape, DUMMY_ID, FindByIdInput, SEEDED_IDS, Session, endpointsChat, noop, uuidValidate } from "@local/shared";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getCurrentUser } from "utils/authentication/session";
-import { getCookieMatchingChat, setCookieMatchingChat } from "utils/localStorage";
-import { CHAT_DEFAULTS, chatInitialValues, transformChatValues, withModifiableMessages, withYourMessages } from "views/objects/chat";
+import { fetchLazyWrapper } from "./api/fetchWrapper.js";
+import { ServerResponseParser } from "./api/responseParser.js";
+import { useLazyFetch } from "./hooks/useLazyFetch.js";
+import { getCurrentUser } from "./utils/authentication/session.js";
+import { getCookieMatchingChat, setCookieMatchingChat } from "./utils/localStorage.js";
+import { CHAT_DEFAULTS, chatInitialValues, transformChatValues, withModifiableMessages, withYourMessages } from "./views/objects/chat/ChatCrud.js";
 
 export const SessionContext = createContext<Session | undefined>(undefined);
-
-type ZIndexContextType = {
-    getZIndex: () => number;
-    releaseZIndex: () => unknown;
-};
-
-export const DEFAULT_Z_INDEX = 1000;
-const Z_INDEX_INCREMENT = 5;
-
-export const ZIndexContext = createContext<ZIndexContextType | undefined>(undefined);
-
-export function ZIndexProvider({ children }) {
-    const stack = useRef<number[]>([]);
-
-    function getZIndex() {
-        const newZIndex = (stack.current.length > 0 ? stack.current[stack.current.length - 1] : DEFAULT_Z_INDEX) + Z_INDEX_INCREMENT;
-        stack.current.push(newZIndex);
-        return newZIndex;
-    }
-
-    function releaseZIndex() {
-        stack.current.pop();
-    }
-
-    const value = useMemo(() => ({ getZIndex, releaseZIndex }), []);
-
-    return (
-        <ZIndexContext.Provider value={value}>
-            {children}
-        </ZIndexContext.Provider>
-    );
-}
 
 export type ActiveChatContext = {
     /** 
@@ -112,8 +80,8 @@ export function ActiveChatProvider({ children }) {
     const { t } = useTranslation();
     const { id: userId, languages: userLanguages } = getCurrentUser(session);
 
-    const [getChat, { data: loadedChat, loading: isChatLoading }] = useLazyFetch<FindByIdInput, Chat>(endpointGetChat);
-    const [createChat, { loading: isCreatingChat }] = useLazyFetch<ChatCreateInput, Chat>(endpointPostChat);
+    const [getChat, { data: loadedChat, loading: isChatLoading }] = useLazyFetch<FindByIdInput, Chat>(endpointsChat.findOne);
+    const [createChat, { loading: isCreatingChat }] = useLazyFetch<ChatCreateInput, Chat>(endpointsChat.createOne);
     const isLoading = useMemo(function isLoadingMemo() {
         return isChatLoading || isCreatingChat;
     }, [isChatLoading, isCreatingChat]);
@@ -146,7 +114,7 @@ export function ActiveChatProvider({ children }) {
                 setChat({ ...data, messages: [] });
                 setUsersTyping([]);
                 const userId = getCurrentUser(session).id;
-                if (userId) setCookieMatchingChat(data.id, [userId, VALYXA_ID]);
+                if (userId) setCookieMatchingChat(data.id, [userId, SEEDED_IDS.User.Valyxa]);
             },
         });
     }, [createChat, userLanguages, session, t]);
@@ -166,7 +134,7 @@ export function ActiveChatProvider({ children }) {
         if (!userId || isFetchingChat.current) return;
 
         // Check local storage for an existing chat
-        const existingChatId = getCookieMatchingChat([userId, VALYXA_ID]);
+        const existingChatId = getCookieMatchingChat([userId, SEEDED_IDS.User.Valyxa]);
 
         async function initializeChat() {
             if (!userId) return;

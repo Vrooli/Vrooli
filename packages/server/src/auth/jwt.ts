@@ -1,9 +1,9 @@
 import { COOKIE, MINUTES_15_MS, SECONDS_1_MS, YEARS_1_MS } from "@local/shared";
 import { type Response } from "express";
 import jwt, { type JwtPayload } from "jsonwebtoken";
-import { logger } from "../events/logger";
-import { UI_URL_REMOTE } from "../server";
-import { AccessToken, BasicToken } from "../types";
+import { logger } from "../events/logger.js";
+import { UI_URL_REMOTE } from "../server.js";
+import { AccessToken, BasicToken } from "../types.js";
 
 /**
  * How long to treat a session as valid before checking 
@@ -112,7 +112,7 @@ export class JsonWebToken {
      */
     basicToken(
         iss = UI_URL_REMOTE,
-        exp?: number
+        exp?: number,
     ): BasicToken {
         return {
             iat: Date.now(),
@@ -237,7 +237,7 @@ export class JsonWebToken {
     decode(token: string): VerifiedJwt | null {
         try {
             const payload = jwt.decode(token) as VerifiedJwt | null;
-            if (payload && typeof payload !== 'string') {
+            if (payload && typeof payload !== "string") {
                 return payload;
             } else {
                 return null;

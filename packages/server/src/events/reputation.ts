@@ -2,10 +2,10 @@
  * Handles giving reputation to users when some action is performed.
  */
 
-import { GqlModelType } from "@local/shared";
-import { prismaInstance } from "../db/instance";
-import { logger } from "../events/logger";
-import { withRedis } from "../redisConn";
+import { ModelType } from "@local/shared";
+import { DbProvider } from "../db/provider.js";
+import { logger } from "../events/logger.js";
+import { withRedis } from "../redisConn.js";
 
 export enum ReputationEvent {
     ObjectDeletedFromReport = "ObjectDeletedFromReport",
@@ -34,7 +34,7 @@ const MaxReputationGainPerDay = 100;
  * @param objectType The object type to check
  * @returns `Public${objectType}Created` if it's a tracked reputation nevent
  */
-export const objectReputationEvent = <T extends keyof typeof GqlModelType>(objectType: T): `Public${T}Created` | null => {
+export const objectReputationEvent = <T extends keyof typeof ModelType>(objectType: T): `Public${T}Created` | null => {
     return `Public${objectType}Created` in ReputationEvent ? `Public${objectType}Created` : null;
 };
 
@@ -173,7 +173,7 @@ async function getReputationGainedToday(userId: string, delta: number): Promise<
     });
     // If we didn't get the repuation from redis, try to get it from the database
     if (reputationGainedToday === Number.MAX_SAFE_INTEGER) {
-        const reputationAward = await prismaInstance.award.findFirst({
+        const reputationAward = await DbProvider.get().award.findFirst({
             where: {
                 userId,
                 category: "Reputation",
@@ -217,14 +217,14 @@ async function updateReputationHelper(
         return;
     }
     // Update the user's reputation
-    await prismaInstance.award.update({
+    await DbProvider.get().award.update({
         where: { userId_category: { userId, category: "Reputation" } },
         data: { progress: updatedReputation },
     });
     // Also add to user's reputation history, so they can see why their reputation changed
     const amount = totalReputationToday > MaxReputationGainPerDay || totalReputationToday < -MaxReputationGainPerDay ?
         totalReputationToday - delta : delta;
-    await prismaInstance.reputation_history.create({
+    await DbProvider.get().reputation_history.create({
         data: {
             userId,
             amount,
@@ -249,7 +249,7 @@ export function Reputation() {
          */
         unCreateObject: async (objectId: string, userId: string) => {
             // Find the reputation history entry for the object creation
-            const historyEntry = await prismaInstance.reputation_history.findFirst({
+            const historyEntry = await DbProvider.get().reputation_history.findFirst({
                 where: {
                     objectId1: objectId,
                     userId,
@@ -266,10 +266,10 @@ export function Reputation() {
             });
             // If the entry exists, delete it and decrease the user's reputation
             if (historyEntry) {
-                await prismaInstance.reputation_history.delete({
+                await DbProvider.get().reputation_history.delete({
                     where: { id: historyEntry.id },
                 });
-                await prismaInstance.user.update({
+                await DbProvider.get().user.update({
                     where: { id: userId },
                     data: { reputation: { decrement: historyEntry.amount } },
                 });

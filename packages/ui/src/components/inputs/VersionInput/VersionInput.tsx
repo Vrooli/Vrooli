@@ -1,10 +1,10 @@
 import { calculateVersionsFromString, getMinVersion, meetsMinVersion } from "@local/shared";
 import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
-import { BumpMajorIcon, BumpMinorIcon, BumpModerateIcon } from "icons";
+import { BumpMajorIcon, BumpMinorIcon, BumpModerateIcon } from "icons/common.js";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { TextInput } from "../TextInput/TextInput";
-import { VersionInputProps } from "../types";
+import { TextInput } from "../TextInput/TextInput.js";
+import { VersionInputProps } from "../types.js";
 
 const COMPONENT_HEIGHT_PX = 56;
 const textInputWithSideButtonStyle = {

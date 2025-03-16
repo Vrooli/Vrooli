@@ -1,37 +1,38 @@
-import { getActionFromFieldName } from "./getActionFromFieldName";
+import { expect } from "chai";
+import { getActionFromFieldName } from "./getActionFromFieldName.js";
 
 describe("getActionFromFieldName", () => {
     it("should identify Connect action", () => {
-        expect(getActionFromFieldName("userConnect")).toEqual("Connect");
+        expect(getActionFromFieldName("userConnect")).to.deep.equal("Connect");
     });
 
     it("should identify Create action", () => {
-        expect(getActionFromFieldName("postCreate")).toEqual("Create");
+        expect(getActionFromFieldName("postCreate")).to.deep.equal("Create");
     });
 
     it("should identify Delete action", () => {
-        expect(getActionFromFieldName("commentDelete")).toEqual("Delete");
+        expect(getActionFromFieldName("commentDelete")).to.deep.equal("Delete");
     });
 
     it("should identify Disconnect action", () => {
-        expect(getActionFromFieldName("profileDisconnect")).toEqual("Disconnect");
+        expect(getActionFromFieldName("profileDisconnect")).to.deep.equal("Disconnect");
     });
 
     it("should identify Update action", () => {
-        expect(getActionFromFieldName("avatarUpdate")).toEqual("Update");
+        expect(getActionFromFieldName("avatarUpdate")).to.deep.equal("Update");
     });
 
     it("should return null for field names without action suffix", () => {
-        expect(getActionFromFieldName("username")).toBeNull();
+        expect(getActionFromFieldName("username")).to.be.null;
     });
 
     it("should handle case sensitivity correctly", () => {
         // Depending on your function's intended behavior regarding case sensitivity,
         // this test can be adjusted.
-        expect(getActionFromFieldName("taskUPDATE")).toBeNull(); // or 'Update' if case-insensitive
+        expect(getActionFromFieldName("taskUPDATE")).to.be.null; // or 'Update' if case-insensitive
     });
 
     it("should return null for empty strings", () => {
-        expect(getActionFromFieldName("")).toBeNull();
+        expect(getActionFromFieldName("")).to.be.null;
     });
 });

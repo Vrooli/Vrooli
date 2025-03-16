@@ -1,16 +1,20 @@
 import { BotUpdateInput, MaxObjects, ProfileUpdateInput, UserSortBy, getTranslation, userValidation } from "@local/shared";
-import { ModelMap } from ".";
-import { noNull } from "../../builders/noNull";
-import { shapeHelper } from "../../builders/shapeHelper";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { withRedis } from "../../redisConn";
-import { defaultPermissions, getEmbeddableString } from "../../utils";
-import { PreShapeEmbeddableTranslatableResult, preShapeEmbeddableTranslatable, translationShapeHelper } from "../../utils/shapes";
-import { getSingleTypePermissions, handlesCheck } from "../../validators";
-import { UserFormat } from "../formats";
-import { SuppFields } from "../suppFields";
-import { Mutater } from "../types";
-import { BookmarkModelLogic, UserModelInfo, UserModelLogic, ViewModelLogic } from "./types";
+import { noNull } from "../../builders/noNull.js";
+import { shapeHelper } from "../../builders/shapeHelper.js";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { withRedis } from "../../redisConn.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { getEmbeddableString } from "../../utils/embeddings/getEmbeddableString.js";
+import { preShapeEmbeddableTranslatable, type PreShapeEmbeddableTranslatableResult } from "../../utils/shapes/preShapeEmbeddableTranslatable.js";
+import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
+import { handlesCheck } from "../../validators/handlesCheck.js";
+import { getSingleTypePermissions } from "../../validators/permissions.js";
+import { UserFormat } from "../formats.js";
+import { SuppFields } from "../suppFields.js";
+import { Mutater } from "../types.js";
+import { ModelMap } from "./index.js";
+import { BookmarkModelLogic, UserModelInfo, UserModelLogic, ViewModelLogic } from "./types.js";
+
 
 type UserPre = PreShapeEmbeddableTranslatableResult;
 
@@ -22,8 +26,8 @@ const __typename = "User" as const;
  */
 export const DEFAULT_USER_NAME_LENGTH = 8;
 
-type UpdateProfileType = Exclude<Mutater<UserModelInfo & { GqlUpdate: ProfileUpdateInput }>["shape"]["update"], undefined>;
-async function updateProfile({ data, ...rest }: Parameters<UpdateProfileType>[0]): Promise<UserModelInfo["PrismaUpdate"]> {
+type UpdateProfileType = Exclude<Mutater<UserModelInfo & { ApiUpdate: ProfileUpdateInput }>["shape"]["update"], undefined>;
+async function updateProfile({ data, ...rest }: Parameters<UpdateProfileType>[0]): Promise<UserModelInfo["DbUpdate"]> {
     const preData = rest.preMap[__typename] as UserPre;
     return {
         bannerImage: data.bannerImage,
@@ -58,8 +62,8 @@ async function updateProfile({ data, ...rest }: Parameters<UpdateProfileType>[0]
     };
 }
 
-type UpdateBotType = Exclude<Mutater<UserModelInfo & { GqlUpdate: BotUpdateInput }>["shape"]["update"], undefined>;
-async function updateBot({ data, ...rest }: Parameters<UpdateBotType>[0]): Promise<UserModelInfo["PrismaUpdate"]> {
+type UpdateBotType = Exclude<Mutater<UserModelInfo & { ApiUpdate: BotUpdateInput }>["shape"]["update"], undefined>;
+async function updateBot({ data, ...rest }: Parameters<UpdateBotType>[0]): Promise<UserModelInfo["DbUpdate"]> {
     const preData = rest.preMap[__typename] as UserPre;
     return {
         bannerImage: data.bannerImage,
@@ -171,11 +175,11 @@ export const UserModel: UserModelLogic = ({
             ],
         }),
         supplemental: {
-            graphqlFields: SuppFields[__typename],
-            toGraphQL: async ({ ids, userData }) => {
+            suppFields: SuppFields[__typename],
+            getSuppFields: async ({ ids, userData }) => {
                 return {
                     you: {
-                        ...(await getSingleTypePermissions<UserModelInfo["GqlPermission"]>(__typename, ids, userData)),
+                        ...(await getSingleTypePermissions<UserModelInfo["ApiPermission"]>(__typename, ids, userData)),
                         isBookmarked: await ModelMap.get<BookmarkModelLogic>("Bookmark").query.getIsBookmarkeds(userData?.id, ids, __typename),
                         isViewed: await ModelMap.get<ViewModelLogic>("View").query.getIsVieweds(userData?.id, ids, __typename),
                     },

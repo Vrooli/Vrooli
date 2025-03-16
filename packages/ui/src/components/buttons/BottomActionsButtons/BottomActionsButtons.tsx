@@ -1,15 +1,15 @@
 import { exists } from "@local/shared";
 import { Box, BoxProps, Button, Grid, styled, useTheme } from "@mui/material";
-import { useErrorPopover } from "hooks/useErrorPopover";
-import { useKeyboardOpen } from "hooks/useKeyboardOpen";
-import { useWindowSize } from "hooks/useWindowSize";
-import { CancelIcon, CreateIcon, SaveIcon } from "icons";
+import { useErrorPopover } from "hooks/useErrorPopover.js";
+import { useKeyboardOpen } from "hooks/useKeyboardOpen.js";
+import { useWindowSize } from "hooks/useWindowSize.js";
+import { CancelIcon, CreateIcon, SaveIcon } from "icons/common.js";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SxType } from "types";
-import { BottomActionsGrid } from "../BottomActionsGrid/BottomActionsGrid";
-import { LoadableButton } from "../LoadableButton/LoadableButton";
-import { BottomActionsButtonsProps } from "../types";
+import { BottomActionsGrid } from "../BottomActionsGrid/BottomActionsGrid.js";
+import { LoadableButton } from "../LoadableButton/LoadableButton.js";
+import { BottomActionsButtonsProps } from "../types.js";
 
 interface SideActionsBoxProps extends BoxProps {
     hideButtons: boolean;
@@ -55,6 +55,7 @@ export function BottomActionsButtons({
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.sm);
     const isKeyboardOpen = useKeyboardOpen();
+
     const buttonStyle = useMemo<SxType>(function buttonStyleMemo() {
         // Removing padding when the button doesn't display text
         const spanStyle = hideTextOnMobile && isMobile ? { marginLeft: 0, marginRight: 0 } : {};

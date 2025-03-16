@@ -1,53 +1,8 @@
 export const questionAnswer_findOne = {
-  "id": true,
-  "created_at": true,
-  "updated_at": true,
-  "createdBy": {
     "id": true,
     "created_at": true,
     "updated_at": true,
-    "bannerImage": true,
-    "handle": true,
-    "isBot": true,
-    "isBotDepictingPerson": true,
-    "name": true,
-    "profileImage": true,
-    "__typename": "User"
-  },
-  "score": true,
-  "bookmarks": true,
-  "isAccepted": true,
-  "commentsCount": true,
-  "comments": {
-    "id": true,
-    "created_at": true,
-    "updated_at": true,
-    "owner": {
-      "Team": {
-        "id": true,
-        "bannerImage": true,
-        "handle": true,
-        "profileImage": true,
-        "you": {
-          "canAddMembers": true,
-          "canDelete": true,
-          "canBookmark": true,
-          "canReport": true,
-          "canUpdate": true,
-          "canRead": true,
-          "isBookmarked": true,
-          "isViewed": true,
-          "yourMembership": {
-            "id": true,
-            "created_at": true,
-            "updated_at": true,
-            "isAdmin": true,
-            "permissions": true
-          }
-        },
-        "__typename": "Team"
-      },
-      "User": {
+    "createdBy": {
         "id": true,
         "created_at": true,
         "updated_at": true,
@@ -56,135 +11,166 @@ export const questionAnswer_findOne = {
         "isBot": true,
         "isBotDepictingPerson": true,
         "name": true,
-        "profileImage": true,
-        "__typename": "User"
-      }
+        "profileImage": true
     },
     "score": true,
     "bookmarks": true,
-    "reportsCount": true,
-    "you": {
-      "canDelete": true,
-      "canBookmark": true,
-      "canReply": true,
-      "canReport": true,
-      "canUpdate": true,
-      "canReact": true,
-      "isBookmarked": true,
-      "reaction": true
-    },
-    "translations": {
-      "id": true,
-      "language": true,
-      "text": true
-    },
-    "__typename": "Comment"
-  },
-  "question": {
-    "id": true,
-    "created_at": true,
-    "updated_at": true,
-    "createdBy": {
-      "id": true,
-      "created_at": true,
-      "updated_at": true,
-      "bannerImage": true,
-      "handle": true,
-      "isBot": true,
-      "isBotDepictingPerson": true,
-      "name": true,
-      "profileImage": true,
-      "__typename": "User"
-    },
-    "hasAcceptedAnswer": true,
-    "isPrivate": true,
-    "score": true,
-    "bookmarks": true,
-    "answersCount": true,
+    "isAccepted": true,
     "commentsCount": true,
-    "reportsCount": true,
-    "forObject": {
-      "Api": {
+    "comments": {
         "id": true,
-        "isPrivate": true,
-        "__typename": "Api"
-      },
-      "Code": {
-        "id": true,
-        "isPrivate": true,
-        "__typename": "Code"
-      },
-      "Note": {
-        "id": true,
-        "isPrivate": true,
-        "__typename": "Note"
-      },
-      "Project": {
-        "id": true,
-        "isPrivate": true,
-        "__typename": "Project"
-      },
-      "Routine": {
-        "id": true,
-        "isInternal": true,
-        "isPrivate": true,
-        "__typename": "Routine"
-      },
-      "Standard": {
-        "id": true,
-        "isPrivate": true,
-        "__typename": "Standard"
-      },
-      "Team": {
-        "id": true,
-        "bannerImage": true,
-        "handle": true,
-        "profileImage": true,
+        "created_at": true,
+        "updated_at": true,
+        "owner": {
+            "Team": {
+                "id": true,
+                "bannerImage": true,
+                "handle": true,
+                "profileImage": true,
+                "you": {
+                    "canAddMembers": true,
+                    "canDelete": true,
+                    "canBookmark": true,
+                    "canReport": true,
+                    "canUpdate": true,
+                    "canRead": true,
+                    "isBookmarked": true,
+                    "isViewed": true,
+                    "yourMembership": {
+                        "id": true,
+                        "created_at": true,
+                        "updated_at": true,
+                        "isAdmin": true,
+                        "permissions": true
+                    }
+                }
+            },
+            "User": {
+                "id": true,
+                "created_at": true,
+                "updated_at": true,
+                "bannerImage": true,
+                "handle": true,
+                "isBot": true,
+                "isBotDepictingPerson": true,
+                "name": true,
+                "profileImage": true
+            }
+        },
+        "score": true,
+        "bookmarks": true,
+        "reportsCount": true,
         "you": {
-          "canAddMembers": true,
-          "canDelete": true,
-          "canBookmark": true,
-          "canReport": true,
-          "canUpdate": true,
-          "canRead": true,
-          "isBookmarked": true,
-          "isViewed": true,
-          "yourMembership": {
+            "canDelete": true,
+            "canBookmark": true,
+            "canReply": true,
+            "canReport": true,
+            "canUpdate": true,
+            "canReact": true,
+            "isBookmarked": true,
+            "reaction": true
+        },
+        "translations": {
+            "id": true,
+            "language": true,
+            "text": true
+        }
+    },
+    "question": {
+        "id": true,
+        "created_at": true,
+        "updated_at": true,
+        "createdBy": {
             "id": true,
             "created_at": true,
             "updated_at": true,
-            "isAdmin": true,
-            "permissions": true
-          }
+            "bannerImage": true,
+            "handle": true,
+            "isBot": true,
+            "isBotDepictingPerson": true,
+            "name": true,
+            "profileImage": true
         },
-        "__typename": "Team"
-      }
+        "hasAcceptedAnswer": true,
+        "isPrivate": true,
+        "score": true,
+        "bookmarks": true,
+        "answersCount": true,
+        "commentsCount": true,
+        "reportsCount": true,
+        "forObject": {
+            "Api": {
+                "id": true,
+                "isPrivate": true
+            },
+            "Code": {
+                "id": true,
+                "isPrivate": true
+            },
+            "Note": {
+                "id": true,
+                "isPrivate": true
+            },
+            "Project": {
+                "id": true,
+                "isPrivate": true
+            },
+            "Routine": {
+                "id": true,
+                "isInternal": true,
+                "isPrivate": true
+            },
+            "Standard": {
+                "id": true,
+                "isPrivate": true
+            },
+            "Team": {
+                "id": true,
+                "bannerImage": true,
+                "handle": true,
+                "profileImage": true,
+                "you": {
+                    "canAddMembers": true,
+                    "canDelete": true,
+                    "canBookmark": true,
+                    "canReport": true,
+                    "canUpdate": true,
+                    "canRead": true,
+                    "isBookmarked": true,
+                    "isViewed": true,
+                    "yourMembership": {
+                        "id": true,
+                        "created_at": true,
+                        "updated_at": true,
+                        "isAdmin": true,
+                        "permissions": true
+                    }
+                }
+            }
+        },
+        "tags": {
+            "id": true,
+            "created_at": true,
+            "tag": true,
+            "bookmarks": true,
+            "translations": {
+                "id": true,
+                "language": true,
+                "description": true
+            },
+            "you": {
+                "isOwn": true,
+                "isBookmarked": true
+            }
+        },
+        "you": {
+            "reaction": true
+        }
     },
-    "tags": {
-      "id": true,
-      "created_at": true,
-      "tag": true,
-      "bookmarks": true,
-      "translations": {
+    "translations": {
         "id": true,
         "language": true,
-        "description": true
-      },
-      "you": {
-        "isOwn": true,
-        "isBookmarked": true
-      },
-      "__typename": "Tag"
+        "text": true
     },
-    "you": {
-      "reaction": true
-    },
-    "__typename": "Question"
-  },
-  "translations": {
-    "id": true,
-    "language": true,
-    "text": true
-  },
-  "__typename": "QuestionAnswer"
-} as const;
+    "__cacheKey": "1125374912"
+};

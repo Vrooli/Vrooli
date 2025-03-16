@@ -4,8 +4,8 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import winston from "winston";
-import { CustomError } from "../../events/error";
-import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, SERVER_PATH, addJobToQueue, getProcessPath } from "../queueHelper";
+import { CustomError } from "../../events/error.js";
+import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, SERVER_PATH, addJobToQueue, getProcessPath } from "../queueHelper.js";
 
 export type EmailProcessPayload = {
     to: string[];
@@ -26,7 +26,7 @@ const FOLDER = "email";
 export async function setupEmailQueue() {
     try {
         logger = (await import(LOGGER_PATH)).logger;
-        const REDIS_URL = (await import(REDIS_CONN_PATH)).REDIS_URL;
+        const REDIS_URL = (await import(REDIS_CONN_PATH)).getRedisUrl();
         UI_URL = (await import(SERVER_PATH)).UI_URL;
         emailProcess = (await import(getProcessPath(FOLDER))).emailProcess;
 

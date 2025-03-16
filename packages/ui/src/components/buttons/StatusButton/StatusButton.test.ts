@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { formatStatusMessages } from "./StatusButton";
+import { expect } from "chai";
+import { formatStatusMessages } from "./StatusButton.js";
 
 describe("formatStatusMessages", () => {
     it("returns \"No errors detected.\" when there are no messages", () => {

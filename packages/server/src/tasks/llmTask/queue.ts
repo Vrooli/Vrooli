@@ -1,7 +1,7 @@
 import { MINUTES_1_MS, ServerLlmTaskInfo, SessionUser, Success, TaskStatus, TaskStatusInfo } from "@local/shared";
 import Bull from "bull";
 import winston from "winston";
-import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, changeTaskStatus, getProcessPath, getTaskStatuses } from "../queueHelper";
+import { DEFAULT_JOB_OPTIONS, LOGGER_PATH, REDIS_CONN_PATH, addJobToQueue, changeTaskStatus, getProcessPath, getTaskStatuses } from "../queueHelper.js";
 
 export type LlmTaskProcessPayload = {
     __process: "LlmTask";
@@ -26,7 +26,7 @@ const FOLDER = "llmTask";
 export async function setupLlmTaskQueue() {
     try {
         logger = (await import(LOGGER_PATH)).logger;
-        const REDIS_URL = (await import(REDIS_CONN_PATH)).REDIS_URL;
+        const REDIS_URL = (await import(REDIS_CONN_PATH)).getRedisUrl();
         llmTaskProcess = (await import(getProcessPath(FOLDER))).llmTaskProcess;
 
         // Initialize the Bull queue

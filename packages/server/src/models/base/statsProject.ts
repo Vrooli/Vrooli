@@ -1,10 +1,11 @@
 import { DEFAULT_LANGUAGE, MaxObjects, StatsProjectSortBy } from "@local/shared";
 import i18next from "i18next";
-import { ModelMap } from ".";
-import { useVisibility } from "../../builders/visibilityBuilder";
-import { defaultPermissions, oneIsPublic } from "../../utils";
-import { StatsProjectFormat } from "../formats";
-import { ProjectModelInfo, ProjectModelLogic, StatsProjectModelInfo, StatsProjectModelLogic } from "./types";
+import { useVisibility } from "../../builders/visibilityBuilder.js";
+import { defaultPermissions } from "../../utils/defaultPermissions.js";
+import { oneIsPublic } from "../../utils/oneIsPublic.js";
+import { StatsProjectFormat } from "../formats.js";
+import { ModelMap } from "./index.js";
+import { ProjectModelInfo, ProjectModelLogic, StatsProjectModelInfo, StatsProjectModelLogic } from "./types.js";
 
 const __typename = "StatsProject" as const;
 export const StatsProjectModel: StatsProjectModelLogic = ({
@@ -15,7 +16,7 @@ export const StatsProjectModel: StatsProjectModelLogic = ({
             select: () => ({ id: true, project: { select: ModelMap.get<ProjectModelLogic>("Project").display().label.select() } }),
             get: (select, languages) => i18next.t("common:ObjectStats", {
                 lng: languages && languages.length > 0 ? languages[0] : DEFAULT_LANGUAGE,
-                objectName: ModelMap.get<ProjectModelLogic>("Project").display().label.get(select.project as ProjectModelInfo["PrismaModel"], languages),
+                objectName: ModelMap.get<ProjectModelLogic>("Project").display().label.get(select.project as ProjectModelInfo["DbModel"], languages),
             }),
         },
     }),
@@ -37,9 +38,9 @@ export const StatsProjectModel: StatsProjectModelLogic = ({
             project: "Project",
         }),
         permissionResolvers: defaultPermissions,
-        owner: (data, userId) => ModelMap.get<ProjectModelLogic>("Project").validate().owner(data?.project as ProjectModelInfo["PrismaModel"], userId),
+        owner: (data, userId) => ModelMap.get<ProjectModelLogic>("Project").validate().owner(data?.project as ProjectModelInfo["DbModel"], userId),
         isDeleted: () => false,
-        isPublic: (...rest) => oneIsPublic<StatsProjectModelInfo["PrismaSelect"]>([["project", "Project"]], ...rest),
+        isPublic: (...rest) => oneIsPublic<StatsProjectModelInfo["DbSelect"]>([["project", "Project"]], ...rest),
         visibility: {
             own: function getOwn(data) {
                 return {

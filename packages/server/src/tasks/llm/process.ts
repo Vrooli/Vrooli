@@ -1,21 +1,19 @@
-import { ChatMessage, GetValidTasksFromMessageParams, ServerLlmTaskInfo, SessionUser, getValidTasksFromMessage, importCommandToTask, parseBotInformation, uuid } from "@local/shared";
+import { BotSettingsConfig, ChatMessage, GetValidTasksFromMessageParams, ServerLlmTaskInfo, SessionUser, getValidTasksFromMessage, importCommandToTask, uuid } from "@local/shared";
 import { Job } from "bull";
 import i18next from "i18next";
-import { addSupplementalFields } from "../../builders/addSupplementalFields";
-import { modelToGql } from "../../builders/modelToGql";
-import { selectHelper } from "../../builders/selectHelper";
-import { prismaInstance } from "../../db/instance";
-import { chatMessage_findOne } from "../../endpoints/generated/chatMessage_findOne";
-import { CustomError } from "../../events";
-import { logger } from "../../events/logger";
-import { Trigger } from "../../events/trigger";
-import { emitSocketEvent } from "../../sockets/events";
-import { PreMapUserData, getChatParticipantData } from "../../utils/chat";
-import { reduceUserCredits } from "../../utils/reduceCredits";
-import { processLlmTask } from "../llmTask";
-import { ChatContextManager, stringifyTaskContexts } from "./context";
-import { type LlmRequestPayload, type RequestBotMessagePayload } from "./queue";
-import { ForceGetTaskParams, forceGetTask, generateResponseWithFallback } from "./service";
+import { InfoConverter, addSupplementalFields } from "../../builders/infoConverter.js";
+import { DbProvider } from "../../db/provider.js";
+import { chatMessage_findOne } from "../../endpoints/generated/chatMessage_findOne.js";
+import { CustomError } from "../../events/error.js";
+import { logger } from "../../events/logger.js";
+import { Trigger } from "../../events/trigger.js";
+import { emitSocketEvent } from "../../sockets/events.js";
+import { PreMapUserData, getChatParticipantData } from "../../utils/chat.js";
+import { reduceUserCredits } from "../../utils/reduceCredits.js";
+import { processLlmTask } from "../llmTask/queue.js";
+import { ChatContextManager, stringifyTaskContexts } from "./context.js";
+import { type LlmRequestPayload, type RequestBotMessagePayload } from "./queue.js";
+import { ForceGetTaskParams, forceGetTask, generateResponseWithFallback } from "./service.js";
 
 const CONTEXT_TEMPLATE_DEFAULT = "Give me a command for the task \"<TASK>\", using the context of this chat. Here is the existing data:\n```\n<DATA>\n```\nRespond with a full command to complete the task, with properties for all missing fields. Do not include any other text.";
 
@@ -47,15 +45,15 @@ async function forceGetTaskHelper(params: ForceGetTaskHelperParams): Promise<For
 }
 
 /**
- * Wrapper around parseBotInformation that throws an error if the bot information can't be parsed
+ * @throws If the bot information can't be parsed
  */
 async function parseBotInformationOrThrow(
     participants: Record<string, { name: string, botSettings: string }>,
     respondingBotId: string,
     throwCode: string,
 ) {
-    console.log("in parseBotInformationOrThrow", respondingBotId, JSON.stringify(participants));
-    const botSettings = parseBotInformation(participants, respondingBotId, logger);
+    const bot = participants[respondingBotId];
+    const botSettings = bot ? BotSettingsConfig.deserialize(bot, logger).export().schema : null;
     if (!botSettings) {
         throw new CustomError(throwCode, "InternalError");
     }
@@ -109,11 +107,11 @@ async function processPotentialParentCommands({
 export async function llmProcessBotMessage({
     chatId,
     mode,
+    model,
     parentId,
     parentMessage,
     participantsData,
     respondingBotId,
-    runContext,
     task,
     taskContexts,
     userData,
@@ -275,13 +273,13 @@ export async function llmProcessBotMessage({
         const shouldStoreResponse = typeof chatId === "string";
         if (shouldStoreResponse) {
             // Store response in database 
-            const select = selectHelper(chatMessage_findOne);
+            const select = InfoConverter.get().fromPartialApiToPrismaSelect(chatMessage_findOne);
             const translation = {
                 id: uuid(),
                 language,
                 text: responseMessage,
             } as const;
-            const createdData = await prismaInstance.chat_message.create({
+            const createdData = await DbProvider.get().chat_message.create({
                 data: {
                     chat: { connect: { id: chatId } },
                     parent: parentId ? { connect: { id: parentId } } : undefined,
@@ -292,7 +290,7 @@ export async function llmProcessBotMessage({
                 ...select,
             });
             // Store message in cache
-            await (new ChatContextManager()).addMessage({
+            await (new ChatContextManager(model, userData.languages)).addMessage({
                 __type: "Create",
                 chatId,
                 messageId: createdData.id,
@@ -301,7 +299,7 @@ export async function llmProcessBotMessage({
                 userId: respondingBotId,
             });
 
-            const formattedResponseMessage = modelToGql(createdData, chatMessage_findOne);
+            const formattedResponseMessage = InfoConverter.get().fromDbToApi(createdData, chatMessage_findOne);
             const fullResponseMessage = (await addSupplementalFields(userData, [formattedResponseMessage], chatMessage_findOne))[0] as ChatMessage;
 
             // Perform triggers for notifications, achievements, etc.

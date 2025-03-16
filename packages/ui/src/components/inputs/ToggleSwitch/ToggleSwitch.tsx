@@ -1,7 +1,7 @@
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
-import { noSelect } from "styles";
-import { ToggleSwitchProps } from "../types";
+import { noSelect } from "../../../styles.js";
+import { ToggleSwitchProps } from "../types.js";
 
 const grey = {
     400: "#BFC7CF",

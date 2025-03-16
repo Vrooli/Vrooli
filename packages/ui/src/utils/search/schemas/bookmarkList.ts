@@ -1,6 +1,6 @@
-import { BookmarkListSortBy, FormSchema, endpointGetBookmarkList, endpointGetBookmarkLists } from "@local/shared";
-import { toParams } from "./base";
-import { searchFormLayout } from "./common";
+import { BookmarkListSortBy, FormSchema, endpointsBookmarkList } from "@local/shared";
+import { toParams } from "./base.js";
+import { searchFormLayout } from "./common.js";
 
 export function bookmarkListSearchSchema(): FormSchema {
     return {
@@ -11,6 +11,6 @@ export function bookmarkListSearchSchema(): FormSchema {
 }
 
 export function bookmarkListSearchParams() {
-    return toParams(bookmarkListSearchSchema(), endpointGetBookmarkLists, endpointGetBookmarkList, BookmarkListSortBy, BookmarkListSortBy.LabelAsc);
+    return toParams(bookmarkListSearchSchema(), endpointsBookmarkList, BookmarkListSortBy, BookmarkListSortBy.LabelAsc);
 }
 
