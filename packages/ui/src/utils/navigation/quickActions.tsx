@@ -1,19 +1,15 @@
-import { ActionOption, endpointPutProfile, HistoryPageTabOption, LINKS, ProfileUpdateInput, SearchPageTabOption, Session, User } from "@local/shared";
-import { fetchWrapper } from "api/fetchWrapper";
-import { getCurrentUser } from "utils/authentication/session";
-import { PubSub } from "utils/pubsub";
-import { clearSearchHistory } from "utils/search/clearSearchHistory";
-import { PreSearchItem } from "utils/search/siteToSearch";
+import { ActionOption, endpointsUser, HistoryPageTabOption, LINKS, ProfileUpdateInput, SearchPageTabOption, Session, User } from "@local/shared";
+import { fetchWrapper } from "../../api/fetchWrapper.js";
+import { ActionIcon, ApiIcon, BookmarkFilledIcon, HelpIcon, NoteIcon, PlayIcon, ProjectIcon, RoutineIcon, ShortcutIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon, VisibleIcon } from "../../icons/common.js";
+import { SvgComponent } from "../../types.js";
+import { getCurrentUser } from "../authentication/session.js";
+import { PubSub } from "../pubsub.js";
+import { SearchHistory } from "../search/searchHistory.js";
+import { PreSearchItem } from "../search/siteToSearch.js";
 
 export interface ShortcutItem {
     label: string;
     link: string;
-}
-
-export interface ActionItem {
-    canPerform: (session: Session) => boolean;
-    id: string;
-    label: string;
 }
 
 const createKeywords = ["Create", "New", "AddNew", "CreateNew"] as const;
@@ -81,9 +77,14 @@ export const shortcuts: PreSearchItem[] = [
         value: `${LINKS.Note}/add`,
     },
     {
-        label: "CreateRoutine",
+        label: "CreateRoutineMultiStep",
         keywords: createKeywords,
-        value: `${LINKS.Routine}/add`,
+        value: `${LINKS.RoutineMultiStep}/add`,
+    },
+    {
+        label: "CreateRoutineSingleStep",
+        keywords: createKeywords,
+        value: `${LINKS.RoutineSingleStep}/add`,
     },
     {
         label: "CreateProject",
@@ -156,9 +157,14 @@ export const shortcuts: PreSearchItem[] = [
         value: `${LINKS.Search}?type="${SearchPageTabOption.Question}"`,
     },
     {
-        label: "SearchRoutine",
+        label: "SearchRoutineMultiStep",
         keywords: searchKeywords,
-        value: `${LINKS.Search}?type="${SearchPageTabOption.Routine}"`,
+        value: `${LINKS.Search}?type="${SearchPageTabOption.RoutineMultiStep}"`,
+    },
+    {
+        label: "SearchRoutineSingleStep",
+        keywords: searchKeywords,
+        value: `${LINKS.Search}?type="${SearchPageTabOption.RoutineSingleStep}"`,
     },
     {
         label: "SearchRun",
@@ -212,39 +218,38 @@ export const shortcuts: PreSearchItem[] = [
  * Action shortcuts that can appear in the main search bar or command palette. 
  * Instead of taking you to a page, they perform an action (e.g. clear search history).
  */
-export const Actions: { [x: string]: ActionItem } = {
+export const Actions: { [x: string]: ActionOption } = {
     clearSearchHistory: {
+        __typename: "Action",
         label: "Clear search history",
         id: "clear-search-history",
         canPerform: () => true,
+        keywords: ["Clear", "Delete", "Remove", "Erase"] as const,
     },
     activateDarkMode: {
+        __typename: "Action",
         label: "Activate dark mode",
         id: "activate-dark-mode",
         canPerform: (session: Session) => getCurrentUser(session).theme !== "dark",
+        keywords: ["Dark", "Black", "Theme"] as const,
     },
     activateLightMode: {
+        __typename: "Action",
         label: "Activate light mode",
         id: "activate-light-mode",
         canPerform: (session: Session) => getCurrentUser(session).theme !== "light",
+        keywords: ["Light", "White", "Theme"] as const,
     },
     tutorial: {
+        __typename: "Action",
         label: "Tutorial",
         id: "tutorial",
         canPerform: (session: Session) => session.isLoggedIn,
+        keywords: ["Tutorial", "Help", "Learn"] as const,
     },
 };
 
-/**
- * Shape actions to match AutoCompleteListItem format.
- */
-export function toActionOption(action: ActionItem): ActionOption {
-    return {
-        __typename: "Action",
-        ...action,
-    };
-}
-export const actionsItems: ActionOption[] = Object.values(Actions).map(toActionOption);
+export const actionsItems: ActionOption[] = Object.values(Actions);
 
 /**
  * Maps action ids to their corresponding action. 
@@ -253,13 +258,13 @@ export const actionsItems: ActionOption[] = Object.values(Actions).map(toActionO
 export async function performAction(option: ActionOption, session: Session | null | undefined): Promise<void> {
     switch (option.id) {
         case "clear-search-history":
-            session && clearSearchHistory(session);
+            session && SearchHistory.clearSearchHistory(session);
             break;
         case "activate-dark-mode":
             // If logged in, update user profile and publish theme change.
             if (session?.isLoggedIn) {
                 fetchWrapper<ProfileUpdateInput, User>({
-                    ...endpointPutProfile,
+                    ...endpointsUser.profileUpdate,
                     inputs: { theme: "dark" },
                     onSuccess: () => { PubSub.get().publish("theme", "dark"); },
                 });
@@ -271,7 +276,7 @@ export async function performAction(option: ActionOption, session: Session | nul
             // If logged in, update user profile and publish theme change.
             if (session?.isLoggedIn) {
                 fetchWrapper<ProfileUpdateInput, User>({
-                    ...endpointPutProfile,
+                    ...endpointsUser.profileUpdate,
                     inputs: { theme: "light" },
                     onSuccess: () => { PubSub.get().publish("theme", "light"); },
                 });
@@ -287,4 +292,29 @@ export async function performAction(option: ActionOption, session: Session | nul
             }
             break;
     }
+}
+
+const IconMap = {
+    Action: ActionIcon,
+    Api: ApiIcon,
+    Bookmark: BookmarkFilledIcon,
+    Code: TerminalIcon,
+    Note: NoteIcon,
+    Project: ProjectIcon,
+    Question: HelpIcon,
+    Routine: RoutineIcon,
+    Run: PlayIcon,
+    Shortcut: ShortcutIcon,
+    Standard: StandardIcon,
+    Team: TeamIcon,
+    User: UserIcon,
+    View: VisibleIcon,
+};
+
+/**
+ * Maps object types to icons
+ */
+export function getAutocompleteOptionIcon(type: string, fill: string): JSX.Element | null {
+    const Icon: SvgComponent | undefined = IconMap[type];
+    return Icon ? <Icon fill={fill} /> : null;
 }
