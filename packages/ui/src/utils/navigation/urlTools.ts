@@ -51,7 +51,8 @@ export function parseSingleItemUrl({ href, pathname }: { href?: string, pathname
         LINKS.Note,
         LINKS.Project,
         LINKS.Prompt,
-        LINKS.Routine,
+        LINKS.RoutineMultiStep,
+        LINKS.RoutineSingleStep,
         LINKS.SmartContract,
     ].map(link => link.split("/").pop());
     // Check if any part of the URL contains the name of a versioned object

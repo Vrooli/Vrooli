@@ -16,13 +16,13 @@ const {
     CreateView,
     MyStuffView,
     InboxView,
-} = lazily(() => import("./views/main"));
+} = lazily(() => import("./views/main/index.js"));
 const {
     ForgotPasswordView,
     LoginView,
     ResetPasswordView,
     SignupView,
-} = lazily(() => import("./views/auth"));
+} = lazily(() => import("./views/auth/index.js"));
 const {
     SettingsView,
     SettingsApiView,
@@ -34,35 +34,35 @@ const {
     SettingsProfileView,
     SettingsPrivacyView,
     SettingsFocusModesView,
-} = lazily(() => import("./views/settings"));
+} = lazily(() => import("./views/settings/index.js"));
 const {
     PrivacyPolicyView,
     TermsView,
-} = lazily(() => import("./views/PolicyView/PolicyView"));
-const { AboutView } = lazily(() => import("./views/AboutView/AboutView"));
-const { AwardsView } = lazily(() => import("./views/AwardsView/AwardsView"));
-const { CalendarView } = lazily(() => import("./views/CalendarView/CalendarView"));
-const { ChatCrud } = lazily(() => import("./views/objects/chat"));
-const { DataConverterUpsert, DataConverterView } = lazily(() => import("./views/objects/dataConverter"));
-const { DataStructureUpsert, DataStructureView } = lazily(() => import("./views/objects/dataStructure"));
-const { NotFoundView } = lazily(() => import("./views/NotFoundView/NotFoundView"));
-const { ProView } = lazily(() => import("./views/ProView/ProView"));
-const { SearchView } = lazily(() => import("./views/SearchView/SearchView"));
-const { SearchVersionView } = lazily(() => import("./views/SearchVersionView/SearchVersionView"));
-const { StatsSiteView: StatsView } = lazily(() => import("./views/StatsSiteView/StatsSiteView"));
-const { ApiUpsert, ApiView } = lazily(() => import("./views/objects/api"));
-const { BookmarkListUpsert, BookmarkListView } = lazily(() => import("./views/objects/bookmarkList"));
-const { NoteCrud } = lazily(() => import("./views/objects/note"));
-const { TeamUpsert, TeamView } = lazily(() => import("./views/objects/team"));
-const { ProjectCrud } = lazily(() => import("./views/objects/project"));
-const { PromptUpsert, PromptView } = lazily(() => import("./views/objects/prompt"));
-const { QuestionUpsert, QuestionView } = lazily(() => import("./views/objects/question"));
-const { ReminderCrud } = lazily(() => import("./views/objects/reminder"));
-const { RoutineUpsert, RoutineView } = lazily(() => import("./views/objects/routine"));
-const { SmartContractUpsert, SmartContractView } = lazily(() => import("./views/objects/smartContract"));
-const { UserView } = lazily(() => import("./views/objects/user"));
-const { RunView } = lazily(() => import("./views/runs/RunView/RunView"));
-const { ReportsView } = lazily(() => import("./views/ReportsView/ReportsView"));
+} = lazily(() => import("./views/PolicyView/PolicyView.js"));
+const { AboutView } = lazily(() => import("./views/AboutView/AboutView.js"));
+const { AwardsView } = lazily(() => import("./views/AwardsView/AwardsView.js"));
+const { CalendarView } = lazily(() => import("./views/CalendarView/CalendarView.js"));
+const { ChatCrud } = lazily(() => import("./views/objects/chat/ChatCrud.js"));
+const { DataConverterUpsert, DataConverterView } = lazily(() => import("./views/objects/dataConverter/index.js"));
+const { DataStructureUpsert, DataStructureView } = lazily(() => import("./views/objects/dataStructure/index.js"));
+const { NotFoundView } = lazily(() => import("./views/NotFoundView/NotFoundView.js"));
+const { ProView } = lazily(() => import("./views/ProView/ProView.js"));
+const { SearchView } = lazily(() => import("./views/SearchView/SearchView.js"));
+const { SearchVersionView } = lazily(() => import("./views/SearchVersionView/SearchVersionView.js"));
+const { StatsSiteView: StatsView } = lazily(() => import("./views/StatsSiteView/StatsSiteView.js"));
+const { ApiUpsert, ApiView } = lazily(() => import("./views/objects/api/index.js"));
+const { BookmarkListUpsert, BookmarkListView } = lazily(() => import("./views/objects/bookmarkList/index.js"));
+const { NoteCrud } = lazily(() => import("./views/objects/note/index.js"));
+const { TeamUpsert, TeamView } = lazily(() => import("./views/objects/team/index.js"));
+const { ProjectCrud } = lazily(() => import("./views/objects/project/index.js"));
+const { PromptUpsert, PromptView } = lazily(() => import("./views/objects/prompt/index.js"));
+const { QuestionUpsert, QuestionView } = lazily(() => import("./views/objects/question/index.js"));
+const { ReminderCrud } = lazily(() => import("./views/objects/reminder/index.js"));
+const { RoutineSingleStepUpsert, RoutineMultiStepCrud, RoutineSingleStepView } = lazily(() => import("./views/objects/routine/index.js"));
+const { SmartContractUpsert, SmartContractView } = lazily(() => import("./views/objects/smartContract/index.js"));
+const { UserView } = lazily(() => import("./views/objects/user/UserView.js"));
+const { RunView } = lazily(() => import("./views/runs/RunView.js"));
+const { ReportsView } = lazily(() => import("./views/ReportsView/ReportsView.js"));
 
 const fallbackNavbarStyle = {
     background: (t) => t.palette.primary.dark,
@@ -308,14 +308,23 @@ export function Routes(props: { sessionChecked: boolean }) {
                 >
                     <ResetPasswordView display="page" />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Routine}/add`} mustBeLoggedIn={true} {...props}>
-                    <RoutineUpsert display="page" isCreate={true} />
+                <NavRoute path={`${LINKS.RoutineSingleStep}/add`} mustBeLoggedIn={true} {...props}>
+                    <RoutineSingleStepUpsert display="page" isCreate={true} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Routine}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
-                    <RoutineUpsert display="page" isCreate={false} />
+                <NavRoute path={`${LINKS.RoutineSingleStep}/edit/:rootId/:versionId`} mustBeLoggedIn={true} {...props}>
+                    <RoutineSingleStepUpsert display="page" isCreate={false} />
                 </NavRoute>
-                <NavRoute path={`${LINKS.Routine}/:rootId/:versionId?`} {...props}>
-                    <RoutineView display="page" />
+                <NavRoute path={`${LINKS.RoutineSingleStep}/:rootId/:versionId?`} {...props}>
+                    <RoutineSingleStepView display="page" />
+                </NavRoute>
+                <NavRoute path={`${LINKS.RoutineMultiStep}/add`} excludePageContainer mustBeLoggedIn={true} {...props}>
+                    <RoutineMultiStepCrud display="page" isCreate={true} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.RoutineMultiStep}/edit/:rootId/:versionId`} excludePageContainer mustBeLoggedIn={true} {...props}>
+                    <RoutineMultiStepCrud display="page" isCreate={false} />
+                </NavRoute>
+                <NavRoute path={`${LINKS.RoutineMultiStep}/:rootId/:versionId?`} excludePageContainer {...props}>
+                    <RoutineMultiStepCrud display="page" isCreate={false} />
                 </NavRoute>
                 <NavRoute path={`${LINKS.Run}/:objectType/:id`} {...props}>
                     <RunView display="page" />
