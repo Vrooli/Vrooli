@@ -468,7 +468,6 @@ export class PasswordAuthService {
         emailAddress: string,
         userId: string,
         code: string,
-        languages: string[] | undefined,
     ): Promise<boolean> {
         // Find data
         const email = await DbProvider.get().email.findUnique({

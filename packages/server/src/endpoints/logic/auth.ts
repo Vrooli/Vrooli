@@ -175,7 +175,7 @@ export const auth: EndpointsAuth = {
                 if (!email) {
                     throw new CustomError("0062", "InvalidCredentials"); // Purposefully vague with duplicate code for security
                 }
-                const verified = await PasswordAuthService.validateEmailVerificationCode(email.emailAddress, user.id, input.verificationCode, req.session.languages);
+                const verified = await PasswordAuthService.validateEmailVerificationCode(email.emailAddress, user.id, input.verificationCode);
                 if (!verified) {
                     throw new CustomError("0132", "CannotVerifyEmailCode");
                 }
@@ -210,7 +210,7 @@ export const auth: EndpointsAuth = {
             }
             // Validate verification code, if supplied
             if (input.verificationCode) {
-                const isCodeValid = await PasswordAuthService.validateEmailVerificationCode(email.emailAddress, user.id, input.verificationCode, req.session.languages);
+                const isCodeValid = await PasswordAuthService.validateEmailVerificationCode(email.emailAddress, user.id, input.verificationCode);
                 if (!isCodeValid) {
                     throw new CustomError("0137", "CannotVerifyEmailCode");
                 }
@@ -496,6 +496,7 @@ export const auth: EndpointsAuth = {
                 WHERE "user_id" = ${userId}::uuid
                 RETURNING id;
             `;
+        //TODO
         // Clear socket connections for sessions
         const sessionId = userData?.session?.id;
         if (sessionId) {

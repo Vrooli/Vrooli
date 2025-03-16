@@ -1,37 +1,66 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { DEFAULT_LANGUAGE, SessionUser } from "@local/shared";
+import { DEFAULT_LANGUAGE, SessionUser, uuid } from "@local/shared";
+import { expect } from "chai";
 import { Request } from "express";
-import { SessionData } from "../types";
-import { RequestService } from "./request";
-import { SessionService } from "./session";
+import { RedisClientType } from "redis";
+import sinon from "sinon";
+import { Socket } from "socket.io";
+import { CustomError } from "../events/error.js";
+import { logger } from "../events/logger.js";
+import { initializeRedis } from "../redisConn.js";
+import { SessionData } from "../types.js";
+import { RequestService } from "./request.js";
+import { SessionService } from "./session.js";
 
 describe("RequestService", () => {
+    let loggerErrorStub: sinon.SinonStub;
+    let loggerInfoStub: sinon.SinonStub;
+    let redisClient: RedisClientType | null = null;
+
+    before(async function before() {
+        this.timeout(5_000);
+
+        loggerErrorStub = sinon.stub(logger, "error");
+        loggerInfoStub = sinon.stub(logger, "info");
+
+        redisClient = await initializeRedis();
+    });
+
+    after(async function after() {
+        loggerErrorStub.restore();
+        loggerInfoStub.restore();
+
+        if (redisClient) {
+            await redisClient.flushAll();
+        }
+    });
+
     describe("isValidIP", () => {
         it("should validate IPv4 addresses", () => {
-            expect(RequestService.isValidIP("192.168.1.1")).toBeTruthy();
-            expect(RequestService.isValidIP("255.255.255.255")).toBeTruthy();
-            expect(RequestService.isValidIP("0.0.0.0")).toBeTruthy();
-            expect(RequestService.isValidIP("999.999.999.999")).toBeFalsy();
+            expect(RequestService.isValidIP("192.168.1.1")).to.be.ok;
+            expect(RequestService.isValidIP("255.255.255.255")).to.be.ok;
+            expect(RequestService.isValidIP("0.0.0.0")).to.be.ok;
+            expect(RequestService.isValidIP("999.999.999.999")).to.not.be.ok;
         });
 
         it("should validate IPv6 addresses", () => {
-            expect(RequestService.isValidIP("2001:0db8:85a3:0000:0000:8a2e:0370:7334")).toBeTruthy();
-            expect(RequestService.isValidIP("::1")).toBeTruthy();
-            expect(RequestService.isValidIP("::ffff:c0a8:101")).toBeTruthy();
-            expect(RequestService.isValidIP("gibberish")).toBeFalsy();
+            expect(RequestService.isValidIP("2001:0db8:85a3:0000:0000:8a2e:0370:7334")).to.be.ok;
+            expect(RequestService.isValidIP("::1")).to.be.ok;
+            expect(RequestService.isValidIP("::ffff:c0a8:101")).to.be.ok;
+            expect(RequestService.isValidIP("gibberish")).to.not.be.ok;
         });
     });
 
     describe("isValidDomain", () => {
         it("should validate domain names", () => {
-            expect(RequestService.isValidDomain("example.com")).toBeTruthy();
-            expect(RequestService.isValidDomain("subdomain.example.com")).toBeTruthy();
-            expect(RequestService.isValidDomain("www.example.co.uk")).toBeTruthy();
-            expect(RequestService.isValidDomain("example")).toBeFalsy();
-            expect(RequestService.isValidDomain("example..com")).toBeFalsy();
-            expect(RequestService.isValidDomain(".com")).toBeFalsy();
-            expect(RequestService.isValidDomain("com.")).toBeFalsy();
-            expect(RequestService.isValidDomain("example.com/")).toBeFalsy();
+            expect(RequestService.isValidDomain("example.com")).to.be.ok;
+            expect(RequestService.isValidDomain("subdomain.example.com")).to.be.ok;
+            expect(RequestService.isValidDomain("www.example.co.uk")).to.be.ok;
+            expect(RequestService.isValidDomain("example")).to.not.be.ok;
+            expect(RequestService.isValidDomain("example..com")).to.not.be.ok;
+            expect(RequestService.isValidDomain(".com")).to.not.be.ok;
+            expect(RequestService.isValidDomain("com.")).to.not.be.ok;
+            expect(RequestService.isValidDomain("example.com/")).to.not.be.ok;
         });
     });
 
@@ -40,12 +69,14 @@ describe("RequestService", () => {
             RequestService.get().resetCachedOrigins();
         });
 
-        const mockRequest = (origin: string | undefined, referer: string | undefined): Request => ({
-            headers: {
-                origin,
-                referer,
-            },
-        } as Request);
+        function mockRequest(origin: string | undefined, referer: string | undefined): Request {
+            return {
+                headers: {
+                    origin,
+                    referer,
+                },
+            } as Request;
+        }
 
         it("remote production (actual production, possibly)", () => {
             process.env.NODE_ENV = "production";
@@ -70,14 +101,14 @@ describe("RequestService", () => {
 
             // Test allowed origins
             for (const origin of allowedOrigins) {
-                expect(RequestService.get().isSafeOrigin(mockRequest(origin, undefined))).toBeTruthy();
-                expect(RequestService.get().isSafeOrigin(mockRequest(undefined, origin))).toBeTruthy();
+                expect(RequestService.get().isSafeOrigin(mockRequest(origin, undefined))).to.be.ok;
+                expect(RequestService.get().isSafeOrigin(mockRequest(undefined, origin))).to.be.ok;
             }
 
             // Test disallowed origins
             for (const origin of disallowedOrigins) {
-                expect(RequestService.get().isSafeOrigin(mockRequest(origin, undefined))).toBeFalsy();
-                expect(RequestService.get().isSafeOrigin(mockRequest(undefined, origin))).toBeFalsy();
+                expect(RequestService.get().isSafeOrigin(mockRequest(origin, undefined))).to.not.be.ok;
+                expect(RequestService.get().isSafeOrigin(mockRequest(undefined, origin))).to.not.be.ok;
             }
         });
 
@@ -104,14 +135,14 @@ describe("RequestService", () => {
 
             // Test allowed origins
             for (const origin of allowedOrigins) {
-                expect(RequestService.get().isSafeOrigin(mockRequest(origin, undefined))).toBeTruthy();
-                expect(RequestService.get().isSafeOrigin(mockRequest(undefined, origin))).toBeTruthy();
+                expect(RequestService.get().isSafeOrigin(mockRequest(origin, undefined))).to.be.ok;
+                expect(RequestService.get().isSafeOrigin(mockRequest(undefined, origin))).to.be.ok;
             }
 
             // Test disallowed origins
             for (const origin of disallowedOrigins) {
-                expect(RequestService.get().isSafeOrigin(mockRequest(origin, undefined))).toBeFalsy();
-                expect(RequestService.get().isSafeOrigin(mockRequest(undefined, origin))).toBeFalsy();
+                expect(RequestService.get().isSafeOrigin(mockRequest(origin, undefined))).to.not.be.ok;
+                expect(RequestService.get().isSafeOrigin(mockRequest(undefined, origin))).to.not.be.ok;
             }
         });
 
@@ -132,8 +163,8 @@ describe("RequestService", () => {
 
             // Test allowed origins
             for (const origin of allowedOrigins) {
-                expect(RequestService.get().isSafeOrigin(mockRequest(origin, undefined))).toBeTruthy();
-                expect(RequestService.get().isSafeOrigin(mockRequest(undefined, origin))).toBeTruthy();
+                expect(RequestService.get().isSafeOrigin(mockRequest(origin, undefined))).to.be.ok;
+                expect(RequestService.get().isSafeOrigin(mockRequest(undefined, origin))).to.be.ok;
             }
         });
     });
@@ -142,32 +173,32 @@ describe("RequestService", () => {
         it("should return correct device info when headers are present", () => {
             const req = {
                 headers: {
-                    'user-agent': 'Mozilla/5.0',
-                    'accept-language': 'en-US,en;q=0.9',
+                    "user-agent": "Mozilla/5.0",
+                    "accept-language": "en-US,en;q=0.9",
                 },
             } as Request;
             const result = RequestService.getDeviceInfo(req);
-            expect(result).toBe('User-Agent: Mozilla/5.0; Accept-Language: en-US,en;q=0.9');
+            expect(result).to.equal("User-Agent: Mozilla/5.0; Accept-Language: en-US,en;q=0.9");
         });
 
         it("should return 'Unknown' for missing user-agent", () => {
             const req = {
                 headers: {
-                    'accept-language': 'en-US,en;q=0.9',
+                    "accept-language": "en-US,en;q=0.9",
                 },
             } as Request;
             const result = RequestService.getDeviceInfo(req);
-            expect(result).toBe('User-Agent: Unknown; Accept-Language: en-US,en;q=0.9');
+            expect(result).to.equal("User-Agent: Unknown; Accept-Language: en-US,en;q=0.9");
         });
 
         it("should return 'Unknown' for missing accept-language", () => {
             const req = {
                 headers: {
-                    'user-agent': 'Mozilla/5.0',
+                    "user-agent": "Mozilla/5.0",
                 },
             } as Request;
             const result = RequestService.getDeviceInfo(req);
-            expect(result).toBe('User-Agent: Mozilla/5.0; Accept-Language: Unknown');
+            expect(result).to.equal("User-Agent: Mozilla/5.0; Accept-Language: Unknown");
         });
 
         it("should return 'Unknown' for both missing headers", () => {
@@ -175,345 +206,657 @@ describe("RequestService", () => {
                 headers: {},
             } as Request;
             const result = RequestService.getDeviceInfo(req);
-            expect(result).toBe('User-Agent: Unknown; Accept-Language: Unknown');
+            expect(result).to.equal("User-Agent: Unknown; Accept-Language: Unknown");
         });
     });
 
     describe("parseAcceptLanguage", () => {
         it(`should return ["${DEFAULT_LANGUAGE}"] when accept-language header is missing`, () => {
             const req = { headers: {} };
-            expect(RequestService.parseAcceptLanguage(req)).toEqual([DEFAULT_LANGUAGE]);
+            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal([DEFAULT_LANGUAGE]);
         });
 
         it(`should return ["${DEFAULT_LANGUAGE}"] when accept-language header is "*" `, () => {
             const req = { headers: { "accept-language": "*" } };
-            expect(RequestService.parseAcceptLanguage(req)).toEqual([DEFAULT_LANGUAGE]);
+            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal([DEFAULT_LANGUAGE]);
         });
 
         it("should parse \"en-US,en;q=0.9,fr;q=0.8\" correctly", () => {
             const req = { headers: { "accept-language": "en-US,en;q=0.9,fr;q=0.8" } };
-            expect(RequestService.parseAcceptLanguage(req)).toEqual(["en", "en", "fr"]);
+            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal(["en", "en", "fr"]);
         });
 
         it("should parse \"fr-CA,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3\" correctly", () => {
             const req = { headers: { "accept-language": "fr-CA,fr-FR;q=0.8,en-US;q=0.5,en;q=0.3" } };
-            expect(RequestService.parseAcceptLanguage(req)).toEqual(["fr", "fr", "en", "en"]);
+            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal(["fr", "fr", "en", "en"]);
         });
 
         it("should parse \"es\" correctly", () => {
             const req = { headers: { "accept-language": "es" } };
-            expect(RequestService.parseAcceptLanguage(req)).toEqual(["es"]);
+            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal(["es"]);
         });
 
         it("should parse \"zh-Hant,zh-Hans;q=0.9,ja;q=0.8\" correctly", () => {
             const req = { headers: { "accept-language": "zh-Hant,zh-Hans;q=0.9,ja;q=0.8" } };
-            expect(RequestService.parseAcceptLanguage(req)).toEqual(["zh", "zh", "ja"]);
+            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal(["zh", "zh", "ja"]);
         });
 
         it("should parse \"en-GB,en;q=0.8\" correctly", () => {
             const req = { headers: { "accept-language": "en-GB,en;q=0.8" } };
-            expect(RequestService.parseAcceptLanguage(req)).toEqual(["en", "en"]);
+            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal(["en", "en"]);
         });
 
         it("should handle accept-language with wildcard and language codes", () => {
             const req = { headers: { "accept-language": "*,en;q=0.5" } };
-            expect(RequestService.parseAcceptLanguage(req)).toEqual(["*", "en"]);
+            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal(["*", "en"]);
         });
 
         it("should handle invalid accept-language values", () => {
             const req = { headers: { "accept-language": "invalid" } };
-            expect(RequestService.parseAcceptLanguage(req)).toEqual(["invalid"]);
+            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal(["invalid"]);
         });
 
         it(`should return ["${DEFAULT_LANGUAGE}"] when accept-language header is empty string`, () => {
             const req = { headers: { "accept-language": "" } };
-            expect(RequestService.parseAcceptLanguage(req)).toEqual([DEFAULT_LANGUAGE]);
+            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal([DEFAULT_LANGUAGE]);
         });
 
         it("should handle accept-language with extra spaces", () => {
             const req = { headers: { "accept-language": " en-US , en ;q=0.9 " } };
-            expect(RequestService.parseAcceptLanguage(req)).toEqual([" en", " en "]);
+            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal([" en", " en "]);
         });
 
         it(`should return ["${DEFAULT_LANGUAGE}"] when accept-language header is null`, () => {
             const req = { headers: { "accept-language": null } };
-            expect(RequestService.parseAcceptLanguage(req)).toEqual([DEFAULT_LANGUAGE]);
+            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal([DEFAULT_LANGUAGE]);
         });
 
         it(`should return ["${DEFAULT_LANGUAGE}"] when accept-language header is undefined`, () => {
             const req = { headers: { "accept-language": undefined } };
-            expect(RequestService.parseAcceptLanguage(req)).toEqual([DEFAULT_LANGUAGE]);
+            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal([DEFAULT_LANGUAGE]);
         });
 
         it("should handle accept-language with uppercase letters", () => {
             const req = { headers: { "accept-language": "EN-US,en;q=0.8" } };
-            expect(RequestService.parseAcceptLanguage(req)).toEqual(["EN", "en"]);
+            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal(["EN", "en"]);
         });
 
         it(`should return ["${DEFAULT_LANGUAGE}"]  when accept-language header is not a string`, () => {
             const req = { headers: { "accept-language": 42 } };
-            expect(RequestService.parseAcceptLanguage(req)).toEqual([DEFAULT_LANGUAGE]);
+            expect(RequestService.parseAcceptLanguage(req)).to.deep.equal([DEFAULT_LANGUAGE]);
         });
     });
 
     describe("assertRequestFrom", () => {
         let sessionData: SessionData;
         let userData: SessionUser;
+        let sandbox;
 
         beforeEach(() => {
+            sandbox = sinon.createSandbox();
             sessionData = {
                 isLoggedIn: true,
-                apiToken: false,
+                apiToken: null,
                 fromSafeOrigin: true,
             };
             userData = {
-                id: "user123",
+                id: uuid(),
                 username: "testuser",
             } as unknown as SessionUser;
-
-            jest.spyOn(SessionService, 'getUser').mockReturnValue(userData);
         });
 
         afterEach(() => {
-            jest.restoreAllMocks();
+            sandbox.restore();
         });
 
         describe("isApiRoot conditions", () => {
             it("should pass when isApiRoot is true and request is from API root", () => {
                 sessionData.isLoggedIn = false;
-                sessionData.apiToken = true;
+                sessionData.apiToken = "testApiToken";
                 // @ts-ignore Testing runtime scenario
-                jest.spyOn(SessionService, 'getUser').mockReturnValue(undefined);
+                sandbox.stub(SessionService, "getUser").returns(undefined);
 
                 const req = { session: sessionData };
                 const conditions = { isApiRoot: true };
                 const result = RequestService.assertRequestFrom(req, conditions);
-                expect(result).toBeUndefined();
+                expect(result).to.be.undefined;
             });
 
             it("should throw MustUseApiToken when isApiRoot is true but request is not from API root", () => {
                 sessionData.isLoggedIn = false;
-                sessionData.apiToken = false;
-                jest.spyOn(SessionService, 'getUser').mockReturnValue(null);
+                sessionData.apiToken = null;
+                sandbox.stub(SessionService, "getUser").returns(null);
 
                 const req = { session: sessionData };
                 const conditions = { isApiRoot: true };
                 expect(() => {
                     RequestService.assertRequestFrom(req, conditions);
-                }).toThrow();
+                }).to.throw();
             });
 
             it("should throw MustNotUseApiToken when isApiRoot is false but request is from API root", () => {
                 sessionData.isLoggedIn = false;
-                sessionData.apiToken = true;
-                jest.spyOn(SessionService, 'getUser').mockReturnValue(null);
+                sessionData.apiToken = "testApiToken";
+                sandbox.stub(SessionService, "getUser").returns(null);
 
                 const req = { session: sessionData };
                 const conditions = { isApiRoot: false };
                 expect(() => {
                     RequestService.assertRequestFrom(req, conditions);
-                }).toThrow();
+                }).to.throw();
             });
 
             it("should pass when isApiRoot is false and request is not from API root", () => {
                 sessionData.isLoggedIn = true;
-                sessionData.apiToken = false;
-                jest.spyOn(SessionService, 'getUser').mockReturnValue(userData);
+                sessionData.apiToken = null;
+                sandbox.stub(SessionService, "getUser").returns(userData);
 
                 const req = { session: sessionData };
                 const conditions = { isApiRoot: false };
                 const result = RequestService.assertRequestFrom(req, conditions);
-                expect(result).toBeUndefined();
+                expect(result).to.be.undefined;
             });
         });
 
         describe("isUser conditions", () => {
             it("should return user data when isUser is true and conditions are met (from safe origin)", () => {
                 sessionData.isLoggedIn = true;
-                sessionData.apiToken = false;
+                sessionData.apiToken = null;
                 sessionData.fromSafeOrigin = true;
-                jest.spyOn(SessionService, 'getUser').mockReturnValue(userData);
+                sandbox.stub(SessionService, "getUser").returns(userData);
 
                 const req = { session: sessionData };
                 const conditions = { isUser: true };
                 const result = RequestService.assertRequestFrom(req, conditions);
-                expect(result).toEqual(userData);
+                expect(result).to.deep.equal(userData);
             });
 
             it("should return user data when isUser is true and conditions are met (apiToken)", () => {
                 sessionData.isLoggedIn = true;
-                sessionData.apiToken = true;
+                sessionData.apiToken = "testApiToken";
                 sessionData.fromSafeOrigin = false;
-                jest.spyOn(SessionService, 'getUser').mockReturnValue(userData);
+                sandbox.stub(SessionService, "getUser").returns(userData);
 
                 const req = { session: sessionData };
                 const conditions = { isUser: true };
                 const result = RequestService.assertRequestFrom(req, conditions);
-                expect(result).toEqual(userData);
+                expect(result).to.deep.equal(userData);
             });
 
             it("should throw NotLoggedIn when isUser is true and user is not logged in", () => {
                 sessionData.isLoggedIn = false;
-                sessionData.apiToken = false;
+                sessionData.apiToken = null;
                 sessionData.fromSafeOrigin = true;
-                jest.spyOn(SessionService, 'getUser').mockReturnValue(null);
+                sandbox.stub(SessionService, "getUser").returns(null);
 
                 const req = { session: sessionData };
                 const conditions = { isUser: true };
                 expect(() => {
                     RequestService.assertRequestFrom(req, conditions);
-                }).toThrow();
+                }).to.throw();
             });
 
             it("should throw NotLoggedIn when isUser is true but conditions are not met", () => {
                 sessionData.isLoggedIn = true;
-                sessionData.apiToken = false;
+                sessionData.apiToken = null;
                 sessionData.fromSafeOrigin = false;
-                jest.spyOn(SessionService, 'getUser').mockReturnValue(userData);
+                sandbox.stub(SessionService, "getUser").returns(userData);
 
                 const req = { session: sessionData };
                 const conditions = { isUser: true };
                 expect(() => {
                     RequestService.assertRequestFrom(req, conditions);
-                }).toThrow();
+                }).to.throw();
             });
 
             it("should pass when isUser is false and user is not logged in", () => {
                 sessionData.isLoggedIn = false;
-                sessionData.apiToken = false;
+                sessionData.apiToken = null;
                 sessionData.fromSafeOrigin = false;
-                jest.spyOn(SessionService, 'getUser').mockReturnValue(null);
+                sandbox.stub(SessionService, "getUser").returns(null);
 
                 const req = { session: sessionData };
                 const conditions = { isUser: false };
                 const result = RequestService.assertRequestFrom(req, conditions);
-                expect(result).toBeUndefined();
+                expect(result).to.be.undefined;
             });
 
             it("should throw NotLoggedIn when isUser is false but user is logged in", () => {
                 sessionData.isLoggedIn = true;
-                sessionData.apiToken = true;
+                sessionData.apiToken = "testApiToken";
                 sessionData.fromSafeOrigin = true;
-                jest.spyOn(SessionService, 'getUser').mockReturnValue(userData);
+                sandbox.stub(SessionService, "getUser").returns(userData);
 
                 const req = { session: sessionData };
                 const conditions = { isUser: false };
                 expect(() => {
                     RequestService.assertRequestFrom(req, conditions);
-                }).toThrow();
+                }).to.throw();
             });
         });
 
         describe("isOfficialUser conditions", () => {
             it("should return user data when isOfficialUser is true and conditions are met", () => {
                 sessionData.isLoggedIn = true;
-                sessionData.apiToken = false;
+                sessionData.apiToken = null;
                 sessionData.fromSafeOrigin = true;
-                jest.spyOn(SessionService, 'getUser').mockReturnValue(userData);
+                sandbox.stub(SessionService, "getUser").returns(userData);
 
                 const req = { session: sessionData };
                 const conditions = { isOfficialUser: true };
                 const result = RequestService.assertRequestFrom(req, conditions);
-                expect(result).toEqual(userData);
+                expect(result).to.deep.equal(userData);
             });
 
             it("should throw NotLoggedInOfficial when isOfficialUser is true but user is not logged in", () => {
                 sessionData.isLoggedIn = false;
-                sessionData.apiToken = false;
+                sessionData.apiToken = null;
                 sessionData.fromSafeOrigin = true;
-                jest.spyOn(SessionService, 'getUser').mockReturnValue(null);
+                sandbox.stub(SessionService, "getUser").returns(null);
 
                 const req = { session: sessionData };
                 const conditions = { isOfficialUser: true };
                 expect(() => {
                     RequestService.assertRequestFrom(req, conditions);
-                }).toThrow();
+                }).to.throw();
             });
 
             it("should throw NotLoggedInOfficial when isOfficialUser is true but apiToken is true", () => {
                 sessionData.isLoggedIn = true;
-                sessionData.apiToken = true;
+                sessionData.apiToken = "testApiToken";
                 sessionData.fromSafeOrigin = true;
-                jest.spyOn(SessionService, 'getUser').mockReturnValue(userData);
+                sandbox.stub(SessionService, "getUser").returns(userData);
 
                 const req = { session: sessionData };
                 const conditions = { isOfficialUser: true };
                 expect(() => {
                     RequestService.assertRequestFrom(req, conditions);
-                }).toThrow();
+                }).to.throw();
             });
 
             it("should throw NotLoggedInOfficial when isOfficialUser is true but fromSafeOrigin is false", () => {
                 sessionData.isLoggedIn = true;
-                sessionData.apiToken = false;
+                sessionData.apiToken = null;
                 sessionData.fromSafeOrigin = false;
-                jest.spyOn(SessionService, 'getUser').mockReturnValue(userData);
+                sandbox.stub(SessionService, "getUser").returns(userData);
 
                 const req = { session: sessionData };
                 const conditions = { isOfficialUser: true };
                 expect(() => {
                     RequestService.assertRequestFrom(req, conditions);
-                }).toThrow();
+                }).to.throw();
             });
 
             it("should pass when isOfficialUser is false and user is not an official user", () => {
                 sessionData.isLoggedIn = true;
-                sessionData.apiToken = true;
+                sessionData.apiToken = "testApiToken";
                 sessionData.fromSafeOrigin = false;
-                jest.spyOn(SessionService, 'getUser').mockReturnValue(userData);
+                sandbox.stub(SessionService, "getUser").returns(userData);
 
                 const req = { session: sessionData };
                 const conditions = { isOfficialUser: false };
                 const result = RequestService.assertRequestFrom(req, conditions);
-                expect(result).toBeUndefined();
+                expect(result).to.be.undefined;
             });
 
             it("should throw NotLoggedInOfficial when isOfficialUser is false but user is an official user", () => {
                 sessionData.isLoggedIn = true;
-                sessionData.apiToken = false;
+                sessionData.apiToken = null;
                 sessionData.fromSafeOrigin = true;
-                jest.spyOn(SessionService, 'getUser').mockReturnValue(userData);
+                sandbox.stub(SessionService, "getUser").returns(userData);
 
                 const req = { session: sessionData };
                 const conditions = { isOfficialUser: false };
                 expect(() => {
                     RequestService.assertRequestFrom(req, conditions);
-                }).toThrow();
+                }).to.throw();
             });
         });
 
         describe("Combination of conditions", () => {
             it("should pass when all conditions are met", () => {
                 sessionData.isLoggedIn = true;
-                sessionData.apiToken = false;
+                sessionData.apiToken = null;
                 sessionData.fromSafeOrigin = true;
-                jest.spyOn(SessionService, 'getUser').mockReturnValue(userData);
+                sandbox.stub(SessionService, "getUser").returns(userData);
 
                 const req = { session: sessionData };
                 const conditions = { isUser: true, isOfficialUser: true, isApiRoot: false };
                 const result = RequestService.assertRequestFrom(req, conditions);
-                expect(result).toEqual(userData);
+                expect(result).to.deep.equal(userData);
             });
 
             it("should throw appropriate error when one of the conditions fails", () => {
                 sessionData.isLoggedIn = true;
-                sessionData.apiToken = true;
+                sessionData.apiToken = "testApiToken";
                 sessionData.fromSafeOrigin = true;
-                jest.spyOn(SessionService, 'getUser').mockReturnValue(userData);
+                sandbox.stub(SessionService, "getUser").returns(userData);
 
                 const req = { session: sessionData };
                 const conditions = { isUser: true, isOfficialUser: true, isApiRoot: false };
                 expect(() => {
                     RequestService.assertRequestFrom(req, conditions);
-                }).toThrow();
+                }).to.throw();
             });
         });
 
         it("should return undefined when no conditions are specified", () => {
+            sandbox.stub(SessionService, "getUser").returns(userData);
             const req = { session: sessionData };
             const conditions = {};
             const result = RequestService.assertRequestFrom(req, conditions);
-            expect(result).toBeUndefined();
+            expect(result).to.be.undefined;
+        });
+    });
+
+    async function setRateLimitTokens(key: string, tokens: number, lastRefill: number) {
+        await redisClient?.set(`${key}:tokens`, tokens.toString());
+        await redisClient?.set(`${key}:lastRefill`, lastRefill.toString());
+    }
+
+    describe("checkRateLimit", () => {
+        it("should not throw if all keys are allowed", async () => {
+            const keys = ["key1", "key2"];
+            const maxTokensList = [100, 100];
+            const refillRates = [1, 1]; // 1 token per second
+            const now = Date.now();
+
+            // Set tokens >= 1 and recent lastRefill for both keys
+            await setRateLimitTokens("key1", 100, now);
+            await setRateLimitTokens("key2", 100, now);
+
+            await expect(
+                RequestService.get().checkRateLimit(redisClient, keys, maxTokensList, refillRates),
+            ).to.be.fulfilled;
+        });
+
+        it("should throw CustomError if any key is not allowed", async () => {
+            const keys = ["key1", "key2"];
+            const maxTokensList = [100, 100];
+            const refillRates = [1, 1]; // 1 token per second
+            const now = Date.now();
+
+            // key1 has enough tokens
+            await setRateLimitTokens("key1", 100, now);
+            // key2 has no tokens and last refill is recent, so no refill occurs
+            await setRateLimitTokens("key2", 0, now);
+
+            try {
+                await RequestService.get().checkRateLimit(redisClient, keys, maxTokensList, refillRates);
+                expect.fail("Expected checkRateLimit to throw");
+            } catch (error) {
+                expect(error).to.be.instanceOf(CustomError);
+                expect(error.code).to.equal("RateLimitExceeded");
+            }
+        });
+
+        it("should load script and retry on NOSCRIPT error", async () => {
+            const keys = ["key1", "key2"];
+            const maxTokensList = [100, 100];
+            const refillRates = [1, 1];
+            const now = Date.now();
+
+            // Set tokens >= 1 for both keys
+            await setRateLimitTokens("key1", 100, now);
+            await setRateLimitTokens("key2", 100, now);
+
+            // Simulate NOSCRIPT by flushing scripts
+            await redisClient?.scriptFlush();
+
+            // Execute the rate limit check
+            await expect(
+                RequestService.get().checkRateLimit(redisClient, keys, maxTokensList, refillRates),
+            ).to.be.fulfilled;
+
+            // Verify the script was loaded (SHA is set)
+            expect(RequestService["tokenBucketScriptSha"]).to.be.a("string");
+        });
+
+        it("should not throw if client is null", async () => {
+            await expect(RequestService.get().checkRateLimit(null, ["key1"], [100], [1])).to.be.fulfilled;
+        });
+    });
+
+    describe("rateLimit", () => {
+        it("should not throw if rate limit is not exceeded for API token (GraphQL)", async () => {
+            const operationName = "testOperation1";
+            const apiToken = "testApiToken";
+            const ip = "192.168.1.1";
+            const req = {
+                session: {
+                    apiToken,
+                    fromSafeOrigin: false,
+                    isLoggedIn: false,
+                },
+                body: { operationName },
+                ip,
+            } as unknown as Request;
+            const apiKey = RequestService["buildApiKey"](req);
+            const ipKey = RequestService["buildIpKey"](req);
+
+            await setRateLimitTokens(apiKey, 100, Date.now());
+            await setRateLimitTokens(ipKey, 100, Date.now());
+
+            await expect(RequestService.get().rateLimit({ req, maxApi: 100, maxIp: 100, maxUser: 100, window: 60 })).to.be.fulfilled;
+        });
+
+        it("should throw if API rate limit is exceeded (GraphQL)", async () => {
+            const operationName = "testOperation2";
+            const apiToken = "testApiToken";
+            const ip = "192.168.1.1";
+            const req = {
+                session: {
+                    apiToken,
+                    fromSafeOrigin: false,
+                    isLoggedIn: false,
+                },
+                body: { operationName },
+                ip,
+            } as unknown as Request;
+            const apiKey = RequestService["buildApiKey"](req);
+            const ipKey = RequestService["buildIpKey"](req);
+
+            await setRateLimitTokens(apiKey, 0, Date.now());
+            await setRateLimitTokens(ipKey, 100, Date.now());
+
+            try {
+                await RequestService.get().rateLimit({ req, maxApi: 100, maxIp: 100, maxUser: 100, window: 60 });
+                expect.fail("Expected rateLimit to throw");
+            } catch (error) {
+                expect(error).to.be.instanceOf(CustomError);
+                expect(error.code).to.equal("RateLimitExceeded");
+            }
+        });
+
+        it("should not throw if rate limit is not exceeded for IP (no API token, safe origin, REST)", async () => {
+            const path = "/api/test";
+            const method = "GET";
+            const apiToken = null;
+            const ip = "192.168.1.1";
+            const req = {
+                session: {
+                    apiToken,
+                    fromSafeOrigin: true,
+                    isLoggedIn: false,
+                },
+                route: { path },
+                method,
+                ip,
+            } as unknown as Request;
+            const ipKey = RequestService["buildIpKey"](req);
+            const now = Date.now();
+
+            await setRateLimitTokens(ipKey, 100, now);
+
+            await expect(RequestService.get().rateLimit({ req, maxApi: 100, maxIp: 100, maxUser: 100, window: 60 })).to.be.fulfilled;
+        });
+
+        it("should throw if IP rate limit is exceeded (no API token, safe origin, REST)", async () => {
+            const path = "/api/test";
+            const method = "GET";
+            const apiToken = null;
+            const ip = "192.168.1.1";
+            const req = {
+                session: {
+                    apiToken,
+                    fromSafeOrigin: true,
+                    isLoggedIn: false,
+                },
+                route: { path },
+                method,
+                ip,
+            } as unknown as Request;
+            const ipKey = RequestService["buildIpKey"](req);
+
+            await setRateLimitTokens(ipKey, 0, Date.now());
+
+            try {
+                await RequestService.get().rateLimit({ req, maxApi: 100, maxIp: 100, maxUser: 100, window: 60 });
+                expect.fail("Expected rateLimit to throw");
+            } catch (error) {
+                expect(error).to.be.instanceOf(CustomError);
+                expect(error.code).to.equal("RateLimitExceeded");
+            }
+        });
+
+        it("should throw MustUseApiToken if no API token and from unsafe origin", async () => {
+            const req = {
+                session: {
+                    apiToken: null,
+                    fromSafeOrigin: false,
+                    isLoggedIn: false,
+                },
+                body: { operationName: "testOperation3" },
+                ip: "192.168.1.1",
+            } as unknown as Request;
+
+            try {
+                await RequestService.get().rateLimit({ req, maxApi: 100, maxIp: 100, maxUser: 100, window: 60 });
+                expect.fail("Expected rateLimit to throw");
+            } catch (error) {
+                expect(error).to.be.instanceOf(CustomError);
+                expect(error.code).to.equal("MustUseApiToken");
+            }
+        });
+
+        it("should not throw if rate limit is not exceeded for logged-in user (other request)", async () => {
+            const path = "/other";
+            const ip = "192.168.1.1";
+            const userData = { id: uuid(), languages: [] } as unknown as SessionUser;
+            const req = {
+                session: {
+                    apiToken: null,
+                    fromSafeOrigin: true,
+                    isLoggedIn: true,
+                    users: [userData],
+                },
+                path,
+                ip,
+            } as unknown as Request;
+            const ipKey = RequestService["buildIpKey"](req);
+
+            await setRateLimitTokens(ipKey, 100, Date.now());
+
+            await expect(RequestService.get().rateLimit({ req, maxApi: 100, maxIp: 100, maxUser: 100, window: 60 })).to.be.fulfilled;
+        });
+
+        it("should throw if user rate limit is exceeded", async () => {
+            const path = "/other";
+            const ip = "192.168.1.1";
+            const userData = { id: uuid(), languages: [] } as unknown as SessionUser;
+            const req = {
+                session: {
+                    apiToken: null,
+                    fromSafeOrigin: true,
+                    isLoggedIn: true,
+                    users: [userData],
+                },
+                path,
+                ip,
+            } as unknown as Request;
+            const ipKey = RequestService["buildIpKey"](req);
+            const userKey = RequestService["buildUserKey"](req, userData);
+
+            await setRateLimitTokens(ipKey, 100, Date.now());
+            await setRateLimitTokens(userKey, 0, Date.now());
+
+            try {
+                await RequestService.get().rateLimit({ req, maxApi: 100, maxIp: 100, maxUser: 100, window: 60 });
+                expect.fail("Expected rateLimit to throw");
+            } catch (error) {
+                expect(error).to.be.instanceOf(CustomError);
+                expect(error.code).to.equal("RateLimitExceeded");
+            }
+        });
+    });
+
+    describe("rateLimitSocket", () => {
+        it("should not return error if rate limit is not exceeded for guest socket", async () => {
+            const socketId = "socket1";
+            const ip = "192.168.1.1";
+            const socket = {
+                session: { isLoggedIn: false, users: [] },
+                req: { ip },
+                id: socketId,
+            } as unknown as Socket;
+            const ipKey = RequestService["buildSocketIpKey"](socket);
+            const now = Date.now();
+            await setRateLimitTokens(ipKey, 100, now);
+
+            const result = await RequestService.get().rateLimitSocket({ socket, maxIp: 100, maxUser: 100, window: 60 });
+            expect(result).to.be.undefined;
+        });
+
+        it("should return error if IP rate limit is exceeded for guest socket", async () => {
+            const socketId = "socket2";
+            const ip = "192.168.1.1";
+            const socket = {
+                session: { isLoggedIn: false, users: [] },
+                req: { ip },
+                id: socketId,
+            } as unknown as Socket;
+            const ipKey = RequestService["buildSocketIpKey"](socket);
+            await setRateLimitTokens(ipKey, 0, Date.now());
+
+            const error = await RequestService.get().rateLimitSocket({ socket, maxIp: 100, maxUser: 100, window: 60 });
+            expect(error).to.be.a("string").and.to.include("RateLimitExceeded");
+        });
+
+        it("should not return error if rate limit is not exceeded for logged-in user socket", async () => {
+            const socketId = "socket3";
+            const ip = "192.168.1.1";
+            const userData = { id: uuid(), languages: [] } as unknown as SessionUser;
+            const socket = {
+                session: { isLoggedIn: true, users: [userData] },
+                req: { ip },
+                id: socketId,
+            } as unknown as Socket;
+            const ipKey = RequestService["buildSocketIpKey"](socket);
+            const userKey = RequestService["buildSocketUserKey"](socket, userData);
+            const now = Date.now();
+            await setRateLimitTokens(ipKey, 100, now);
+            await setRateLimitTokens(userKey, 100, now);
+
+            const result = await RequestService.get().rateLimitSocket({ socket, maxIp: 100, maxUser: 100, window: 60 });
+            expect(result).to.be.undefined;
+        });
+
+        it("should return error if user rate limit is exceeded for logged-in user socket", async () => {
+            const socketId = "socket4";
+            const ip = "192.168.1.1";
+            const userData = { id: uuid(), languages: [] } as unknown as SessionUser;
+            const socket = {
+                session: { isLoggedIn: true, users: [userData] },
+                req: { ip },
+                id: socketId,
+            } as unknown as Socket;
+            const ipKey = RequestService["buildSocketIpKey"](socket);
+            const userKey = RequestService["buildSocketUserKey"](socket, userData);
+            await setRateLimitTokens(ipKey, 100, Date.now());
+            await setRateLimitTokens(userKey, 0, Date.now());
+
+            const error = await RequestService.get().rateLimitSocket({ socket, maxIp: 100, maxUser: 100, window: 60 });
+            expect(error).to.be.a("string").and.to.include("RateLimitExceeded");
         });
     });
 });

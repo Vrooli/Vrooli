@@ -1,16 +1,16 @@
-import { apiKeyValidation, MaxObjects, uuid } from "@local/shared";
+import { apiKeyExternalValidation, MaxObjects, uuid } from "@local/shared";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { noNull } from "../../builders/noNull.js";
 import { useVisibility } from "../../builders/visibilityBuilder.js";
 import { defaultPermissions } from "../../utils/defaultPermissions.js";
-import { ApiKeyFormat } from "../formats.js";
+import { ApiKeyExternalFormat } from "../formats.js";
 import { ModelMap } from "./index.js";
-import { ApiKeyModelLogic, TeamModelLogic } from "./types.js";
+import { ApiKeyExternalModelLogic, TeamModelLogic } from "./types.js";
 
-const __typename = "ApiKey" as const;
-export const ApiKeyModel: ApiKeyModelLogic = ({
+const __typename = "ApiKeyExternal" as const;
+export const ApiKeyExternalModel: ApiKeyExternalModelLogic = ({
     __typename,
-    dbTable: "api_key",
+    dbTable: "api_key_external",
     display: () => ({
         label: {
             select: () => ({ id: true, name: true }),
@@ -19,31 +19,27 @@ export const ApiKeyModel: ApiKeyModelLogic = ({
             },
         },
     }),
-    format: ApiKeyFormat,
+    format: ApiKeyExternalFormat,
     mutate: {
         shape: {
             create: async ({ userData, data }) => ({
                 id: uuid(),
-                creditsUsedBeforeLimit: 0,
                 disabledAt: data.disabled === true ? new Date() : data.disabled === false ? null : undefined,
-                limitHard: BigInt(data.limitHard),
-                limitSoft: data.limitSoft ? BigInt(data.limitSoft) : null,
-                key: ApiKeyEncryptionService.generateSiteKey(),
+                key: ApiKeyEncryptionService.get().encryptExternal(data.key),
                 name: data.name,
-                stopAtLimit: data.stopAtLimit,
+                service: data.service,
                 team: data.teamConnect ? { connect: { id: data.teamConnect } } : undefined,
                 user: data.teamConnect ? undefined : { connect: { id: userData.id } },
 
             }),
             update: async ({ data }) => ({
                 disabledAt: data.disabled === true ? new Date() : data.disabled === false ? null : undefined,
-                limitHard: data.limitHard ? BigInt(data.limitHard) : undefined,
-                limitSoft: data.limitSoft ? BigInt(data.limitSoft) : data.limitSoft === null ? null : undefined,
+                key: data.key ? ApiKeyEncryptionService.get().encryptExternal(data.key) : undefined,
                 name: noNull(data.name),
-                stopAtLimit: noNull(data.stopAtLimit),
+                service: noNull(data.service),
             }),
         },
-        yup: apiKeyValidation,
+        yup: apiKeyExternalValidation,
     },
     search: undefined,
     validate: () => ({

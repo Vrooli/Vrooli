@@ -4,11 +4,11 @@ import fs from "fs";
 import pkg from "lodash";
 import { RedisClientType } from "redis";
 import { Socket } from "socket.io";
-import { CustomError } from "../events/error";
-import { logger } from "../events/logger";
-import { initializeRedis } from "../redisConn";
-import { SessionData } from "../types";
-import { SessionService } from "./session";
+import { CustomError } from "../events/error.js";
+import { logger } from "../events/logger.js";
+import { initializeRedis } from "../redisConn.js";
+import { SessionData } from "../types.js";
+import { SessionService } from "./session.js";
 
 const { escapeRegExp } = pkg;
 
@@ -94,6 +94,7 @@ export class RequestService {
 
 
     static tokenBucketScript = "";
+    private static tokenBucketScriptSha: string | null = null;
 
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     private constructor() { }
@@ -241,13 +242,16 @@ export class RequestService {
      * @returns user data, if isUser or isOfficialUser is true
      * @throws CustomError if conditions are not met
      */
-    static assertRequestFrom<Conditions extends RequestConditions>(req: { session: SessionData }, conditions: Conditions): AssertRequestFromResult<Conditions> {
+    static assertRequestFrom<Conditions extends RequestConditions>(
+        req: { session: Pick<SessionData, "apiToken" | "fromSafeOrigin" | "isLoggedIn" | "languages"> & { users?: Pick<SessionUser, "id" | "languages">[] | null | undefined } },
+        conditions: Conditions,
+    ): AssertRequestFromResult<Conditions> {
         const { session } = req;
         // Determine if user data is found in the request
         const userData = SessionService.getUser(session);
         const hasUserData = session.isLoggedIn === true && Boolean(userData);
         // Determine if api token is supplied
-        const hasApiToken = session.apiToken === true;
+        const hasApiToken = typeof session.apiToken === "string" && session.apiToken.length > 0;
         // Check isApiRoot condition
         if (conditions.isApiRoot !== undefined) {
             const isApiRoot = hasApiToken && !hasUserData;
@@ -270,7 +274,7 @@ export class RequestService {
     }
 
     /**
-     * Builds a key for rate limiting
+     * Builds a key for rate limiting a normal (non-socket) request
      * @param req The request to build the key from
      * @returns The key base
      */
@@ -291,6 +295,62 @@ export class RequestService {
         }
 
         return keyBase;
+    }
+
+    /**
+     * Builds a key for rate limiting an IP address
+     * @param req The request to build the key from
+     * @returns The key base
+     */
+    private static buildIpKey(req: Request): string {
+        return `${RequestService.buildKeyBase(req)}ip:${req.ip}`;
+    }
+
+    /**
+     * Builds a key for rate limiting an API token
+     * @param req The request to build the key from
+     * @returns The key base
+     */
+    private static buildApiKey(req: Request): string {
+        return `${RequestService.buildKeyBase(req)}api:${req.session.apiToken}`;
+    }
+
+    /**
+     * Builds a key for rate limiting a user
+     * @param req The request to build the key from
+     * @param userData The user data to build the key from
+     * @returns The key base
+     */
+    private static buildUserKey(req: Request, userData: SessionUser): string {
+        return `${RequestService.buildKeyBase(req)}user:${userData.id}`;
+    }
+
+    /**
+     * Builds a key base for rate limiting a socket request
+     * @param socket The socket to build the key from
+     * @returns The key base
+     */
+    private static buildSocketKeyBase(socket: Socket): string {
+        return `rate-limit:${socket.id}:`;
+    }
+
+    /**
+     * Builds a key for rate limiting an IP address for a socket request
+     * @param socket The socket to build the key from
+     * @returns The key base
+     */
+    private static buildSocketIpKey(socket: Socket): string {
+        return `${RequestService.buildSocketKeyBase(socket)}ip:${socket.req.ip}`;
+    }
+
+    /**
+     * Builds a key for rate limiting a user for a socket request
+     * @param socket The socket to build the key from
+     * @param userData The user data to build the key from
+     * @returns The key base
+     */
+    private static buildSocketUserKey(socket: Socket, userData: SessionUser): string {
+        return `${RequestService.buildSocketKeyBase(socket)}user:${userData.id}`;
     }
 
     /**
@@ -325,18 +385,33 @@ export class RequestService {
         // Append nowMs
         args.push(nowMs.toString());
 
-        const result = await client.eval(RequestService.tokenBucketScript, {
-            keys,
-            arguments: args,
-        });
-
-        // Result is an array of [allowed1, waitTimeMs1, allowed2, waitTimeMs2, ...]
-        const results = result as number[];
+        // Result is an array of [allowed1, waitTimeMs1, allowed2, waitTimeMs2, ...]  
+        let result: number[] | undefined;
+        if (RequestService.tokenBucketScriptSha) {
+            try {
+                result = await client.evalSha(RequestService.tokenBucketScriptSha, {
+                    keys,
+                    arguments: args,
+                }) as number[];
+            } catch (error) {
+                if (!(error instanceof Error && error.message.startsWith("NOSCRIPT"))) {
+                    throw error;
+                }
+                // If NOSCRIPT, proceed to load the script
+            }
+        }
+        if (result === undefined) {
+            RequestService.tokenBucketScriptSha = await client.scriptLoad(RequestService.tokenBucketScript);
+            result = await client.evalSha(RequestService.tokenBucketScriptSha, {
+                keys,
+                arguments: args,
+            }) as number[];
+        }
 
         // Check if any of the rate limits are exceeded
         for (let i = 0; i < keys.length; i++) {
-            const allowed = results[2 * i];
-            const waitTimeMs = results[2 * i + 1];
+            const allowed = result[2 * i];
+            const waitTimeMs = result[2 * i + 1];
             if (allowed === 0) {
                 throw new CustomError("0017", "RateLimitExceeded", { retryAfterMs: waitTimeMs });
             }
@@ -355,22 +430,17 @@ export class RequestService {
         req,
         window = DEFAULT_RATE_LIMIT_WINDOW_S,
     }: RateLimitProps): Promise<void> {
-        // Create key that uniquely identifies the endpoint
-        const keyBase = RequestService.buildKeyBase(req);
-
         // If maxApi not supplied, use maxUser * 1000
         maxApi = maxApi ?? (maxUser * 1000);
         // If maxIp not supplied, use maxUser
         maxIp = maxIp ?? maxUser;
 
         // Parse request
-        const hasApiToken = req.session.apiToken === true;
+        const hasApiToken = typeof req.session.apiToken === "string" && req.session.apiToken.length > 0;
         const userData = SessionService.getUser(req.session);
         const hasUserData = req.session.isLoggedIn === true && userData !== null;
 
         // Try connecting to redis
-        // TODO should use `withRedis` function to let users through if Redis fails, but that would 
-        // also catch the errors we want to throw
         try {
             const client = await initializeRedis();
 
@@ -386,25 +456,25 @@ export class RequestService {
 
             // Apply rate limit to API
             if (hasApiToken) {
-                const apiKey = `${keyBase}:api:${req.session.apiToken}`;
+                const apiKey = RequestService.buildApiKey(req);
                 keys.push(apiKey);
                 maxTokensList.push(maxApi);
                 refillRates.push(apiRefillRate);
             }
             // Make sure that all non-API requests are from a safe origin
             else if (req.session.fromSafeOrigin === false) {
-                throw new CustomError("0271", "MustUseApiToken", { keyBase });
+                throw new CustomError("0271", "MustUseApiToken", { keyBase: RequestService.buildKeyBase(req) });
             }
 
             // Apply rate limit to IP address
-            const ipKey = `${keyBase}:ip:${req.ip}`;
+            const ipKey = RequestService.buildIpKey(req);
             keys.push(ipKey);
             maxTokensList.push(maxIp);
             refillRates.push(ipRefillRate);
 
             // Apply rate limit to user
             if (hasUserData) {
-                const userKey = `${keyBase}:user:${userData.id}`;
+                const userKey = RequestService.buildUserKey(req, userData);
                 keys.push(userKey);
                 maxTokensList.push(maxUser);
                 refillRates.push(userRefillRate);
@@ -430,17 +500,12 @@ export class RequestService {
         window = DEFAULT_RATE_LIMIT_WINDOW_S,
         socket,
     }: SocketRateLimitProps): Promise<string | undefined> {
-        const keyBase = "rate-limit:";
         // Retrieve user data from the socket
         const userData = SessionService.getUser(socket.session);
         const hasUserData = socket.session.isLoggedIn === true && userData !== null;
         // If maxIp not supplied, use maxUser
         maxIp = maxIp ?? maxUser;
-        // Parse socket
-        const keyBaseWithId = `${keyBase}:${socket.id}:`;
         // Try connecting to redis
-        // TODO should use `withRedis` function to let users through if Redis fails, but that would 
-        // also catch the errors we want to throw
         try {
             const client = await initializeRedis();
 
@@ -454,14 +519,14 @@ export class RequestService {
             const refillRates: number[] = [];
 
             // Apply rate limit to IP address
-            const ipKey = `${keyBaseWithId}:ip:${socket.req.ip}`;
+            const ipKey = RequestService.buildSocketIpKey(socket);
             keys.push(ipKey);
             maxTokensList.push(maxIp);
             refillRates.push(ipRefillRate);
 
             // Apply rate limit to user
             if (hasUserData) {
-                const userKey = `${keyBaseWithId}:user:${userData.id}`;
+                const userKey = RequestService.buildSocketUserKey(socket, userData);
                 keys.push(userKey);
                 maxTokensList.push(maxUser);
                 refillRates.push(userRefillRate);
@@ -471,8 +536,7 @@ export class RequestService {
             await this.checkRateLimit(client, keys, maxTokensList, refillRates);
         } catch (error) {
             console.error("Error occurred while connecting or accessing redis server", { trace: "0492", error });
-            return (error as any)?.message ?? "Rate limit exceeded";
+            return (error as Error)?.message ?? "Rate limit exceeded";
         }
     }
-
 }

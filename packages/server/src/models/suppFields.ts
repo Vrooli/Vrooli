@@ -1,6 +1,7 @@
 export const SuppFields = {
     Api: ["you"],
     ApiKey: [],
+    ApiKeyExternal: [],
     ApiVersion: ["you"],
     Award: ["title", "description"],
     Bookmark: [],
