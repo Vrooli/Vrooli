@@ -134,7 +134,7 @@ else
 fi
 
 # Build server
-run_step "Building server" "yarn pre-build-production && yarn build && yarn post-build"
+run_step "Building server" "yarn build && yarn post-build"
 
 # Navigate to UI directory
 cd ${HERE}/../packages/ui
