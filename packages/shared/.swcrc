@@ -1,8 +1,4 @@
 {
-    "exclude": [
-        "/.*\\/types\\.ts$/",
-        "/.*\\/types\\.d\\.ts$/"
-    ],
     "jsc": {
         "minify": {
             "compress": true,
@@ -14,14 +10,10 @@
             "tsx": true,
             "decorators": false,
             "dynamicImport": false
-        },
-        "transform": {
-            "hidden": {
-                "jest": true
-            }
         }
     },
     "module": {
+        // NOTE: If changing to or from "commonjs", make sure package.json and tsconfig.json are updated as well
         "type": "es6",
         "strict": false,
         "strictMode": true,

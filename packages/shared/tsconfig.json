@@ -1,6 +1,7 @@
 {
     "compilerOptions": {
         "target": "ESNext",
+        // NOTE: If changing to or from "commonjs", make sure package.json and .swcrc are updated as well
         "module": "esnext",
         "baseUrl": "./src",
         "rootDir": "./src",
@@ -22,7 +23,6 @@
         "strict": true,
         "forceConsistentCasingInFileNames": true,
         "noFallthroughCasesInSwitch": true,
-        "noUncheckedIndexedAccess": true,
         "moduleResolution": "node",
         "noImplicitAny": false,
         "removeComments": true,
@@ -31,15 +31,16 @@
         "isolatedModules": true,
         "jsx": "react-jsx",
         "declaration": true,
+        "types": [
+            "mocha",
+        ]
     },
     "include": [
         "src"
     ],
     "exclude": [
-        "**/*.spec.ts",
         "**/*.test.ts",
-        "**/__mocks__",
-        "**/coverage",
+        "**/__test",
         "**/node_modules",
         "**/dist",
         "**/.*/",

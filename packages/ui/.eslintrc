@@ -12,6 +12,7 @@
         "sourceType": "module",
         "project": [
             "./tsconfig.json",
+            "./tsconfig.node.json",
             "./tsconfig.test.json",
             "./tsconfig.tools.json"
         ]
