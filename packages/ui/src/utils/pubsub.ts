@@ -1,6 +1,6 @@
-import { AITaskInfo, ChatPageTabOption, LlmTask, Session, TaskContextInfo, TranslationKeyCommon, TranslationKeyError } from "@local/shared";
-import { AlertDialogSeverity } from "components/dialogs/AlertDialog/AlertDialog.js";
-import { SnackSeverity } from "components/snacks/BasicSnack/BasicSnack.js";
+import { AITaskInfo, LlmTask, Session, TaskContextInfo, TranslationKeyCommon, TranslationKeyError } from "@local/shared";
+import { AlertDialogSeverity } from "../components/dialogs/AlertDialog/AlertDialog.js";
+import { SnackSeverity } from "../components/snacks/BasicSnack/BasicSnack.js";
 import { ThemeType } from "./localStorage.js";
 
 export type TranslatedSnackMessage<KeyList = TranslationKeyCommon | TranslationKeyError> = {

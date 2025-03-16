@@ -12,7 +12,6 @@ const outerStyle = {
     padding: "20px",
     border: "1px solid #ccc",
 } as const;
-
 function Outer({ children }: { children: React.ReactNode }) {
     return (
         <div style={outerStyle}>

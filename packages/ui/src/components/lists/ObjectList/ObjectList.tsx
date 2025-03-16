@@ -1,16 +1,16 @@
 import { Bookmark, ListObject, ModelType, OrArray, Reaction, View, isOfType, noop } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
-import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
-import { UsePressEvent } from "hooks/gestures.js";
-import { useObjectActions } from "hooks/objectActions.js";
-import { useDimensions } from "hooks/useDimensions.js";
-import { useObjectContextMenu } from "hooks/useObjectContextMenu.js";
-import { useStableCallback } from "hooks/useStableCallback.js";
-import { useStableObject } from "hooks/useStableObject.js";
 import { memo, useMemo } from "react";
 import { lazily } from "react-lazily";
-import { useLocation } from "route";
-import { ObjectAction } from "utils/actions/objectActions.js";
+import { UsePressEvent } from "../../../hooks/gestures.js";
+import { useObjectActions } from "../../../hooks/objectActions.js";
+import { useDimensions } from "../../../hooks/useDimensions.js";
+import { useObjectContextMenu } from "../../../hooks/useObjectContextMenu.js";
+import { useStableCallback } from "../../../hooks/useStableCallback.js";
+import { useStableObject } from "../../../hooks/useStableObject.js";
+import { useLocation } from "../../../route/router.js";
+import { ObjectAction } from "../../../utils/actions/objectActions.js";
+import { ObjectActionMenu } from "../../dialogs/ObjectActionMenu/ObjectActionMenu.js";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
 import { ObjectListItemProps } from "../types.js";
 

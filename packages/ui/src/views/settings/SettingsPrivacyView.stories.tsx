@@ -1,3 +1,4 @@
+import { PageContainer } from "components/Page/Page.js";
 import { SettingsPrivacyView } from "./SettingsPrivacyView.js";
 
 export default {
@@ -7,7 +8,9 @@ export default {
 
 export function Default() {
     return (
-        <SettingsPrivacyView display="page" />
+        <PageContainer>
+            <SettingsPrivacyView display="page" />
+        </PageContainer>
     );
 }
 Default.parameters = {

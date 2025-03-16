@@ -1,6 +1,6 @@
 import { HttpMethod, ServerResponse, TranslationKeyCommon, TranslationKeyError, exists } from "@local/shared";
 import { useCallback } from "react";
-import { PubSub } from "utils/pubsub.js";
+import { PubSub } from "../utils/pubsub.js";
 import { fetchData } from "./fetchData.js";
 import { ServerResponseParser } from "./responseParser.js";
 import { LazyRequestWithResult } from "./types.js";

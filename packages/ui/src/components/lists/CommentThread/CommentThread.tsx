@@ -1,7 +1,7 @@
 import { BookmarkFor, Comment, CommentFor, DeleteOneInput, DeleteType, ReactionFor, ReportFor, Success, endpointsActions, getTranslation, updateArray } from "@local/shared";
 import { Avatar, Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
 import { fetchLazyWrapper } from "api/fetchWrapper.js";
-import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton.js";
+import { BookmarkButton } from "components/buttons/BookmarkButton.js";
 import { ReportButton } from "components/buttons/ReportButton/ReportButton.js";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton.js";
 import { VoteButton } from "components/buttons/VoteButton/VoteButton.js";

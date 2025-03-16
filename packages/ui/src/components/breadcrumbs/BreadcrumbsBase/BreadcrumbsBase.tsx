@@ -1,6 +1,7 @@
 import { Breadcrumbs, Link } from "@mui/material";
 import { useMemo } from "react";
-import { openLink, useLocation } from "route";
+import { openLink } from "../../../route/openLink.js";
+import { useLocation } from "../../../route/router.js";
 import { noSelect } from "../../../styles.js";
 import { BreadcrumbsBaseProps } from "../types.js";
 

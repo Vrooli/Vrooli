@@ -1,32 +1,31 @@
 import { ApiVersion, CodeVersion, Count, DeleteManyInput, DeleteType, ListObject, ModelType, NoteVersion, ProjectVersion, ProjectVersionDirectory, RoutineVersion, Session, StandardVersion, Team, TimeFrame, endpointsActions, getObjectUrl, isOfType } from "@local/shared";
 import { Box, Button, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper.js";
-import { SortButton } from "components/buttons/SortButton/SortButton.js";
-import { TimeButton } from "components/buttons/TimeButton/TimeButton.js";
-import { SearchButtonsProps } from "components/buttons/types.js";
-import { ListContainer } from "components/containers/ListContainer/ListContainer.js";
-import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog.js";
-import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
-import { ObjectList } from "components/lists/ObjectList/ObjectList.js";
-import { TextLoading } from "components/lists/TextLoading/TextLoading.js";
-import { ObjectListActions } from "components/lists/types.js";
-import { UsePressEvent, usePress } from "hooks/gestures.js";
-import { useBulkObjectActions, useObjectActions } from "hooks/objectActions.js";
-import { useLazyFetch } from "hooks/useLazyFetch.js";
-import { useObjectContextMenu } from "hooks/useObjectContextMenu.js";
-import { useSelectableList } from "hooks/useSelectableList.js";
-import { AddIcon, ApiIcon, DeleteIcon, GridIcon, HelpIcon, LinkIcon, ListIcon, NoteIcon, ProjectIcon, RoutineIcon, StandardIcon, TeamIcon, TerminalIcon } from "icons/common.js";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
-import { ArgsType } from "types";
-import { ObjectAction } from "utils/actions/objectActions.js";
-import { DUMMY_LIST_LENGTH, DUMMY_LIST_LENGTH_SHORT } from "utils/consts.js";
-import { getDisplay } from "utils/display/listTools.js";
-import { getUserLanguages } from "utils/display/translationTools.js";
-import { PubSub } from "utils/pubsub.js";
+import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
+import { SortButton, StyledSearchButton, TimeButton } from "../../../components/buttons/SearchButtons/SearchButtons.js";
+import { SearchButtonsProps } from "../../../components/buttons/types.js";
+import { ListContainer } from "../../../components/containers/ListContainer/ListContainer.js";
+import { FindObjectDialog } from "../../../components/dialogs/FindObjectDialog/FindObjectDialog.js";
+import { ObjectActionMenu } from "../../../components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
+import { ObjectList } from "../../../components/lists/ObjectList/ObjectList.js";
+import { TextLoading } from "../../../components/lists/TextLoading/TextLoading.js";
+import { ObjectListActions } from "../../../components/lists/types.js";
 import { SessionContext } from "../../../contexts.js";
-import { CardBox, multiLineEllipsis, searchButtonStyle } from "../../../styles.js";
+import { UsePressEvent, usePress } from "../../../hooks/gestures.js";
+import { useBulkObjectActions, useObjectActions } from "../../../hooks/objectActions.js";
+import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useObjectContextMenu } from "../../../hooks/useObjectContextMenu.js";
+import { useSelectableList } from "../../../hooks/useSelectableList.js";
+import { AddIcon, ApiIcon, DeleteIcon, GridIcon, HelpIcon, LinkIcon, ListIcon, NoteIcon, ProjectIcon, RoutineIcon, StandardIcon, TeamIcon, TerminalIcon } from "../../../icons/common.js";
+import { useLocation } from "../../../route/router.js";
+import { CardBox, multiLineEllipsis } from "../../../styles.js";
+import { ArgsType } from "../../../types.js";
+import { ObjectAction } from "../../../utils/actions/objectActions.js";
+import { DUMMY_LIST_LENGTH, DUMMY_LIST_LENGTH_SHORT } from "../../../utils/consts.js";
+import { getDisplay } from "../../../utils/display/listTools.js";
+import { getUserLanguages } from "../../../utils/display/translationTools.js";
+import { PubSub } from "../../../utils/pubsub.js";
 import { DirectoryCardProps, DirectoryItem, DirectoryListHorizontalProps, DirectoryListProps, DirectoryListVerticalProps } from "../types.js";
 
 export enum DirectoryListSortBy {
@@ -134,13 +133,13 @@ function DirectorySearchButtons({
             />
             {/* Card/list toggle TODO */}
             <Tooltip title={t(viewMode === "list" ? "CardModeSwitch" : "ListModeSwitch")} placement="top">
-                <Box
+                <StyledSearchButton
+                    active={false}
                     id="card-list-toggle-button"
                     onClick={toggleViewMode}
-                    sx={searchButtonStyle(palette)}
                 >
                     {viewMode === "list" ? <ListIcon fill={palette.secondary.main} /> : <GridIcon fill={palette.secondary.main} />}
-                </Box>
+                </StyledSearchButton>
             </Tooltip>
         </Box>
     );

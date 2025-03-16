@@ -1,16 +1,16 @@
 import { DUMMY_ID, DeleteOneInput, DeleteType, Phone, PhoneCreateInput, SendVerificationTextInput, Success, ValidateVerificationTextInput, endpointsActions, endpointsPhone, phoneValidation, updateArray, uuid } from "@local/shared";
 import { Box, IconButton, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper.js";
-import { ListContainer } from "components/containers/ListContainer/ListContainer.js";
-import { PhoneNumberInputBase } from "components/inputs/PhoneNumberInput/PhoneNumberInput.js";
-import { TextInput } from "components/inputs/TextInput/TextInput.js";
 import { useFormik } from "formik";
-import { useLazyFetch } from "hooks/useLazyFetch.js";
-import { AddIcon, DeleteIcon, RefreshIcon } from "icons/common.js";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
+import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { AddIcon, DeleteIcon, RefreshIcon } from "../../../icons/common.js";
 import { multiLineEllipsis } from "../../../styles.js";
 import { PubSub } from "../../../utils/pubsub.js";
+import { ListContainer } from "../../containers/ListContainer/ListContainer.js";
+import { PhoneNumberInputBase } from "../../inputs/PhoneNumberInput/PhoneNumberInput.js";
+import { TextInput } from "../../inputs/TextInput/TextInput.js";
 import { PhoneListItemProps, PhoneListProps } from "./types.js";
 
 /**

@@ -1,5 +1,5 @@
 import { HttpMethod, ParseSearchParamsResult, stringifySearchParams } from "@local/shared";
-import { apiUrlBase, restBase } from "utils/consts.js";
+import { apiUrlBase, restBase } from "../utils/consts.js";
 import { invalidateAIConfigCache } from "./ai.js";
 import { ServerResponseWithTimestamp } from "./types.js";
 

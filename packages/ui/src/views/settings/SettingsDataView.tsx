@@ -1,15 +1,16 @@
 import { Box, Button, Checkbox, Divider, FormControlLabel, FormHelperText, Grid } from "@mui/material";
-import { SettingsList } from "components/lists/SettingsList/SettingsList.js";
-import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar.js";
-import { MarkdownDisplay } from "components/text/MarkdownDisplay.js";
-import { Title } from "components/text/Title.js";
 import { Field, Formik, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm.js";
-import { HeartFilledIcon, RoutineIcon, TeamIcon, UserIcon } from "icons/common.js";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
+import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar/SettingsTopBar.js";
+import { MarkdownDisplay } from "../../components/text/MarkdownDisplay.js";
+import { Title } from "../../components/text/Title.js";
+import { BaseForm } from "../../forms/BaseForm/BaseForm.js";
+import { HeartFilledIcon, RoutineIcon, TeamIcon, UserIcon } from "../../icons/common.js";
+import { useLocation } from "../../route/router.js";
 import { SettingsDataFormProps, SettingsDataViewProps } from "./types.js";
 
+//TODO add section for managing uploaded files, with information about how much storage is used and a way to delete files
 function DataOption({
     disabled,
     help,

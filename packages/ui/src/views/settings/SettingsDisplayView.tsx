@@ -21,7 +21,7 @@ import { useProfileQuery } from "../../hooks/useProfileQuery.js";
 import { FormSection, ScrollBox } from "../../styles.js";
 import { getSiteLanguage } from "../../utils/authentication/session.js";
 import { PubSub } from "../../utils/pubsub.js";
-import { clearSearchHistory } from "../../utils/search/clearSearchHistory.js";
+import { SearchHistory } from "../../utils/search/searchHistory.js";
 import { SettingsDisplayFormProps, SettingsDisplayViewProps } from "./types.js";
 
 const ClearSettingBox = styled(Box)(({ theme }) => ({
@@ -72,7 +72,7 @@ function SettingsDisplayForm({
 
     const handleClearSearchHistory = useCallback(function handleClearSearchHistoryCallback() {
         if (!session) return;
-        clearSearchHistory(session);
+        SearchHistory.clearSearchHistory(session);
     }, [session]);
 
     const handleClearBotWarning = useCallback(function handleClearBotWarningCallback() {

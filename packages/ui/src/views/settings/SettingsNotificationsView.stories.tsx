@@ -1,3 +1,4 @@
+import { PageContainer } from "components/Page/Page.js";
 import { SettingsNotificationsView } from "./SettingsNotificationsView.js";
 
 export default {
@@ -7,7 +8,9 @@ export default {
 
 export function Default() {
     return (
-        <SettingsNotificationsView display="page" />
+        <PageContainer>
+            <SettingsNotificationsView display="page" />
+        </PageContainer>
     );
 }
 Default.parameters = {

@@ -1,7 +1,7 @@
 import { Box, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
-import { Link, useLocation } from "route";
 import { ReportIcon } from "../../../icons/common.js";
+import { Link, useLocation } from "../../../route/router.js";
 import { multiLineEllipsis } from "../../../styles.js";
 import { getObjectReportUrl } from "../../../utils/navigation/openObject.js";
 import { ReportsButtonProps } from "../types.js";

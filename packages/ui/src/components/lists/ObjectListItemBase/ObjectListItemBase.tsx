@@ -1,7 +1,7 @@
 import { Chat, ChatInvite, ChatParticipant, ListObject, Meeting, Member, MemberInvite, ReactionFor, getObjectUrl, isOfType, uuid } from "@local/shared";
 import { AvatarGroup, Box, BoxProps, Chip, ChipProps, ListItemProps, ListItemText, Palette, Stack, Tooltip, styled, useTheme } from "@mui/material";
 import { CompletionBar } from "components/CompletionBar/CompletionBar.js";
-import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton.js";
+import { BookmarkButton } from "components/buttons/BookmarkButton.js";
 import { CommentsButton } from "components/buttons/CommentsButton/CommentsButton.js";
 import { ReportsButton } from "components/buttons/ReportsButton/ReportsButton.js";
 import { VoteButton } from "components/buttons/VoteButton/VoteButton.js";
@@ -11,7 +11,7 @@ import { UsePressEvent, usePress } from "hooks/gestures.js";
 import { BookmarkFilledIcon, BotIcon, EditIcon, TeamIcon, UserIcon } from "icons/common.js";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { SvgComponent } from "types.js";
 import { getCurrentUser } from "utils/authentication/session.js";
 import { extractImageUrl } from "utils/display/imageTools.js";

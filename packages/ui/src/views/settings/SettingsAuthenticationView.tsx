@@ -3,7 +3,7 @@ import { Box, Button, Divider, Stack, useTheme } from "@mui/material";
 import { Formik, FormikHelpers } from "formik";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { SocketService } from "../../api/socket.js";
 import { LazyRequestWithResult } from "../../api/types.js";

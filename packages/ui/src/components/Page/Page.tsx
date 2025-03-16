@@ -1,12 +1,12 @@
 import { LINKS, UrlTools } from "@local/shared";
 import { Box, BoxProps, styled, useTheme } from "@mui/material";
 import { useContext, useEffect, useMemo } from "react";
-import { Redirect, useLocation } from "route";
-import { PageProps, SxType } from "types";
 import { SessionContext } from "../../contexts.js";
 import { useElementDimensions } from "../../hooks/useDimensions.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
+import { Redirect, useLocation } from "../../route/router.js";
 import { bottomNavHeight, pagePaddingBottom } from "../../styles.js";
+import { PageProps, SxType } from "../../types.js";
 import { PubSub } from "../../utils/pubsub.js";
 
 /**

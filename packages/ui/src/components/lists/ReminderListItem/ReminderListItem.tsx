@@ -9,7 +9,7 @@ import { useObjectActions } from "hooks/objectActions.js";
 import { useLazyFetch } from "hooks/useLazyFetch.js";
 import { DeleteIcon, ScheduleIcon } from "icons/common.js";
 import { useCallback, useMemo } from "react";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 
 //  // Internal state
 //  const [allReminders, setAllReminders] = useState<Reminder[]>(reminders);

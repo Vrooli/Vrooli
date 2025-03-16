@@ -1,7 +1,7 @@
 import { Box, BoxProps, List, Typography, styled } from "@mui/material";
 import { forwardRef } from "react";
 import { useTranslation } from "react-i18next";
-import { SxType } from "types";
+import { SxType } from "../../../types.js";
 import { ListContainerProps } from "../types.js";
 
 interface OuterBoxProps extends BoxProps {
@@ -50,7 +50,7 @@ export const ListContainer = forwardRef<HTMLDivElement, ListContainerProps>(({
             sx={sx}
         >
             {isEmpty && (
-                <Typography variant="h6" textAlign="center" pt={2}>
+                <Typography variant="body1" color="text.secondary" textAlign="center" pt={2}>
                     {emptyText ?? t("NoResults", { ns: "error" })}
                 </Typography>
             )}

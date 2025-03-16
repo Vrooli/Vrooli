@@ -1,6 +1,6 @@
-import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle.js";
 import { forwardRef } from "react";
 import { randomString } from "../../../utils/codes.js";
+import { DialogTitle } from "../../dialogs/DialogTitle/DialogTitle.js";
 import { Navbar } from "../Navbar/Navbar.js";
 import { TopBarProps } from "../types.js";
 

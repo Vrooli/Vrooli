@@ -1,3 +1,4 @@
+import { PageContainer } from "components/Page/Page.js";
 import { SettingsProfileView } from "./SettingsProfileView.js";
 
 export default {
@@ -7,7 +8,9 @@ export default {
 
 export function Default() {
     return (
-        <SettingsProfileView display="page" />
+        <PageContainer>
+            <SettingsProfileView display="page" />
+        </PageContainer>
     );
 }
 Default.parameters = {

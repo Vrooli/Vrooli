@@ -1,6 +1,6 @@
 import { BookmarkFor, DUMMY_ID, endpointsTag, exists, Tag, TagSearchInput, TagSearchResult, TagShape, TagSortBy } from "@local/shared";
 import { Autocomplete, AutocompleteRenderGetTagProps, AutocompleteRenderInputParams, Chip, CircularProgress, InputAdornment, ListItemText, MenuItem, Popper, PopperProps, styled } from "@mui/material";
-import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton.js";
+import { BookmarkButton } from "components/buttons/BookmarkButton.js";
 import { useField } from "formik";
 import { useFetch } from "hooks/useFetch.js";
 import { TagIcon } from "icons/common.js";

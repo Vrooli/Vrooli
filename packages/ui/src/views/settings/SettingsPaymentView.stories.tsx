@@ -1,3 +1,4 @@
+import { PageContainer } from "components/Page/Page.js";
 import { SettingsPaymentView } from "./SettingsPaymentView.js";
 
 export default {
@@ -7,7 +8,9 @@ export default {
 
 export function Default() {
     return (
-        <SettingsPaymentView display="page" />
+        <PageContainer>
+            <SettingsPaymentView display="page" />
+        </PageContainer>
     );
 }
 Default.parameters = {

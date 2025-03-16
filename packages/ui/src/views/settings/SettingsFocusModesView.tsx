@@ -9,7 +9,7 @@ import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsT
 import { Title } from "components/text/Title.js";
 import { memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { SessionContext } from "../../contexts.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { AddIcon, DeleteIcon, FocusModeIcon, SaveIcon, WarningIcon } from "../../icons/common.js";

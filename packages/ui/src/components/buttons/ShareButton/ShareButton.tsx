@@ -1,14 +1,14 @@
 import { ListObject } from "@local/shared";
 import { IconButton, Tooltip, useTheme } from "@mui/material";
-import { ShareObjectDialog } from "components/dialogs/ShareObjectDialog/ShareObjectDialog";
+import { ShareObjectDialog } from "components/dialogs/ShareObjectDialog/ShareObjectDialog.js";
 import { ShareIcon } from "icons/common.js";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ShareButtonProps } from "../types.js";
 
-export const ShareButton = ({
+export function ShareButton({
     object,
-}: ShareButtonProps) => {
+}: ShareButtonProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
 
@@ -30,4 +30,4 @@ export const ShareButton = ({
             </Tooltip>
         </>
     );
-};
+}

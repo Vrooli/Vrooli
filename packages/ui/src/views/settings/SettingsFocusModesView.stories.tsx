@@ -1,3 +1,4 @@
+import { PageContainer } from "components/Page/Page.js";
 import { SettingsFocusModesView } from "./SettingsFocusModesView.js";
 
 export default {
@@ -7,7 +8,9 @@ export default {
 
 export function Default() {
     return (
-        <SettingsFocusModesView display="page" />
+        <PageContainer>
+            <SettingsFocusModesView display="page" />
+        </PageContainer>
     );
 }
 Default.parameters = {

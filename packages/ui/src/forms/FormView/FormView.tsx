@@ -1,21 +1,22 @@
-import { CreateFormInputProps, FormBuildViewProps, FormDividerType, FormElement, FormHeaderType, FormImageType, FormInformationalType, FormInputType, FormQrCodeType, FormRunViewProps, FormSchema, FormStructureType, FormTipType, FormVideoType, FormViewProps, GridContainer, InputType, createFormInput, generateInitialValues, mergeDeep, noop, noopSubmit, preventFormSubmit, uuid } from "@local/shared";
+import { DragDropContext, Draggable, DraggableProvided, DropResult, Droppable } from "@hello-pangea/dnd";
+import { CreateFormInputProps, FormBuildViewProps, FormBuilder, FormDividerType, FormElement, FormHeaderType, FormImageType, FormInformationalType, FormInputType, FormQrCodeType, FormRunViewProps, FormSchema, FormStructureType, FormTipType, FormVideoType, FormViewProps, GridContainer, InputType, createFormInput, mergeDeep, noop, noopSubmit, preventFormSubmit, uuid } from "@local/shared";
 import { Box, BoxProps, Divider, Grid, GridSpacing, IconButton, List, ListItem, ListItemIcon, ListItemText, ListSubheader, Popover, Stack, Typography, styled, useTheme } from "@mui/material";
-import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
-import { FormDivider } from "components/inputs/form/FormDivider/FormDivider";
-import { FORM_HEADER_SIZE_OPTIONS, FormHeader } from "components/inputs/form/FormHeader/FormHeader";
-import { FormImage } from "components/inputs/form/FormImage/FormImage";
-import { FormInput } from "components/inputs/form/FormInput/FormInput";
-import { FormQrCode } from "components/inputs/form/FormQrCode/FormQrCode";
-import { FormTip } from "components/inputs/form/FormTip/FormTip";
-import { FormVideo } from "components/inputs/form/FormVideo/FormVideo";
 import { Formik } from "formik";
-import { FormErrorBoundary } from "forms/FormErrorBoundary/FormErrorBoundary";
-import { usePopover } from "hooks/usePopover";
-import { useWindowSize } from "hooks/useWindowSize";
-import { CaseSensitiveIcon, DragIcon, HeaderIcon, HelpIcon, ImageIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, MinusIcon, NumberIcon, ObjectIcon, PlayIcon, QrCodeIcon, SliderIcon, SwitchIcon, CaseSensitiveIcon as TextInputIcon, UploadIcon, VrooliIcon } from "icons";
 import React, { Fragment, memo, useCallback, useMemo, useRef, useState } from "react";
-import { DragDropContext, Draggable, DraggableProvided, DropResult, Droppable } from "react-beautiful-dnd";
-import { randomString } from "utils/codes";
+import { ContentCollapse } from "../../components/containers/ContentCollapse/ContentCollapse.js";
+import { FormDivider } from "../../components/inputs/form/FormDivider/FormDivider.js";
+import { FORM_HEADER_SIZE_OPTIONS, FormHeader } from "../../components/inputs/form/FormHeader/FormHeader.js";
+import { FormImage } from "../../components/inputs/form/FormImage/FormImage.js";
+import { FormInput } from "../../components/inputs/form/FormInput/FormInput.js";
+import { FormQrCode } from "../../components/inputs/form/FormQrCode/FormQrCode.js";
+import { FormTip } from "../../components/inputs/form/FormTip/FormTip.js";
+import { FormVideo } from "../../components/inputs/form/FormVideo/FormVideo.js";
+import { FormErrorBoundary } from "../../forms/FormErrorBoundary/FormErrorBoundary.js";
+import { usePopover } from "../../hooks/usePopover.js";
+import { useWindowSize } from "../../hooks/useWindowSize.js";
+import { CaseSensitiveIcon, DragIcon, HeaderIcon, HelpIcon, ImageIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, MinusIcon, NumberIcon, ObjectIcon, PlayIcon, QrCodeIcon, SliderIcon, SwitchIcon, CaseSensitiveIcon as TextInputIcon, UploadIcon, VrooliIcon } from "../../icons/common.js";
+import { randomString } from "../../utils/codes.js";
+import { ELEMENT_IDS } from "../../utils/consts.js";
 
 /**
  * Function to convert a FormSchema into an array of containers with start and end indices for rendering.
@@ -116,7 +117,7 @@ const ElementBuildOuterBox = styled(Box, {
     shouldForwardProp: (prop) => prop !== "isSelected",
 })<ElementBuildOuterBoxProps>(({ isSelected, theme }) => ({
     display: "flex",
-    background: theme.palette.background.paper,
+    background: "inherit",
     border: isSelected ? `4px solid ${theme.palette.secondary.main}` : "none",
     borderRadius: "8px",
     overflow: "overlay",
@@ -634,7 +635,7 @@ export function FormBuildView({
     }, [inputItems, structureItems, schema.elements.length, isMobile, handleAddInput, handleInputPopoverOpen, handleAddHeader, handleAddStructure, handleStructurePopoverOpen]);
 
     const initialValues = useMemo(function initialValuesMemo() {
-        return generateInitialValues(schema.elements, fieldNamePrefix);
+        return FormBuilder.generateInitialValues(schema.elements, fieldNamePrefix);
     }, [fieldNamePrefix, schema.elements]);
 
     return (
@@ -928,7 +929,7 @@ export function FormRunView({
     }, [renderElement, schema]);
 
     return (
-        <div>
+        <div id={fieldNamePrefix ? `${fieldNamePrefix}-${ELEMENT_IDS.FormRunView}` : ELEMENT_IDS.FormRunView}>
             {schema.elements.length === 0 && <FormHelperText variant="body1">The form is empty.</FormHelperText>}
             {/* Don't use formik here, since it should be provided by parent */}
             <FormErrorBoundary> {/* Error boundary to catch elements that fail to render */}

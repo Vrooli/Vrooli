@@ -2,26 +2,26 @@ import { BUSINESS_NAME, LINKS } from "@local/shared";
 import { AppBar, Avatar, Box, BoxProps, Button, IconButton, Palette, Stack, Typography, styled, useTheme } from "@mui/material";
 import { forwardRef, useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { openLink, useLocation } from "route";
-import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID } from "utils/pubsub.js";
 import { SessionContext } from "../../../contexts.js";
 import { useIsLeftHanded } from "../../../hooks/subscriptions.js";
 import { useDimensions } from "../../../hooks/useDimensions.js";
 import { useSideMenu } from "../../../hooks/useSideMenu.js";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";
 import { ListIcon, LogInIcon, ProfileIcon, VrooliIcon } from "../../../icons/common.js";
+import { openLink } from "../../../route/openLink.js";
+import { useLocation } from "../../../route/router.js";
 import { noSelect } from "../../../styles.js";
 import { checkIfLoggedIn, getCurrentUser } from "../../../utils/authentication/session.js";
-import { ELEMENT_IDS } from "../../../utils/consts.js";
+import { ELEMENT_IDS, Z_INDEX } from "../../../utils/consts.js";
 import { extractImageUrl } from "../../../utils/display/imageTools.js";
 import { NAV_ACTION_TAGS, NavAction, actionsToMenu, getUserActions } from "../../../utils/navigation/userActions.js";
+import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID } from "../../../utils/pubsub.js";
 import { PopupMenu } from "../../buttons/PopupMenu/PopupMenu.js";
 import { Title } from "../../text/Title.js";
 import { ContactInfo } from "../ContactInfo/ContactInfo.js";
 import { HideOnScroll } from "../HideOnScroll/HideOnScroll.js";
 import { NavbarProps } from "../types.js";
 
-const zIndex = 300;
 const MIN_APP_BAR_HEIGHT_PX = 64;
 
 function navItemStyle(palette: Palette) {
@@ -350,7 +350,7 @@ export const Navbar = forwardRef(({
             minHeight: `${MIN_APP_BAR_HEIGHT_PX}px!important`,
             position: "fixed", // Allows items to be displayed below the navbar
             justifyContent: "center",
-            zIndex,
+            zIndex: Z_INDEX.TopBar,
             ...sxs?.appBar,
         } as const;
     }, [palette.primary.dark, sxs?.appBar]);

@@ -2,11 +2,12 @@ import { Box, Button, IconButton, Link, Stack, Tooltip, Typography, keyframes, s
 import MattProfilePic from "assets/img/profile-matt.webp";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { openLink, useLocation } from "route";
 import { PageContainer } from "../../components/Page/Page.js";
 import { Footer } from "../../components/navigation/Footer/Footer.js";
 import { TopBar } from "../../components/navigation/TopBar/TopBar.js";
 import { GitHubIcon, TeamIcon, WebsiteIcon, XIcon } from "../../icons/common.js";
+import { openLink } from "../../route/openLink.js";
+import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
 import { AboutViewProps } from "../types.js";
 

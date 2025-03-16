@@ -1,8 +1,8 @@
 import { Box, IconButtonProps, DialogTitle as MuiDialogTitle, DialogTitleProps as MuiDialogTitleProps, styled, useTheme } from "@mui/material";
 import { forwardRef, useMemo } from "react";
-import { useLocation } from "route";
 import { useIsLeftHanded } from "../../../hooks/subscriptions.js";
 import { CloseIcon } from "../../../icons/common.js";
+import { useLocation } from "../../../route/router.js";
 import { noSelect } from "../../../styles.js";
 import { tryOnClose } from "../../../utils/navigation/urlTools.js";
 import { Title } from "../../text/Title.js";

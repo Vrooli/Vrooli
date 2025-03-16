@@ -1,11 +1,11 @@
 import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, LINKS } from "@local/shared";
 import { Box, Button, Dialog, DialogContent, IconButton, Typography, keyframes, styled } from "@mui/material";
-import { BreadcrumbsBase } from "components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase";
-import { CloseIcon } from "icons/common.js";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
-import { ELEMENT_IDS } from "utils/consts.js";
+import { CloseIcon } from "../../../icons/common.js";
+import { useLocation } from "../../../route/router.js";
+import { ELEMENT_IDS } from "../../../utils/consts.js";
+import { BreadcrumbsBase } from "../../breadcrumbs/BreadcrumbsBase/BreadcrumbsBase.js";
 
 type TriangleProps = {
     size?: number;

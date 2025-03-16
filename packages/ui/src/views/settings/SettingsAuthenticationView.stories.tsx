@@ -1,3 +1,4 @@
+import { PageContainer } from "components/Page/Page.js";
 import { SettingsAuthenticationView } from "./SettingsAuthenticationView.js";
 
 export default {
@@ -7,7 +8,9 @@ export default {
 
 export function Default() {
     return (
-        <SettingsAuthenticationView display="page" />
+        <PageContainer>
+            <SettingsAuthenticationView display="page" />
+        </PageContainer>
     );
 }
 Default.parameters = {

@@ -3,7 +3,7 @@ import { Box, BoxProps, Divider, List, ListItem, ListItemIcon, ListItemProps, Li
 import { useElementDimensions } from "hooks/useDimensions.js";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { pagePaddingBottom } from "../../../styles.js";
 import { accountSettingsData, displaySettingsData } from "../../../views/settings/index.js";
 import { SettingsData } from "../../../views/settings/types.js";

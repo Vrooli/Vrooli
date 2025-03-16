@@ -1,34 +1,34 @@
 import { API_CREDITS_MULTIPLIER, ActionOption, HistoryPageTabOption, LINKS, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User, endpointsAuth, endpointsUser, noop, profileValidation, shapeProfile } from "@local/shared";
 import { Avatar, Box, Collapse, Divider, IconButton, Link, List, ListItem, ListItemIcon, ListItemText, Palette, SwipeableDrawer, Typography, styled, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
-import { fetchLazyWrapper } from "api/fetchWrapper.js";
-import { SocketService } from "api/socket.js";
-import { FocusModeSelector } from "components/inputs/FocusModeSelector/FocusModeSelector.js";
-import { LanguageSelector } from "components/inputs/LanguageSelector/LanguageSelector.js";
-import { LeftHandedCheckbox } from "components/inputs/LeftHandedCheckbox/LeftHandedCheckbox.js";
-import { TextSizeButtons } from "components/inputs/TextSizeButtons/TextSizeButtons.js";
-import { ThemeSwitch } from "components/inputs/ThemeSwitch/ThemeSwitch.js";
-import { ContactInfo } from "components/navigation/ContactInfo/ContactInfo.js";
 import { useFormik } from "formik";
-import { useIsLeftHanded } from "hooks/subscriptions.js";
-import { useLazyFetch } from "hooks/useLazyFetch.js";
-import { useSideMenu } from "hooks/useSideMenu.js";
-import { useWindowSize } from "hooks/useWindowSize.js";
-import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, InfoIcon, LogOutIcon, MonthIcon, PlusIcon, PremiumIcon, RoutineActiveIcon, SettingsIcon, UserIcon } from "icons/common.js";
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
-import { getCurrentUser, guestSession } from "utils/authentication/session.js";
-import { ELEMENT_IDS, RIGHT_DRAWER_WIDTH } from "utils/consts.js";
-import { extractImageUrl } from "utils/display/imageTools.js";
-import { removeCookie } from "utils/localStorage.js";
-import { openObject } from "utils/navigation/openObject.js";
-import { Actions, performAction, toActionOption } from "utils/navigation/quickActions.js";
-import { NAV_ACTION_TAGS, NavAction, getUserActions } from "utils/navigation/userActions.js";
-import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID, SideMenuPayloads } from "utils/pubsub.js";
+import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
+import { SocketService } from "../../../api/socket.js";
 import { SessionContext } from "../../../contexts.js";
+import { useIsLeftHanded } from "../../../hooks/subscriptions.js";
+import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useSideMenu } from "../../../hooks/useSideMenu.js";
+import { useWindowSize } from "../../../hooks/useWindowSize.js";
+import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, InfoIcon, LogOutIcon, MonthIcon, PlusIcon, PremiumIcon, RoutineActiveIcon, SettingsIcon, UserIcon } from "../../../icons/common.js";
+import { useLocation } from "../../../route/router.js";
 import { noSelect } from "../../../styles.js";
 import { SvgComponent } from "../../../types.js";
+import { getCurrentUser, guestSession } from "../../../utils/authentication/session.js";
+import { ELEMENT_IDS, RIGHT_DRAWER_WIDTH } from "../../../utils/consts.js";
+import { extractImageUrl } from "../../../utils/display/imageTools.js";
+import { removeCookie } from "../../../utils/localStorage.js";
+import { openObject } from "../../../utils/navigation/openObject.js";
+import { Actions, performAction } from "../../../utils/navigation/quickActions.js";
+import { NAV_ACTION_TAGS, NavAction, getUserActions } from "../../../utils/navigation/userActions.js";
+import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID, SideMenuPayloads } from "../../../utils/pubsub.js";
+import { FocusModeSelector } from "../../inputs/FocusModeSelector/FocusModeSelector.js";
+import { LanguageSelector } from "../../inputs/LanguageSelector/LanguageSelector.js";
+import { LeftHandedCheckbox } from "../../inputs/LeftHandedCheckbox/LeftHandedCheckbox.js";
+import { TextSizeButtons } from "../../inputs/TextSizeButtons/TextSizeButtons.js";
+import { ThemeSwitch } from "../../inputs/ThemeSwitch/ThemeSwitch.js";
+import { ContactInfo } from "../../navigation/ContactInfo/ContactInfo.js";
 
 /**
  * Maximum accounts to sign in with. 
@@ -294,7 +294,7 @@ export function SideMenu() {
             { label: t("Award", { count: 2 }), Icon: AwardIcon, link: LINKS.Awards, action: null },
             { label: t("Pro"), Icon: PremiumIcon, link: LINKS.Pro, action: null },
             { label: t("Settings"), Icon: SettingsIcon, link: LINKS.Settings, action: null },
-            { label: t("Tutorial"), Icon: HelpIcon, action: toActionOption(Actions.tutorial) },
+            { label: t("Tutorial"), Icon: HelpIcon, action: Actions.tutorial },
         ] as const;
     }, [t]);
 

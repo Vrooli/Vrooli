@@ -1,18 +1,17 @@
 import { Box, BoxProps, Button, IconButton, Input, Palette, Paper, Popover, PopoverProps, styled, useTheme } from "@mui/material";
-import { PageTabs } from "components/PageTabs/PageTabs.js";
-import { MicrophoneButton } from "components/buttons/MicrophoneButton/MicrophoneButton.js";
-import { useDebounce } from "hooks/useDebounce.js";
-import { PageTab, useTabs } from "hooks/useTabs.js";
-import { useZIndex } from "hooks/useZIndex.js";
-import { AddIcon, AirplaneIcon, AwardIcon, CompleteIcon, FoodIcon, HistoryIcon, ProjectIcon, ReportIcon, RoutineValidIcon, SearchIcon, VrooliIcon } from "icons/common.js";
 import { ChangeEvent, memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { VariableSizeList } from "react-window";
-import { TabParamBase } from "utils/search/objectToSearch.js";
+import { useDebounce } from "../../hooks/useDebounce.js";
+import { PageTab, useTabs } from "../../hooks/useTabs.js";
+import { AddIcon, AirplaneIcon, AwardIcon, CompleteIcon, FoodIcon, HistoryIcon, ProjectIcon, ReportIcon, RoutineValidIcon, SearchIcon, VrooliIcon } from "../../icons/common.js";
+import { Z_INDEX } from "../../utils/consts.js";
+import { TabParamBase } from "../../utils/search/objectToSearch.js";
+import { PageTabs } from "../PageTabs/PageTabs.js";
+import { MicrophoneButton } from "../buttons/MicrophoneButton/MicrophoneButton.js";
 // import emojis from "./data/emojis";
 
 // const KNOWN_FAILING_EMOJIS = ["2640-fe0f", "2642-fe0f", "2695-fe0f"];
-const Z_INDEX_OFFSET = 1000;
 const SUGGESTED_EMOJIS_LIMIT = 20;
 const SKIN_OPTION_WIDTH_WITH_SPACING = 28;
 const SEARCH_STRING_DEBOUNCE_MS = 200;
@@ -521,7 +520,6 @@ export function FallbackEmojiPicker({
 }: FallbackEmojiPickerProps) {
     const { t } = useTranslation();
     const { palette } = useTheme();
-    const zIndex = useZIndex(Boolean(anchorEl), false, Z_INDEX_OFFSET);
 
     const listRef = useRef<VariableSizeList | null>(null);
 
@@ -721,7 +719,7 @@ export function FallbackEmojiPicker({
             anchorEl={anchorEl}
             open={Boolean(anchorEl)}
             onClose={onClose}
-            zIndex={zIndex}
+            zIndex={Z_INDEX.Popup}
         >
             <MainBox
                 id="emoji-picker-main"

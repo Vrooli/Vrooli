@@ -1,11 +1,11 @@
 import { LINKS, ModelType, ResourceUsedFor } from "@local/shared";
 import { Avatar, Palette } from "@mui/material";
-import { ApiIcon, ArticleIcon, AwardIcon, BookmarkFilledIcon, BotIcon, CommentIcon, CreateIcon, DefaultSocialIcon, DonateIcon, DownloadIcon, FacebookIcon, GridIcon, HelpIcon, HistoryIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, MonthIcon, NoteIcon, NotificationsAllIcon, ObjectIcon, PremiumIcon, ProjectIcon, ProposalIcon, RedditIcon, ReminderIcon, ReportIcon, ResearchIcon, RoutineIcon, ScheduleIcon, SearchIcon, SettingsIcon, SmartContractIcon, SocialVideoIcon, StatsIcon, TeamIcon, TerminalIcon, UserIcon, WebsiteIcon, XIcon, YouTubeIcon } from "icons";
+import { ApiIcon, ArticleIcon, AwardIcon, BookmarkFilledIcon, BotIcon, CommentIcon, CreateIcon, DefaultSocialIcon, DonateIcon, DownloadIcon, FacebookIcon, GridIcon, HelpIcon, HistoryIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, MonthIcon, NoteIcon, NotificationsAllIcon, ObjectIcon, PremiumIcon, ProjectIcon, ProposalIcon, RedditIcon, ReminderIcon, ReportIcon, ResearchIcon, RoutineIcon, ScheduleIcon, SearchIcon, SettingsIcon, SmartContractIcon, SocialVideoIcon, StatsIcon, TeamIcon, TerminalIcon, UserIcon, WebsiteIcon, XIcon, YouTubeIcon } from "icons/common.js";
 import { SvgComponent } from "types";
 import { getCookiePartialData } from "utils/localStorage.js";
-import { parseSingleItemUrl } from "utils/navigation/urlTools";
-import { extractImageUrl } from "./imageTools";
-import { getDisplay, placeholderColor } from "./listTools";
+import { parseSingleItemUrl } from "utils/navigation/urlTools.js";
+import { extractImageUrl } from "./imageTools.js";
+import { getDisplay, placeholderColor } from "./listTools.js";
 
 export const ResourceIconMap: { [key in ResourceUsedFor]?: SvgComponent } = {
     [ResourceUsedFor.Community]: TeamIcon,

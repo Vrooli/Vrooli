@@ -1,8 +1,8 @@
 import { getObjectUrl } from "@local/shared";
 import { Box, ListItemText, Stack, useTheme } from "@mui/material";
-import { CommentIcon } from "icons/common.js";
 import { useCallback, useMemo } from "react";
-import { useLocation } from "route";
+import { CommentIcon } from "../../../icons/common.js";
+import { useLocation } from "../../../route/router.js";
 import { multiLineEllipsis } from "../../../styles.js";
 import { CommentsButtonProps } from "../types.js";
 
