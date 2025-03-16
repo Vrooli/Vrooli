@@ -3,7 +3,7 @@ import { Box, Button, InputAdornment } from "@mui/material";
 import { Field, Formik, FormikHelpers } from "formik";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { ForgotPasswordViewProps } from "views/types.js";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { BreadcrumbsBase } from "../../components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase.js";

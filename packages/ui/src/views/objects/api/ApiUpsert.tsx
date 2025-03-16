@@ -1,7 +1,7 @@
 import { ApiShape, ApiVersion, ApiVersionCreateInput, ApiVersionShape, apiVersionTranslationValidation, ApiVersionUpdateInput, apiVersionValidation, CodeLanguage, DUMMY_ID, endpointsApiVersion, LINKS, LlmTask, noopSubmit, orDefault, SearchPageTabOption, Session, shapeApiVersion } from "@local/shared";
 import { Button, Divider, InputAdornment, Stack } from "@mui/material";
 import { useSubmitHelper } from "api/fetchWrapper.js";
-import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton.js";
+import { AutoFillButton } from "components/buttons/AutoFillButton.js";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse.js";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";

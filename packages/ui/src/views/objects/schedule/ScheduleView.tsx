@@ -2,7 +2,7 @@ import { endpointsSchedule, Schedule } from "@local/shared";
 import { Box, IconButton, Tooltip, useTheme } from "@mui/material";
 import { MouseEvent, useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { ObjectActionMenu } from "../../../components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
 import { TopBar } from "../../../components/navigation/TopBar/TopBar.js";
 import { useObjectActions } from "../../../hooks/objectActions.js";

@@ -1,6 +1,6 @@
 import { AITaskInfo, LlmTask, MINUTES_10_MS, uuid } from "@local/shared";
-import { getExistingAIConfig } from "api/ai.js";
-import { SetLocation } from "route";
+import { getExistingAIConfig } from "../../api/ai.js";
+import { SetLocation } from "../../route/types.js";
 
 /** How long a task can be running until it is considered stale */
 export const STALE_TASK_THRESHOLD_MS = MINUTES_10_MS;
@@ -97,7 +97,7 @@ export function handleTaskClick(
     //     fetchLazyWrapper<StartLlmTaskInput, Success>({
     //         fetch: startTask,
     //         inputs: {
-    //             botId: message.user?.id ?? VALYXA_ID,
+    //             botId: message.user?.id ?? SEEDED_IDS.User.Valyxa,
     //             label: task.label,
     //             messageId: message.id ?? "",
     //             properties: task.properties ?? {},

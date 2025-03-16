@@ -3,7 +3,7 @@ import { Box, IconButton, Tooltip, styled, useTheme } from "@mui/material";
 import { Formik } from "formik";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { NoteCrudProps } from "views/objects/note/types.js";
 import { fetchLazyWrapper, useSubmitHelper } from "../../../api/fetchWrapper.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons/BottomActionsButtons.js";

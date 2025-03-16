@@ -1,7 +1,7 @@
 import { CodeLanguage, CodeShape, CodeType, CodeVersion, CodeVersionCreateInput, CodeVersionShape, CodeVersionUpdateInput, DUMMY_ID, LINKS, LlmTask, SearchPageTabOption, Session, codeVersionTranslationValidation, codeVersionValidation, endpointsCodeVersion, noopSubmit, orDefault, shapeCodeVersion } from "@local/shared";
 import { Button, Divider, useTheme } from "@mui/material";
 import { useSubmitHelper } from "api/fetchWrapper.js";
-import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton.js";
+import { AutoFillButton } from "components/buttons/AutoFillButton.js";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
 import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton.js";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse.js";

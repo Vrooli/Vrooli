@@ -2,10 +2,11 @@ import { TranslationKeyCommon, parseSearchParams } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { addSearchParams, useLocation } from "route";
-import { ViewDisplayType } from "types";
-import { getCookie, setCookie } from "utils/localStorage.js";
-import { TabListType } from "utils/search/objectToSearch";
+import { useLocation } from "../route/router.js";
+import { addSearchParams } from "../route/searchParams.js";
+import { ViewDisplayType } from "../types.js";
+import { getCookie, setCookie } from "../utils/localStorage.js";
+import { TabListType } from "../utils/search/objectToSearch.js";
 
 export type PageTab<TabItem extends TabListType[number]> = Omit<TabItem, "color" | "searchPlaceholderKey" | "titleKey"> & {
     color: string,

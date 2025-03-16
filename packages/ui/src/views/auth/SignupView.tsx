@@ -20,7 +20,7 @@ import { useWindowSize } from "hooks/useWindowSize.js";
 import { EmailIcon, UserIcon } from "icons/common.js";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { getCurrentUser } from "utils/authentication/session.js";
 import { removeCookie } from "utils/localStorage.js";
 import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID } from "utils/pubsub.js";

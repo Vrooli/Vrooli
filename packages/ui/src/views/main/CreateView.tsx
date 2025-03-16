@@ -2,15 +2,14 @@ import { LINKS, RoutineType, TranslationKeyCommon } from "@local/shared";
 import { Box, Dialog, DialogProps, IconButton, Stack, Typography, styled } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { CardGrid } from "../../components/lists/CardGrid/CardGrid.js";
 import { TIDCard } from "../../components/lists/TIDCard/TIDCard.js";
 import { TopBar } from "../../components/navigation/TopBar/TopBar.js";
-import { useZIndex } from "../../hooks/useZIndex.js";
 import { ApiIcon, ArrowLeftIcon, ArticleIcon, BotIcon, CommentIcon, HelpIcon, NoteIcon, ObjectIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, TeamIcon, TerminalIcon } from "../../icons/common.js";
 import { ScrollBox } from "../../styles.js";
 import { SvgComponent } from "../../types.js";
-import { ELEMENT_IDS } from "../../utils/consts.js";
+import { ELEMENT_IDS, Z_INDEX } from "../../utils/consts.js";
 import { CreateType, getCookie, setCookie } from "../../utils/localStorage.js";
 import { RoutineTypeOption, routineTypes } from "../../utils/search/schemas/routine.js";
 import { CreateViewProps } from "./types.js";
@@ -138,8 +137,6 @@ function updateUsageHistory(
     setCookie(historyKey, history);
 }
 
-
-const Z_INDEX_OFFSET = 1000;
 const INITIAL_WIZARD_STEP = "complexity";
 
 interface StyledDialogProps extends Omit<DialogProps, "zIndex"> {
@@ -168,7 +165,6 @@ function RoutineWizardDialog({
     onClose,
 }: RoutineWizardDialogProps) {
     const { t } = useTranslation();
-    const zIndex = useZIndex(isOpen, false, Z_INDEX_OFFSET);
     const [, setLocation] = useLocation();
 
     const [step, setStep] = useState<"complexity" | "singleStepType">(INITIAL_WIZARD_STEP);
@@ -209,7 +205,7 @@ function RoutineWizardDialog({
             id={ELEMENT_IDS.RoutineWizardDialog}
             open={isOpen}
             onClose={handleClose}
-            zIndex={zIndex}
+            zIndex={Z_INDEX.Dialog}
         >
             <TopBar
                 display="dialog"

@@ -12,7 +12,7 @@ import { useTabs } from "hooks/useTabs.js";
 import { ActionIcon, AddIcon, CancelIcon, DeleteIcon, SearchIcon } from "icons/common.js";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { BulkObjectAction } from "utils/actions/bulkObjectActions.js";
 import { getCurrentUser } from "utils/authentication/session.js";
 import { ELEMENT_IDS } from "utils/consts.js";

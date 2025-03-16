@@ -3,7 +3,6 @@ import { Box, Button, Card, Divider, FormControl, IconButton, InputLabel, MenuIt
 import { Formik, useField } from "formik";
 import { memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons/BottomActionsButtons.js";
 import { FindObjectDialog } from "../../../components/dialogs/FindObjectDialog/FindObjectDialog.js";
@@ -22,6 +21,7 @@ import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
 import { AddIcon, DeleteIcon, FocusModeIcon, OpenInNewIcon, ProjectIcon, RoutineIcon, TeamIcon } from "../../../icons/common.js";
+import { useLocation } from "../../../route/router.js";
 import { FormSection, ProfileAvatar } from "../../../styles.js";
 import { getDisplay, placeholderColor } from "../../../utils/display/listTools.js";
 import { openObject } from "../../../utils/navigation/openObject.js";

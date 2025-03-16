@@ -2,7 +2,7 @@ import { Chat, endpointsNotification, getObjectUrlBase, InboxPageTabOption, List
 import { Tooltip, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/SideActionsButtons.js";
 import { ListContainer } from "../../components/containers/ListContainer/ListContainer.js";

@@ -1,13 +1,13 @@
 import { LINKS } from "@local/shared";
 import { Box } from "@mui/material";
-import { ScrollToTop } from "components/ScrollToTop";
-import { FullPageSpinner } from "components/Spinners/Spinners";
-import { NavbarProps } from "components/navigation/types";
 import { lazily } from "react-lazily";
-import { Route, RouteProps, Switch } from "route";
-import { PageProps } from "types";
-import { BotUpsert } from "views/objects/bot";
-import { Page } from "./components/Page/Page";
+import { Page } from "./components/Page/Page.js";
+import { ScrollToTop } from "./components/ScrollToTop.js";
+import { FullPageSpinner } from "./components/Spinners/Spinners.js";
+import { NavbarProps } from "./components/navigation/types.js";
+import { Route, RouteProps, Switch } from "./route/router.js";
+import { PageProps } from "./types.js";
+import { BotUpsert } from "./views/objects/bot/BotUpsert.js";
 
 // Lazy loading in the Routes component is a recommended way to improve performance. See https://reactjs.org/docs/code-splitting.html#route-based-code-splitting
 const {

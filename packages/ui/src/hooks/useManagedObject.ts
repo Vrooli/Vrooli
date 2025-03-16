@@ -2,7 +2,7 @@ import { DUMMY_ID, FindByIdInput, FindByIdOrHandleInput, FindVersionInput, Model
 import { ServerResponseParser } from "api/responseParser.js";
 import { FetchInputOptions } from "api/types.js";
 import { Dispatch, SetStateAction, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { PartialWithType } from "types";
 import { defaultYou, getYou } from "utils/display/listTools.js";
 import { getCookiePartialData, removeCookiePartialData, setCookiePartialData } from "utils/localStorage.js";

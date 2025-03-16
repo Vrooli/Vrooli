@@ -1,27 +1,27 @@
 import { Bookmark, BookmarkCreateInput, BookmarkList, deleteArrayIndex, endpointsBookmark, endpointsBookmarkList, HistoryPageTabOption, LINKS, shapeBookmark, updateArray, uuid } from "@local/shared";
 import { Box, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper.js";
-import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons.js";
-import { ListContainer } from "components/containers/ListContainer/ListContainer.js";
-import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog.js";
-import { SiteSearchBar } from "components/inputs/search/SiteSearchBar/SiteSearchBar.js";
-import { ObjectList } from "components/lists/ObjectList/ObjectList.js";
-import { ObjectListActions } from "components/lists/types.js";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
-import { useDeleter, useObjectActions } from "hooks/objectActions.js";
-import { useLazyFetch } from "hooks/useLazyFetch.js";
-import { useManagedObject } from "hooks/useManagedObject.js";
-import { AddIcon, DeleteIcon, EditIcon } from "icons/common.js";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
-import { ObjectAction } from "utils/actions/objectActions.js";
-import { DUMMY_LIST_LENGTH } from "utils/consts.js";
-import { listToAutocomplete } from "utils/display/listTools.js";
-import { firstString } from "utils/display/stringTools.js";
-import { getUserLanguages } from "utils/display/translationTools.js";
+import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
+import { SideActionsButtons } from "../../../components/buttons/SideActionsButtons/SideActionsButtons.js";
+import { ListContainer } from "../../../components/containers/ListContainer/ListContainer.js";
+import { FindObjectDialog } from "../../../components/dialogs/FindObjectDialog/FindObjectDialog.js";
+import { SiteSearchBarPaper } from "../../../components/inputs/search/SiteSearchBar.js";
+import { ObjectList } from "../../../components/lists/ObjectList/ObjectList.js";
+import { ObjectListActions } from "../../../components/lists/types.js";
+import { TopBar } from "../../../components/navigation/TopBar/TopBar.js";
 import { SessionContext } from "../../../contexts.js";
+import { useDeleter, useObjectActions } from "../../../hooks/objectActions.js";
+import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useManagedObject } from "../../../hooks/useManagedObject.js";
+import { AddIcon, DeleteIcon, EditIcon } from "../../../icons/common.js";
+import { useLocation } from "../../../route/router.js";
 import { SideActionsButton } from "../../../styles.js";
+import { ObjectAction } from "../../../utils/actions/objectActions.js";
+import { DUMMY_LIST_LENGTH } from "../../../utils/consts.js";
+import { listToAutocomplete } from "../../../utils/display/listTools.js";
+import { firstString } from "../../../utils/display/stringTools.js";
+import { getUserLanguages } from "../../../utils/display/translationTools.js";
 import { BookmarkListViewProps } from "./types.js";
 
 export function BookmarkListView({
@@ -152,7 +152,7 @@ export function BookmarkListView({
                     paddingLeft: 2,
                     paddingRight: 2,
                 }}>
-                    <SiteSearchBar
+                    <SiteSearchBarPaper
                         id={`${existing?.id ?? "bookmark-list"}-search-bar`}
                         placeholder={"SearchBookmark"}
                         loading={false}

@@ -2,7 +2,7 @@ import { ListObject, ModelType, getObjectUrlBase } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
 import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/SideActionsButtons.js";
 import { SearchList, SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";

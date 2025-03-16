@@ -1,6 +1,6 @@
 import { ApiVersion, BookmarkFor, ResourceList as ResourceListType, endpointsApiVersion, getTranslation } from "@local/shared";
 import { Avatar, Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
-import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton.js";
+import { BookmarkButton } from "components/buttons/BookmarkButton.js";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink.js";
 import { ShareButton } from "components/buttons/ShareButton/ShareButton.js";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
@@ -14,7 +14,7 @@ import { useManagedObject } from "hooks/useManagedObject.js";
 import { ApiIcon, EditIcon, EllipsisIcon } from "icons/common.js";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { placeholderColor } from "utils/display/listTools.js";
 import { firstString } from "utils/display/stringTools.js";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools.js";

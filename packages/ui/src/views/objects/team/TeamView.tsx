@@ -1,7 +1,7 @@
 import { BookmarkFor, LINKS, ListObject, ResourceList as ResourceListType, Team, TeamPageTabOption, endpointsTeam, getTranslation, uuidValidate } from "@local/shared";
 import { Box, IconButton, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs.js";
-import { BookmarkButton } from "components/buttons/BookmarkButton/BookmarkButton.js";
+import { BookmarkButton } from "components/buttons/BookmarkButton.js";
 import { ReportsLink } from "components/buttons/ReportsLink/ReportsLink.js";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons.js";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
@@ -20,7 +20,7 @@ import { useTabs } from "hooks/useTabs.js";
 import { EditIcon, EllipsisIcon, ExportIcon, SearchIcon, TeamIcon } from "icons/common.js";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { extractImageUrl } from "utils/display/imageTools.js";
 import { placeholderColor } from "utils/display/listTools.js";
 import { firstString } from "utils/display/stringTools.js";

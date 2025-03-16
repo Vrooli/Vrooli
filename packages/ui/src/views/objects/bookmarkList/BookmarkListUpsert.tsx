@@ -22,7 +22,7 @@ import { useWindowSize } from "hooks/useWindowSize.js";
 import { ActionIcon, AddIcon, CancelIcon, DeleteIcon } from "icons/common.js";
 import { useCallback, useContext, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { BulkObjectAction } from "utils/actions/bulkObjectActions.js";
 import { DUMMY_LIST_LENGTH } from "utils/consts.js";
 import { getDisplay } from "utils/display/listTools.js";

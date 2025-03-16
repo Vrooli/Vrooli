@@ -3,7 +3,7 @@ import { Box, Button } from "@mui/material";
 import { Formik, FormikHelpers } from "formik";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { PasswordTextInput } from "../../components/inputs/PasswordTextInput/PasswordTextInput.js";
 import { TopBar } from "../../components/navigation/TopBar/TopBar.js";

@@ -2,7 +2,7 @@ import { convertToDot, valueFromDot } from "@local/shared";
 import { Box, styled } from "@mui/material";
 import { ChangeEvent, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import privacyMarkdown from "../../assets/policy/privacy.md";
 import { PageContainer } from "../../components/Page/Page.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";

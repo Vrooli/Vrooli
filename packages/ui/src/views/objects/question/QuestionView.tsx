@@ -3,7 +3,7 @@ import { Stack, useTheme } from "@mui/material";
 import { Formik } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools.js";
 import { SideActionsButtons } from "../../../components/buttons/SideActionsButtons/SideActionsButtons.js";
 import { CommentContainer } from "../../../components/containers/CommentContainer/CommentContainer.js";

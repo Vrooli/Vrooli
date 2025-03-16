@@ -3,7 +3,7 @@ import { Box, Button, Divider, InputAdornment, styled } from "@mui/material";
 import { Field, Formik, FormikHelpers } from "formik";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { ServerResponseParser } from "../../api/responseParser.js";
 import { SocketService } from "../../api/socket.js";
@@ -72,7 +72,7 @@ const OrDivider = styled(Divider)(({ theme }) => ({
     color: theme.palette.background.textSecondary,
     width: "100%",
 }));
-const OAuthButton = styled(Button)(({ theme }) => ({
+const OAuthButton = styled(Button)(() => ({
     background: "white",
     color: "black",
     borderRadius: "16px",

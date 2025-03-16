@@ -2,7 +2,7 @@ import { BotCreateInput, BotShape, botTranslationValidation, BotUpdateInput, bot
 import { Divider, InputAdornment, Slider, Stack, Typography } from "@mui/material";
 import { getExistingAIConfig } from "api/ai.js";
 import { useSubmitHelper } from "api/fetchWrapper.js";
-import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton.js";
+import { AutoFillButton } from "components/buttons/AutoFillButton.js";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
 import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton.js";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse.js";

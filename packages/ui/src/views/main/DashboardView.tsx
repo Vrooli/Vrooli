@@ -22,7 +22,7 @@ import { useWindowSize } from "hooks/useWindowSize.js";
 import { AddIcon, ChevronLeftIcon, MonthIcon, OpenInNewIcon, ReminderIcon } from "icons/common.js";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { getCurrentUser } from "utils/authentication/session.js";
 import { DUMMY_LIST_LENGTH, ELEMENT_IDS } from "utils/consts.js";
 import { getDisplay } from "utils/display/listTools.js";

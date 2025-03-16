@@ -1,7 +1,7 @@
 import { DUMMY_ID, endpointsQuestion, LlmTask, noopSubmit, orDefault, Question, QuestionCreateInput, QuestionShape, questionTranslationValidation, QuestionUpdateInput, questionValidation, Session, shapeQuestion } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { useSubmitHelper } from "api/fetchWrapper.js";
-import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton.js";
+import { AutoFillButton } from "components/buttons/AutoFillButton.js";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
 import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput.js";

@@ -21,7 +21,7 @@ import { useManagedObject } from "hooks/useManagedObject.js";
 import { AddIcon, EditIcon } from "icons/common.js";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { ObjectAction } from "utils/actions/objectActions.js";
 import { firstString } from "utils/display/stringTools.js";
 import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools.js";

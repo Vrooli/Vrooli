@@ -1,10 +1,10 @@
 /* eslint-disable no-undef */
-import { ErrorBoundary } from "components/ErrorBoundary/ErrorBoundary.js";
+import { ErrorBoundary } from "./components/ErrorBoundary/ErrorBoundary.js";
 // eslint-disable-next-line import/extensions
 import ReactDOM from "react-dom/client";
-import { Router } from "route";
 import { App } from "./App.js";
 import "./i18n.js"; // Must import for translations to work
+import { Router } from "./route/router.js";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration.js";
 import { getDeviceInfo } from "./utils/display/device.js";
 import { PubSub } from "./utils/pubsub.js";
