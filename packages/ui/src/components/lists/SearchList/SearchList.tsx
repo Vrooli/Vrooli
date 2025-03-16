@@ -3,16 +3,16 @@
  */
 import { ListObject, NavigableObject, funcTrue } from "@local/shared";
 import { Box } from "@mui/material";
-import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons.js";
-import { ListContainer } from "components/containers/ListContainer/ListContainer.js";
-import { SiteSearchBar } from "components/inputs/search/SiteSearchBar/SiteSearchBar.js";
-import { useInfiniteScroll } from "hooks/gestures.js";
 import { ReactNode, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
-import { ArgsType } from "types";
-import { getDummyListLength } from "utils/consts.js";
-import { openObject } from "utils/navigation/openObject.js";
+import { useInfiniteScroll } from "../../../hooks/gestures.js";
+import { useLocation } from "../../../route/router.js";
+import { ArgsType } from "../../../types.js";
+import { getDummyListLength } from "../../../utils/consts.js";
+import { openObject } from "../../../utils/navigation/openObject.js";
+import { SearchButtons } from "../../buttons/SearchButtons/SearchButtons.js";
+import { ListContainer } from "../../containers/ListContainer/ListContainer.js";
+import { BasicSearchBar, PaperSearchBar } from "../../inputs/search/SiteSearchBar.js";
 import { ObjectList } from "../ObjectList/ObjectList.js";
 import { ObjectListActions, SearchListProps } from "../types.js";
 
@@ -20,7 +20,6 @@ export function SearchList<DataType extends ListObject>({
     advancedSearchParams,
     advancedSearchSchema,
     allData,
-    autocompleteOptions,
     borderRadius,
     canNavigate = funcTrue,
     display,
@@ -32,6 +31,7 @@ export function SearchList<DataType extends ListObject>({
     loadMore,
     onItemClick,
     removeItem,
+    searchBarVariant,
     scrollContainerId,
     searchPlaceholder,
     searchString,
@@ -74,10 +74,6 @@ export function SearchList<DataType extends ListObject>({
         scrollContainerId,
     });
 
-    const handleSearch = useCallback(function handleSearchCallback(newString: string) {
-        setSearchString(newString);
-    }, [setSearchString]);
-
     /**
      * When an autocomplete item is selected, navigate to object
      */
@@ -105,24 +101,25 @@ export function SearchList<DataType extends ListObject>({
         openObject(selectedItem as NavigableObject, setLocation);
     }, [allData, canNavigate, handleToggleSelect, isSelecting, onItemClick, setLocation]);
 
-    const searchBarStyle = useMemo(function searchBarStyleMemo() {
-        return {
-            root: {
-                margin: "auto",
-                marginTop: 1,
-                marginBottom: 1,
-                width: "min(100%, 600px)",
-                paddingLeft: 2,
-                paddingRight: 2,
-                ...sxs?.search,
-                ...(variant === "minimal" ? { display: "none" } : {}),
-            },
-        } as const;
-    }, [sxs?.search, variant]);
+    // const searchBarStyle = useMemo(function searchBarStyleMemo() {
+    //     return {
+    //         root: {
+    //             margin: "auto",
+    //             marginTop: 1,
+    //             marginBottom: 1,
+    //             width: "min(100%, 600px)",
+    //             paddingLeft: 2,
+    //             paddingRight: 2,
+    //             ...sxs?.search,
+    //             ...(variant === "minimal" ? { display: "none" } : {}),
+    //         },
+    //     } as const;
+    // }, [sxs?.search, variant]);
 
     const searchButtonsStyle = useMemo(function searchButtonsStyleMemo() {
         return {
-            marginBottom: 2,
+            paddingTop: 2,
+            paddingBottom: 2,
             ...sxs?.buttons,
             ...(variant === "minimal" ? { display: "none" } : {}),
         } as const;
@@ -137,29 +134,37 @@ export function SearchList<DataType extends ListObject>({
 
     return (
         <>
-            <SiteSearchBar
-                id={`${scrollContainerId}-search-bar`}
-                placeholder={searchPlaceholder}
-                options={autocompleteOptions}
-                loading={loading}
-                value={searchString}
-                onChange={handleSearch}
-                onInputChange={onInputSelect}
-                sxs={searchBarStyle}
-            />
-            <SearchButtons
-                advancedSearchParams={advancedSearchParams}
-                advancedSearchSchema={advancedSearchSchema}
-                controlsUrl={display === "page"}
-                searchType={searchType}
-                setAdvancedSearchParams={setAdvancedSearchParams}
-                setSortBy={setSortBy}
-                setTimeFrame={setTimeFrame}
-                sortBy={sortBy}
-                sortByOptions={sortByOptions}
-                sx={searchButtonsStyle}
-                timeFrame={timeFrame}
-            />
+            <Box sx={sxs?.searchBarAndButtonsBox}>
+                {searchBarVariant === "basic" && (
+                    <BasicSearchBar
+                        id={`${scrollContainerId}-search-bar`}
+                        placeholder={searchPlaceholder}
+                        value={searchString}
+                        onChange={setSearchString}
+                    />
+                )}
+                {searchBarVariant !== "basic" && (
+                    <PaperSearchBar
+                        id={`${scrollContainerId}-search-bar`}
+                        placeholder={searchPlaceholder}
+                        value={searchString}
+                        onChange={setSearchString}
+                    />
+                )}
+                <SearchButtons
+                    advancedSearchParams={advancedSearchParams}
+                    advancedSearchSchema={advancedSearchSchema}
+                    controlsUrl={display === "page"}
+                    searchType={searchType}
+                    setAdvancedSearchParams={setAdvancedSearchParams}
+                    setSortBy={setSortBy}
+                    setTimeFrame={setTimeFrame}
+                    sortBy={sortBy}
+                    sortByOptions={sortByOptions}
+                    sx={searchButtonsStyle}
+                    timeFrame={timeFrame}
+                />
+            </Box>
             <ListContainer
                 id={`${scrollContainerId}-list`}
                 borderRadius={borderRadius}

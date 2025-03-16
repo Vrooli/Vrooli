@@ -1,26 +1,25 @@
 import { AutocompleteOption, FindByIdInput, FindVersionInput, FormInputBase, ListObject, SearchType, funcFalse, getObjectUrl } from "@local/shared";
-import { Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
-import { PageTabs } from "components/PageTabs/PageTabs.js";
-import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons.js";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
-import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList.js";
-import { TIDCard } from "components/lists/TIDCard/TIDCard.js";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
-import { useFindMany } from "hooks/useFindMany.js";
-import { useLazyFetch } from "hooks/useLazyFetch.js";
-import { useTabs } from "hooks/useTabs.js";
-import { AddIcon, SearchIcon } from "icons/common.js";
+import { Box, Button, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { lazily } from "react-lazily";
-import { useLocation } from "route/router.js";
-import { removeSearchParams } from "route/searchParams.js";
+import { Z_INDEX } from "utils/consts.js";
+import { useFindMany } from "../../../hooks/useFindMany.js";
+import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { useTabs } from "../../../hooks/useTabs.js";
+import { AddIcon } from "../../../icons/common.js";
+import { useLocation } from "../../../route/router.js";
+import { removeSearchParams } from "../../../route/searchParams.js";
 import { SideActionsButton } from "../../../styles.js";
 import { CrudProps } from "../../../types.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
-import { scrollIntoFocusedView } from "../../../utils/display/scroll.js";
 import { findObjectTabParams, searchTypeToParams } from "../../../utils/search/objectToSearch.js";
 import { SearchParams } from "../../../utils/search/schemas/base.js";
+import { PageTabs } from "../../PageTabs/PageTabs.js";
+import { SideActionsButtons } from "../../buttons/SideActionsButtons/SideActionsButtons.js";
+import { LargeDialog } from "../../dialogs/LargeDialog/LargeDialog.js";
+import { SearchList, SearchListScrollContainer } from "../../lists/SearchList/SearchList.js";
+import { TIDCard } from "../../lists/TIDCard/TIDCard.js";
 import { FindObjectDialogProps, FindObjectDialogType, FindObjectType } from "../types.js";
 
 const { ApiUpsert } = lazily(() => import("../../../views/objects/api/ApiUpsert.js"));
@@ -125,8 +124,14 @@ export function convertRootObjectToVersion(item: RootObject, versionId: string):
 
 
 const scrollContainerId = "find-object-search-scroll";
+const searchBarId = `${scrollContainerId}-search-bar`;
 const searchTitleId = "search-vrooli-for-link-title";
-const dialogStyle = { paper: { maxWidth: "min(100%, 600px)" } } as const;
+const autoFocusDelayMs = 100;
+const dialogStyle = {
+    paper: {
+        maxWidth: "min(100%, 600px)",
+    },
+} as const;
 
 /**
  * Dialog for selecting or creating an object
@@ -140,9 +145,20 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
     onlyVersioned,
     where,
 }: FindObjectDialogProps<Find>) {
-    const { palette } = useTheme();
+    const { palette, spacing } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
+
+    useEffect(function focusSearchBar() {
+        if (isOpen) {
+            setTimeout(() => {
+                const inputElement = document.getElementById(searchBarId);
+                if (inputElement) {
+                    inputElement.focus();
+                }
+            }, autoFocusDelayMs);
+        }
+    }, [isOpen]);
 
     const filteredTabs = useMemo(() => getFilteredTabs(limitTo, onlyVersioned), [limitTo, onlyVersioned]);
     const {
@@ -223,7 +239,7 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
     }, []);
     const onSelectCreateTypeCloseNoArg = useCallback(() => {
         onSelectCreateTypeClose();
-    }, []);
+    }, [onSelectCreateTypeClose]);
 
     const handleCreated = useCallback((item: object) => {
         onClose(item);
@@ -321,8 +337,6 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
         setSelectCreateTypeAnchorEl(null);
     }, [createObjectType]);
 
-    function focusSearch() { scrollIntoFocusedView("search-bar-find-object-search-list"); }
-
     const findManyData = useFindMany<ListObject>({
         controlsUrl: false,
         searchType,
@@ -340,6 +354,22 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
         }
         return createObjectType ? { __typename } : undefined;
     }, [createObjectType]);
+
+    const searchListStyles = useMemo(function searchListStylesMemo() {
+        return {
+            buttons: {
+                borderBottom: `1px solid ${palette.divider}`,
+                paddingTop: spacing(0.5),
+                padding: spacing(0.5),
+            },
+            searchBarAndButtonsBox: {
+                backgroundColor: palette.background.default,
+                position: "sticky",
+                top: 0,
+                zIndex: Z_INDEX.PageElement + 1,
+            },
+        };
+    }, [palette, spacing]);
 
     return (
         <>
@@ -390,72 +420,70 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
                 titleId={searchTitleId}
                 sxs={dialogStyle}
             >
-                <SearchListScrollContainer id={scrollContainerId}>
-                    <TopBar
-                        display="dialog"
-                        onClose={handleCancel}
-                        title={t("SearchVrooli")}
-                        titleBehaviorDesktop="ShowIn"
-                        below={tabs.length > 1 && Boolean(currTab) && <PageTabs<typeof findObjectTabParams>
+                {tabs.length > 1 && Boolean(currTab) && (
+                    <Box bgcolor="primary.dark" p={2}>
+                        <PageTabs<typeof findObjectTabParams>
                             ariaLabel="Search tabs"
                             currTab={currTab}
                             fullWidth
                             ignoreIcons={true}
                             onChange={handleTabChange}
                             tabs={tabs}
-                        />}
-                    />
+                        />
+                    </Box>
+                )}
+                {!selectedObject && (
+                    <SearchListScrollContainer id={scrollContainerId}>
+                        <SearchList
+                            {...findManyData}
+                            canNavigate={funcFalse}
+                            display="dialog"
+                            onItemClick={onInputSelect}
+                            scrollContainerId={scrollContainerId}
+                            searchBarVariant="basic"
+                            searchPlaceholder={t("Search") + "..."}
+                            sxs={searchListStyles}
+                        />
+                    </SearchListScrollContainer>
+                )}
+                {/* If object selected (and supports versioning), display buttons to select version */}
+                {selectedObject && (
+                    <Stack spacing={2} direction="column" m={2}>
+                        <Typography variant="h6" mt={2} textAlign="center">
+                            Select a version
+                        </Typography>
+                        {[...(selectedObject.versions ?? [])].sort((a, b) => b.versionIndex - a.versionIndex).map((version, index) => {
+                            function handleClick() {
+                                onVersionSelect(version);
+                            }
 
-                    {/* Search list to find object */}
-                    {!selectedObject && <SearchList
-                        {...findManyData}
-                        canNavigate={funcFalse}
-                        display="dialog"
-                        onItemClick={onInputSelect}
-                        scrollContainerId={scrollContainerId}
-                    />}
-                    {/* If object selected (and supports versioning), display buttons to select version */}
-                    {selectedObject && (
-                        <Stack spacing={2} direction="column" m={2}>
-                            <Typography variant="h6" mt={2} textAlign="center">
-                                Select a version
-                            </Typography>
-                            {[...(selectedObject.versions ?? [])].sort((a, b) => b.versionIndex - a.versionIndex).map((version, index) => {
-                                function handleClick() {
-                                    onVersionSelect(version);
-                                }
-
-                                return (
-                                    <TIDCard
-                                        buttonText={t("Select")}
-                                        description={getDisplay(version as any).subtitle}
-                                        key={index}
-                                        Icon={findObjectTabParams.find((t) => t.searchType === (version as any).__typename)?.Icon}
-                                        onClick={handleClick}
-                                        title={`${version.versionLabel} - ${getDisplay(version as any).title}`}
-                                    />
-                                );
-                            })}
-                            {/* Remove selection button */}
-                            <Button
-                                fullWidth
-                                color="secondary"
-                                onClick={() => setSelectedObject(null)}
-                                variant="outlined"
-                            >
-                                Select a different object
-                            </Button>
-                        </Stack>
-                    )}
-                    <SideActionsButtons display="dialog">
-                        <SideActionsButton aria-label="filter-list" onClick={focusSearch}>
-                            <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                        </SideActionsButton>
-                        <SideActionsButton aria-label="create-new" onClick={onCreateStart}>
-                            <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
-                        </SideActionsButton>
-                    </SideActionsButtons>
-                </SearchListScrollContainer>
+                            return (
+                                <TIDCard
+                                    buttonText={t("Select")}
+                                    description={getDisplay(version as any).subtitle}
+                                    key={index}
+                                    Icon={findObjectTabParams.find((t) => t.searchType === (version as any).__typename)?.Icon}
+                                    onClick={handleClick}
+                                    title={`${version.versionLabel} - ${getDisplay(version as any).title}`}
+                                />
+                            );
+                        })}
+                        {/* Remove selection button */}
+                        <Button
+                            fullWidth
+                            color="secondary"
+                            onClick={() => setSelectedObject(null)}
+                            variant="outlined"
+                        >
+                            Select a different object
+                        </Button>
+                    </Stack>
+                )}
+                <SideActionsButtons display="dialog">
+                    <SideActionsButton aria-label="create-new" onClick={onCreateStart}>
+                        <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    </SideActionsButton>
+                </SideActionsButtons>
             </LargeDialog>
         </>
     );
