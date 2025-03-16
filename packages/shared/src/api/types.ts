@@ -7,6 +7,7 @@ export type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
 type Scalars = {
     ID: string;
     String: string;
+    BigInt: string; // Stringified because BigInt is not serializable
     Boolean: boolean;
     Int: number;
     Float: number;
@@ -139,28 +140,34 @@ export type ApiCreateInput = {
 export type ApiEdge = Edge<Api, "ApiEdge">;
 
 export type ApiKey = DbObject<"ApiKey"> & {
-    absoluteMax: Scalars["Int"];
-    creditsUsed: Scalars["Int"];
-    creditsUsedBeforeLimit: Scalars["Int"];
-    resetsAt: Scalars["Date"];
+    creditsUsed: Scalars["BigInt"];
+    disabledAt?: Maybe<Scalars["Date"]>;
+    limitHard: Scalars["BigInt"];
+    limitSoft?: Maybe<Scalars["BigInt"]>;
+    name: Scalars["String"];
     stopAtLimit: Scalars["Boolean"];
 };
 
+// Only show the key to the user once it's created, and never again
+export type ApiKeyCreated = ApiKey & {
+    key: Scalars["String"];
+}
+
 export type ApiKeyCreateInput = {
-    absoluteMax: Scalars["Int"];
-    creditsUsedBeforeLimit: Scalars["Int"];
+    disabled?: InputMaybe<Scalars["Boolean"]>;
+    limitHard: Scalars["BigInt"];
+    limitSoft?: InputMaybe<Scalars["BigInt"]>;
+    name: Scalars["String"];
     stopAtLimit: Scalars["Boolean"];
     teamConnect?: InputMaybe<Scalars["ID"]>;
 };
 
-export type ApiKeyDeleteOneInput = {
-    id: Scalars["ID"];
-};
-
 export type ApiKeyUpdateInput = {
-    absoluteMax?: InputMaybe<Scalars["Int"]>;
-    creditsUsedBeforeLimit?: InputMaybe<Scalars["Int"]>;
+    disabled?: InputMaybe<Scalars["Boolean"]>;
     id: Scalars["ID"];
+    limitHard?: InputMaybe<Scalars["BigInt"]>;
+    limitSoft?: InputMaybe<Scalars["BigInt"]>;
+    name?: InputMaybe<Scalars["String"]>;
     stopAtLimit?: InputMaybe<Scalars["Boolean"]>;
 };
 
@@ -168,6 +175,32 @@ export type ApiKeyValidateInput = {
     id: Scalars["ID"];
     secret: Scalars["String"];
 };
+
+export type ApiKeyExternal = DbObject<"ApiKeyExternal"> & {
+    disabledAt?: Maybe<Scalars["Date"]>;
+    name: Scalars["String"];
+    service: Scalars["String"];
+}
+
+export type ApiKeyExternalCreateInput = {
+    disabled?: InputMaybe<Scalars["Boolean"]>;
+    key: Scalars["String"];
+    name: Scalars["String"];
+    service: Scalars["String"];
+    teamConnect?: InputMaybe<Scalars["ID"]>;
+}
+
+export type ApiKeyExternalDeleteOneInput = {
+    id: Scalars["ID"];
+}
+
+export type ApiKeyExternalUpdateInput = {
+    id: Scalars["ID"];
+    disabled?: InputMaybe<Scalars["Boolean"]>;
+    key?: InputMaybe<Scalars["String"]>;
+    name?: InputMaybe<Scalars["String"]>;
+    service?: InputMaybe<Scalars["String"]>;
+}
 
 export type ApiSearchInput = BaseSearchInput<ApiSortBy> & {
     createdById?: InputMaybe<Scalars["ID"]>;
@@ -1308,6 +1341,7 @@ export type DeleteAccountInput = {
 export enum DeleteType {
     Api = "Api",
     ApiKey = "ApiKey",
+    ApiKeyExternal = "ApiKeyExternal",
     ApiVersion = "ApiVersion",
     Bookmark = "Bookmark",
     BookmarkList = "BookmarkList",
@@ -1509,6 +1543,7 @@ export enum ModelType {
     ActiveFocusMode = "ActiveFocusMode",
     Api = "Api",
     ApiKey = "ApiKey",
+    ApiKeyExternal = "ApiKeyExternal",
     ApiVersion = "ApiVersion",
     Award = "Award",
     Bookmark = "Bookmark",
@@ -6557,6 +6592,7 @@ export type TranslateInput = {
 
 export type User = DbObject<"User"> & {
     apiKeys?: Maybe<Array<ApiKey>>;
+    apiKeysExternal?: Maybe<Array<ApiKeyExternal>>;
     apis: Array<Api>;
     apisCount: Scalars["Int"];
     apisCreated?: Maybe<Array<Api>>;

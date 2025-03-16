@@ -80,6 +80,7 @@
     "MaxObjectsReachedDetails": "You have reached the maximum number of this object type. You can increase this limit by transferring the object to another account/team, or by signing up for premium.",
     "MaxReportsReached": "You've already submitted a report on this object.",
     "MaxReportsReachedDetails": "You can only have one open report on an object at a time.",
+    "MissingRequiredField": "Missing required field.",
     "MustHaveFocusMode": "Must have at least one focus mode.",
     "MustLeaveVerificationMethod": "Cannot delete all verified authentication methods.",
     "MustLeaveVerificationMethodDetails": "You must have at least one verified authentication method (phone number, email address, or crypto wallet). Please verify another method before deleting this one.",

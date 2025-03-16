@@ -33,6 +33,7 @@ export const MONTHS_1_MS = MONTHS_1_DAYS * DAYS_1_MS;
 
 export const YEARS_1_DAYS = 365;
 export const YEARS_1_MS = YEARS_1_DAYS * DAYS_1_MS;
+export const YEARS_1_MONTHS = 12;
 
 export const DOLLARS_1_CENTS = 100;
 

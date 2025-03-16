@@ -15,6 +15,8 @@
     "IssueStatusRejectedBody": "\"{{issueName}}\" on \"{{objectName}}\" has been rejected",
     "MessageReceivedTitle": "New chat message",
     "MessageReceivedBody": "New message from {{senderName}}",
+    "NewDecisionRequestTitle": "Run decision required",
+    "NewDecisionRequestBody": "Run \"{{objectName}}\" requires a decision to be made before it can continue.",
     "NewDeviceTitle": "New device sign-in",
     "NewDeviceBody": "A new device signed in to your account. If you didn't sign in, please change your password.",
     "NewEmailVerificationTitle": "New email in use",

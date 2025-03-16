@@ -52,14 +52,14 @@ function updateMany(many: string) {
     };
 }
 
-function deleteOne(one: string) {
-    return {
-        deleteOne: {
-            endpoint: `/${one}/:id`,
-            method: "DELETE" as const,
-        },
-    };
-}
+// function deleteOne(one: string) {
+//     return {
+//         deleteOne: {
+//             endpoint: `/${one}/:id`,
+//             method: "DELETE" as const,
+//         },
+//     };
+// }
 
 function standardCRUD(one: string, many: string) {
     return {
@@ -75,11 +75,15 @@ export const endpointsApi = standardCRUD("api", "apis");
 export const endpointsApiKey = {
     ...createOne("apiKey"),
     ...updateOne("apiKey"),
-    ...deleteOne("apiKey"),
     validateOne: {
         endpoint: "/apiKey/:id/validate",
         method: "PUT" as const,
     },
+} as const;
+
+export const endpointsApiKeyExternal = {
+    ...createOne("apiKeyExternal"),
+    ...updateOne("apiKeyExternal"),
 } as const;
 
 export const endpointsApiVersion = standardCRUD("apiVersion", "apiVersions");
@@ -394,12 +398,8 @@ export const endpointsRunProject = standardCRUD("run/project", "run/projects");
 
 export const endpointsRunRoutine = standardCRUD("run/routine", "run/routines");
 
-export const endpointsRunRoutineInput = {
-    ...findMany("run/routine/inputs"),
-} as const;
-
-export const endpointsRunRoutineOutput = {
-    ...findMany("run/routine/outputs"),
+export const endpointsRunRoutineIO = {
+    ...findMany("run/routine/io"),
 } as const;
 
 export const endpointsSchedule = standardCRUD("schedule", "schedules");
