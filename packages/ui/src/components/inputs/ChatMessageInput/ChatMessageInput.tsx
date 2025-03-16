@@ -1,23 +1,24 @@
 import { AITaskInfo, ChatMessageShape, ChatParticipantShape, ListObject, LlmTask, getTranslation } from "@local/shared";
-import { Box, Button, Chip, ChipProps, CircularProgress, Divider, IconButton, ListItemText, Menu, MenuItem, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { RichInputBase } from "components/inputs/RichInput/RichInput";
-import { MarkdownDisplay } from "components/text/MarkdownDisplay/MarkdownDisplay";
-import { SessionContext } from "contexts";
-import useDraggableScroll from "hooks/gestures";
-import { useShowBotWarning } from "hooks/subscriptions";
-import { UseChatTaskReturn } from "hooks/tasks";
-import { useKeyboardOpen } from "hooks/useKeyboardOpen";
-import { useWindowSize } from "hooks/useWindowSize";
-import { AddIcon, CancelIcon, DeleteIcon, EditIcon, ErrorIcon, PlayIcon, SearchIcon, SendIcon, SuccessIcon } from "icons";
+import { Box, Button, Chip, ChipProps, CircularProgress, Divider, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
+import { RichInputBase } from "components/inputs/RichInput/RichInput.js";
+import { MarkdownDisplay } from "components/text/MarkdownDisplay.js";
+import useDraggableScroll from "hooks/gestures.js";
+import { useShowBotWarning } from "hooks/subscriptions.js";
+import { UseChatTaskReturn } from "hooks/tasks.js";
+import { useKeyboardOpen } from "hooks/useKeyboardOpen.js";
+import { useWindowSize } from "hooks/useWindowSize.js";
+import { AddIcon, CancelIcon, DeleteIcon, EditIcon, ErrorIcon, HelpIcon, PlayIcon, SearchIcon, SendIcon, SuccessIcon } from "icons/common.js";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { pagePaddingBottom } from "styles";
-import { ViewDisplayType } from "types";
-import { getCurrentUser } from "utils/authentication/session";
-import { isTaskStale } from "utils/display/chatTools";
-import { getDisplay } from "utils/display/listTools";
-import { displayDate } from "utils/display/stringTools";
-import { PubSub } from "utils/pubsub";
+import { SessionContext } from "../../../contexts.js";
+import { pagePaddingBottom } from "../../../styles.js";
+import { ViewDisplayType } from "../../../types.js";
+import { getCurrentUser } from "../../../utils/authentication/session.js";
+import { ELEMENT_IDS } from "../../../utils/consts.js";
+import { isTaskStale } from "../../../utils/display/chatTools.js";
+import { getDisplay } from "../../../utils/display/listTools.js";
+import { displayDate } from "../../../utils/display/stringTools.js";
+import { PubSub } from "../../../utils/pubsub.js";
 
 const DEFAULT_TYPING_INDICATOR_MAX_CHARS = 40;
 const NUM_TYPING_INDICATOR_ELLIPSIS_DOTS = 3;
@@ -27,11 +28,6 @@ type ChatIndicatorProps = {
     participantsAll: Omit<ChatParticipantShape, "chat">[] | undefined,
     participantsTyping: Omit<ChatParticipantShape, "chat">[],
     messagesCount: number,
-}
-
-type MenuPosition = {
-    mouseX: number;
-    mouseY: number
 }
 
 /**
@@ -92,7 +88,7 @@ function showBotWarningDetails() {
     });
 }
 
-const ChatIndicatorBox = styled(Box)(() => ({
+const ChatIndicatorBox = styled(Box)(({ theme }) => ({
     display: "flex",
     flexDirection: "row",
     justifyContent: "flex-start",
@@ -100,19 +96,13 @@ const ChatIndicatorBox = styled(Box)(() => ({
     gap: 0,
     width: "min(100%, 700px)",
     margin: "auto",
+    color: theme.palette.background.textSecondary,
 }));
 
-// interface HideBotWarningMenuProps extends MenuProps {
-//     menuPosition: MenuPosition | null;
-// }
-// const HideBotWarningMenu = styled(Box, {
-//     shouldForwardProp: (prop) => prop !== "menuPosition",
-// })<HideBotWarningMenuProps>(({ menuPosition, theme }) => ({
-//    anch
-// }));
-
-const showBotWarningButtonStyle = { textTransform: "none" } as const;
-const contextItemStyle = { display: "flex", alignItems: "center" } as const;
+const dismissButtonStyle = {
+    textTransform: "none",
+    color: "currentColor",
+} as const;
 
 /**
  * Displays text information about the chat. Can be a warning that you 
@@ -124,25 +114,16 @@ export function ChatIndicator({
     messagesCount,
 }: ChatIndicatorProps) {
     const { t } = useTranslation();
-
     const botWarningPreferences = useShowBotWarning();
-    const [contextMenu, setContextMenu] = useState<MenuPosition | null>(null);
+    const [dots, setDots] = useState("");
+
     const onHideBotWarning = useCallback(function onHideBotWarningCallback() {
         botWarningPreferences.handleUpdateShowBotWarning(false);
-        setContextMenu(null);
+        PubSub.get().publish("snack", {
+            message: "Bot warning hidden. You can re-enable this in settings.",
+            severity: "Info",
+        });
     }, [botWarningPreferences]);
-    const handleContextMenu = useCallback(function handleContextMenuCallback(event: React.MouseEvent) {
-        if (botWarningPreferences.showBotWarning === false) return;
-        event.preventDefault();
-        setContextMenu(
-            contextMenu === null
-                ? { mouseX: event.clientX - 2, mouseY: event.clientY - 4 }
-                : null,
-        );
-    }, [botWarningPreferences.showBotWarning, contextMenu]);
-    const handleContextMenuClose = useCallback(function handleContextMenuClose() {
-        setContextMenu(null);
-    }, []);
 
     // Bot warning should only be displayed at the beginning of a chat, 
     // when there are no other participants typing, and there is a bot participant
@@ -158,9 +139,8 @@ export function ChatIndicator({
         return getTypingIndicatorText(participantsTyping, DEFAULT_TYPING_INDICATOR_MAX_CHARS);
     }, [participantsTyping]);
 
-    const [dots, setDots] = useState("");
     useEffect(function typingIndicatorDotsAnimationEffect() {
-        let interval;
+        let interval: NodeJS.Timeout;
         if (typingIndicatorText !== "") {
             interval = setInterval(() => {
                 setDots(prevDots => {
@@ -175,29 +155,21 @@ export function ChatIndicator({
         return () => clearInterval(interval);
     }, [typingIndicatorText]);
 
-    const contextAnchorPosition = useMemo(function contextAnchorPositionMemo() {
-        if (contextMenu === null) return undefined;
-        return { top: contextMenu.mouseY, left: contextMenu.mouseX };
-    }, [contextMenu]);
-
     if (!showBotWarning && typingIndicatorText === "") return null;
     return (
-        <ChatIndicatorBox onContextMenu={handleContextMenu}>
-            {/* Right-click context menu */}
-            <Menu
-                open={contextMenu !== null}
-                onClose={handleContextMenuClose}
-                anchorReference="anchorPosition"
-                anchorPosition={contextAnchorPosition}
-            >
-                <MenuItem onClick={onHideBotWarning}
-                    sx={contextItemStyle}>
-                    <ListItemText primary="Hide Warning" secondary="Hide bot warning. You can reenable this in the settings by clearing display cache." />
-                </MenuItem>
-            </Menu>
+        <ChatIndicatorBox>
             {showBotWarning && <>
                 <Typography variant="body2" p={1}>{t("BotChatWarning")}</Typography>
-                <Button variant="text" sx={showBotWarningButtonStyle} onClick={showBotWarningDetails}>{t("LearnMore")}</Button>
+                <IconButton onClick={showBotWarningDetails}>
+                    <HelpIcon fill="currentColor" />
+                </IconButton>
+                <Button
+                    variant="text"
+                    sx={dismissButtonStyle}
+                    onClick={onHideBotWarning}
+                >
+                    {t("Dismiss")}
+                </Button>
             </>}
             {!showBotWarning && <Typography variant="body2" p={1}>{typingIndicatorText}{dots}</Typography>}
         </ChatIndicatorBox>
@@ -391,6 +363,7 @@ function TasksRow({
     if (!hasNonStartTasks) return null;
     return (
         <TasksRowOuter
+            id={ELEMENT_IDS.TasksRow}
             onMouseDown={onMouseDown}
             ref={ref}
         >

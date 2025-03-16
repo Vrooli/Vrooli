@@ -1,16 +1,135 @@
 /**
- * Used to create/update a link between two routineVersion nodes
+ * Prompts user to select which link the new node should be added on
  */
-import { Autocomplete, Box, DialogContent, Grid, Stack, Typography, useTheme } from "@mui/material";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle";
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog";
-import { TextInput } from "components/inputs/TextInput/TextInput";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { getTranslation, NodeLink } from "@local/shared";
+import { Autocomplete, Box, DialogContent, Grid, List, ListItem, ListItemText, Stack, Typography, useTheme } from "@mui/material";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { DialogTitle } from "components/dialogs/DialogTitle/DialogTitle.js";
+import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
+import { ListMenuItemData } from "components/dialogs/types.js";
+import { TextInput } from "components/inputs/TextInput/TextInput.js";
+import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { MoveNodeMenuProps } from "../types";
+import { getUserLanguages } from "utils/display/translationTools.js";
+import { SessionContext } from "../../../contexts.js";
+import { AddAfterLinkDialogProps, AddBeforeLinkDialogProps, MoveNodeMenuProps } from "./types.js";
 
-const titleId = "move-node-dialog-title";
+const addBeforeLinkDialogTitleId = "add-before-link-dialog-title";
+
+export function AddBeforeLinkDialog({
+    isOpen,
+    handleClose,
+    handleSelect,
+    nodeId,
+    nodes,
+    links,
+}: AddBeforeLinkDialogProps) {
+    const { t } = useTranslation();
+    const session = useContext(SessionContext);
+
+    /**
+     * Gets the name of a node from its id
+     */
+    const getNodeName = useCallback((nodeId: string) => {
+        const node = nodes.find(n => n.id === nodeId);
+        return getTranslation(node, getUserLanguages(session), true).name;
+    }, [nodes, session]);
+
+    /**
+     * Find links where the "to.id" is the nodeId
+     */
+    const linkOptions = useMemo<NodeLink[]>(() => links.filter(l => l.to.id === nodeId), [links, nodeId]);
+
+    const listOptions: ListMenuItemData<NodeLink>[] = linkOptions.map(o => ({
+        label: `${getNodeName(o.from.id)} ⟶ ${getNodeName(o.to.id)}`,
+        value: o as NodeLink,
+    }));
+
+    return (
+        <LargeDialog
+            id="add-link-before-dialog"
+            onClose={handleClose}
+            isOpen={isOpen}
+            titleId={addBeforeLinkDialogTitleId}
+        >
+            <TopBar
+                display="dialog"
+                onClose={handleClose}
+                title={t("LinkSelect")}
+                titleId={addBeforeLinkDialogTitleId}
+            />
+            <DialogContent>
+                <List>
+                    {listOptions.map(({ label, value }, index) => (
+                        <ListItem button onClick={() => { handleSelect(value); handleClose(); }} key={index}>
+                            <ListItemText primary={label} />
+                        </ListItem>
+                    ))}
+                </List>
+            </DialogContent>
+        </LargeDialog>
+    );
+}
+
+const addAfterLinkDialogTitleId = "add-after-link-dialog-title";
+
+export function AddAfterLinkDialog({
+    isOpen,
+    handleClose,
+    handleSelect,
+    nodeId,
+    nodes,
+    links,
+}: AddAfterLinkDialogProps) {
+    const { t } = useTranslation();
+    const session = useContext(SessionContext);
+
+    /**
+     * Gets the name of a node from its id
+     */
+    const getNodeName = useCallback((nodeId: string) => {
+        const node = nodes.find(n => n.id === nodeId);
+        return getTranslation(node, getUserLanguages(session), true).name;
+    }, [nodes, session]);
+
+    /**
+     * Find links where the "from.id" is the nodeId
+     */
+    const linkOptions = useMemo<NodeLink[]>(() => links.filter(l => l.from.id === nodeId), [links, nodeId]);
+
+    const listOptions: ListMenuItemData<NodeLink>[] = linkOptions.map(o => ({
+        label: `${getNodeName(o.from.id)} ⟶ ${getNodeName(o.to.id)}`,
+        value: o as NodeLink,
+    }));
+
+    return (
+        <LargeDialog
+            id="add-link-after-dialog"
+            onClose={handleClose}
+            isOpen={isOpen}
+            titleId={addAfterLinkDialogTitleId}
+        >
+            <TopBar
+                display="dialog"
+                onClose={handleClose}
+                title={t("LinkSelect")}
+                titleId={addAfterLinkDialogTitleId}
+            />
+            <DialogContent>
+                <List>
+                    {listOptions.map(({ label, value }, index) => (
+                        <ListItem button onClick={() => { handleSelect(value); handleClose(); }} key={index}>
+                            <ListItemText primary={label} />
+                        </ListItem>
+                    ))}
+                </List>
+            </DialogContent>
+        </LargeDialog>
+    );
+}
+
+const moveNodeDialogTitleId = "move-node-dialog-title";
 
 export function MoveNodeMenu({
     handleClose,
@@ -171,10 +290,10 @@ export function MoveNodeMenu({
             id="move-node-dialog"
             isOpen={isOpen}
             onClose={() => { handleClose(); }}
-            titleId={titleId}
+            titleId={moveNodeDialogTitleId}
         >
             <DialogTitle
-                id={titleId}
+                id={moveNodeDialogTitleId}
                 help={t("NodeMoveDialogHelp")}
                 onClose={onClose}
                 title={t("NodeMove")}

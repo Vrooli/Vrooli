@@ -3,11 +3,11 @@ import { IconButton, ListItem, Popover, Stack, Tooltip, Typography, useTheme } f
 import { fetchLazyWrapper } from "api/fetchWrapper.js";
 import { TextInput } from "components/inputs/TextInput/TextInput.js";
 import { useLazyFetch } from "hooks/useLazyFetch.js";
-import { useZIndex } from "hooks/useZIndex.js";
 import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon } from "icons/common.js";
 import { MouseEvent, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FixedSizeList } from "react-window";
+import { Z_INDEX } from "utils/consts.js";
 import { AllLanguages, getLanguageSubtag, getUserLanguages } from "utils/display/translationTools.js";
 import { PubSub } from "utils/pubsub.js";
 import { SessionContext } from "../../../contexts.js";
@@ -167,7 +167,6 @@ export function SelectLanguageMenu({
     // Popup for selecting language
     const [anchorEl, setAnchorEl] = useState<Element | null>(null);
     const open = Boolean(anchorEl);
-    const zIndex = useZIndex(open, false, 1000);
     const onOpen = useCallback((event: MouseEvent<Element>) => {
         setAnchorEl(event.currentTarget);
         // Force parent to save current translation TODO this causes infinite render in multi-step routine. not sure why
@@ -203,7 +202,7 @@ export function SelectLanguageMenu({
                 onClose={onClose}
                 aria-labelledby={titleId}
                 sx={{
-                    zIndex,
+                    zIndex: Z_INDEX.Popup,
                     "& .MuiPopover-paper": {
                         background: "transparent",
                         border: "none",

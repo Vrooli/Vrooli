@@ -1,9 +1,9 @@
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogProps, Palette, styled, useTheme } from "@mui/material";
-import { useZIndex } from "hooks/useZIndex.js";
 import i18next from "i18next";
 import { ErrorIcon, InfoIcon, SuccessIcon, WarningIcon } from "icons/common.js";
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Z_INDEX } from "utils/consts.js";
 import { translateSnackMessage } from "utils/display/translationTools.js";
 import { PubSub } from "utils/pubsub.js";
 import { DialogTitle } from "../DialogTitle/DialogTitle.js";
@@ -50,8 +50,6 @@ function iconColor(severity: AlertDialogSeverity | `${AlertDialogSeverity}` | un
 
 const titleId = "alert-dialog-title";
 const descriptionAria = "alert-dialog-description";
-const Z_INDEX_OFFSET = 1000;
-
 interface StyledDialogProps extends Omit<DialogProps, "zIndex"> {
     zIndex: number;
 }
@@ -80,7 +78,6 @@ export function AlertDialog() {
 
     const [state, setState] = useState<AlertDialogState>(defaultState());
     const [open, setOpen] = useState(false);
-    const zIndex = useZIndex(open, false, Z_INDEX_OFFSET);
 
     // Determine the icon based on severity
     const Icon = state.severity ? {
@@ -126,7 +123,7 @@ export function AlertDialog() {
             onClose={resetState}
             aria-labelledby={state.title ? titleId : undefined}
             aria-describedby={descriptionAria}
-            zIndex={zIndex}
+            zIndex={Z_INDEX.Popup}
         >
             {state.title && <DialogTitle
                 id={titleId}

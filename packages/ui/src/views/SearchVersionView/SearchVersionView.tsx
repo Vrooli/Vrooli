@@ -8,7 +8,7 @@ import { useFindMany } from "hooks/useFindMany.js";
 import { useTabs } from "hooks/useTabs.js";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
+import { useLocation } from "route/router.js";
 import { getCurrentUser } from "utils/authentication/session.js";
 import { scrollIntoFocusedView } from "utils/display/scroll.js";
 import { PubSub } from "utils/pubsub.js";

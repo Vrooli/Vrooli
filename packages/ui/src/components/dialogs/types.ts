@@ -1,13 +1,13 @@
-import { Bookmark, BookmarkFor, ListObject, Node, NodeLinkShape, NodeRoutineList, NodeRoutineListItem, NodeRoutineListItemShape, NodeShape, RootStep, RoutineVersion, TranslationKeyCommon } from "@local/shared";
+import { Bookmark, BookmarkFor, ListObject, Node, NodeLinkShape, NodeRoutineList, NodeRoutineListItem, NodeRoutineListItemShape, NodeShape, RoutineVersion, TranslationKeyCommon } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
-import { HelpButtonProps } from "components/buttons/types";
-import { TitleProps } from "components/text/types";
-import { type UseObjectActionsReturn } from "hooks/objectActions";
+import { HelpButtonProps } from "components/buttons/types.js";
+import { TitleProps } from "components/text/types.js";
+import { type UseObjectActionsReturn } from "hooks/objectActions.js";
 import { ReactNode } from "react";
 import { SvgComponent, SxType, ViewDisplayType } from "types";
-import { ObjectAction } from "utils/actions/objectActions";
-import { CookiePreferences } from "utils/localStorage";
-import { FormProps } from "../../types";
+import { ObjectAction } from "utils/actions/objectActions.js";
+import { CookiePreferences } from "utils/localStorage.js";
+import { FormProps } from "../../types.js";
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface SideMenuProps { }
@@ -148,13 +148,6 @@ export interface ShareObjectDialogProps extends DialogProps {
     onClose: () => unknown;
 }
 
-export interface TranscriptDialogProps {
-    handleClose: () => unknown;
-    isListening: boolean;
-    showHint: boolean;
-    transcript: string;
-}
-
 export type ObjectActionDialogsProps = UseObjectActionsReturn & {
     object: ListObject | null | undefined;
 }
@@ -207,16 +200,6 @@ export interface SubroutineInfoDialogProps {
     onClose: () => unknown;
 }
 
-export interface RunStepsDialogProps {
-    currStep: number[] | null;
-    handleLoadSubroutine: (id: string) => unknown;
-    handleCurrStepLocationUpdate: (step: number[]) => unknown;
-    history: number[][];
-    /** Out of 100 */
-    percentComplete: number;
-    rootStep: RootStep | null;
-}
-
 export interface DeleteBookmarkListDialogProps {
     bookmarkDeleteOptions: Bookmark[];
     onClose: () => unknown;
@@ -256,7 +239,6 @@ export interface LargeDialogProps {
         paper?: SxType;
         root?: SxType;
     };
-    zIndexOffset?: number;
 }
 
 export interface MaybeLargeDialogProps extends Omit<LargeDialogProps, "isOpen" | "onClose"> {

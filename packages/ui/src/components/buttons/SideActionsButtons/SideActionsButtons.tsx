@@ -1,8 +1,8 @@
 import { Box, BoxProps, styled, useTheme } from "@mui/material";
 import { useWindowSize } from "hooks/useWindowSize.js";
-import { useZIndex } from "hooks/useZIndex.js";
 import { useRef } from "react";
 import { SxType, ViewDisplayType } from "types";
+import { Z_INDEX } from "utils/consts.js";
 import { SideActionsButtonsProps } from "../types.js";
 
 interface OuterBoxProps extends BoxProps {
@@ -40,7 +40,6 @@ export function SideActionsButtons({
     display,
     sx,
 }: SideActionsButtonsProps) {
-    const zIndex = useZIndex();
     const { breakpoints } = useTheme();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
 
@@ -52,7 +51,7 @@ export function SideActionsButtons({
             display={display}
             isMobile={isMobile}
             sx={sx}
-            zIndex={zIndex}
+            zIndex={Z_INDEX.ActionButton}
         >
             {children}
         </OuterBox>

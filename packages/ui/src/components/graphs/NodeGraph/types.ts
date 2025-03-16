@@ -1,5 +1,5 @@
 import { Node, NodeLink, RoutineVersion } from "@local/shared";
-import { BuildAction } from "utils/consts";
+import { BuildAction } from "utils/consts.js";
 
 export interface AddAfterLinkDialogProps {
     isOpen: boolean;

@@ -1,7 +1,7 @@
 import { Box, IconButton, Stack, useTheme } from "@mui/material";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { useZIndex } from "../../../hooks/useZIndex.js";
+import { Z_INDEX } from "utils/consts.js";
 import { BotIcon, DeleteIcon, EditIcon, TeamIcon, UserIcon } from "../../../icons/common.js";
 import { ProfilePictureInputAvatar } from "../../../styles.js";
 import { extractImageUrl } from "../../../utils/display/imageTools.js";
@@ -63,7 +63,6 @@ export function ProfilePictureInput({
     profile,
 }: ProfilePictureInputProps) {
     const { palette } = useTheme();
-    const zIndex = useZIndex();
 
     const [bannerImageUrl, setBannerImageUrl] = useState(extractImageUrl(profile?.bannerImage, profile?.updated_at, BANNER_TARGET_SIZE));
     const [profileImageUrl, setProfileImageUrl] = useState(extractImageUrl(profile?.profileImage, profile?.updated_at, PROFILE_TARGET_SIZE));
@@ -149,7 +148,7 @@ export function ProfilePictureInput({
                     position: "absolute",
                     top: "-16px",
                     right: "0px",
-                    zIndex: zIndex + 1,
+                    zIndex: Z_INDEX.PageElement + 1,
                 }}>
                     <IconButton sx={{ background: palette.secondary.main }}>
                         <EditIcon width="24px" height="24px" fill={palette.secondary.contrastText} />
@@ -186,7 +185,7 @@ export function ProfilePictureInput({
                     position: "absolute",
                     top: "-16px",
                     right: profileImageUrl !== undefined ? "-56px" : "-8px",
-                    zIndex: zIndex + 1,
+                    zIndex: Z_INDEX.PageElement + 1,
                 }}>
                     <IconButton sx={{ background: palette.secondary.main }}>
                         <EditIcon width="24px" height="24px" fill={palette.secondary.contrastText} />
