@@ -1,12 +1,11 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { SessionUser, uuid } from "@local/shared";
-import { fileTypeFromBuffer } from "file-type";
 import https from "https";
 import sharp from "sharp";
-import { UploadConfig } from "../endpoints/rest";
-import { CustomError } from "../events/error";
-import { logger } from "../events/logger";
-import { RequestFile } from "../types";
+import { UploadConfig } from "../endpoints/rest.js";
+import { CustomError } from "../events/error.js";
+import { logger } from "../events/logger.js";
+import { RequestFile } from "../types.js";
 
 // Global S3 client variable
 let s3: S3Client | undefined;
@@ -42,6 +41,22 @@ async function getHeicConvert() {
     }
     return heicConvert;
 }
+
+// file-type has to defer because jest tests don't like it for some reason
+type FileTypeResult = {
+    readonly ext: string;
+    readonly mime: string;
+};
+let fileTypeFromBuffer: (buffer: Uint8Array | ArrayBuffer) => Promise<FileTypeResult | undefined>;
+async function getFileType(buffer: Uint8Array | ArrayBuffer) {
+    if (!fileTypeFromBuffer) {
+        const fileTypePkg = await import("file-type");
+        const { fileTypeFromBuffer: func } = fileTypePkg.default;
+        fileTypeFromBuffer = func;
+    }
+    return fileTypeFromBuffer(buffer);
+}
+
 /** Common configuration for profile images */
 export const profileImageConfig = {
     allowedExtensions: ["png", "jpg", "jpeg", "webp", "svg", "gif", "heic", "heif"], // gif will lose animation
@@ -206,7 +221,7 @@ export async function processAndStoreFiles<TInput>(
         // Find extension using the beginning of the file buffer. 
         // This is safer than using the file extension from the original file name, 
         // as malicious users can spoof the file extension.
-        const fileType = await fileTypeFromBuffer(file.buffer);
+        const fileType = await getFileType(file.buffer);
         let extension = fileType?.ext;
         if (!extension) {
             throw new CustomError("0502", "InternalError", { file: file.originalname });
