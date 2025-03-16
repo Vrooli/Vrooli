@@ -1,12 +1,10 @@
-import { AITaskInfo, ActiveFocusMode, FocusMode, GqlModelType, NavigableObject, TaskContextInfo } from "@local/shared";
-import { chatMatchHash } from "./codes";
-import { FONT_SIZE_MAX, FONT_SIZE_MIN } from "./consts";
-import { getDeviceInfo } from "./display/device";
-import { RichInputToolbarViewSize } from "./pubsub";
+import { AITaskInfo, ActiveFocusMode, FocusMode, ModelType, NavigableObject, ProjectVersion, RoutineVersion, TaskContextInfo, isObject } from "@local/shared";
+import { chatMatchHash } from "./codes.js";
+import { FONT_SIZE_MAX, FONT_SIZE_MIN } from "./consts.js";
+import { getDeviceInfo } from "./display/device.js";
+import { RichInputToolbarViewSize } from "./pubsub.js";
 
 const KB_1 = 1024;
-// eslint-disable-next-line no-magic-numbers
-const CACHE_LIMIT_2KB = KB_1 * 2;
 // eslint-disable-next-line no-magic-numbers
 const CACHE_LIMIT_128KB = KB_1 * 128;
 // eslint-disable-next-line no-magic-numbers
@@ -18,7 +16,6 @@ const CACHE_LIMT_1MB = KB_1 * 1024;
 
 const FORM_CACHE_LIMIT = 100;
 const PARTIAL_DATA_CACHE_LIMIT = 300;
-const ALLOW_FORM_CACHING_CACHE_LIMIT = 50;
 const CHAT_MESSAGE_TREE_CACHE_LIMIT = 100;
 const CHAT_GROUP_CACHE_LIMIT = 100;
 const LLM_TASKS_CACHE_LIMIT = 100;
@@ -33,6 +30,11 @@ export type CookiePreferences = {
     targeting: boolean;
 }
 
+type RunLoaderCache = {
+    projects: { [projectId: string]: ProjectVersion };
+    routines: { [routineId: string]: RoutineVersion };
+};
+
 export type CreateType = "Api" | "Bot" | "Chat" | "DataConverter" | "DataStructure" | "Note" | "Project" | "Prompt" | "Question" | "Reminder" | "Routine" | "SmartContract" | "Team";
 export type ThemeType = "light" | "dark";
 
@@ -46,6 +48,7 @@ type SimpleStoragePayloads = {
     LastTab: string | null,
     Preferences: CookiePreferences,
     RichInputToolbarViewSize: RichInputToolbarViewSize,
+    RunLoaderCache: RunLoaderCache,
     ShowBotWarning: boolean,
     ShowMarkdown: boolean,
     SideMenuState: boolean,
@@ -62,7 +65,6 @@ type SimpleStorageInfo<T extends keyof SimpleStoragePayloads> = {
 };
 
 type CacheStoragePayloads = {
-    AllowFormCaching: AllowFormCaching,
     ChatMessageTree: ChatMessageTreeCookie,
     ChatParticipants: ChatGroupCookie,
     FormData: FormCacheEntry,
@@ -148,6 +150,11 @@ export const cookies: { [T in SimpleStorageType]: SimpleStorageInfo<T> } = {
         __type: "functional",
         check: (value) => value === "minimal" || value === "partial" || value === "full",
         fallback: "full",
+    },
+    RunLoaderCache: {
+        __type: "functional",
+        check: (value) => typeof value === "object" && value !== null && isObject((value as { projects?: unknown }).projects) && isObject((value as { routines?: unknown }).routines),
+        fallback: { projects: {}, routines: {} },
     },
     ShowBotWarning: {
         __type: "functional",
@@ -420,13 +427,13 @@ type FormCacheEntry = {
 }
 const formDataCache = new LocalStorageLruCache<FormCacheEntry>("formData", FORM_CACHE_LIMIT, CACHE_LIMIT_512KB);
 function getFormCacheKey(
-    objectType: GqlModelType | `${GqlModelType}`,
+    objectType: ModelType | `${ModelType}`,
     objectId: string,
 ) {
     return `${objectType}:${objectId}`;
 }
 export function getCookieFormData(
-    objectType: GqlModelType | `${GqlModelType}`,
+    objectType: ModelType | `${ModelType}`,
     objectId: string,
 ): FormCacheEntry | undefined {
     return ifAllowed("functional", () => {
@@ -435,7 +442,7 @@ export function getCookieFormData(
     });
 }
 export function setCookieFormData(
-    objectType: GqlModelType | `${GqlModelType}`,
+    objectType: ModelType | `${ModelType}`,
     objectId: string,
     data: FormCacheEntry,
 ) {
@@ -445,34 +452,12 @@ export function setCookieFormData(
     });
 }
 export function removeCookieFormData(
-    objectType: GqlModelType | `${GqlModelType}`,
+    objectType: ModelType | `${ModelType}`,
     objectId: string,
 ) {
     return ifAllowed("functional", () => {
         const key = getFormCacheKey(objectType, objectId);
         formDataCache.remove(key);
-    });
-}
-
-
-/** Indicates if the form for this objectType/ID pair has disabled auto-save */
-type AllowFormCaching = boolean;
-const formCachingCache = new LocalStorageLruCache<AllowFormCaching>("allowFormCaching", ALLOW_FORM_CACHING_CACHE_LIMIT, CACHE_LIMIT_2KB);
-export function getCookieAllowFormCache(objectType: GqlModelType | `${GqlModelType}`, objectId: string): AllowFormCaching {
-    return ifAllowed("functional", () => {
-        const result = formCachingCache.get(`${objectType}:${objectId}`);
-        if (typeof result === "boolean") return result;
-        return true; // Default to true
-    });
-}
-export function setCookieAllowFormCache(objectType: GqlModelType | `${GqlModelType}`, objectId: string, data: AllowFormCaching) {
-    return ifAllowed("functional", () => {
-        formCachingCache.set(`${objectType}:${objectId}`, data);
-    });
-}
-export function removeCookieAllowFormCache(objectType: GqlModelType | `${GqlModelType}`, objectId: string) {
-    return ifAllowed("functional", () => {
-        formCachingCache.remove(`${objectType}:${objectId}`);
     });
 }
 
