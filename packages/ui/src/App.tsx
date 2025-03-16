@@ -128,7 +128,7 @@ export function getGlobalStyles(theme: Theme) {
         ],
         // Ensure popovers are displayed above everything else
         ".MuiPopover-root": {
-            zIndex: 20000,
+            zIndex: Z_INDEX.Popup,
         },
     };
 }
@@ -160,7 +160,7 @@ function findThemeWithoutSession(): Theme {
     return withIsLeftHanded(withFontSize(themes[theme], fontSize), isLefthanded);
 }
 
-const MainBox = styled(Box)(({ theme }) => ({
+export const MainBox = styled(Box)(({ theme }) => ({
     display: "flex",
     flexDirection: "row",
     minHeight: "100vh",
@@ -473,60 +473,58 @@ https://github.com/Vrooli/Vrooli
                 <ThemeProvider theme={theme}>
                     <GlobalStyles styles={getGlobalStyles} />
                     <SessionContext.Provider value={session}>
-                        <ZIndexProvider>
-                            <ActiveChatProvider>
-                                <MainBox id="App" component="main">
-                                    {/* Popups and other components that don't effect layout */}
-                                    <PullToRefresh />
-                                    <CommandPalette />
-                                    <FindInPage />
-                                    <Celebration />
-                                    <AlertDialog />
-                                    <SnackStack />
-                                    <ProDialog
-                                        isOpen={isProDialogOpen}
-                                        onClose={closeProDialog}
-                                    />
-                                    <TutorialDialog
-                                        isOpen={isTutorialOpen}
-                                        onClose={closeTutorial}
-                                        onOpen={openTutorial}
-                                    />
-                                    <ImagePopup
-                                        alt="Tutorial content"
-                                        open={!!openImageData}
-                                        onClose={closePopupImage}
-                                        src={openImageData?.src ?? ""}
-                                        zIndex={999999999}
-                                    />
-                                    <VideoPopup
-                                        open={!!openVideoData}
-                                        onClose={closePopupVideo}
-                                        src={openVideoData?.src ?? ""}
-                                        zIndex={999999999}
-                                    />
-                                    {/* Main content*/}
-                                    <ContentWrap
-                                        id="content-wrap"
-                                        isLeftDrawerOpen={isLeftDrawerOpen}
-                                        isLeftHanded={isLeftHanded}
-                                        isMobile={isMobile}
-                                        isRightDrawerOpen={isRightDrawerOpen}
-                                    >
-                                        <ChatSideMenu />
-                                        {isLoading && <FullPageSpinner />}
-                                        <Routes sessionChecked={session !== undefined} />
-                                        <SideMenu />
-                                    </ContentWrap>
-                                    {/* Below main content */}
-                                    <BannerChicken
-                                        backgroundColor={theme.palette.background.default}
-                                        isMobile={isMobile}
-                                    />
-                                    <BottomNav />
-                                </MainBox>
-                            </ActiveChatProvider>
-                        </ZIndexProvider>
+                        <ActiveChatProvider>
+                            <MainBox id="App" component="main">
+                                {/* Popups and other components that don't effect layout */}
+                                <PullToRefresh />
+                                <CommandPalette />
+                                <FindInPage />
+                                <Celebration />
+                                <AlertDialog />
+                                <SnackStack />
+                                <ProDialog
+                                    isOpen={isProDialogOpen}
+                                    onClose={closeProDialog}
+                                />
+                                <TutorialDialog
+                                    isOpen={isTutorialOpen}
+                                    onClose={closeTutorial}
+                                    onOpen={openTutorial}
+                                />
+                                <ImagePopup
+                                    alt="Tutorial content"
+                                    open={!!openImageData}
+                                    onClose={closePopupImage}
+                                    src={openImageData?.src ?? ""}
+                                    zIndex={Z_INDEX.Popup}
+                                />
+                                <VideoPopup
+                                    open={!!openVideoData}
+                                    onClose={closePopupVideo}
+                                    src={openVideoData?.src ?? ""}
+                                    zIndex={Z_INDEX.Popup}
+                                />
+                                {/* Main content*/}
+                                <ContentWrap
+                                    id="content-wrap"
+                                    isLeftDrawerOpen={isLeftDrawerOpen}
+                                    isLeftHanded={isLeftHanded}
+                                    isMobile={isMobile}
+                                    isRightDrawerOpen={isRightDrawerOpen}
+                                >
+                                    <ChatSideMenu />
+                                    {isLoading && <FullPageSpinner />}
+                                    <Routes sessionChecked={session !== undefined} />
+                                    <SideMenu />
+                                </ContentWrap>
+                                {/* Below main content */}
+                                <BannerChicken
+                                    backgroundColor={theme.palette.background.default}
+                                    isMobile={isMobile}
+                                />
+                                <BottomNav />
+                            </MainBox>
+                        </ActiveChatProvider>
                     </SessionContext.Provider>
                 </ThemeProvider>
             </StyledEngineProvider>
