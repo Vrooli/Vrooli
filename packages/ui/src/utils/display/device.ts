@@ -68,7 +68,8 @@ export function getDeviceInfo(): {
  * @param keys A list of keys to display
  * @returns A string representation of the key combination
  */
-export const keyComboToString = (...keys: KeyComboOption[]): string => {
+export function keyComboToString(...keys: KeyComboOption[]): string {
+    const keyComboSeparator = " + ";
     // Find the device's operating system
     const { deviceOS } = getDeviceInfo();
     // Initialize the result string
@@ -81,9 +82,9 @@ export const keyComboToString = (...keys: KeyComboOption[]): string => {
         } else {
             result += key;
         }
-        result += " + ";
+        result += keyComboSeparator;
     }
     // Remove the trailing ' + '
-    result = result.slice(0, -3);
+    result = result.slice(0, -keyComboSeparator.length);
     return result;
-};
+}
