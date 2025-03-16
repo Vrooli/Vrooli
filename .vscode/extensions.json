@@ -1,7 +1,6 @@
 {
     "recommendations": [
         "dbaeumer.vscode-eslint",
-        "github.copilot",
         "prisma.prisma",
         "redhat.vscode-xml",
         "redhat.vscode-yaml",
