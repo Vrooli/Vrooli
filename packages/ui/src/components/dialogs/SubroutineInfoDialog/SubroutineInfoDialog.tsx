@@ -1,32 +1,33 @@
-import { DUMMY_ID, NodeRoutineListItemShape, ResourceList as ResourceListType, RoutineType, Session, TagShape, exists, getTranslation, nodeRoutineListItemValidation, noop, noopSubmit, orDefault, parseConfigCallData, parseSchemaInput, parseSchemaOutput, routineVersionTranslationValidation, shapeNodeRoutineListItem, uuid } from "@local/shared";
+import { DUMMY_ID, ResourceList as ResourceListType, RoutineType, Session, TagShape, exists, getTranslation, noop, noopSubmit, orDefault, parseConfigCallData, parseSchemaInput, parseSchemaOutput, routineVersionTranslationValidation, shapeNodeRoutineListItem, uuid } from "@local/shared";
 import { Box, Grid, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons";
-import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
-import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse";
-import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu";
-import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput";
-import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput";
-import { ResourceList } from "components/lists/ResourceList/ResourceList";
-import { Title } from "components/text/Title/Title";
-import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
-import { SessionContext } from "contexts";
+import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse.js";
+import { EditableTextCollapse } from "components/containers/EditableTextCollapse/EditableTextCollapse.js";
+import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu.js";
+import { IntegerInput } from "components/inputs/IntegerInput/IntegerInput.js";
+import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput.js";
+import { ResourceList } from "components/lists/ResourceList/ResourceList.js";
+import { Title } from "components/text/Title.js";
+import { VersionDisplay } from "components/text/VersionDisplay.js";
 import { Formik, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm";
-import { useTranslatedFields } from "hooks/useTranslatedFields";
-import { CloseIcon, OpenInNewIcon } from "icons";
+import { BaseForm } from "forms/BaseForm/BaseForm.js";
+import { useTranslatedFields } from "hooks/useTranslatedFields.js";
+import { CloseIcon, OpenInNewIcon } from "icons/common.js";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { FormContainer, FormSection } from "styles";
-import { getCurrentUser } from "utils/authentication/session";
-import { firstString } from "utils/display/stringTools";
-import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools";
-import { PubSub } from "utils/pubsub";
-import { routineTypes } from "utils/search/schemas/routine";
-import { validateFormValues } from "utils/validateFormValues";
-import { routineInitialValues } from "views/objects/routine";
-import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "views/objects/routine/RoutineTypeForms/RoutineTypeForms";
-import { LargeDialog } from "../LargeDialog/LargeDialog";
-import { SubroutineFormProps, SubroutineInfoDialogProps } from "../types";
+import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools.js";
+import { PubSub } from "utils/pubsub.js";
+import { routineTypes } from "utils/search/schemas/routine.js";
+import { validateFormValues } from "utils/validateFormValues.js";
+import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineFormPropsBase, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "views/objects/routine/RoutineTypeForms.js";
+import { SessionContext } from "../../../contexts.js";
+import { FormContainer, FormSection } from "../../../styles.js";
+import { getCurrentUser } from "../../../utils/authentication/session.js";
+import { getDisplay } from "../../../utils/display/listTools.js";
+import { firstString } from "../../../utils/display/stringTools.js";
+import { routineSingleStepInitialValues } from "../../../views/objects/routine/RoutineSingleStepUpsert.js";
+import { LargeDialog } from "../LargeDialog/LargeDialog.js";
+import { SubroutineFormProps, SubroutineInfoDialogProps } from "../types.js";
 
 const emptyArray = [] as const;
 
@@ -40,7 +41,7 @@ export function subroutineInitialValues(
         index: existing?.index ?? 0,
         isOptional: existing?.isOptional ?? false,
         list: existing?.list ?? {} as any,
-        routineVersion: routineInitialValues(session, existing?.routineVersion as any),
+        routineVersion: routineSingleStepInitialValues(session, existing?.routineVersion as any),
         translations: orDefault(existing?.translations, [{
             __typename: "NodeRoutineListItemTranslation" as const,
             id: DUMMY_ID,
@@ -174,23 +175,32 @@ function SubroutineForm({
         return parseSchemaOutput(values.routineVersion?.configFormOutput, values.routineVersion?.routineType, console);
     }, [values.routineVersion]);
 
-    const routineTypeBaseProps = useMemo(function routineTypeBasePropsMemo() {
-        return {
-            configCallData,
-            disabled: true,
-            display: "view",
-            handleGenerateOutputs: noop,
-            isGeneratingOutputs: false,
-            onConfigCallDataChange: noop,
-            onSchemaInputChange: noop,
-            onSchemaOutputChange: noop,
-            schemaInput,
-            schemaOutput,
-        } as const;
-    }, [configCallData, schemaInput, schemaOutput]);
-
     const routineTypeComponents = useMemo(function routineTypeComponentsMemo() {
         if (!values.routineVersion) return null;
+
+        const routineTypeBaseProps: RoutineFormPropsBase = {
+            configCallData,
+            disabled: false,
+            display: "view",
+            handleClearRun: noop, // Currently disabled in this context
+            handleCompleteStep: noop, // Currently disabled in this context
+            handleRunStep: noop, // Currently disabled in this context
+            hasErrors: false, // Currently disabled in this context
+            isCompleteStepDisabled: true, // Currently disabled in this context
+            isPartOfMultiStepRoutine: true,
+            isRunStepDisabled: true, // Currently disabled in this context
+            isRunningStep: false,
+            onConfigCallDataChange: noop, // Only used in edit mode
+            onRunChange: noop, // Currently disabled in this context
+            onSchemaInputChange: noop, // Only used in edit mode
+            onSchemaOutputChange: noop, // Only used in edit mode
+            routineId: values.id,
+            routineName: getDisplay(values).title,
+            schemaInput,
+            schemaOutput,
+            run: null, // Currently disabled in this context
+        };
+
         switch (values.routineVersion.routineType) {
             case RoutineType.Api:
                 return <RoutineApiForm {...routineTypeBaseProps} />;
@@ -221,7 +231,7 @@ function SubroutineForm({
             default:
                 return null;
         }
-    }, [routineTypeBaseProps, values.routineVersion]);
+    }, [configCallData, schemaInput, schemaOutput, values.routineVersion]);
 
     const routineTypeOption = useMemo(function routineTypeMemo() {
         return routineTypes.find((option) => option.type === (values.routineVersion?.routineType ?? RoutineType.Informational));
