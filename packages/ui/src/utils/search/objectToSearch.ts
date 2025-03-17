@@ -1,6 +1,6 @@
-import { CalendarPageTabOption, ChatInviteStatus, ChatPageTabOption, CodeType, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, RoutineType, RunStatus, ScheduleFor, SearchPageTabOption, SearchType, SearchTypeToSearchInput, SearchVersionPageTabOption, SignUpPageTabOption, StandardType, TeamPageTabOption, TranslationKeyCommon, UserPageTabOption, VisibilityType, YouInflated } from "@local/shared";
+import { CalendarPageTabOption, ChatInviteStatus, CodeType, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, RoutineType, RunStatus, ScheduleFor, SearchPageTabOption, SearchType, SearchTypeToSearchInput, SearchVersionPageTabOption, SignUpPageTabOption, StandardType, TeamPageTabOption, TranslationKeyCommon, UserPageTabOption, VisibilityType, YouInflated } from "@local/shared";
 import { Palette } from "@mui/material";
-import { ActionIcon, AddIcon, ApiIcon, ArticleIcon, FocusModeIcon, HelpIcon, HistoryIcon, MonthIcon, NoteIcon, ObjectIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon, VisibleIcon } from "icons/common.js";
+import { ActionIcon, AddIcon, ApiIcon, ArticleIcon, FocusModeIcon, HelpIcon, MonthIcon, NoteIcon, ObjectIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon, VisibleIcon } from "icons/common.js";
 import { SvgComponent } from "types";
 import { PolicyTabOption } from "views/PolicyView/PolicyView";
 import { apiSearchParams } from "./schemas/api.js";
@@ -323,45 +323,6 @@ export const calendarTabParams: TabParamSearchableList<CalendarTabsInfo, ["Sched
         titleKey: "FocusMode",
         searchType: "Schedule",
         where: () => ({ scheduleFor: ScheduleFor.FocusMode }),
-    },
-];
-
-export type ChatTabsInfo = {
-    Key: ChatPageTabOption;
-    Payload: undefined;
-    WhereParams: undefined;
-}
-
-export const chatTabParams: TabParamSearchableList<ChatTabsInfo, ["Chat", "Routine", "Standard"]> = [
-    {
-        color: (palette) => palette.primary.contrastText,
-        Icon: HistoryIcon,
-        key: ChatPageTabOption.History,
-        titleKey: "Chat",
-        searchType: "Chat",
-        where: () => ({ visibility: VisibilityType.Own }),
-    },
-    {
-        color: (palette) => palette.primary.contrastText,
-        Icon: RoutineIcon,
-        key: ChatPageTabOption.Routine,
-        titleKey: "Routine",
-        searchType: "Routine",
-        where: () => ({
-            Public: {},
-            My: { visibility: VisibilityType.Own },
-        } as any), // Special case that uses custom return shape
-    },
-    {
-        color: (palette) => palette.primary.contrastText,
-        Icon: ArticleIcon,
-        key: ChatPageTabOption.Prompt,
-        titleKey: "Prompt",
-        searchType: "Standard",
-        where: () => ({
-            Public: {},
-            My: { visibility: VisibilityType.Own },
-        } as any), // Special case that uses custom return shape
     },
 ];
 
