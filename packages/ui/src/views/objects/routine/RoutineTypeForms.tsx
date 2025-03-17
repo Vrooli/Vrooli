@@ -1,30 +1,30 @@
-import { BotShape, BotStyle, CodeLanguage, CodeVersionShape, CodeVersionTranslationShape, ConfigCallDataGenerate, FormSchema, FormStructureType, LlmModel, RunProject, RunRoutine, RunStatus, User, getAvailableModels, getModelDescription, getModelName, getTranslation, noop, uuid, uuidValidate } from "@local/shared";
+import { BotShape, BotStyle, CallDataActionConfigObject, CallDataApiConfigObject, CallDataCodeConfigObject, CallDataGenerateConfigObject, CallDataSmartContractConfigObject, CodeLanguage, CodeVersionShape, CodeVersionTranslationShape, ConfigCallDataGenerate, FormInputConfigObject, FormOutputConfigObject, FormSchema, FormStructureType, GraphConfigObject, LATEST_ROUTINE_CONFIG_VERSION, LlmModel, RoutineVersionConfig, RunProject, RunRoutine, RunStatus, User, aiServicesInfo, defaultConfigFormInputMap, defaultConfigFormOutputMap, getAvailableModels, getModelDescription, getModelName, getTranslation, noop, uuid, uuidValidate } from "@local/shared";
 import { Box, Button, Card, Divider, Grid, Typography, styled, useTheme } from "@mui/material";
-import { getExistingAIConfig } from "api/ai.js";
-import { LoadableButton } from "components/buttons/LoadableButton/LoadableButton.js";
-import { RunPickerMenu } from "components/buttons/RunButton/RunButton.js";
-import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse.js";
-import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog.js";
-import { CodeInputBase } from "components/inputs/CodeInput/CodeInput.js";
-import { SelectorBase } from "components/inputs/Selector/Selector.js";
-import { FormTip } from "components/inputs/form/FormTip/FormTip.js";
-import { Title } from "components/text/Title.js";
-import { FormView } from "forms/FormView/FormView.js";
-import { usePopover } from "hooks/usePopover.js";
-import { AddIcon, ApiIcon, BotIcon, CancelIcon, LockIcon, MagicIcon, MinusIcon, OpenInNewIcon, PlayIcon, SaveIcon, SmartContractIcon, SuccessIcon, TerminalIcon } from "icons/common.js";
 import { memo, useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route";
-import { PartialWithType } from "types";
-import { getCurrentUser } from "utils/authentication/session.js";
-import { ELEMENT_IDS } from "utils/consts.js";
-import { extractImageUrl } from "utils/display/imageTools.js";
-import { placeholderColor } from "utils/display/listTools.js";
-import { getCookiePartialData } from "utils/localStorage.js";
-import { openObject } from "utils/navigation/openObject.js";
-import { PubSub } from "utils/pubsub.js";
+import { getExistingAIConfig } from "../../../api/ai.js";
+import { LoadableButton } from "../../../components/buttons/LoadableButton/LoadableButton.js";
+import { RunPickerMenu } from "../../../components/buttons/RunButton/RunButton.js";
+import { ContentCollapse } from "../../../components/containers/ContentCollapse/ContentCollapse.js";
+import { FindObjectDialog } from "../../../components/dialogs/FindObjectDialog/FindObjectDialog.js";
+import { CodeInputBase } from "../../../components/inputs/CodeInput/CodeInput.js";
+import { SelectorBase } from "../../../components/inputs/Selector/Selector.js";
+import { FormTip } from "../../../components/inputs/form/FormTip/FormTip.js";
+import { Title } from "../../../components/text/Title.js";
 import { SessionContext } from "../../../contexts.js";
+import { FormView } from "../../../forms/FormView/FormView.js";
+import { usePopover } from "../../../hooks/usePopover.js";
+import { AddIcon, ApiIcon, BotIcon, CancelIcon, LockIcon, MagicIcon, MinusIcon, OpenInNewIcon, PlayIcon, SaveIcon, SmartContractIcon, SuccessIcon, TerminalIcon } from "../../../icons/common.js";
+import { useLocation } from "../../../route/router.js";
 import { ProfileAvatar } from "../../../styles.js";
+import { PartialWithType } from "../../../types.js";
+import { getCurrentUser } from "../../../utils/authentication/session.js";
+import { ELEMENT_IDS } from "../../../utils/consts.js";
+import { extractImageUrl } from "../../../utils/display/imageTools.js";
+import { placeholderColor } from "../../../utils/display/listTools.js";
+import { getCookiePartialData } from "../../../utils/localStorage.js";
+import { openObject } from "../../../utils/navigation/openObject.js";
+import { PubSub } from "../../../utils/pubsub.js";
 
 const PREFIX_INPUT = "input";
 const PREFIX_OUTPUT = "output";
@@ -36,7 +36,7 @@ const PREFIX_OUTPUT = "output";
 type RoutineFormDisplayType = "edit" | "view" | "run";
 
 export type RoutineFormPropsBase = {
-    configCallData: ConfigCallData;
+    config: RoutineVersionConfig;
     disabled: boolean;
     display: RoutineFormDisplayType;
     /**
@@ -78,18 +78,21 @@ export type RoutineFormPropsBase = {
      * which happens asynchronously.
      */
     isRunningStep: boolean;
-    onConfigCallDataChange: (configCallData: ConfigCallData) => unknown;
+    onCallDataActionChange: (callDataAction: CallDataActionConfigObject) => unknown;
+    onCallDataApiChange: (callDataApi: CallDataApiConfigObject) => unknown;
+    onCallDataCodeChange: (callDataCode: CallDataCodeConfigObject) => unknown;
+    onCallDataGenerateChange: (callDataGenerate: CallDataGenerateConfigObject) => unknown;
+    onCallDataSmartContractChange: (callDataSmartContract: CallDataSmartContractConfigObject) => unknown;
+    onFormInputChange: (formInput: FormInputConfigObject) => unknown;
+    onFormOutputChange: (formOutput: FormOutputConfigObject) => unknown;
+    onGraphChange: (graph: GraphConfigObject) => unknown;
     onRunChange: (run: RunRoutine | null) => unknown;
-    onSchemaInputChange: (schema: FormSchema) => unknown;
-    onSchemaOutputChange: (schema: FormSchema) => unknown;
     routineId: string;
     routineName: string;
     /**
      * If in a single-step routine, the current run object
      */
     run: RunRoutine | null | undefined;
-    schemaInput: FormSchema;
-    schemaOutput: FormSchema;
 }
 type RoutineFormTypeApi = RoutineFormPropsBase;
 type RoutineFormTypeCode = RoutineFormPropsBase;
@@ -101,15 +104,25 @@ type RoutineFormTypeSmartContract = RoutineFormPropsBase;
 const routineTypeTitleSxs = { stack: { paddingLeft: 0 } } as const;
 
 export const RoutineApiForm = memo(function RoutineApiFormMemo({
+    config,
     disabled,
     display,
-    onSchemaInputChange,
-    onSchemaOutputChange,
-    schemaInput,
-    schemaOutput,
+    onFormInputChange,
+    onFormOutputChange,
 }: RoutineFormTypeApi) {
     const { t } = useTranslation();
     const isEditing = display === "edit";
+
+    const formInput = config.formInput?.schema ?? defaultConfigFormInputMap.Api().schema;
+    const formOutput = config.formOutput?.schema ?? defaultConfigFormOutputMap.Api().schema;
+
+    const onSchemaInputChange = useCallback(function onSchemaInputChangeCallback(schema: FormSchema) {
+        onFormInputChange({ __version: LATEST_ROUTINE_CONFIG_VERSION, schema });
+    }, [onFormInputChange]);
+
+    const onSchemaOutputChange = useCallback(function onSchemaOutputChangeCallback(schema: FormSchema) {
+        onFormOutputChange({ __version: LATEST_ROUTINE_CONFIG_VERSION, schema });
+    }, [onFormOutputChange]);
 
     return (
         <>
@@ -122,30 +135,30 @@ export const RoutineApiForm = memo(function RoutineApiFormMemo({
             />
             <ContentCollapse
                 helpText={"Define the inputs that will be passed to the API. Any input without a default value will be entered by the user at runtime."}
-                title={t("Input", { count: schemaInput.elements.length })}
+                title={t("Input", { count: formInput.elements.length })}
                 isOpen={!disabled}
-                titleVariant="h4"
+                titleVariant="h5"
             >
                 <FormView
                     disabled={disabled}
                     fieldNamePrefix={PREFIX_INPUT}
                     isEditing={isEditing}
                     onSchemaChange={onSchemaInputChange}
-                    schema={schemaInput}
+                    schema={formInput}
                 />
             </ContentCollapse>
             <ContentCollapse
                 helpText={"Define the outputs that the API is expected to return. If the API fails or does not return the expected data, the routine will fail."}
-                title={t("Output", { count: schemaOutput.elements.length })}
+                title={t("Output", { count: formOutput.elements.length })}
                 isOpen={!disabled}
-                titleVariant="h4"
+                titleVariant="h5"
             >
                 <FormView
                     disabled={disabled}
                     fieldNamePrefix={PREFIX_OUTPUT}
                     isEditing={isEditing}
                     onSchemaChange={onSchemaOutputChange}
-                    schema={schemaOutput}
+                    schema={formOutput}
                 />
             </ContentCollapse>
         </>
@@ -159,12 +172,11 @@ type CodeObjectInfo = Pick<CodeVersionShape, "__typename" | "id" | "codeLanguage
 const findCodeLimitTo = ["DataConverter"] as const;
 
 export const RoutineDataConverterForm = memo(function RoutineDataConverterFormMemo({
+    config,
     disabled,
     display,
-    onSchemaInputChange,
-    onSchemaOutputChange,
-    schemaInput,
-    schemaOutput,
+    onFormInputChange,
+    onFormOutputChange,
 }: RoutineFormTypeCode) {
     const { t } = useTranslation();
     const { palette } = useTheme();
@@ -184,6 +196,17 @@ export const RoutineDataConverterForm = memo(function RoutineDataConverterFormMe
         if (codeObject) setCodeObject(null);
         else setIsCodeSearchOpen(true);
     }, [codeObject]);
+
+    const formInput = config.formInput?.schema ?? defaultConfigFormInputMap.Code().schema;
+    const formOutput = config.formOutput?.schema ?? defaultConfigFormOutputMap.Code().schema;
+
+    const onSchemaInputChange = useCallback(function onSchemaInputChangeCallback(schema: FormSchema) {
+        onFormInputChange({ __version: LATEST_ROUTINE_CONFIG_VERSION, schema });
+    }, [onFormInputChange]);
+
+    const onSchemaOutputChange = useCallback(function onSchemaOutputChangeCallback(schema: FormSchema) {
+        onFormOutputChange({ __version: LATEST_ROUTINE_CONFIG_VERSION, schema });
+    }, [onFormOutputChange]);
 
     return (
         <>
@@ -214,7 +237,7 @@ export const RoutineDataConverterForm = memo(function RoutineDataConverterFormMe
                     limitTo={findCodeLimitTo}
                 />
             )}
-            {codeObject && (
+            {codeObject ? (
                 <Box display="flex" flexDirection="column" gap={1}>
                     <Typography variant="h6">{getTranslation(codeObject, getCurrentUser(session).languages).name}</Typography>
                     <Typography variant="body2" color={palette.background.textSecondary}>
@@ -229,33 +252,37 @@ export const RoutineDataConverterForm = memo(function RoutineDataConverterFormMe
                         name="content"
                     />
                 </Box>
+            ) : (
+                <Box display="flex" flexDirection="column" gap={1}>
+                    <Typography variant="body1" color={palette.background.textSecondary}>No code</Typography>
+                </Box>
             )}
             <ContentCollapse
                 helpText={"Define the inputs that will be passed to the code. Any input without a default value will be entered by the user at runtime."}
-                title={t("Input", { count: schemaInput.elements.length })}
+                title={t("Input", { count: formInput.elements.length })}
                 isOpen={!disabled}
-                titleVariant="h4"
+                titleVariant="h5"
             >
                 <FormView
                     disabled={disabled}
                     fieldNamePrefix={PREFIX_INPUT}
                     isEditing={isEditing}
                     onSchemaChange={onSchemaInputChange}
-                    schema={schemaInput}
+                    schema={formInput}
                 />
             </ContentCollapse>
             <ContentCollapse
                 helpText={"Define the outputs that the code is expected to return. If the code fails or does not return the expected data, the routine will fail."}
-                title={t("Output", { count: schemaOutput.elements.length })}
+                title={t("Output", { count: formOutput.elements.length })}
                 isOpen={!disabled}
-                titleVariant="h4"
+                titleVariant="h5"
             >
                 <FormView
                     disabled={disabled}
                     fieldNamePrefix={PREFIX_OUTPUT}
                     isEditing={isEditing}
                     onSchemaChange={onSchemaOutputChange}
-                    schema={schemaOutput}
+                    schema={formOutput}
                 />
             </ContentCollapse>
         </>
@@ -263,12 +290,18 @@ export const RoutineDataConverterForm = memo(function RoutineDataConverterFormMe
 });
 
 export const RoutineDataForm = memo(function RoutineDataFormMemo({
+    config,
     disabled,
     display,
-    onSchemaOutputChange,
-    schemaOutput,
+    onFormOutputChange,
 }: RoutineFormTypeData) {
     const isEditing = display === "edit";
+
+    const formOutput = config.formOutput?.schema ?? defaultConfigFormOutputMap.Data().schema;
+
+    const onSchemaOutputChange = useCallback(function onSchemaOutputChangeCallback(schema: FormSchema) {
+        onFormOutputChange({ __version: LATEST_ROUTINE_CONFIG_VERSION, schema });
+    }, [onFormOutputChange]);
 
     return (
         <FormView
@@ -276,7 +309,7 @@ export const RoutineDataForm = memo(function RoutineDataFormMemo({
             fieldNamePrefix={PREFIX_OUTPUT}
             isEditing={isEditing}
             onSchemaChange={onSchemaOutputChange}
-            schema={schemaOutput}
+            schema={formOutput}
         />
     );
 });
@@ -380,48 +413,54 @@ const inputsDividerStyle = { marginTop: 2, marginBottom: 2 } as const;
 const outputsDividerStyle = { marginTop: 4, marginBottom: 2 } as const;
 
 export const RoutineGenerateForm = memo(function RoutineGenerateFormMemo({
-    configCallData,
+    config,
     disabled,
     display,
     handleRunStep,
     isRunStepDisabled,
     isRunningStep,
-    onConfigCallDataChange,
-    onSchemaInputChange,
-    schemaInput,
-    schemaOutput,
+    onCallDataGenerateChange,
+    onFormInputChange,
 }: RoutineFormTypeGenerate) {
     const { t } = useTranslation();
     const isEditing = display === "edit";
 
+    const formInput = config.formInput?.schema ?? defaultConfigFormInputMap.Generate().schema;
+    const formOutput = config.formOutput?.schema ?? defaultConfigFormOutputMap.Generate().schema;
+
+    const onSchemaInputChange = useCallback(function onSchemaInputChangeCallback(schema: FormSchema) {
+        onFormInputChange({ __version: LATEST_ROUTINE_CONFIG_VERSION, schema });
+    }, [onFormInputChange]);
+
     const [botStyle, setBotStyle] = useState<BotStyleOption>(function initBotStyleState() {
-        const style = configCallData.botStyle || BotStyle.Default;
+        const style = config.callDataGenerate?.schema.botStyle || BotStyle.Default;
         return botStyleOptions.find(option => option.value === style) || botStyleOptions[0];
     });
 
     const [bot, setBot] = useState<BotInfo | null>(function initBotState() {
-        if (!configCallData.respondingBot || !uuidValidate(configCallData.respondingBot)) return null;
-        const storedData = getCookiePartialData<PartialWithType<User>>({ __typename: "User", id: configCallData.respondingBot });
+        if (!config.callDataGenerate?.schema.respondingBot || !uuidValidate(config.callDataGenerate.schema.respondingBot)) return null;
+        const storedData = getCookiePartialData<PartialWithType<User>>({ __typename: "User", id: config.callDataGenerate.schema.respondingBot });
         if (!storedData) return null;
         return storedData as BotInfo;
     });
 
-    const handleConfigCallDataChange = useCallback(function handleConfigCallDataChangeCallback(updatedConfigData: Partial<ConfigCallDataGenerate>) {
-        onConfigCallDataChange({ ...(configCallData as ConfigCallDataGenerate), ...updatedConfigData });
-    }, [configCallData, onConfigCallDataChange]);
+    const handleCallDataGenerateChange = useCallback(function handleCallDataGenerateChangeCallback(updatedConfigData: Partial<ConfigCallDataGenerate>) {
+        const updatedSchema = { ...(config.callDataGenerate?.schema as ConfigCallDataGenerate), ...updatedConfigData };
+        onCallDataGenerateChange({ __version: LATEST_ROUTINE_CONFIG_VERSION, schema: updatedSchema });
+    }, [config.callDataGenerate, onCallDataGenerateChange]);
     const handleModelChange = useCallback(function handleModelChangeCallback(newModel: LlmModel | null) {
-        handleConfigCallDataChange({ model: newModel });
-    }, [handleConfigCallDataChange]);
+        handleCallDataGenerateChange({ model: newModel });
+    }, [handleCallDataGenerateChange]);
     const handleRespondingBotChange = useCallback(function handleRespondingBotChangeCallback(respondingBot: BotInfo | null) {
-        handleConfigCallDataChange({ respondingBot: respondingBot?.id ?? null });
+        handleCallDataGenerateChange({ respondingBot: respondingBot?.id ?? null });
         setBot(respondingBot);
-    }, [handleConfigCallDataChange]);
+    }, [handleCallDataGenerateChange]);
     const handleBotStyleChange = useCallback(function handleBotStyleChangeCallback(newStyle: BotStyleOption) {
-        handleConfigCallDataChange({ botStyle: newStyle.value });
+        handleCallDataGenerateChange({ botStyle: newStyle.value });
         setBotStyle(newStyle);
         if (newStyle.value !== BotStyle.Specific) handleRespondingBotChange(null);
         if (newStyle.value === BotStyle.Specific) setIsBotSearchOpen(true);
-    }, [handleConfigCallDataChange, handleRespondingBotChange]);
+    }, [handleCallDataGenerateChange, handleRespondingBotChange]);
 
     const [isBotSearchOpen, setIsBotSearchOpen] = useState(false);
     const closeBotSearch = useCallback(function closeBotSearchCallback(selected?: BotInfo) {
@@ -435,13 +474,23 @@ export const RoutineGenerateForm = memo(function RoutineGenerateFormMemo({
     }, []);
 
     const modelTipElement = useMemo(function modelTipElementMemo() {
+        const modelNameKey = config.callDataGenerate?.schema.model?.name;
+        const defaultService = aiServicesInfo.services[aiServicesInfo.defaultService];
+        const defaultModelNameKey = defaultService.models[defaultService.defaultModel].name;
+
+        const modelName = modelNameKey
+            ? t(modelNameKey, { ns: "service" })
+            : defaultModelNameKey
+                ? (t(defaultModelNameKey, { ns: "service" }) + " (default)")
+                : "default model";
+
         return {
             type: FormStructureType.Tip,
             icon: "Info",
             id: uuid(),
-            label: `Generating with ${configCallData?.model?.name ?? `${DEFAULT_MODEL} (default)`}`,
+            label: `Generating with ${modelName}`,
         } as const;
-    }, [configCallData.model]);
+    }, [config.callDataGenerate?.schema.model?.name, t]);
 
     return (
         <>
@@ -469,7 +518,7 @@ export const RoutineGenerateForm = memo(function RoutineGenerateFormMemo({
                     noneOption={true}
                     noneText="default"
                     onChange={handleModelChange}
-                    value={configCallData.model ?? null}
+                    value={config.callDataGenerate?.schema.model ?? null}
                 />}
                 {isEditing && <Title
                     title={!bot ? "Choose style" : `Using style of ${bot.name}`}
@@ -509,16 +558,16 @@ export const RoutineGenerateForm = memo(function RoutineGenerateFormMemo({
             <Divider sx={inputsDividerStyle} />
             <ContentCollapse
                 helpText={"Inputs are passed in sequential order to the AI model, within the same request message.\n\nYou may define help text, limits, etc. for each input, though the AI model may not always decide to follow them.\n\nAny input without a default value will be entered by the user at runtime, or the specified bot."}
-                title={t("Input", { count: schemaInput.elements.length })}
+                title={t("Input", { count: formInput.elements.length })}
                 isOpen={!disabled}
-                titleVariant="h4"
+                titleVariant="h5"
             >
                 <FormView
                     disabled={disabled}
                     fieldNamePrefix={PREFIX_INPUT}
                     isEditing={isEditing}
                     onSchemaChange={onSchemaInputChange}
-                    schema={schemaInput}
+                    schema={formInput}
                 />
                 {display !== "edit" && (
                     <Box onClick={handleRunStep}>
@@ -534,16 +583,16 @@ export const RoutineGenerateForm = memo(function RoutineGenerateFormMemo({
             </ContentCollapse>
             <Divider sx={outputsDividerStyle} />
             <ContentCollapse
-                title={t("Output", { count: schemaOutput.elements.length })}
+                title={t("Output", { count: formOutput.elements.length })}
                 isOpen={!disabled}
-                titleVariant="h4"
+                titleVariant="h5"
             >
                 <FormView
                     disabled={true} // Can't currently edit
                     fieldNamePrefix={PREFIX_OUTPUT}
                     isEditing={false}
                     onSchemaChange={noop}
-                    schema={schemaOutput}
+                    schema={formOutput}
                 />
             </ContentCollapse>
         </>
@@ -551,6 +600,7 @@ export const RoutineGenerateForm = memo(function RoutineGenerateFormMemo({
 });
 
 export const RoutineInformationalForm = memo(function RoutineInformationalFormMemo({
+    config,
     disabled,
     display,
     handleClearRun,
@@ -559,12 +609,11 @@ export const RoutineInformationalForm = memo(function RoutineInformationalFormMe
     isCompleteStepDisabled,
     isPartOfMultiStepRoutine,
     isRunningStep,
+    onFormInputChange,
     onRunChange,
-    onSchemaInputChange,
     routineId,
     routineName,
     run,
-    schemaInput,
 }: RoutineFormTypeInformational) {
     const { t } = useTranslation();
     const session = useContext(SessionContext);
@@ -598,6 +647,12 @@ export const RoutineInformationalForm = memo(function RoutineInformationalFormMe
         onRunChange(run as RunRoutine | null);
     }, [onRunChange, showRunButtons]);
 
+    const formInput = config.formInput?.schema ?? defaultConfigFormInputMap.Informational().schema;
+
+    const onSchemaInputChange = useCallback(function onSchemaInputChangeCallback(schema: FormSchema) {
+        onFormInputChange({ __version: LATEST_ROUTINE_CONFIG_VERSION, schema });
+    }, [onFormInputChange]);
+
     return (
         <>
             <FormView
@@ -605,7 +660,7 @@ export const RoutineInformationalForm = memo(function RoutineInformationalFormMe
                 fieldNamePrefix={PREFIX_INPUT}
                 isEditing={isEditing}
                 onSchemaChange={onSchemaInputChange}
-                schema={schemaInput}
+                schema={formInput}
             />
             {
                 showRunButtons && (
@@ -657,15 +712,24 @@ export const RoutineInformationalForm = memo(function RoutineInformationalFormMe
 });
 
 export const RoutineSmartContractForm = memo(function RoutineSmartContractFormMemo({
+    config,
     disabled,
     display,
-    onSchemaInputChange,
-    onSchemaOutputChange,
-    schemaInput,
-    schemaOutput,
+    onFormInputChange,
+    onFormOutputChange,
 }: RoutineFormTypeSmartContract) {
     const { t } = useTranslation();
     const isEditing = display === "edit";
+
+    const formInput = config.formInput?.schema ?? defaultConfigFormInputMap.SmartContract().schema;
+    const formOutput = config.formOutput?.schema ?? defaultConfigFormOutputMap.SmartContract().schema;
+
+    const onSchemaInputChange = useCallback(function onSchemaInputChangeCallback(schema: FormSchema) {
+        onFormInputChange({ __version: LATEST_ROUTINE_CONFIG_VERSION, schema });
+    }, [onFormInputChange]);
+    const onSchemaOutputChange = useCallback(function onSchemaOutputChangeCallback(schema: FormSchema) {
+        onFormOutputChange({ __version: LATEST_ROUTINE_CONFIG_VERSION, schema });
+    }, [onFormOutputChange]);
 
     return (
         <>
@@ -678,30 +742,30 @@ export const RoutineSmartContractForm = memo(function RoutineSmartContractFormMe
             />
             <ContentCollapse
                 helpText={"Define the inputs that will be passed to the contract. Any input without a default value will be entered by the user at runtime."}
-                title={t("Input", { count: schemaInput.elements.length })}
+                title={t("Input", { count: formInput.elements.length })}
                 isOpen={!disabled}
-                titleVariant="h4"
+                titleVariant="h5"
             >
                 <FormView
                     disabled={disabled}
                     fieldNamePrefix={PREFIX_INPUT}
                     isEditing={isEditing}
                     onSchemaChange={onSchemaInputChange}
-                    schema={schemaInput}
+                    schema={formInput}
                 />
             </ContentCollapse>
             <ContentCollapse
                 helpText={"Define the outputs that the contract is expected to return. If the contract fails or does not return the expected data, the routine will fail."}
-                title={t("Output", { count: schemaOutput.elements.length })}
+                title={t("Output", { count: formOutput.elements.length })}
                 isOpen={!disabled}
-                titleVariant="h4"
+                titleVariant="h5"
             >
                 <FormView
                     disabled={disabled}
                     fieldNamePrefix={PREFIX_OUTPUT}
                     isEditing={isEditing}
                     onSchemaChange={onSchemaOutputChange}
-                    schema={schemaOutput}
+                    schema={formOutput}
                 />
             </ContentCollapse>
         </>

@@ -1,22 +1,22 @@
-import { ResourceListShape, ResourceList as ResourceListType, RoutineShape, RoutineType, RoutineVersion, Tag, TagShape, exists, generateYupSchema, getTranslation, noop, noopSubmit, parseConfigCallData, parseSchemaInput, parseSchemaOutput, uuidValidate } from "@local/shared";
+import { FormBuilder, ResourceListShape, ResourceList as ResourceListType, RoutineShape, RoutineType, RoutineVersion, RoutineVersionConfig, Tag, TagShape, exists, getTranslation, noop, noopSubmit, uuidValidate } from "@local/shared";
 import { Box, Stack } from "@mui/material";
-import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse";
-import { TextCollapse } from "components/containers/TextCollapse/TextCollapse";
-import { RelationshipList } from "components/lists/RelationshipList/RelationshipList";
-import { ResourceList } from "components/lists/ResourceList/ResourceList";
-import { TagList } from "components/lists/TagList/TagList";
-import { DateDisplay } from "components/text/DateDisplay/DateDisplay";
-import { VersionDisplay } from "components/text/VersionDisplay/VersionDisplay";
-import { SessionContext } from "contexts";
 import { Formik } from "formik";
 import { useContext, useEffect, useMemo, useState } from "react";
-import { FormSection } from "styles";
-import { getCurrentUser } from "utils/authentication/session";
-import { getDisplay } from "utils/display/listTools";
-import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools";
-import { routineSingleStepInitialValues } from "views/objects/routine";
-import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineFormPropsBase, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "views/objects/routine/RoutineTypeForms/RoutineTypeForms";
-import { SubroutineViewProps } from "../types";
+import { ContentCollapse } from "../../components/containers/ContentCollapse/ContentCollapse.js";
+import { TextCollapse } from "../../components/containers/TextCollapse/TextCollapse.js";
+import { RelationshipList } from "../../components/lists/RelationshipList/RelationshipList.js";
+import { ResourceList } from "../../components/lists/ResourceList/ResourceList.js";
+import { TagList } from "../../components/lists/TagList/TagList.js";
+import { DateDisplay } from "../../components/text/DateDisplay.js";
+import { VersionDisplay } from "../../components/text/VersionDisplay.js";
+import { SessionContext } from "../../contexts.js";
+import { FormSection } from "../../styles.js";
+import { getCurrentUser } from "../../utils/authentication/session.js";
+import { getDisplay } from "../../utils/display/listTools.js";
+import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "../../utils/display/translationTools.js";
+import { routineSingleStepInitialValues } from "../objects/routine/RoutineSingleStepUpsert.js";
+import { RoutineApiForm, RoutineDataConverterForm, RoutineDataForm, RoutineFormPropsBase, RoutineGenerateForm, RoutineInformationalForm, RoutineSmartContractForm } from "../objects/routine/RoutineTypeForms.js";
+import { SubroutineViewProps } from "./types.js";
 
 const EMPTY_OBJECT = {};
 
@@ -60,15 +60,9 @@ export function SubroutineView({
 
     const hasFormErrors = useMemo(() => Object.values(formikRef.current?.errors ?? {}).some((value) => exists(value)), []);
 
-    const configCallData = useMemo(function configCallDataMemo() {
-        return parseConfigCallData(routineVersion.configCallData, routineVersion.routineType, console);
-    }, [routineVersion.configCallData, routineVersion.routineType]);
-    const schemaInput = useMemo(function schemaInputMemo() {
-        return parseSchemaInput(routineVersion.configFormInput, routineVersion.routineType, console);
-    }, [routineVersion.configFormInput, routineVersion.routineType]);
-    const schemaOutput = useMemo(function schemaOutputMemo() {
-        return parseSchemaOutput(routineVersion.configFormOutput, routineVersion.routineType, console);
-    }, [routineVersion.configFormOutput, routineVersion.routineType]);
+    const config = useMemo(function configMemo() {
+        return RoutineVersionConfig.deserialize({ config: routineVersion.config, routineType: routineVersion.routineType }, console);
+    }, [routineVersion.config, routineVersion.routineType]);
 
     // Type-specific components
     const routineTypeComponents = useMemo(function routineTypeComponentsMemo() {
@@ -78,7 +72,7 @@ export function SubroutineView({
         const canRun = routineVersion.you?.canRun ?? false;
         const hasErrors = hasFormErrors;
         const routineTypeBaseProps: RoutineFormPropsBase = {
-            configCallData,
+            config,
             disabled: false,
             display: "view",
             handleClearRun: noop, // Only used in single-step routines, which we are not in
@@ -89,12 +83,15 @@ export function SubroutineView({
             isPartOfMultiStepRoutine: true,
             isRunStepDisabled: loading || !isLoggedIn || isDeleted || !canRun || hasFormErrors,
             isRunningStep: isGeneratingOutputs,
-            onConfigCallDataChange: noop, // Only used in edit mode
+            onCallDataActionChange: noop, // Only used in edit mode
+            onCallDataApiChange: noop, // Only used in edit mode
+            onCallDataCodeChange: noop, // Only used in edit mode
+            onCallDataGenerateChange: noop, // Only used in edit mode
+            onCallDataSmartContractChange: noop, // Only used in edit mode
+            onFormInputChange: noop, // Only used in edit mode
+            onFormOutputChange: noop, // Only used in edit mode
+            onGraphChange: noop, // Only used in edit mode
             onRunChange: noop, // Not in a single-step routine
-            onSchemaInputChange: noop, // Only used in edit mode
-            onSchemaOutputChange: noop, // Only used in edit mode
-            schemaInput,
-            schemaOutput,
             routineId: internalRoutineVersion?.id ?? "",
             routineName: getDisplay(internalRoutineVersion).title,
             run: null, // Not in a single-step routine
@@ -117,12 +114,12 @@ export function SubroutineView({
                 // NOTE: We don't display the multi-step form, as its data should be coverted into smaller steps
                 return null;
         }
-    }, [configCallData, handleGenerateOutputs, hasFormErrors, internalRoutineVersion, isGeneratingOutputs, isLoading, routineVersion, schemaInput, schemaOutput, session]);
+    }, [config, handleGenerateOutputs, hasFormErrors, internalRoutineVersion, isGeneratingOutputs, isLoading, routineVersion, session]);
 
     const inputValidationSchema = useMemo(function inputValidationSchemaMemo() {
         // TODO might need to do output validation as well
-        return schemaInput ? generateYupSchema(schemaInput, "input") : undefined;
-    }, [schemaInput]);
+        return config.formInput ? FormBuilder.generateYupSchema(config.formInput.schema, "input") : undefined;
+    }, [config.formInput]);
 
     const initialValues = useMemo(() => routineSingleStepInitialValues(session, internalRoutineVersion), [internalRoutineVersion, session]);
     const resourceList = useMemo<ResourceListShape | null | undefined>(() => initialValues.resourceList as ResourceListShape | null | undefined, [initialValues]);

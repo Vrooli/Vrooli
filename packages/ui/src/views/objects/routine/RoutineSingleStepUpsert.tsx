@@ -1,7 +1,7 @@
-import { DUMMY_ID, FormInputBase, FormSchema, LINKS, LlmTask, RoutineShape, RoutineType, RoutineVersion, RoutineVersionCreateInput, RoutineVersionInputShape, RoutineVersionOutputShape, RoutineVersionShape, RoutineVersionUpdateInput, SearchPageTabOption, Session, defaultConfigCallDataMap, defaultConfigFormInputMap, defaultConfigFormOutputMap, endpointsRoutineVersion, noop, noopSubmit, orDefault, parseConfigCallData, parseSchemaInput, parseSchemaOutput, routineVersionTranslationValidation, routineVersionValidation, shapeRoutineVersion, uuid, uuidValidate } from "@local/shared";
+import { CallDataActionConfigObject, CallDataApiConfigObject, CallDataCodeConfigObject, CallDataGenerateConfigObject, CallDataSmartContractConfigObject, DUMMY_ID, FormInputBase, FormInputConfigObject, FormOutputConfigObject, FormSchema, GraphConfigObject, LINKS, LlmTask, RoutineShape, RoutineType, RoutineVersion, RoutineVersionConfig, RoutineVersionCreateInput, RoutineVersionInputShape, RoutineVersionOutputShape, RoutineVersionShape, RoutineVersionUpdateInput, SearchPageTabOption, Session, endpointsRoutineVersion, noop, noopSubmit, orDefault, routineVersionTranslationValidation, routineVersionValidation, shapeRoutineVersion, stringifyObject, uuid, uuidValidate } from "@local/shared";
 import { Checkbox, Divider, FormControlLabel, Grid, Tooltip } from "@mui/material";
 import { useSubmitHelper } from "api/fetchWrapper.js";
-import { AutoFillButton } from "components/buttons/AutoFillButton/AutoFillButton.js";
+import { AutoFillButton } from "components/buttons/AutoFillButton.js";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
 import { SearchExistingButton } from "components/buttons/SearchExistingButton/SearchExistingButton.js";
 import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse.js";
@@ -231,47 +231,78 @@ function RoutineSingleStepForm({
     const [routineTypeField, , routineTypeHelpers] = useField<RoutineVersion["routineType"]>("routineType");
     const [inputsField, , inputsHelpers] = useField<RoutineVersionInputShape[]>("inputs");
     const [outputsField, , outputsHelpers] = useField<RoutineVersionOutputShape[]>("outputs");
-    const [configCallDataField, , configCallDataHelpers] = useField<RoutineVersion["configCallData"]>("configCallData");
-    const [configFormInputField, , configFormInputHelpers] = useField<RoutineVersion["configFormInput"]>("configFormInput");
-    const [configFormOutputField, , configFormOutputHelpers] = useField<RoutineVersion["configFormOutput"]>("configFormOutput");
+    const [configField, , configHelpers] = useField<RoutineVersion["config"]>("config");
     const [apiVersionField, , apiVersionHelpers] = useField<RoutineVersion["apiVersion"]>("apiVersion");
     const [codeVersionField, , codeVersionHelpers] = useField<RoutineVersion["codeVersion"]>("codeVersion");
 
-    const configCallData = useMemo(function configCallDataMemo() {
-        return parseConfigCallData(configCallDataField.value, routineTypeField.value, console);
-    }, [configCallDataField.value, routineTypeField.value]);
-    const onConfigCallDataChange = useCallback(function onConfigCallDataChange(config: ConfigCallData) {
-        configCallDataHelpers.setValue(JSON.stringify(config));
-    }, [configCallDataHelpers]);
+    const config = useMemo(function configMemo() {
+        return RoutineVersionConfig.deserialize({ config: configField.value, routineType: routineTypeField.value }, console);
+    }, [configField.value, routineTypeField.value]);
 
-    const schemaInput = useMemo(function schemeInputMemo() {
-        return parseSchemaInput(configFormInputField.value, routineTypeField.value, console);
-    }, [configFormInputField.value, routineTypeField.value]);
-    const schemaOutput = useMemo(function schemaOutputMemo() {
-        return parseSchemaOutput(configFormOutputField.value, routineTypeField.value, console);
-    }, [configFormOutputField.value, routineTypeField.value]);
-    const onSchemaInputChange = useCallback(function onSchemaInputChange(schema: FormSchema) {
-        configFormInputHelpers.setValue(JSON.stringify(schema));
+    const onCallDataActionChange = useCallback(function onCallDataActionChange(callDataAction: CallDataActionConfigObject) {
+        configHelpers.setValue(stringifyObject({
+            ...config.export(),
+            callDataAction,
+        }, "json"));
+    }, [config, configHelpers]);
+    const onCallDataApiChange = useCallback(function onCallDataApiChange(callDataApi: CallDataApiConfigObject) {
+        configHelpers.setValue(stringifyObject({
+            ...config.export(),
+            callDataApi,
+        }, "json"));
+    }, [config, configHelpers]);
+    const onCallDataCodeChange = useCallback(function onCallDataCodeChange(callDataCode: CallDataCodeConfigObject) {
+        configHelpers.setValue(stringifyObject({
+            ...config.export(),
+            callDataCode,
+        }, "json"));
+    }, [config, configHelpers]);
+    const onCallDataGenerateChange = useCallback(function onCallDataGenerateChange(callDataGenerate: CallDataGenerateConfigObject) {
+        configHelpers.setValue(stringifyObject({
+            ...config.export(),
+            callDataGenerate,
+        }, "json"));
+    }, [config, configHelpers]);
+    const onCallDataSmartContractChange = useCallback(function onCallDataSmartContractChange(callDataSmartContract: CallDataSmartContractConfigObject) {
+        configHelpers.setValue(stringifyObject({
+            ...config.export(),
+            callDataSmartContract,
+        }, "json"));
+    }, [config, configHelpers]);
+    const onFormInputChange = useCallback(function onFormInputChange(formInput: FormInputConfigObject) {
+        configHelpers.setValue(stringifyObject({
+            ...config.export(),
+            formInput,
+        }, "json"));
         updateSchemaElements({
             currentElements: inputsField.value,
             elementsHelpers: inputsHelpers,
             language,
             routineVersionId: idField.value,
-            schema,
+            schema: formInput.schema,
             type: "inputs",
         });
-    }, [configFormInputHelpers, idField.value, inputsField.value, inputsHelpers, language]);
-    const onSchemaOutputChange = useCallback(function onSchemaOutputChange(schema: FormSchema) {
-        configFormOutputHelpers.setValue(JSON.stringify(schema));
+    }, [config, configHelpers, idField.value, inputsField.value, inputsHelpers, language]);
+    const onFormOutputChange = useCallback(function onFormOutputChange(formOutput: FormOutputConfigObject) {
+        configHelpers.setValue(stringifyObject({
+            ...config.export(),
+            formOutput,
+        }, "json"));
         updateSchemaElements({
             currentElements: outputsField.value,
             elementsHelpers: outputsHelpers,
             language,
             routineVersionId: idField.value,
-            schema,
+            schema: formOutput.schema,
             type: "outputs",
         });
-    }, [configFormOutputHelpers, idField.value, language, outputsField.value, outputsHelpers]);
+    }, [config, configHelpers, idField.value, language, outputsField.value, outputsHelpers]);
+    const onGraphChange = useCallback(function onGraphChange(graph: GraphConfigObject) {
+        configHelpers.setValue(stringifyObject({
+            ...config.export(),
+            graph,
+        }, "json"));
+    }, [config, configHelpers]);
 
     // Handle routine type
     const routineTypeValue = useMemo(function routineTypeValueMemo() {
@@ -291,19 +322,19 @@ function RoutineSingleStepForm({
         // Map to check if the type we're switching FROM has data that will be lost
         const loseDataCheck = {
             // Has call data
-            [RoutineType.Action]: hasData(configCallDataField.value, configFormInputField.value, configFormOutputField.value),
+            [RoutineType.Action]: hasData(config.callDataAction, config.formInput, config.formOutput),
             // Has API information
-            [RoutineType.Api]: hasData(configCallDataField.value, configFormInputField.value, configFormOutputField.value, apiVersionField.value),
+            [RoutineType.Api]: hasData(config.callDataApi, config.formInput, config.formOutput, apiVersionField.value),
             // Has code information
-            [RoutineType.Code]: hasData(configCallDataField.value, configFormInputField.value, configFormOutputField.value, codeVersionField.value),
+            [RoutineType.Code]: hasData(config.callDataCode, config.formInput, config.formOutput, codeVersionField.value),
             // Has an output
-            [RoutineType.Data]: hasData(configFormOutputField.value),
+            [RoutineType.Data]: hasData(config.formOutput),
             // Has an input or call data
-            [RoutineType.Generate]: hasData(configCallDataField.value, configFormInputField.value, configFormOutputField.value),
+            [RoutineType.Generate]: hasData(config.callDataGenerate, config.formInput, config.formOutput),
             // Has input data
-            [RoutineType.Informational]: hasData(configFormInputField.value),
+            [RoutineType.Informational]: hasData(config.formInput),
             // Also uses code information
-            [RoutineType.SmartContract]: hasData(configCallDataField.value, configFormInputField.value, configFormOutputField.value, codeVersionField.value),
+            [RoutineType.SmartContract]: hasData(config.callDataSmartContract, config.formInput, config.formOutput, codeVersionField.value),
         };
         // Helper function to remove all type-specific data on switch
         function performSwitch() {
@@ -312,9 +343,10 @@ function RoutineSingleStepForm({
             inputsHelpers.setValue([]);
             outputsHelpers.setValue([]);
             routineTypeHelpers.setValue(type);
-            onConfigCallDataChange(defaultConfigCallDataMap[type]());
-            onSchemaInputChange(defaultConfigFormInputMap[type]());
-            onSchemaOutputChange(defaultConfigFormOutputMap[type]());
+            configHelpers.setValue(RoutineVersionConfig.deserialize({
+                config: undefined,
+                routineType: type,
+            }, console, { useFallbacks: true }).serialize("json"));
         }
         // If we're losing data, confirm with user
         const losingData = loseDataCheck[routineTypeField.value];
@@ -333,7 +365,7 @@ function RoutineSingleStepForm({
         else {
             performSwitch();
         }
-    }, [routineTypeField.value, configCallDataField.value, configFormInputField.value, configFormOutputField.value, apiVersionField.value, codeVersionField.value, apiVersionHelpers, codeVersionHelpers, inputsHelpers, outputsHelpers, routineTypeHelpers, onConfigCallDataChange, onSchemaInputChange, onSchemaOutputChange]);
+    }, [config, configHelpers, routineTypeField.value, apiVersionField.value, codeVersionField.value, apiVersionHelpers, codeVersionHelpers, inputsHelpers, outputsHelpers, routineTypeHelpers]);
 
     const { handleCancel, handleCompleted } = useUpsertActions<RoutineVersion>({
         display,
@@ -391,7 +423,7 @@ function RoutineSingleStepForm({
     // Type-specific components
     const routineTypeComponents = useMemo(function routineTypeComponentsMemo() {
         const routineTypeBaseProps: RoutineFormPropsBase = {
-            configCallData,
+            config,
             disabled,
             display: "edit",
             handleClearRun: noop, // Not available in edit mode
@@ -402,12 +434,15 @@ function RoutineSingleStepForm({
             isPartOfMultiStepRoutine: false,
             isRunStepDisabled: true, // Not available in edit mode
             isRunningStep: false, // Not available in edit mode
-            onConfigCallDataChange,
+            onCallDataActionChange,
+            onCallDataApiChange,
+            onCallDataCodeChange,
+            onCallDataGenerateChange,
+            onCallDataSmartContractChange,
+            onFormInputChange,
+            onFormOutputChange,
+            onGraphChange,
             onRunChange: noop, // Not available in edit mode
-            onSchemaInputChange,
-            onSchemaOutputChange,
-            schemaInput,
-            schemaOutput,
             routineId: "", // Not needed in edit mode
             routineName: "", // Not needed in edit mode
             run: null, // Not available in edit mode
@@ -431,7 +466,7 @@ function RoutineSingleStepForm({
             default:
                 return null;
         }
-    }, [configCallData, disabled, onConfigCallDataChange, onSchemaInputChange, onSchemaOutputChange, schemaInput, schemaOutput, routineTypeField.value]);
+    }, [config, disabled, onCallDataActionChange, onCallDataApiChange, onCallDataCodeChange, onCallDataGenerateChange, onCallDataSmartContractChange, onFormInputChange, onFormOutputChange, onGraphChange, routineTypeField.value]);
 
     const resourceListParent = useMemo(function resourceListParent() {
         return { __typename: "RoutineVersion", id: values.id } as const;
