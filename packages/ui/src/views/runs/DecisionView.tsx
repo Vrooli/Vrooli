@@ -1,11 +1,11 @@
-import { DecisionStep, RunStepType } from "@local/shared";
+import { DecisionOption } from "@local/shared";
 import { ListItem, ListItemButton, ListItemProps, ListItemText, Stack, Typography, styled, useTheme } from "@mui/material";
-import { OpenInNewIcon } from "icons";
 import { useCallback, useMemo } from "react";
-import { multiLineEllipsis } from "styles";
-import { DecisionViewProps } from "../types.js";
+import { OpenInNewIcon } from "../../icons/common.js";
+import { multiLineEllipsis } from "../../styles.js";
+import { DecisionViewProps } from "./types.js";
 
-type Decision = DecisionStep["options"][0] & {
+type Decision = DecisionOption & {
     color: string;
 };
 
@@ -76,7 +76,7 @@ export function DecisionView({
                 return (<DecisionListItem
                     color={decision.color}
                     disablePadding
-                    key={`decision-${decision.link.id}`}
+                    key={`decision-${decision.nodeId}`}
                     onClick={handleClick}
                 >
                     <ListItemButton component="div" onClick={handleClick}>
