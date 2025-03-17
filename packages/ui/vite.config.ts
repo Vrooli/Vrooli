@@ -1,4 +1,5 @@
 import react from "@vitejs/plugin-react-swc";
+import fs from "fs";
 import path from "path";
 import { defineConfig, loadEnv } from "vite";
 
@@ -6,6 +7,32 @@ type ViteEnv = Record<string, string> & {
     DEV: boolean;
     PROD: boolean;
 };
+
+function resolveImportExtensions() {
+    return {
+        name: 'resolve-import-extensions', // Name of the plugin
+        resolveId(source, importer) {
+            // Check if the import ends with '.js'
+            if (source.endsWith('.js')) {
+                // Replace '.js' with '.tsx' or '.ts' to test for a TypeScript file
+                const tsxPath = source.replace(/\.js$/, '.tsx');
+                const tsPath = source.replace(/\.js$/, '.ts');
+                // Compute the absolute path based on the importer's directory
+                const tsxAbsolutePath = path.resolve(path.dirname(importer), tsxPath);
+                const tsAbsolutePath = path.resolve(path.dirname(importer), tsPath);
+                // If the .tsx file exists, resolve to it
+                if (fs.existsSync(tsxAbsolutePath)) {
+                    return tsxAbsolutePath;
+                }
+                if (fs.existsSync(tsAbsolutePath)) {
+                    return tsAbsolutePath;
+                }
+            }
+            // Otherwise, let Vite handle the resolution normally
+            return null;
+        },
+    };
+}
 
 // https://vitejs.dev/config/
 export default defineConfig((props) => {
@@ -23,7 +50,7 @@ export default defineConfig((props) => {
     };
 
     return {
-        plugins: [react()],
+        plugins: [react(), resolveImportExtensions()],
         assetsInclude: ["**/*.md"],
         define: envInProcess,
         server: {
@@ -45,10 +72,10 @@ export default defineConfig((props) => {
                 { find: "views", replacement: path.resolve(__dirname, "./src/views") },
                 { find: "Routes", replacement: path.resolve(__dirname, "./src/Routes") },
                 { find: "serviceWorkerRegistration", replacement: path.resolve(__dirname, "./src/serviceWorkerRegistration") },
-                { find: "styles", replacement: path.resolve(__dirname, "./src/styles") },
                 // Imports from the shared folder
                 { find: "@local/shared", replacement: path.resolve(__dirname, "../shared/src") },
-            ]
+            ],
+            extensions: [".js", ".jsx", ".ts", ".tsx", ".json"],
         },
         build: {
             chunkSizeWarningLimit: 1000,
@@ -65,9 +92,9 @@ export default defineConfig((props) => {
                         // Bundle for ad banners (if an ad-blocker decides to block this, 
                         // it won't affect the rest of the site).
                         // To help prevent blocking, it's named something random.
-                        'banner-chicken': ['./src/components/BannerChicken/BannerChicken.tsx'],
+                        'banner-chicken': ['./src/components/BannerChicken.tsx'],
                         // Separate landing page to reduce main bundle size
-                        'landing': ['./src/views/main/LandingView/LandingView.tsx'],
+                        'landing': ['./src/views/main/LandingView.tsx'],
                         // Codemirror bundles
                         'lang-angular': ['@codemirror/lang-angular'],
                         'lang-cpp': ['@codemirror/lang-cpp'],
