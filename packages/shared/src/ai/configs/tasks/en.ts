@@ -1,4 +1,4 @@
-import { AITaskConfig, AITaskConfigBuilder, AITaskProperty, AITaskUnstructuredConfig } from "../../types";
+import { AITaskConfig, AITaskConfigBuilder, AITaskProperty, AITaskUnstructuredConfig } from "../../types.js";
 
 export const builder: AITaskConfigBuilder = {
     __pick_properties(selectedFields: [string, boolean | undefined][], __availableFields: Record<string, Omit<AITaskProperty, "name">>) {
@@ -868,6 +868,10 @@ export const config: AITaskConfig = {
             description: "Name of the role within a team.",
             example: "Data Analyst",
         },
+        teamId: {
+            description: "The ID of the team the member belongs to.",
+            type: "uuid",
+        },
     },
     RoleAdd: () => ({
         label: "Add Role",
@@ -905,7 +909,7 @@ export const config: AITaskConfig = {
             },
             {
                 name: "teamId",
-                ...(config.__roleProperties as { teamId: any }).teamId,
+                ...(config.__roleProperties as { teamId: object }).teamId,
                 is_required: true,
             },
         ],

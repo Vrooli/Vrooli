@@ -77,6 +77,7 @@ export interface ObjectOption {
 export interface ShortcutOption {
     __typename: "Shortcut";
     isFromHistory?: boolean;
+    keywords: string[];
     label: string;
     id: string; // Actually URL, but id makes it easier to use
 }
@@ -86,6 +87,7 @@ export interface ActionOption {
     canPerform: (session: Session) => boolean;
     id: string;
     isFromHistory?: boolean;
+    keywords: string[];
     label: string;
 }
 

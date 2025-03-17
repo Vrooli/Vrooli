@@ -3,7 +3,7 @@ import { LinearProgressProps } from "@mui/material";
 import { PageTab } from "hooks/useTabs";
 import { ReactNode } from "react";
 import { SxType } from "types";
-import { TabsInfo } from "utils/search/objectToSearch";
+import { TabListType } from "utils/search/objectToSearch";
 
 export interface ChatBubbleProps {
     /** Which sibling (version) is currently being displayed */
@@ -72,15 +72,15 @@ export interface DiagonalWaveLoaderProps {
     sx?: SxType;
 }
 
-export interface PageTabsProps<TabList extends TabsInfo> {
+export interface PageTabsProps<TabList extends TabListType = TabListType> {
     ariaLabel: string,
-    currTab: PageTab<TabList>,
+    currTab: PageTab<TabList[number]>,
     fullWidth?: boolean,
     id?: string,
     /** Ignore Icons in tabs, rendering them using labels instead */
     ignoreIcons?: boolean,
-    onChange: (event: React.ChangeEvent<unknown>, value: PageTab<TabList>) => unknown,
-    tabs: PageTab<TabList>[],
+    onChange: (event: React.ChangeEvent<unknown>, value: PageTab<TabList[number]>) => unknown,
+    tabs: PageTab<TabList[number]>[],
     sx?: SxType,
 }
 

@@ -14,9 +14,9 @@ import fs from "fs";
 import path from "path";
 import * as TJS from "typescript-json-schema";
 import { fileURLToPath } from "url";
-import * as pairs from "../../api/pairs";
-import { HttpStatus } from "../../consts/api";
-import { uppercaseFirstLetter } from "../../utils/casing";
+import * as pairs from "../../api/pairs.js";
+import { HttpStatus } from "../../consts/api.js";
+import { uppercaseFirstLetter } from "../../utils/casing.js";
 
 type Method = "GET" | "POST" | "PUT" | "DELETE";
 type RestPair = {

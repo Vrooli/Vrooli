@@ -84,6 +84,8 @@ export const profile: ApiPartial<User> = {
         notificationSettings: true,
         profileImage: true,
         theme: true,
+        apiKeys: async () => rel((await import("./apiKey.js")).apiKey, "full"),
+        apiKeysExternal: async () => rel((await import("./apiKeyExternal.js")).apiKeyExternal, "full"),
         emails: async () => rel((await import("./email.js")).email, "full"),
         focusModes: async () => rel((await import("./focusMode.js")).focusMode, "full"),
         phones: async () => rel((await import("./phone.js")).phone, "full"),

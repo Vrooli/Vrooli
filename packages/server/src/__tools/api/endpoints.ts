@@ -23,13 +23,18 @@ export const endpoints = {
         };
     },
     apiKey: async () => {
-        const { apiKey } = await import("./partial/apiKey.js");
-        const { success } = await import("./partial/success.js");
+        const { apiKey, apiKeyCreated } = await import("./partial/apiKey.js");
         return {
-            createOne: await toObject(apiKey, "full"),
+            createOne: await toObject(apiKeyCreated, "full"),
             updateOne: await toObject(apiKey, "full"),
-            deleteOne: await toObject(success, "full"),
             validateOne: await toObject(apiKey, "full"),
+        };
+    },
+    apiKeyExternal: async () => {
+        const { apiKeyExternal } = await import("./partial/apiKeyExternal.js");
+        return {
+            createOne: await toObject(apiKeyExternal, "full"),
+            updateOne: await toObject(apiKeyExternal, "full"),
         };
     },
     apiVersion: async () => {

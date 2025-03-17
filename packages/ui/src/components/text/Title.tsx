@@ -77,7 +77,7 @@ export function Title({
                 {/* Title */}
                 {titleComponent ?? <Typography
                     ref={textRef}
-                    component={variant === "header" ? "h1" : variant === "subheader" ? "h2" : "h3"}
+                    component={variant === "header" ? "h1" : variant === "subheader" ? "h2" : "h4"}
                     variant={variant === "header" ? "h3" : variant === "subheader" ? "h4" : "h5"}
                     textAlign="center"
                     sx={{
