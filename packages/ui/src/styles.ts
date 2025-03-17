@@ -1,15 +1,15 @@
 /* eslint-disable no-magic-numbers */
 import { Avatar, AvatarProps, Box, BoxProps, IconButton, Palette, Stack, StackProps, styled, SxProps, Theme } from "@mui/material";
 
-export const bottomNavHeight = "56px";
-export const pagePaddingBottom = "var(--page-padding-bottom)";
-
 /**
  * Lighthouse recommended size for clickable elements, to improve SEO
  */
 export const clickSize = {
     minHeight: "48px",
 } as const;
+
+export const bottomNavHeight = clickSize.minHeight;
+export const pagePaddingBottom = "var(--page-padding-bottom)";
 
 export function multiLineEllipsis(lines: number) {
     return {
@@ -53,11 +53,6 @@ export function linkColors(palette: Palette) {
     };
 }
 
-export const greenNeonText = {
-    color: "#fff",
-    filter: "drop-shadow(0 0 2px #0fa) drop-shadow(0 0 20px #0fa)",
-} as const;
-
 export const slideIconButton = {
     background: "transparent",
     border: "1px solid #0fa",
@@ -68,7 +63,7 @@ export const slideIconButton = {
     },
     transition: "all 0.2s ease",
 } as const;
-export const SlideIconButton = styled(IconButton)(({ theme }) => ({
+export const SlideIconButton = styled(IconButton)(() => ({
     ...slideIconButton,
 }));
 
@@ -266,7 +261,7 @@ export const ScrollBox = styled(Box)(() => ({
  * horizontally and vertically as the whole page 
  * (e.g. LoginView)
  */
-export const CenteredContentPage = styled(Box)(({ theme }) => ({
+export const CenteredContentPage = styled(Box)(() => ({
     height: "100vh",
     display: "flex",
     flexDirection: "column",
@@ -305,23 +300,3 @@ export const CenteredContentPaper = styled(Box, {
         borderRadius: theme.spacing(1),
     },
 }));
-
-export function searchButtonStyle(palette: Palette) {
-    return {
-        minHeight: "34px",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        borderRadius: "50px",
-        border: `2px solid ${palette.secondary.main}`,
-        margin: 1,
-        padding: 0,
-        paddingLeft: 1,
-        paddingRight: 1,
-        cursor: "pointer",
-        "&:hover": {
-            transform: "scale(1.1)",
-        },
-        transition: "transform 0.2s ease-in-out",
-    } as const;
-}
