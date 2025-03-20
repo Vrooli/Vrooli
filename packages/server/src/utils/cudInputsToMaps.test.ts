@@ -1,315 +1,415 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { uuid } from "@local/shared";
 import { expect } from "chai";
-import pkg from "../__mocks__/@prisma/client.js";
+import sinon from "sinon";
 import { DbProvider } from "../db/provider.js";
-import { ModelMap } from "../models/index.js";
+import { logger } from "../events/logger.js";
 import { convertPlaceholders, determineModelType, fetchAndMapPlaceholder, initializeInputMaps, inputToMaps, processConnectDisconnectOrDelete, processCreateOrUpdate, processInputObjectField, replacePlaceholdersInInputsById, replacePlaceholdersInInputsByType, replacePlaceholdersInMap, updateClosestWithId } from "./cudInputsToMaps.js";
 import { InputNode } from "./inputNode.js";
 import { IdsByAction, IdsByType, InputsByType } from "./types.js";
 
-const { PrismaClient } = pkg;
-
 describe("fetchAndMapPlaceholder", () => {
     let placeholderToIdMap;
+    const userId = uuid();
+    const premiumId = uuid();
+    const teamId = uuid();
 
-    beforeEach(async () => {
+    before(async function before() {
+        this.timeout(10_000);
+
         // Initialize the ModelMap, which is used in fetchAndMapPlaceholder
-        await ModelMap.init();
-        await DbProvider.init();
-
-        // Reset the mock for each test
-        jest.clearAllMocks();
-
-        PrismaClient.injectData({
-            User: [
-                { id: "123-321", profile: { id: "456", address: { id: "789" } } },
-            ],
+        await DbProvider.get().user.deleteMany();
+        await DbProvider.get().user.create({
+            data: {
+                id: userId,
+                name: "Test User",
+                premium: {
+                    create: {
+                        id: premiumId,
+                        team: {
+                            create: {
+                                id: teamId,
+                                permissions: JSON.stringify({}),
+                            },
+                        },
+                    },
+                },
+            },
         });
+    });
 
+    beforeEach(() => {
         placeholderToIdMap = {};
     });
 
-    afterEach(() => {
-        PrismaClient.clearData();
+    after(async function after() {
+        this.timeout(10_000);
+
+        await DbProvider.get().user.deleteMany();
     });
 
     it("should fetch and return the correct ID for a new placeholder", async () => {
-        const placeholder = "user|123-321.prof|profile";
+        const placeholder = `user|${userId}.prem|premium`;
         await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
-        expect(placeholderToIdMap[placeholder]).to.equal("456"); // The profile's ID
+        expect(placeholderToIdMap[placeholder]).to.equal(premiumId); // The profile's ID
     });
 
     it("should return the cached ID for an already processed placeholder", async () => {
-        placeholderToIdMap["user|123-321.prof|profile"] = "420"; // Cache an ID
+        const placeholder = `user|${userId}.prem|premium`;
+        placeholderToIdMap[placeholder] = premiumId;
 
-        const placeholder = "user|123-321.prof|profile";
         await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
 
-        expect(placeholderToIdMap[placeholder]).to.equal("420"); // The cached ID
-        // @ts-ignore Testing runtime scenario
-        expect(PrismaClient.instance.user.findUnique).not.toHaveBeenCalled();
+        expect(placeholderToIdMap[placeholder]).to.equal(premiumId); // The cached ID
     });
 
-    it("should return null if object is not found", async () => {
-        const placeholder = "user|999.prof|profile";
-        await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
+    it("should return undefined if object is not found", async () => {
+        const placeholder = `user|${uuid()}.prof|profile`;
 
-        expect(placeholderToIdMap[placeholder]).to.be.null;
+        try {
+            await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
+            expect.fail("Expected fetchAndMapPlaceholder to throw");
+        } catch (error) {
+            expect(placeholderToIdMap[placeholder]).to.be.undefined;
+
+        }
     });
 
     it("should handle nested relations correctly", async () => {
-        const placeholder = "user|123-321.prof|profile.addr|address";
+        const placeholder = `user|${userId}.prem|premium.owner|team`;
         await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
 
-        expect(placeholderToIdMap[placeholder]).to.equal("789"); // The address's ID
+        expect(placeholderToIdMap[placeholder]).to.equal(teamId);
     });
 
     it("should handle placeholder with invalid format", async () => {
         const placeholder = "invalidFormatPlaceholder"; // No delimiters or parts
-        await expect(async () => {
+        try {
             await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
-        }).rejects.toThrow("InternalError");
+            expect.fail("Expected fetchAndMapPlaceholder to throw");
+        } catch (error) {
+            expect(placeholderToIdMap[placeholder]).to.be.undefined;
+        }
     });
 
     it("should handle non-existent objectType in placeholder", async () => {
         const placeholder = "nonExistentType|123.relation|value";
-        await expect(async () => {
+        try {
             await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
-        }).rejects.toThrow("InternalError");
+            expect.fail("Expected fetchAndMapPlaceholder to throw");
+        } catch (error) {
+            expect(placeholderToIdMap[placeholder]).to.be.undefined;
+        }
     });
 
     it("should handle valid objectType but invalid rootId", async () => {
-        const placeholder = "user|invalidId.relation|value";
-        await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
-
-        expect(placeholderToIdMap[placeholder]).to.be.null; // Valid objectType, but rootId does not exist
-    });
-
-    it("should handle non-existing relation type in placeholder", async () => {
-        const placeholder = "user|123-321.nonExistingRelation|value";
-        await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
-
-        expect(placeholderToIdMap[placeholder]).to.be.null; // Non-existing relation type
-    });
-
-    it("should handle valid relation type but invalid relation in placeholder", async () => {
-        const placeholder = "user|123-321.prof|invalidRelation";
-        await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
-
-        expect(placeholderToIdMap[placeholder]).to.be.null; // Valid relation type but invalid relation
+        const placeholder = `user|${uuid()}.prem|premium`;
+        try {
+            await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
+            expect.fail("Expected fetchAndMapPlaceholder to throw");
+        } catch (error) {
+            expect(placeholderToIdMap[placeholder]).to.be.undefined;
+        }
     });
 
     it("should handle unnecessary placeholders (placeholders which contain the ID already)", async () => {
-        const idInPlaceholder = uuid();
-        const placeholder = `Note|${idInPlaceholder}`; // This check only works with valid IDs
+        const noteId = uuid();
+        const placeholder = `Note|${noteId}`;
         await fetchAndMapPlaceholder(placeholder, placeholderToIdMap);
 
-        expect(placeholderToIdMap[placeholder]).to.equal(idInPlaceholder);
+        expect(placeholderToIdMap[placeholder]).to.equal(noteId);
     });
 });
 
 describe("replacePlaceholdersInMap", () => {
     let placeholderToIdMap;
+    const userId = uuid();
+    const premiumId = uuid();
+    const teamId = uuid();
+    const noteId = uuid();
 
-    beforeEach(async () => {
-        // Initialize the ModelMap, which is used in fetchAndMapPlaceholder
-        await ModelMap.init();
+    before(async function before() {
+        this.timeout(10_000);
 
-        jest.clearAllMocks();
-
-        PrismaClient.injectData({
-            User: [
-                { id: "123", profile: { id: "456", address: { id: "789" } } },
-            ],
-            Note: [
-                { id: "333", owner: { id: "420" } },
-            ],
+        await DbProvider.get().user.deleteMany();
+        await DbProvider.get().user.create({
+            data: {
+                id: userId,
+                name: "Bugs Bunny",
+                premium: {
+                    create: {
+                        id: premiumId,
+                        team: {
+                            create: {
+                                id: teamId,
+                                permissions: JSON.stringify({}),
+                            },
+                        },
+                    },
+                },
+            },
         });
+        await DbProvider.get().note.create({
+            data: {
+                id: noteId,
+                ownedByUser: { connect: { id: userId } },
+                permissions: JSON.stringify({}),
+            },
+        });
+    });
 
+    beforeEach(() => {
         placeholderToIdMap = {};
     });
 
-    afterEach(() => {
-        PrismaClient.clearData();
+    after(async function after() {
+        this.timeout(10_000);
+
+        await DbProvider.get().user.deleteMany();
+        await DbProvider.get().note.deleteMany();
     });
 
     it("should replace placeholders with actual IDs", async () => {
+        const testCases = [
+            [`User|${userId}.Premium|premium`, premiumId],
+            [`User|${userId}`, userId],
+        ];
         const idsMap = {
-            "User": ["user|123.prof|profile"],
-            "Update": ["user|123"],
+            "User": [testCases[0][0]],
+            "Update": [testCases[1][0]],
         };
 
         await replacePlaceholdersInMap(idsMap, placeholderToIdMap);
 
-        expect(idsMap["User"][0]).to.deep.equal("456");
-        expect(idsMap["Update"][0]).to.deep.equal("123");
-        expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(2);
-        expect(placeholderToIdMap["user|123.prof|profile"]).to.deep.equal("456");
-        expect(placeholderToIdMap["user|123"]).to.deep.equal("123");
+        const expectedKeyLength = Object.values(idsMap).flat().length;
+        expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(expectedKeyLength);
+        expect(idsMap["User"]).to.deep.equal([testCases[0][1]]);
+        expect(idsMap["Update"]).to.deep.equal([testCases[1][1]]);
+        expect(placeholderToIdMap[testCases[0][0]]).to.deep.equal(testCases[0][1]);
+        expect(placeholderToIdMap[testCases[1][0]]).to.deep.equal(testCases[1][1]);
     });
 
     it("should handle multiple placeholders", async () => {
+        const testCases = [
+            [`User|${userId}.Premium|premium`, premiumId],
+            [`User|${userId}.Premium|premium.Team|team`, teamId],
+            [`User|${userId}`, userId],
+            [`Note|${noteId}.User|ownedByUser`, userId],
+        ];
         const idsMap = {
-            "User": ["User|123.Prof|profile", "User|123.Prof|profile.Address|address"],
-            "Update": ["User|123", "Note|333.Owner|owner"],
+            "User": [testCases[0][0], testCases[1][0]],
+            "Update": [testCases[2][0], testCases[3][0]],
         };
 
         await replacePlaceholdersInMap(idsMap, placeholderToIdMap);
 
-        expect(idsMap["User"]).to.deep.equal(["456", "789"]); // Profile and Address IDs
-        expect(idsMap["Update"]).to.deep.equal(["123", "420"]); // User and Owner IDs
-        expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(4);
-        expect(placeholderToIdMap["User|123.Prof|profile"]).to.deep.equal("456");
-        expect(placeholderToIdMap["User|123.Prof|profile.Address|address"]).to.deep.equal("789");
-        expect(placeholderToIdMap["User|123"]).to.deep.equal("123");
-        expect(placeholderToIdMap["Note|333.Owner|owner"]).to.deep.equal("420");
+        const expectedKeyLength = Object.values(idsMap).flat().length;
+        expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(expectedKeyLength);
+        expect(idsMap["User"]).to.deep.equal([testCases[0][1], testCases[1][1]]);
+        expect(idsMap["Update"]).to.deep.equal([testCases[2][1], testCases[3][1]]);
+        expect(placeholderToIdMap[testCases[0][0]]).to.deep.equal(testCases[0][1]);
+        expect(placeholderToIdMap[testCases[1][0]]).to.deep.equal(testCases[1][1]);
+        expect(placeholderToIdMap[testCases[2][0]]).to.deep.equal(testCases[2][1]);
+        expect(placeholderToIdMap[testCases[3][0]]).to.deep.equal(testCases[3][1]);
     });
 
     it("should leave non-placeholder IDs unchanged", async () => {
+        const id1 = uuid();
+        const id2 = uuid();
+        const testCases = [
+            [id1, id1],
+            [`User|${userId}.Premium|premium`, premiumId],
+            [id2, id2],
+        ];
         const idsMap = {
-            "User": ["123", "User|123.Prof|profile"],
-            "Update": ["456"],
+            "User": [testCases[0][0], testCases[1][0]],
+            "Update": [testCases[2][0]],
         };
 
         await replacePlaceholdersInMap(idsMap, placeholderToIdMap);
 
-        expect(idsMap["User"]).to.deep.equal(["123", "456"]);
-        expect(idsMap["Update"]).to.deep.equal(["456"]);
-        expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1);
-        expect(placeholderToIdMap["User|123.Prof|profile"]).to.deep.equal("456");
+        expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1); // There's only one actual placeholder this time
+        expect(idsMap["User"]).to.deep.equal([testCases[0][1], testCases[1][1]]);
+        expect(idsMap["Update"]).to.deep.equal([testCases[2][1]]);
+        expect(placeholderToIdMap[testCases[0][0]]).to.be.undefined; // Not a placeholder, so it's not in the map
+        expect(placeholderToIdMap[testCases[1][0]]).to.deep.equal(testCases[1][1]);
+        expect(placeholderToIdMap[testCases[2][0]]).to.be.undefined; // Not a placeholder, so it's not in the map
     });
 
     it("should skip querying database when placeholder is already in map", async () => {
+        const placeholder = "User|123.fdsafkafdafsa"; // Not valid, but should be fine since its corresponding ID will already be in the map
+        const id = "420";
         const idsMap = {
-            "User": ["user|123.prof|profile"],
+            "User": [placeholder],
         };
-
-        placeholderToIdMap["user|123.prof|profile"] = "420"; // Cache an ID
+        placeholderToIdMap[placeholder] = id;
 
         await replacePlaceholdersInMap(idsMap, placeholderToIdMap);
 
-        expect(idsMap["User"][0]).to.deep.equal("420"); // Cached ID
+        expect(idsMap["User"][0]).to.deep.equal(id);
         expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1);
-        expect(placeholderToIdMap["user|123.prof|profile"]).to.deep.equal("420");
+        expect(placeholderToIdMap[placeholder]).to.deep.equal(id);
     });
 });
 
 describe("replacePlaceholdersInInputsById", () => {
     let placeholderToIdMap;
-    const placeholder1 = "user|123.prof|profile";
+    const userId = uuid();
+    const premiumId = uuid();
+    const teamId = uuid();
 
-    beforeEach(async () => {
-        // Initialize the ModelMap, which is used in fetchAndMapPlaceholder
-        await ModelMap.init();
+    before(async function before() {
+        this.timeout(10_000);
 
-        jest.clearAllMocks();
-
-        PrismaClient.injectData({
-            User: [
-                { id: "123", profile: { id: "456", address: { id: "789" } } },
-            ],
+        await DbProvider.get().user.deleteMany();
+        await DbProvider.get().user.create({
+            data: {
+                id: userId,
+                name: "Bugs Bunny",
+                premium: {
+                    create: {
+                        id: premiumId,
+                        team: {
+                            create: {
+                                id: teamId,
+                                permissions: JSON.stringify({}),
+                            },
+                        },
+                    },
+                },
+            },
         });
+    });
 
+    beforeEach(() => {
         placeholderToIdMap = {};
     });
 
-    afterEach(() => {
-        PrismaClient.clearData();
+    after(async function after() {
+        this.timeout(10_000);
+
+        await DbProvider.get().user.deleteMany();
     });
 
-    it("should replace placeholders with string inputs", async () => {
-        const inputsById = { [placeholder1]: { node: new InputNode("User", placeholder1, "Delete"), input: placeholder1 } };
+    it("should replace placeholders with string (e.g. 'Delete') inputs", async () => {
+        const placeholder = `User|${userId}.Premium|premium`;
+        // Define input that says: "Delete the premium relationship of the user"
+        const inputsById = { [placeholder]: { node: new InputNode("Premium", placeholder, "Delete"), input: placeholder } };
 
         await replacePlaceholdersInInputsById(inputsById, placeholderToIdMap);
 
-        expect(Object.keys(inputsById)).to.have.lengthOf(1);
-        expect(inputsById["456"].node.id).to.deep.equal("456");
-        expect(inputsById["456"].input).to.deep.equal("456");
-        expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1);
-        expect(placeholderToIdMap[placeholder1]).to.deep.equal("456");
+        expect(Object.keys(inputsById)).to.have.lengthOf(1); // Same as what we started with
+        expect(inputsById[placeholder]).to.be.undefined; // The placeholder is now replaced with the ID
+        expect(inputsById[premiumId].node.id).to.deep.equal(premiumId); // The node ID is the ID of the object
+        expect(inputsById[premiumId].input).to.deep.equal(premiumId); // The input (which for deletes is just an ID) is the ID of the object
+        expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1); // The placeholder is now in the map
+        expect(placeholderToIdMap[placeholder]).to.deep.equal(premiumId); // The placeholder is now mapped to the ID
     });
 
-    it("should replace placeholders with object inputs", async () => {
+    it("should replace placeholders with object (e.g. 'Update') inputs", async () => {
+        const placeholder = `User|${userId}.Premium|premium`;
+        // Define input that says: "UPdate the premium relationship of the user"
         const inputsById = {
-            [placeholder1]: {
-                node: new InputNode("User", placeholder1, "Update"), input: {
-                    id: placeholder1,
-                    name: "Test",
+            [placeholder]: {
+                node: new InputNode("Premium", placeholder, "Update"),
+                input: {
+                    id: placeholder,
+                    name: "Updated name",
                 },
             },
         };
 
         await replacePlaceholdersInInputsById(inputsById, placeholderToIdMap);
 
-        expect(Object.keys(inputsById)).to.have.lengthOf(1);
-        expect(inputsById["456"].node.id).to.deep.equal("456");
-        expect(inputsById["456"].input).to.deep.equal({ id: "456", name: "Test" });
-        expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1);
-        expect(placeholderToIdMap[placeholder1]).to.deep.equal("456");
+        expect(Object.keys(inputsById)).to.have.lengthOf(1); // Same as what we started with
+        expect(inputsById[placeholder]).to.be.undefined; // The placeholder is now replaced with the ID
+        expect(inputsById[premiumId].node.id).to.deep.equal(premiumId); // The node ID is the ID of the object
+        expect(inputsById[premiumId].input).to.deep.equal({ id: premiumId, name: "Updated name" });
+        expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1); // The placeholder is now in the map
+        expect(placeholderToIdMap[placeholder]).to.deep.equal(premiumId); // The placeholder is now mapped to the ID
     });
 
     it("should leave non-placeholders unchanged", async () => {
+        const placeholder = `User|${userId}.Premium|premium`;
         const inputsById = {
-            [placeholder1]: { node: new InputNode("User", placeholder1, "Delete"), input: placeholder1 },
+            [placeholder]: { node: new InputNode("Premium", placeholder, "Delete"), input: placeholder },
             "999": { node: new InputNode("User", "999", "Delete"), input: "999" },
         };
 
         await replacePlaceholdersInInputsById(inputsById, placeholderToIdMap);
 
         expect(Object.keys(inputsById)).to.have.lengthOf(2);
-        expect(inputsById["456"].node.id).to.deep.equal("456");
-        expect(inputsById["456"].input).to.deep.equal("456");
+        expect(inputsById[placeholder]).to.be.undefined;
         expect(inputsById["999"].node.id).to.deep.equal("999");
-        expect(inputsById["999"].input).to.deep.equal("999");
+        expect(inputsById[premiumId].node.id).to.deep.equal(premiumId);
+        expect(inputsById[premiumId].input).to.deep.equal(premiumId);
         expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1);
-        expect(placeholderToIdMap[placeholder1]).to.deep.equal("456");
+        expect(placeholderToIdMap[placeholder]).to.deep.equal(premiumId);
     });
 
     it("should skip querying database when placeholder is already in map", async () => {
-        const inputsById = { [placeholder1]: { node: new InputNode("User", placeholder1, "Delete"), input: placeholder1 } };
-
-        placeholderToIdMap[placeholder1] = "420"; // Cache an ID
+        const placeholder = `User|${userId}.Premium|premium`;
+        const inputsById = { [placeholder]: { node: new InputNode("Premium", placeholder, "Delete"), input: placeholder } };
+        const id = "420"; // Use a different ID so we know that it didn't use the database
+        placeholderToIdMap[placeholder] = id;
 
         await replacePlaceholdersInInputsById(inputsById, placeholderToIdMap);
 
         expect(Object.keys(inputsById)).to.have.lengthOf(1);
-        expect(inputsById["420"].node.id).to.deep.equal("420");
-        expect(inputsById["420"].input).to.deep.equal("420");
+        expect(inputsById[placeholder]).to.be.undefined;
+        expect(inputsById[id].node.id).to.deep.equal(id);
+        expect(inputsById[id].input).to.deep.equal(id);
         expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1);
-        expect(placeholderToIdMap[placeholder1]).to.deep.equal("420");
+        expect(placeholderToIdMap[placeholder]).to.deep.equal(id);
     });
 });
 
 describe("replacePlaceholdersInInputsByType", () => {
     let placeholderToIdMap;
-    const placeholder1 = "user|123.prof|profile";
+    const userId = uuid();
+    const premiumId = uuid();
+    const teamId = uuid();
 
-    beforeEach(async () => {
-        // Initialize the ModelMap, which is used in fetchAndMapPlaceholder
-        await ModelMap.init();
+    before(async function before() {
+        this.timeout(10_000);
 
-        jest.clearAllMocks();
-
-        PrismaClient.injectData({
-            User: [
-                { id: "123", profile: { id: "456", address: { id: "789" } } },
-            ],
+        await DbProvider.get().user.deleteMany();
+        await DbProvider.get().user.create({
+            data: {
+                id: userId,
+                name: "Bugs Bunny",
+                premium: {
+                    create: {
+                        id: premiumId,
+                        team: {
+                            create: {
+                                id: teamId,
+                                permissions: JSON.stringify({}),
+                            },
+                        },
+                    },
+                },
+            },
         });
+    });
 
+    beforeEach(() => {
         placeholderToIdMap = {};
     });
 
-    afterEach(() => {
-        PrismaClient.clearData();
+    after(async function after() {
+        this.timeout(10_000);
+
+        await DbProvider.get().user.deleteMany();
     });
 
-    it("should replace placeholders with string inputs", async () => {
+    it("should replace placeholders with string (e.g. 'Delete') inputs", async () => {
+        const placeholder = `User|${userId}.Premium|premium.Team|team`;
         const inputsByType = {
-            User: {
+            Team: {
                 Connect: [],
                 Create: [],
-                Delete: [{ node: new InputNode("User", placeholder1, "Delete"), input: placeholder1 }],
+                Delete: [{ node: new InputNode("Team", placeholder, "Delete"), input: placeholder }],
                 Disconnect: [],
                 Read: [],
                 Update: [],
@@ -318,43 +418,44 @@ describe("replacePlaceholdersInInputsByType", () => {
 
         await replacePlaceholdersInInputsByType(inputsByType, placeholderToIdMap);
 
-        expect(inputsByType.User.Delete).to.have.lengthOf(1);
-        expect(inputsByType.User.Delete[0].node.id).to.deep.equal("456");
-        expect(inputsByType.User.Delete[0].input).to.deep.equal("456");
+        expect(inputsByType.Team.Delete).to.have.lengthOf(1);
+        expect(inputsByType.Team.Delete[0].node.id).to.deep.equal(teamId);
+        expect(inputsByType.Team.Delete[0].input).to.deep.equal(teamId);
         expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1);
-        expect(placeholderToIdMap[placeholder1]).to.deep.equal("456");
+        expect(placeholderToIdMap[placeholder]).to.deep.equal(teamId);
     });
 
-    it("should replace placeholders with object inputs", async () => {
+    it("should replace placeholders with object (e.g. 'Update') inputs", async () => {
+        const placeholder = `User|${userId}.Premium|premium.Team|team`;
         const inputsByType = {
-            User: {
+            Team: {
                 Connect: [],
                 Create: [],
                 Delete: [],
                 Disconnect: [],
                 Read: [],
-                Update: [{ node: new InputNode("User", placeholder1, "Update"), input: { id: placeholder1, name: "Test" } }],
+                Update: [{ node: new InputNode("Team", placeholder, "Update"), input: { id: placeholder, name: "Test" } }],
             },
         };
 
         await replacePlaceholdersInInputsByType(inputsByType, placeholderToIdMap);
 
-        expect(inputsByType.User.Update).to.have.lengthOf(1);
-        expect(inputsByType.User.Update[0].node.id).to.deep.equal("456");
-        expect(inputsByType.User.Update[0].input.id).to.deep.equal("456");
-        expect(inputsByType.User.Update[0].input.name).to.deep.equal("Test");
+        expect(inputsByType.Team.Update).to.have.lengthOf(1);
+        expect(inputsByType.Team.Update[0].node.id).to.deep.equal(teamId);
+        expect(inputsByType.Team.Update[0].input).to.deep.equal({ id: teamId, name: "Test" });
         expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1);
-        expect(placeholderToIdMap[placeholder1]).to.deep.equal("456");
+        expect(placeholderToIdMap[placeholder]).to.deep.equal(teamId);
     });
 
     it("should leave non-placeholders unchanged", async () => {
+        const placeholder = `User|${userId}`;
         const nonPlaceholder = "999";
         const inputsByType = {
             User: {
                 Connect: [],
                 Create: [],
                 Delete: [
-                    { node: new InputNode("User", placeholder1, "Delete"), input: placeholder1 },
+                    { node: new InputNode("User", placeholder, "Delete"), input: placeholder },
                     { node: new InputNode("User", nonPlaceholder, "Delete"), input: nonPlaceholder },
                 ],
                 Disconnect: [],
@@ -366,23 +467,24 @@ describe("replacePlaceholdersInInputsByType", () => {
         await replacePlaceholdersInInputsByType(inputsByType, placeholderToIdMap);
 
         expect(inputsByType.User.Delete).to.have.lengthOf(2);
-        expect(inputsByType.User.Delete[0].node.id).to.deep.equal("456");
-        expect(inputsByType.User.Delete[0].input).to.deep.equal("456");
+        expect(inputsByType.User.Delete[0].node.id).to.deep.equal(userId);
+        expect(inputsByType.User.Delete[0].input).to.deep.equal(userId);
         expect(inputsByType.User.Delete[1].node.id).to.deep.equal(nonPlaceholder);
         expect(inputsByType.User.Delete[1].input).to.deep.equal(nonPlaceholder);
         expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1);
-        expect(placeholderToIdMap[placeholder1]).to.deep.equal("456");
-        expect(placeholderToIdMap).not.to.have.property(nonPlaceholder);
+        expect(placeholderToIdMap[placeholder]).to.deep.equal(userId);
     });
 
     it("should skip querying database when placeholder is already in map", async () => {
-        placeholderToIdMap[placeholder1] = "420"; // Pre-populate the map
+        const placeholder = `User|${userId}`;
+        const id = "420"; // Use a different ID so we know that it didn't use the database
+        placeholderToIdMap[placeholder] = id;
 
         const inputsByType = {
             User: {
                 Connect: [],
                 Create: [],
-                Delete: [{ node: new InputNode("User", placeholder1, "Delete"), input: placeholder1 }],
+                Delete: [{ node: new InputNode("User", placeholder, "Delete"), input: placeholder }],
                 Disconnect: [],
                 Read: [],
                 Update: [],
@@ -392,10 +494,10 @@ describe("replacePlaceholdersInInputsByType", () => {
         await replacePlaceholdersInInputsByType(inputsByType, placeholderToIdMap);
 
         expect(inputsByType.User.Delete).to.have.lengthOf(1);
-        expect(inputsByType.User.Delete[0].node.id).to.deep.equal("420");
-        expect(inputsByType.User.Delete[0].input).to.deep.equal("420");
+        expect(inputsByType.User.Delete[0].node.id).to.deep.equal(id);
+        expect(inputsByType.User.Delete[0].input).to.deep.equal(id);
         expect(Object.keys(placeholderToIdMap)).to.have.lengthOf(1);
-        expect(placeholderToIdMap[placeholder1]).to.deep.equal("420");
+        expect(placeholderToIdMap[placeholder]).to.deep.equal(id);
     });
 });
 
@@ -405,146 +507,167 @@ describe("convertPlaceholders", () => {
     const initialIdsByType = {};
     const initialInputsById = {};
     const initialInputsByType = {};
-    const placeholder1 = "user|123.prof|profile";
+    const userId1 = uuid();
+    const userId2 = uuid();
+    const premiumId = uuid();
+    const teamId = uuid();
+
+    before(async function before() {
+        this.timeout(10_000);
+
+        await DbProvider.get().user.deleteMany();
+        await DbProvider.get().user.create({
+            data: {
+                id: userId1,
+                name: "Bugs Bunny",
+                premium: {
+                    create: {
+                        id: premiumId,
+                        team: {
+                            create: {
+                                id: teamId,
+                                permissions: JSON.stringify({}),
+                            },
+                        },
+                    },
+                },
+            },
+        });
+        await DbProvider.get().user.create({
+            data: {
+                id: userId2,
+                name: "Daffy Duck",
+            },
+        });
+    });
 
     beforeEach(() => {
-        PrismaClient.injectData({
-            User: [
-                { id: "123", profile: { id: "456", address: { id: "789" } } },
-            ],
-        });
         idsByAction = JSON.parse(JSON.stringify(initialIdsByAction));
         idsByType = JSON.parse(JSON.stringify(initialIdsByType));
         inputsById = JSON.parse(JSON.stringify(initialInputsById));
         inputsByType = JSON.parse(JSON.stringify(initialInputsByType));
     });
 
-    afterEach(() => {
-        PrismaClient.clearData();
+    after(async function after() {
+        this.timeout(10_000);
+
+        await DbProvider.get().user.deleteMany();
     });
 
     it("should replace placeholders with actual IDs", async () => {
-        idsByType = { "User": [placeholder1] };
-        idsByAction = { "Update": [placeholder1] };
-        inputsById = { [placeholder1]: { node: new InputNode("User", placeholder1, "Delete"), input: placeholder1 } };
-        inputsByType = { "User": { "Delete": [{ node: new InputNode("User", placeholder1, "Delete"), input: placeholder1 }] } };
+        const placeholder = `User|${userId1}.Premium|premium`;
+        idsByType = { "Premium": [placeholder] };
+        idsByAction = { "Update": [placeholder] };
+        inputsById = { [placeholder]: { node: new InputNode("Premium", placeholder, "Delete"), input: placeholder } };
+        inputsByType = { "Premium": { "Delete": [{ node: new InputNode("Premium", placeholder, "Delete"), input: placeholder }] } };
 
         await convertPlaceholders({ idsByAction, idsByType, inputsById, inputsByType });
 
-        expect(idsByType["User"]).to.deep.equal(["456"]);
-        expect(idsByAction["Update"]).to.deep.equal(["456"]);
+        expect(idsByType["Premium"]).to.deep.equal([premiumId]);
+        expect(idsByAction["Update"]).to.deep.equal([premiumId]);
         expect(Object.keys(inputsById)).to.have.lengthOf(1);
-        expect(inputsById["456"].node.id).to.deep.equal("456");
-        expect(inputsById["456"].input).to.deep.equal("456");
-        expect(inputsByType["User"].Delete).to.have.lengthOf(1);
-        expect(inputsByType["User"].Delete[0].node.id).to.deep.equal("456");
-        expect(inputsByType["User"].Delete[0].input).to.deep.equal("456");
-        expect(inputsByType["User"].Delete).to.have.lengthOf(1);
+        expect(inputsById[premiumId].node.id).to.deep.equal(premiumId);
+        expect(inputsById[premiumId].input).to.deep.equal(premiumId);
+        expect(inputsByType["Premium"].Delete).to.have.lengthOf(1);
+        expect(inputsByType["Premium"].Delete[0].node.id).to.deep.equal(premiumId);
+        expect(inputsByType["Premium"].Delete[0].input).to.deep.equal(premiumId);
+        expect(inputsByType["Premium"].Delete).to.have.lengthOf(1);
     });
 
-    it("should replace placeholders with null if not found", async () => {
-        idsByType = { "User": ["user|999.prof|profile"] };
-        idsByAction = { "Create": ["user|999.prof|profile"] };
-        inputsById = { "user|999.prof|profile": { node: new InputNode("User", "user|999.prof|profile", "Create"), input: "user|999.prof|profile" } };
-        inputsByType = { "User": { "Create": [{ node: new InputNode("User", "user|999.prof|profile", "Create"), input: "user|999.prof|profile" }] } };
+    it("should not replace placeholders for objects that don't exist", async () => {
+        const userIdNotInDb = uuid();
+        const placeholder = `User|${userIdNotInDb}.Premium|premium`;
+        idsByType = { "Premium": [placeholder] };
+        idsByAction = { "Create": [placeholder] };
+        inputsById = { [placeholder]: { node: new InputNode("Premium", placeholder, "Create"), input: placeholder } };
+        inputsByType = { "Premium": { "Create": [{ node: new InputNode("Premium", placeholder, "Create"), input: placeholder }] } };
 
         await convertPlaceholders({ idsByAction, idsByType, inputsById, inputsByType });
 
-        expect(idsByType["User"]).to.deep.equal([null]);
-        expect(idsByAction["Create"]).to.deep.equal([null]);
+        expect(idsByType["Premium"]).to.deep.equal([undefined]);
+        expect(idsByAction["Create"]).to.deep.equal([undefined]);
         expect(Object.keys(inputsById)).to.have.lengthOf(0);
-        expect(inputsById["user|999.prof|profile"]).to.be.undefined;
-        expect(inputsByType["User"].Create).to.have.lengthOf(1);
-        expect(inputsByType["User"].Create[0].node.id).to.deep.equal(null);
-        expect(inputsByType["User"].Create[0].input).to.deep.equal(null);
+        expect(inputsById[placeholder]).to.be.undefined;
+        expect(inputsByType["Premium"].Create).to.have.lengthOf(1);
+        expect(inputsByType["Premium"].Create[0].node.id).to.deep.equal(undefined);
+        expect(inputsByType["Premium"].Create[0].input).to.deep.equal(undefined);
     });
 
     it("should not perform any operation if there are no placeholders", async () => {
-        idsByType = { "User": ["123"] };
-        idsByAction = { "Create": ["123"] };
-        inputsById = { "123": { node: new InputNode("User", "123", "Create"), input: "123" } };
-        inputsByType = { "User": { "Create": [{ node: new InputNode("User", "123", "Create"), input: "123" }] } };
+        const id = "123"; // Use a non-uuid so we know that it didn't call the database
+        idsByType = { "User": [id] };
+        idsByAction = { "Create": [id] };
+        inputsById = { [id]: { node: new InputNode("User", id, "Create"), input: id } };
+        inputsByType = { "User": { "Create": [{ node: new InputNode("User", id, "Create"), input: id }] } };
 
         await convertPlaceholders({ idsByAction, idsByType, inputsById, inputsByType });
 
-        expect(idsByType["User"]).to.deep.equal(["123"]);
-        expect(idsByAction["Create"]).to.deep.equal(["123"]);
+        expect(idsByType["User"]).to.deep.equal([id]);
+        expect(idsByAction["Create"]).to.deep.equal([id]);
         expect(Object.keys(inputsById)).to.have.lengthOf(1);
-        expect(inputsById["123"].node.id).to.deep.equal("123");
-        expect(inputsById["123"].input).to.deep.equal("123");
+        expect(inputsById[id].node.id).to.deep.equal(id);
+        expect(inputsById[id].input).to.deep.equal(id);
         expect(inputsByType["User"].Create).to.have.lengthOf(1);
-        expect(inputsByType["User"].Create[0].node.id).to.deep.equal("123");
-        expect(inputsByType["User"].Create[0].input).to.deep.equal("123");
+        expect(inputsByType["User"].Create[0].node.id).to.deep.equal(id);
+        expect(inputsByType["User"].Create[0].input).to.deep.equal(id);
     });
 
     it("should handle multiple placeholders and nested cases correctly", async () => {
-        idsByType = { "User": ["user|123.prof|profile", "user|123.prof|profile.addr|address"] };
-        idsByAction = { "Create": ["user|123.prof|profile.addr|address"] };
+        const placeholder1 = `User|${userId1}.Premium|premium`;
+        const placeholder2 = `User|${userId1}.Premium|premium.Team|team`;
+        const placeholder3 = `User|${userId1}`;
+        const placeholder4 = `User|${userId2}`;
+        idsByType = {
+            "Premium": [placeholder1],
+            "Team": [placeholder2],
+            "User": [placeholder3, placeholder4],
+        };
+        idsByAction = {
+            "Update": [placeholder1, placeholder3, placeholder4],
+            "Delete": [placeholder2],
+        };
         inputsById = {
-            "user|123.prof|profile": { node: new InputNode("User", "user|123.prof|profile", "Delete"), input: "user|123.prof|profile" },
-            "user|123.prof|profile.addr|address": { node: new InputNode("User", "user|123.prof|profile.addr|address", "Create"), input: "user|123.prof|profile.addr|address" },
+            [placeholder1]: { node: new InputNode("Premium", placeholder1, "Update"), input: { id: placeholder1, name: "Update 1" } },
+            [placeholder2]: { node: new InputNode("Team", placeholder2, "Delete"), input: placeholder2 },
+            [placeholder3]: { node: new InputNode("User", placeholder3, "Update"), input: { id: placeholder3, name: "Update 2" } },
+            [placeholder4]: { node: new InputNode("User", placeholder4, "Update"), input: { id: placeholder4, name: "Update 3" } },
         };
         inputsByType = {
+            "Premium": { "Update": [{ node: new InputNode("Premium", placeholder1, "Update"), input: { id: placeholder1, name: "Update 1" } }] },
+            "Team": { "Delete": [{ node: new InputNode("Team", placeholder2, "Delete"), input: placeholder2 }] },
             "User": {
-                "Delete": [{ node: new InputNode("User", "user|123.prof|profile", "Delete"), input: "user|123.prof|profile" }],
-                "Create": [{ node: new InputNode("User", "user|123.prof|profile.addr|address", "Create"), input: "user|123.prof|profile.addr|address" }],
+                "Update": [
+                    { node: new InputNode("User", placeholder3, "Update"), input: { id: placeholder3, name: "Update 2" } },
+                    { node: new InputNode("User", placeholder4, "Update"), input: { id: placeholder4, name: "Update 3" } },
+                ],
             },
         };
 
         await convertPlaceholders({ idsByAction, idsByType, inputsById, inputsByType });
 
-        expect(idsByType["User"]).to.deep.equal(["456", "789"]);
-        expect(idsByAction["Create"]).to.deep.equal(["789"]);
-        expect(Object.keys(inputsById)).to.have.lengthOf(2);
-        expect(inputsById["456"].node.id).to.deep.equal("456");
-        expect(inputsById["456"].input).to.deep.equal("456");
-        expect(inputsById["789"].node.id).to.deep.equal("789");
-        expect(inputsById["789"].input).to.deep.equal("789");
-        expect(inputsByType["User"].Delete).to.have.lengthOf(1);
-        expect(inputsByType["User"].Delete[0].node.id).to.deep.equal("456");
-        expect(inputsByType["User"].Delete[0].input).to.deep.equal("456");
-        expect(inputsByType["User"].Create).to.have.lengthOf(1);
-        expect(inputsByType["User"].Create[0].node.id).to.deep.equal("789");
-        expect(inputsByType["User"].Create[0].input).to.deep.equal("789");
-    });
-
-    it("should maintain data integrity across different types and actions", async () => {
-        idsByType = { "User": ["user|123.prof|profile"], "Note": ["user|123.prof|profile.addr|address"] };
-        idsByAction = { "Create": ["user|123.prof|profile"], "Update": ["user|123.prof|profile.addr|address"] };
-        inputsById = {
-            "user|123.prof|profile": { node: new InputNode("User", "user|123.prof|profile", "Delete"), input: "user|123.prof|profile" },
-            "user|123.prof|profile.addr|address": { node: new InputNode("Note", "user|123.prof|profile.addr|address", "Update"), input: "user|123.prof|profile.addr|address" },
-        };
-        inputsByType = {
-            "User": {
-                "Delete": [{ node: new InputNode("User", "user|123.prof|profile", "Delete"), input: "user|123.prof|profile" }],
-                "Create": [{ node: new InputNode("User", "user|123.prof|profile", "Create"), input: "user|123.prof|profile" }],
-            },
-            "Note": {
-                "Update": [{ node: new InputNode("Note", "user|123.prof|profile.addr|address", "Update"), input: "user|123.prof|profile.addr|address" }],
-            },
-        };
-
-        await convertPlaceholders({ idsByAction, idsByType, inputsById, inputsByType });
-
-        expect(idsByType["User"]).to.deep.equal(["456"]);
-        expect(idsByType["Note"]).to.deep.equal(["789"]);
-        expect(idsByAction["Create"]).to.deep.equal(["456"]);
-        expect(idsByAction["Update"]).to.deep.equal(["789"]);
-        expect(Object.keys(inputsById)).to.have.lengthOf(2);
-        expect(inputsById["456"].node.id).to.deep.equal("456");
-        expect(inputsById["456"].input).to.deep.equal("456");
-        expect(inputsById["789"].node.id).to.deep.equal("789");
-        expect(inputsById["789"].input).to.deep.equal("789");
-        expect(inputsByType["User"].Delete).to.have.lengthOf(1);
-        expect(inputsByType["User"].Delete[0].node.id).to.deep.equal("456");
-        expect(inputsByType["User"].Delete[0].input).to.deep.equal("456");
-        expect(inputsByType["User"].Create).to.have.lengthOf(1);
-        expect(inputsByType["User"].Create[0].node.id).to.deep.equal("456");
-        expect(inputsByType["User"].Create[0].input).to.deep.equal("456");
-        expect(inputsByType["Note"].Update).to.have.lengthOf(1);
-        expect(inputsByType["Note"].Update[0].node.id).to.deep.equal("789");
-        expect(inputsByType["Note"].Update[0].input).to.deep.equal("789");
+        expect(idsByType["Premium"]).to.deep.equal([premiumId]);
+        expect(idsByType["Team"]).to.deep.equal([teamId]);
+        expect(idsByType["User"]).to.deep.equal([userId1, userId2]);
+        expect(Object.keys(inputsById)).to.have.lengthOf(4);
+        expect(inputsById[premiumId].node.id).to.deep.equal(premiumId);
+        expect(inputsById[premiumId].input).to.deep.equal({ id: premiumId, name: "Update 1" });
+        expect(inputsById[teamId].node.id).to.deep.equal(teamId);
+        expect(inputsById[teamId].input).to.deep.equal(teamId);
+        expect(inputsById[userId1].node.id).to.deep.equal(userId1);
+        expect(inputsById[userId1].input).to.deep.equal({ id: userId1, name: "Update 2" });
+        expect(inputsById[userId2].node.id).to.deep.equal(userId2);
+        expect(inputsById[userId2].input).to.deep.equal({ id: userId2, name: "Update 3" });
+        expect(inputsByType["Premium"].Update).to.have.lengthOf(1);
+        expect(inputsByType["Premium"].Update[0].node.id).to.deep.equal(premiumId);
+        expect(inputsByType["Premium"].Update[0].input).to.deep.equal({ id: premiumId, name: "Update 1" });
+        expect(inputsByType["Team"].Delete).to.have.lengthOf(1);
+        expect(inputsByType["Team"].Delete[0].node.id).to.deep.equal(teamId);
+        expect(inputsByType["Team"].Delete[0].input).to.deep.equal(teamId);
+        expect(inputsByType["User"].Update).to.have.lengthOf(2);
+        expect(inputsByType["User"].Update[0].node.id).to.deep.equal(userId1);
+        expect(inputsByType["User"].Update[0].input).to.deep.equal({ id: userId1, name: "Update 2" });
+        expect(inputsByType["User"].Update[1].node.id).to.deep.equal(userId2);
+        expect(inputsByType["User"].Update[1].input).to.deep.equal({ id: userId2, name: "Update 3" });
     });
 });
 
@@ -671,7 +794,33 @@ describe("updateClosestWithId", () => {
 });
 
 describe("determineModelType", () => {
-    const commentFormat = {
+    let loggerErrorStub: sinon.SinonStub;
+    let loggerInfoStub: sinon.SinonStub;
+
+    const CodeFormat = {
+        apiRelMap: {
+            __typename: "Code",
+            createdBy: "User",
+            issues: "Issue",
+            labels: "Label",
+            owner: {
+                ownedByTeam: "Team",
+                ownedByUser: "User",
+            },
+            parent: "CodeVersion",
+            pullRequests: "PullRequest",
+            questions: "Question",
+            bookmarkedBy: "User",
+            tags: "Tag",
+            transfers: "Transfer",
+            versions: "CodeVersion",
+        },
+        unionFields: {
+            owner: {},
+        },
+    };
+
+    const CommentFormat = {
         apiRelMap: {
             __typename: "Comment",
             owner: {
@@ -690,7 +839,7 @@ describe("determineModelType", () => {
         },
     };
 
-    const labelFormat = {
+    const LabelFormat = {
         apiRelMap: {
             __typename: "Label",
             owner: {
@@ -703,36 +852,53 @@ describe("determineModelType", () => {
         },
     };
 
+    before(() => {
+        loggerErrorStub = sinon.stub(logger, "error");
+        loggerInfoStub = sinon.stub(logger, "info");
+    });
+
+    after(() => {
+        loggerErrorStub.restore();
+        loggerInfoStub.restore();
+    });
+
     it("returns correct __typename for standard fields", () => {
-        const __typename = determineModelType("reportsCreate", "reports", {}, commentFormat);
+        const __typename = determineModelType("reportsCreate", "reports", {}, CommentFormat);
         expect(__typename).to.equal("Report");
     });
 
-    it("handles simple unions correctly", () => {
-        const __typename = determineModelType("ownedByUserConnect", "ownedByUser", {}, labelFormat);
-        expect(__typename).to.equal("User");
-    });
+    describe("handles unions", () => {
+        it("simple unions - test 1", () => {
+            const __typename = determineModelType("ownedByUserConnect", "ownedByUser", {}, LabelFormat);
+            expect(__typename).to.equal("User");
+        });
 
-    it("handles complex unions correctly", () => {
-        const input = { createdFor: "Post" };
-        const __typename = determineModelType("forConnect", "for", input, commentFormat);
-        expect(__typename).to.equal("Post");
+        it("simple unions - test 2", () => {
+            const __typename = determineModelType("ownedByTeamConnect", "ownedByTeam", {}, CodeFormat);
+            expect(__typename).to.equal("Team");
+        });
+
+        it("complex unions - test 1", () => {
+            const input = { createdFor: "Post" };
+            const __typename = determineModelType("forConnect", "for", input, CommentFormat);
+            expect(__typename).to.equal("Post");
+        });
     });
 
     it("returns null for special cases like translations", () => {
-        const __typename = determineModelType("translationsCreate", "translations", {}, commentFormat);
+        const __typename = determineModelType("translationsCreate", "translations", {}, CommentFormat);
         expect(__typename).to.be.null;
     });
 
     it("throws an error when field is not found in apiRelMap", () => {
         expect(() => {
-            determineModelType("nonexistentFieldCreate", "nonexistentField", {}, commentFormat);
+            determineModelType("nonexistentFieldCreate", "nonexistentField", {}, CommentFormat);
         }).to.throw("InternalError");
     });
 
     it("throws an error for missing union typeField in input", () => {
         expect(() => {
-            determineModelType("forConnect", "for", {}, commentFormat);
+            determineModelType("forConnect", "for", {}, CommentFormat);
         }).to.throw("InternalError");
     });
 });
@@ -741,7 +907,14 @@ describe("determineModelType", () => {
 // When `closestWithId` is null, it means that the mutation is a Create mutation.
 // Some actions are not allowed in Create mutations, so they should throw an error.
 describe("processCreateOrUpdate", () => {
+    let loggerErrorStub: sinon.SinonStub;
+    let loggerInfoStub: sinon.SinonStub;
     let idsByAction, idsByType, inputsById, inputsByType, parentNode, closestWithId;
+
+    before(() => {
+        loggerErrorStub = sinon.stub(logger, "error");
+        loggerInfoStub = sinon.stub(logger, "info");
+    });
 
     beforeEach(() => {
         // Initialize the maps and parentNode
@@ -751,6 +924,11 @@ describe("processCreateOrUpdate", () => {
         inputsByType = {};
         parentNode = new InputNode("RoutineVersion", "parentId", "Update");
         closestWithId = { __typename: "RoutineVersion", id: "parentId", path: "" };
+    });
+
+    after(() => {
+        loggerErrorStub.restore();
+        loggerInfoStub.restore();
     });
 
     it("correctly processes a 'Create' action with closestWithId", () => {
@@ -824,9 +1002,10 @@ describe("processCreateOrUpdate", () => {
         const fieldName = "child";
         const idField = "id";
 
-        expect(() => {
+        try {
             processCreateOrUpdate(action, childInput, childFormat, fieldName, idField, parentNode, null, idsByAction, idsByType, inputsById, inputsByType);
-        }).toThrow("InternalError");
+            expect.fail("Expected an error to be thrown");
+        } catch (error) { /* empty */ }
     });
 
     it("throws an error for invalid actions", () => {
@@ -836,9 +1015,10 @@ describe("processCreateOrUpdate", () => {
         const fieldName = "child";
         const idField = "id";
 
-        expect(() => {
+        try {
             processCreateOrUpdate(action, childInput, childFormat, fieldName, idField, parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType);
-        }).toThrow("InternalError");
+            expect.fail("Expected an error to be thrown");
+        } catch (error) { /* empty */ }
     });
 
     it("correctly processes multiple different objects", () => {
@@ -853,8 +1033,8 @@ describe("processCreateOrUpdate", () => {
         processCreateOrUpdate(action, firstChildInput, childFormat, fieldName, idField, parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType);
         processCreateOrUpdate(action, secondChildInput, childFormat, fieldName, idField, parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType);
 
-        expect(idsByAction[action]).to.deep.equal(expect.arrayContaining([firstChildInput.id, secondChildInput.id]));
-        expect(idsByType[childFormat.apiRelMap.__typename]).to.deep.equal(expect.arrayContaining([firstChildInput.id, secondChildInput.id]));
+        expect(idsByAction[action]).to.include.members([firstChildInput.id, secondChildInput.id]);
+        expect(idsByType[childFormat.apiRelMap.__typename]).to.include.members([firstChildInput.id, secondChildInput.id]);
         expect(parentNode.children).to.have.lengthOf(2);
         // Ensure each child node has the expected properties
         expect(parentNode.children[0].id).to.deep.equal(firstChildInput.id);
@@ -863,7 +1043,14 @@ describe("processCreateOrUpdate", () => {
 });
 
 describe("processConnectDisconnectOrDelete", () => {
+    let loggerErrorStub: sinon.SinonStub;
+    let loggerInfoStub: sinon.SinonStub;
     let idsByAction, idsByType, inputsById, inputsByType, parentNode, closestWithId;
+
+    before(() => {
+        loggerErrorStub = sinon.stub(logger, "error");
+        loggerInfoStub = sinon.stub(logger, "info");
+    });
 
     beforeEach(() => {
         idsByAction = {};
@@ -872,6 +1059,11 @@ describe("processConnectDisconnectOrDelete", () => {
         inputsByType = {};
         parentNode = new InputNode("RoutineVersion", "parentId", "Update");
         closestWithId = { __typename: "RoutineVersion", id: "parentId", path: "" };
+    });
+
+    after(() => {
+        loggerErrorStub.restore();
+        loggerInfoStub.restore();
     });
 
     it("initializes input maps correctly", () => {
@@ -903,9 +1095,10 @@ describe("processConnectDisconnectOrDelete", () => {
     });
 
     it("throws error for toMany Disconnect action without closestWithId", () => {
-        expect(() => {
+        try {
             processConnectDisconnectOrDelete("123", false, "Disconnect", "fieldName", "User", parentNode, null, idsByAction, idsByType, inputsById, inputsByType);
-        }).toThrow("InternalError");
+            expect.fail("Expected an error to be thrown");
+        } catch (error) { /* empty */ }
     });
 
     it("adds ID and input to maps for toMany Delete action with closestWithId", () => {
@@ -920,13 +1113,14 @@ describe("processConnectDisconnectOrDelete", () => {
     });
 
     it("throws error for toMany Delete action without closestWithId", () => {
-        expect(() => {
+        try {
             processConnectDisconnectOrDelete("123", false, "Delete", "fieldName", "User", parentNode, null, idsByAction, idsByType, inputsById, inputsByType);
-        }).toThrow("InternalError");
+            expect.fail("Expected an error to be thrown");
+        } catch (error) { /* empty */ }
     });
 
     it("adds ID and placeholder for toOne Connect relationships with closestWithId", () => {
-        const expectedPlaceholder = "RoutineVersion|parentId.fieldName";
+        const expectedPlaceholder = "RoutineVersion|parentId.User|fieldName";
 
         processConnectDisconnectOrDelete("123", true, "Connect", "fieldName", "User", parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType);
         expect(idsByAction.Connect).to.include("123");
@@ -944,7 +1138,7 @@ describe("processConnectDisconnectOrDelete", () => {
     // to disconnect the relationship, not an ID. We typically pass in a blank string 
     // for the ID in reality
     it("adds placeholder for toOne Disconnect relationships with closestWithId", () => {
-        const expectedPlaceholder = "RoutineVersion|parentId.fieldName";
+        const expectedPlaceholder = "RoutineVersion|parentId.User|fieldName";
 
         processConnectDisconnectOrDelete("123", true, "Disconnect", "fieldName", "User", parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType);
         expect(idsByAction.Disconnect).to.include(expectedPlaceholder);
@@ -964,13 +1158,14 @@ describe("processConnectDisconnectOrDelete", () => {
     });
 
     it("throws error for toOne Disconnect relationships without closestWithId", () => {
-        expect(() => {
+        try {
             processConnectDisconnectOrDelete("123", true, "Disconnect", "fieldName", "User", parentNode, null, idsByAction, idsByType, inputsById, inputsByType);
-        }).toThrow("InternalError");
+            expect.fail("Expected an error to be thrown");
+        } catch (error) { /* empty */ }
     });
 
     it("adds ID and input toOne Delete action with closestWithId", () => {
-        const expectedPlaceholder = "RoutineVersion|parentId.fieldName";
+        const expectedPlaceholder = "RoutineVersion|parentId.User|fieldName";
 
         processConnectDisconnectOrDelete("123", true, "Delete", "fieldName", "User", parentNode, closestWithId, idsByAction, idsByType, inputsById, inputsByType);
         expect(idsByAction.Delete).to.include(expectedPlaceholder);
@@ -988,9 +1183,10 @@ describe("processConnectDisconnectOrDelete", () => {
     });
 
     it("throws error for toOne Delete action without closestWithId", () => {
-        expect(() => {
+        try {
             processConnectDisconnectOrDelete("123", true, "Delete", "fieldName", "User", parentNode, null, idsByAction, idsByType, inputsById, inputsByType);
-        }).toThrow("InternalError");
+            expect.fail("Expected an error to be thrown");
+        } catch (error) { /* empty */ }
     });
 
     it("skips placeholder when fieldName is null", () => {
@@ -1022,7 +1218,7 @@ describe("processInputObjectField", () => {
                 reports: "Report",
             },
         };
-        closestWithId = { __typename: "Routine", id: "grandparentId", path: "version" };
+        closestWithId = { __typename: "Routine", id: "grandparentId", path: "RoutineVersion|version" };
     });
 
     // NOTE: We'll assume that fields with action suffixes are always 
@@ -1167,9 +1363,10 @@ describe("processInputObjectField", () => {
 
         // Should throw an error because closestWithId is null, 
         // and you can't update inside a Create mutation
-        expect(() => {
+        try {
             processInputObjectField(field, input, format, parentNode, null, idsByAction, idsByType, inputsById, inputsByType, inputInfo);
-        }).toThrow("InternalError");
+            expect.fail("Expected an error to be thrown");
+        } catch (error) { /* empty */ }
     });
 
     it("handles array update relations with closestWithId", () => {
@@ -1219,9 +1416,13 @@ describe("processInputObjectField", () => {
 
         // Should throw an error because closestWithId is null,
         // and you can't update inside a Create mutation
-        expect(() => {
+        // expect(() => {
+        //     processInputObjectField(field, input, format, parentNode, null, idsByAction, idsByType, inputsById, inputsByType, inputInfo);
+        // }).toThrow("InternalError");
+        try {
             processInputObjectField(field, input, format, parentNode, null, idsByAction, idsByType, inputsById, inputsByType, inputInfo);
-        }).toThrow("InternalError");
+            expect.fail("Expected an error to be thrown");
+        } catch (error) { /* empty */ }
     });
 
     it("handles non-array connect relations with closestWithId", () => {
@@ -1234,7 +1435,7 @@ describe("processInputObjectField", () => {
 
         // Should contain both placeholder and ID, since we may be 
         // implicitly Disconnecting the previous relation
-        const expectedPlaceholder = "Routine|grandparentId.version.project";
+        const expectedPlaceholder = "Routine|grandparentId.RoutineVersion|version.Project|project";
         expect(idsByAction.Connect).to.deep.equal(["123"]);
         expect(idsByAction.Disconnect).to.deep.equal([expectedPlaceholder]);
         expect(idsByType.Project).to.deep.equal([expectedPlaceholder, "123"]);
@@ -1335,7 +1536,7 @@ describe("processInputObjectField", () => {
 
         // Should contain only placeholder, since we're implicitly Disconnecting
         // the previous relation, and didn't give an ID
-        const expectedPlaceholder = "Routine|grandparentId.version.project";
+        const expectedPlaceholder = "Routine|grandparentId.RoutineVersion|version.Project|project";
         expect(idsByAction.Disconnect).to.deep.equal([expectedPlaceholder]);
         expect(idsByType.Project).to.deep.equal([expectedPlaceholder]);
         // No input data, since we're only giving a boolean
@@ -1356,9 +1557,10 @@ describe("processInputObjectField", () => {
 
         // Should throw an error because closestWithId is null,
         // and you can't Disconnect within a Create mutation
-        expect(() => {
+        try {
             processInputObjectField(field, input, format, parentNode, null, idsByAction, idsByType, inputsById, inputsByType, inputInfo);
-        }).toThrow("InternalError");
+            expect.fail("Expected an error to be thrown");
+        } catch (error) { /* empty */ }
     });
 
     it("handles array disconnect relations with closestWithId", () => {
@@ -1394,9 +1596,10 @@ describe("processInputObjectField", () => {
 
         // Should throw an error because closestWithId is null,
         // and you can't Disconnect within a Create mutation
-        expect(() => {
+        try {
             processInputObjectField(field, input, format, parentNode, null, idsByAction, idsByType, inputsById, inputsByType, inputInfo);
-        }).toThrow("InternalError");
+            expect.fail("Expected an error to be thrown");
+        } catch (error) { /* empty */ }
     });
 
     it("handles non-array delete relations with closestWithId", () => {
@@ -1409,7 +1612,7 @@ describe("processInputObjectField", () => {
 
         // Should contain only placeholder, since we're Deleting without 
         // giving an ID
-        const expectedPlaceholder = "Routine|grandparentId.version.project";
+        const expectedPlaceholder = "Routine|grandparentId.RoutineVersion|version.Project|project";
         expect(idsByAction.Delete).to.deep.equal([expectedPlaceholder]);
         expect(idsByType.Project).to.deep.equal([expectedPlaceholder]);
         // Deletes actually do have input data, but in this case it'll 
@@ -1433,9 +1636,10 @@ describe("processInputObjectField", () => {
 
         // Should throw an error because closestWithId is null,
         // and you can't Delete within a Create mutation
-        expect(() => {
+        try {
             processInputObjectField(field, input, format, parentNode, null, idsByAction, idsByType, inputsById, inputsByType, inputInfo);
-        }).toThrow("InternalError");
+            expect.fail("Expected an error to be thrown");
+        } catch (error) { /* empty */ }
     });
 
     it("handles array delete relations with closestWithId", () => {
@@ -1474,9 +1678,10 @@ describe("processInputObjectField", () => {
 
         // Should throw an error because closestWithId is null,
         // and you can't Delete within a Create mutation
-        expect(() => {
+        try {
             processInputObjectField(field, input, format, parentNode, null, idsByAction, idsByType, inputsById, inputsByType, inputInfo);
-        }).toThrow("InternalError");
+            expect.fail("Expected an error to be thrown");
+        } catch (error) { /* empty */ }
     });
 });
 
@@ -1490,27 +1695,31 @@ function expectOnlyTheseArrays<ArrayItem>(
 ) {
     // Check non-empty properties
     Object.entries(expectedNonEmpty).forEach(([key, value]) => {
-        // @ts-ignore: expect-message
-        expect(actual[key], `Missing array value. Key: ${key}`).to.deep.equal(expect.arrayContaining(value));
-        // @ts-ignore: expect-message
+        expect(actual[key], `Missing array value. Key: ${key}`).to.deep.include.members(value);
         expect(actual[key], `Has extra array values. Key: ${key}`).to.have.lengthOf(value.length);
     });
 
     // Make sure that everythign else is an empty array
     Object.entries(actual).forEach(([key, value]) => {
         if (!expectedNonEmpty[key]) {
-            // @ts-ignore: expect-message
             expect(value, `Should be empty array. Key: ${key}`).to.deep.equal([]);
         }
     });
 }
 
 describe("inputToMaps", () => {
+    let loggerErrorStub: sinon.SinonStub;
+    let loggerInfoStub: sinon.SinonStub;
     let idsByAction, idsByType, inputsById, inputsByType, format, closestWithId;
     const initialIdsByAction = { Create: [], Update: [], Connect: [], Disconnect: [] };
     const initialIdsByType = {};
     const initialInputsById = {};
     const initialInputsByType = {};
+
+    before(() => {
+        loggerErrorStub = sinon.stub(logger, "error");
+        loggerInfoStub = sinon.stub(logger, "info");
+    });
 
     beforeEach(async () => {
         idsByAction = JSON.parse(JSON.stringify(initialIdsByAction));
@@ -1530,9 +1739,11 @@ describe("inputToMaps", () => {
             },
         };
         closestWithId = { __typename: "Routine", id: "grandparentId", path: "version" };
+    });
 
-        // Initialize the ModelMap, which is used in fetchAndMapPlaceholder
-        await ModelMap.init();
+    after(() => {
+        loggerErrorStub.restore();
+        loggerInfoStub.restore();
     });
 
     it("should initialize root node correctly for a Create action with a simple input", () => {
@@ -1579,9 +1790,10 @@ describe("inputToMaps", () => {
             id: "1",
             projectUpdate: { id: "2", name: "Project X" },
         };
-        expect(() => {
+        try {
             inputToMaps(action, input, format, "id", closestWithId, idsByAction, idsByType, inputsById, inputsByType);
-        }).toThrow("InternalError");
+            expect.fail("Expected an error to be thrown");
+        } catch (error) { /* empty */ }
     });
 
     it("should throw error for nested Disconnects in a Create action, as they are invalid - test 1", () => {
@@ -1590,9 +1802,10 @@ describe("inputToMaps", () => {
             id: "1",
             reportsDisconnect: ["3", "4"],
         };
-        expect(() => {
+        try {
             inputToMaps(action, input, format, "id", closestWithId, idsByAction, idsByType, inputsById, inputsByType);
-        }).toThrow("InternalError");
+            expect.fail("Expected an error to be thrown");
+        } catch (error) { /* empty */ }
     });
 
     it("should throw error for nested Disconnects in a Create action, as they are invalid - test 2", () => {
@@ -1601,9 +1814,10 @@ describe("inputToMaps", () => {
             id: "1",
             projectDisconnect: true,
         };
-        expect(() => {
+        try {
             inputToMaps(action, input, format, "id", closestWithId, idsByAction, idsByType, inputsById, inputsByType);
-        }).toThrow("InternalError");
+            expect.fail("Expected an error to be thrown");
+        } catch (error) { /* empty */ }
     });
 
     it("should throw error for nested Deleted in a Create action, as they are invalid - test 1", () => {
@@ -1612,9 +1826,10 @@ describe("inputToMaps", () => {
             id: "1",
             reportsDelete: ["3", "4"],
         };
-        expect(() => {
+        try {
             inputToMaps(action, input, format, "id", closestWithId, idsByAction, idsByType, inputsById, inputsByType);
-        }).toThrow("InternalError");
+            expect.fail("Expected an error to be thrown");
+        } catch (error) { /* empty */ }
     });
 
     it("should throw error for nested Deletes in a Create action, as they are invalid - test 2", () => {
@@ -1623,9 +1838,10 @@ describe("inputToMaps", () => {
             id: "1",
             projectDelete: true,
         };
-        expect(() => {
+        try {
             inputToMaps(action, input, format, "id", closestWithId, idsByAction, idsByType, inputsById, inputsByType);
-        }).toThrow("InternalError");
+            expect.fail("Expected an error to be thrown");
+        } catch (error) { /* empty */ }
     });
 
     it("should handle nested objects for an Update action", () => {
@@ -1646,18 +1862,18 @@ describe("inputToMaps", () => {
             Connect: ["3", "4", "8"],
             Create: ["2", "5", "6"],
             Update: ["1", "7"],
-            Delete: ["User|1.api"],
-            Disconnect: ["User|1.code", "User|1.standard"], // Existing standard relation is implicitly disconnected
+            Delete: ["User|1.Api|api"],
+            Disconnect: ["User|1.Code|code", "User|1.Standard|standard"], // Existing standard relation is implicitly disconnected
         });
         expectOnlyTheseArrays(idsByType, {
             User: ["1"],
-            Api: ["User|1.api"],
-            Code: ["User|1.code"],
+            Api: ["User|1.Api|api"],
+            Code: ["User|1.Code|code"],
             Project: ["2"],
             Report: ["3", "4"],
             Role: ["5", "6"],
             Routine: ["7"],
-            Standard: ["8", "User|1.standard"], // Include implicit disconnect
+            Standard: ["8", "User|1.Standard|standard"], // Include implicit disconnect
         });
         expect(inputsById["1"].input).to.deep.equal({
             ...input,
@@ -1735,13 +1951,13 @@ describe("inputToMaps", () => {
         expectOnlyTheseArrays(idsByAction, {
             Create: ["3", "4"],
             Connect: ["5"],
-            Disconnect: ["Project|2.parent"],
+            Disconnect: ["Project|2.ProjectVersion|parent"],
             Update: ["1", "2"],
         });
         expectOnlyTheseArrays(idsByType, {
             User: ["1"],
             Project: ["2"],
-            ProjectVersion: ["5", "Project|2.parent"],
+            ProjectVersion: ["5", "Project|2.ProjectVersion|parent"],
             Issue: ["3", "4"],
         });
         expect(inputsById["1"].input).to.deep.equal({

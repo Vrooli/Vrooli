@@ -64,7 +64,7 @@ export async function fetchAndMapPlaceholder(
         return;
     }
 
-    const { dbTable } = ModelMap.getLogic(["dbTable"], pascalCase(objectType) as ModelType, true, "fetchAndMapPlaceholder 1");
+    const { dbTable, format } = ModelMap.getLogic(["dbTable", "format"], pascalCase(objectType) as ModelType, true, "fetchAndMapPlaceholder 1");
 
     // Construct the select object to query nested relations
     const select: Record<string, any> = {};
@@ -95,7 +95,9 @@ export async function fetchAndMapPlaceholder(
     }
 
     const resultId = currentObject && currentObject.id ? currentObject.id : null;
-    placeholderToIdMap[placeholder] = resultId;
+    if (resultId) {
+        placeholderToIdMap[placeholder] = resultId;
+    }
 }
 
 /**
@@ -144,7 +146,7 @@ export async function replacePlaceholdersInInputsById(
             await fetchAndMapPlaceholder(maybePlaceholder, placeholderToIdMap);
             id = placeholderToIdMap[maybePlaceholder];
         }
-        if (id === null) {
+        if (id === null || id === undefined) {
             logger.warning("Placeholder ID could not be resolved. This may be a bug, or the object may not exist", { trace: "0167", maybePlaceholder });
             delete inputsById[maybePlaceholder];
             continue;
@@ -186,7 +188,7 @@ export async function replacePlaceholdersInInputsByType(
                     await fetchAndMapPlaceholder(maybePlaceholder, placeholderToIdMap);
                     id = placeholderToIdMap[maybePlaceholder];
                 }
-                if (id === null) {
+                if (id === null || id === undefined) {
                     logger.warning("Placeholder ID could not be resolved. This may be a bug, or the object may not exist", { trace: "0169", maybePlaceholder });
                 }
 
@@ -405,7 +407,7 @@ export function processCreateOrUpdate<
     // Recursively build child nodes for Create and Update actions
     if (action === "Create" || action === "Update") {
         // Disallow Update if we're in a create mutation
-        if (action === "Update" && closestWithId === null) {
+        if (action === "Update" && (closestWithId === null || closestWithId === undefined)) {
             throw new CustomError("0004", "InternalError", { fieldName });
         }
         const childNode = inputToMaps(
@@ -413,7 +415,7 @@ export function processCreateOrUpdate<
             input,
             format,
             idField,
-            closestWithId === null ? null : { ...closestWithId, path: closestWithId.path.length ? `${closestWithId.path}.${fieldName}` : fieldName },
+            (closestWithId === null || closestWithId === undefined) ? null : { ...closestWithId, path: closestWithId.path.length ? `${closestWithId.path}.${fieldName}` : fieldName },
             idsByAction,
             idsByType,
             inputsById,
@@ -447,7 +449,7 @@ export function processConnectDisconnectOrDelete(
     initializeInputMaps(action, __typename, idsByAction, idsByType, inputsByType);
     // Check if closestWithId is null. If so, this means this action takes place within a create mutation, 
     // so we can skip some steps.
-    const isInCreate = closestWithId === null;
+    const isInCreate = (closestWithId === null || closestWithId === undefined);
     // Disallow Disconnect and Delete if we're in a create mutation
     if (["Disconnect", "Delete"].includes(action) && isInCreate) {
         throw new CustomError("0111", "InternalError", { trace: "0124", id });
@@ -456,7 +458,9 @@ export function processConnectDisconnectOrDelete(
     // Placeholders are only used for implicit disconnects/deletes on one-to-one and many-to-one relations.
     // This is because we may be kicking-out an existing object without knowing its ID, and we need to query the database to find it.
     if (!isInCreate && isToOne && fieldName) {
-        const placeholder = `${closestWithId.__typename}|${closestWithId.id}.${closestWithId.path.length ? `${closestWithId.path}.${fieldName}` : fieldName}`;
+        const newSegment = `${__typename}|${fieldName}`;
+        const placeholder = `${closestWithId.__typename}|${closestWithId.id}.${closestWithId.path.length ? `${closestWithId.path}.${newSegment}` : newSegment}`;
+        // const placeholder = `${closestWithId.__typename}|${closestWithId.id}.${closestWithId.path.length ? `${closestWithId.path}.${fieldName}` : fieldName}`;
         let placeholderAction: "Disconnect" | "Delete" | null = null;
         // Connect and Disconnect may be implicitly DISCONNECTING the previous relation
         if (["Connect", "Disconnect"].includes(action)) {
