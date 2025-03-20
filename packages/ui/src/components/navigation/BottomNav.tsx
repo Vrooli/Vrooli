@@ -1,11 +1,11 @@
 import { BottomNavigation, useTheme } from "@mui/material";
 import { useContext, useMemo } from "react";
-import { SessionContext } from "../../../contexts.js";
-import { useKeyboardOpen } from "../../../hooks/useKeyboardOpen.js";
-import { useLocation } from "../../../route/router.js";
-import { bottomNavHeight } from "../../../styles.js";
-import { Z_INDEX } from "../../../utils/consts.js";
-import { actionsToBottomNav, getUserActions } from "../../../utils/navigation/userActions.js";
+import { SessionContext } from "../../contexts.js";
+import { useKeyboardOpen } from "../../hooks/useKeyboardOpen.js";
+import { useLocation } from "../../route/router.js";
+import { bottomNavHeight } from "../../styles.js";
+import { Z_INDEX } from "../../utils/consts.js";
+import { actionsToBottomNav, getUserActions } from "../../utils/navigation/userActions.js";
 
 export function BottomNav() {
     const session = useContext(SessionContext);

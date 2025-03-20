@@ -1,8 +1,8 @@
 import { Stack } from "@mui/material";
 import { useTranslation } from "react-i18next";
-import { pagePaddingBottom } from "../../../styles.js";
-import { TopBar } from "../TopBar/TopBar.js";
-import { SettingsTopBarProps } from "../types.js";
+import { pagePaddingBottom } from "../../styles.js";
+import { TopBar } from "./TopBar.js";
+import { SettingsTopBarProps } from "./types.js";
 
 export function SettingsTopBar({
     display,

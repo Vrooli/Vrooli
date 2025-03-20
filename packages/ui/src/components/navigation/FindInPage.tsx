@@ -1,13 +1,15 @@
 import { Box, Dialog, DialogContent, IconButton, Palette, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
+import { useMenu } from "hooks/useMenu.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useHotkeys } from "../../../hooks/useHotkeys.js";
-import { ArrowDownIcon, ArrowUpIcon, CaseSensitiveIcon, CloseIcon, RegexIcon, WholeWordIcon } from "../../../icons/common.js";
-import { keyComboToString } from "../../../utils/display/device.js";
-import { SEARCH_HIGHLIGHT_CURRENT, highlightText } from "../../../utils/display/documentTools.js";
-import { PubSub } from "../../../utils/pubsub.js";
-import { TextInput } from "../../inputs/TextInput/TextInput.js";
+import { useHotkeys } from "../../hooks/useHotkeys.js";
+import { ArrowDownIcon, ArrowUpIcon, CaseSensitiveIcon, CloseIcon, RegexIcon, WholeWordIcon } from "../../icons/common.js";
+import { ELEMENT_IDS } from "../../utils/consts.js";
+import { keyComboToString } from "../../utils/display/device.js";
+import { SEARCH_HIGHLIGHT_CURRENT, highlightText } from "../../utils/display/documentTools.js";
+import { MenuPayloads } from "../../utils/pubsub.js";
+import { TextInput } from "../inputs/TextInput/TextInput.js";
 
 function commonButtonSx(palette: Palette, isEnabled: boolean) {
     return {
@@ -90,14 +92,6 @@ export function FindInPage() {
         }
     }, [resultIndex, results]);
 
-    const [open, setOpen] = useState(false);
-    const close = useCallback(() => {
-        setOpen(false);
-        setSearchString("");
-        setResults([]);
-        setResultIndex(0);
-    }, []);
-
     const onPrevious = useCallback(() => setResultIndex(o => {
         if (o > 0) return o - 1;
         else return results.length - 1;
@@ -107,16 +101,19 @@ export function FindInPage() {
         else return 0;
     }), [results.length]);
 
-    useEffect(() => {
-        const unsubscribe = PubSub.get().subscribe("findInPage", () => {
-            setOpen(o => {
-                // If turning off, reset search values (but keep case sensitive and other buttons the same)
-                if (o) { close(); }
-                return !o;
-            });
-        });
-        return unsubscribe;
-    }, [close]);
+    const onEvent = useCallback(function onEventCallback({ isOpen }: MenuPayloads[typeof ELEMENT_IDS.FindInPage]) {
+        // If the command palette is closed
+        if (!isOpen) {
+            // Reset search values (but keep case sensitive and other buttons the same)
+            setSearchString("");
+            setResults([]);
+            setResultIndex(0);
+        }
+    }, []);
+    const { isOpen, close } = useMenu({
+        id: ELEMENT_IDS.FindInPage,
+        onEvent,
+    });
 
     useHotkeys([
         { keys: ["c"], altKey: true, callback: onCaseSensitiveChange },
@@ -124,7 +121,7 @@ export function FindInPage() {
         { keys: ["r"], altKey: true, callback: onRegexChange },
         { keys: ["Enter"], shiftKey: true, callback: onPrevious },
         { keys: ["Enter"], callback: onNext },
-    ], open, ref);
+    ], isOpen, ref);
 
     /**
      * Handles dialog close. Ignores backdrop click
@@ -136,7 +133,7 @@ export function FindInPage() {
 
     return (
         <StyledDialog
-            open={open}
+            open={isOpen}
             onClose={onClose}
             ref={ref}
             disableScrollLock={true}

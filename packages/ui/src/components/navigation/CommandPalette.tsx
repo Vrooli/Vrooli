@@ -5,17 +5,17 @@ import { useCallback, useContext, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { listToAutocomplete } from "utils/display/listTools.js";
 import { getUserLanguages } from "utils/display/translationTools.js";
-import { SessionContext } from "../../../contexts.js";
-import { useFindMany } from "../../../hooks/useFindMany.js";
-import { useMenu } from "../../../hooks/useMenu.js";
-import { useLocation } from "../../../route/router.js";
-import { randomString } from "../../../utils/codes.js";
-import { Z_INDEX } from "../../../utils/consts.js";
-import { normalizeText } from "../../../utils/display/documentTools.js";
-import { Actions, getAutocompleteOptionIcon, performAction, shortcuts } from "../../../utils/navigation/quickActions.js";
-import { COMMAND_PALETTE_ID, MenuPayloads } from "../../../utils/pubsub.js";
-import { LargeDialog } from "../../dialogs/LargeDialog/LargeDialog.js";
-import { BasicSearchBar } from "../../inputs/search/SiteSearchBar.js";
+import { SessionContext } from "../../contexts.js";
+import { useFindMany } from "../../hooks/useFindMany.js";
+import { useMenu } from "../../hooks/useMenu.js";
+import { useLocation } from "../../route/router.js";
+import { randomString } from "../../utils/codes.js";
+import { ELEMENT_IDS, Z_INDEX } from "../../utils/consts.js";
+import { normalizeText } from "../../utils/display/documentTools.js";
+import { Actions, getAutocompleteOptionIcon, performAction, shortcuts } from "../../utils/navigation/quickActions.js";
+import { MenuPayloads } from "../../utils/pubsub.js";
+import { LargeDialog } from "../dialogs/LargeDialog/LargeDialog.js";
+import { BasicSearchBar } from "../inputs/search/SiteSearchBar.js";
 
 const titleId = "command-palette-dialog-title";
 const scrollContainerId = "command-palette-search";
@@ -112,7 +112,7 @@ export function CommandPalette() {
     }, [findManyData]);
 
     const hasResetData = useRef(false);
-    const onEvent = useCallback(function onEventCallback({ isOpen }: MenuPayloads[typeof COMMAND_PALETTE_ID]) {
+    const onEvent = useCallback(function onEventCallback({ isOpen }: MenuPayloads[typeof ELEMENT_IDS.CommandPalette]) {
         // If the command palette is opened
         if (isOpen) {
             // Focus the search bar
@@ -137,7 +137,7 @@ export function CommandPalette() {
         }
     }, [findManyData]);
     const { isOpen, close } = useMenu({
-        id: COMMAND_PALETTE_ID,
+        id: ELEMENT_IDS.CommandPalette,
         onEvent,
     });
 

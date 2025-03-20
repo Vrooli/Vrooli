@@ -5,10 +5,10 @@ export interface HideOnScrollProps {
     forceVisible?: boolean;
 }
 
-export const HideOnScroll = ({
+export function HideOnScroll({
     children,
     forceVisible = false,
-}: HideOnScrollProps) => {
+}: HideOnScrollProps) {
     const trigger = useScrollTrigger();
     const shouldDisplay = forceVisible ? true : !trigger;
 
@@ -17,4 +17,4 @@ export const HideOnScroll = ({
             {children}
         </Slide>
     );
-};
+}

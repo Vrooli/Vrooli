@@ -2,13 +2,13 @@ import { LINKS, SOCIALS } from "@local/shared";
 import { BottomNavigation, BottomNavigationAction, Box, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { ArticleIcon, GitHubIcon, InfoIcon, StatsIcon, XIcon } from "../../../icons/common.js";
-import { openLink } from "../../../route/openLink.js";
-import { useLocation } from "../../../route/router.js";
-import { noSelect } from "../../../styles.js";
-import { SvgComponent } from "../../../types.js";
-import { CopyrightBreadcrumbs } from "../../breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs.js";
-import { ContactInfoProps } from "../types.js";
+import { ArticleIcon, GitHubIcon, InfoIcon, StatsIcon, XIcon } from "../../icons/common.js";
+import { openLink } from "../../route/openLink.js";
+import { useLocation } from "../../route/router.js";
+import { noSelect } from "../../styles.js";
+import { SvgComponent } from "../../types.js";
+import { CopyrightBreadcrumbs } from "../breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs.js";
+import { ContactInfoProps } from "./types.js";
 
 type NavActionListData = [string, string, string, SvgComponent]
 
@@ -35,10 +35,10 @@ export function ContactInfo({
         };
     }, [t]);
 
-    const handleLink = (e: React.MouseEvent<any>, link: string) => {
+    function handleLink(e: React.MouseEvent<any>, link: string) {
         e.preventDefault();
         openLink(setLocation, link);
-    };
+    }
 
     return (
         <Box sx={{

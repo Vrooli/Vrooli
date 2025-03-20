@@ -1,13 +1,13 @@
 import { LINKS, SOCIALS, TranslationKeyCommon } from "@local/shared";
 import { Box, List, ListItem, ListItemIcon, ListItemText, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { useTranslation } from "react-i18next";
-import { GitHubIcon, InfoIcon, StatsIcon, XIcon } from "../../../icons/common.js";
-import { openLink } from "../../../route/openLink.js";
-import { useLocation } from "../../../route/router.js";
-import { pagePaddingBottom } from "../../../styles.js";
-import { SvgComponent } from "../../../types.js";
-import { getDeviceInfo } from "../../../utils/display/device.js";
-import { CopyrightBreadcrumbs } from "../../breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs.js";
+import { GitHubIcon, InfoIcon, StatsIcon, XIcon } from "../../icons/common.js";
+import { openLink } from "../../route/openLink.js";
+import { useLocation } from "../../route/router.js";
+import { pagePaddingBottom } from "../../styles.js";
+import { SvgComponent } from "../../types.js";
+import { getDeviceInfo } from "../../utils/display/device.js";
+import { CopyrightBreadcrumbs } from "../breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs.js";
 
 /** aria-label, tooltip, link, displayed text, icon */
 const contactLinks: [string, TranslationKeyCommon, string, TranslationKeyCommon, SvgComponent][] = [
