@@ -46,12 +46,12 @@ type SimpleStoragePayloads = {
     IsLeftHanded: boolean,
     Language: string,
     LastTab: string | null,
+    MenuState: boolean,
     Preferences: CookiePreferences,
     RichInputToolbarViewSize: RichInputToolbarViewSize,
     RunLoaderCache: RunLoaderCache,
     ShowBotWarning: boolean,
     ShowMarkdown: boolean,
-    SideMenuState: boolean,
     SingleStepRoutineOrder: string[],
     Theme: ThemeType,
 }
@@ -128,6 +128,11 @@ export const cookies: { [T in SimpleStorageType]: SimpleStorageInfo<T> } = {
         check: (value) => typeof value === "string" && value !== "",
         fallback: null,
     },
+    MenuState: {
+        __type: "strictlyNecessary",
+        check: (value) => typeof value === "boolean",
+        fallback: false,
+    },
     Preferences: {
         __type: "strictlyNecessary",
         check: (value) => typeof value === "object",
@@ -163,11 +168,6 @@ export const cookies: { [T in SimpleStorageType]: SimpleStorageInfo<T> } = {
     },
     ShowMarkdown: {
         __type: "functional",
-        check: (value) => typeof value === "boolean",
-        fallback: false,
-    },
-    SideMenuState: {
-        __type: "strictlyNecessary",
         check: (value) => typeof value === "boolean",
         fallback: false,
     },

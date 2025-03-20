@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { CloseIcon } from "../../../icons/common.js";
 import { useLocation } from "../../../route/router.js";
 import { ELEMENT_IDS } from "../../../utils/consts.js";
+import { PricingTierType } from "../../../views/ProView/ProView.js";
 import { BreadcrumbsBase } from "../../breadcrumbs/BreadcrumbsBase/BreadcrumbsBase.js";
 
 type TriangleProps = {
@@ -222,11 +223,11 @@ export function ProDialog({ isOpen, onClose }: ProDialogProps) {
     ] as const;
 
     const openUpgrade = useCallback(function openUpgradeCallback() {
-        setLocation(`${LINKS.Pro}#${ELEMENT_IDS.ProViewSubscribeBox}`);
+        setLocation(`${LINKS.Pro}#${PricingTierType.Pro}-tier`);
         onClose();
     }, [onClose, setLocation]);
     const openBuyCredits = useCallback(function openBuyCreditsCallback() {
-        setLocation(`${LINKS.Pro}#${ELEMENT_IDS.ProViewBuyCreditsBox}`);
+        setLocation(`${LINKS.Pro}#${PricingTierType.Credits}-tier`);
         onClose();
     }, [onClose, setLocation]);
 

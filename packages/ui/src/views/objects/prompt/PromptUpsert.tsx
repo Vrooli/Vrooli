@@ -17,7 +17,7 @@ import { TranslatedTextInput } from "../../../components/inputs/TextInput/TextIn
 import { VersionInput } from "../../../components/inputs/VersionInput/VersionInput.js";
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
 import { ResourceListInput } from "../../../components/lists/ResourceList/ResourceList.js";
-import { TopBar } from "../../../components/navigation/TopBar/TopBar.js";
+import { TopBar } from "../../../components/navigation/TopBar.js";
 import { SessionContext } from "../../../contexts.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { FormView } from "../../../forms/FormView/FormView.js";

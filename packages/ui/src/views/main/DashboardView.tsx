@@ -9,7 +9,7 @@ import { FocusModeInfo, useFocusModesStore } from "components/inputs/FocusModeSe
 import { ObjectList } from "components/lists/ObjectList/ObjectList.js";
 import { ResourceList } from "components/lists/ResourceList/ResourceList.js";
 import { ObjectListActions } from "components/lists/types.js";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { TopBar } from "components/navigation/TopBar.js";
 import { PageTabs } from "components/PageTabs/PageTabs.js";
 import { useMessageActions, useMessageInput, useMessageTree } from "hooks/messages.js";
 import { useChatTasks } from "hooks/tasks.js";

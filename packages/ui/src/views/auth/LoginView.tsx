@@ -15,7 +15,7 @@ import XIcon from "../../assets/img/x.svg";
 import { BreadcrumbsBase } from "../../components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase.js";
 import { PasswordTextInput } from "../../components/inputs/PasswordTextInput/PasswordTextInput.js";
 import { TextInput } from "../../components/inputs/TextInput/TextInput.js";
-import { TopBar } from "../../components/navigation/TopBar/TopBar.js";
+import { TopBar } from "../../components/navigation/TopBar.js";
 import { SessionContext } from "../../contexts.js";
 import { InnerForm } from "../../forms/BaseForm/BaseForm.js";
 import { formPaper, formSubmit } from "../../forms/styles.js";

@@ -1,5 +1,5 @@
 import { endpointsRunProject, RunProject } from "@local/shared";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { TopBar } from "components/navigation/TopBar.js";
 import { useObjectActions } from "hooks/objectActions.js";
 import { useManagedObject } from "hooks/useManagedObject.js";
 import { useMemo } from "react";

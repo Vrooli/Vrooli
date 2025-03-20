@@ -2,7 +2,7 @@ import { Box, Button, Checkbox, Divider, FormControlLabel, FormHelperText, Grid 
 import { Field, Formik, useField } from "formik";
 import { useTranslation } from "react-i18next";
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
-import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar/SettingsTopBar.js";
+import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar.js";
 import { MarkdownDisplay } from "../../components/text/MarkdownDisplay.js";
 import { Title } from "../../components/text/Title.js";
 import { BaseForm } from "../../forms/BaseForm/BaseForm.js";

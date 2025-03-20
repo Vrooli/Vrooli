@@ -10,8 +10,8 @@ import Blob1 from "../../assets/img/blob1.svg";
 import Blob2 from "../../assets/img/blob2.svg";
 import { PageContainer } from "../../components/Page/Page.js";
 import { BreadcrumbsBase } from "../../components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase.js";
-import { Footer } from "../../components/navigation/Footer/Footer.js";
-import { TopBar } from "../../components/navigation/TopBar/TopBar.js";
+import { Footer } from "../../components/navigation/Footer.js";
+import { TopBar } from "../../components/navigation/TopBar.js";
 import { SnackSeverity } from "../../components/snacks/BasicSnack/BasicSnack.js";
 import { SessionContext } from "../../contexts.js";
 import { useStripe } from "../../hooks/useStripe.js";
@@ -23,7 +23,8 @@ import { ScrollBox, SlideIconButton } from "../../styles.js";
 import { SvgComponent } from "../../types.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
-import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID } from "../../utils/pubsub.js";
+import { darkPalette } from "../../utils/display/theme.js";
+import { PubSub } from "../../utils/pubsub.js";
 import { BillingCycle, BillingCycleToggle, CreditDialog, PricingTierType, PricingTiers } from "../ProView/ProView.js";
 import { LandingViewProps } from "./types.js";
 
@@ -815,7 +816,7 @@ const SlideText = styled(Typography)(({ theme }) => ({
     zIndex: 10,
     textWrap: "balance",
     maxWidth: "600px",
-    color: "rgba(255, 255, 255, 0.7)",
+    color: darkPalette.background.textSecondary,
     borderRadius: theme.spacing(1),
     marginBottom: theme.spacing(2),
     textShadow: "0 0 10px rgba(0, 0, 0, 0.5)",
@@ -1003,9 +1004,9 @@ export function LandingView({
     }
 
     // Side menus are not supported in this page due to the way it's styled
-    useMemo(function hideSideMenusMemo() {
-        PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: false });
-        PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen: false });
+    useMemo(function hideMenusMemo() {
+        PubSub.get().publish("menu", { id: ELEMENT_IDS.LeftDrawer, isOpen: false });
+        PubSub.get().publish("menu", { id: ELEMENT_IDS.RightDrawer, isOpen: false });
     }, []);
 
     const breadcrumbPaths = [
@@ -1249,7 +1250,7 @@ export function LandingView({
                                     onTierClick={onTierClick}
                                     prices={prices}
                                 />
-                                <Typography variant="body2" color="rgba(255, 255, 255, 0.7)" sx={{ mt: 2, textAlign: "center", textShadow: "0 0 10px rgba(0, 0, 0, 0.5)" }}>
+                                <Typography variant="body2" color={darkPalette.background.textSecondary} sx={{ mt: 2, textAlign: "center", textShadow: "0 0 10px rgba(0, 0, 0, 0.5)" }}>
                                     Subscriptions can be canceled at any time, hassle-free.
                                 </Typography>
                             </Box>

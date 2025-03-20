@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route/router.js";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { PasswordTextInput } from "../../components/inputs/PasswordTextInput/PasswordTextInput.js";
-import { TopBar } from "../../components/navigation/TopBar/TopBar.js";
+import { TopBar } from "../../components/navigation/TopBar.js";
 import { InnerForm } from "../../forms/BaseForm/BaseForm.js";
 import { formPaper, formSubmit } from "../../forms/styles.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";

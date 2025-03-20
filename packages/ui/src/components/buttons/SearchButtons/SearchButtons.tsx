@@ -14,7 +14,7 @@ import { convertFormikForSearch, convertSearchForFormik } from "../../../utils/s
 import { searchTypeToParams } from "../../../utils/search/objectToSearch.js";
 import { LargeDialog } from "../../dialogs/LargeDialog/LargeDialog.js";
 import { DateRangeMenu } from "../../lists/DateRangeMenu/DateRangeMenu.js";
-import { TopBar } from "../../navigation/TopBar/TopBar.js";
+import { TopBar } from "../../navigation/TopBar.js";
 import { BottomActionsGrid } from "../BottomActionsGrid/BottomActionsGrid.js";
 import { SearchButtonsProps } from "../types.js";
 

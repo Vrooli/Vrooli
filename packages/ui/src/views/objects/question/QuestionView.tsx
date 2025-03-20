@@ -11,7 +11,7 @@ import { SelectLanguageMenu } from "../../../components/dialogs/SelectLanguageMe
 import { ObjectActionsRow } from "../../../components/lists/ObjectActionsRow/ObjectActionsRow.js";
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
 import { TagList } from "../../../components/lists/TagList/TagList.js";
-import { TopBar } from "../../../components/navigation/TopBar/TopBar.js";
+import { TopBar } from "../../../components/navigation/TopBar.js";
 import { DateDisplay } from "../../../components/text/DateDisplay.js";
 import { MarkdownDisplay } from "../../../components/text/MarkdownDisplay.js";
 import { SessionContext } from "../../../contexts.js";

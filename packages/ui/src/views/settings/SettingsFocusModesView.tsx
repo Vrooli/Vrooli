@@ -5,7 +5,7 @@ import { ListContainer } from "components/containers/ListContainer/ListContainer
 import { FocusModeInfo, useFocusModesStore } from "components/inputs/FocusModeSelector/FocusModeSelector.js";
 import { TagSelectorBase } from "components/inputs/TagSelector/TagSelector.js";
 import { SettingsList } from "components/lists/SettingsList/SettingsList.js";
-import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar.js";
+import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar.js";
 import { Title } from "components/text/Title.js";
 import { memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

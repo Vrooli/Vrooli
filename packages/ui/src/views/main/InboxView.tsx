@@ -9,7 +9,7 @@ import { ListContainer } from "../../components/containers/ListContainer/ListCon
 import { ObjectList } from "../../components/lists/ObjectList/ObjectList.js";
 import { SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";
 import { ObjectListActions } from "../../components/lists/types.js";
-import { TopBar } from "../../components/navigation/TopBar/TopBar.js";
+import { TopBar } from "../../components/navigation/TopBar.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
 import { useInfiniteScroll } from "../../hooks/gestures.js";
 import { useBulkObjectActions } from "../../hooks/objectActions.js";

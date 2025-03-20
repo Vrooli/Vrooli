@@ -1,7 +1,7 @@
 import { fromDatetimeLocal, toDatetimeLocal } from "@local/shared";
 import { Box, Button, Grid, Popover } from "@mui/material";
 import { TextInput } from "components/inputs/TextInput/TextInput.js";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { TopBar } from "components/navigation/TopBar.js";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { DateRangeMenuProps } from "../types.js";

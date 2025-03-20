@@ -4,7 +4,7 @@ import { useSubmitHelper } from "api/fetchWrapper.js";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
 import { ListContainer } from "components/containers/ListContainer/ListContainer.js";
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { TopBar } from "components/navigation/TopBar.js";
 import { Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "hooks/forms.js";

@@ -1,4 +1,4 @@
-import { ActionOption, endpointsUser, HistoryPageTabOption, LINKS, ProfileUpdateInput, SearchPageTabOption, Session, User } from "@local/shared";
+import { ActionOption, endpointsUser, HistoryPageTabOption, LINKS, PreActionOption, ProfileUpdateInput, SearchPageTabOption, Session, User } from "@local/shared";
 import { fetchWrapper } from "../../api/fetchWrapper.js";
 import { ActionIcon, ApiIcon, BookmarkFilledIcon, HelpIcon, NoteIcon, PlayIcon, ProjectIcon, RoutineIcon, ShortcutIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon, VisibleIcon } from "../../icons/common.js";
 import { SvgComponent } from "../../types.js";
@@ -218,24 +218,24 @@ export const shortcuts: PreSearchItem[] = [
  * Action shortcuts that can appear in the main search bar or command palette. 
  * Instead of taking you to a page, they perform an action (e.g. clear search history).
  */
-export const Actions: { [x: string]: ActionOption } = {
+export const Actions: { [x: string]: PreActionOption } = {
     clearSearchHistory: {
         __typename: "Action",
-        label: "Clear search history",
+        label: "ClearSearchHistory",
         id: "clear-search-history",
         canPerform: () => true,
         keywords: ["Clear", "Delete", "Remove", "Erase"] as const,
     },
     activateDarkMode: {
         __typename: "Action",
-        label: "Activate dark mode",
+        label: "ActivateDarkMode",
         id: "activate-dark-mode",
         canPerform: (session: Session) => getCurrentUser(session).theme !== "dark",
         keywords: ["Dark", "Black", "Theme"] as const,
     },
     activateLightMode: {
         __typename: "Action",
-        label: "Activate light mode",
+        label: "ActivateLightMode",
         id: "activate-light-mode",
         canPerform: (session: Session) => getCurrentUser(session).theme !== "light",
         keywords: ["Light", "White", "Theme"] as const,
@@ -249,13 +249,13 @@ export const Actions: { [x: string]: ActionOption } = {
     },
 };
 
-export const actionsItems: ActionOption[] = Object.values(Actions);
+export const actionsItems: PreActionOption[] = Object.values(Actions);
 
 /**
  * Maps action ids to their corresponding action. 
  * Actions cannot be stored in the options themselves because localStorage cannot store functions.
  */
-export async function performAction(option: ActionOption, session: Session | null | undefined): Promise<void> {
+export async function performAction(option: PreActionOption | ActionOption, session: Session | null | undefined): Promise<void> {
     switch (option.id) {
         case "clear-search-history":
             session && SearchHistory.clearSearchHistory(session);
@@ -286,7 +286,7 @@ export async function performAction(option: ActionOption, session: Session | nul
             break;
         case "tutorial":
             if (session?.isLoggedIn) {
-                PubSub.get().publish("tutorial");
+                PubSub.get().publish("menu", { id: ELEMENT_IDS.Tutorial, isOpen: true });
             } else {
                 PubSub.get().publish("snack", { messageKey: "NotLoggedIn", severity: "Error" });
             }

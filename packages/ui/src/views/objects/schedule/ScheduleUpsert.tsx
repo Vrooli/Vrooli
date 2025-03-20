@@ -12,7 +12,7 @@ import { IntegerInput } from "../../../components/inputs/IntegerInput/IntegerInp
 import { Selector, SelectorBase } from "../../../components/inputs/Selector/Selector.js";
 import { TextInput } from "../../../components/inputs/TextInput/TextInput.js";
 import { TimezoneSelector } from "../../../components/inputs/TimezoneSelector/TimezoneSelector.js";
-import { TopBar } from "../../../components/navigation/TopBar/TopBar.js";
+import { TopBar } from "../../../components/navigation/TopBar.js";
 import { Title } from "../../../components/text/Title.js";
 import { SessionContext } from "../../../contexts.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";

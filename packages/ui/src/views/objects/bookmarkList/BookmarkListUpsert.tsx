@@ -8,7 +8,7 @@ import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js"
 import { TextInput } from "components/inputs/TextInput/TextInput.js";
 import { ObjectList } from "components/lists/ObjectList/ObjectList.js";
 import { ObjectListActions } from "components/lists/types.js";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { TopBar } from "components/navigation/TopBar.js";
 import { EditableTitle } from "components/text/EditableTitle.js";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm.js";

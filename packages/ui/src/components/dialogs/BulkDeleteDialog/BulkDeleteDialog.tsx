@@ -7,7 +7,7 @@ import { pagePaddingBottom } from "../../../styles.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { BottomActionsGrid } from "../../buttons/BottomActionsGrid/BottomActionsGrid.js";
 import { TextInput } from "../../inputs/TextInput/TextInput.js";
-import { TopBar } from "../../navigation/TopBar/TopBar.js";
+import { TopBar } from "../../navigation/TopBar.js";
 import { LargeDialog } from "../LargeDialog/LargeDialog.js";
 import { BulkDeleteDialogProps } from "../types.js";
 

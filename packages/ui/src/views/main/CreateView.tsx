@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route/router.js";
 import { CardGrid } from "../../components/lists/CardGrid/CardGrid.js";
 import { TIDCard } from "../../components/lists/TIDCard/TIDCard.js";
-import { TopBar } from "../../components/navigation/TopBar/TopBar.js";
+import { TopBar } from "../../components/navigation/TopBar.js";
 import { ApiIcon, ArrowLeftIcon, ArticleIcon, BotIcon, CommentIcon, HelpIcon, NoteIcon, ObjectIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, TeamIcon, TerminalIcon } from "../../icons/common.js";
 import { ScrollBox } from "../../styles.js";
 import { SvgComponent } from "../../types.js";

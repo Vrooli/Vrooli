@@ -3,7 +3,7 @@
  */
 import { getObjectUrl } from "@local/shared";
 import { Box, List, ListItem, ListItemIcon, ListItemText, Stack, useTheme } from "@mui/material";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { TopBar } from "components/navigation/TopBar.js";
 import { DownloadIcon, EmailIcon, LinkIcon, ObjectIcon, QrCodeIcon, ShareIcon } from "icons/common.js";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";

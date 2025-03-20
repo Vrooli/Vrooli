@@ -4,11 +4,41 @@ import { ErrorBoundaryProps } from "../../views/types.js";
 interface ErrorBoundaryState {
     hasError: boolean;
     error: Error | null;
+    componentStack?: string;
 }
 
 type FormErrorBoundaryProps = ErrorBoundaryProps & {
     onError?: () => unknown;
 };
+
+const outerBoxStyle = {
+    backgroundColor: "#a00",
+    border: "1px solid #ffcccc",
+    borderRadius: "4px",
+    padding: "16px",
+    margin: "16px 0",
+    color: "white",
+} as const;
+const warningBoxStyle = {
+    display: "flex",
+    alignItems: "center",
+    marginBottom: "8px",
+} as const;
+const warningSpanStyle = {
+    fontSize: "24px",
+    marginRight: "8px",
+} as const;
+const errorHeaderStyle = {
+    margin: 0,
+} as const;
+const errorMessageStyle = {
+    margin: "0 0 8px 0",
+} as const;
+const errorDetailsStyle = {
+    whiteSpace: "pre-wrap",
+    fontFamily: "monospace",
+    fontSize: "12px",
+} as const;
 
 /**
  * Displays an error message if a form throws an error.
@@ -18,17 +48,19 @@ type FormErrorBoundaryProps = ErrorBoundaryProps & {
 export class FormErrorBoundary extends Component<FormErrorBoundaryProps, ErrorBoundaryState> {
     constructor(props: FormErrorBoundaryProps) {
         super(props);
-        this.state = { hasError: false, error: null };
+        this.state = { hasError: false, error: null, componentStack: undefined };
     }
 
-    static getDerivedStateFromError(error) {
+    static getDerivedStateFromError(error: Error) {
         // Update state so the next render will show the fallback UI.
         return { hasError: true, error };
     }
 
-    componentDidCatch(error, errorInfo) {
+    componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
         // You can also log the error to an error reporting service
         console.error("Error caught by Error Boundary: ", error, errorInfo);
+        // Store componentStack from errorInfo
+        this.setState({ componentStack: errorInfo.componentStack ?? undefined });
         // Call the provided function to close any open popovers or other cleanup tasks
         if (this.props.onError) {
             this.props.onError();
@@ -40,38 +72,23 @@ export class FormErrorBoundary extends Component<FormErrorBoundaryProps, ErrorBo
             return (
                 <div
                     role="alert"
-                    style={{
-                        backgroundColor: "#a00",
-                        border: "1px solid #ffcccc",
-                        borderRadius: "4px",
-                        padding: "16px",
-                        margin: "16px 0",
-                        color: "white",
-                    }}
+                    style={outerBoxStyle}
                 >
                     <div
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            marginBottom: "8px",
-                        }}
+                        style={warningBoxStyle}
                     >
                         <span
-                            style={{ fontSize: "24px", marginRight: "8px" }}
+                            style={warningSpanStyle}
                         >
                             ⚠️
                         </span>
-                        <h2 style={{ margin: 0 }}>An error occurred</h2>
+                        <h2 style={errorHeaderStyle}>An error occurred</h2>
                     </div>
-                    <p style={{ margin: "0 0 8px 0" }}>
+                    <p style={errorMessageStyle}>
                         There was a problem rendering the form. Please try refreshing the page or contact support if the issue persists.
                     </p>
                     <details
-                        style={{
-                            whiteSpace: "pre-wrap",
-                            fontFamily: "monospace",
-                            fontSize: "12px",
-                        }}
+                        style={errorDetailsStyle}
                     >
                         {this.state.error && this.state.error.toString()}
                         <br />

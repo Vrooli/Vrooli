@@ -14,7 +14,7 @@ import { TranslatedRichInput } from "../../../components/inputs/RichInput/RichIn
 import { TranslatedTextInput } from "../../../components/inputs/TextInput/TextInput.js";
 import { ObjectActionsRow } from "../../../components/lists/ObjectActionsRow/ObjectActionsRow.js";
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
-import { TopBar } from "../../../components/navigation/TopBar/TopBar.js";
+import { TopBar } from "../../../components/navigation/TopBar.js";
 import { EditableTitle } from "../../../components/text/EditableTitle.js";
 import { SessionContext } from "../../../contexts.js";
 import { BaseForm, InnerForm } from "../../../forms/BaseForm/BaseForm.js";

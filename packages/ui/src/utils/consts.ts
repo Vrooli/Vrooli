@@ -120,9 +120,6 @@ export const DEFAULT_MIN_ROWS = 4;
 export const FONT_SIZE_MIN = 8;
 export const FONT_SIZE_MAX = 24;
 
-export const LEFT_DRAWER_WIDTH = 280;
-export const RIGHT_DRAWER_WIDTH = 280;
-
 export const BUSINESS_DATA = {
     BUSINESS_NAME: "Vrooli",
     EMAIL: {
@@ -183,15 +180,17 @@ export const webSocketUrlBase: string = isLocalhost ?
 export const DRAG_THRESHOLD = 10;
 
 export const ELEMENT_IDS = {
+    AdaptiveLayout: "adaptive-layout",
     AdvancedSearchDialog: "advanced-search-dialog",
     AdvancedSearchDialogTitle: "advanced-search-dialog-title",
-    ChatSideMenuMessageTree: "chat-side-menu-message-tree",
-    ChatSideMenuIcon: "chat-side-menu-icon",
+    CommandPalette: "command-palette",
     DashboardEventList: "dashboard-event-list",
     DashboardReminderList: "dashboard-reminder-list",
     DashboardResourceList: "dashboard-resource-list",
     DashboardFocusModeTabs: "dashboard-focus-mode-tabs",
+    FindInPage: "find-in-page",
     FormRunView: "form-run-view",
+    FullPageSpinner: "full-page-spinner",
     LandingViewSlideContainerNeon: "neon-container",
     LandingViewSlideContainerSky: "sky-container",
     LandingViewSlideWorkflow: "revolutionize-workflow",
@@ -200,12 +199,15 @@ export const ELEMENT_IDS = {
     LandingViewSlideTeams: "teams",
     LandingViewSlidePricing: "pricing",
     LandingViewSlideGetStarted: "get-started",
+    LeftDrawer: "left-drawer",
     MyStuffTabs: "my-stuff-tabs",
+    PageContainer: "page-container",
     ProViewDonateBox: "donate",
     ProViewFAQBox: "faq",
     ProViewFeatures: "features",
     RelationshipList: "relationship-list",
     ResourceCards: "resource-cards",
+    RightDrawer: "right-drawer",
     RoutineGenerateSettings: "routine-generate-settings",
     RoutineMultiStepCrudDialog: "routine-multi-step-crud-dialog",
     RoutineMultiStepCrudGraph: "routine-multi-step-crud-graph",
@@ -214,15 +216,19 @@ export const ELEMENT_IDS = {
     RoutineWizardDialog: "routine-wizard-dialog",
     SearchTabs: "search-tabs",
     SelectBookmarkListDialog: "select-bookmark-list-dialog",
-    SideMenuAccountList: "side-menu-account-list",
-    SideMenuDisplaySettings: "side-menu-display-settings",
-    SideMenuProfileIcon: "side-menu-profile-icon",
-    SideMenuQuickLinks: "side-menu-quick-links",
+    SiteNavigatorMenuMessageTree: "site-navigator-menu-message-tree",
+    SiteNavigatorMenuIcon: "site-navigator-menu-icon",
     TasksRow: "tasks-row",
     TeamUpsertDialog: "team-upsert-dialog",
+    Tutorial: "tutorial",
+    UserMenu: "user-menu",
+    UserMenuAccountList: "user-menu-account-list",
+    UserMenuDisplaySettings: "user-menu-display-settings",
+    UserMenuProfileIcon: "user-menu-profile-icon",
+    UserMenuQuickLinks: "user-menu-quick-links",
     WalletInstallDialogTitle: "wallet-install-dialog-title",
     WalletSelectDialogTitle: "wallet-select-dialog-title",
-};
+} as const;
 
 export const Z_INDEX = {
     Popup: 1000,
@@ -230,6 +236,7 @@ export const Z_INDEX = {
     CommandPalette: 700,
     CookieSettingsDialog: 200,
     Dialog: 100,
+    Drawer: 60,
     TopBar: 50,
     BottomNav: 50,
     ActionButton: 20,

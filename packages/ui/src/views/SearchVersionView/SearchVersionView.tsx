@@ -3,7 +3,7 @@ import { useTheme } from "@mui/material";
 import { PageTabs } from "components/PageTabs/PageTabs.js";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons.js";
 import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList.js";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { TopBar } from "components/navigation/TopBar.js";
 import { useFindMany } from "hooks/useFindMany.js";
 import { useTabs } from "hooks/useTabs.js";
 import { useCallback, useContext, useMemo } from "react";

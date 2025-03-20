@@ -4,7 +4,7 @@ import { ContentCollapse } from "components/containers/ContentCollapse/ContentCo
 import { CardGrid } from "components/lists/CardGrid/CardGrid";
 import { DateRangeMenu } from "components/lists/DateRangeMenu/DateRangeMenu";
 import { LineGraphCard } from "components/lists/LineGraphCard/LineGraphCard";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { TopBar } from "components/navigation/TopBar.js";
 import { PageTabs } from "components/PageTabs/PageTabs";
 import { useLazyFetch } from "hooks/useLazyFetch.js";
 import { PageTab, useTabs } from "hooks/useTabs";

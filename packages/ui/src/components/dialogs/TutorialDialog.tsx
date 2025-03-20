@@ -1,22 +1,23 @@
-import { ChatPageTabOption, FormInformationalType, FormStructureType, LINKS, SEEDED_IDS, SearchPageTabOption, TutorialViewSearchParams, UrlTools, getObjectUrl, uuid } from "@local/shared";
+import { FormInformationalType, FormStructureType, LINKS, SEEDED_IDS, SearchPageTabOption, TutorialViewSearchParams, UrlTools, getObjectUrl, uuid } from "@local/shared";
 import { Box, Button, Dialog, IconButton, LinearProgress, List, ListItem, ListItemText, ListSubheader, Menu, MenuItem, MobileStepper, Paper, PaperProps, Stack, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Draggable from "react-draggable";
 import { useTranslation } from "react-i18next";
 import { FormRunView } from "../../forms/FormView/FormView.js";
 import { useHotkeys } from "../../hooks/useHotkeys.js";
+import { useMenu } from "../../hooks/useMenu.js";
 import { usePopover } from "../../hooks/usePopover.js";
+import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { ArrowLeftIcon, ArrowRightIcon, CompleteAllIcon, CompleteIcon, ExpandLessIcon, ExpandMoreIcon } from "../../icons/common.js";
 import { useLocation } from "../../route/router.js";
 import { addSearchParams, removeSearchParams } from "../../route/searchParams.js";
 import { ELEMENT_IDS, Z_INDEX } from "../../utils/consts.js";
 import { TUTORIAL_HIGHLIGHT, addHighlight, removeHighlights } from "../../utils/display/documentTools.js";
-import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID } from "../../utils/pubsub.js";
+import { MenuPayloads, PubSub } from "../../utils/pubsub.js";
 import { routineTypes } from "../../utils/search/schemas/routine.js";
 import { PopoverWithArrow } from "../dialogs/PopoverWithArrow/PopoverWithArrow.js";
 import { MarkdownDisplay } from "../text/MarkdownDisplay.js";
 import { DialogTitle } from "./DialogTitle/DialogTitle.js";
-import { TutorialDialogProps } from "./types.js";
 
 type Place = {
     section: number;
@@ -108,7 +109,7 @@ const sections: TutorialSection[] = [
                         type: FormStructureType.Tip,
                         icon: "Info",
                         id: uuid(),
-                        label: "Need this again? Look for \"Tutorial\" in the side menu",
+                        label: "Need this again? Look for \"Tutorial\" in the user menu",
                     },
                 ],
                 location: {
@@ -282,10 +283,10 @@ const sections: TutorialSection[] = [
         ],
     },
     {
-        title: "Main Side Menu",
+        title: "User Menu",
         steps: [
             {
-                action: () => { PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: false }); },
+                action: () => { PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen: false }); },
                 content: [
                     {
                         type: FormStructureType.Header,
@@ -293,16 +294,16 @@ const sections: TutorialSection[] = [
                         id: uuid(),
                         isCollapsible: false,
                         isMarkdown: true,
-                        label: "The side menu has many useful features.\nOpen it by pressing on your profile picture.",
+                        label: "The user menu has many useful features.\nOpen it by pressing on your profile picture.",
                         tag: "body1",
                     },
                 ],
                 location: {
-                    element: ELEMENT_IDS.SideMenuProfileIcon,
+                    element: ELEMENT_IDS.UserMenuProfileIcon,
                 },
             },
             {
-                action: () => { PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: true }); },
+                action: () => { PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen: true }); },
                 content: [
                     {
                         type: FormStructureType.Header,
@@ -332,13 +333,13 @@ const sections: TutorialSection[] = [
                     },
                 ],
                 location: {
-                    element: ELEMENT_IDS.SideMenuAccountList,
+                    element: ELEMENT_IDS.UserMenuAccountList,
                 },
             },
             {
                 action: () => {
-                    PubSub.get().publish("sideMenu", {
-                        id: SIDE_MENU_ID,
+                    PubSub.get().publish("menu", {
+                        id: ELEMENT_IDS.UserMenu,
                         isOpen: true,
                         data: { isDisplaySettingsCollapsed: false },
                     });
@@ -349,16 +350,16 @@ const sections: TutorialSection[] = [
                         id: uuid(),
                         isCollapsible: false,
                         isMarkdown: true,
-                        label: "The second section allows you to control your display settings. This includes:\n- **Theme**: Choose between light and dark mode.\n- **Text size**: Grow or shrink the text on all pages.\n- **Left handed**: Move various elements, such as the side menu, to the left side of the screen.\n- **Language**: Change the language of the app.\n- **Focus mode**: Switch between focus modes.",
+                        label: "The second section allows you to control your display settings. This includes:\n- **Theme**: Choose between light and dark mode.\n- **Text size**: Grow or shrink the text on all pages.\n- **Left handed**: Flip the layout of the app to be left-handed.\n- **Language**: Change the language of the app.\n- **Focus mode**: Switch between focus modes.",
                         tag: "body1",
                     },
                 ],
                 location: {
-                    element: ELEMENT_IDS.SideMenuDisplaySettings,
+                    element: ELEMENT_IDS.UserMenuDisplaySettings,
                 },
             },
             {
-                action: () => { PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: true }); },
+                action: () => { PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen: true }); },
                 content: [
                     {
                         type: FormStructureType.Header,
@@ -370,7 +371,7 @@ const sections: TutorialSection[] = [
                     },
                 ],
                 location: {
-                    element: ELEMENT_IDS.SideMenuQuickLinks,
+                    element: ELEMENT_IDS.UserMenuQuickLinks,
                 },
             },
         ],
@@ -379,7 +380,7 @@ const sections: TutorialSection[] = [
         title: "Searching Objects",
         steps: [
             {
-                action: () => { PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: false }); },
+                action: () => { PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen: false }); },
                 content: [
                     {
                         type: FormStructureType.Header,
@@ -843,10 +844,10 @@ const sections: TutorialSection[] = [
         steps: [],//TODO
     },
     {
-        title: "Secondary Side Menu",
+        title: "Site Navigator Menu",
         steps: [
             {
-                action: () => { PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen: false }); },
+                action: () => { PubSub.get().publish("menu", { id: ELEMENT_IDS.LeftDrawer, isOpen: false }); },
                 content: [
                     {
                         type: FormStructureType.Header,
@@ -854,146 +855,15 @@ const sections: TutorialSection[] = [
                         id: uuid(),
                         isCollapsible: false,
                         isMarkdown: true,
-                        label: "The other side menu is used for AI features.\nOpen it by pressing the list icon.",
+                        label: "Open the navigation menu by pressing the list icon.",
                         tag: "body1",
                     },
                 ],
                 location: {
-                    element: ELEMENT_IDS.ChatSideMenuIcon,
+                    element: ELEMENT_IDS.SiteNavigatorMenuIcon,
                     page: LINKS.Search,
                 },
                 previous: { section: 4, step: 2 },
-            },
-            {
-                action: () => { PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen: true }); },
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: uuid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "There are 4 tabs in the AI side menu.",
-                        tag: "body1",
-                    },
-                    {
-                        type: FormStructureType.Header,
-                        color: "secondary",
-                        id: uuid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "- **Chat View**: The active chat conversation.\n- **Chat History**: Shows your most recent conversations.\n- **Routines**: Both public and owned routines. Can be passed into a chat for a bot to run.\n- **Prompts**: Text prompts for passing instructions to a bot.",
-                        tag: "body2",
-                    },
-                ],
-                location: {
-                    element: ELEMENT_IDS.ChatSideMenuTabs,
-                    page: LINKS.Search,
-                },
-            },
-            {
-                action: () => {
-                    PubSub.get().publish("sideMenu", {
-                        id: CHAT_SIDE_MENU_ID,
-                        isOpen: true,
-                        data: {
-                            tab: ChatPageTabOption.Chat,
-                        },
-                    });
-                },
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: uuid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "The **Chat View** tab is where the magic happens.",
-                        tag: "body1",
-                    },
-                    {
-                        type: FormStructureType.Header,
-                        color: "secondary",
-                        id: uuid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "Use this tab to:\n- Chat with bots\n- Run routines\n- Use prompts",
-                        tag: "body2",
-                    },
-                    {
-                        type: FormStructureType.Divider,
-                        id: uuid(),
-                        label: "",
-                    },
-                    {
-                        type: FormStructureType.Tip,
-                        icon: "Info",
-                        id: uuid(),
-                        label: "Type \"/\" in the message box to bring up shortcuts",
-                    },
-                    {
-                        type: FormStructureType.Tip,
-                        icon: "Warning",
-                        id: uuid(),
-                        label: "To message bots, you will need credits. These come with a premium account, or can be purchased separately.",
-                    },
-                ],
-                location: {
-                    element: ELEMENT_IDS.ChatSideMenuMessageTree,
-                    page: LINKS.Search,
-                },
-            },
-            {
-                action: () => {
-                    PubSub.get().publish("sideMenu", {
-                        id: CHAT_SIDE_MENU_ID,
-                        isOpen: true,
-                        data: {
-                            tab: ChatPageTabOption.Chat,
-                        },
-                    });
-                },
-                content: [
-                    {
-                        type: FormStructureType.Header,
-                        color: "primary",
-                        id: uuid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "Here is where the active and suggested tasks are displayed.",
-                        tag: "body1",
-                    },
-                    {
-                        type: FormStructureType.Header,
-                        color: "secondary",
-                        id: uuid(),
-                        isCollapsible: false,
-                        isMarkdown: true,
-                        label: "These are run by the bot(s) in the chat.",
-                        tag: "body2",
-                    },
-                    {
-                        type: FormStructureType.Divider,
-                        id: uuid(),
-                        label: "",
-                    },
-                    {
-                        type: FormStructureType.Tip,
-                        icon: "Info",
-                        id: uuid(),
-                        label: "Tasks include routines, as well as built-in actions like autofill and search.",
-                    },
-                    {
-                        type: FormStructureType.Tip,
-                        icon: "Info",
-                        id: uuid(),
-                        label: "Any information you enter in the message box will be used as context when running tasks.",
-                    },
-                ],
-                location: {
-                    element: ELEMENT_IDS.TasksRow,
-                    page: LINKS.Search,
-                },
             },
         ],
     },
@@ -1289,14 +1159,41 @@ const StyledDialog = styled(Dialog)(({ theme }) => ({
     },
 }));
 
-export function TutorialDialog({
-    isOpen,
-    onClose,
-    onOpen,
-}: TutorialDialogProps) {
-    const { palette } = useTheme();
+export function TutorialDialog() {
+    const { breakpoints, palette } = useTheme();
     const { t } = useTranslation();
     const [{ pathname, search }, setLocation] = useLocation();
+    const [place, setPlace] = useState<Place>({ section: 0, step: 0 });
+    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
+
+    // Handle opening and closing
+    const onEvent = useCallback(function onEventCallback({ data }: MenuPayloads[typeof ELEMENT_IDS.Tutorial]) {
+        if (!data) return;
+        // Add data here
+    }, []);
+    const { isOpen, close } = useMenu({
+        id: ELEMENT_IDS.Tutorial,
+        isMobile,
+        onEvent,
+    });
+
+    useEffect(function initializePlaceEffect() {
+        const searchParams = UrlTools.parseSearchParams("Tutorial");
+        const section = searchParams.tutorial_section ? parseInt(searchParams.tutorial_section + "", 10) : undefined;
+        const step = searchParams.tutorial_step ? parseInt(searchParams.tutorial_step + "", 10) : undefined;
+        // If we have a valid place, open the dialog (if not already open)
+        if (section !== undefined && step !== undefined && isValidPlace(sections, { section, step })) {
+            setPlace({ section, step });
+            PubSub.get().publish("menu", { id: ELEMENT_IDS.Tutorial, isOpen: true });
+        }
+    }, []);
+    useEffect(function updatePlaceInUrlEffect() {
+        if (!isOpen) return;
+        addSearchParams(setLocation, {
+            tutorial_section: place.section,
+            tutorial_step: place.step,
+        } as TutorialViewSearchParams);
+    }, [place.section, place.step, isOpen, setLocation]);
 
     const pollIntervalRef = useRef<number>();
     // Add a ref to track initial render. Added to prevent hotkeys 
@@ -1316,34 +1213,16 @@ export function TutorialDialog({
         }
     }, [isOpen]);
 
-    const [place, setPlace] = useState<Place>({ section: 0, step: 0 });
-    useEffect(function initializePlace() {
-        const searchParams = UrlTools.parseSearchParams("Tutorial");
-        const section = searchParams.tutorial_section ? parseInt(searchParams.tutorial_section + "", 10) : undefined;
-        const step = searchParams.tutorial_step ? parseInt(searchParams.tutorial_step + "", 10) : undefined;
-        if (section !== undefined && step !== undefined && isValidPlace(sections, { section, step })) {
-            setPlace({ section, step });
-            onOpen();
-        }
-    }, [onOpen]);
-    useEffect(function updatePlaceInUrl() {
-        if (!isOpen) return;
-        addSearchParams(setLocation, {
-            tutorial_section: place.section,
-            tutorial_step: place.step,
-        } as TutorialViewSearchParams);
-    }, [place.section, place.step, isOpen, setLocation]);
-
     const handleClose = useCallback(function handleCloseCallback() {
         setPlace({ section: 0, step: 0 });
         removeHighlights(TUTORIAL_HIGHLIGHT);
         removeSearchParams(setLocation, ["tutorial_section", "tutorial_step"]);
-        onClose();
+        close();
         setTimeout(() => {
             setIsInitialRender(true);
             initialRenderRef.current = true;
         }, INITIAL_RENDER_DELAY_MS);
-    }, [onClose, setLocation]);
+    }, [close, setLocation]);
 
     useEffect(function triggerStepLoadAction() {
         if (!isOpen || !isValidPlace(sections, place)) return;

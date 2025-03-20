@@ -3,7 +3,7 @@ import { ListItemIcon, ListItemText, Menu, MenuItem, Tooltip, useTheme } from "@
 import { PageTabs } from "components/PageTabs/PageTabs.js";
 import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons.js";
 import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList.js";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { TopBar } from "components/navigation/TopBar.js";
 import { useBulkObjectActions } from "hooks/objectActions.js";
 import { useFindMany } from "hooks/useFindMany.js";
 import { usePopover } from "hooks/usePopover.js";

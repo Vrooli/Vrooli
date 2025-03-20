@@ -8,7 +8,7 @@ import { LeftHandedCheckbox } from "components/inputs/LeftHandedCheckbox/LeftHan
 import { TextSizeButtons } from "components/inputs/TextSizeButtons/TextSizeButtons.js";
 import { ThemeSwitch } from "components/inputs/ThemeSwitch/ThemeSwitch.js";
 import { SettingsList } from "components/lists/SettingsList/SettingsList.js";
-import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar.js";
+import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar.js";
 import { Title } from "components/text/Title.js";
 import { Formik, FormikHelpers } from "formik";
 import { InnerForm, OuterForm } from "forms/BaseForm/BaseForm.js";
@@ -19,7 +19,7 @@ import { useShowBotWarning } from "../../hooks/subscriptions.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { useProfileQuery } from "../../hooks/useProfileQuery.js";
 import { FormSection, ScrollBox } from "../../styles.js";
-import { getSiteLanguage } from "../../utils/authentication/session.js";
+import { SessionService } from "../../utils/authentication/session.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { SearchHistory } from "../../utils/search/searchHistory.js";
 import { SettingsDisplayFormProps, SettingsDisplayViewProps } from "./types.js";
@@ -167,7 +167,7 @@ export function SettingsDisplayView({
             fetch,
             inputs: {
                 ...values,
-                languages: [getSiteLanguage(session)],
+                languages: [SessionService.getSiteLanguage(session)],
             },
             onSuccess: (data) => { onProfileUpdate(data); },
             onCompleted: () => { helpers.setSubmitting(false); },

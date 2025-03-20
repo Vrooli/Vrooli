@@ -4,7 +4,7 @@ import { useSubmitHelper } from "api/fetchWrapper.js";
 import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
 import { TranslatedRichInput } from "components/inputs/RichInput/RichInput.js";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { TopBar } from "components/navigation/TopBar.js";
 import { MarkdownDisplay } from "components/text/MarkdownDisplay.js";
 import { Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm.js";

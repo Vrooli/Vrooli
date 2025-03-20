@@ -14,7 +14,7 @@ import { SelectLanguageMenu } from "../../../components/dialogs/SelectLanguageMe
 import { TextInput } from "../../../components/inputs/TextInput/TextInput.js";
 import { SearchList } from "../../../components/lists/SearchList/SearchList.js";
 import { TextLoading } from "../../../components/lists/TextLoading/TextLoading.js";
-import { TopBar } from "../../../components/navigation/TopBar/TopBar.js";
+import { TopBar } from "../../../components/navigation/TopBar.js";
 import { DateDisplay } from "../../../components/text/DateDisplay.js";
 import { MarkdownDisplay } from "../../../components/text/MarkdownDisplay.js";
 import { Title } from "../../../components/text/Title.js";

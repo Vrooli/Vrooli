@@ -14,7 +14,7 @@ import { FocusModeInfo, useFocusModesStore } from "../../../components/inputs/Fo
 import { RichInput } from "../../../components/inputs/RichInput/RichInput.js";
 import { TextInput } from "../../../components/inputs/TextInput/TextInput.js";
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
-import { TopBar } from "../../../components/navigation/TopBar/TopBar.js";
+import { TopBar } from "../../../components/navigation/TopBar.js";
 import { SessionContext } from "../../../contexts.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";

@@ -1,4 +1,4 @@
-import { BookmarkFor, FormSchema, NavigableObject, OrArray, ReactionFor, ReportFor, RunnableProjectVersion, RunnableRoutineVersion, SearchType, Status } from "@local/shared";
+import { BookmarkFor, FormSchema, NavigableObject, OrArray, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, SearchType, Status } from "@local/shared";
 import { ButtonProps } from "@mui/material";
 import React from "react";
 import { FormErrors, SvgProps, SxType, ViewDisplayType } from "../../types.js";
@@ -91,7 +91,7 @@ export interface ReportsLinkProps {
 export interface RunButtonProps {
     isEditing: boolean;
     objectType: "ProjectVersion" | "RoutineVersion";
-    runnableObject: RunnableProjectVersion | RunnableRoutineVersion | null;
+    runnableObject: ProjectVersion | RoutineVersion | null;
 }
 
 export type SearchButtonsProps = {

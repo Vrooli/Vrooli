@@ -1,6 +1,6 @@
 import { Button, DialogContent, Stack, Typography, useTheme } from "@mui/material";
 import { TextInput } from "components/inputs/TextInput/TextInput.js";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { TopBar } from "components/navigation/TopBar.js";
 import { DeleteIcon } from "icons/common.js";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";

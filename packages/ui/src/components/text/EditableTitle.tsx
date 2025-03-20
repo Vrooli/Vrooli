@@ -1,5 +1,5 @@
 import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { TopBar } from "components/navigation/TopBar.js";
 import { useField, useFormikContext } from "formik";
 import { DeleteIcon, EditIcon } from "icons/common.js";
 import { useCallback, useMemo, useState } from "react";

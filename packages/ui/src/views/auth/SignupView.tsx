@@ -1,34 +1,35 @@
 import { BUSINESS_NAME, emailSignUpFormValidation, EmailSignUpInput, endpointsAuth, LINKS, Session, SignUpPageTabOption } from "@local/shared";
 import { Box, BoxProps, Button, Checkbox, FormControl, FormControlLabel, FormHelperText, InputAdornment, Link, styled, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper.js";
-import { ServerResponseParser } from "api/responseParser.js";
-import { SocketService } from "api/socket.js";
-import { BreadcrumbsBase } from "components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase.js";
-import { PasswordTextInput } from "components/inputs/PasswordTextInput/PasswordTextInput.js";
-import { TextInput } from "components/inputs/TextInput/TextInput.js";
-import { Footer } from "components/navigation/Footer/Footer.js";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
-import { PageTabs } from "components/PageTabs/PageTabs.js";
 import { Field, Formik, FormikHelpers } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm.js";
-import { formSubmit } from "forms/styles.js";
-import { useIsLeftHanded } from "hooks/subscriptions.js";
-import { useLazyFetch } from "hooks/useLazyFetch.js";
-import { useReactSearch } from "hooks/useReactSearch.js";
-import { useTabs } from "hooks/useTabs.js";
-import { useWindowSize } from "hooks/useWindowSize.js";
-import { EmailIcon, UserIcon } from "icons/common.js";
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route/router.js";
-import { getCurrentUser } from "utils/authentication/session.js";
-import { removeCookie } from "utils/localStorage.js";
-import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID } from "utils/pubsub.js";
-import { setupPush } from "utils/push.js";
-import { signUpTabParams } from "utils/search/objectToSearch.js";
-import { SignupViewProps } from "views/types.js";
+import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
+import { ServerResponseParser } from "../../api/responseParser.js";
+import { SocketService } from "../../api/socket.js";
+import { BreadcrumbsBase } from "../../components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase.js";
+import { PasswordTextInput } from "../../components/inputs/PasswordTextInput/PasswordTextInput.js";
+import { TextInput } from "../../components/inputs/TextInput/TextInput.js";
+import { Footer } from "../../components/navigation/Footer.js";
+import { TopBar } from "../../components/navigation/TopBar.js";
+import { PageTabs } from "../../components/PageTabs/PageTabs.js";
 import { SessionContext } from "../../contexts.js";
+import { BaseForm } from "../../forms/BaseForm/BaseForm.js";
+import { formSubmit } from "../../forms/styles.js";
+import { useIsLeftHanded } from "../../hooks/subscriptions.js";
+import { useLazyFetch } from "../../hooks/useLazyFetch.js";
+import { useReactSearch } from "../../hooks/useReactSearch.js";
+import { useTabs } from "../../hooks/useTabs.js";
+import { useWindowSize } from "../../hooks/useWindowSize.js";
+import { EmailIcon, UserIcon } from "../../icons/common.js";
+import { useLocation } from "../../route/router.js";
 import { FormContainer, FormSection } from "../../styles.js";
+import { getCurrentUser } from "../../utils/authentication/session.js";
+import { ELEMENT_IDS } from "../../utils/consts.js";
+import { removeCookie } from "../../utils/localStorage.js";
+import { PubSub } from "../../utils/pubsub.js";
+import { setupPush } from "../../utils/push.js";
+import { signUpTabParams } from "../../utils/search/objectToSearch.js";
+import { SignupViewProps } from "../../views/types.js";
 
 type FormInput = EmailSignUpInput & {
     agreeToTerms: boolean;
@@ -135,7 +136,7 @@ function SignupForm() {
                                 setLocation(redirect);
                             } else {
                                 setLocation(LINKS.Home);
-                                PubSub.get().publish("tutorial");
+                                PubSub.get().publish("menu", { id: ELEMENT_IDS.Tutorial, isOpen: true });
                             }
                         },
                     }],
@@ -390,9 +391,9 @@ export function SignupView({
     } = useTabs({ id: "sign-up-tabs", tabParams: signUpTabParams, disableHistory: true, display });
 
     // Side menus are not supported in this page due to the way it's styled
-    useMemo(function hideSideMenusMemo() {
-        PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: false });
-        PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen: false });
+    useMemo(function hideMenusMemo() {
+        PubSub.get().publish("menu", { id: ELEMENT_IDS.LeftDrawer, isOpen: false });
+        PubSub.get().publish("menu", { id: ELEMENT_IDS.RightDrawer, isOpen: false });
     }, []);
 
     const innerBoxStyle = useMemo(function innerBoxStyleMemo() {

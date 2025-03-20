@@ -5,7 +5,7 @@ import { useState } from "react";
 import { SearchIcon, UploadIcon } from "../../../icons/common.js";
 import { ScrollBox } from "../../../styles.js";
 import { PageContainer } from "../../Page/Page.js";
-import { AdvancedInput, ContextItem, Tool } from "./AdvancedInput.js";
+import { AdvancedInput, ContextItem, Tool, ToolState } from "./AdvancedInput.js";
 
 const outerBoxStyle = {
     display: "flex",
@@ -22,7 +22,7 @@ const innerBoxStyle = {
 
 const mockSomeTools: Tool[] = [
     {
-        enabled: true,
+        state: ToolState.Enabled,
         displayName: "Find routine",
         icon: <SearchIcon />,
         type: "find",
@@ -30,7 +30,7 @@ const mockSomeTools: Tool[] = [
         arguments: {},
     },
     {
-        enabled: false,
+        state: ToolState.Disabled,
         displayName: "Publish inventory",
         icon: <UploadIcon />,
         type: "routine",

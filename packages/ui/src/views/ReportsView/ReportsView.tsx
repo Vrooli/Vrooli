@@ -9,7 +9,7 @@ import { ObjectActionMenu } from "../../components/dialogs/ObjectActionMenu/Obje
 import { ObjectListItem } from "../../components/lists/ObjectList/ObjectList.js";
 import { ReportListItem } from "../../components/lists/ReportListItem/ReportListItem.js";
 import { ObjectListActions } from "../../components/lists/types.js";
-import { TopBar } from "../../components/navigation/TopBar/TopBar.js";
+import { TopBar } from "../../components/navigation/TopBar.js";
 import { SessionContext } from "../../contexts.js";
 import { goBack } from "../../hooks/forms.js";
 import { useInfiniteScroll } from "../../hooks/gestures.js";

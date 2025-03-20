@@ -11,7 +11,7 @@ import { EmailList } from "../../components/lists/devices/EmailList.js";
 import { PushList } from "../../components/lists/devices/PushList.js";
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
 import { SettingsToggleListItem } from "../../components/lists/SettingsToggleListItem/SettingsToggleListItem.js";
-import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar/SettingsTopBar.js";
+import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar.js";
 import { Title } from "../../components/text/Title.js";
 import { BaseForm } from "../../forms/BaseForm/BaseForm.js";
 import { useFetch } from "../../hooks/useFetch.js";

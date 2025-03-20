@@ -11,7 +11,7 @@ import { ObjectActionsRow } from "components/lists/ObjectActionsRow/ObjectAction
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList.js";
 import { ResourceList } from "components/lists/ResourceList/ResourceList.js";
 import { TagList } from "components/lists/TagList/TagList.js";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { TopBar } from "components/navigation/TopBar.js";
 import { DateDisplay } from "components/text/DateDisplay.js";
 import { StatsCompact } from "components/text/StatsCompact.js";
 import { VersionDisplay } from "components/text/VersionDisplay.js";

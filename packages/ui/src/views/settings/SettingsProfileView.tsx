@@ -7,7 +7,7 @@ import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/Profi
 import { TranslatedRichInput } from "components/inputs/RichInput/RichInput.js";
 import { TextInput } from "components/inputs/TextInput/TextInput.js";
 import { SettingsList } from "components/lists/SettingsList/SettingsList.js";
-import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar/SettingsTopBar.js";
+import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar.js";
 import { Field, Formik } from "formik";
 import { InnerForm, OuterForm } from "forms/BaseForm/BaseForm.js";
 import { useLazyFetch } from "hooks/useLazyFetch.js";

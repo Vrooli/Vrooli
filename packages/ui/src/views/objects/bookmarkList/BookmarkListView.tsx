@@ -6,10 +6,9 @@ import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { SideActionsButtons } from "../../../components/buttons/SideActionsButtons/SideActionsButtons.js";
 import { ListContainer } from "../../../components/containers/ListContainer/ListContainer.js";
 import { FindObjectDialog } from "../../../components/dialogs/FindObjectDialog/FindObjectDialog.js";
-import { SiteSearchBarPaper } from "../../../components/inputs/search/SiteSearchBar.js";
 import { ObjectList } from "../../../components/lists/ObjectList/ObjectList.js";
 import { ObjectListActions } from "../../../components/lists/types.js";
-import { TopBar } from "../../../components/navigation/TopBar/TopBar.js";
+import { TopBar } from "../../../components/navigation/TopBar.js";
 import { SessionContext } from "../../../contexts.js";
 import { useDeleter, useObjectActions } from "../../../hooks/objectActions.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
@@ -144,15 +143,8 @@ export function BookmarkListView({
                 onClose={onClose}
                 title={firstString(label, t("BookmarkList", { count: 1 }))}
                 options={topBarOptions}
-                below={<Box sx={{
-                    width: "min(100%, 700px)",
-                    margin: "auto",
-                    marginTop: 2,
-                    marginBottom: 2,
-                    paddingLeft: 2,
-                    paddingRight: 2,
-                }}>
-                    <SiteSearchBarPaper
+                below={<Box width="min(100%, 700px)" margin="auto" marginTop={2} marginBottom={2} paddingLeft={2} paddingRight={2}>
+                    {/* <SiteSearchBarPaper
                         id={`${existing?.id ?? "bookmark-list"}-search-bar`}
                         placeholder={"SearchBookmark"}
                         loading={false}
@@ -161,7 +153,7 @@ export function BookmarkListView({
                         onInputChange={onBookmarkSelect}
                         options={autocompleteOptions}
                         sxs={{ root: { width: "min(100%, 600px)", paddingLeft: 2, paddingRight: 2 } }}
-                    />
+                    /> */}
                 </Box>}
             />
             <ListContainer

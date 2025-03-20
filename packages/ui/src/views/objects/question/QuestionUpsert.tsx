@@ -9,7 +9,7 @@ import { TranslatedRichInput } from "components/inputs/RichInput/RichInput.js";
 import { TagSelector } from "components/inputs/TagSelector/TagSelector.js";
 import { TranslatedTextInput } from "components/inputs/TextInput/TextInput.js";
 import { RelationshipList } from "components/lists/RelationshipList/RelationshipList.js";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { TopBar } from "components/navigation/TopBar.js";
 import { Formik } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "hooks/forms.js";

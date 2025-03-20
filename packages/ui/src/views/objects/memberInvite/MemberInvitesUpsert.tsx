@@ -5,7 +5,7 @@ import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/Bo
 import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
 import { RichInputBase } from "components/inputs/RichInput/RichInput.js";
 import { ObjectList } from "components/lists/ObjectList/ObjectList.js";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { TopBar } from "components/navigation/TopBar.js";
 import { Field, Formik } from "formik";
 import { useUpsertActions } from "hooks/forms.js";
 import { useHistoryState } from "hooks/useHistoryState.js";

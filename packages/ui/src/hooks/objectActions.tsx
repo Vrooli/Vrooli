@@ -454,6 +454,7 @@ export type ConfirmationLevel = "none" | "minimal" | "full";
 export const ObjectsToDeleteConfirmLevel: Record<DeleteType, ConfirmationLevel> = {
     Api: "full",
     ApiKey: "full",
+    ApiKeyExternal: "full",
     ApiVersion: "minimal",
     Bookmark: "none",
     BookmarkList: "full",
@@ -809,7 +810,7 @@ export function useObjectActions({
                 else openObjectEdit(object, setLocation);
                 break;
             case ObjectAction.FindInPage:
-                PubSub.get().publish("findInPage");
+                PubSub.get().publish("menu", { id: ELEMENT_IDS.FindInPage, isOpen: true });
                 break;
             case ObjectAction.Fork:
                 if (canNavigate && !canNavigate(object)) return;

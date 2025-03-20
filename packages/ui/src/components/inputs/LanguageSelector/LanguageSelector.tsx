@@ -1,7 +1,7 @@
 import { LanguageIcon } from "icons/common.js";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getSiteLanguage, siteLanguages } from "utils/authentication/session.js";
+import { SessionService, siteLanguages } from "utils/authentication/session.js";
 import { AllLanguages } from "utils/display/translationTools.js";
 import { PubSub } from "utils/pubsub.js";
 import { SessionContext } from "../../../contexts.js";
@@ -29,7 +29,7 @@ export function LanguageSelector() {
     const session = useContext(SessionContext);
     const { t } = useTranslation();
 
-    const [language, setLanguage] = useState(getSiteLanguage(session));
+    const [language, setLanguage] = useState(SessionService.getSiteLanguage(session));
     const handleLanguageChange = useCallback(function handleLanguageChangeCallback(newLang: string) {
         setLanguage(newLang);
         // Let the app know the language has changed

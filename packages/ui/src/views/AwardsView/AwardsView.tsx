@@ -6,7 +6,7 @@ import { CompletionBar } from "../../components/CompletionBar/CompletionBar.js";
 import { ContentCollapse } from "../../components/containers/ContentCollapse/ContentCollapse.js";
 import { CardGrid } from "../../components/lists/CardGrid/CardGrid.js";
 import { TIDCard } from "../../components/lists/TIDCard/TIDCard.js";
-import { TopBar } from "../../components/navigation/TopBar/TopBar.js";
+import { TopBar } from "../../components/navigation/TopBar.js";
 import { SessionContext } from "../../contexts.js";
 import { useFetch } from "../../hooks/useFetch.js";
 import { AwardIcon } from "../../icons/common.js";

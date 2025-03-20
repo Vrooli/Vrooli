@@ -8,7 +8,7 @@ import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js"
 import { TagSelector } from "components/inputs/TagSelector/TagSelector.js";
 import { TextInput } from "components/inputs/TextInput/TextInput.js";
 import { ResourceListInput } from "components/lists/ResourceList/ResourceList.js";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { TopBar } from "components/navigation/TopBar.js";
 import { Title } from "components/text/Title.js";
 import { Field, Formik, useField } from "formik";
 import { BaseForm } from "forms/BaseForm/BaseForm.js";

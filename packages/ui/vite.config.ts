@@ -67,6 +67,7 @@ export default defineConfig((props) => {
                 { find: "hooks", replacement: path.resolve(__dirname, "./src/hooks") },
                 { find: "icons", replacement: path.resolve(__dirname, "./src/icons") },
                 { find: "route", replacement: path.resolve(__dirname, "./src/route") },
+                { find: "stores", replacement: path.resolve(__dirname, "./src/stores") },
                 { find: "tools", replacement: path.resolve(__dirname, "./src/tools") },
                 { find: "utils", replacement: path.resolve(__dirname, "./src/utils") },
                 { find: "views", replacement: path.resolve(__dirname, "./src/views") },

@@ -1,4 +1,4 @@
-import { Email, endpointsAuth, endpointsUser, LINKS, Phone, profileEmailUpdateFormValidation, ProfileEmailUpdateInput, Session, User, Wallet } from "@local/shared";
+import { Email, endpointsAuth, endpointsUser, Phone, profileEmailUpdateFormValidation, ProfileEmailUpdateInput, Session, User, Wallet } from "@local/shared";
 import { Box, Button, Divider, Stack, useTheme } from "@mui/material";
 import { Formik, FormikHelpers } from "formik";
 import { useCallback, useState } from "react";
@@ -15,16 +15,15 @@ import { EmailList } from "../../components/lists/devices/EmailList.js";
 import { PhoneList } from "../../components/lists/devices/PhoneList.js";
 import { WalletList } from "../../components/lists/devices/WalletList.js";
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
-import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar/SettingsTopBar.js";
+import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar.js";
 import { Title } from "../../components/text/Title.js";
 import { BaseForm } from "../../forms/BaseForm/BaseForm.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { useProfileQuery } from "../../hooks/useProfileQuery.js";
 import { DeleteIcon, EmailIcon, LogOutIcon, PhoneIcon, WalletIcon } from "../../icons/common.js";
 import { FormSection, ScrollBox } from "../../styles.js";
-import { guestSession } from "../../utils/authentication/session.js";
-import { removeCookie } from "../../utils/localStorage.js";
-import { PubSub, SIDE_MENU_ID } from "../../utils/pubsub.js";
+import { guestSession, SessionService } from "../../utils/authentication/session.js";
+import { PubSub } from "../../utils/pubsub.js";
 import { SettingsAuthenticationFormProps, SettingsAuthenticationFormValues, SettingsAuthenticationViewProps } from "./types.js";
 
 const initialValues: SettingsAuthenticationFormValues = {
@@ -123,11 +122,7 @@ export function SettingsAuthenticationView({
                 PubSub.get().publish("session", guestSession);
             },
             onCompleted: () => {
-                SocketService.get().connect();
-                removeCookie("FormData"); // Clear old form data cache
-                localStorage.removeItem("isLoggedIn");
-                PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: false });
-                setLocation(LINKS.Home);
+                SessionService.logOut();
             },
         });
     }, [setLocation]);

@@ -3,8 +3,8 @@ import { Box, Button, ButtonBase, Dialog, DialogActions, DialogContent, DialogTi
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { PageContainer } from "../../components/Page/Page.js";
-import { Footer } from "../../components/navigation/Footer/Footer.js";
-import { TopBar } from "../../components/navigation/TopBar/TopBar.js";
+import { Footer } from "../../components/navigation/Footer.js";
+import { TopBar } from "../../components/navigation/TopBar.js";
 import { SnackSeverity } from "../../components/snacks/BasicSnack/BasicSnack.js";
 import { SessionContext } from "../../contexts.js";
 import { useStripe } from "../../hooks/useStripe.js";

@@ -66,7 +66,7 @@ const findRoutineLimitTo = ["RoutineMultiStep", "RoutineSingleStep"] as const;
 const iconHeight = 32;
 const iconWidth = 32;
 
-enum ToolState {
+export enum ToolState {
     /** Tool not provided to LLM */
     Disabled = "disabled",
     /** Tool provided to LLM with other enabled tools */

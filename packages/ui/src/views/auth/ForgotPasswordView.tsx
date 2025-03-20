@@ -8,7 +8,7 @@ import { ForgotPasswordViewProps } from "views/types.js";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { BreadcrumbsBase } from "../../components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase.js";
 import { TextInput } from "../../components/inputs/TextInput/TextInput.js";
-import { TopBar } from "../../components/navigation/TopBar/TopBar.js";
+import { TopBar } from "../../components/navigation/TopBar.js";
 import { InnerForm } from "../../forms/BaseForm/BaseForm.js";
 import { formPaper, formSubmit } from "../../forms/styles.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";

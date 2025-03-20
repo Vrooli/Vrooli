@@ -6,7 +6,7 @@ import { useLocation } from "route/router.js";
 import { SettingsSearchBar } from "../../components/inputs/search/SettingsSearchBar.js";
 import { CardGrid } from "../../components/lists/CardGrid/CardGrid.js";
 import { TIDCard } from "../../components/lists/TIDCard/TIDCard.js";
-import { TopBar } from "../../components/navigation/TopBar/TopBar.js";
+import { TopBar } from "../../components/navigation/TopBar.js";
 import { Title } from "../../components/text/Title.js";
 import { ApiIcon, HistoryIcon, LightModeIcon, LockIcon, NotificationsCustomizedIcon, ObjectIcon, ProfileIcon, VisibleIcon, WalletIcon } from "../../icons/common.js";
 import { ScrollBox } from "../../styles.js";

@@ -13,7 +13,7 @@ import { TranslatedTextInput } from "../../../components/inputs/TextInput/TextIn
 import { VersionInput } from "../../../components/inputs/VersionInput/VersionInput.js";
 import { DirectoryList } from "../../../components/lists/DirectoryList/DirectoryList.js";
 import { RelationshipList } from "../../../components/lists/RelationshipList/RelationshipList.js";
-import { TopBar } from "../../../components/navigation/TopBar/TopBar.js";
+import { TopBar } from "../../../components/navigation/TopBar.js";
 import { EditableTitle } from "../../../components/text/EditableTitle.js";
 import { SessionContext } from "../../../contexts.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";

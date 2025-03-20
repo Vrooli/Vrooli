@@ -6,7 +6,7 @@ import { ShareButton } from "components/buttons/ShareButton/ShareButton.js";
 import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
 import { SelectLanguageMenu } from "components/dialogs/SelectLanguageMenu/SelectLanguageMenu.js";
 import { ResourceList } from "components/lists/ResourceList/ResourceList.js";
-import { TopBar } from "components/navigation/TopBar/TopBar.js";
+import { TopBar } from "components/navigation/TopBar.js";
 import { DateDisplay } from "components/text/DateDisplay.js";
 import { Title } from "components/text/Title.js";
 import { useObjectActions } from "hooks/objectActions.js";

@@ -9,7 +9,7 @@ import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeD
 import { LinkInput } from "../../../components/inputs/LinkInput/LinkInput.js";
 import { Selector, SelectorBase } from "../../../components/inputs/Selector/Selector.js";
 import { TranslatedTextInput } from "../../../components/inputs/TextInput/TextInput.js";
-import { TopBar } from "../../../components/navigation/TopBar/TopBar.js";
+import { TopBar } from "../../../components/navigation/TopBar.js";
 import { SessionContext } from "../../../contexts.js";
 import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
 import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
