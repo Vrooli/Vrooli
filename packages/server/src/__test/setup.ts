@@ -81,6 +81,8 @@ before(async function beforeAllTests() {
     await LlmServiceRegistry.init();
     await TokenEstimationRegistry.init();
     await DbProvider.init();
+
+    // TODO add sinon mocks for LLM services
 });
 
 after(async function afterAllTests() {
@@ -96,3 +98,165 @@ after(async function afterAllTests() {
         await postgresContainer.stop();
     }
 });
+
+// Old (jest) AI mocks (to replace with sinon mocks)
+
+// import OpenAI from "openai";
+
+// type ChatCompletion = OpenAI.Chat.Completions.ChatCompletion;
+// type ChatCompletionCreateParams = OpenAI.Chat.Completions.ChatCompletionCreateParams;
+
+// class OpenAIMock {
+//     chat = {
+//         completions: {
+//             create: (params: ChatCompletionCreateParams): Promise<ChatCompletion> => {
+//                 // Dynamically generate the content based on the input params
+//                 let mockContent: string;
+//                 if (params.messages.length === 0) {
+//                     mockContent = "Mocked response for an empty prompt";
+//                 } else {
+//                     const lastMessageContent = params.messages[params.messages.length - 1].content;
+//                     mockContent = `Mocked response for: ${lastMessageContent}`;
+//                 }
+
+//                 // Construct a response that matches the ChatCompletion structure
+//                 const mockResponse: ChatCompletion = {
+//                     id: "mock_id", // Example mock id
+//                     model: params.model, // Use the model specified in params
+//                     object: "chat.completion", // Typically the type of the object
+//                     created: Math.floor(Date.now() / 1000), // Current timestamp in seconds
+//                     choices: [{
+//                         message: {
+//                             content: mockContent,
+//                             role: "assistant", // Include the 'role' property as required by the ChatCompletionMessage type
+//                             // Include other properties for the message if needed
+//                         },
+//                         index: 0, // Assuming a single choice for simplicity
+//                         finish_reason: "length", // Example finish reason
+//                         logprobs: {} as any,
+//                     }],
+//                     usage: {
+//                         total_tokens: mockContent.split(" ").length, // Example token count
+//                         prompt_tokens: params.messages.reduce((acc, message) => acc + (message.content as string).split(" ").length, 0), // Tokens in the prompt
+//                         completion_tokens: mockContent.split(" ").length, // Tokens in the completion
+//                     },
+//                 };
+//                 return Promise.resolve(mockResponse);
+//             },
+//         },
+//     };
+
+//     // Mock any other necessary OpenAI methods or properties here
+// }
+
+// export default OpenAIMock;
+
+
+// class AnthropicMock {
+//     messages = {
+//         create: (params: Anthropic.MessageCreateParams): Promise<Anthropic.Message> => {
+//             // Dynamically generate the content based on the input params
+//             let mockContent: string;
+//             if (params.messages.length === 0) {
+//                 mockContent = "Mocked response for an empty prompt";
+//             } else {
+//                 const lastMessageContent = params.messages[params.messages.length - 1].content;
+//                 mockContent = `Mocked response for: ${lastMessageContent}`;
+//             }
+
+//             // Construct a response that matches the Message structure
+//             const mockResponse: Anthropic.Message = {
+//                 id: "mock_id" as const, // Example mock id
+//                 model: params.model, // Use the model specified in params
+//                 content: [
+//                     {
+//                         type: "text" as const,
+//                         text: mockContent,
+//                     },
+//                 ],
+//                 role: "assistant" as const,
+//                 stop_reason: "end_turn" as const,
+//                 stop_sequence: null,
+//                 type: "message" as const,
+//                 usage: {
+//                     input_tokens: params.messages.reduce((acc, message) => acc + message.content.length, 0), // Example input token count
+//                     output_tokens: mockContent.length, // Example output token count
+//                 },
+//             };
+
+//             return Promise.resolve(mockResponse);
+//         },
+//     };
+// }
+
+// export default AnthropicMock;
+
+
+// interface TokenUsage {
+//     prompt_tokens: number;
+//     completion_tokens: number;
+//     total_tokens: number;
+// }
+
+// interface ChatCompletionResponseChoice {
+//     index: number;
+//     message: {
+//         role: string;
+//         content: string;
+//     };
+//     finish_reason: string;
+// }
+
+// export interface ChatCompletionResponse {
+//     id: string;
+//     object: "chat.completion";
+//     created: number;
+//     model: string;
+//     choices: ChatCompletionResponseChoice[];
+//     usage: TokenUsage;
+// }
+
+// class MistralMock {
+
+//     constructor(key: string | undefined) {
+//         // Do nothing
+//     }
+
+//     chat = (params): Promise<ChatCompletionResponse> => {
+//         // Dynamically generate the content based on the input params
+//         let mockContent: string;
+//         if (params.messages.length === 0) {
+//             mockContent = "Mocked response for an empty prompt";
+//         } else {
+//             const lastMessageContent = params.messages[params.messages.length - 1].content;
+//             mockContent = `Mocked response for: ${lastMessageContent}`;
+//         }
+
+//         // Construct a response that matches the Message structure
+//         const prompt_tokens = params.messages.reduce((acc, message) => acc + message.content.length, 0);
+//         const completion_tokens = mockContent.length;
+//         const mockResponse: ChatCompletionResponse = {
+//             id: "mock_id" as const, // Example mock id
+//             object: "chat.completion" as const,
+//             created: new Date().getTime() / 1000, // Current timestamp in seconds
+//             model: params.model, // Use the model specified in params
+//             choices: [{
+//                 index: 0,
+//                 message: {
+//                     role: "assistant" as const,
+//                     content: mockContent,
+//                 },
+//                 finish_reason: "end" as const,
+//             }],
+//             usage: {
+//                 prompt_tokens,
+//                 completion_tokens,
+//                 total_tokens: prompt_tokens + completion_tokens,
+//             },
+//         };
+
+//         return Promise.resolve(mockResponse);
+//     };
+// }
+
+// export default MistralMock;
