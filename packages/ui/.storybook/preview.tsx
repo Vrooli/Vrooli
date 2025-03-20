@@ -7,17 +7,20 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { MainBox, getGlobalStyles, useCssVariables } from '../src/App.js';
 import { AdaptiveLayout } from '../src/components/AdaptiveLayout.js';
+import { FullPageSpinner } from '../src/components/Spinners.js';
+import { TutorialDialog } from '../src/components/dialogs/TutorialDialog.js';
+import { UserMenu } from '../src/components/dialogs/UserMenu/UserMenu.js';
 import { VideoPopup } from "../src/components/dialogs/media.js";
-import { BottomNav } from '../src/components/navigation/BottomNav/BottomNav.js';
-import { CommandPalette } from '../src/components/navigation/CommandPalette/CommandPalette.js';
-import { FindInPage } from '../src/components/navigation/FindInPage/FindInPage.js';
+import { BottomNav } from '../src/components/navigation/BottomNav.js';
+import { CommandPalette } from '../src/components/navigation/CommandPalette.js';
+import { FindInPage } from '../src/components/navigation/FindInPage.js';
 import { ActiveChatProvider, SessionContext } from "../src/contexts.js";
 import { useHotkeys } from '../src/hooks/useHotkeys.js';
 import { useWindowSize } from "../src/hooks/useWindowSize.js";
 import i18n from '../src/i18n';
-import { Z_INDEX } from '../src/utils/consts.js';
+import { ELEMENT_IDS, Z_INDEX } from '../src/utils/consts.js';
 import { DEFAULT_THEME, themes } from '../src/utils/display/theme';
-import { COMMAND_PALETTE_ID, FIND_IN_PAGE_ID, PubSub, type PopupVideoPub } from '../src/utils/pubsub.js';
+import { PubSub, type PopupVideoPub } from '../src/utils/pubsub.js';
 
 const API_URL = "http://localhost:5329/api";
 
@@ -237,8 +240,8 @@ const preview: Preview = {
 
             // Handle site-wide keyboard shortcuts
             useHotkeys([
-                { keys: ["p"], ctrlKey: true, callback: () => { PubSub.get().publish("menu", { id: COMMAND_PALETTE_ID, isOpen: true }); } },
-                { keys: ["f"], ctrlKey: true, callback: () => { PubSub.get().publish("menu", { id: FIND_IN_PAGE_ID, isOpen: true }); } },
+                { keys: ["p"], ctrlKey: true, callback: () => { PubSub.get().publish("menu", { id: ELEMENT_IDS.CommandPalette, isOpen: true }); } },
+                { keys: ["f"], ctrlKey: true, callback: () => { PubSub.get().publish("menu", { id: ELEMENT_IDS.FindInPage, isOpen: true }); } },
             ]);
 
             return (
@@ -251,12 +254,15 @@ const preview: Preview = {
                                 <MainBox id="App" component="main">
                                     <CommandPalette />
                                     <FindInPage />
+                                    <TutorialDialog />
                                     <VideoPopup
                                         open={!!openVideoData}
                                         onClose={closePopupVideo}
                                         src={openVideoData?.src ?? ""}
                                         zIndex={Z_INDEX.Popup}
                                     />
+                                    <UserMenu />
+                                    <FullPageSpinner />
                                     <AdaptiveLayout Story={Story} />
                                     <BottomNav />
                                 </MainBox>
