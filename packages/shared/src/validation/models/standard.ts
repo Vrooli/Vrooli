@@ -30,6 +30,6 @@ export const standardValidation: YupModel<["create", "update"]> = {
         ["ownedByTeam", ["Connect"], "one", "opt"],
         ["labels", ["Connect", "Create", "Disconnect"], "many", "opt", labelValidation],
         ["tags", ["Connect", "Create", "Disconnect"], "many", "opt", tagValidation],
-        ["versions", ["Create", "Update", "Delete"], "many", "req", standardVersionValidation, ["root"]],
+        ["versions", ["Create", "Update", "Delete"], "many", "opt", standardVersionValidation, ["root"]],
     ], [["ownedByTeamConnect", "ownedByUserConnect", false]], d),
 };

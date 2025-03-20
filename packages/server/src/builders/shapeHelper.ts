@@ -244,7 +244,6 @@ export async function shapeHelper<
         // Perform the following checks:
         // 1. Does not have both a connect and create
         // 2. Does not have both a disconnect and delete
-        const isAdd = ("create" in result || "connect" in result) && !("delete" in result || "disconnect" in result || "update" in result);
         if (result.connect && result.create)
             throw new CustomError("0342", "InvalidArgs", { relation });
         if (result.disconnect && result.delete)

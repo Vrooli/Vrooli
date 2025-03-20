@@ -1,8 +1,9 @@
-import { DUMMY_ID, ModelType, SessionUser } from "@local/shared";
+import { DUMMY_ID, ModelType, SEEDED_IDS, SessionUser } from "@local/shared";
 import { permissionsSelectHelper } from "../builders/permissionsSelectHelper.js";
 import { PrismaDelegate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
+import { logger } from "../events/logger.js";
 import { ModelMap } from "../models/base/index.js";
 import { Validator } from "../models/types.js";
 import { AuthDataById, AuthDataItem } from "../utils/getAuthenticatedData.js";
@@ -375,7 +376,13 @@ export async function permissionsCheck(
             // Check if permissions contains the current action. If so, make sure it's not false.
             if (`can${action}` in permissions && !permissions[`can${action}`]) {
                 if (throwsOnError) {
-                    throw new CustomError("0297", "Unauthorized", { action, id, __typename: authDataById[id].__typename });
+                    // If you're ad admin, do it anyway
+                    const isAdmin = userData?.id && userData.id === SEEDED_IDS.User.Admin;
+                    if (isAdmin) {
+                        logger.warning("Using admin privileges to perform action", { action, id, __typename: authDataById[id].__typename });
+                    } else {
+                        throw new CustomError("0297", "Unauthorized", { action, id, __typename: authDataById[id].__typename });
+                    }
                 } else {
                     return false;
                 }

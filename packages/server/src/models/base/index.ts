@@ -57,7 +57,7 @@ export class ModelMap {
         // Create a promise for each model import and process them in parallel
         const importPromises = modelNames.map(async (modelName) => {
             const fileName = lowercaseFirstLetter(modelName);
-            const modelPath = `./${fileName}`;
+            const modelPath = `./${fileName}.js`;
             const filePathWithoutExtension = `${dirname}/${fileName}`;
             try {
                 if (fs.existsSync(`${filePathWithoutExtension}.js`) || fs.existsSync(`${filePathWithoutExtension}.ts`)) {
@@ -114,7 +114,6 @@ export class ModelMap {
         const isModelObject = this.isModel(objectType);
         if (!isModelObject && throwErrorIfNotFound) {
             const caller = errorTrace ?? getCallerFunctionName();
-            console.error(`qqqq ModelMap.get: ${objectType} is not a model object`, ModelMap.instance);
             throw new CustomError("0024", "InternalError", { caller, objectType });
         }
         return (isModelObject ? ModelMap.instance.map[objectType] : undefined) as ThrowError extends true ? T : (T | undefined);

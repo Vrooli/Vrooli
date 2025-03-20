@@ -265,7 +265,7 @@ export class FormBuilder {
     static generateYupSchema(
         formSchema: Pick<FormSchema, "elements">,
         prefix?: string,
-    ): Yup.ObjectSchema {
+    ) {
         if (!formSchema) return null;
 
         // Initialize an empty object to hold the field schemas

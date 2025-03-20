@@ -208,7 +208,6 @@ export function createRel<
     return result as CreateRelOutput<IsOneToOne, RelTypes[number], FieldName>;
 }
 
-
 type RelationshipTypeForUpdates = "Connect" | "Create" | "Delete" | "Disconnect" | "Update";
 
 type UpdateRelOutput<
@@ -384,7 +383,7 @@ export function shapeUpdate<
     shape: Output | (() => Output),
 ): Output | undefined {
     if (!updated) return undefined;
-    let result = typeof shape === "function" ? (shape as () => Output)() : shape;
+    let result = typeof shape === "function" ? (shape as (updated?: Input) => Output)(updated) : shape;
     // Remove every value from the result that is undefined
     if (result) result = Object.fromEntries(Object.entries(result).filter(([, value]) => value !== undefined)) as Output;
     return result;
@@ -545,6 +544,76 @@ export function updateRel<
     }
     // Return result
     return result;
+}
+
+function applyPrimaryKey(
+    original: object[],
+    updated: object[],
+    primaryKey: string,
+): object[] {
+    // Create a lookup map for the original objects based on the primary key.
+    const originalMap = new Map<any, any>();
+    original.forEach(obj => {
+        originalMap.set(obj[primaryKey], obj);
+    });
+
+    // Iterate through the updated list and update the id if a match is found.
+    updated.forEach(obj => {
+        const matchingOriginal = originalMap.get(obj[primaryKey]);
+        if (matchingOriginal) {
+            (obj as { id?: string }).id = matchingOriginal.id;
+        }
+    });
+
+    return updated;
+}
+
+/**
+ * Like updateRel, but specifically for translations. 
+ * These are unique by language, so we treat the language as the primary key.
+ */
+export function updateTransRel<
+    Item extends { translations?: object[] | null | undefined },
+    Shape extends ShapeModel<any, any, any>,
+>(
+    original: Item,
+    updated: Item,
+    shape: Shape,
+): UpdateRelOutput<"many", "Create" | "Update" | "Delete", "translations"> {
+    applyPrimaryKey((original as { translations?: object[] }).translations ?? [], (updated as { translations?: object[] }).translations ?? [], "language");
+    return updateRel(original, updated, "translations", ["Create", "Update", "Delete"], "many", shape);
+}
+
+/**
+ * Like updateRel, but specifically for labels.
+ * These are unique by label, so we treat the label as the primary key.
+ */
+export function updateLabelsRel<
+    Item extends { labels?: object[] | null | undefined },
+    Shape extends ShapeModel<any, any, any>,
+>(
+    original: Item,
+    updated: Item,
+    shape: Shape,
+): UpdateRelOutput<"many", "Create" | "Update" | "Delete", "labels"> {
+    applyPrimaryKey((original as { labels?: object[] }).labels ?? [], (updated as { labels?: object[] }).labels ?? [], "label");
+    return updateRel(original, updated, "labels", ["Create", "Update", "Delete"], "many", shape);
+}
+
+/**
+ * Like updateRel, but specifically for tags.
+ * These are unique by tag, so we treat the tag as the primary key.
+ */
+export function updateTagsRel<
+    Item extends { tags?: object[] | null | undefined },
+    Shape extends ShapeModel<any, any, any>,
+>(
+    original: Item,
+    updated: Item,
+    shape: Shape,
+): UpdateRelOutput<"many", "Create" | "Update" | "Delete", "tags"> {
+    applyPrimaryKey((original as { tags?: object[] }).tags ?? [], (updated as { tags?: object[] }).tags ?? [], "tag");
+    return updateRel(original, updated, "tags", ["Create", "Update", "Delete"], "many", shape);
 }
 
 /**

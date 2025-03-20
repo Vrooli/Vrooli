@@ -5,27 +5,24 @@ import { DUMMY_ID, uuidValidate } from "../../id/uuid.js";
 import { createOwner, createPrims, createRel, createVersion, shapeDate, shapeUpdate, shouldConnect, updateOwner, updatePrims, updateRel, updateTranslationPrims, updateVersion } from "./tools.js";
 
 const mockShapeCreateModel = {
-    create: (data) => ({ ...data, shaped: true }), // We add a `shaped` property to the data to test that the function is called
+    create: (data: object) => ({ ...data, shaped: true }), // We add a `shaped` property to the data to test that the function is called
 };
 
-describe("createOwner function tests", () => {
+describe("createOwner", () => {
     it("item with User owner", () => {
-        const item = { owner: { __typename: "User", id: "user123" } };
-        // @ts-ignore: Testing runtime scenario
+        const item = { owner: { __typename: "User" as const, id: "user123" } };
         const result = createOwner(item);
         expect(result).to.deep.equal({ userConnect: "user123" });
     });
 
     it("item with Team owner", () => {
-        const item = { owner: { __typename: "Team", id: "team123" } };
-        // @ts-ignore: Testing runtime scenario
+        const item = { owner: { __typename: "Team" as const, id: "team123" } };
         const result = createOwner(item);
         expect(result).to.deep.equal({ teamConnect: "team123" });
     });
 
     it("item with different prefixes", () => {
-        const item = { owner: { __typename: "User", id: "user123" } };
-        // @ts-ignore: Testing runtime scenario
+        const item = { owner: { __typename: "User" as const, id: "user123" } };
         const result = createOwner(item, "ownedBy");
         expect(result).to.deep.equal({ ownedByUserConnect: "user123" });
     });
@@ -50,22 +47,20 @@ describe("createOwner function tests", () => {
     });
 
     it("item with empty prefix", () => {
-        const item = { owner: { __typename: "User", id: "user123" } };
-        // @ts-ignore: Testing runtime scenario
+        const item = { owner: { __typename: "User" as const, id: "user123" } };
         const result = createOwner(item, "");
         expect(result).to.deep.equal({ userConnect: "user123" });
     });
 
     it("field name formatting with prefix", () => {
-        const item = { owner: { __typename: "User", id: "user123" } };
+        const item = { owner: { __typename: "User" as const, id: "user123" } };
         // @ts-ignore: Testing runtime scenario
         const result = createOwner(item, "OwnedBy");
         expect(result).to.have.property("ownedByUserConnect");
     });
 });
 
-describe("createVersion function tests", () => {
-
+describe("createVersion", () => {
     it("root object with version data", () => {
         const root = {
             id: "123",
@@ -131,7 +126,7 @@ describe("createVersion function tests", () => {
     });
 });
 
-describe("createPrims function tests", () => {
+describe("createPrims", () => {
     let consoleErrorStub: sinon.SinonStub;
 
     before(() => {
@@ -207,7 +202,7 @@ describe("createPrims function tests", () => {
     });
 });
 
-describe("shouldConnect function tests", () => {
+describe("shouldConnect", () => {
     const validCases = [
         { case: { id: "123", __typename: "Type" }, description: "only id and __typename" },
         { case: { __connect: true, someOtherProp: "value" }, description: "__connect: true" },
@@ -244,7 +239,7 @@ describe("shouldConnect function tests", () => {
     });
 });
 
-describe("createRel function tests", () => {
+describe("createRel", () => {
     it("one-to-one relationship with Connect operation", () => {
         const item = { relation: { id: "123" } };
         const result = createRel(item, "relation", ["Connect"], "one");
@@ -296,7 +291,9 @@ describe("createRel function tests", () => {
 
     it("with preShape function", () => {
         const item = { relation: { data: "data" } };
-        const preShape = jest.fn(data => ({ ...data, preShaped: true }));
+        function preShape(data) {
+            return { ...data, preShaped: true };
+        }
         const result = createRel(item, "relation", ["Create"], "one", mockShapeCreateModel, preShape);
         expect(result).to.deep.equal({ relationCreate: { data: "data", preShaped: true, shaped: true } });
     });
@@ -321,11 +318,11 @@ describe("createRel function tests", () => {
 });
 
 const mockShapeUpdateModel = {
-    create: (data) => ({ ...data, shaped: "create" }),
-    update: (original, updated) => ({ ...updated, shaped: "update" }),
+    create: (data: object) => ({ ...data, shaped: "create" }),
+    update: (original: object, updated: object) => ({ ...updated, shaped: "update" }),
 };
 
-describe("updateOwner function tests", () => {
+describe("updateOwner", () => {
     it("no owner in both original and updated items", () => {
         const originalItem = { owner: null };
         const updatedItem = { owner: null };
@@ -375,7 +372,7 @@ describe("updateOwner function tests", () => {
     });
 });
 
-describe("updateVersion function tests", () => {
+describe("updateVersion", () => {
     it("no updated versions", () => {
         const originalRoot = { id: "123", versions: [{ id: "v1", data: "version1" }] };
         const updatedRoot = { id: "123", versions: null };
@@ -426,7 +423,7 @@ describe("updateVersion function tests", () => {
     });
 });
 
-describe("updatePrims function tests", () => {
+describe("updatePrims", () => {
     it("no original or updated object", () => {
         // @ts-ignore: Testing runtime scenario
         const result = updatePrims(null, null, "id", "name", "value");
@@ -515,7 +512,7 @@ describe("updatePrims function tests", () => {
     });
 });
 
-describe("updateTranslationPrims function tests", () => {
+describe("updateTranslationPrims", () => {
     it("no original or updated object", () => {
         // @ts-ignore: Testing runtime scenario
         const result = updateTranslationPrims(null, null, "id", "name", "value");
@@ -613,18 +610,19 @@ describe("updateTranslationPrims function tests", () => {
     });
 });
 
-describe("shapeUpdate function tests", () => {
+describe("shapeUpdate", () => {
     it("no updated object", () => {
         const result = shapeUpdate(null, {});
         expect(result).to.be.undefined;
     });
 
     it("shape as a function", () => {
-        const updated = { name: "Test" };
-        const shapeFunc = jest.fn().mockReturnValue({ name: "Updated" });
+        const updated = { name: "Test", other: "other" };
+        function shapeFunc(data) {
+            return { ...data, name: "Updated" };
+        }
         const result = shapeUpdate(updated, shapeFunc);
-        expect(shapeFunc).toHaveBeenCalled();
-        expect(result).to.deep.equal({ name: "Updated" });
+        expect(result).to.deep.equal({ name: "Updated", other: "other" });
     });
 
     it("shape as an object", () => {
@@ -641,7 +639,7 @@ describe("shapeUpdate function tests", () => {
     });
 });
 
-describe("updateRel function tests", () => {
+describe("updateRel", () => {
     it("no original item, with create operation in updated item", () => {
         const original = {};
         const updated = { relation: [{ data: "newData" }] };
@@ -678,7 +676,7 @@ describe("updateRel function tests", () => {
         expect(result).to.deep.equal({}); // Data appears in both original and updated items, so it's not a connect
     });
 
-    it("connect operation - test 2", () => {
+    it("connect operation - test 3", () => {
         const original = { relation: [{ id: "123" }] };
         const updated = { relation: [{ id: "456" }] };
         const result = updateRel(original, updated, "relation", ["Connect"], "many");

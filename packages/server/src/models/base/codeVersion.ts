@@ -49,12 +49,13 @@ export const CodeVersionModel: CodeVersionModelLogic = ({
     mutate: {
         shape: {
             pre: async (params): Promise<CodeVersionPre> => {
-                const { Create, Update, Delete } = params;
+                const { Create, Update, Delete, userData } = params;
                 await versionsCheck({
                     Create,
                     Delete,
                     objectType: __typename,
                     Update,
+                    userData,
                 });
                 [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio"));
                 const maps = preShapeVersion<"id">({ Create, Update, objectType: __typename });

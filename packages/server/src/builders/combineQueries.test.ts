@@ -258,8 +258,8 @@ describe("combineQueries", () => {
                 };
                 const result = combineQueries(queries, { mergeMode: "strict" });
                 expect(Object.keys(result)).to.deep.equal(Object.keys(expected));
-                expect(result.AND).to.deep.equal(expect.arrayContaining(expected.AND));
-                expect(expected.AND).to.deep.equal(expect.arrayContaining(result.AND));
+                expect(result.AND).to.have.deep.members(expected.AND);
+                expect(expected.AND).to.have.deep.members(result.AND);
             });
         });
 

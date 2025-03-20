@@ -1370,15 +1370,15 @@ export async function init(client: InstanceType<typeof PrismaClient>) {
                 ...codeVersionSelect.root.select,
                 versions: {
                     select: codeVersionSelect,
-                }
-            }
+                },
+            };
             const routineVersionSelect = RunProcessSelect.RoutineVersion;
             const routineRootSelect = {
                 ...routineVersionSelect.root.select,
                 versions: {
                     select: routineVersionSelect,
-                }
-            }
+                },
+            };
             // const standardVersionSelect = asdfasdfasdf;
             // const standardRootSelect = asdfasdfasdf;
 

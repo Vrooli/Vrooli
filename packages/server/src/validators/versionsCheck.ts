@@ -1,4 +1,4 @@
-import { ModelType } from "@local/shared";
+import { ModelType, SEEDED_IDS, SessionUser } from "@local/shared";
 import { PrismaDelegate } from "../builders/types.js";
 import { DbProvider } from "../db/provider.js";
 import { CustomError } from "../events/error.js";
@@ -22,6 +22,7 @@ export async function versionsCheck({
     Create,
     Update,
     Delete,
+    userData,
 }: {
     objectType: `${ModelType.ApiVersion
     | ModelType.CodeVersion
@@ -47,6 +48,7 @@ export async function versionsCheck({
     Delete: {
         input: string;
     }[],
+    userData: Pick<SessionUser, "id">,
 }) {
     // Filter unchanged versions from create and update data
     const create = Create.filter(x => x.input.versionLabel).map(({ input }) => {
@@ -140,8 +142,10 @@ export async function versionsCheck({
         }
         // Check 3
         // If the root is not private and not internal (if applicable)
-        if (!root.isPrivate && !(hasInternalField(objectType) && root.isInternal)) {
-            // Updating versions (which are not private) cannot be marked as complete
+        const isAdmin = userData.id === SEEDED_IDS.User.Admin;
+        if (!isAdmin && !root.isPrivate && !(hasInternalField(objectType) && root.isInternal)) {
+            // Updating versions (which are not private) cannot be marked as complete, 
+            // UNLESS this action is being performed by an admin
             for (const version of root.versions) {
                 if (updateIds.includes(version.id) && !version.isPrivate && version.isComplete) {
                     throw new CustomError("0381", "ErrorUnknown");

@@ -54,6 +54,7 @@ export const ProjectVersionModel: ProjectVersionModelLogic = ({
                     Delete,
                     objectType: __typename,
                     Update,
+                    userData,
                 });
                 [...Create, ...Update].map(d => d.input).forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio"));
                 const maps = preShapeVersion<"id">({ Create, Update, objectType: __typename });

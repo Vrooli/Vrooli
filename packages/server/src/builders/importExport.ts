@@ -1,4 +1,4 @@
-import { Code, CodeShape, CodeVersionConfig, CodeVersionConfigObject, CodeVersionShape, ModelType, Owner, Routine, RoutineShape, RoutineVersionConfig, RoutineVersionConfigObject, RoutineVersionShape, SessionUser, Standard, StandardShape, StandardVersionShape, shapeCode, shapeRoutine, shapeStandard } from "@local/shared";
+import { Code, CodeShape, CodeVersionConfig, CodeVersionConfigObject, CodeVersionShape, ModelType, Owner, Routine, RoutineShape, RoutineVersionConfig, RoutineVersionConfigObject, RoutineVersionShape, SessionUser, Standard, StandardShape, StandardVersionShape, mergeDeep, shapeCode, shapeRoutine, shapeStandard } from "@local/shared";
 import { createHash } from "crypto";
 import jwt from "jsonwebtoken";
 import { createOneHelper } from "../actions/creates.js";
@@ -9,7 +9,10 @@ import { CustomError } from "../events/error.js";
 import { ModelMap } from "../models/base/index.js";
 import { getAuthenticatedData } from "../utils/getAuthenticatedData.js";
 import { permissionsCheck } from "../validators/permissions.js";
+import { combineQueries } from "./combineQueries.js";
+import { InfoConverter } from "./infoConverter.js";
 import { permissionsSelectHelper } from "./permissionsSelectHelper.js";
+import { PartialApiInfo } from "./types.js";
 
 /** The current overall export format version. */
 const EXPORT_VERSION = "1.0.0";
@@ -241,6 +244,10 @@ abstract class AbstractImportExport<Import extends ImportDataBase<`${ModelType}`
         };
     }
 
+    public abstract getInfoCreate(): Promise<PartialApiInfo>;
+
+    public abstract getInfoUpdate(): Promise<PartialApiInfo>;
+
     /** Imports new data into the system. */
     public abstract importCreate(data: Import, config: ImportConfig): Promise<DbModel>;
 
@@ -252,6 +259,16 @@ abstract class AbstractImportExport<Import extends ImportDataBase<`${ModelType}`
 }
 
 class CodeImportExport extends AbstractImportExport<CodeImportData, Code> {
+    public async getInfoCreate() {
+        const info = (await import("../endpoints/generated/code_findMany.js")).code_findMany;
+        return info;
+    }
+
+    public async getInfoUpdate() {
+        const info = (await import("../endpoints/generated/code_updateOne.js")).code_updateOne;
+        return info;
+    }
+
     private shapeData({ shape }: Pick<CodeImportData, "shape">, { assignObjectsTo }: Pick<ImportConfig, "assignObjectsTo">): CodeShape {
         const versions = shape.versions.map(version => {
             // Return without "root" field
@@ -276,21 +293,19 @@ class CodeImportExport extends AbstractImportExport<CodeImportData, Code> {
     }
 
     public async importCreate(data: CodeImportData, config: ImportConfig): Promise<Code> {
-        const info = (await import("../endpoints/generated/code_createOne.js")).code_createOne;
+        const info = await this.getInfoCreate();
         const codeShape = this.shapeData(data, config);
         const input = shapeCode.create(codeShape);
         const req = this.buildRequest(config);
-        console.log("creating imported code", JSON.stringify(input, null, 2));
         const result = await createOneHelper({ info, input, objectType: "Code", req });
         return result as Code;
     }
 
     public async importUpdate(existing: Code, data: CodeImportData, config: ImportConfig): Promise<Code> {
-        const info = (await import("../endpoints/generated/code_updateOne.js")).code_updateOne;
+        const info = await this.getInfoUpdate();
         const codeShape = this.shapeData(data, config);
         const input = shapeCode.update({ ...existing, owner: existing.owner ?? null }, codeShape);
         const req = this.buildRequest(config);
-        console.log("updating imported code", JSON.stringify(input, null, 2));
         const result = await updateOneHelper({ info, input, objectType: "Code", req });
         return result as Code;
     }
@@ -302,6 +317,16 @@ class CodeImportExport extends AbstractImportExport<CodeImportData, Code> {
 }
 
 class RoutineImportExport extends AbstractImportExport<RoutineImportData, Routine> {
+    public async getInfoCreate() {
+        const info = (await import("../endpoints/generated/routine_createOne.js")).routine_createOne;
+        return info;
+    }
+
+    public async getInfoUpdate() {
+        const info = (await import("../endpoints/generated/routine_updateOne.js")).routine_updateOne;
+        return info;
+    }
+
     private shapeData({ shape }: Pick<RoutineImportData, "shape">, { assignObjectsTo }: Pick<ImportConfig, "assignObjectsTo">): RoutineShape {
         const versions = shape.versions.map(version => {
             // Return without "root" field
@@ -324,21 +349,19 @@ class RoutineImportExport extends AbstractImportExport<RoutineImportData, Routin
     }
 
     public async importCreate(data: RoutineImportData, config: ImportConfig): Promise<Routine> {
-        const info = (await import("../endpoints/generated/routine_createOne.js")).routine_createOne;
+        const info = await this.getInfoCreate();
         const routineShape = this.shapeData(data, config);
         const input = shapeRoutine.create(routineShape);
         const req = this.buildRequest(config);
-        console.log("creating imported routine", JSON.stringify(input, null, 2));
         const result = await createOneHelper({ info, input, objectType: "Routine", req });
         return result as Routine;
     }
 
     public async importUpdate(existing: Routine, data: RoutineImportData, config: ImportConfig): Promise<Routine> {
-        const info = (await import("../endpoints/generated/routine_updateOne.js")).routine_updateOne;
+        const info = await this.getInfoUpdate();
         const routineShape = this.shapeData(data, config);
         const input = shapeRoutine.update({ ...existing, owner: existing.owner ?? null }, routineShape);
         const req = this.buildRequest(config);
-        console.log("updating imported routine", JSON.stringify(input, null, 2));
         const result = await updateOneHelper({ info, input, objectType: "Routine", req });
         return result as Routine;
     }
@@ -350,6 +373,16 @@ class RoutineImportExport extends AbstractImportExport<RoutineImportData, Routin
 }
 
 class StandardImportExport extends AbstractImportExport<StandardImportData, Standard> {
+    public async getInfoCreate() {
+        const info = (await import("../endpoints/generated/standard_createOne.js")).standard_createOne;
+        return info;
+    }
+
+    public async getInfoUpdate() {
+        const info = (await import("../endpoints/generated/standard_updateOne.js")).standard_updateOne;
+        return info;
+    }
+
     private shapeData({ shape }: Pick<StandardImportData, "shape">, { assignObjectsTo }: Pick<ImportConfig, "assignObjectsTo">): StandardShape {
         const versions = shape.versions.map(version => {
             // Return without "root" field
@@ -371,21 +404,19 @@ class StandardImportExport extends AbstractImportExport<StandardImportData, Stan
     }
 
     public async importCreate(data: StandardImportData, config: ImportConfig): Promise<Standard> {
-        const info = (await import("../endpoints/generated/standard_createOne.js")).standard_createOne;
+        const info = await this.getInfoCreate();
         const standardShape = this.shapeData(data, config);
         const input = shapeStandard.create(standardShape);
         const req = this.buildRequest(config);
-        console.log("creating imported standard", JSON.stringify(input, null, 2));
         const result = await createOneHelper({ info, input, objectType: "Standard", req });
         return result as Standard;
     }
 
     public async importUpdate(existing: Standard, data: StandardImportData, config: ImportConfig): Promise<Standard> {
-        const info = (await import("../endpoints/generated/standard_updateOne.js")).standard_updateOne;
+        const info = await this.getInfoUpdate();
         const standardShape = this.shapeData(data, config);
         const input = shapeStandard.update({ ...existing, owner: existing.owner ?? null }, standardShape);
         const req = this.buildRequest(config);
-        console.log("updating imported standard", JSON.stringify(input, null, 2));
         const result = await updateOneHelper({ info, input, objectType: "Standard", req });
         return result as Standard;
     }
@@ -510,20 +541,34 @@ export async function importData(data: ImportData, config: ImportConfig): Promis
             continue;
         }
 
-        const { dbTable, idField, validate } = ModelMap.getLogic(["dbTable", "idField", "validate"], objectType as `${ModelType}`);
+        const { dbTable, format, idField, validate } = ModelMap.getLogic(["dbTable", "format", "idField", "validate"], objectType as `${ModelType}`);
 
         // Gather all non-null IDs from this group.
         const idsToCheck = objects
             .map(obj => obj.shape[idField])
             .filter(id => id != null);
 
+        // Select using all fields required for checking permissions, 
+        // combined with the shape that is imported/exported.
+        // This ensures that we can check permissions, while being able to correctly 
+        // determine what relations are being created/updated/deleted.
+        const selectPermissions = permissionsSelectHelper(validate().permissionsSelect, config.userData.id);
+        const partialInfoCreate = InfoConverter.get().fromApiToPartialApi(await importer.getInfoCreate(), format.apiRelMap) as PartialApiInfo;
+        const selectImportCreate = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfoCreate)?.select;
+        const partialInfoUpdate = InfoConverter.get().fromApiToPartialApi(await importer.getInfoUpdate(), format.apiRelMap) as PartialApiInfo;
+        const selectImportUpdate = InfoConverter.get().fromPartialApiToPrismaSelect(partialInfoUpdate)?.select;
+        const combinedSelect = combineQueries([selectPermissions, selectImportCreate, selectImportUpdate], { mergeMode: "loose" });
         // Do a single findMany query for all objects of this type that have an ID.
-        const existingObjects = idsToCheck.length > 0
+        const existingObjectsPrisma = idsToCheck.length > 0
             ? await DbProvider.get()[dbTable].findMany({
                 where: { [idField]: { in: idsToCheck } },
-                select: permissionsSelectHelper(validate().permissionsSelect, config.userData.id),
+                select: combinedSelect,
             })
             : [];
+        const partialInfo = mergeDeep(partialInfoCreate, partialInfoUpdate);
+        const existingObjects = existingObjectsPrisma.map((obj) => {
+            return InfoConverter.get().fromDbToApi(obj, partialInfo);
+        });
 
         // Create a lookup map for existing objects by their ID.
         const existingMap = new Map<string, object>();

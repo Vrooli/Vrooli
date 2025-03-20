@@ -4,7 +4,7 @@ import { DUMMY_ID } from "../../id/uuid.js";
 import { LlmModel } from "../../run/configs/bot.js";
 import { addHttps } from "../../validation/utils/builders/convert.js";
 import { hasObjectChanged } from "../general/objectTools.js";
-import { createOwner, createPrims, createRel, createVersion, shapeDate, shapeUpdate, updateOwner, updatePrims, updateRel, updateTranslationPrims, updateVersion } from "./tools.js";
+import { createOwner, createPrims, createRel, createVersion, shapeDate, shapeUpdate, updateLabelsRel, updateOwner, updatePrims, updateRel, updateTagsRel, updateTransRel, updateTranslationPrims, updateVersion } from "./tools.js";
 import { OwnerShape } from "./types.js";
 
 export type ApiShape = Pick<Api, "id" | "isPrivate"> & {
@@ -27,8 +27,8 @@ export const shapeApi: ShapeModel<ApiShape, ApiCreateInput, ApiUpdateInput> = {
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "isPrivate"),
         ...updateOwner(o, u, "ownedBy"),
-        ...updateRel(o, u, "labels", ["Connect", "Create", "Disconnect"], "many", shapeLabel),
-        ...updateRel(o, u, "tags", ["Connect", "Create", "Disconnect"], "many", shapeTag),
+        ...updateLabelsRel(o, u, shapeLabel),
+        ...updateTagsRel(o, u, shapeTag),
         ...updateVersion(o, u, shapeApiVersion),
     }),
 };
@@ -63,7 +63,7 @@ export const shapeApiVersion: ShapeModel<ApiVersionShape, ApiVersionCreateInput,
         ...updateRel(o, u, "directoryListings", ["Connect", "Disconnect"], "many"),
         ...updateRel(o, u, "resourceList", ["Create", "Update"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: o.id, __typename: "ApiVersion" } })),
         ...updateRel(o, u, "root", ["Update"], "one", shapeApi),
-        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeApiVersionTranslation),
+        ...updateTransRel(o, u, shapeApiVersionTranslation),
     }),
 };
 
@@ -172,7 +172,7 @@ export const shapeBot: ShapeModel<BotShape, BotCreateInput, BotUpdateInput> = {
                 verbosity: u.verbosity ?? undefined,
             }),
             ...updatePrims(o, u, "id", "bannerImage", "handle", "isBotDepictingPerson", "isPrivate", "name", "profileImage"),
-            ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeUserTranslation),
+            ...updateTransRel(o, u, shapeUserTranslation),
         });
     },
 };
@@ -215,9 +215,9 @@ export const shapeChat: ShapeModel<ChatShape, ChatCreateInput, ChatUpdateInput> 
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "openToAnyoneWithInvite"),
         ...updateRel(o, u, "invites", ["Create", "Update", "Delete"], "many", shapeChatInvite, (m, i) => ({ ...m, chat: { id: i.id } })),
-        ...updateRel(o, u, "labels", ["Connect", "Create", "Disconnect"], "many", shapeLabel),
+        ...updateLabelsRel(o, u, shapeLabel),
         ...updateRel(o, u, "messages", ["Create", "Update", "Delete"], "many", shapeChatMessage, (m, i) => ({ ...m, chat: { id: i.id } })),
-        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeChatTranslation),
+        ...updateTransRel(o, u, shapeChatTranslation),
         ...(u.participantsDelete?.length ? { participantsDelete: u.participantsDelete.map(m => m.id) } : {}),
     }),
 };
@@ -273,7 +273,7 @@ export const shapeChatMessage: ShapeModel<ChatMessageShape, ChatMessageCreateInp
     }),
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, "id"),
-        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeChatMessageTranslation),
+        ...updateTransRel(o, u, shapeChatMessageTranslation),
     }),
 };
 
@@ -307,8 +307,8 @@ export const shapeCode: ShapeModel<CodeShape, CodeCreateInput, CodeUpdateInput> 
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "isPrivate", "permissions"),
         ...updateOwner(o, u, "ownedBy"),
-        ...updateRel(o, u, "labels", ["Connect", "Create", "Disconnect"], "many", shapeLabel),
-        ...updateRel(o, u, "tags", ["Connect", "Create", "Disconnect"], "many", shapeTag),
+        ...updateLabelsRel(o, u, shapeLabel),
+        ...updateTagsRel(o, u, shapeTag),
         ...updateVersion(o, u, shapeCodeVersion),
     }),
 };
@@ -344,7 +344,7 @@ export const shapeCodeVersion: ShapeModel<CodeVersionShape, CodeVersionCreateInp
         ...updateRel(o, u, "directoryListings", ["Create", "Update", "Delete"], "many", shapeProjectVersionDirectory),
         ...updateRel(o, u, "root", ["Update"], "one", shapeCode),
         ...updateRel(o, u, "resourceList", ["Create", "Update"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: o.id, __typename: "CodeVersion" } })),
-        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeCodeVersionTranslation),
+        ...updateTransRel(o, u, shapeCodeVersionTranslation),
     }),
 };
 
@@ -375,7 +375,7 @@ export const shapeComment: ShapeModel<CommentShape, CommentCreateInput, CommentU
     },
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, "id"),
-        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeCommentTranslation),
+        ...updateTransRel(o, u, shapeCommentTranslation),
     }),
 };
 
@@ -403,7 +403,7 @@ export const shapeFocusMode: ShapeModel<FocusModeShape, FocusModeCreateInput, Fo
         ...updatePrims(o, u, "id", "name", "description"),
         ...updateRel(o, u, "reminderList", ["Create", "Connect", "Disconnect", "Update"], "one", shapeReminderList),
         ...updateRel(o, u, "resourceList", ["Create", "Update"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: o.id, __typename: "FocusMode" } })),
-        ...updateRel(o, u, "labels", ["Create", "Connect", "Disconnect"], "many", shapeLabel),
+        ...updateLabelsRel(o, u, shapeLabel),
         ...updateRel(o, u, "filters", ["Create", "Delete"], "many", shapeFocusModeFilter),
         ...updateRel(o, u, "schedule", ["Create", "Update"], "one", shapeSchedule),
     }),
@@ -445,8 +445,8 @@ export const shapeIssue: ShapeModel<IssueShape, IssueCreateInput, IssueUpdateInp
     }),
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, "id"),
-        ...updateRel(o, u, "labels", ["Connect", "Disconnect", "Create"], "many", shapeLabel),
-        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeIssueTranslation),
+        ...updateLabelsRel(o, u, shapeLabel),
+        ...updateTransRel(o, u, shapeIssueTranslation),
     }),
 };
 
@@ -471,7 +471,7 @@ export const shapeLabel: ShapeModel<LabelShape, LabelCreateInput, LabelUpdateInp
     }),
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "label", "color"),
-        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeLabelTranslation),
+        ...updateTransRel(o, u, shapeLabelTranslation),
     }),
 };
 
@@ -508,9 +508,9 @@ export const shapeMeeting: ShapeModel<MeetingShape, MeetingCreateInput, MeetingU
         ...updatePrims(o, u, "id", "openToAnyoneWithInvite", "showOnTeamProfile"),
         ...updateRel(o, u, "restrictedToRoles", ["Connect", "Disconnect"], "many"),
         ...updateRel(o, u, "invites", ["Create", "Update", "Delete"], "many", shapeMeetingInvite, (i) => ({ ...i, meeting: { id: o.id } })),
-        ...updateRel(o, u, "labels", ["Connect", "Disconnect"], "many"),
+        ...updateLabelsRel(o, u, shapeLabel),
         ...updateRel(o, u, "schedule", ["Create", "Update"], "one", shapeSchedule),
-        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeMeetingTranslation),
+        ...updateTransRel(o, u, shapeMeetingTranslation),
     }),
 };
 
@@ -576,8 +576,8 @@ export const shapeNote: ShapeModel<NoteShape, NoteCreateInput, NoteUpdateInput> 
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "isPrivate"),
         ...updateOwner(o, u, "ownedBy"),
-        ...updateRel(o, u, "labels", ["Connect", "Create", "Disconnect"], "many", shapeLabel),
-        ...updateRel(o, u, "tags", ["Connect", "Create", "Disconnect"], "many", shapeTag),
+        ...updateLabelsRel(o, u, shapeLabel),
+        ...updateTagsRel(o, u, shapeTag),
         ...updateVersion(o, u, shapeNoteVersion),
     }),
 };
@@ -624,7 +624,7 @@ export const shapeNoteVersion: ShapeModel<NoteVersionShape, NoteVersionCreateInp
         ...updatePrims(o, u, "id", "isPrivate", "versionLabel", "versionNotes"),
         ...updateRel(o, u, "directoryListings", ["Connect", "Disconnect"], "many"),
         ...updateRel(o, u, "root", ["Update"], "one", shapeNote),
-        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeNoteVersionTranslation),
+        ...updateTransRel(o, u, shapeNoteVersionTranslation),
     }),
 };
 
@@ -679,7 +679,7 @@ export const shapeProfile: ShapeModel<ProfileShape, null, ProfileUpdateInput> = 
             "theme",
         ),
         ...updateRel(o, u, "focusModes", ["Create", "Update", "Delete"], "many", shapeFocusMode),
-        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeProfileTranslation),
+        ...updateTransRel(o, u, shapeProfileTranslation),
     }),
 };
 
@@ -703,8 +703,8 @@ export const shapeProject: ShapeModel<ProjectShape, ProjectCreateInput, ProjectU
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "handle", "isPrivate", "permissions"),
         ...updateOwner(o, u, "ownedBy"),
-        ...updateRel(o, u, "labels", ["Connect", "Create", "Disconnect"], "many", shapeLabel),
-        ...updateRel(o, u, "tags", ["Connect", "Create", "Disconnect"], "many", shapeTag),
+        ...updateLabelsRel(o, u, shapeLabel),
+        ...updateTagsRel(o, u, shapeTag),
         ...updateVersion(o, u, shapeProjectVersion),
     }),
 };
@@ -739,7 +739,7 @@ export const shapeProjectVersion: ShapeModel<ProjectVersionShape, ProjectVersion
         ...updatePrims(o, u, "id", "isPrivate", "versionLabel", "versionNotes"),
         ...updateRel(o, u, "directories", ["Create", "Update", "Delete"], "many", shapeProjectVersionDirectory),
         ...updateRel(o, u, "root", ["Update"], "one", shapeProject),
-        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeProjectVersionTranslation),
+        ...updateTransRel(o, u, shapeProjectVersionTranslation),
         ...updateRel(o, u, "suggestedNextByProject", ["Connect", "Disconnect"], "many"),
     }),
 };
@@ -824,8 +824,8 @@ export const shapeQuestion: ShapeModel<QuestionShape, QuestionCreateInput, Quest
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "isPrivate"),
         ...updateRel(o, u, "acceptedAnswer", ["Connect", "Disconnect"], "one"),
-        ...updateRel(o, u, "tags", ["Connect", "Create", "Disconnect"], "many", shapeTag),
-        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeQuestionTranslation),
+        ...updateTagsRel(o, u, shapeTag),
+        ...updateTransRel(o, u, shapeQuestionTranslation),
     }),
 };
 
@@ -983,7 +983,7 @@ export const shapeResource: ShapeModel<ResourceShape, ResourceCreateInput, Resou
         link: o.link !== u.link ? addHttps(u.link) : undefined,
         ...updatePrims(o, u, "id", "index", "usedFor"),
         ...updateRel(o, u, "list", ["Connect", "Create"], "one", shapeResourceList),
-        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeResourceTranslation),
+        ...updateTransRel(o, u, shapeResourceTranslation),
     }),
 };
 
@@ -1021,7 +1021,7 @@ export const shapeResourceList: ShapeModel<ResourceListShape, ResourceListCreate
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, "id"),
         ...updateRel(o, u, "resources", ["Create", "Update", "Delete"], "many", shapeResource, (r, i) => ({ list: { id: i.id }, ...r })),
-        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeResourceListTranslation),
+        ...updateTransRel(o, u, shapeResourceListTranslation),
     }),
 };
 
@@ -1048,7 +1048,7 @@ export const shapeRole: ShapeModel<RoleShape, RoleCreateInput, RoleUpdateInput> 
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "name", "permissions"),
         ...updateRel(o, u, "members", ["Connect", "Disconnect"], "many"),
-        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeRoleTranslation),
+        ...updateTransRel(o, u, shapeRoleTranslation),
     }),
 };
 
@@ -1072,8 +1072,8 @@ export const shapeRoutine: ShapeModel<RoutineShape, RoutineCreateInput, RoutineU
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "isInternal", "isPrivate", "permissions"),
         ...updateOwner(o, u, "ownedBy"),
-        ...updateRel(o, u, "labels", ["Connect", "Create", "Disconnect"], "many", shapeLabel),
-        ...updateRel(o, u, "tags", ["Connect", "Create", "Disconnect"], "many", shapeTag),
+        ...updateLabelsRel(o, u, shapeLabel),
+        ...updateTagsRel(o, u, shapeTag),
         ...updateVersion(o, u, shapeRoutineVersion),
     }),
 };
@@ -1126,7 +1126,7 @@ export const shapeRoutineVersion: ShapeModel<RoutineVersionShape, RoutineVersion
         ...updateRel(o, u, "root", ["Update"], "one", shapeRoutine),
         ...updateRel(o, u, "subroutineLinks", ["Connect", "Disconnect"], "many"),
         ...updateRel(o, u, "suggestedNextByRoutineVersion", ["Connect", "Disconnect"], "many"),
-        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeRoutineVersionTranslation),
+        ...updateTransRel(o, u, shapeRoutineVersionTranslation),
     }),
 };
 
@@ -1165,7 +1165,7 @@ export const shapeRoutineVersionInput: ShapeModel<RoutineVersionInputShape, Rout
             ...updatePrims(o, u, "id", "index", "isRequired", "name"),
             standardVersionConnect: (hasStandardChanged && shouldConnectToStandard) ? u.standardVersion!.id : undefined,
             standardVersionCreate: (u.standardVersion && hasStandardChanged && !shouldConnectToStandard) ? shapeStandardVersion.create(u.standardVersion!) : undefined,
-            ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeRoutineVersionInputTranslation),
+            ...updateTransRel(o, u, shapeRoutineVersionInputTranslation),
         };
     }),
 };
@@ -1205,7 +1205,7 @@ export const shapeRoutineVersionOutput: ShapeModel<RoutineVersionOutputShape, Ro
             ...updatePrims(o, u, "id", "index", "name"),
             standardVersionConnect: (hasStandardChanged && shouldConnectToStandard) ? u.standardVersion!.id : undefined,
             standardVersionCreate: (u.standardVersion && hasStandardChanged && !shouldConnectToStandard) ? shapeStandardVersion.create(u.standardVersion!) : undefined,
-            ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeRoutineVersionOutputTranslation),
+            ...updateTransRel(o, u, shapeRoutineVersionOutputTranslation),
         };
     }),
 };
@@ -1343,7 +1343,7 @@ export const shapeSchedule: ShapeModel<ScheduleShape, ScheduleCreateInput, Sched
             ...e,
             schedule: { __typename: "Schedule" as const, id: i.id },
         })),
-        ...updateRel(o, u, "labels", ["Create", "Connect", "Disconnect"], "many", shapeLabel),
+        ...updateLabelsRel(o, u, shapeLabel),
         ...updateRel(o, u, "recurrences", ["Create", "Update", "Delete"], "many", shapeScheduleRecurrence, (e, i) => ({
             ...e,
             schedule: { __typename: "Schedule" as const, id: i.id },
@@ -1400,8 +1400,8 @@ export const shapeStandard: ShapeModel<StandardShape, StandardCreateInput, Stand
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "isInternal", "isPrivate", "permissions"),
         ...updateOwner(o, u, "ownedBy"),
-        ...updateRel(o, u, "labels", ["Connect", "Create", "Disconnect"], "many", shapeLabel),
-        ...updateRel(o, u, "tags", ["Connect", "Create", "Disconnect"], "many", shapeTag),
+        ...updateLabelsRel(o, u, shapeLabel),
+        ...updateTagsRel(o, u, shapeTag),
         ...updateVersion(o, u, shapeStandardVersion),
     }),
 };
@@ -1436,7 +1436,7 @@ export const shapeStandardVersion: ShapeModel<StandardVersionShape, StandardVers
         ...updateRel(o, u, "directoryListings", ["Create", "Update", "Delete"], "many", shapeProjectVersionDirectory),
         ...updateRel(o, u, "root", ["Update"], "one", shapeStandard),
         ...updateRel(o, u, "resourceList", ["Create", "Update"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: o.id, __typename: "StandardVersion" } })),
-        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeStandardVersionTranslation),
+        ...updateTransRel(o, u, shapeStandardVersionTranslation),
     }),
 };
 
@@ -1461,7 +1461,7 @@ export const shapeTag: ShapeModel<TagShape, TagCreateInput, TagUpdateInput> = {
     }),
     update: (o, u) => shapeUpdate(u, {
         ...updatePrims(o, u, "id", "tag"),
-        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeTagTranslation),
+        ...updateTransRel(o, u, shapeTagTranslation),
     }),
 };
 
@@ -1504,8 +1504,8 @@ export const shapeTeam: ShapeModel<TeamShape, TeamCreateInput, TeamUpdateInput> 
         ...updateRel(o, u, "memberInvites", ["Create", "Delete"], "many", shapeMemberInvite),
         ...updateRel(o, u, "resourceList", ["Create", "Update"], "one", shapeResourceList, (l) => ({ ...l, listFor: { id: o.id, __typename: "Team" } })),
         ...updateRel(o, u, "roles", ["Create", "Update", "Delete"], "many", shapeRole),
-        ...updateRel(o, u, "tags", ["Connect", "Create", "Disconnect"], "many", shapeTag),
-        ...updateRel(o, u, "translations", ["Create", "Update", "Delete"], "many", shapeTeamTranslation),
+        ...updateTagsRel(o, u, shapeTag),
+        ...updateTransRel(o, u, shapeTeamTranslation),
         ...(u.membersDelete ? { membersDelete: u.membersDelete.map(m => m.id) } : {}),
     }),
 };

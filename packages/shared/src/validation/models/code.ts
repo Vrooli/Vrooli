@@ -28,6 +28,6 @@ export const codeValidation: YupModel<["create", "update"]> = {
         ["ownedByTeam", ["Connect"], "one", "opt"],
         ["labels", ["Connect", "Create", "Disconnect"], "many", "opt", labelValidation],
         ["tags", ["Connect", "Create", "Disconnect"], "many", "opt", tagValidation],
-        ["versions", ["Create", "Update", "Delete"], "many", "req", codeVersionValidation, ["root"]],
+        ["versions", ["Create", "Update", "Delete"], "many", "opt", codeVersionValidation, ["root"]],
     ], [["ownedByTeamConnect", "ownedByUserConnect", false]], d),
 };

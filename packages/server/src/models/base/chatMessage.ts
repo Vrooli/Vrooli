@@ -1,6 +1,5 @@
 import { ChatCreateInput, ChatInviteCreateInput, ChatMessage, ChatMessageCreateInput, ChatMessageSearchTreeInput, ChatMessageSearchTreeResult, ChatMessageSortBy, ChatMessageUpdateInput, chatMessageValidation, ChatUpdateInput, getTranslation, MaxObjects, openAIServiceInfo, uuidValidate } from "@local/shared";
 import { Request } from "express";
-import { InputNode } from "utils/inputNode.js";
 import { SessionService } from "../../auth/session.js";
 import { addSupplementalFields, InfoConverter } from "../../builders/infoConverter.js";
 import { shapeHelper } from "../../builders/shapeHelper.js";
@@ -15,6 +14,7 @@ import { ChatContextManager, determineRespondingBots } from "../../tasks/llm/con
 import { requestBotResponse } from "../../tasks/llm/queue.js";
 import { ChatMessagePre, getChatParticipantData, populatePreMapForChatUpdates, PreMapChatData, PreMapMessageData, PreMapMessageDataCreate, PreMapMessageDataDelete, PreMapMessageDataUpdate, PreMapUserData, prepareChatMessageOperations } from "../../utils/chat.js";
 import { getAuthenticatedData } from "../../utils/getAuthenticatedData.js";
+import { InputNode } from "../../utils/inputNode.js";
 import { translationShapeHelper } from "../../utils/shapes/translationShapeHelper.js";
 import { SortMap } from "../../utils/sortMap.js";
 import { isOwnerAdminCheck } from "../../validators/isOwnerAdminCheck.js";

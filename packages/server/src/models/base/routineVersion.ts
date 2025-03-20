@@ -76,6 +76,7 @@ export const RoutineVersionModel: RoutineVersionModelLogic = ({
                     Delete,
                     objectType: __typename,
                     Update,
+                    userData,
                 });
                 const combinedInputs = [...Create, ...Update].map(d => d.input);
                 combinedInputs.forEach(input => lineBreaksCheck(input, ["description"], "LineBreaksBio"));

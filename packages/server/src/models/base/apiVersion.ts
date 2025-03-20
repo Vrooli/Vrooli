@@ -62,6 +62,7 @@ export const ApiVersionModel: ApiVersionModelLogic = ({
                     Delete,
                     objectType: __typename,
                     Update,
+                    userData,
                 });
                 [...Create, ...Update].forEach(input => lineBreaksCheck(input, ["summary"], "LineBreaksBio"));
                 const maps = preShapeVersion<"id">({ Create, Update, objectType: __typename });
