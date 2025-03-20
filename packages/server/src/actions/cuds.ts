@@ -353,6 +353,5 @@ export async function cudHelper({
     const transactionResult = await executeTransaction(transactionData.operations);
     processTransactionResults(transactionResult, transactionData, topInputsByType, inputData, info, maps, result);
     await triggerAfterMutations(transactionData, maps, additionalData || {}, userData);
-
     return result;
 }

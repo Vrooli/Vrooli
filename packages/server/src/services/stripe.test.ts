@@ -6,7 +6,6 @@ import pkg from "../__mocks__/@prisma/client.js";
 import Bull from "../__mocks__/bull.js";
 import { RedisClientMock } from "../__mocks__/redis.js";
 import StripeMock from "../__mocks__/stripe.js";
-import { DbProvider } from "../db/provider.js";
 import { setupEmailQueue } from "../tasks/email/queue.js";
 import { PaymentMethod, calculateExpiryAndStatus, checkSubscriptionPrices, createStripeCustomerId, fetchPriceFromRedis, getCustomerId, getPaymentType, getPriceIds, getVerifiedCustomerInfo, getVerifiedSubscriptionInfo, handleCheckoutSessionExpired, handleCustomerDeleted, handleCustomerSourceExpiring, handleCustomerSubscriptionDeleted, handleCustomerSubscriptionTrialWillEnd, handleCustomerSubscriptionUpdated, handleInvoicePaymentCreated, handleInvoicePaymentFailed, handleInvoicePaymentSucceeded, handlePriceUpdated, handlerResult, isInCorrectEnvironment, isStripeObjectOlderThan, isValidCreditsPurchaseSession, isValidSubscriptionSession, parseInvoiceData, setupStripe, storePrice } from "./stripe.js";
 
@@ -662,7 +661,6 @@ describe("getVerifiedCustomerInfo", () => {
                 emails: [{ emailAddress: "emailWithSubscription@example.com" }],
             }],
         });
-        await DbProvider.init();
     });
 
     afterEach(() => {

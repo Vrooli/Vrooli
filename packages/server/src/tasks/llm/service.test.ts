@@ -2,8 +2,6 @@
 import { LlmTask, SessionUser } from "@local/shared";
 import { expect } from "chai";
 import pkg from "../../__mocks__/@prisma/client.js";
-import { DbProvider } from "../../db/provider.js";
-import { ModelMap } from "../../models/index.js";
 import { PreMapUserData } from "../../utils/chat.js";
 import { ChatContextCollector } from "./context.js";
 import { CreditValue, GenerateResponseParams, LanguageModelService, calculateMaxCredits, fetchMessagesFromDatabase, tokenEstimationDefault } from "./service.js";
@@ -113,8 +111,6 @@ describe("fetchMessagesFromDatabase", () => {
     ];
 
     beforeEach(async () => {
-        await ModelMap.init();
-        await DbProvider.init();
         jest.clearAllMocks();
         PrismaClient.injectData({
             ChatMessage: JSON.parse(JSON.stringify(mockMessages)),
@@ -236,8 +232,6 @@ describe("calculateMaxCredits", () => {
 // Test each implementation of LanguageModelService to ensure they comply with the interface
 describe("LanguageModelService lmServices", () => {
     beforeEach(async () => {
-        await ModelMap.init();
-        await DbProvider.init();
         jest.clearAllMocks();
         PrismaClient.injectData({});
     });

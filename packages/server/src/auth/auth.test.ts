@@ -2,12 +2,11 @@
 import { DAYS_1_MS, DAYS_30_MS, SECONDS_1_MS, SessionUser, uuid } from "@local/shared";
 import { expect } from "chai";
 import { generateKeyPairSync } from "crypto";
+import sinon from "sinon";
 import pkg from "../__mocks__/@prisma/client.js";
-import { DbProvider } from "../db/provider.js";
 import { type SessionData, type SessionToken } from "../types.js";
 import { AuthTokensService } from "./auth.js";
 import { ACCESS_TOKEN_EXPIRATION_MS, JsonWebToken } from "./jwt.js";
-import sinon from "sinon";
 
 const { PrismaClient } = pkg;
 
@@ -16,7 +15,6 @@ describe("AuthTokensService", () => {
 
     before(async () => {
         consoleErrorStub = sinon.stub(console, "error");
-        await DbProvider.init();
     });
 
     beforeEach(() => {
