@@ -9,10 +9,9 @@ import { useMenu } from "../hooks/useMenu.js";
 import { useWindowSize } from "../hooks/useWindowSize.js";
 import { useLocation } from "../route/router.js";
 import { LayoutComponentId, LayoutPositionId, useLayoutStore } from "../stores/LayoutStore.js";
-import { ELEMENT_IDS } from "../utils/consts.js";
-import { LEFT_DRAWER_ID, PubSub, RIGHT_DRAWER_ID } from "../utils/pubsub.js";
-import "./AdaptiveLayout.css";
-import { SiteNavigator } from "./navigation/SiteNavigator/SiteNavigator.js";
+import { ELEMENT_IDS, Z_INDEX } from "../utils/consts.js";
+import { PubSub } from "../utils/pubsub.js";
+import { SiteNavigator } from "./navigation/SiteNavigator.js";
 
 // Drawer sizes and limits
 const LEFT_DRAWER_WIDTH_DEFAULT_PX = 280;
@@ -22,8 +21,9 @@ const MAX_LEFT_DRAWER_WIDTH = 500;
 const MIN_RIGHT_DRAWER_WIDTH = 150;
 const MAX_RIGHT_DRAWER_WIDTH = 500;
 
-const leftDrawerPaperProps = { id: LEFT_DRAWER_ID } as const;
-const rightDrawerPaperProps = { id: RIGHT_DRAWER_ID } as const;
+const leftDrawerPaperProps = { id: ELEMENT_IDS.LeftDrawer } as const;
+const rightDrawerPaperProps = { id: ELEMENT_IDS.RightDrawer } as const;
+const drawerModalProps = { sx: { zIndex: Z_INDEX.Drawer } } as const;
 
 interface ResizableDrawerProps extends SwipeableDrawerProps {
     size: number,
@@ -69,7 +69,7 @@ function PortalComponent({ id, Story, target }: ComponentProps) {
 
     // Component content
     const content = (
-        <Box className="component-container">
+        <Box height="100%" display="flex" flexDirection="column" overflow="hidden">
             {getComponent()}
         </Box>
     );
@@ -83,11 +83,10 @@ function PortalComponent({ id, Story, target }: ComponentProps) {
  * Manages the layout with drawers and integrates with router
  */
 export function AdaptiveLayout({ Story }: { Story?: React.ComponentType }) {
-    const { breakpoints, transitions } = useTheme();
-    const [location, setLocation] = useLocation();
+    const { breakpoints } = useTheme();
+    const [location] = useLocation();
     const isLeftHanded = useIsLeftHanded();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
-    console.log("isMobile", isMobile);
 
     // Get layout state from store
     const {
@@ -101,16 +100,16 @@ export function AdaptiveLayout({ Story }: { Story?: React.ComponentType }) {
 
     // Handler drawer state and close
     const { isOpen: isLeftDrawerOpen, close: closeLeftDrawer } = useMenu({
-        id: LEFT_DRAWER_ID,
+        id: ELEMENT_IDS.LeftDrawer,
         isMobile,
     });
     const { isOpen: isRightDrawerOpen, close: closeRightDrawer } = useMenu({
-        id: RIGHT_DRAWER_ID,
+        id: ELEMENT_IDS.RightDrawer,
         isMobile,
     });
     useEffect(function publishMenuOpenOnViewportChange() {
-        PubSub.get().publish("menu", { id: LEFT_DRAWER_ID, isOpen: isLeftDrawerOpen });
-        PubSub.get().publish("menu", { id: RIGHT_DRAWER_ID, isOpen: isRightDrawerOpen });
+        PubSub.get().publish("menu", { id: ELEMENT_IDS.LeftDrawer, isOpen: isLeftDrawerOpen });
+        PubSub.get().publish("menu", { id: ELEMENT_IDS.RightDrawer, isOpen: isRightDrawerOpen });
     }, [breakpoints, isLeftDrawerOpen, isRightDrawerOpen]);
     const handleCloseLeftDrawer = useCallback(() => { closeLeftDrawer(); }, [closeLeftDrawer]);
     const handleCloseRightDrawer = useCallback(() => { closeRightDrawer(); }, [closeRightDrawer]);
@@ -248,6 +247,7 @@ export function AdaptiveLayout({ Story }: { Story?: React.ComponentType }) {
             <ResizableDrawer
                 size={isMobile ? leftDrawerWidth : (isLeftDrawerOpen ? leftDrawerWidth : 0)}
                 anchor={leftDrawerAnchor}
+                ModalProps={drawerModalProps}
                 open={isLeftDrawerOpen}
                 onOpen={noop}
                 onClose={handleCloseLeftDrawer}
@@ -291,6 +291,7 @@ export function AdaptiveLayout({ Story }: { Story?: React.ComponentType }) {
             <ResizableDrawer
                 size={isMobile ? rightDrawerWidth : (isRightDrawerOpen ? rightDrawerWidth : 0)}
                 anchor={rightDrawerAnchor}
+                ModalProps={drawerModalProps}
                 open={isRightDrawerOpen}
                 onOpen={noop}
                 onClose={handleCloseRightDrawer}
