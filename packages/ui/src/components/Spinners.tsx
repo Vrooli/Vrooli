@@ -1,5 +1,9 @@
 import { Box, keyframes, styled, SxProps, Theme } from "@mui/material";
-import { DiagonalWaveLoaderProps } from "components/types";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useMenu } from "../hooks/useMenu.js";
+import { ELEMENT_IDS } from "../utils/consts.js";
+import { MenuPayloads } from "../utils/pubsub.js";
+import { DiagonalWaveLoaderProps } from "./types.js";
 
 const DEFAULT_LOADER_SIZE = 60;
 const BOX_WIDTH_IN_CIRCLES = 3;
@@ -72,8 +76,36 @@ const fullPageSpinnerOuterStyle = {
 } as const;
 
 export function FullPageSpinner() {
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const [isOpen, setIsOpen] = useState(false);
+
+    useEffect(function resetLoadingStateOnMountEffect() {
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    }, []);
+
+    const onEvent = useCallback(function onEventCallback({ data }: MenuPayloads[typeof ELEMENT_IDS.FullPageSpinner]) {
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        const show = data?.show ?? true;
+        const delay = data?.delay ?? 0;
+        if (!delay) {
+            setIsOpen(show);
+        } else if (Number.isInteger(delay) && delay > 0) {
+            timeoutRef.current = setTimeout(() => setIsOpen(show), delay);
+        } else {
+            setIsOpen(show);
+        }
+    }, []);
+    const { isOpen: isActive } = useMenu({
+        id: ELEMENT_IDS.FullPageSpinner,
+        onEvent,
+    });
+    useEffect(function closeWhenInactiveEffect() {
+        if (!isActive) setIsOpen(false);
+    }, [isActive]);
+
+    if (!isActive || !isOpen) return null;
     return (
-        <Box sx={fullPageSpinnerOuterStyle}>
+        <Box id={ELEMENT_IDS.FullPageSpinner} sx={fullPageSpinnerOuterStyle}>
             <DiagonalWaveLoader size={100} />
         </Box>
     );
