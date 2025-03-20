@@ -1,5 +1,5 @@
-import { API_CREDITS_MULTIPLIER, ActionOption, HistoryPageTabOption, LINKS, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User, endpointsAuth, endpointsUser, noop, profileValidation, shapeProfile } from "@local/shared";
-import { Avatar, Box, Collapse, Divider, IconButton, Link, List, ListItem, ListItemIcon, ListItemText, Palette, SwipeableDrawer, Typography, styled, useTheme } from "@mui/material";
+import { API_CREDITS_MULTIPLIER, ActionOption, HistoryPageTabOption, LINKS, PreActionOption, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User, endpointsAuth, endpointsUser, profileValidation, shapeProfile } from "@local/shared";
+import { Avatar, Box, Collapse, Divider, Link, List, ListItem, ListItemIcon, ListItemText, Palette, Typography, styled, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
 import { useFormik } from "formik";
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -7,28 +7,27 @@ import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { SocketService } from "../../../api/socket.js";
 import { SessionContext } from "../../../contexts.js";
-import { useIsLeftHanded } from "../../../hooks/subscriptions.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
-import { useSideMenu } from "../../../hooks/useSideMenu.js";
+import { useMenu } from "../../../hooks/useMenu.js";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";
-import { AwardIcon, BookmarkFilledIcon, CloseIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, InfoIcon, LogOutIcon, MonthIcon, PlusIcon, PremiumIcon, RoutineActiveIcon, SettingsIcon, UserIcon } from "../../../icons/common.js";
+import { AwardIcon, BookmarkFilledIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, InfoIcon, LogInIcon, LogOutIcon, MonthIcon, PlusIcon, PremiumIcon, RoutineActiveIcon, SettingsIcon, UserIcon } from "../../../icons/common.js";
 import { useLocation } from "../../../route/router.js";
 import { noSelect } from "../../../styles.js";
 import { SvgComponent } from "../../../types.js";
-import { getCurrentUser, guestSession } from "../../../utils/authentication/session.js";
-import { ELEMENT_IDS, RIGHT_DRAWER_WIDTH } from "../../../utils/consts.js";
+import { SessionService, checkIfLoggedIn, getCurrentUser, guestSession } from "../../../utils/authentication/session.js";
+import { ELEMENT_IDS } from "../../../utils/consts.js";
 import { extractImageUrl } from "../../../utils/display/imageTools.js";
-import { removeCookie } from "../../../utils/localStorage.js";
 import { openObject } from "../../../utils/navigation/openObject.js";
 import { Actions, performAction } from "../../../utils/navigation/quickActions.js";
 import { NAV_ACTION_TAGS, NavAction, getUserActions } from "../../../utils/navigation/userActions.js";
-import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID, SideMenuPayloads } from "../../../utils/pubsub.js";
+import { MenuPayloads, PubSub } from "../../../utils/pubsub.js";
 import { FocusModeSelector } from "../../inputs/FocusModeSelector/FocusModeSelector.js";
 import { LanguageSelector } from "../../inputs/LanguageSelector/LanguageSelector.js";
 import { LeftHandedCheckbox } from "../../inputs/LeftHandedCheckbox/LeftHandedCheckbox.js";
 import { TextSizeButtons } from "../../inputs/TextSizeButtons/TextSizeButtons.js";
 import { ThemeSwitch } from "../../inputs/ThemeSwitch/ThemeSwitch.js";
-import { ContactInfo } from "../../navigation/ContactInfo/ContactInfo.js";
+import { ContactInfo } from "../../navigation/ContactInfo.js";
+import { LargeDialog } from "../LargeDialog/LargeDialog.js";
 
 /**
  * Maximum accounts to sign in with. 
@@ -36,8 +35,6 @@ import { ContactInfo } from "../../navigation/ContactInfo/ContactInfo.js";
  */
 const MAX_ACCOUNTS = 10;
 const AVATAR_SIZE_PX = 50;
-
-const drawerPaperProps = { id: SIDE_MENU_ID } as const;
 
 function NavListItem({ label, Icon, onClick, palette }: {
     label: string;
@@ -55,36 +52,10 @@ function NavListItem({ label, Icon, onClick, palette }: {
     );
 }
 
-const SizedDrawer = styled(SwipeableDrawer)(() => ({
-    width: RIGHT_DRAWER_WIDTH,
-    flexShrink: 0,
-    "& .MuiDrawer-paper": {
-        width: RIGHT_DRAWER_WIDTH,
-        boxSizing: "border-box",
-    },
-    "& > .MuiDrawer-root": {
-        "& > .MuiPaper-root": {
-        },
-    },
-}));
-const SideTopBar = styled(Box)(({ theme }) => ({
-    ...noSelect,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: theme.spacing(1),
-    background: theme.palette.primary.dark,
-    color: theme.palette.primary.contrastText,
-    textAlign: "center",
-    height: "64px", // Matches Navbar height
-    // eslint-disable-next-line no-magic-numbers
-    paddingRight: theme.spacing(3), // Matches navbar padding
-}));
 const StyledAvatar = styled(Avatar)(({ theme }) => ({
     marginRight: theme.spacing(2),
 }));
-const SideMenuDisplaySettingsBox = styled(Box)(({ theme }) => ({
+const UserMenuDisplaySettingsBox = styled(Box)(({ theme }) => ({
     display: "flex",
     flexDirection: "column",
     gap: theme.spacing(2),
@@ -93,24 +64,28 @@ const SideMenuDisplaySettingsBox = styled(Box)(({ theme }) => ({
     padding: theme.spacing(1),
 }));
 
-const profileListContainerStyle = {
-    overflow: "auto",
-    display: "grid",
-    overflowX: "hidden",
-} as const;
+const dialogSxs = {
+    paper: {
+        overflowY: "auto",
+    },
+};
 const seeAllLinkStyle = { textAlign: "right" } as const;
 const seeAllLinkTextStyle = { marginRight: "12px", marginBottom: "8px" } as const;
 
-export function SideMenu() {
+/**
+ * User menu dialog that displays user accounts, settings, and navigation options.
+ * Appears as a dialog from the right side of the screen.
+ */
+export function UserMenu() {
     const session = useContext(SessionContext);
     const { breakpoints, palette } = useTheme();
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
-    const isLeftHanded = useIsLeftHanded();
     const navActions = useMemo<NavAction[]>(() => getUserActions({ session, exclude: [NAV_ACTION_TAGS.LogIn] }), [session]);
 
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
+    const isLoggedIn = checkIfLoggedIn(session);
 
     // Display settings collapse
     const [isDisplaySettingsOpen, setIsDisplaySettingsOpen] = useState(false);
@@ -123,7 +98,7 @@ export function SideMenu() {
     const closeAdditionalResources = useCallback(() => { setIsAdditionalResourcesOpen(false); }, []);
 
     // Handle opening and closing
-    const onEvent = useCallback(function onEventCallback({ data }: SideMenuPayloads["side-menu"]) {
+    const onEvent = useCallback(function onEventCallback({ data }: MenuPayloads[typeof ELEMENT_IDS.UserMenu]) {
         if (!data) return;
         if (typeof data.isAdditionalResourcesCollapsed === "boolean") {
             setIsAdditionalResourcesOpen(!data.isAdditionalResourcesCollapsed);
@@ -132,14 +107,14 @@ export function SideMenu() {
             setIsDisplaySettingsOpen(!data.isDisplaySettingsCollapsed);
         }
     }, []);
-    const { isOpen, close } = useSideMenu({
-        id: SIDE_MENU_ID,
+    const { isOpen, close } = useMenu({
+        id: ELEMENT_IDS.UserMenu,
         isMobile,
         onEvent,
     });
     // When moving between mobile/desktop, publish current state
     useEffect(() => {
-        PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen });
+        PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen });
     }, [breakpoints, isOpen]);
 
     // Handle update. Only updates when menu closes, and account settings have changed.
@@ -179,7 +154,7 @@ export function SideMenu() {
         },
     });
 
-    const handleClose = useCallback((_event: React.MouseEvent<HTMLElement>) => {
+    const handleClose = useCallback((_event: unknown, _reason?: "backdropClick" | "escapeKeyDown") => {
         formik.handleSubmit();
         close();
         closeAdditionalResources();
@@ -212,7 +187,7 @@ export function SideMenu() {
         }
     }, [handleClose, isMobile, userId, setLocation, switchCurrentAccount]);
 
-    const handleAddAccount = useCallback((event: React.MouseEvent<HTMLElement>) => {
+    const handleLoginSignup = useCallback((event: React.MouseEvent<HTMLElement>) => {
         setLocation(LINKS.Login);
         if (isMobile) handleClose(event);
     }, [handleClose, isMobile, setLocation]);
@@ -232,11 +207,7 @@ export function SideMenu() {
                 PubSub.get().publish("session", guestSession);
             },
             onCompleted: () => {
-                SocketService.get().connect();
-                removeCookie("FormData"); // Clear old form data cache
-                localStorage.removeItem("isLoggedIn");
-                PubSub.get().publish("sideMenu", { id: SIDE_MENU_ID, isOpen: false });
-                PubSub.get().publish("sideMenu", { id: CHAT_SIDE_MENU_ID, isOpen: false });
+                SessionService.logOut();
             },
         });
         setLocation(LINKS.Home);
@@ -247,7 +218,7 @@ export function SideMenu() {
         if (isMobile) handleClose(event);
     }, [handleClose, isMobile, setLocation]);
 
-    const handleAction = useCallback(function handleActionCallback(event: React.MouseEvent<HTMLElement>, action: ActionOption) {
+    const handleAction = useCallback(function handleActionCallback(event: React.MouseEvent<HTMLElement>, action: PreActionOption | ActionOption) {
         if (isMobile) handleClose(event);
         performAction(action, session);
     }, [handleClose, isMobile, session]);
@@ -258,14 +229,16 @@ export function SideMenu() {
             handleUserClick(event, account);
         }
 
+        const listItemStyle = {
+            background: account.id === userId ? palette.secondary.light : palette.background.default,
+        };
+
         return (
             <ListItem
                 button
                 key={account.id}
                 onClick={handleClick}
-                sx={{
-                    background: account.id === userId ? palette.secondary.light : palette.background.default,
-                }}
+                sx={listItemStyle}
             >
                 <StyledAvatar
                     src={extractImageUrl(account.profileImage, account.updated_at, AVATAR_SIZE_PX)}
@@ -286,6 +259,15 @@ export function SideMenu() {
     }, [accounts, handleUserClick]);
 
     const navItems = useMemo(function navItemsMemo() {
+        // Only include Pro link when not logged in
+        if (!isLoggedIn) {
+            return [
+                { label: t("Pro"), Icon: PremiumIcon, link: LINKS.Pro, action: null },
+                { label: t("Tutorial"), Icon: HelpIcon, action: Actions.tutorial },
+            ] as const;
+        }
+
+        // Include all links when logged in
         return [
             { label: t("Bookmark", { count: 2 }), Icon: BookmarkFilledIcon, link: `${LINKS.History}?type="${HistoryPageTabOption.Bookmarked}"`, action: null },
             { label: t("Calendar", { count: 2 }), Icon: MonthIcon, link: LINKS.Calendar, action: null },
@@ -296,7 +278,7 @@ export function SideMenu() {
             { label: t("Settings"), Icon: SettingsIcon, link: LINKS.Settings, action: null },
             { label: t("Tutorial"), Icon: HelpIcon, action: Actions.tutorial },
         ] as const;
-    }, [t]);
+    }, [t, isLoggedIn]);
 
     const handleNavItemClick = useCallback(function handleNavItemClickCallback(event: React.MouseEvent<HTMLElement>, item: typeof navItems[number]) {
         if (item.action) {
@@ -306,140 +288,160 @@ export function SideMenu() {
         }
     }, [handleAction, handleOpen]);
 
+    const accountListStyle = { paddingTop: 0, paddingBottom: 0 };
+    const dividerStyle = { background: palette.background.textSecondary };
+
+    const displayHeaderStyle = {
+        display: "flex",
+        alignItems: "center",
+        textAlign: "left",
+        paddingLeft: 2,
+        paddingRight: 2,
+        paddingTop: 1,
+        paddingBottom: 1,
+    };
+
+    const boxIconStyle = { minWidth: "56px", display: "flex", alignItems: "center" };
+    const typographyStyle = { color: palette.background.textPrimary, ...noSelect, margin: "0 !important" };
+    const expandIconStyle = { marginLeft: "auto" };
+    const collapseStyle = { display: "inline-block", minHeight: "auto!important" };
+
+    const themeSwitchStyle = { justifyContent: "flex-start" };
+    const leftHandedCheckboxStyle = { justifyContent: "flex-start" };
+
+    const additionalResourcesStyle = {
+        display: "flex",
+        alignItems: "center",
+        textAlign: "left",
+        paddingLeft: 2,
+        paddingRight: 2,
+        paddingTop: 1,
+        paddingBottom: 1,
+    };
+
+    const additionalResourcesCollapseStyle = { display: "inline-block" };
+
     return (
-        <SizedDrawer
-            anchor={isLeftHanded ? "left" : "right"}
-            open={isOpen}
-            onOpen={noop}
+        <LargeDialog
+            id={ELEMENT_IDS.UserMenu}
+            isOpen={isOpen}
             onClose={handleClose}
-            PaperProps={drawerPaperProps}
-            variant={isMobile ? "temporary" : "persistent"}
+            sxs={dialogSxs}
         >
-            <SideTopBar onClick={handleClose}>
-                {/* Close icon */}
-                <IconButton
-                    aria-label="close"
-                    edge="end"
-                    onClick={handleClose}
-                    sx={{
-                        marginLeft: isLeftHanded ? "unset" : "auto",
-                        marginRight: isLeftHanded ? "auto" : "unset",
-                    }}
-                >
-                    <CloseIcon fill={palette.primary.contrastText} width="40px" height="40px" />
-                </IconButton>
-            </SideTopBar>
-            <Box sx={profileListContainerStyle}>
-                {/* List of logged/in accounts and authentication-related actions */}
-                <List
-                    id={ELEMENT_IDS.SideMenuAccountList}
-                    sx={{ paddingTop: 0, paddingBottom: 0 }}
-                >
-                    {profileListItems}
-                    <Divider sx={{ background: palette.background.textSecondary }} />
-                    {/* Buttons to add account and log out */}
-                    {accounts.length < MAX_ACCOUNTS && <ListItem button onClick={handleAddAccount}>
+            {/* List of logged/in accounts and authentication-related actions */}
+            <List
+                id={ELEMENT_IDS.UserMenuAccountList}
+                sx={accountListStyle}
+            >
+                {profileListItems}
+                <Divider sx={dividerStyle} />
+                {/* Show login/signup button when not logged in */}
+                {!isLoggedIn && (
+                    <ListItem button onClick={handleLoginSignup}>
+                        <ListItemIcon>
+                            <LogInIcon fill={palette.background.textPrimary} />
+                        </ListItemIcon>
+                        <ListItemText primary={"Log In/Sign Up"} />
+                    </ListItem>
+                )}
+                {/* Show add account button when logged in and under max accounts */}
+                {isLoggedIn && accounts.length < MAX_ACCOUNTS && (
+                    <ListItem button onClick={handleLoginSignup}>
                         <ListItemIcon>
                             <PlusIcon fill={palette.background.textPrimary} />
                         </ListItemIcon>
                         <ListItemText primary={t("AddAccount")} />
-                    </ListItem>}
-                    {accounts.length > 0 && <ListItem button onClick={handleLogOut}>
+                    </ListItem>
+                )}
+                {/* Show logout button when logged in */}
+                {isLoggedIn && accounts.length > 0 && (
+                    <ListItem button onClick={handleLogOut}>
                         <ListItemIcon>
                             <LogOutIcon fill={palette.background.textPrimary} />
                         </ListItemIcon>
                         <ListItemText primary={t("LogOut")} />
-                    </ListItem>}
-                </List>
-                <Divider sx={{ background: palette.background.textSecondary }} />
-                {/* Display Settings */}
-                <Stack id="side-menu-display-header" direction="row" spacing={1} onClick={toggleDisplaySettings} sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    textAlign: "left",
-                    paddingLeft: 2,
-                    paddingRight: 2,
-                    paddingTop: 1,
-                    paddingBottom: 1,
-                }}>
-                    <Box sx={{ minWidth: "56px", display: "flex", alignItems: "center" }}>
-                        <DisplaySettingsIcon fill={palette.background.textPrimary} />
-                    </Box>
-                    <Typography variant="body1" sx={{ color: palette.background.textPrimary, ...noSelect, margin: "0 !important" }}>{t("Display")}</Typography>
-                    {isDisplaySettingsOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} /> : <ExpandLessIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} />}
-                </Stack>
-                <Collapse in={isDisplaySettingsOpen} sx={{ display: "inline-block", minHeight: "auto!important" }}>
-                    <SideMenuDisplaySettingsBox id={ELEMENT_IDS.SideMenuDisplaySettings}>
-                        <ThemeSwitch updateServer sx={{ justifyContent: "flex-start" }} />
-                        <TextSizeButtons />
-                        <LeftHandedCheckbox sx={{ justifyContent: "flex-start" }} />
-                        <LanguageSelector />
-                        <FocusModeSelector />
-                    </SideMenuDisplaySettingsBox>
-                    <Link
-                        href={LINKS.SettingsDisplay}
-                        sx={seeAllLinkStyle}
-                    >
-                        <Typography variant="body2" sx={seeAllLinkTextStyle}>{t("SeeAll")}</Typography>
-                    </Link>
-                </Collapse>
-                <Divider sx={{ background: palette.background.textSecondary }} />
-                {/* List of quick links */}
-                <List id={ELEMENT_IDS.SideMenuQuickLinks}>
-                    {/* Main navigation links, if not mobile */}
-                    {!isMobile && navActions.map((action) => {
-                        function handleClick(event: React.MouseEvent<HTMLElement>) {
-                            handleOpen(event, action.link);
-                        }
+                    </ListItem>
+                )}
+            </List>
+            <Divider sx={dividerStyle} />
+            {/* Display Settings */}
+            <Stack id="side-menu-display-header" direction="row" spacing={1} onClick={toggleDisplaySettings} sx={displayHeaderStyle}>
+                <Box sx={boxIconStyle}>
+                    <DisplaySettingsIcon fill={palette.background.textPrimary} />
+                </Box>
+                <Typography variant="body1" sx={typographyStyle}>{t("Display")}</Typography>
+                {isDisplaySettingsOpen ?
+                    <ExpandMoreIcon fill={palette.background.textPrimary} style={expandIconStyle} /> :
+                    <ExpandLessIcon fill={palette.background.textPrimary} style={expandIconStyle} />
+                }
+            </Stack>
+            <Collapse in={isDisplaySettingsOpen} sx={collapseStyle}>
+                <UserMenuDisplaySettingsBox id={ELEMENT_IDS.UserMenuDisplaySettings}>
+                    <ThemeSwitch updateServer sx={themeSwitchStyle} />
+                    <TextSizeButtons />
+                    <LeftHandedCheckbox sx={leftHandedCheckboxStyle} />
+                    <LanguageSelector />
+                    <FocusModeSelector />
+                </UserMenuDisplaySettingsBox>
+                <Link
+                    href={LINKS.SettingsDisplay}
+                    sx={seeAllLinkStyle}
+                >
+                    <Typography variant="body2" sx={seeAllLinkTextStyle}>{t("SeeAll")}</Typography>
+                </Link>
+            </Collapse>
+            <Divider sx={dividerStyle} />
+            {/* List of quick links */}
+            <List id={ELEMENT_IDS.UserMenuQuickLinks}>
+                {/* Main navigation links, if not mobile and logged in */}
+                {!isMobile && isLoggedIn && navActions.map((action) => {
+                    function handleClick(event: React.MouseEvent<HTMLElement>) {
+                        handleOpen(event, action.link);
+                    }
 
-                        return (
-                            <NavListItem
-                                key={action.value}
-                                label={t(action.label, { count: action.numNotifications })}
-                                Icon={action.Icon}
-                                onClick={handleClick}
-                                palette={palette}
-                            />
-                        );
-                    })}
-                    {/* Other navigation links */}
-                    {navItems.map((item, index) => {
-                        function handleClick(event: React.MouseEvent<HTMLElement>) {
-                            handleNavItemClick(event, item);
-                        }
+                    return (
+                        <NavListItem
+                            key={action.value}
+                            label={t(action.label, { count: action.numNotifications })}
+                            Icon={action.Icon}
+                            onClick={handleClick}
+                            palette={palette}
+                        />
+                    );
+                })}
+                {/* Other navigation links */}
+                {navItems.map((item, index) => {
+                    function handleClick(event: React.MouseEvent<HTMLElement>) {
+                        handleNavItemClick(event, item);
+                    }
 
-                        return (
-                            <NavListItem
-                                key={index}
-                                label={item.label}
-                                Icon={item.Icon}
-                                onClick={handleClick}
-                                palette={palette}
-                            />
-                        );
-                    })}
-                </List>
-                <Divider sx={{ background: palette.background.textSecondary }} />
-                {/* Additional Resources */}
-                <Stack direction="row" spacing={1} onClick={toggleAdditionalResources} sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    textAlign: "left",
-                    paddingLeft: 2,
-                    paddingRight: 2,
-                    paddingTop: 1,
-                    paddingBottom: 1,
-                }}>
-                    <Box sx={{ minWidth: "56px", display: "flex", alignItems: "center" }}>
-                        <InfoIcon fill={palette.background.textPrimary} />
-                    </Box>
-                    <Typography variant="body1" sx={{ color: palette.background.textPrimary, ...noSelect, margin: "0 !important" }}>{t("AdditionalResources")}</Typography>
-                    {isAdditionalResourcesOpen ? <ExpandMoreIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} /> : <ExpandLessIcon fill={palette.background.textPrimary} style={{ marginLeft: "auto" }} />}
-                </Stack>
-                <Collapse in={isAdditionalResourcesOpen} sx={{ display: "inline-block" }}>
-                    <ContactInfo />
-                </Collapse>
-            </Box>
-        </SizedDrawer>
+                    return (
+                        <NavListItem
+                            key={index}
+                            label={item.label}
+                            Icon={item.Icon}
+                            onClick={handleClick}
+                            palette={palette}
+                        />
+                    );
+                })}
+            </List>
+            <Divider sx={dividerStyle} />
+            {/* Additional Resources */}
+            <Stack direction="row" spacing={1} onClick={toggleAdditionalResources} sx={additionalResourcesStyle}>
+                <Box sx={boxIconStyle}>
+                    <InfoIcon fill={palette.background.textPrimary} />
+                </Box>
+                <Typography variant="body1" sx={typographyStyle}>{t("AdditionalResources")}</Typography>
+                {isAdditionalResourcesOpen ?
+                    <ExpandMoreIcon fill={palette.background.textPrimary} style={expandIconStyle} /> :
+                    <ExpandLessIcon fill={palette.background.textPrimary} style={expandIconStyle} />
+                }
+            </Stack>
+            <Collapse in={isAdditionalResourcesOpen} sx={additionalResourcesCollapseStyle}>
+                <ContactInfo />
+            </Collapse>
+        </LargeDialog>
     );
 }
+
