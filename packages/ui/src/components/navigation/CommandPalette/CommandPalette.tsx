@@ -1,18 +1,19 @@
 import { ActionOption, ListObject, AutocompleteOption as SearchResult, ShortcutOption, VisibilityType, getObjectUrl } from "@local/shared";
 import { Box, DialogContent, List, ListItemButton, ListItemIcon, ListItemText, Typography, useTheme } from "@mui/material";
 import { useInfiniteScroll } from "hooks/gestures.js";
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { listToAutocomplete } from "utils/display/listTools.js";
 import { getUserLanguages } from "utils/display/translationTools.js";
 import { SessionContext } from "../../../contexts.js";
 import { useFindMany } from "../../../hooks/useFindMany.js";
+import { useMenu } from "../../../hooks/useMenu.js";
 import { useLocation } from "../../../route/router.js";
 import { randomString } from "../../../utils/codes.js";
 import { Z_INDEX } from "../../../utils/consts.js";
 import { normalizeText } from "../../../utils/display/documentTools.js";
 import { Actions, getAutocompleteOptionIcon, performAction, shortcuts } from "../../../utils/navigation/quickActions.js";
-import { PubSub } from "../../../utils/pubsub.js";
+import { COMMAND_PALETTE_ID, MenuPayloads } from "../../../utils/pubsub.js";
 import { LargeDialog } from "../../dialogs/LargeDialog/LargeDialog.js";
 import { BasicSearchBar } from "../../inputs/search/SiteSearchBar.js";
 
@@ -42,25 +43,17 @@ export function CommandPalette() {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
 
-    const [open, setOpen] = useState(false);
-    const close = useCallback(() => setOpen(false), []);
-
-    useEffect(function focusSearchBar() {
-        if (open) {
-            setTimeout(() => {
-                const inputElement = document.getElementById(searchBarId);
-                if (inputElement) {
-                    inputElement.focus();
-                }
-            }, autoFocusDelayMs);
-        }
-    }, [open]);
-
     // Load all shortcuts in the user's language
     const shortcutsItems = useMemo<ShortcutOption[]>(() => shortcuts.map((shortcut) => {
         // Translate label and keywords
         const label = t(shortcut.label, { ...(shortcut.labelArgs ?? {}), defaultValue: shortcut.label }) as string;
-        const keywords = shortcut.keywords?.map(keyword => t(keyword, { ...(keyword.labelArgs ?? {}), defaultValue: keyword.label }) as string);
+        const keywords = shortcut.keywords?.map(keyword => {
+            if (typeof keyword === "string") {
+                return t(keyword) as string;
+            }
+            const { key, ...args } = keyword;
+            return t(key, { ...args, defaultValue: key });
+        });
         // Use the label and keywords to build search terms
         const searchTerms: string[] = [];
         searchTerms.push(normalizeText(label).trim().toLowerCase());
@@ -79,7 +72,13 @@ export function CommandPalette() {
     const actionsItems = useMemo<ActionOption[]>(() => Object.values(Actions).map(action => {
         // Translate label and keywords
         const label = t(action.label, { ...(action.labelArgs ?? {}), defaultValue: action.label }) as string;
-        const keywords = action.keywords?.map(keyword => t(keyword, { ...(keyword.labelArgs ?? {}), defaultValue: keyword.label }) as string);
+        const keywords = action.keywords?.map(keyword => {
+            if (typeof keyword === "string") {
+                return t(keyword) as string;
+            }
+            const { key, ...args } = keyword;
+            return t(key, { ...args, defaultValue: key });
+        });
         // Use the label and keywords to build search terms
         const searchTerms: string[] = [];
         searchTerms.push(normalizeText(label).trim().toLowerCase());
@@ -107,27 +106,40 @@ export function CommandPalette() {
         loadMore: findManyData.loadMore,
         scrollContainerId,
     });
-    const hasResetData = useRef(false);
-    useEffect(function clearDataWhenClosed() {
-        if (!open && findManyData.allData.length > 0 && !hasResetData.current) {
-            findManyData.setAllData([]);
-            hasResetData.current = true;
-        } else if (open) {
-            hasResetData.current = false;
-        }
-    }, [open, findManyData]);
 
     const updateSearch = useCallback((newValue: string) => {
         findManyData.setSearchString(newValue);
     }, [findManyData]);
 
-    useEffect(function subscribeToCommandPalette() {
-        const unsubscribe = PubSub.get().subscribe("commandPalette", () => {
-            setOpen(o => !o);
+    const hasResetData = useRef(false);
+    const onEvent = useCallback(function onEventCallback({ isOpen }: MenuPayloads[typeof COMMAND_PALETTE_ID]) {
+        // If the command palette is opened
+        if (isOpen) {
+            // Focus the search bar
+            setTimeout(() => {
+                const inputElement = document.getElementById(searchBarId);
+                if (inputElement) {
+                    inputElement.focus();
+                }
+            }, autoFocusDelayMs);
+            // Reset the hasResetData flag
+            hasResetData.current = false;
+        }
+        // If the command palette is closed
+        else {
+            // Clear the search string
             findManyData.setSearchString("");
-        });
-        return unsubscribe;
+            // Clear the search result
+            if (findManyData.allData.length > 0 && !hasResetData.current) {
+                findManyData.setAllData([]);
+                hasResetData.current = true;
+            }
+        }
     }, [findManyData]);
+    const { isOpen, close } = useMenu({
+        id: COMMAND_PALETTE_ID,
+        onEvent,
+    });
 
     // Combine all results
     const searchResults: SearchResult[] = useMemo(() => {
@@ -135,7 +147,7 @@ export function CommandPalette() {
         // Create unique keys for each option
         const keySet = new Set<string>();
 
-        function addKey(option: Omit<SearchResult, "key">) {
+        function addKey<T extends { id: string }>(option: T) {
             const key = option.id;
             // If the key is already in the set, add a random string to the id. 
             // This ensures that key collisions are rare, since they can break the UI in unexpected ways.
@@ -144,7 +156,7 @@ export function CommandPalette() {
                 option.id += `-${randomString()}`;
             }
             keySet.add(option.id);
-            return { ...option, key };
+            return { ...option, key } as T & { key: string };
         }
 
         // Filter actions by search string
@@ -199,7 +211,7 @@ export function CommandPalette() {
     return (
         <LargeDialog
             id="command-palette-dialog"
-            isOpen={open}
+            isOpen={isOpen}
             onClose={close}
             titleId={titleId}
             sxs={dialogStyle}

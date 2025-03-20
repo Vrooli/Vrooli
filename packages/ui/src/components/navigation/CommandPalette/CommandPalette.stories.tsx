@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { PubSub } from "../../../utils/pubsub.js";
+import { COMMAND_PALETTE_ID, PubSub } from "../../../utils/pubsub.js";
 import { CommandPalette } from "./CommandPalette.js";
 
 export default {
@@ -9,7 +9,7 @@ export default {
 
 export function Default() {
     useEffect(() => {
-        PubSub.get().publish("commandPalette");
+        PubSub.get().publish("menu", { id: COMMAND_PALETTE_ID, isOpen: true });
     }, []);
 }
 Default.parameters = {
