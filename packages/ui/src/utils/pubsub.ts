@@ -1,6 +1,7 @@
 import { AITaskInfo, LlmTask, Session, TaskContextInfo, TranslationKeyCommon, TranslationKeyError } from "@local/shared";
 import { AlertDialogSeverity } from "../components/dialogs/AlertDialog/AlertDialog.js";
 import { SnackSeverity } from "../components/snacks/BasicSnack/BasicSnack.js";
+import { ELEMENT_IDS } from "./consts.js";
 import { ThemeType } from "./localStorage.js";
 
 export type TranslatedSnackMessage<KeyList = TranslationKeyCommon | TranslationKeyError> = {
@@ -161,17 +162,12 @@ export type PopupVideoPub = {
 /** Determines how many options should be displayed directly in the rich input toolbar */
 export type RichInputToolbarViewSize = "minimal" | "partial" | "full";
 
-export const USER_MENU_ID = "user-menu" as const;
-export const LEFT_DRAWER_ID = "left-drawer" as const;
-export const RIGHT_DRAWER_ID = "right-drawer" as const;
-export const COMMAND_PALETTE_ID = "command-palette" as const;
-export const FIND_IN_PAGE_ID = "find-in-page" as const;
 type MenuBase = {
     isOpen: boolean;
 }
 export type MenuPayloads = {
-    [COMMAND_PALETTE_ID]: MenuBase & {
-        id: typeof COMMAND_PALETTE_ID;
+    [ELEMENT_IDS.CommandPalette]: MenuBase & {
+        id: typeof ELEMENT_IDS.CommandPalette;
         /**
          * Optional data to provide to the menu
          */
@@ -179,8 +175,8 @@ export type MenuPayloads = {
             // Add data here
         }
     };
-    [FIND_IN_PAGE_ID]: MenuBase & {
-        id: typeof FIND_IN_PAGE_ID;
+    [ELEMENT_IDS.FindInPage]: MenuBase & {
+        id: typeof ELEMENT_IDS.FindInPage;
         /**
          * Optional data to provide to the menu
          */
@@ -188,8 +184,20 @@ export type MenuPayloads = {
             // Add data here
         }
     }
-    [LEFT_DRAWER_ID]: MenuBase & {
-        id: typeof LEFT_DRAWER_ID;
+    [ELEMENT_IDS.FullPageSpinner]: MenuBase & {
+        id: typeof ELEMENT_IDS.FullPageSpinner;
+        /**
+         * Optional data to provide to the menu
+         */
+        data?: {
+            /** How long in milliseconds to wait before the spinner is shown */
+            delay?: number;
+            /** Whether to show the spinner */
+            show?: boolean;
+        }
+    }
+    [ELEMENT_IDS.LeftDrawer]: MenuBase & {
+        id: typeof ELEMENT_IDS.LeftDrawer;
         /**
          * Optional data to provide to the menu
          */
@@ -197,8 +205,8 @@ export type MenuPayloads = {
             // Add data here
         }
     }
-    [RIGHT_DRAWER_ID]: MenuBase & {
-        id: typeof RIGHT_DRAWER_ID;
+    [ELEMENT_IDS.RightDrawer]: MenuBase & {
+        id: typeof ELEMENT_IDS.RightDrawer;
         /**
          * Optional data to provide to the menu
          */
@@ -206,8 +214,17 @@ export type MenuPayloads = {
             // Add data here
         }
     }
-    [USER_MENU_ID]: MenuBase & {
-        id: typeof USER_MENU_ID;
+    [ELEMENT_IDS.Tutorial]: MenuBase & {
+        id: typeof ELEMENT_IDS.Tutorial;
+        /**
+         * Optional data to provide to the menu
+         */
+        data?: {
+            // Add data here
+        };
+    };
+    [ELEMENT_IDS.UserMenu]: MenuBase & {
+        id: typeof ELEMENT_IDS.UserMenu;
         /**
          * Optional data to provide to the menu
          */
@@ -217,7 +234,7 @@ export type MenuPayloads = {
         };
     };
 }
-export type MenuPub = MenuPayloads[keyof MenuPayloads];
+export type MenuPub = { id: "all", isOpen: false } | MenuPayloads[keyof MenuPayloads];
 
 export interface EventPayloads {
     alertDialog: AlertDialogPub;
@@ -230,8 +247,6 @@ export interface EventPayloads {
     fontSize: number;
     isLeftHanded: boolean;
     language: string;
-    /** Pass delay to show spinner if turning on, or false to turn off. */
-    loading: number | boolean;
     logOut: void;
     menu: MenuPub;
     nodeDrag: { nodeId: string };
@@ -245,7 +260,6 @@ export interface EventPayloads {
     showBotWarning: boolean;
     snack: SnackPub;
     theme: ThemeType;
-    tutorial: void;
 }
 
 const defaultPayloads: Partial<{ [K in keyof EventPayloads]: EventPayloads[K] }> = {

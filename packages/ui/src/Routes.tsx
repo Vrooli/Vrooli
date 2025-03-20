@@ -3,7 +3,7 @@ import { Box } from "@mui/material";
 import { lazily } from "react-lazily";
 import { Page } from "./components/Page/Page.js";
 import { ScrollToTop } from "./components/ScrollToTop.js";
-import { FullPageSpinner } from "./components/Spinners/Spinners.js";
+import { FullPageSpinner } from "./components/Spinners.js";
 import { NavbarProps } from "./components/navigation/types.js";
 import { Route, RouteProps, Switch } from "./route/router.js";
 import { useLayoutStore } from "./stores/LayoutStore.js";

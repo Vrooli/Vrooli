@@ -1,7 +1,7 @@
 import { ActiveFocusMode, endpointsAuth, endpointsFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
 import { Box, createTheme, CssBaseline, GlobalStyles, styled, StyledEngineProvider, Theme, ThemeProvider } from "@mui/material";
 import i18next from "i18next";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchAIConfig } from "./api/ai.js";
 import { fetchLazyWrapper } from "./api/fetchWrapper.js";
 import { ServerResponseParser } from "./api/responseParser.js";
@@ -12,12 +12,13 @@ import { AlertDialog } from "./components/dialogs/AlertDialog/AlertDialog.js";
 import { ImagePopup, VideoPopup } from "./components/dialogs/media.js";
 import { ProDialog } from "./components/dialogs/ProDialog/ProDialog.js";
 import { TutorialDialog } from "./components/dialogs/TutorialDialog.js";
-import { BottomNav } from "./components/navigation/BottomNav/BottomNav.js";
-import { CommandPalette } from "./components/navigation/CommandPalette/CommandPalette.js";
-import { FindInPage } from "./components/navigation/FindInPage/FindInPage.js";
+import { UserMenu } from "./components/dialogs/UserMenu/UserMenu.js";
+import { BottomNav } from "./components/navigation/BottomNav.js";
+import { CommandPalette } from "./components/navigation/CommandPalette.js";
+import { FindInPage } from "./components/navigation/FindInPage.js";
 import { PullToRefresh } from "./components/PullToRefresh/PullToRefresh.js";
 import { SnackStack } from "./components/snacks/SnackStack/SnackStack.js";
-import { FullPageSpinner } from "./components/Spinners/Spinners.js";
+import { FullPageSpinner } from "./components/Spinners.js";
 import { ActiveChatProvider, SessionContext } from "./contexts.js";
 import { useHashScroll } from "./hooks/hash.js";
 import { useHotkeys } from "./hooks/useHotkeys.js";
@@ -29,12 +30,12 @@ import { CI_MODE } from "./i18n.js";
 import { vrooliIconPath } from "./icons/common.js";
 import { bottomNavHeight } from "./styles.js";
 import { guestSession, SessionService } from "./utils/authentication/session.js";
-import { Z_INDEX } from "./utils/consts.js";
+import { ELEMENT_IDS, Z_INDEX } from "./utils/consts.js";
 import { getDeviceInfo } from "./utils/display/device.js";
 import { NODE_HIGHLIGHT_ERROR, NODE_HIGHLIGHT_SELECTED, NODE_HIGHLIGHT_WARNING, SEARCH_HIGHLIGHT_CURRENT, SEARCH_HIGHLIGHT_WRAPPER, SNACK_HIGHLIGHT, TUTORIAL_HIGHLIGHT } from "./utils/display/documentTools.js";
 import { BREAKPOINTS, DEFAULT_THEME, themes } from "./utils/display/theme.js";
 import { getCookie, getStorageItem, setCookie, ThemeType } from "./utils/localStorage.js";
-import { COMMAND_PALETTE_ID, FIND_IN_PAGE_ID, PopupImagePub, PopupVideoPub, PubSub } from "./utils/pubsub.js";
+import { PopupImagePub, PopupVideoPub, PubSub } from "./utils/pubsub.js";
 
 export function getGlobalStyles(theme: Theme) {
     return {
@@ -208,22 +209,14 @@ export function App() {
     const [language, setLanguage] = useState<string>(SessionService.getSiteLanguage(undefined));
     const [isLeftHanded, setIsLeftHanded] = useState<boolean>(getCookie("IsLeftHanded"));
     const [isLoading, setIsLoading] = useState(false);
-    const [isTutorialOpen, setIsTutorialOpen] = useState(false);
     const [openImageData, setOpenImageData] = useState<PopupImagePub | null>(null);
     const [openVideoData, setOpenVideoData] = useState<PopupVideoPub | null>(null);
     const [isProDialogOpen, setIsProDialogOpen] = useState(false);
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [validateSession] = useLazyFetch<ValidateSessionInput, Session>(endpointsAuth.validateSession);
     const [setActiveFocusMode] = useLazyFetch<SetActiveFocusModeInput, ActiveFocusMode>(endpointsFocusMode.setActive);
     const isMobile = useWindowSize(({ width }) => width <= theme.breakpoints.values.md);
     useCssVariables();
 
-    const openTutorial = useCallback(function openTutorialCallback() {
-        setIsTutorialOpen(true);
-    }, []);
-    const closeTutorial = useCallback(function closeTutorialCallback() {
-        setIsTutorialOpen(false);
-    }, []);
     const closePopupImage = useCallback(function closePopupImageCallback() {
         setOpenImageData(null);
     }, []);
@@ -278,8 +271,6 @@ export function App() {
     useEffect(() => {
         // Set up Google Adsense
         ((window as { adsbygoogle?: object[] }).adsbygoogle = (window as { adsbygoogle?: object[] }).adsbygoogle || []).push({});
-        // Clear loading state
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
         setIsLoading(false);
         // Add help wanted to console logs
         const svgCode = `
@@ -338,8 +329,8 @@ https://github.com/Vrooli/Vrooli
 
     // Handle site-wide keyboard shortcuts
     useHotkeys([
-        { keys: ["p"], ctrlKey: true, callback: () => { PubSub.get().publish("menu", { id: COMMAND_PALETTE_ID, isOpen: true }); } },
-        { keys: ["f"], ctrlKey: true, callback: () => { PubSub.get().publish("menu", { id: FIND_IN_PAGE_ID, isOpen: true }); } },
+        { keys: ["p"], ctrlKey: true, callback: () => { PubSub.get().publish("menu", { id: ELEMENT_IDS.CommandPalette, isOpen: true }); } },
+        { keys: ["f"], ctrlKey: true, callback: () => { PubSub.get().publish("menu", { id: ELEMENT_IDS.FindInPage, isOpen: true }); } },
     ]);
 
     useEffect(function checkSessionEffect() {
@@ -379,15 +370,6 @@ https://github.com/Vrooli/Vrooli
     }, [validateSession]);
 
     useEffect(function handleSessionAndSubscriptions() {
-        // Handle session updates
-        const loadingSub = PubSub.get().subscribe("loading", (data) => {
-            if (timeoutRef.current) clearTimeout(timeoutRef.current);
-            if (Number.isInteger(data)) {
-                timeoutRef.current = setTimeout(() => setIsLoading(true), Math.abs(data as number));
-            } else {
-                setIsLoading(Boolean(data));
-            }
-        });
         const sessionSub = PubSub.get().subscribe("session", async (session) => {
             // If undefined or empty, set session to published data
             if (session === undefined || Object.keys(session).length === 0) {
@@ -418,10 +400,6 @@ https://github.com/Vrooli/Vrooli
             setIsLeftHanded(data);
             setCookie("IsLeftHanded", data);
         });
-        // Handle tutorial popup
-        const tutorialSub = PubSub.get().subscribe("tutorial", () => {
-            setIsTutorialOpen(true);
-        });
         const popupImageSub = PubSub.get().subscribe("popupImage", (data) => {
             setOpenImageData(data);
         });
@@ -432,13 +410,11 @@ https://github.com/Vrooli/Vrooli
             setIsProDialogOpen(true);
         });
         return (() => {
-            loadingSub();
             sessionSub();
             themeSub();
             fontSizeSub();
             languageSub();
             isLeftHandedSub();
-            tutorialSub();
             popupImageSub();
             popupVideoSub();
             proDialogSub();
@@ -468,11 +444,7 @@ https://github.com/Vrooli/Vrooli
                                     isOpen={isProDialogOpen}
                                     onClose={closeProDialog}
                                 />
-                                <TutorialDialog
-                                    isOpen={isTutorialOpen}
-                                    onClose={closeTutorial}
-                                    onOpen={openTutorial}
-                                />
+                                <TutorialDialog />
                                 <ImagePopup
                                     alt="Tutorial content"
                                     open={!!openImageData}
@@ -486,7 +458,8 @@ https://github.com/Vrooli/Vrooli
                                     src={openVideoData?.src ?? ""}
                                     zIndex={Z_INDEX.Popup}
                                 />
-                                {isLoading && <FullPageSpinner />}
+                                <UserMenu />
+                                <FullPageSpinner />
                                 <AdaptiveLayout />
                                 <BottomNav />
                             </MainBox>
