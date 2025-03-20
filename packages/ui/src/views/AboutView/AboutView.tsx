@@ -74,7 +74,7 @@ export function AboutView({
 }: AboutViewProps) {
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
-    const { palette } = useTheme();
+    const { palette, transitions } = useTheme();
 
     const handleJoinTeam = useCallback(function handleJoinTeamCallback(event: React.MouseEvent<HTMLButtonElement>) {
         event.preventDefault();
@@ -83,14 +83,23 @@ export function AboutView({
 
     return (
         <PageContainer size="fullSize">
-            <ScrollBox >
+            <ScrollBox>
                 <TopBar
                     display={display}
                     onClose={onClose}
                     title={t("AboutUs")}
                     titleBehaviorDesktop="ShowIn"
                 />
-                <Box display="flex" flexDirection="column" gap={6} p={1} pt={2} pb={2} margin="auto" maxWidth="min(800px, 100%)">
+                <Box
+                    display="flex"
+                    flexDirection="column"
+                    gap={6}
+                    p={1}
+                    pt={2}
+                    pb={2}
+                    margin="auto"
+                    maxWidth="min(800px, 100%)"
+                >
                     <Box>
                         <Typography variant="h4" gutterBottom>
                             Hello there! <RotatedBox sx={{ display: "inline-block" }}>👋</RotatedBox>

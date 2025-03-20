@@ -5,21 +5,19 @@ import { HttpResponse, http } from 'msw';
 import { initialize, mswLoader } from 'msw-storybook-addon';
 import React, { useCallback, useEffect, useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
-import { ContentWrap, MainBox, getGlobalStyles } from '../src/App.js';
-import { ChatSideMenu } from "../src/components/dialogs/ChatSideMenu/ChatSideMenu.js";
-import { SideMenu } from "../src/components/dialogs/SideMenu/SideMenu.js";
+import { MainBox, getGlobalStyles, useCssVariables } from '../src/App.js';
+import { AdaptiveLayout } from '../src/components/AdaptiveLayout.js';
 import { VideoPopup } from "../src/components/dialogs/media.js";
 import { BottomNav } from '../src/components/navigation/BottomNav/BottomNav.js';
 import { CommandPalette } from '../src/components/navigation/CommandPalette/CommandPalette.js';
 import { FindInPage } from '../src/components/navigation/FindInPage/FindInPage.js';
 import { ActiveChatProvider, SessionContext } from "../src/contexts.js";
 import { useHotkeys } from '../src/hooks/useHotkeys.js';
-import { useSideMenu } from "../src/hooks/useSideMenu.js";
 import { useWindowSize } from "../src/hooks/useWindowSize.js";
 import i18n from '../src/i18n';
 import { Z_INDEX } from '../src/utils/consts.js';
 import { DEFAULT_THEME, themes } from '../src/utils/display/theme';
-import { CHAT_SIDE_MENU_ID, PubSub, SIDE_MENU_ID, type PopupVideoPub } from '../src/utils/pubsub.js';
+import { COMMAND_PALETTE_ID, FIND_IN_PAGE_ID, PubSub, type PopupVideoPub } from '../src/utils/pubsub.js';
 
 const API_URL = "http://localhost:5329/api";
 
@@ -220,9 +218,8 @@ const preview: Preview = {
             const theme = themes[themeMode];
             const isLeftHanded = context.globals.isLeftHanded || false;
 
+            useCssVariables();
             const isMobile = useWindowSize(({ width }) => width <= theme.breakpoints.values.md);
-            const { isOpen: isLeftDrawerOpen } = useSideMenu({ id: CHAT_SIDE_MENU_ID, isMobile });
-            const { isOpen: isRightDrawerOpen } = useSideMenu({ id: SIDE_MENU_ID, isMobile });
 
             const [openVideoData, setOpenVideoData] = useState<PopupVideoPub | null>(null);
             const closePopupVideo = useCallback(function closePopupVideoCallback() {
@@ -240,8 +237,8 @@ const preview: Preview = {
 
             // Handle site-wide keyboard shortcuts
             useHotkeys([
-                { keys: ["p"], ctrlKey: true, callback: () => { PubSub.get().publish("commandPalette"); } },
-                { keys: ["f"], ctrlKey: true, callback: () => { PubSub.get().publish("findInPage"); } },
+                { keys: ["p"], ctrlKey: true, callback: () => { PubSub.get().publish("menu", { id: COMMAND_PALETTE_ID, isOpen: true }); } },
+                { keys: ["f"], ctrlKey: true, callback: () => { PubSub.get().publish("menu", { id: FIND_IN_PAGE_ID, isOpen: true }); } },
             ]);
 
             return (
@@ -260,17 +257,7 @@ const preview: Preview = {
                                         src={openVideoData?.src ?? ""}
                                         zIndex={Z_INDEX.Popup}
                                     />
-                                    <ContentWrap
-                                        id="content-wrap"
-                                        isLeftDrawerOpen={isLeftDrawerOpen}
-                                        isLeftHanded={isLeftHanded}
-                                        isMobile={isMobile}
-                                        isRightDrawerOpen={isRightDrawerOpen}
-                                    >
-                                        <ChatSideMenu />
-                                        <Story />
-                                        <SideMenu />
-                                    </ContentWrap>
+                                    <AdaptiveLayout Story={Story} />
                                     <BottomNav />
                                 </MainBox>
                             </ActiveChatProvider>

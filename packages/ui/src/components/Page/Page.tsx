@@ -2,45 +2,11 @@ import { LINKS, UrlTools } from "@local/shared";
 import { Box, BoxProps, styled, useTheme } from "@mui/material";
 import { useContext, useEffect, useMemo } from "react";
 import { SessionContext } from "../../contexts.js";
-import { useElementDimensions } from "../../hooks/useDimensions.js";
-import { useWindowSize } from "../../hooks/useWindowSize.js";
 import { Redirect, useLocation } from "../../route/router.js";
-import { bottomNavHeight, pagePaddingBottom } from "../../styles.js";
+import { pagePaddingBottom } from "../../styles.js";
 import { PageProps, SxType } from "../../types.js";
+import { ELEMENT_IDS } from "../../utils/consts.js";
 import { PubSub } from "../../utils/pubsub.js";
-
-/**
- * Sets up CSS variables that can be shared across components.
- */
-function useCssVariables() {
-    const { breakpoints } = useTheme();
-    const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
-    const contentWrapDims = useElementDimensions({ id: "content-wrap" });
-
-    useEffect(function pagPaddingBottomEffect() {
-        // Page bottom padding depends on the existence of the BottomNav component, 
-        // which only appears on mobile sizes.
-        const paddingBottom = isMobile
-            ? `calc(${bottomNavHeight} + env(safe-area-inset-bottom))`
-            : "env(safe-area-inset-bottom)";
-        document.documentElement.style.setProperty("--page-padding-bottom", paddingBottom);
-    }, [isMobile]);
-
-    useEffect(function pagePaddingLeftRightEffect() {
-        // Page left and right padding depends on the width of the content-wrap element minus 
-        // its margin. If it's larger than the mobile size, then we add padding
-        const contentWrapWidth = contentWrapDims.width;
-        const contentWrapElement = document.getElementById("content-wrap");
-        const contentWrapMarginLeft = contentWrapElement ? parseInt(getComputedStyle(contentWrapElement).marginLeft) : 0;
-        const contentWrapMarginRight = contentWrapElement ? parseInt(getComputedStyle(contentWrapElement).marginRight) : 0;
-        const effectiveContentWrapWidth = contentWrapWidth - contentWrapMarginLeft - contentWrapMarginRight;
-        const pagePaddingSide = effectiveContentWrapWidth > breakpoints.values.md
-            ? "max(1em, calc(15% - 75px))"
-            : "0px";
-        document.documentElement.style.setProperty("--page-padding-left", pagePaddingSide);
-        document.documentElement.style.setProperty("--page-padding-right", pagePaddingSide);
-    }, [breakpoints.values.md, contentWrapDims.width]);
-}
 
 interface PageContainerProps extends BoxProps {
     contentType?: "normal" | "text";
@@ -51,8 +17,7 @@ interface PageContainerProps extends BoxProps {
     size?: "normal" | "fullSize";
     sx?: SxType;
 }
-
-export const PageContainer = styled(Box, {
+const StyledPageContainer = styled(Box, {
     shouldForwardProp: (prop) => prop !== "contentType" && prop !== "size" && prop !== "sx",
 })<PageContainerProps>(({ contentType, size, sx, theme }) => ({
     background: contentType === "text" ?
@@ -64,11 +29,16 @@ export const PageContainer = styled(Box, {
     overflow: "hidden",
     margin: "auto",
     paddingBottom: pagePaddingBottom,
-    paddingLeft: size === "fullSize" ? 0 : "var(--page-padding-left)",
-    paddingRight: size === "fullSize" ? 0 : "var(--page-padding-right)",
+    paddingLeft: size === "fullSize" ? 0 : "max(1em, calc(15% - 75px))",
+    paddingRight: size === "fullSize" ? 0 : "max(1em, calc(15% - 75px))",
     ...sx,
 } as any));
-
+export function PageContainer({
+    children,
+    ...props
+}: PageContainerProps) {
+    return <StyledPageContainer id={ELEMENT_IDS.PageContainer} {...props}>{children}</StyledPageContainer>;
+}
 
 /**
  * Hidden div under the page for top overscroll color
@@ -97,7 +67,6 @@ export function Page({
     const session = useContext(SessionContext);
     const { palette } = useTheme();
     const [{ pathname }] = useLocation();
-    useCssVariables();
 
     const background = useMemo(function backgroundMemo() {
         const backgroundColor = (sx as { background?: string })?.background

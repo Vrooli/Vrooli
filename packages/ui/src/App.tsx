@@ -1,18 +1,16 @@
 import { ActiveFocusMode, endpointsAuth, endpointsFocusMode, Session, SetActiveFocusModeInput, ValidateSessionInput } from "@local/shared";
-import { Box, BoxProps, createTheme, CssBaseline, GlobalStyles, styled, StyledEngineProvider, Theme, ThemeProvider } from "@mui/material";
+import { Box, createTheme, CssBaseline, GlobalStyles, styled, StyledEngineProvider, Theme, ThemeProvider } from "@mui/material";
 import i18next from "i18next";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchAIConfig } from "./api/ai.js";
 import { fetchLazyWrapper } from "./api/fetchWrapper.js";
 import { ServerResponseParser } from "./api/responseParser.js";
 import { SERVER_CONNECT_MESSAGE_ID } from "./api/socket.js";
-import { BannerChicken } from "./components/BannerChicken.js";
+import { AdaptiveLayout } from "./components/AdaptiveLayout.js";
 import { Celebration } from "./components/Celebration/Celebration.js";
 import { AlertDialog } from "./components/dialogs/AlertDialog/AlertDialog.js";
-import { ChatSideMenu } from "./components/dialogs/ChatSideMenu/ChatSideMenu.js";
 import { ImagePopup, VideoPopup } from "./components/dialogs/media.js";
 import { ProDialog } from "./components/dialogs/ProDialog/ProDialog.js";
-import { SideMenu } from "./components/dialogs/SideMenu/SideMenu.js";
 import { TutorialDialog } from "./components/dialogs/TutorialDialog.js";
 import { BottomNav } from "./components/navigation/BottomNav/BottomNav.js";
 import { CommandPalette } from "./components/navigation/CommandPalette/CommandPalette.js";
@@ -24,20 +22,19 @@ import { ActiveChatProvider, SessionContext } from "./contexts.js";
 import { useHashScroll } from "./hooks/hash.js";
 import { useHotkeys } from "./hooks/useHotkeys.js";
 import { useLazyFetch } from "./hooks/useLazyFetch.js";
-import { useSideMenu } from "./hooks/useSideMenu.js";
 import { useSocketConnect } from "./hooks/useSocketConnect.js";
 import { useSocketUser } from "./hooks/useSocketUser.js";
 import { useWindowSize } from "./hooks/useWindowSize.js";
 import { CI_MODE } from "./i18n.js";
 import { vrooliIconPath } from "./icons/common.js";
-import { Routes } from "./Routes.js";
-import { getSiteLanguage, guestSession } from "./utils/authentication/session.js";
-import { LEFT_DRAWER_WIDTH, RIGHT_DRAWER_WIDTH, Z_INDEX } from "./utils/consts.js";
+import { bottomNavHeight } from "./styles.js";
+import { guestSession, SessionService } from "./utils/authentication/session.js";
+import { Z_INDEX } from "./utils/consts.js";
 import { getDeviceInfo } from "./utils/display/device.js";
 import { NODE_HIGHLIGHT_ERROR, NODE_HIGHLIGHT_SELECTED, NODE_HIGHLIGHT_WARNING, SEARCH_HIGHLIGHT_CURRENT, SEARCH_HIGHLIGHT_WRAPPER, SNACK_HIGHLIGHT, TUTORIAL_HIGHLIGHT } from "./utils/display/documentTools.js";
-import { DEFAULT_THEME, themes } from "./utils/display/theme.js";
+import { BREAKPOINTS, DEFAULT_THEME, themes } from "./utils/display/theme.js";
 import { getCookie, getStorageItem, setCookie, ThemeType } from "./utils/localStorage.js";
-import { CHAT_SIDE_MENU_ID, PopupImagePub, PopupVideoPub, PubSub, SIDE_MENU_ID } from "./utils/pubsub.js";
+import { COMMAND_PALETTE_ID, FIND_IN_PAGE_ID, PopupImagePub, PopupVideoPub, PubSub } from "./utils/pubsub.js";
 
 export function getGlobalStyles(theme: Theme) {
     return {
@@ -133,6 +130,22 @@ export function getGlobalStyles(theme: Theme) {
     };
 }
 
+/**
+ * Sets up CSS variables that can be shared across components.
+ */
+export function useCssVariables() {
+    const isMobile = useWindowSize(({ width }) => width <= BREAKPOINTS.md);
+
+    useEffect(function pagPaddingBottomEffect() {
+        // Page bottom padding depends on the existence of the BottomNav component, 
+        // which only appears on mobile sizes.
+        const paddingBottom = isMobile
+            ? `calc(${bottomNavHeight} + env(safe-area-inset-bottom))`
+            : "env(safe-area-inset-bottom)";
+        document.documentElement.style.setProperty("--page-padding-bottom", paddingBottom);
+    }, [isMobile]);
+}
+
 /** Adds font size to theme */
 export function withFontSize(theme: Theme, fontSize: number): Theme {
     return createTheme({
@@ -186,42 +199,13 @@ export const MainBox = styled(Box)(({ theme }) => ({
     },
 }));
 
-interface ContentWrapProps extends BoxProps {
-    isLeftDrawerOpen: boolean;
-    isLeftHanded: boolean;
-    isMobile: boolean;
-    isRightDrawerOpen: boolean;
-}
-
-export const ContentWrap = styled(Box, {
-    shouldForwardProp: (prop) => prop !== "isLeftDrawerOpen" && prop !== "isLeftHanded" && prop !== "isMobile" && prop !== "isRightDrawerOpen",
-})<ContentWrapProps>(({ isLeftDrawerOpen, isLeftHanded, isMobile, isRightDrawerOpen, theme }) => {
-    const leftDrawerWidth = isLeftHanded ? isRightDrawerOpen ? RIGHT_DRAWER_WIDTH : 0 : isLeftDrawerOpen ? LEFT_DRAWER_WIDTH : 0;
-    const rightDrawerWidth = isLeftHanded ? isLeftDrawerOpen ? LEFT_DRAWER_WIDTH : 0 : isRightDrawerOpen ? RIGHT_DRAWER_WIDTH : 0;
-    return {
-        position: "relative",
-        background: theme.palette.background.default,
-        minHeight: "100vh",
-        width: isMobile ? "100vw" : `calc(100vw - ${leftDrawerWidth}px - ${rightDrawerWidth}px)`,
-        marginLeft: isMobile ? 0 : leftDrawerWidth,
-        marginRight: isMobile ? 0 : rightDrawerWidth,
-        transition: theme.transitions.create(["margin", "width"], {
-            easing: theme.transitions.easing.easeOut,
-            duration: theme.transitions.duration.enteringScreen,
-        }),
-        [theme.breakpoints.down("md")]: {
-            minHeight: "calc(100vh - 56px - env(safe-area-inset-bottom))",
-        },
-    } as const;
-});
-
 export function App() {
     // Session cookie should automatically expire in time determined by server,
     // so no need to validate session on first load
     const [session, setSession] = useState<Session | undefined>(undefined);
     const [theme, setTheme] = useState<Theme>(findThemeWithoutSession());
     const [fontSize, setFontSize] = useState<number>(getCookie("FontSize"));
-    const [language, setLanguage] = useState<string>(getSiteLanguage(undefined));
+    const [language, setLanguage] = useState<string>(SessionService.getSiteLanguage(undefined));
     const [isLeftHanded, setIsLeftHanded] = useState<boolean>(getCookie("IsLeftHanded"));
     const [isLoading, setIsLoading] = useState(false);
     const [isTutorialOpen, setIsTutorialOpen] = useState(false);
@@ -231,10 +215,8 @@ export function App() {
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [validateSession] = useLazyFetch<ValidateSessionInput, Session>(endpointsAuth.validateSession);
     const [setActiveFocusMode] = useLazyFetch<SetActiveFocusModeInput, ActiveFocusMode>(endpointsFocusMode.setActive);
-    const isSettingActiveFocusMode = useRef<boolean>(false);
     const isMobile = useWindowSize(({ width }) => width <= theme.breakpoints.values.md);
-    const { isOpen: isLeftDrawerOpen } = useSideMenu({ id: CHAT_SIDE_MENU_ID, isMobile });
-    const { isOpen: isRightDrawerOpen } = useSideMenu({ id: SIDE_MENU_ID, isMobile });
+    useCssVariables();
 
     const openTutorial = useCallback(function openTutorialCallback() {
         setIsTutorialOpen(true);
@@ -263,8 +245,8 @@ export function App() {
     }, [language]);
     useEffect(() => {
         if (!session) return;
-        if (getSiteLanguage(session) !== getSiteLanguage(undefined)) {
-            setLanguage(getSiteLanguage(session));
+        if (SessionService.getSiteLanguage(session) !== SessionService.getSiteLanguage(undefined)) {
+            setLanguage(SessionService.getSiteLanguage(session));
         }
     }, [session]);
 
@@ -356,8 +338,8 @@ https://github.com/Vrooli/Vrooli
 
     // Handle site-wide keyboard shortcuts
     useHotkeys([
-        { keys: ["p"], ctrlKey: true, callback: () => { PubSub.get().publish("commandPalette"); } },
-        { keys: ["f"], ctrlKey: true, callback: () => { PubSub.get().publish("findInPage"); } },
+        { keys: ["p"], ctrlKey: true, callback: () => { PubSub.get().publish("menu", { id: COMMAND_PALETTE_ID, isOpen: true }); } },
+        { keys: ["f"], ctrlKey: true, callback: () => { PubSub.get().publish("menu", { id: FIND_IN_PAGE_ID, isOpen: true }); } },
     ]);
 
     useEffect(function checkSessionEffect() {
@@ -504,24 +486,8 @@ https://github.com/Vrooli/Vrooli
                                     src={openVideoData?.src ?? ""}
                                     zIndex={Z_INDEX.Popup}
                                 />
-                                {/* Main content*/}
-                                <ContentWrap
-                                    id="content-wrap"
-                                    isLeftDrawerOpen={isLeftDrawerOpen}
-                                    isLeftHanded={isLeftHanded}
-                                    isMobile={isMobile}
-                                    isRightDrawerOpen={isRightDrawerOpen}
-                                >
-                                    <ChatSideMenu />
-                                    {isLoading && <FullPageSpinner />}
-                                    <Routes sessionChecked={session !== undefined} />
-                                    <SideMenu />
-                                </ContentWrap>
-                                {/* Below main content */}
-                                <BannerChicken
-                                    backgroundColor={theme.palette.background.default}
-                                    isMobile={isMobile}
-                                />
+                                {isLoading && <FullPageSpinner />}
+                                <AdaptiveLayout />
                                 <BottomNav />
                             </MainBox>
                         </ActiveChatProvider>

@@ -253,6 +253,7 @@ export const SideActionsButton = styled(IconButton)(({ theme }) => ({
 
 export const ScrollBox = styled(Box)(() => ({
     height: "100%",
+    width: "100%",
     overflowY: "auto",
 }));
 

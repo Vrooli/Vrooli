@@ -161,14 +161,53 @@ export type PopupVideoPub = {
 /** Determines how many options should be displayed directly in the rich input toolbar */
 export type RichInputToolbarViewSize = "minimal" | "partial" | "full";
 
-export const SIDE_MENU_ID = "side-menu" as const;
-export const CHAT_SIDE_MENU_ID = "chat-side-menu" as const;
-type SideMenuBase = {
+export const USER_MENU_ID = "user-menu" as const;
+export const LEFT_DRAWER_ID = "left-drawer" as const;
+export const RIGHT_DRAWER_ID = "right-drawer" as const;
+export const COMMAND_PALETTE_ID = "command-palette" as const;
+export const FIND_IN_PAGE_ID = "find-in-page" as const;
+type MenuBase = {
     isOpen: boolean;
 }
-export type SideMenuPayloads = {
-    [SIDE_MENU_ID]: SideMenuBase & {
-        id: typeof SIDE_MENU_ID;
+export type MenuPayloads = {
+    [COMMAND_PALETTE_ID]: MenuBase & {
+        id: typeof COMMAND_PALETTE_ID;
+        /**
+         * Optional data to provide to the menu
+         */
+        data?: {
+            // Add data here
+        }
+    };
+    [FIND_IN_PAGE_ID]: MenuBase & {
+        id: typeof FIND_IN_PAGE_ID;
+        /**
+         * Optional data to provide to the menu
+         */
+        data?: {
+            // Add data here
+        }
+    }
+    [LEFT_DRAWER_ID]: MenuBase & {
+        id: typeof LEFT_DRAWER_ID;
+        /**
+         * Optional data to provide to the menu
+         */
+        data?: {
+            // Add data here
+        }
+    }
+    [RIGHT_DRAWER_ID]: MenuBase & {
+        id: typeof RIGHT_DRAWER_ID;
+        /**
+         * Optional data to provide to the menu
+         */
+        data?: {
+            // Add data here
+        }
+    }
+    [USER_MENU_ID]: MenuBase & {
+        id: typeof USER_MENU_ID;
         /**
          * Optional data to provide to the menu
          */
@@ -177,20 +216,8 @@ export type SideMenuPayloads = {
             isAdditionalResourcesCollapsed?: boolean;
         };
     };
-    [CHAT_SIDE_MENU_ID]: SideMenuBase & {
-        id: typeof CHAT_SIDE_MENU_ID;
-        /**
-         * Optional data to provide to the menu
-         */
-        data?: {
-            /**
-             * Tab to switch to
-             */
-            tab?: ChatPageTabOption | `${ChatPageTabOption}`;
-        }
-    }
 }
-export type SideMenuPub = SideMenuPayloads[keyof SideMenuPayloads];
+export type MenuPub = MenuPayloads[keyof MenuPayloads];
 
 export interface EventPayloads {
     alertDialog: AlertDialogPub;
@@ -199,15 +226,14 @@ export interface EventPayloads {
     celebration: CelebrationPub;
     chatTask: ChatTaskPub;
     clearSnack: ClearSnackPub;
-    commandPalette: void;
     cookies: void;
-    findInPage: void;
     fontSize: number;
     isLeftHanded: boolean;
     language: string;
     /** Pass delay to show spinner if turning on, or false to turn off. */
     loading: number | boolean;
     logOut: void;
+    menu: MenuPub;
     nodeDrag: { nodeId: string };
     nodeDrop: { nodeId: string, position: { x: number, y: number } };
     popupImage: PopupImagePub;
@@ -217,7 +243,6 @@ export interface EventPayloads {
     richInputToolbarViewSize: RichInputToolbarViewSize;
     session: Session | undefined;
     showBotWarning: boolean;
-    sideMenu: SideMenuPub;
     snack: SnackPub;
     theme: ThemeType;
     tutorial: void;

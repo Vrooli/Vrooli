@@ -6,6 +6,7 @@ import { ScrollToTop } from "./components/ScrollToTop.js";
 import { FullPageSpinner } from "./components/Spinners/Spinners.js";
 import { NavbarProps } from "./components/navigation/types.js";
 import { Route, RouteProps, Switch } from "./route/router.js";
+import { useLayoutStore } from "./stores/LayoutStore.js";
 import { PageProps } from "./types.js";
 import { BotUpsert } from "./views/objects/bot/BotUpsert.js";
 
@@ -106,6 +107,15 @@ const noSidePadding = {
 };
 
 export function Routes(props: { sessionChecked: boolean }) {
+    // Get the current position from the layout store
+    const { positions, routeControlledPosition } = useLayoutStore();
+
+    // Only render routes if this component is in the main position
+    // This prevents routes from rendering in side panels
+    if (positions[routeControlledPosition] !== "primary") {
+        return null;
+    }
+
     return (
         <>
             <ScrollToTop />
