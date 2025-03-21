@@ -1,10 +1,9 @@
 /* eslint-disable no-magic-numbers */
 import { Session, SessionUser, User, uuid } from "@local/shared";
 import { HttpResponse, http } from "msw";
+import { API_URL, loggedOutSession, signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
 import { PageContainer } from "../../components/Page/Page.js";
 import { SettingsApiView } from "./SettingsApiView.js";
-
-const API_URL = "http://localhost:5329/api";
 
 export default {
     title: "Views/Settings/SettingsApiView",
@@ -83,6 +82,7 @@ const withKeysAndIntegrationsData: Partial<User> = {
         },
     ],
 };
+
 export function NoKeysOrIntegrations() {
     return (
         <PageContainer>
@@ -131,4 +131,104 @@ WithKeysAndIntegrations.parameters = {
         ],
     },
     session,
+};
+
+export function LoggedOut() {
+    return (
+        <PageContainer>
+            <SettingsApiView display="page" />
+        </PageContainer>
+    );
+}
+LoggedOut.parameters = {
+    session: loggedOutSession,
+    msw: {
+        handlers: [
+            http.get(`${API_URL}/v2/rest/profile`, () => {
+                return HttpResponse.json({
+                    data: noKeysOrIntegrationData,
+                });
+            }),
+        ],
+    },
+};
+
+export function SignedInNoPremiumNoCredits() {
+    return (
+        <PageContainer>
+            <SettingsApiView display="page" />
+        </PageContainer>
+    );
+}
+SignedInNoPremiumNoCredits.parameters = {
+    session: signedInNoPremiumNoCreditsSession,
+    msw: {
+        handlers: [
+            http.get(`${API_URL}/v2/rest/profile`, () => {
+                return HttpResponse.json({
+                    data: noKeysOrIntegrationData,
+                });
+            }),
+        ],
+    },
+};
+
+export function SignedInNoPremiumWithCredits() {
+    return (
+        <PageContainer>
+            <SettingsApiView display="page" />
+        </PageContainer>
+    );
+}
+SignedInNoPremiumWithCredits.parameters = {
+    session: signedInNoPremiumWithCreditsSession,
+    msw: {
+        handlers: [
+            http.get(`${API_URL}/v2/rest/profile`, () => {
+                return HttpResponse.json({
+                    data: withKeysAndIntegrationsData,
+                });
+            }),
+        ],
+    },
+};
+
+export function SignedInPremiumNoCredits() {
+    return (
+        <PageContainer>
+            <SettingsApiView display="page" />
+        </PageContainer>
+    );
+}
+SignedInPremiumNoCredits.parameters = {
+    session: signedInPremiumNoCreditsSession,
+    msw: {
+        handlers: [
+            http.get(`${API_URL}/v2/rest/profile`, () => {
+                return HttpResponse.json({
+                    data: withKeysAndIntegrationsData,
+                });
+            }),
+        ],
+    },
+};
+
+export function SignedInPremiumWithCredits() {
+    return (
+        <PageContainer>
+            <SettingsApiView display="page" />
+        </PageContainer>
+    );
+}
+SignedInPremiumWithCredits.parameters = {
+    session: signedInPremiumWithCreditsSession,
+    msw: {
+        handlers: [
+            http.get(`${API_URL}/v2/rest/profile`, () => {
+                return HttpResponse.json({
+                    data: withKeysAndIntegrationsData,
+                });
+            }),
+        ],
+    },
 };

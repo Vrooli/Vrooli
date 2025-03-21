@@ -1,16 +1,16 @@
 import { loggedOutSession, signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
 import { PageContainer } from "../../components/Page/Page.js";
-import { SettingsPrivacyView } from "./SettingsPrivacyView.js";
+import { SearchVersionView } from "./SearchVersionView.js";
 
 export default {
-    title: "Views/Settings/SettingsPrivacyView",
-    component: SettingsPrivacyView,
+    title: "Views/SearchVersionView",
+    component: SearchVersionView,
 };
 
 export function LoggedOut() {
     return (
         <PageContainer>
-            <SettingsPrivacyView display="page" />
+            <SearchVersionView display="page" />
         </PageContainer>
     );
 }
@@ -21,7 +21,7 @@ LoggedOut.parameters = {
 export function SignedInNoPremiumNoCredits() {
     return (
         <PageContainer>
-            <SettingsPrivacyView display="page" />
+            <SearchVersionView display="page" />
         </PageContainer>
     );
 }
@@ -32,7 +32,7 @@ SignedInNoPremiumNoCredits.parameters = {
 export function SignedInNoPremiumWithCredits() {
     return (
         <PageContainer>
-            <SettingsPrivacyView display="page" />
+            <SearchVersionView display="page" />
         </PageContainer>
     );
 }
@@ -43,7 +43,7 @@ SignedInNoPremiumWithCredits.parameters = {
 export function SignedInPremiumNoCredits() {
     return (
         <PageContainer>
-            <SettingsPrivacyView display="page" />
+            <SearchVersionView display="page" />
         </PageContainer>
     );
 }
@@ -54,10 +54,10 @@ SignedInPremiumNoCredits.parameters = {
 export function SignedInPremiumWithCredits() {
     return (
         <PageContainer>
-            <SettingsPrivacyView display="page" />
+            <SearchVersionView display="page" />
         </PageContainer>
     );
 }
 SignedInPremiumWithCredits.parameters = {
     session: signedInPremiumWithCreditsSession,
-};
+}; 

@@ -1,3 +1,5 @@
+import { loggedOutSession, signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
+import { PageContainer } from "../../components/Page/Page.js";
 import { AboutView } from "./AboutView.js";
 
 export default {
@@ -5,15 +7,57 @@ export default {
     component: AboutView,
 };
 
-export function Default() {
+export function LoggedOut() {
     return (
-        <AboutView display="page" />
+        <PageContainer>
+            <AboutView display="page" />
+        </PageContainer>
     );
 }
-Default.parameters = {
-    docs: {
-        description: {
-            story: "Displays the default about view.",
-        },
-    },
+LoggedOut.parameters = {
+    session: loggedOutSession,
+};
+
+export function SignedInNoPremiumNoCredits() {
+    return (
+        <PageContainer>
+            <AboutView display="page" />
+        </PageContainer>
+    );
+}
+SignedInNoPremiumNoCredits.parameters = {
+    session: signedInNoPremiumNoCreditsSession,
+};
+
+export function SignedInNoPremiumWithCredits() {
+    return (
+        <PageContainer>
+            <AboutView display="page" />
+        </PageContainer>
+    );
+}
+SignedInNoPremiumWithCredits.parameters = {
+    session: signedInNoPremiumWithCreditsSession,
+};
+
+export function SignedInPremiumNoCredits() {
+    return (
+        <PageContainer>
+            <AboutView display="page" />
+        </PageContainer>
+    );
+}
+SignedInPremiumNoCredits.parameters = {
+    session: signedInPremiumNoCreditsSession,
+};
+
+export function SignedInPremiumWithCredits() {
+    return (
+        <PageContainer>
+            <AboutView display="page" />
+        </PageContainer>
+    );
+}
+SignedInPremiumWithCredits.parameters = {
+    session: signedInPremiumWithCreditsSession,
 };

@@ -6,6 +6,7 @@ import { initialize, mswLoader } from 'msw-storybook-addon';
 import React, { useCallback, useEffect, useState } from 'react';
 import { I18nextProvider } from 'react-i18next';
 import { MainBox, getGlobalStyles, useCssVariables } from '../src/App.js';
+import { API_URL, baseSession } from '../src/__test/storybookConsts.js';
 import { AdaptiveLayout } from '../src/components/AdaptiveLayout.js';
 import { FullPageSpinner } from '../src/components/Spinners.js';
 import { TutorialDialog } from '../src/components/dialogs/TutorialDialog.js';
@@ -21,8 +22,6 @@ import i18n from '../src/i18n';
 import { ELEMENT_IDS, Z_INDEX } from '../src/utils/consts.js';
 import { DEFAULT_THEME, themes } from '../src/utils/display/theme';
 import { PubSub, type PopupVideoPub } from '../src/utils/pubsub.js';
-
-const API_URL = "http://localhost:5329/api";
 
 // Initialize MSW
 initialize({
@@ -42,14 +41,6 @@ let mockProfile: Partial<User> = {
         googleMaps: '',
     },
     // Add other necessary profile fields as required
-};
-
-// Mock session for Storybook
-const mockSession = {
-    __typename: "Session" as const,
-    isLoggedIn: true,
-    users: [{ theme: DEFAULT_THEME }], // Minimal session data; adjust as needed
-    // Add other properties if your components require them
 };
 
 function generateDummyStandards() {
@@ -212,11 +203,11 @@ const preview: Preview = {
             const themeMode = context.globals.themeMode || DEFAULT_THEME;
             const sessionOverrides = context.parameters.session || {};
             const finalSession = {
-                ...mockSession,
+                ...baseSession,
                 ...sessionOverrides,
                 users: sessionOverrides.users
                     ? sessionOverrides.users.map(user => ({ ...user, theme: themeMode }))
-                    : mockSession.users.map(user => ({ ...user, theme: themeMode })),
+                    : baseSession.users.map(user => ({ ...user, theme: themeMode })),
             };
             const theme = themes[themeMode];
             const isLeftHanded = context.globals.isLeftHanded || false;

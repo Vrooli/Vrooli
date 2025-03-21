@@ -1,4 +1,5 @@
-import { PageContainer } from "components/Page/Page.js";
+import { loggedOutSession, signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumNoCreditsSession, signedInPremiumWithCreditsSession } from "../../__test/storybookConsts.js";
+import { PageContainer } from "../../components/Page/Page.js";
 import { SettingsDataView } from "./SettingsDataView.js";
 
 export default {
@@ -6,17 +7,57 @@ export default {
     component: SettingsDataView,
 };
 
-export function Default() {
+export function LoggedOut() {
     return (
         <PageContainer>
             <SettingsDataView display="page" />
         </PageContainer>
     );
 }
-Default.parameters = {
-    docs: {
-        description: {
-            story: "Displays the default settings data view.",
-        },
-    },
+LoggedOut.parameters = {
+    session: loggedOutSession,
+};
+
+export function SignedInNoPremiumNoCredits() {
+    return (
+        <PageContainer>
+            <SettingsDataView display="page" />
+        </PageContainer>
+    );
+}
+SignedInNoPremiumNoCredits.parameters = {
+    session: signedInNoPremiumNoCreditsSession,
+};
+
+export function SignedInNoPremiumWithCredits() {
+    return (
+        <PageContainer>
+            <SettingsDataView display="page" />
+        </PageContainer>
+    );
+}
+SignedInNoPremiumWithCredits.parameters = {
+    session: signedInNoPremiumWithCreditsSession,
+};
+
+export function SignedInPremiumNoCredits() {
+    return (
+        <PageContainer>
+            <SettingsDataView display="page" />
+        </PageContainer>
+    );
+}
+SignedInPremiumNoCredits.parameters = {
+    session: signedInPremiumNoCreditsSession,
+};
+
+export function SignedInPremiumWithCredits() {
+    return (
+        <PageContainer>
+            <SettingsDataView display="page" />
+        </PageContainer>
+    );
+}
+SignedInPremiumWithCredits.parameters = {
+    session: signedInPremiumWithCreditsSession,
 };
