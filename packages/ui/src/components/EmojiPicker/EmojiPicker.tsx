@@ -64,10 +64,6 @@ const SUGGESTED_EMOJIS_LIMIT = 20;
 const SKIN_OPTION_WIDTH_WITH_SPACING = 28;
 const SEARCH_STRING_DEBOUNCE_MS = 200;
 const NATIVE_PICKER_FAIL_TIMEOUT_MS = 500;
-const LIST_DIMENSIONS = {
-    width: 320,
-    height: 400,
-} as const;
 
 const emptyArray = [];
 
@@ -75,11 +71,12 @@ const EMOJI_CACHE_KEY = "emoji_data_cache";
 const EMOJI_CACHE_VERSION = "1"; // Increment this when the emoji data structure changes
 
 // Add this near the top with other constants
-const EMOJI_GRID = {
-    EMOJIS_PER_ROW: 6,
-    ROW_HEIGHT: 54,
-    CATEGORY_TITLE_HEIGHT: 24,
-};
+const EMOJIS_PER_ROW = 7;
+const EMOJI_ROW_HEIGHT = 48;
+const CATEGORY_TITLE_HEIGHT = 36;
+const EMOJI_GRID_HEIGHT = 400;
+const EMOJI_GRID_WIDTH = EMOJIS_PER_ROW * EMOJI_ROW_HEIGHT;
+
 
 // Add this near other constants
 const searchCache = new Map<string, Set<string>>();
@@ -87,6 +84,9 @@ const searchCache = new Map<string, Set<string>>();
 // Add constants for cache and batch sizes
 const CACHE_MAX_SIZE = 1000;
 const BATCH_MULTIPLIER = 4;
+
+// Add this near other constants
+const SUGGESTED_BATCH_UPDATE_DELAY = 100; // ms
 
 function iconColor(palette: Palette) {
     return palette.mode === "light" ? palette.secondary.light : palette.background.textPrimary;
@@ -187,6 +187,9 @@ class EmojiTools {
      * @returns The unified code without any skin tone information.
      */
     static unifiedWithoutSkinTone(unified: string): string {
+        if (typeof unified !== "string" || unified.length === 0) {
+            return "";
+        }
         return unified.split("-").filter((section) => !skinTones.includes(section as SkinTone)).join("-");
     }
 
@@ -197,7 +200,7 @@ class EmojiTools {
      * @param Optional skin tone modifier.
      * @returns The unified string with or without a skin tone modification.
      */
-    static emojiUnified(emoji: DataEmoji, skinTone?: string): string {
+    static emojiUnified(emoji: DataEmoji | SuggestedItem, skinTone?: string): string {
         const unified = emoji[EmojiProperties.unified];
 
         if (!skinTone || !Array.isArray(emoji[EmojiProperties.variations]) || emoji[EmojiProperties.variations].length === 0) {
@@ -214,7 +217,7 @@ class EmojiTools {
      * @returns The unified string of the emoji with the applied skin tone, if available.
      */
     static emojiVariationUnified(
-        emoji: DataEmoji,
+        emoji: DataEmoji | SuggestedItem,
         skinTone?: string,
     ): string | undefined {
         return skinTone
@@ -253,7 +256,6 @@ const ClickableEmojiButton = styled("div", {
     fontSize: "1.5rem",
     cursor: "pointer",
     padding: "8px",
-    borderRadius: "4px",
     transition: "background-color 0.2s",
     "&:hover": {
         backgroundColor: theme.palette.action.hover,
@@ -261,8 +263,8 @@ const ClickableEmojiButton = styled("div", {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    width: "40px",
-    height: "40px",
+    width: EMOJI_ROW_HEIGHT,
+    height: EMOJI_ROW_HEIGHT,
     userSelect: "none",
     WebkitTapHighlightColor: "transparent", // Remove tap highlight on mobile
     "&:active": {
@@ -384,56 +386,13 @@ function filterEmoji(searchString: string, emoji: DataEmoji): boolean {
     return matches;
 }
 
-const Suggested = memo(({
-    category,
-    onSelect,
-    searchString,
-    setHoveredEmoji,
-}: {
-    category: CategoryTabOption | `${CategoryTabOption}`;
-    onSelect: (selection: EmojiSelectProps) => unknown;
-    searchString: string;
-    setHoveredEmoji: (emoji: string | null) => unknown;
-}) => {
-    const suggested = useMemo(() => getSuggested(), []);
-    const filteredSuggested = useMemo(() => {
-        if (!searchString) {
-            return suggested;
-        }
-        return suggested.filter(suggestedItem => filterEmoji(searchString, { [EmojiProperties.unified]: suggestedItem.unified }));
-    }, [suggested, searchString]);
-
-    if (filteredSuggested.length === 0) {
-        return null;
-    }
-    return (
-        <EmojiCategory
-            category={category}
-        >
-            {filteredSuggested.map((suggestedItem) => {
-                // Don't render emoji if it fails to parse
-                const emoji = EmojiTools.emojiByUnified(suggestedItem.original);
-                if (!emoji) {
-                    return null;
-                }
-
-                return (
-                    <ClickableEmoji
-                        key={suggestedItem.unified}
-                        unified={suggestedItem.unified}
-                        onSelect={onSelect}
-                        setHoveredEmoji={setHoveredEmoji}
-                    />
-                );
-            })}
-        </EmojiCategory>
-    );
-});
-Suggested.displayName = "Suggested";
-
 const variableSizeListStyle = { willChange: "transform" } as const;
 const emojiCategoryListStyle = { listStyleType: "none" } as const;
-const emojiCategoryTitleStyle = { paddingLeft: "8px" } as const;
+const emojiCategoryTitleStyle = {
+    paddingLeft: "8px",
+    height: CATEGORY_TITLE_HEIGHT,
+    lineHeight: `${CATEGORY_TITLE_HEIGHT}px`,
+} as const;
 
 const EmojiCategory = memo(({
     category,
@@ -468,7 +427,7 @@ const RenderCategory = memo(({
     category: CategoryTabOption | `${CategoryTabOption}`;
     onSelect: (selection: EmojiSelectProps) => unknown;
     setHoveredEmoji: (emoji: string | null) => unknown;
-    filteredEmojis: DataEmoji[];
+    filteredEmojis: (DataEmoji | SuggestedItem)[];
 }) => {
     // Pre-calculate grid positions for better performance
     const rows = useMemo(() => {
@@ -476,12 +435,15 @@ const RenderCategory = memo(({
         let currentRow: React.ReactNode[] = [];
 
         for (const emoji of filteredEmojis) {
-            if (currentRow.length === EMOJI_GRID.EMOJIS_PER_ROW) {
+            if (currentRow.length === EMOJIS_PER_ROW) {
                 rows.push([...currentRow]);
                 currentRow = [];
             }
 
-            const unified = EmojiTools.emojiUnified(emoji, activeSkinTone);
+            const unified = category === CategoryTabOption.Suggested
+                ? (emoji as SuggestedItem).original // Use the original unified code for suggested emojis
+                : EmojiTools.emojiUnified(emoji as DataEmoji, activeSkinTone);
+
             currentRow.push(
                 <ClickableEmoji
                     key={unified}
@@ -497,23 +459,16 @@ const RenderCategory = memo(({
         }
 
         return rows;
-    }, [filteredEmojis, activeSkinTone, onSelect, setHoveredEmoji]);
+    }, [filteredEmojis, category, activeSkinTone, onSelect, setHoveredEmoji]);
 
     if (rows.length === 0) return null;
 
     return (
         <EmojiCategory category={category}>
             {rows.map((row, i) => (
-                <Box
-                    key={i}
-                    display="flex"
-                    flexDirection="row"
-                    justifyContent="flex-start"
-                    gap={1}
-                    height={EMOJI_GRID.ROW_HEIGHT}
-                >
+                <EmojiRow key={i}>
                     {row}
-                </Box>
+                </EmojiRow>
             ))}
         </EmojiCategory>
     );
@@ -531,21 +486,27 @@ const EmojiPopover = styled(Popover, {
         background: theme.palette.background.default,
         border: theme.palette.mode === "light" ? "none" : `1px solid ${theme.palette.divider}`,
         borderRadius: theme.spacing(2),
-        // width: "min(100%, 410px)",
-        // height: "min(100%, 410px)",
     },
 }));
 
-const MainBox = styled(Box)(() => ({
+const MainBox = styled("aside")(() => ({
     position: "relative",
     display: "flex",
     flexDirection: "column",
-    width: "100%",
+    width: EMOJI_GRID_WIDTH,
     height: "100%",
 }));
 
-const HeaderBox = styled(Box)(() => ({
+const HeaderBox = styled("div")(() => ({
     position: "relative",
+}));
+
+const EmojiRow = styled("div")(() => ({
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    gap: 0,
+    height: EMOJI_ROW_HEIGHT,
 }));
 
 const SearchBarPaper = styled(Paper)(({ theme }) => ({
@@ -602,8 +563,8 @@ const SkinColorOption = styled(Box, {
 
 const EmojiPickerBody = styled(Box)(() => ({
     overflow: "auto",
-    height: LIST_DIMENSIONS.height,
-    width: LIST_DIMENSIONS.width,
+    height: EMOJI_GRID_HEIGHT,
+    width: EMOJI_GRID_WIDTH,
     "&::-webkit-scrollbar": {
         display: "none",
     },
@@ -767,6 +728,25 @@ function useEmojiData() {
     return { emojiData };
 }
 
+// Add this new component
+const MemoizedHoveredEmojiContent = memo(({ hoveredEmoji }: { hoveredEmoji: string | null }) => {
+    const names = hoveredEmoji ? namesByCode[hoveredEmoji] : undefined;
+    const displayName = names && Array.isArray(names) && names.length > 0 ? names[0] : "";
+    const emojiDisplay = hoveredEmoji ? EmojiTools.parseNativeEmoji(hoveredEmoji) : "‎"; // Empty character to prevent layout shift
+
+    return (
+        <>
+            <HoveredEmojiDisplay>
+                {emojiDisplay}
+            </HoveredEmojiDisplay>
+            <HoveredEmojiLabel>
+                {displayName}
+            </HoveredEmojiLabel>
+        </>
+    );
+});
+MemoizedHoveredEmojiContent.displayName = "MemoizedHoveredEmojiContent";
+
 export function FallbackEmojiPicker({
     anchorEl,
     onClose,
@@ -864,40 +844,57 @@ export function FallbackEmojiPicker({
         });
     }, [suggestedEmojis, tabs]);
 
+    const updateSuggestedEmojisRef = useRef<NodeJS.Timeout>();
+
     const handleSelect = useCallback(function handleSelectCallback({ emoji, unified }: EmojiSelectProps) {
-        setSuggestedEmojis(prevSuggested => {
-            const existingIndex = prevSuggested.findIndex(item => item.unified === unified);
-            let newSuggested: SuggestedItem[];
-
-            if (existingIndex >= 0) {
-                // Update count
-                newSuggested = [...prevSuggested];
-                newSuggested[existingIndex].count += 1;
-            } else {
-                // Add new item
-                newSuggested = [
-                    ...prevSuggested,
-                    {
-                        unified,
-                        original: EmojiTools.unifiedWithoutSkinTone(unified),
-                        count: 1,
-                    },
-                ];
-            }
-
-            // Sort by count descending
-            newSuggested.sort((a, b) => b.count - a.count);
-
-            // Limit the number of suggested emojis
-            newSuggested = newSuggested.slice(0, SUGGESTED_EMOJIS_LIMIT);
-
-            // Update local storage
-            window.localStorage.setItem(SUGGESTED_LS_KEY, JSON.stringify(newSuggested));
-
-            return newSuggested;
-        });
-
+        // Call onSelect immediately for best responsiveness
         onSelect(emoji);
+
+        // Debounce the suggested emojis update
+        if (updateSuggestedEmojisRef.current) {
+            clearTimeout(updateSuggestedEmojisRef.current);
+        }
+
+        updateSuggestedEmojisRef.current = setTimeout(() => {
+            setSuggestedEmojis(prevSuggested => {
+                const existingIndex = prevSuggested.findIndex(item => item.unified === unified);
+                let newSuggested: SuggestedItem[];
+
+                if (existingIndex >= 0) {
+                    // Update count using immutable update
+                    newSuggested = [
+                        ...prevSuggested.slice(0, existingIndex),
+                        { ...prevSuggested[existingIndex], count: prevSuggested[existingIndex].count + 1 },
+                        ...prevSuggested.slice(existingIndex + 1),
+                    ];
+                } else {
+                    // Add new item
+                    newSuggested = [
+                        ...prevSuggested,
+                        {
+                            unified,
+                            original: EmojiTools.unifiedWithoutSkinTone(unified),
+                            count: 1,
+                        },
+                    ];
+                }
+
+                // Sort by count descending and limit size
+                newSuggested.sort((a, b) => b.count - a.count);
+                newSuggested = newSuggested.slice(0, SUGGESTED_EMOJIS_LIMIT);
+
+                // Update local storage in the next tick
+                queueMicrotask(() => {
+                    try {
+                        window.localStorage.setItem(SUGGESTED_LS_KEY, JSON.stringify(newSuggested));
+                    } catch (error) {
+                        console.error("Failed to save suggested emojis:", error);
+                    }
+                });
+
+                return newSuggested;
+            });
+        }, SUGGESTED_BATCH_UPDATE_DELAY);
     }, [onSelect]);
 
     const scrollToCategory = useCallback((categoryKey) => {
@@ -924,7 +921,7 @@ export function FallbackEmojiPicker({
         if (!tab) return 0;
 
         // Height for the category title
-        const categoryTitleHeight = 24;
+        const categoryTitleHeight = CATEGORY_TITLE_HEIGHT;
 
         // Get emojis for this category after filtering
         let numEmojisInCategory = 0;
@@ -936,12 +933,8 @@ export function FallbackEmojiPicker({
             numEmojisInCategory = filteredEmojisByCategory[tab.key]?.length ?? 0;
         }
 
-        // Calculate the number of rows needed for the emojis
-        const emojisPerRow = 6;
-        const emojiRowHeight = 54;
-
-        const numberOfRows = Math.ceil(numEmojisInCategory / emojisPerRow);
-        const emojisHeight = numberOfRows * emojiRowHeight;
+        const numberOfRows = Math.ceil(numEmojisInCategory / EMOJIS_PER_ROW);
+        const emojisHeight = numberOfRows * EMOJI_ROW_HEIGHT;
 
         if (emojisHeight === 0) {
             return 0;
@@ -968,7 +961,6 @@ export function FallbackEmojiPicker({
         >
             <MainBox
                 id="emoji-picker-main"
-                component="aside"
             >
                 <HeaderBox>
                     <Box display="flex" flexDirection="row" alignItems="center" p={1} gap={1}>
@@ -1048,8 +1040,8 @@ export function FallbackEmojiPicker({
                     {emojiData && (
                         <VariableSizeList
                             ref={listRef}
-                            height={LIST_DIMENSIONS.height}
-                            width={LIST_DIMENSIONS.width}
+                            height={EMOJI_GRID_HEIGHT}
+                            width={EMOJI_GRID_WIDTH}
                             itemCount={filteredTabs.length}
                             itemSize={getItemSize}
                             onItemsRendered={onItemsRendered}
@@ -1064,12 +1056,13 @@ export function FallbackEmojiPicker({
                                 return (
                                     <div style={style}>
                                         {tab.key === CategoryTabOption.Suggested ? (
-                                            <Suggested
+                                            <RenderCategory
                                                 key={tab.key}
+                                                activeSkinTone={activeSkinTone}
                                                 category={tab.key}
                                                 onSelect={handleSelect}
-                                                searchString={searchString}
                                                 setHoveredEmoji={setHoveredEmoji}
+                                                filteredEmojis={suggestedEmojis}
                                             />
                                         ) : (
                                             <RenderCategory
@@ -1087,23 +1080,7 @@ export function FallbackEmojiPicker({
                         </VariableSizeList>
                     )}
                     <HoveredEmojiBox>
-                        <HoveredEmojiDisplay>
-                            {
-                                hoveredEmoji
-                                    ? EmojiTools.parseNativeEmoji(hoveredEmoji)
-                                    : "‎" // Empty character to prevent layout shift
-                            }
-                        </HoveredEmojiDisplay>
-                        <HoveredEmojiLabel>
-                            {
-                                hoveredEmoji
-                                    && namesByCode[hoveredEmoji]
-                                    && Array.isArray(namesByCode[hoveredEmoji])
-                                    && namesByCode[hoveredEmoji].length > 0
-                                    ? namesByCode[hoveredEmoji]![0]
-                                    : ""
-                            }
-                        </HoveredEmojiLabel>
+                        <MemoizedHoveredEmojiContent hoveredEmoji={hoveredEmoji} />
                     </HoveredEmojiBox>
                 </EmojiPickerBody>
             </MainBox>
