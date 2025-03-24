@@ -53,20 +53,6 @@ type UseMesssageActionsResult = {
     retryPostMessage: (failedMessage: ChatMessageShape) => Promise<unknown>;
 };
 
-class MessageTreeError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = "MessageTreeError";
-    }
-}
-
-class CycleDetectedError extends MessageTreeError {
-    constructor(messageId: string) {
-        super(`Cycle detected at message with ID ${messageId}.`);
-        this.name = "CycleDetectedError";
-    }
-}
-
 export class MessageTree<T extends MinimumChatMessage> {
     private map: Map<string, MessageNode<T>>;
     private roots: string[];

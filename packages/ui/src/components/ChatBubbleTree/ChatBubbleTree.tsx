@@ -446,40 +446,22 @@ export function ChatBubble({
         onActionComplete: () => { onDeleted(message); },
     });
 
-    // const shouldRetry = useRef(true);
-    // useEffect(() => {
-    //     if (message.user?.id === getCurrentUser(session).id && message.isUnsent && shouldRetry.current) {
-    //         shouldRetry.current = false;
-    //         fetchLazyWrapper<ChatMessageCreateInput, ChatMessage>({
-    //             fetch: createMessage,
-    //             inputs: shapeChatMessage.create({ ...message }),
-    //             successCondition: (data) => data !== null,
-    //             onSuccess: (data) => {
-    //                 setEditingText(undefined);
-    //                 console.log("chatbubble setting error false 1", data);
-    //                 setHasError(false);
-    //                 onUpdated({ ...data, isUnsent: false });
-    //             },
-    //         });
-    //     }
-    // }, [createMessage, message, message.isUnsent, onUpdated, session, shouldRetry]);
-
     function handleReactionAdd(emoji: string) {
         if (message.status !== "sent") return;
         const originalSummaries = message.reactionSummaries;
         // Add to summaries right away, so that the UI updates immediately
-        // const existingReaction = message.reactionSummaries.find((r) => r.emoji === emoji);
-        // if (existingReaction) {
-        //     onUpdated({
-        //         ...message,
-        //         reactionSummaries: message.reactionSummaries.map((r) => r.emoji === emoji ? { ...r, count: r.count + 1 } : r),
-        //     } as ChatBubbleProps["message"]);
-        // } else {
-        //     onUpdated({
-        //         ...message,
-        //         reactionSummaries: [...message.reactionSummaries, { __typename: "ReactionSummary", emoji, count: 1 }],
-        //     } as ChatBubbleProps["message"]);
-        // }
+        const existingReaction = message.reactionSummaries.find((r) => r.emoji === emoji);
+        if (existingReaction) {
+            onDeleted({
+                ...message,
+                reactionSummaries: message.reactionSummaries.map((r) => r.emoji === emoji ? { ...r, count: r.count + 1 } : r),
+            });
+        } else {
+            onDeleted({
+                ...message,
+                reactionSummaries: [...message.reactionSummaries, { __typename: "ReactionSummary", emoji, count: 1 }],
+            });
+        }
         // Send the request to the backend
         fetchLazyWrapper<ReactInput, Success>({
             fetch: react,
@@ -491,7 +473,7 @@ export function ChatBubble({
             successCondition: (data) => data.success,
             onError: () => {
                 // If the request fails, revert the UI changes
-                // onUpdated({ ...message, reactionSummaries: originalSummaries } as ChatBubbleProps["message"]);
+                onDeleted({ ...message, reactionSummaries: originalSummaries });
             },
         });
     }
@@ -781,7 +763,7 @@ export function ChatBubbleTree({
         function renderMessage(withSiblings: string[], activeIndex: number): MessageRenderData[] {
             // Find information for current message
             const siblingId = withSiblings[activeIndex];
-            const sibling = siblingId ? tree.map.get(siblingId) : null;
+            const sibling = siblingId ? tree.getMap().get(siblingId) : null;
             if (!sibling) return [];
             const isOwn = sibling.message.user?.id === userId;
 
@@ -815,8 +797,8 @@ export function ChatBubbleTree({
                 ...childId ? renderMessage(sibling.children, activeChildIndex) : [],
             ];
         }
-        return renderMessage(tree.roots, 0);
-    }, [branches, removeMessages, setBranches, tree.map, tree.roots, userId]);
+        return renderMessage(tree.getRoots(), 0);
+    }, [branches, removeMessages, setBranches, tree, userId]);
 
     return (
         <OuterMessageList id={id} ref={dimRef}>
