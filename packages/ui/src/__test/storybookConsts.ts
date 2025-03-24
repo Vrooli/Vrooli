@@ -3,6 +3,8 @@ import { DEFAULT_THEME } from "../utils/display/theme.js";
 
 export const API_URL = "http://localhost:5329/api";
 
+export const signedInUserId = uuid();
+
 export const baseSession = {
     __typename: "Session" as const,
     isLoggedIn: true,
@@ -20,7 +22,7 @@ export const signedInNoPremiumNoCreditsSession: Partial<Session> = {
     users: [{
         credits: "0",
         hasPremium: false,
-        id: uuid(),
+        id: signedInUserId,
     }] as SessionUser[],
 };
 
@@ -29,7 +31,7 @@ export const signedInNoPremiumWithCreditsSession: Partial<Session> = {
     users: [{
         credits: "1234567",
         hasPremium: false,
-        id: uuid(),
+        id: signedInUserId,
     }] as SessionUser[],
 };
 
@@ -38,7 +40,7 @@ export const signedInPremiumNoCreditsSession: Partial<Session> = {
     users: [{
         credits: "0",
         hasPremium: true,
-        id: uuid(),
+        id: signedInUserId,
     }] as SessionUser[],
 };
 
@@ -48,6 +50,6 @@ export const signedInPremiumWithCreditsSession: Partial<Session> = {
     users: [{
         credits: "12345678912",
         hasPremium: true,
-        id: uuid(),
+        id: signedInUserId,
     }] as SessionUser[],
 };
