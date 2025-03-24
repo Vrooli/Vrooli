@@ -1,10 +1,10 @@
-import { LargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
-import { TopBar } from "components/navigation/TopBar.js";
 import { useField, useFormikContext } from "formik";
-import { DeleteIcon, EditIcon } from "icons/common.js";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getTranslationData } from "utils/display/translationTools.js";
+import { DeleteIcon, EditIcon } from "../../icons/common.js";
+import { getTranslationData } from "../../utils/display/translationTools.js";
+import { LargeDialog } from "../dialogs/LargeDialog/LargeDialog.js";
+import { TopBar } from "../navigation/TopBar.js";
 import { Title } from "./Title.js";
 import { TitleProps } from "./types.js";
 
@@ -54,10 +54,10 @@ export function EditableTitle({
     }, [formik.values, language, translationsField, translationsMeta]);
 
     const handleOpen = useCallback(() => { setIsDialogOpen(true); }, []);
-    const handleClose = () => {
+    const handleClose = useCallback(() => {
         setIsDialogOpen(false);
         onClose && onClose();
-    };
+    }, [onClose]);
 
     const { title, subtitle } = useMemo(() => {
         return {

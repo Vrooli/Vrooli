@@ -1,12 +1,12 @@
 import { endpointsRunProject, RunProject } from "@local/shared";
-import { TopBar } from "components/navigation/TopBar.js";
-import { useObjectActions } from "hooks/objectActions.js";
-import { useManagedObject } from "hooks/useManagedObject.js";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route/router.js";
-import { getDisplay } from "utils/display/listTools.js";
-import { firstString } from "utils/display/stringTools.js";
+import { TopBar } from "../../../components/navigation/TopBar.js";
+import { useObjectActions } from "../../../hooks/objectActions.js";
+import { useManagedObject } from "../../../hooks/useManagedObject.js";
+import { useLocation } from "../../../route/router.js";
+import { getDisplay } from "../../../utils/display/listTools.js";
+import { firstString } from "../../../utils/display/stringTools.js";
 import { RunProjectViewProps } from "./types.js";
 
 export function RunProjectView({

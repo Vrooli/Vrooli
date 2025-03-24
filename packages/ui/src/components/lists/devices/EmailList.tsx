@@ -1,15 +1,15 @@
 import { DeleteOneInput, DeleteType, DUMMY_ID, Email, EmailCreateInput, emailValidation, endpointsActions, endpointsEmail, SendVerificationEmailInput, Success, uuid } from "@local/shared";
 import { Box, IconButton, InputAdornment, ListItem, ListItemText, Stack, Tooltip, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper.js";
-import { ListContainer } from "components/containers/ListContainer/ListContainer.js";
-import { TextInput } from "components/inputs/TextInput/TextInput.js";
 import { useFormik } from "formik";
-import { useLazyFetch } from "hooks/useLazyFetch.js";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
+import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { AddIcon, CompleteIcon, DeleteIcon, EmailIcon } from "../../../icons/common.js";
 import { multiLineEllipsis } from "../../../styles.js";
 import { PubSub } from "../../../utils/pubsub.js";
+import { ListContainer } from "../../containers/ListContainer/ListContainer.js";
+import { TextInput } from "../../inputs/TextInput/TextInput.js";
 import { EmailListItemProps, EmailListProps } from "./types.js";
 
 /**

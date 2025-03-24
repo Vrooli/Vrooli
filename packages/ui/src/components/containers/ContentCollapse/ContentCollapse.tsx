@@ -1,8 +1,8 @@
 import { Box, Collapse, IconButton, Stack, Typography, useTheme } from "@mui/material";
-import { HelpButton } from "components/buttons/HelpButton/HelpButton";
-import { ExpandLessIcon, ExpandMoreIcon } from "icons/common.js";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ExpandLessIcon, ExpandMoreIcon } from "../../../icons/common.js";
+import { HelpButton } from "../../buttons/HelpButton/HelpButton.js";
 import { ContentCollapseProps } from "../types.js";
 
 export function ContentCollapse({

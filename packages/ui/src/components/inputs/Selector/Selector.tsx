@@ -1,9 +1,9 @@
 import { exists } from "@local/shared";
 import { FormControl, FormHelperText, InputLabel, ListItemIcon, ListItemText, MenuItem, Select, Stack, useTheme } from "@mui/material";
 import { useField } from "formik";
-import { AddIcon } from "icons/common.js";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { AddIcon } from "../../../icons/common.js";
 import { SelectorBaseProps, SelectorProps } from "../types.js";
 
 export function SelectorBase<T extends string | number | { [x: string]: any }>({

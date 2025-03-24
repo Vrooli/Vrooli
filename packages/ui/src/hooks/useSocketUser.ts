@@ -1,7 +1,7 @@
 import { Session } from "@local/shared";
-import { SocketService } from "api/socket.js";
 import { useEffect } from "react";
-import { getCurrentUser } from "utils/authentication/session.js";
+import { SocketService } from "../api/socket.js";
+import { getCurrentUser } from "../utils/authentication/session.js";
 
 export function useSocketUser(
     session: Session | undefined,

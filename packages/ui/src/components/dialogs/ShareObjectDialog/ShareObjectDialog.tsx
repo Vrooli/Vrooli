@@ -3,14 +3,14 @@
  */
 import { getObjectUrl } from "@local/shared";
 import { Box, List, ListItem, ListItemIcon, ListItemText, Stack, useTheme } from "@mui/material";
-import { TopBar } from "components/navigation/TopBar.js";
-import { DownloadIcon, EmailIcon, LinkIcon, ObjectIcon, QrCodeIcon, ShareIcon } from "icons/common.js";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import QRCode from "react-qr-code";
-import { getDisplay } from "utils/display/listTools.js";
-import { ObjectType } from "utils/navigation/openObject.js";
-import { PubSub } from "utils/pubsub.js";
+import { DownloadIcon, EmailIcon, LinkIcon, ObjectIcon, QrCodeIcon, ShareIcon } from "../../../icons/common.js";
+import { getDisplay } from "../../../utils/display/listTools.js";
+import { ObjectType } from "../../../utils/navigation/openObject.js";
+import { PubSub } from "../../../utils/pubsub.js";
+import { TopBar } from "../../navigation/TopBar.js";
 import { LargeDialog } from "../LargeDialog/LargeDialog.js";
 import { ShareObjectDialogProps } from "../types.js";
 

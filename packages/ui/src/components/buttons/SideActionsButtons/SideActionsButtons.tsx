@@ -1,8 +1,8 @@
 import { Box, BoxProps, styled, useTheme } from "@mui/material";
-import { useWindowSize } from "hooks/useWindowSize.js";
 import { useRef } from "react";
 import { SxType, ViewDisplayType } from "types";
-import { Z_INDEX } from "utils/consts.js";
+import { useWindowSize } from "../../../hooks/useWindowSize.js";
+import { Z_INDEX } from "../../../utils/consts.js";
 import { SideActionsButtonsProps } from "../types.js";
 
 interface OuterBoxProps extends BoxProps {

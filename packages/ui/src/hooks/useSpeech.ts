@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { DeviceOS, getDeviceInfo } from "utils/display/device";
-import { PubSub } from "utils/pubsub.js";
+import { DeviceOS, getDeviceInfo } from "../utils/display/device.js";
+import { PubSub } from "../utils/pubsub.js";
 
 /**
  * A hook for converting speech to a transcript

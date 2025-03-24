@@ -1,10 +1,10 @@
 import { Status } from "@local/shared";
 import { Stack, Tooltip, Typography } from "@mui/material";
-import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow.js";
 import { useCallback, useMemo } from "react";
 import { usePopover } from "../../../hooks/usePopover.js";
 import { RoutineIncompleteIcon, RoutineInvalidIcon, RoutineValidIcon } from "../../../icons/common.js";
 import { noSelect } from "../../../styles.js";
+import { PopoverWithArrow } from "../../dialogs/PopoverWithArrow/PopoverWithArrow.js";
 import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
 import { StatusButtonProps } from "../types.js";
 

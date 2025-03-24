@@ -1,5 +1,5 @@
-import { useDebounce } from "hooks/useDebounce";
 import { useCallback, useRef, useState } from "react";
+import { useDebounce } from "./useDebounce.js";
 
 type UpdaterFn<T> = (prev: T) => T;
 

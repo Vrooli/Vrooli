@@ -2,10 +2,11 @@
 import { LINKS, Session, TranslationKeyCommon } from "@local/shared";
 import { Badge, BottomNavigationAction, Button, IconButton, SxProps, Theme } from "@mui/material";
 import i18next from "i18next";
-import { CreateAccountIcon, CreateIcon, GridIcon, HelpIcon, HomeIcon, NotificationsAllIcon, PremiumIcon, SearchIcon } from "icons/common.js";
-import { SetLocation, openLink } from "route";
-import { SvgComponent } from "types";
-import { checkIfLoggedIn } from "utils/authentication/session.js";
+import { CreateAccountIcon, CreateIcon, GridIcon, HelpIcon, HomeIcon, NotificationsAllIcon, PremiumIcon, SearchIcon } from "../../icons/common.js";
+import { openLink } from "../../route/openLink.js";
+import { SetLocation } from "../../route/types.js";
+import { SvgComponent } from "../../types.js";
+import { checkIfLoggedIn } from "../../utils/authentication/session.js";
 
 export enum NAV_ACTION_TAGS {
     Home = "Home",
@@ -69,7 +70,9 @@ function createAction(action: NavActionArray): NavAction {
 }
 
 // Factory for creating a list of action objects
-export const createActions = (actions: NavActionArray[]): NavAction[] => actions.map(a => createAction(a));
+export function createActions(actions: NavActionArray[]): NavAction[] {
+    return actions.map(a => createAction(a));
+}
 
 /** Display actions in a horizontal menu */
 interface ActionsToMenuProps {
@@ -78,18 +81,25 @@ interface ActionsToMenuProps {
     sx?: SxProps<Theme>;
 }
 export function actionsToMenu({ actions, setLocation, sx = {} }: ActionsToMenuProps) {
-    return actions.map(({ label, value, link }) => (
-        <Button
-            key={value}
-            variant="text"
-            size="large"
-            href={link}
-            onClick={(e) => { e.preventDefault(); openLink(setLocation, link); }}
-            sx={sx}
-        >
-            {i18next.t(label, { count: 2 })}
-        </Button>
-    ));
+    return actions.map(({ label, value, link }) => {
+        function handleClick(event: React.MouseEvent) {
+            event.preventDefault();
+            openLink(setLocation, link);
+        }
+
+        return (
+            <Button
+                key={value}
+                variant="text"
+                size="large"
+                href={link}
+                onClick={handleClick}
+                sx={sx}
+            >
+                {i18next.t(label, { count: 2 })}
+            </Button>
+        );
+    });
 }
 
 // Display actions in a bottom navigation
@@ -134,7 +144,13 @@ interface ActionToIconButtonProps {
 }
 export function actionToIconButton({ action, setLocation, classes = { root: "" } }: ActionToIconButtonProps) {
     const { value, link, Icon, numNotifications } = action;
-    return <IconButton classes={classes} edge="start" color="inherit" aria-label={value} onClick={() => openLink(setLocation, link)}>
+
+    function handleClick(event: React.MouseEvent) {
+        event.preventDefault();
+        openLink(setLocation, link);
+    }
+
+    return <IconButton classes={classes} edge="start" color="inherit" aria-label={value} onClick={handleClick}>
         <Badge badgeContent={numNotifications} color="error">
             <Icon />
         </Badge>

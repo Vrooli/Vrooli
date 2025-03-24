@@ -1,11 +1,11 @@
 import { isOfType } from "@local/shared";
 import { Typography, useTheme } from "@mui/material";
-import { RichInput, TranslatedRichInput } from "components/inputs/RichInput/RichInput.js";
-import { TextInput, TranslatedTextInput } from "components/inputs/TextInput/TextInput.js";
-import { MarkdownDisplay } from "components/text/MarkdownDisplay.js";
 import { Field, useField } from "formik";
 import { useMemo } from "react";
 import { linkColors } from "../../../styles.js";
+import { RichInput, TranslatedRichInput } from "../../inputs/RichInput/RichInput.js";
+import { TextInput, TranslatedTextInput } from "../../inputs/TextInput/TextInput.js";
+import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
 import { ContentCollapse } from "../ContentCollapse/ContentCollapse.js";
 import { EditTextComponent, EditableTextCollapseProps, PropsByComponentType } from "../types.js";
 

@@ -1,7 +1,7 @@
 import { TextField, Typography } from "@mui/material";
 import { useField } from "formik";
 import { RefObject, useMemo } from "react";
-import { getTranslationData, handleTranslationChange } from "utils/display/translationTools.js";
+import { getTranslationData, handleTranslationChange } from "../../../utils/display/translationTools.js";
 import { TextInputProps, TranslatedTextInputProps } from "../types.js";
 
 export function TextInput({

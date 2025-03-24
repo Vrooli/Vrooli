@@ -1,15 +1,15 @@
 // Used to display popular/search results of a particular object type
 import { endpointsReminder, Reminder, ReminderUpdateInput, shapeReminder } from "@local/shared";
 import { Checkbox, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper.js";
-import { CompletionBar } from "components/CompletionBar/CompletionBar";
-import { ObjectListItemBase } from "components/lists/ObjectListItemBase/ObjectListItemBase";
-import { ReminderListItemProps } from "components/lists/types.js";
-import { useObjectActions } from "hooks/objectActions.js";
-import { useLazyFetch } from "hooks/useLazyFetch.js";
-import { DeleteIcon, ScheduleIcon } from "icons/common.js";
 import { useCallback, useMemo } from "react";
-import { useLocation } from "route/router.js";
+import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
+import { useObjectActions } from "../../../hooks/objectActions.js";
+import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { DeleteIcon, ScheduleIcon } from "../../../icons/common.js";
+import { useLocation } from "../../../route/router.js";
+import { CompletionBar } from "../../CompletionBar/CompletionBar.js";
+import { ObjectListItemBase } from "../../lists/ObjectListItemBase/ObjectListItemBase.js";
+import { ReminderListItemProps } from "../../lists/types.js";
 
 //  // Internal state
 //  const [allReminders, setAllReminders] = useState<Reminder[]>(reminders);

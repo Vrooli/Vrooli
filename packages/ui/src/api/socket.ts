@@ -3,7 +3,12 @@ import { io } from "socket.io-client";
 import { webSocketUrlBase } from "../utils/consts.js";
 import { PubSub } from "../utils/pubsub.js";
 
-export const socket = io(webSocketUrlBase, { withCredentials: true });
+const shouldUseWebSocket = process.env.NODE_ENV !== "test";
+export const socket = io(webSocketUrlBase, {
+    withCredentials: true,
+    autoConnect: shouldUseWebSocket,
+    reconnection: shouldUseWebSocket,
+});
 
 export const SERVER_CONNECT_MESSAGE_ID = "AuthMessage";
 

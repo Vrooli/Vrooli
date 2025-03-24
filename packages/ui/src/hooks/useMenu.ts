@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { getCookie, setCookie } from "utils/localStorage.js";
-import { MenuPayloads, PubSub } from "utils/pubsub.js";
+import { getCookie, setCookie } from "../utils/localStorage.js";
+import { MenuPayloads, PubSub } from "../utils/pubsub.js";
 
 type UseMenuParams<ID extends keyof MenuPayloads> = {
     /** The id of the side menu */

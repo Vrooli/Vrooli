@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getDeviceInfo } from "utils/display/device";
+import { getDeviceInfo } from "../utils/display/device.js";
 
 /**
  * Hook to detect if the keyboard is open or not. 
@@ -10,16 +10,16 @@ export function useKeyboardOpen(): boolean {
 
     useEffect(() => {
         // Function to handle focus event
-        const handleFocus = (event: FocusEvent) => {
+        function handleFocus(event: FocusEvent) {
             const target = event.target as HTMLElement;
             const isTextBox = target?.role === "textbox" || target?.tagName === "TEXTAREA";
             setIsKeyboardOpen(isTextBox && getDeviceInfo().isMobile);
-        };
+        }
 
         // Function to handle blur event
-        const handleBlur = () => {
+        function handleBlur() {
             setIsKeyboardOpen(false);
-        };
+        }
 
         // Add event listeners
         window.addEventListener("focusin", handleFocus);

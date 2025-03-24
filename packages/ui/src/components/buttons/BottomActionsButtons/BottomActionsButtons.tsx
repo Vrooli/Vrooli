@@ -1,12 +1,12 @@
 import { exists } from "@local/shared";
 import { Box, BoxProps, Button, Grid, styled, useTheme } from "@mui/material";
-import { useErrorPopover } from "hooks/useErrorPopover.js";
-import { useKeyboardOpen } from "hooks/useKeyboardOpen.js";
-import { useWindowSize } from "hooks/useWindowSize.js";
-import { CancelIcon, CreateIcon, SaveIcon } from "icons/common.js";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { SxType } from "types";
+import { useErrorPopover } from "../../../hooks/useErrorPopover.js";
+import { useKeyboardOpen } from "../../../hooks/useKeyboardOpen.js";
+import { useWindowSize } from "../../../hooks/useWindowSize.js";
+import { CancelIcon, CreateIcon, SaveIcon } from "../../../icons/common.js";
+import { SxType } from "../../../types.js";
 import { BottomActionsGrid } from "../BottomActionsGrid/BottomActionsGrid.js";
 import { LoadableButton } from "../LoadableButton/LoadableButton.js";
 import { BottomActionsButtonsProps } from "../types.js";

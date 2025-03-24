@@ -3,7 +3,6 @@
         "target": "ESNext",
         // NOTE: If changing to or from "commonjs", make sure package.json and .swcrc are updated as well
         "module": "ESNext",
-        "baseUrl": "./src",
         "rootDir": "./src",
         "outDir": "./dist",
         "useDefineForClassFields": true,

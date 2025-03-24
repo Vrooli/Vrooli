@@ -1,6 +1,6 @@
 import { LinearProgress, styled } from "@mui/material";
-import { MarkdownDisplay } from "components/text/MarkdownDisplay.js";
 import { useMemo } from "react";
+import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
 import { ContentCollapse } from "../ContentCollapse/ContentCollapse.js";
 import { TextCollapseProps } from "../types.js";
 

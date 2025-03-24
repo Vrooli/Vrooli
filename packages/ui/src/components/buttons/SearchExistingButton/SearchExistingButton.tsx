@@ -1,5 +1,5 @@
 import { Button, styled } from "@mui/material";
-import { SearchIcon } from "icons/common.js";
+import { SearchIcon } from "../../../icons/common.js";
 
 const StyledButton = styled(Button)(({ theme }) => ({
     color: theme.palette.background.textSecondary,

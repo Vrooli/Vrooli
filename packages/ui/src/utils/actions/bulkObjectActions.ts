@@ -1,9 +1,9 @@
 import { BookmarkFor, CopyType, DeleteType, ListObject, ReportFor, Session, TranslationKeyCommon } from "@local/shared";
-import { ListMenuItemData } from "components/dialogs/types";
-import { AddIcon, BookmarkFilledIcon, BookmarkOutlineIcon, CopyIcon, DeleteIcon, ReportIcon } from "icons/common.js";
-import { SvgComponent } from "types";
-import { checkIfLoggedIn } from "utils/authentication/session.js";
-import { getYou } from "utils/display/listTools";
+import { ListMenuItemData } from "../../components/dialogs/types.js";
+import { AddIcon, BookmarkFilledIcon, BookmarkOutlineIcon, CopyIcon, DeleteIcon, ReportIcon } from "../../icons/common.js";
+import { SvgComponent } from "../../types.js";
+import { checkIfLoggedIn } from "../../utils/authentication/session.js";
+import { getYou } from "../display/listTools.js";
 
 /**
  * All available bulk actions
@@ -31,7 +31,7 @@ export enum BulkObjectActionComplete {
 /**
  * If any object has a false, permission, then the permission for the whole list is false.
  */
-const getBulkYou = (objects: ListObject[]) => {
+function getBulkYou(objects: ListObject[]) {
     const permissions = objects.map(object => getYou(object));
     return {
         canCopy: permissions.every(perm => perm.canCopy),
@@ -40,7 +40,7 @@ const getBulkYou = (objects: ListObject[]) => {
         canBookmark: permissions.every(perm => perm.canBookmark),
         isBookmarked: permissions.every(perm => perm.isBookmarked),
     };
-};
+}
 
 
 /**
@@ -49,7 +49,7 @@ const getBulkYou = (objects: ListObject[]) => {
  * @param objects All selected objects
  * @param session Current session. Many actions require a logged in user.
  */
-export const getAvailableBulkActions = (objects: ListObject[], session: Session | undefined): BulkObjectAction[] => {
+export function getAvailableBulkActions(objects: ListObject[], session: Session | undefined): BulkObjectAction[] {
     if (objects.length <= 0) return [];
     const isLoggedIn = checkIfLoggedIn(session);
     const { canCopy, canDelete, canReport, canBookmark, isBookmarked } = getBulkYou(objects);
@@ -73,7 +73,7 @@ export const getAvailableBulkActions = (objects: ListObject[], session: Session 
         options.push(BulkObjectAction.Delete);
     }
     return options;
-};
+}
 
 /**
  * Maps an BulkObjectAction to [labelKey, Icon, iconColor, preview]
@@ -87,9 +87,9 @@ const allBulkOptionsMap: { [key in BulkObjectAction]: [TranslationKeyCommon, Svg
     [BulkObjectAction.Report]: ["Report", ReportIcon, "default", false],
 });
 
-export const getBulkActionsDisplayData = (actions: BulkObjectAction[]): Pick<ListMenuItemData<BulkObjectAction>, "Icon" | "iconColor" | "labelKey" | "value">[] => {
+export function getBulkActionsDisplayData(actions: BulkObjectAction[]): Pick<ListMenuItemData<BulkObjectAction>, "Icon" | "iconColor" | "labelKey" | "value">[] {
     return actions.map((action) => {
         const [labelKey, Icon, iconColor, preview] = allBulkOptionsMap[action];
         return { labelKey, Icon, iconColor, preview, value: action };
     });
-};
+}

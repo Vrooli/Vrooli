@@ -1,8 +1,8 @@
 import { ListObject } from "@local/shared";
 import { Box, styled, useTheme } from "@mui/material";
 import { CSSProperties, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { DEFAULT_MIN_ROWS } from "utils/consts.js";
-import { Headers } from "utils/display/stringTools.js";
+import { DEFAULT_MIN_ROWS } from "../../../utils/consts.js";
+import { Headers } from "../../../utils/display/stringTools.js";
 import { LINE_HEIGHT_MULTIPLIER } from "../RichInput/RichInput.js";
 import { RichInputTagDropdown, useTagDropdown } from "../RichInputTagDropdown/RichInputTagDropdown.js";
 import { defaultActiveStates } from "../RichInputToolbar/RichInputToolbar.js";
@@ -23,7 +23,6 @@ import { ListPlugin } from "./plugins/ListPlugin.js";
 import { RichTextPlugin } from "./plugins/RichTextPlugin.js";
 import { TablePlugin } from "./plugins/TablePlugin.js";
 import { $setBlocksType, RangeSelection } from "./selection.js";
-import "./theme.css";
 import { ELEMENT_TRANSFORMERS } from "./transformers/elementTransformers.js";
 import { TEXT_TRANSFORMERS, applyTextTransformers } from "./transformers/textFormatTransformers.js";
 import { TEXT_MATCH_TRANSFORMERS } from "./transformers/textMatchTransformers.js";
@@ -32,6 +31,7 @@ import { $createNode, $findMatchingParent, $getNearestNodeOfType, $getNodeByKey,
 
 const HISTORY_MERGE_OPTIONS = { tag: "history-merge" };
 const PADDING_HEIGHT_PX = 16.5;
+const DEBOUNCE_DELAY_MS = 300;
 
 /** Every supported block type (e.g. lists, headers, quote) */
 const blockTypeToActionName: { [x: string]: RichInputAction | `${RichInputAction}` } = {
@@ -414,7 +414,7 @@ export function RichInputLexicalComponents({
                 $convertFromMarkdownString(value, ALL_TRANSFORMERS);
             }, HISTORY_MERGE_OPTIONS);
             lastValueFromEditorRef.current = value; // Update the ref to match the current value
-        }, 300); // Adjust delay as needed for performance
+        }, DEBOUNCE_DELAY_MS);
 
         return () => clearTimeout(timeoutId); // Cleanup timeout
     }, [value, editor]);
@@ -485,7 +485,7 @@ export function RichInputLexicalComponents({
                 "ListBullet": () => editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, (void 0)),
                 "ListCheckbox": () => editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, (void 0)), // TODO not working
                 "ListNumber": () => editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, (void 0)),
-                "Quote": () => { }, //TODO
+                "Quote": () => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "QUOTE"), // Implement quote formatting
                 "Redo": () => {
                     redo();
                     triggerEditorChange();
@@ -543,8 +543,225 @@ export function RichInputLexicalComponents({
                 border: `2px solid ${palette.primary.main}`,
             },
             ...sxs?.inputRoot,
+            "& .RichInput__textCode": {
+                backgroundColor: palette.grey[100],
+                padding: "1px 0.25rem",
+                fontFamily: "Menlo, Consolas, Monaco, monospace",
+                fontSize: "94%",
+            },
+            "& .RichInput_highlight": {
+                backgroundColor: "rgba(255, 212, 0, 0.14)",
+                borderBottom: "2px solid rgba(255, 212, 0, 0.3)",
+                paddingBottom: "2px",
+            },
+            "& .spoiler": {
+                cursor: "pointer",
+                padding: "0.25rem",
+                transition: "color 0.4s ease-in-out, background 0.4s ease-in-out",
+                "&.hidden": {
+                    color: "black",
+                    background: "black",
+                    filter: "blur(2px)",
+                    "&:hover": {
+                        filter: "blur(1px) brightness(1.1)",
+                    },
+                },
+                "&.revealed": {
+                    color: "inherit",
+                    background: "rgba(0, 0, 0, 0.3)",
+                    filter: "none",
+                },
+            },
+            "& .RichInput__ltr": {
+                textAlign: "left",
+            },
+            "& .RichInput__rtl": {
+                textAlign: "right",
+            },
+            "& .RichInput__paragraph": {
+                margin: 0,
+                position: "relative",
+            },
+            "& .RichInput__quote": {
+                margin: "0 0 10px 20px",
+                fontSize: 15,
+                color: palette.text.secondary,
+                borderLeft: `4px solid ${palette.divider}`,
+                paddingLeft: 16,
+            },
+            "& .RichInput__indent": {
+                "--lexical-indent-base-value": "40px",
+            },
+            "& .RichInput__textStrikethrough": {
+                textDecoration: "line-through",
+            },
+            "& .RichInput__textUnderlineStrikethrough": {
+                textDecoration: "underline line-through",
+            },
+            "& .RichInput__textSubscript": {
+                fontSize: "0.8em",
+                verticalAlign: "sub !important",
+            },
+            "& .RichInput__textSuperscript": {
+                fontSize: "0.8em",
+                verticalAlign: "super",
+            },
+            "& .RichInput__hashtag": {
+                backgroundColor: "rgba(88, 144, 255, 0.15)",
+                borderBottom: "1px solid rgba(88, 144, 255, 0.3)",
+            },
+            "& .RichInput__table": {
+                borderCollapse: "collapse",
+                borderSpacing: 0,
+                maxWidth: "100%",
+                overflowY: "scroll",
+                tableLayout: "fixed",
+                width: "calc(100% - 25px)",
+                margin: "30px 0",
+                "&.selected": {
+                    outline: `2px solid ${palette.primary.main}`,
+                },
+            },
+            "& .RichInput__tableCell": {
+                border: `1px solid ${palette.divider}`,
+                minWidth: 75,
+                verticalAlign: "top",
+                textAlign: "start",
+                padding: "6px 8px",
+                position: "relative",
+                cursor: "default",
+                outline: "none",
+            },
+            "& .RichInput__tableCellResizer": {
+                position: "absolute",
+                right: -4,
+                height: "100%",
+                width: 8,
+                cursor: "ew-resize",
+                zIndex: 10,
+                top: 0,
+            },
+            "& .RichInput__tableCellHeader": {
+                backgroundColor: palette.grey[100],
+            },
+            "& .RichInput__tableCellSelected": {
+                backgroundColor: palette.action.selected,
+            },
+            "& .RichInput__tableCellEditing": {
+                boxShadow: "0 0 5px rgba(0, 0, 0, 0.4)",
+                borderRadius: "3px",
+            },
+            "& .RichInput__tableAddColumns, & .RichInput__tableAddRows": {
+                position: "absolute",
+                backgroundColor: palette.grey[200],
+                border: 0,
+                cursor: "pointer",
+                "&:hover": {
+                    backgroundColor: palette.action.hover,
+                },
+                "&.columns": {
+                    top: 0,
+                    width: 20,
+                    height: "100%",
+                    right: 0,
+                },
+                "&.rows": {
+                    bottom: -25,
+                    width: "calc(100% - 25px)",
+                    height: 20,
+                    left: 0,
+                },
+            },
+            "& .RichInput__ol1, & .RichInput__ol2, & .RichInput__ol3, & .RichInput__ol4, & .RichInput__ol5": {
+                margin: "0 0 0 16px",
+                padding: 0,
+                listStyleType: "decimal",
+            },
+            "& .RichInput__ul": {
+                margin: "0 0 0 16px",
+                padding: 0,
+                listStyleType: "disc",
+            },
+            "& .RichInput__listItem": {
+                margin: "0 32px",
+            },
+            "& .RichInput__listItemChecked, & .RichInput__listItemUnchecked": {
+                listStyleType: "none",
+                padding: "0 0 0 24px",
+                position: "relative",
+                "&:before": {
+                    content: "\"\"",
+                    width: 16,
+                    height: 16,
+                    position: "absolute",
+                    left: 0,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    border: `1px solid ${palette.text.primary}`,
+                    borderRadius: 3,
+                },
+            },
+            "& .RichInput__listItemChecked": {
+                "&:before": {
+                    backgroundColor: palette.primary.main,
+                    borderColor: palette.primary.main,
+                },
+                "&:after": {
+                    content: "\"\"",
+                    position: "absolute",
+                    left: 3,
+                    top: "50%",
+                    transform: "translateY(-70%) rotate(-45deg)",
+                    width: 10,
+                    height: 5,
+                    borderLeft: `2px solid ${palette.common.white}`,
+                    borderBottom: `2px solid ${palette.common.white}`,
+                },
+            },
+            "& .RichInput__tokenComment": {
+                color: palette.text.disabled,
+            },
+            "& .RichInput__tokenPunctuation": {
+                color: palette.text.primary,
+            },
+            "& .RichInput__tokenProperty": {
+                color: palette.primary.main,
+            },
+            "& .RichInput__tokenSelector": {
+                color: palette.secondary.main,
+            },
+            "& .RichInput__tokenOperator": {
+                color: palette.error.main,
+            },
+            "& .RichInput__tokenAttr": {
+                color: palette.warning.main,
+            },
+            "& .RichInput__tokenVariable": {
+                color: palette.info.main,
+            },
+            "& .RichInput__tokenFunction": {
+                color: palette.success.main,
+            },
+            "& .RichInput__mark": {
+                backgroundColor: palette.warning.main,
+                "&.overlap": {
+                    backgroundColor: palette.warning.light,
+                },
+                "&.selected": {
+                    backgroundColor: palette.primary.main,
+                    "&.overlap": {
+                        backgroundColor: palette.primary.light,
+                    },
+                },
+            },
+            "& .RichInput__embedBlock": {
+                position: "relative",
+                "&.focused": {
+                    outline: `2px solid ${palette.primary.main}`,
+                },
+            },
         } as const;
-    }, [lineHeight, maxRows, minRows, palette.background.textPrimary, palette.divider, palette.primary.main, palette.text.primary, sxs?.inputRoot, typography.fontFamily, typography.fontSize]);
+    }, [lineHeight, maxRows, minRows, palette, sxs?.inputRoot, typography.fontFamily, typography.fontSize]);
 
     return (
         <Box

@@ -1,11 +1,11 @@
 import { endpointsNotification, FindByIdInput, Success } from "@local/shared";
 import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper.js";
-import { useLazyFetch } from "hooks/useLazyFetch.js";
-import { VisibleIcon } from "icons/common.js";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { PubSub } from "utils/pubsub.js";
+import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
+import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
+import { VisibleIcon } from "../../../icons/common.js";
+import { PubSub } from "../../../utils/pubsub.js";
 import { ListItemChip, ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
 import { NotificationListItemProps } from "../types.js";
 

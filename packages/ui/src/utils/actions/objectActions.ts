@@ -1,10 +1,10 @@
 import { Bookmark, BookmarkFor, CommentFor, CopyResult, CopyType, DeleteType, ListObject, ReactionFor, ReportFor, Session, Success, TranslationKeyCommon, getReactionScore } from "@local/shared";
-import { ListMenuItemData } from "components/dialogs/types.js";
-import { ArrowDownIcon, ArrowUpIcon, BookmarkFilledIcon, BookmarkOutlineIcon, CommentIcon, DeleteIcon, DonateIcon, EditIcon, ReportIcon, SearchIcon, ShareIcon, StatsIcon } from "icons/common.js";
-import { BranchIcon } from "icons/routineGraph.js";
-import { SvgComponent } from "types";
-import { checkIfLoggedIn } from "utils/authentication/session.js";
-import { getYou } from "utils/display/listTools.js";
+import { ListMenuItemData } from "../../components/dialogs/types.js";
+import { ArrowDownIcon, ArrowUpIcon, BookmarkFilledIcon, BookmarkOutlineIcon, CommentIcon, DeleteIcon, DonateIcon, EditIcon, ReportIcon, SearchIcon, ShareIcon, StatsIcon } from "../../icons/common.js";
+import { BranchIcon } from "../../icons/routineGraph.js";
+import { SvgComponent } from "../../types.js";
+import { checkIfLoggedIn } from "../../utils/authentication/session.js";
+import { getYou } from "../../utils/display/listTools.js";
 
 /**
  * All available actions an object can possibly have

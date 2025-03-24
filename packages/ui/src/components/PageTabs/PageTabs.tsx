@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { Box, BoxProps, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { PageTabsProps } from "components/types";
-import { useWindowSize } from "hooks/useWindowSize.js";
 import { createRef, memo, useCallback, useEffect, useMemo, useRef } from "react";
-import { TabListType, TabStateColors } from "utils/search/objectToSearch";
+import { useWindowSize } from "../../hooks/useWindowSize.js";
+import { TabListType, TabStateColors } from "../../utils/search/objectToSearch.js";
+import { PageTabsProps } from "../types.js";
 
 const DRAG_END_DELAY_MS = 50;
 const RESIZE_UPDATE_UNDERLINE_DELAY_MS = 100;

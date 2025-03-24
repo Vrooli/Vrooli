@@ -1,8 +1,8 @@
 import { CalendarPageTabOption, ChatInviteStatus, CodeType, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, RoutineType, RunStatus, ScheduleFor, SearchPageTabOption, SearchType, SearchTypeToSearchInput, SearchVersionPageTabOption, SignUpPageTabOption, StandardType, TeamPageTabOption, TranslationKeyCommon, UserPageTabOption, VisibilityType, YouInflated } from "@local/shared";
 import { Palette } from "@mui/material";
-import { ActionIcon, AddIcon, ApiIcon, ArticleIcon, FocusModeIcon, HelpIcon, MonthIcon, NoteIcon, ObjectIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon, VisibleIcon } from "icons/common.js";
-import { SvgComponent } from "types";
-import { PolicyTabOption } from "views/PolicyView/PolicyView";
+import { ActionIcon, AddIcon, ApiIcon, ArticleIcon, FocusModeIcon, HelpIcon, MonthIcon, NoteIcon, ObjectIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon, VisibleIcon } from "../../icons/common.js";
+import { SvgComponent } from "../../types.js";
+import { PolicyTabOption } from "../../views/PolicyView/PolicyView.js";
 import { apiSearchParams } from "./schemas/api.js";
 import { apiVersionSearchParams } from "./schemas/apiVersion.js";
 import { SearchParams } from "./schemas/base.js";

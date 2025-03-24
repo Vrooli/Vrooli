@@ -1,18 +1,18 @@
 import { DAYS_1_MS, endpointsStatsSite, MONTHS_1_MS, StatPeriodType, StatsSite, StatsSiteSearchInput, StatsSiteSearchResult, WEEKS_1_MS, YEARS_1_MS } from "@local/shared";
 import { Card, CardContent, Typography, useTheme } from "@mui/material";
-import { ContentCollapse } from "components/containers/ContentCollapse/ContentCollapse.js";
-import { CardGrid } from "components/lists/CardGrid/CardGrid";
-import { DateRangeMenu } from "components/lists/DateRangeMenu/DateRangeMenu";
-import { LineGraphCard } from "components/lists/LineGraphCard/LineGraphCard";
-import { TopBar } from "components/navigation/TopBar.js";
-import { PageTabs } from "components/PageTabs/PageTabs";
-import { useLazyFetch } from "hooks/useLazyFetch.js";
-import { PageTab, useTabs } from "hooks/useTabs";
 import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { statsDisplay } from "utils/display/statsDisplay";
-import { displayDate } from "utils/display/stringTools";
-import { TabParamBase } from "utils/search/objectToSearch";
+import { ContentCollapse } from "../../components/containers/ContentCollapse/ContentCollapse.js";
+import { CardGrid } from "../../components/lists/CardGrid/CardGrid.js";
+import { DateRangeMenu } from "../../components/lists/DateRangeMenu/DateRangeMenu.js";
+import { LineGraphCard } from "../../components/lists/LineGraphCard/LineGraphCard.js";
+import { TopBar } from "../../components/navigation/TopBar.js";
+import { PageTabs } from "../../components/PageTabs/PageTabs.js";
+import { useLazyFetch } from "../../hooks/useLazyFetch.js";
+import { PageTab, useTabs } from "../../hooks/useTabs.js";
+import { statsDisplay } from "../../utils/display/statsDisplay.js";
+import { displayDate } from "../../utils/display/stringTools.js";
+import { TabParamBase } from "../../utils/search/objectToSearch.js";
 import { StatsSiteViewProps } from "../types.js";
 
 /**

@@ -1,9 +1,9 @@
 import { Button, DialogContent, Stack, Typography, useTheme } from "@mui/material";
-import { TextInput } from "components/inputs/TextInput/TextInput.js";
-import { TopBar } from "components/navigation/TopBar.js";
-import { DeleteIcon } from "icons/common.js";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { DeleteIcon } from "../../../icons/common.js";
+import { TextInput } from "../../inputs/TextInput/TextInput.js";
+import { TopBar } from "../../navigation/TopBar.js";
 import { LargeDialog } from "../LargeDialog/LargeDialog.js";
 import { DeleteDialogProps } from "../types.js";
 

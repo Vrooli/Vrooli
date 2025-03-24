@@ -1,9 +1,9 @@
 import { ListObject } from "@local/shared";
 import { IconButton, Tooltip, useTheme } from "@mui/material";
-import { ShareObjectDialog } from "components/dialogs/ShareObjectDialog/ShareObjectDialog.js";
-import { ShareIcon } from "icons/common.js";
 import { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { ShareIcon } from "../../../icons/common.js";
+import { ShareObjectDialog } from "../../dialogs/ShareObjectDialog/ShareObjectDialog.js";
 import { ShareButtonProps } from "../types.js";
 
 export function ShareButton({

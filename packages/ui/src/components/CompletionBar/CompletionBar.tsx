@@ -1,7 +1,7 @@
 import { Box, BoxProps, LinearProgress, LinearProgressProps, TypographyProps, styled } from "@mui/material";
-import { CompletionBarProps } from "components/types";
 import { CSSProperties } from "react";
-import { SxType } from "types";
+import { SxType } from "../../types.js";
+import { CompletionBarProps } from "../types.js";
 
 const MAX_WIDTH = "300px";
 

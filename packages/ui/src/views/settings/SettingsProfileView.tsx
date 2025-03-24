@@ -1,25 +1,25 @@
 import { DUMMY_ID, endpointsUser, ProfileUpdateInput, profileValidation, shapeProfile, User, userTranslationValidation } from "@local/shared";
 import { InputAdornment } from "@mui/material";
-import { fetchLazyWrapper } from "api/fetchWrapper.js";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
-import { LanguageInput } from "components/inputs/LanguageInput/LanguageInput.js";
-import { ProfilePictureInput } from "components/inputs/ProfilePictureInput/ProfilePictureInput.js";
-import { TranslatedRichInput } from "components/inputs/RichInput/RichInput.js";
-import { TextInput } from "components/inputs/TextInput/TextInput.js";
-import { SettingsList } from "components/lists/SettingsList/SettingsList.js";
-import { SettingsContent, SettingsTopBar } from "components/navigation/SettingsTopBar.js";
-import { Field, Formik } from "formik";
-import { InnerForm, OuterForm } from "forms/BaseForm/BaseForm.js";
-import { useLazyFetch } from "hooks/useLazyFetch.js";
-import { useProfileQuery } from "hooks/useProfileQuery.js";
-import { useTranslatedFields } from "hooks/useTranslatedFields.js";
-import { HandleIcon, UserIcon } from "icons/common.js";
+import { Field, Formik, FormikHelpers } from "formik";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { combineErrorsWithTranslations, getUserLanguages } from "utils/display/translationTools.js";
-import { PubSub } from "utils/pubsub.js";
+import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
+import { BottomActionsButtons } from "../../components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { LanguageInput } from "../../components/inputs/LanguageInput/LanguageInput.js";
+import { ProfilePictureInput } from "../../components/inputs/ProfilePictureInput/ProfilePictureInput.js";
+import { TranslatedRichInput } from "../../components/inputs/RichInput/RichInput.js";
+import { TextInput } from "../../components/inputs/TextInput/TextInput.js";
+import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
+import { SettingsContent, SettingsTopBar } from "../../components/navigation/SettingsTopBar.js";
 import { SessionContext } from "../../contexts.js";
+import { InnerForm, OuterForm } from "../../forms/BaseForm/BaseForm.js";
+import { useLazyFetch } from "../../hooks/useLazyFetch.js";
+import { useProfileQuery } from "../../hooks/useProfileQuery.js";
+import { useTranslatedFields } from "../../hooks/useTranslatedFields.js";
+import { HandleIcon, UserIcon } from "../../icons/common.js";
 import { FormSection, ScrollBox } from "../../styles.js";
+import { combineErrorsWithTranslations, getUserLanguages } from "../../utils/display/translationTools.js";
+import { PubSub } from "../../utils/pubsub.js";
 import { SettingsProfileFormProps, SettingsProfileViewProps } from "./types.js";
 
 const nameInputProps = {
@@ -80,7 +80,7 @@ function SettingsProfileForm({
                     name="profileImage"
                     profile={{ __typename: "User", ...values }}
                 />
-                <FormSection sx={{ marginTop: 2 }}>
+                <FormSection marginTop={2}>
                     <LanguageInput
                         currentLanguage={language}
                         handleAdd={handleAddLanguage}
@@ -157,6 +157,24 @@ export function SettingsProfileView({
         } as const;
     }, [profile, session]);
 
+    const handleSubmit = useCallback(function handleSubmitCallback(values: ProfileUpdateInput, helpers: FormikHelpers<ProfileUpdateInput>) {
+        if (!profile) {
+            PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
+            return;
+        }
+        fetchLazyWrapper<ProfileUpdateInput, User>({
+            fetch,
+            inputs: shapeProfile.update(profile, {
+                id: profile.id,
+                ...values,
+                __typename: "User",
+            }),
+            successMessage: () => ({ messageKey: "SettingsUpdated" }),
+            onSuccess: (updated) => { onProfileUpdate(updated); },
+            onCompleted: () => { helpers.setSubmitting(false); },
+        });
+    }, [profile, fetch, onProfileUpdate]);
+
     return (
         <ScrollBox>
             <SettingsTopBar
@@ -169,23 +187,7 @@ export function SettingsProfileView({
                 <Formik
                     enableReinitialize={true}
                     initialValues={initialValues}
-                    onSubmit={(values, helpers) => {
-                        if (!profile) {
-                            PubSub.get().publish("snack", { messageKey: "CouldNotReadProfile", severity: "Error" });
-                            return;
-                        }
-                        fetchLazyWrapper<ProfileUpdateInput, User>({
-                            fetch,
-                            inputs: shapeProfile.update(profile, {
-                                id: profile.id,
-                                ...values,
-                                __typename: "User",
-                            }),
-                            successMessage: () => ({ messageKey: "SettingsUpdated" }),
-                            onSuccess: (updated) => { onProfileUpdate(updated); },
-                            onCompleted: () => { helpers.setSubmitting(false); },
-                        });
-                    }}
+                    onSubmit={handleSubmit}
                     validationSchema={profileValidation.update({ env: process.env.NODE_ENV })}
                 >
                     {(formik) => <SettingsProfileForm

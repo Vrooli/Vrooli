@@ -9,7 +9,7 @@ import { ContentCollapse } from "../../../components/containers/ContentCollapse/
 import { FindObjectDialog } from "../../../components/dialogs/FindObjectDialog/FindObjectDialog.js";
 import { CodeInputBase } from "../../../components/inputs/CodeInput/CodeInput.js";
 import { SelectorBase } from "../../../components/inputs/Selector/Selector.js";
-import { FormTip } from "../../../components/inputs/form/FormTip/FormTip.js";
+import { FormTip } from "../../../components/inputs/form/FormTip.js";
 import { Title } from "../../../components/text/Title.js";
 import { SessionContext } from "../../../contexts.js";
 import { FormView } from "../../../forms/FormView/FormView.js";

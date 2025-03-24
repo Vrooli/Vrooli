@@ -1,5 +1,6 @@
 import { base36ToUuid, handleRegex, LINKS, uuidValidate } from "@local/shared";
-import { getLastPathnamePart, SetLocation } from "route";
+import { getLastPathnamePart } from "../../route/getLastPathnamePart.js";
+import { SetLocation } from "../../route/types.js";
 
 export type UrlInfo = {
     handleRoot?: string,

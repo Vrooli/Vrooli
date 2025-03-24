@@ -1,9 +1,9 @@
 import { isOfType } from "@local/shared";
 import { Typography } from "@mui/material";
-import { RichInput, TranslatedRichInput } from "components/inputs/RichInput/RichInput.js";
-import { TextInput, TranslatedTextInput } from "components/inputs/TextInput/TextInput.js";
-import { MarkdownDisplay } from "components/text/MarkdownDisplay.js";
 import { Field, useField } from "formik";
+import { RichInput, TranslatedRichInput } from "../../inputs/RichInput/RichInput.js";
+import { TextInput, TranslatedTextInput } from "../../inputs/TextInput/TextInput.js";
+import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
 import { EditTextComponent, EditableTextProps, PropsByComponentType } from "../types.js";
 
 export function EditableText<T extends EditTextComponent>({

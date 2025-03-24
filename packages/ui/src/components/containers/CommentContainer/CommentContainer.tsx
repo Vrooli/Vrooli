@@ -3,15 +3,15 @@
  */
 import { Comment, CommentThread as ThreadType, lowercaseFirstLetter, uuidValidate } from "@local/shared";
 import { Button, Stack, useTheme } from "@mui/material";
-import { SearchButtons } from "components/buttons/SearchButtons/SearchButtons.js";
-import { CommentThread } from "components/lists/CommentThread/CommentThread.js";
-import { useFindMany } from "hooks/useFindMany.js";
-import { useWindowSize } from "hooks/useWindowSize.js";
-import { CreateIcon } from "icons/common.js";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { scrollIntoFocusedView } from "utils/display/scroll.js";
-import { CommentUpsert } from "views/objects/comment/CommentUpsert.js";
+import { useFindMany } from "../../../hooks/useFindMany.js";
+import { useWindowSize } from "../../../hooks/useWindowSize.js";
+import { CreateIcon } from "../../../icons/common.js";
+import { scrollIntoFocusedView } from "../../../utils/display/scroll.js";
+import { CommentUpsert } from "../../../views/objects/comment/CommentUpsert.js";
+import { SearchButtons } from "../../buttons/SearchButtons/SearchButtons.js";
+import { CommentThread } from "../../lists/CommentThread/CommentThread.js";
 import { ContentCollapse } from "../ContentCollapse/ContentCollapse.js";
 import { CommentContainerProps } from "../types.js";
 

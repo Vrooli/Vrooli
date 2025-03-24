@@ -1,22 +1,22 @@
 import { DUMMY_ID, endpointsMeeting, Meeting, MeetingCreateInput, MeetingShape, MeetingUpdateInput, meetingValidation, noopSubmit, orDefault, Schedule, Session, shapeMeeting } from "@local/shared";
 import { Box, Button, ListItem, Stack, useTheme } from "@mui/material";
-import { useSubmitHelper } from "api/fetchWrapper.js";
-import { BottomActionsButtons } from "components/buttons/BottomActionsButtons/BottomActionsButtons.js";
-import { ListContainer } from "components/containers/ListContainer/ListContainer.js";
-import { MaybeLargeDialog } from "components/dialogs/LargeDialog/LargeDialog.js";
-import { TopBar } from "components/navigation/TopBar.js";
 import { Formik, useField } from "formik";
-import { BaseForm } from "forms/BaseForm/BaseForm.js";
-import { useSaveToCache, useUpsertActions } from "hooks/forms.js";
-import { useManagedObject } from "hooks/useManagedObject.js";
-import { useUpsertFetch } from "hooks/useUpsertFetch.js";
-import { AddIcon, DeleteIcon, EditIcon } from "icons/common.js";
 import { useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getUserLanguages } from "utils/display/translationTools.js";
-import { validateFormValues } from "utils/validateFormValues.js";
-import { ScheduleUpsert } from "views/objects/schedule/ScheduleUpsert.js";
+import { useSubmitHelper } from "../../../api/fetchWrapper.js";
+import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { ListContainer } from "../../../components/containers/ListContainer/ListContainer.js";
+import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
+import { TopBar } from "../../../components/navigation/TopBar.js";
 import { SessionContext } from "../../../contexts.js";
+import { BaseForm } from "../../../forms/BaseForm/BaseForm.js";
+import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
+import { useManagedObject } from "../../../hooks/useManagedObject.js";
+import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
+import { AddIcon, DeleteIcon, EditIcon } from "../../../icons/common.js";
+import { getUserLanguages } from "../../../utils/display/translationTools.js";
+import { validateFormValues } from "../../../utils/validateFormValues.js";
+import { ScheduleUpsert } from "../schedule/ScheduleUpsert.js";
 import { MeetingFormProps, MeetingUpsertProps } from "./types.js";
 
 

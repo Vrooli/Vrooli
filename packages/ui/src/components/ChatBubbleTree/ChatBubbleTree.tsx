@@ -1,7 +1,5 @@
 import { ChatMessageShape, ChatMessageStatus, ChatSocketEventPayloads, ListObject, NavigableObject, ReactInput, ReactionFor, ReactionSummary, ReportFor, Success, endpointsReaction, getObjectUrl, getTranslation, noop } from "@local/shared";
 import { Box, BoxProps, CircularProgress, CircularProgressProps, IconButton, IconButtonProps, Stack, Tooltip, Typography, styled, useTheme } from "@mui/material";
-// eslint-disable-next-line import/extensions
-import { green, red } from "@mui/material/colors";
 import { Dispatch, RefObject, SetStateAction, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
@@ -42,18 +40,18 @@ const ChatBubbleSendingSpinner = styled(CircularProgress, {
     color: status === "sending"
         ? theme.palette.secondary.main
         : status === "failed"
-            ? red[500]
-            : green[500],
+            ? theme.palette.error.main
+            : theme.palette.success.main,
 }));
 
-const ChatBubbleErrorIconButton = styled(IconButton)(() => ({
-    color: red[500],
+const ChatBubbleErrorIconButton = styled(IconButton)(({ theme }) => ({
+    color: theme.palette.error.main,
 }));
-const ChatBubbleEditIconButton = styled(IconButton)(() => ({
-    color: green[500],
+const ChatBubbleEditIconButton = styled(IconButton)(({ theme }) => ({
+    color: theme.palette.success.main,
 }));
-const ChatBubbleDeleteIconButton = styled(IconButton)(() => ({
-    color: red[500],
+const ChatBubbleDeleteIconButton = styled(IconButton)(({ theme }) => ({
+    color: theme.palette.error.main,
 }));
 
 type ChatBubbleStatusProps = {
@@ -259,7 +257,9 @@ const ReactionsMainStack = styled(Box, {
     display: "flex",
     flexDirection: "row",
     padding: 0,
+    // eslint-disable-next-line no-magic-numbers
     marginLeft: (isOwn || isMobile) ? 0 : theme.spacing(6),
+    // eslint-disable-next-line no-magic-numbers
     marginRight: isOwn ? theme.spacing(6) : 0,
     paddingRight: isOwn ? theme.spacing(1) : 0,
     background: theme.palette.background.paper,

@@ -1,18 +1,18 @@
 import { CircularProgress, Typography } from "@mui/material";
 import { Box } from "@mui/system";
-import { CharLimitIndicatorProps } from "components/inputs/types";
+import { CharLimitIndicatorProps } from "../../components/inputs/types.js";
 
 /**
  * Displays a label inside of a CircularProgress, indicating 
  * the number of characters left in a text field before 
  * reaching the maximum character limit.
  */
-export const CharLimitIndicator = ({
+export function CharLimitIndicator({
     chars,
     minCharsToShow,
     maxChars,
     size = 34,
-}: CharLimitIndicatorProps) => {
+}: CharLimitIndicatorProps) {
     // Calculate remaining characters
     const charsRemaining = maxChars - chars;
 
@@ -58,4 +58,4 @@ export const CharLimitIndicator = ({
             </Box>
         </Box>
     );
-};
+}

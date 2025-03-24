@@ -1,5 +1,5 @@
 import { Button, Popover, useTheme } from "@mui/material";
-import { usePopover } from "hooks/usePopover";
+import { usePopover } from "../../../hooks/usePopover.js";
 import { PopupMenuProps } from "../types.js";
 
 const anchorOrigin = {

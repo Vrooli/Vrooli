@@ -1,7 +1,7 @@
 import { useField } from "formik";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { addEmptyTranslation, getFormikErrorsWithTranslations, removeTranslation } from "utils/display/translationTools.js";
 import * as yup from "yup";
+import { addEmptyTranslation, getFormikErrorsWithTranslations, removeTranslation } from "../utils/display/translationTools.js";
 
 /**
  * Hook to get translated fields, touched status, error messages, and other related data

@@ -5,6 +5,8 @@ import { act } from "react";
 import sinon from "sinon";
 import { MessageNode, MinimumChatMessage, useMessageTree } from "./messages.js";
 
+console.log("yeet 2");
+
 /** First test case: Result should have messages in order from ID 1 to 10, each with node having a single child */
 const case1: MinimumChatMessage[] = [
     {

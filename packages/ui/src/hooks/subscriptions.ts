@@ -1,8 +1,8 @@
 import { Breakpoints, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Dimensions } from "types";
-import { getCookie, removeCookie, setCookie } from "utils/localStorage.js";
-import { PubSub, RichInputToolbarViewSize } from "utils/pubsub.js";
+import { Dimensions } from "../types.js";
+import { getCookie, removeCookie, setCookie } from "../utils/localStorage.js";
+import { PubSub, RichInputToolbarViewSize } from "../utils/pubsub.js";
 import { useDimensions } from "./useDimensions.js";
 
 /**

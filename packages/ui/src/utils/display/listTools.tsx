@@ -1,7 +1,7 @@
 import { ActiveFocusMode, Api, ApiVersion, AutocompleteOption, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, Code, CodeVersion, CommentFor, CopyType, DUMMY_ID, DeleteType, DotNotation, ListObject, Meeting, Member, MemberInvite, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Resource, ResourceList, Routine, RoutineVersion, RunProject, RunRoutine, Standard, StandardVersion, User, View, YouInflated, exists, getTranslation, isOfType, valueFromDot } from "@local/shared";
 import { Chip, Palette } from "@mui/material";
-import { BotIcon } from "icons/common.js";
-import { routineTypes } from "utils/search/schemas/routine.js";
+import { BotIcon } from "../../icons/common.js";
+import { routineTypes } from "../search/schemas/routine.js";
 import { displayDate, firstString } from "./stringTools.js";
 import { getUserLanguages } from "./translationTools.js";
 

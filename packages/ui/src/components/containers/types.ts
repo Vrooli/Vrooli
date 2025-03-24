@@ -1,8 +1,8 @@
 import { CommentFor, TranslationKeyCommon } from "@local/shared";
 import { TypographyProps } from "@mui/material";
-import { RichInputProps, TextInputProps, TranslatedRichInputProps, TranslatedTextInputProps } from "components/inputs/types";
 import { ReactNode } from "react";
-import { SvgComponent, SvgProps, SxType } from "types";
+import { SvgComponent, SvgProps, SxType } from "../../types.js";
+import { RichInputProps, TextInputProps, TranslatedRichInputProps, TranslatedTextInputProps } from "../inputs/types.js";
 
 export interface CommentContainerProps {
     forceAddCommentOpen?: boolean;

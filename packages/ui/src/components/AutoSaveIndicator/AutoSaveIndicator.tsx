@@ -1,8 +1,8 @@
 import { Box, BoxProps, Typography, styled, useTheme } from "@mui/material";
 import { FormikProps } from "formik";
-import { useWindowSize } from "hooks/useWindowSize.js";
-import { RefreshIcon, SaveIcon, WarningIcon } from "icons/common.js";
 import { RefObject, useCallback, useEffect, useState } from "react";
+import { useWindowSize } from "../../hooks/useWindowSize.js";
+import { RefreshIcon, SaveIcon, WarningIcon } from "../../icons/common.js";
 
 type AutoSaveIndicatorProps = {
     formikRef: RefObject<FormikProps<object>>;

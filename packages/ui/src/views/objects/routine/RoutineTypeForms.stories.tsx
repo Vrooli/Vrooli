@@ -1,8 +1,8 @@
 import { BotStyle, FormBuilder, InputType, LATEST_ROUTINE_CONFIG_VERSION, RoutineType, RoutineVersionConfig, noop, noopSubmit, uuid } from "@local/shared";
 import { Box } from "@mui/material";
-import { PageContainer } from "components/Page/Page.js";
 import { Formik } from "formik";
 import { useMemo } from "react";
+import { PageContainer } from "../../../components/Page/Page.js";
 import { ScrollBox } from "../../../styles.js";
 import {
     RoutineApiForm,

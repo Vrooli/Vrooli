@@ -1,7 +1,7 @@
 import { endpointsPushDevice, PushDevice, PushDeviceCreateInput } from "@local/shared";
-import { fetchData } from "api/fetchData.js";
-import { ServerResponseParser } from "api/responseParser.js";
-import { requestNotificationPermission, subscribeUserToPush } from "serviceWorkerRegistration";
+import { fetchData } from "../api/fetchData.js";
+import { ServerResponseParser } from "../api/responseParser.js";
+import { requestNotificationPermission, subscribeUserToPush } from "../serviceWorkerRegistration.js";
 import { getDeviceInfo } from "./display/device.js";
 import { PubSub } from "./pubsub.js";
 

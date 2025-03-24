@@ -1,15 +1,15 @@
 import { TranslationFuncCommon } from "@local/shared";
 import { Box, BoxProps, Button, IconButton, List, ListItem, ListItemIcon, ListItemProps, ListItemText, Menu, MenuItem, Palette, Popover, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { useIsLeftHanded, useRichInputToolbarViewSize } from "hooks/subscriptions.js";
-import { usePopover } from "hooks/usePopover.js";
-import { BoldIcon, CaseSensitiveIcon, Header1Icon, Header2Icon, Header3Icon, Header4Icon, Header5Icon, Header6Icon, HeaderIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, QuoteIcon, RedoIcon, StrikethroughIcon, TableIcon, TerminalIcon, UnderlineIcon, UndoIcon, WarningIcon } from "icons/common.js";
 import { forwardRef, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SxType } from "types";
-import { getCurrentUser } from "utils/authentication/session.js";
-import { keyComboToString } from "utils/display/device.js";
-import { RichInputToolbarViewSize } from "utils/pubsub.js";
 import { SessionContext } from "../../../contexts.js";
+import { useIsLeftHanded, useRichInputToolbarViewSize } from "../../../hooks/subscriptions.js";
+import { usePopover } from "../../../hooks/usePopover.js";
+import { BoldIcon, CaseSensitiveIcon, Header1Icon, Header2Icon, Header3Icon, Header4Icon, Header5Icon, Header6Icon, HeaderIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, QuoteIcon, RedoIcon, StrikethroughIcon, TableIcon, TerminalIcon, UnderlineIcon, UndoIcon, WarningIcon } from "../../../icons/common.js";
+import { SxType } from "../../../types.js";
+import { getCurrentUser } from "../../../utils/authentication/session.js";
+import { keyComboToString } from "../../../utils/display/device.js";
+import { RichInputToolbarViewSize } from "../../../utils/pubsub.js";
 import { RichInputAction, RichInputActiveStates } from "../types.js";
 
 type PopoverActionItem = {

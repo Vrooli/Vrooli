@@ -1,8 +1,8 @@
 import { IconButton, List, ListItem, ListItemIcon, ListItemText, Menu, useTheme } from "@mui/material";
-import { HelpButton } from "components/buttons/HelpButton/HelpButton.js";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Z_INDEX } from "utils/consts.js";
+import { Z_INDEX } from "../../../utils/consts.js";
+import { HelpButton } from "../../buttons/HelpButton/HelpButton.js";
 import { MenuTitle } from "../MenuTitle/MenuTitle.js";
 import { ListMenuProps } from "../types.js";
 
