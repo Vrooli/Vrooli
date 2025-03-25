@@ -10,7 +10,7 @@ import { SessionContext } from "../../../contexts.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { useMenu } from "../../../hooks/useMenu.js";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";
-import { AwardIcon, BookmarkFilledIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, InfoIcon, LogInIcon, LogOutIcon, MonthIcon, PlusIcon, PremiumIcon, RoutineActiveIcon, SettingsIcon, UserIcon } from "../../../icons/common.js";
+import { AwardIcon, BookmarkFilledIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LogInIcon, LogOutIcon, MonthIcon, PlusIcon, PremiumIcon, SettingsIcon, UserIcon } from "../../../icons/common.js";
 import { useLocation } from "../../../route/router.js";
 import { noSelect } from "../../../styles.js";
 import { SvgComponent } from "../../../types.js";
@@ -19,7 +19,6 @@ import { ELEMENT_IDS } from "../../../utils/consts.js";
 import { extractImageUrl } from "../../../utils/display/imageTools.js";
 import { openObject } from "../../../utils/navigation/openObject.js";
 import { Actions, performAction } from "../../../utils/navigation/quickActions.js";
-import { NAV_ACTION_TAGS, NavAction, getUserActions } from "../../../utils/navigation/userActions.js";
 import { MenuPayloads, PubSub } from "../../../utils/pubsub.js";
 import { FocusModeSelector } from "../../inputs/FocusModeSelector/FocusModeSelector.js";
 import { LanguageSelector } from "../../inputs/LanguageSelector/LanguageSelector.js";
@@ -83,7 +82,6 @@ export function UserMenu() {
     const [, setLocation] = useLocation();
     const { t } = useTranslation();
     const isMobile = useWindowSize(({ width }) => width <= breakpoints.values.md);
-    const navActions = useMemo<NavAction[]>(() => getUserActions({ session, exclude: [NAV_ACTION_TAGS.LogIn] }), [session]);
 
     const { id: userId } = useMemo(() => getCurrentUser(session), [session]);
     const isLoggedIn = checkIfLoggedIn(session);
@@ -93,17 +91,9 @@ export function UserMenu() {
     const toggleDisplaySettings = useCallback(() => { setIsDisplaySettingsOpen(!isDisplaySettingsOpen); }, [isDisplaySettingsOpen]);
     const closeDisplaySettings = useCallback(() => { setIsDisplaySettingsOpen(false); }, []);
 
-    // Additional resources collapse
-    const [isAdditionalResourcesOpen, setIsAdditionalResourcesOpen] = useState(false);
-    const toggleAdditionalResources = useCallback(() => { setIsAdditionalResourcesOpen(!isAdditionalResourcesOpen); }, [isAdditionalResourcesOpen]);
-    const closeAdditionalResources = useCallback(() => { setIsAdditionalResourcesOpen(false); }, []);
-
     // Handle opening and closing
     const onEvent = useCallback(function onEventCallback({ data }: MenuPayloads[typeof ELEMENT_IDS.UserMenu]) {
         if (!data) return;
-        if (typeof data.isAdditionalResourcesCollapsed === "boolean") {
-            setIsAdditionalResourcesOpen(!data.isAdditionalResourcesCollapsed);
-        }
         if (typeof data.isDisplaySettingsCollapsed === "boolean") {
             setIsDisplaySettingsOpen(!data.isDisplaySettingsCollapsed);
         }
@@ -158,9 +148,8 @@ export function UserMenu() {
     const handleClose = useCallback((_event: unknown, _reason?: "backdropClick" | "escapeKeyDown") => {
         formik.handleSubmit();
         close();
-        closeAdditionalResources();
         closeDisplaySettings();
-    }, [close, closeAdditionalResources, closeDisplaySettings, formik]);
+    }, [close, closeDisplaySettings, formik]);
 
     const [switchCurrentAccount] = useLazyFetch<SwitchCurrentAccountInput, Session>(endpointsAuth.switchCurrentAccount);
     const handleUserClick = useCallback((event: React.MouseEvent<HTMLElement>, user: SessionUser) => {
@@ -225,121 +214,6 @@ export function UserMenu() {
     }, [handleClose, isMobile, session]);
 
     const accounts = useMemo(() => session?.users ?? [], [session?.users]);
-    const profileListItems = accounts.map((account) => {
-        function handleClick(event: React.MouseEvent<HTMLElement>) {
-            handleUserClick(event, account);
-        }
-
-        const listItemStyle = {
-            background: account.id === userId ? palette.secondary.light : palette.background.default,
-        };
-
-        return (
-            <ListItem
-                button
-                key={account.id}
-                onClick={handleClick}
-                sx={listItemStyle}
-            >
-                <StyledAvatar
-                    src={extractImageUrl(account.profileImage, account.updated_at, AVATAR_SIZE_PX)}
-                >
-                    <UserIcon
-                        width="75%"
-                        height="75%"
-                    />
-                </StyledAvatar>
-                <ListItemText
-                    primary={
-                        <Stack direction="column" spacing={0}>
-                            <Typography variant="body1">{account.name}</Typography>
-                            <Typography
-                                variant="body2"
-                                fontFamily="monospace"
-                                sx={{ color: palette.background.textSecondary }}
-                            >
-                                @{account.handle}
-                            </Typography>
-                        </Stack>
-                    }
-                    secondary={
-                        account.id === userId ? (
-                            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
-                                {account.hasPremium && (
-                                    <Box
-                                        sx={{
-                                            backgroundColor: `${palette.secondary.main}15`,
-                                            color: palette.secondary.main,
-                                            borderRadius: 1,
-                                            px: 1,
-                                            py: 0.25,
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 0.5,
-                                            boxShadow: `0 0 0 1px ${palette.secondary.main}40`,
-                                        }}
-                                    >
-                                        <PremiumIcon width="14px" height="14px" fill={palette.secondary.main} />
-                                        <Typography
-                                            variant="body2"
-                                            sx={{
-                                                fontWeight: 500,
-                                                fontSize: "0.75rem",
-                                                lineHeight: 1,
-                                            }}
-                                        >
-                                            {t("Pro")}
-                                        </Typography>
-                                    </Box>
-                                )}
-                                <Typography
-                                    variant="body2"
-                                    sx={{
-                                        color: palette.background.textSecondary,
-                                        fontSize: "0.75rem",
-                                    }}
-                                >
-                                    {t("Credit", { count: 2 })}: ${(Number(BigInt(account.credits ?? "0") / BigInt(API_CREDITS_MULTIPLIER)) / 100).toFixed(2)}
-                                </Typography>
-                            </Stack>
-                        ) : (
-                            <Stack direction="row" spacing={1} alignItems="center">
-                                {account.hasPremium && (
-                                    <Typography
-                                        variant="body2"
-                                        sx={{
-                                            color: palette.secondary.main,
-                                            fontSize: "0.75rem",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 0.5,
-                                        }}
-                                    >
-                                        <PremiumIcon width="12px" height="12px" fill={palette.secondary.main} />
-                                        {t("Pro")}
-                                    </Typography>
-                                )}
-                                <Typography
-                                    variant="body2"
-                                    sx={{
-                                        color: palette.background.textSecondary,
-                                        fontSize: "0.75rem",
-                                    }}
-                                >
-                                    ${(Number(BigInt(account.credits ?? "0") / BigInt(API_CREDITS_MULTIPLIER)) / 100).toFixed(2)}
-                                </Typography>
-                            </Stack>
-                        )
-                    }
-                    sx={{
-                        "& .MuiListItemText-primary": {
-                            mb: 0,
-                        },
-                    }}
-                />
-            </ListItem>
-        );
-    }, [accounts, handleUserClick]);
 
     const navItems = useMemo(function navItemsMemo() {
         // Only include Pro link when not logged in
@@ -354,8 +228,7 @@ export function UserMenu() {
         return [
             { label: t("Bookmark", { count: 2 }), Icon: BookmarkFilledIcon, link: `${LINKS.History}?type="${HistoryPageTabOption.Bookmarked}"`, action: null },
             { label: t("Calendar", { count: 2 }), Icon: MonthIcon, link: LINKS.Calendar, action: null },
-            { label: t("View", { count: 2 }), Icon: HistoryIcon, link: `${LINKS.History}?type="${HistoryPageTabOption.Viewed}"`, action: null },
-            { label: t("Run", { count: 2 }), Icon: RoutineActiveIcon, link: `${LINKS.History}?type="${HistoryPageTabOption.RunsActive}"`, action: null },
+            { label: t("History", { count: 2 }), Icon: HistoryIcon, link: LINKS.History, action: null },
             { label: t("Award", { count: 2 }), Icon: AwardIcon, link: LINKS.Awards, action: null },
             { label: t("Pro"), Icon: PremiumIcon, link: LINKS.Pro, action: null },
             { label: t("Settings"), Icon: SettingsIcon, link: LINKS.Settings, action: null },
@@ -391,16 +264,6 @@ export function UserMenu() {
     const themeSwitchStyle = { justifyContent: "flex-start" };
     const leftHandedCheckboxStyle = { justifyContent: "flex-start" };
 
-    const additionalResourcesStyle = {
-        display: "flex",
-        alignItems: "center",
-        textAlign: "left",
-        paddingLeft: 2,
-        paddingRight: 2,
-        paddingTop: 1,
-        paddingBottom: 1,
-    };
-
     return (
         <LargeDialog
             id={ELEMENT_IDS.UserMenu}
@@ -408,22 +271,192 @@ export function UserMenu() {
             onClose={handleClose}
             sxs={dialogSxs}
         >
-            {/* List of logged/in accounts and authentication-related actions */}
-            <List
-                id={ELEMENT_IDS.UserMenuAccountList}
-                sx={accountListStyle}
-            >
-                {profileListItems}
-                <Divider sx={dividerStyle} />
+            {/* Primary user and their actions */}
+            <List id={ELEMENT_IDS.UserMenuAccountList} sx={accountListStyle}>
+                {accounts
+                    .filter(account => account.id === userId)
+                    .map((account) => {
+                        function handleClick(event: React.MouseEvent<HTMLElement>) {
+                            handleUserClick(event, account);
+                        }
+                        return (
+                            <ListItem
+                                button
+                                key={account.id}
+                                onClick={handleClick}
+                            >
+                                <StyledAvatar
+                                    src={extractImageUrl(account.profileImage, account.updated_at, AVATAR_SIZE_PX)}
+                                >
+                                    <UserIcon width="75%" height="75%" />
+                                </StyledAvatar>
+                                <ListItemText
+                                    primary={
+                                        <Stack direction="column" spacing={0}>
+                                            <Typography variant="body1">{account.name}</Typography>
+                                            <Typography
+                                                variant="body2"
+                                                fontFamily="monospace"
+                                                sx={{ color: palette.background.textSecondary }}
+                                            >
+                                                @{account.handle}
+                                            </Typography>
+                                        </Stack>
+                                    }
+                                    secondary={
+                                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+                                            {account.hasPremium && (
+                                                <Box
+                                                    sx={{
+                                                        backgroundColor: `${palette.secondary.main}15`,
+                                                        color: palette.secondary.main,
+                                                        borderRadius: 1,
+                                                        px: 1,
+                                                        py: 0.25,
+                                                        display: "flex",
+                                                        alignItems: "center",
+                                                        gap: 0.5,
+                                                        boxShadow: `0 0 0 1px ${palette.secondary.main}40`,
+                                                    }}
+                                                >
+                                                    <PremiumIcon width="14px" height="14px" fill={palette.secondary.main} />
+                                                    <Typography
+                                                        variant="body2"
+                                                        sx={{
+                                                            fontWeight: 500,
+                                                            fontSize: "0.75rem",
+                                                            lineHeight: 1,
+                                                        }}
+                                                    >
+                                                        {t("Pro")}
+                                                    </Typography>
+                                                </Box>
+                                            )}
+                                            <Typography
+                                                variant="body2"
+                                                sx={{
+                                                    color: palette.background.textSecondary,
+                                                    fontSize: "0.75rem",
+                                                }}
+                                            >
+                                                {t("Credit", { count: 2 })}: ${(Number(BigInt(account.credits ?? "0") / BigInt(API_CREDITS_MULTIPLIER)) / 100).toFixed(2)}
+                                            </Typography>
+                                        </Stack>
+                                    }
+                                    sx={{
+                                        "& .MuiListItemText-primary": {
+                                            mb: 0,
+                                        },
+                                    }}
+                                />
+                            </ListItem>
+                        );
+                    })}
+            </List>
+
+            {/* User-specific navigation links and display settings */}
+            {isLoggedIn && (
+                <>
+                    <List>
+                        {navItems
+                            .filter(item => item.label !== t("Tutorial"))
+                            .map((item, index) => {
+                                function handleClick(event: React.MouseEvent<HTMLElement>) {
+                                    handleNavItemClick(event, item);
+                                }
+                                return (
+                                    <NavListItem
+                                        key={index}
+                                        label={item.label}
+                                        Icon={item.Icon}
+                                        onClick={handleClick}
+                                        palette={palette}
+                                    />
+                                );
+                            })}
+                    </List>
+
+                    {/* Display Settings */}
+                    <Stack direction="row" spacing={1} onClick={toggleDisplaySettings} sx={displayHeaderStyle}>
+                        <Box sx={boxIconStyle}>
+                            <DisplaySettingsIcon fill={palette.background.textPrimary} />
+                        </Box>
+                        <Typography variant="body1" sx={typographyStyle}>{t("Display")}</Typography>
+                        {isDisplaySettingsOpen ?
+                            <ExpandMoreIcon fill={palette.background.textPrimary} style={expandIconStyle} /> :
+                            <ExpandLessIcon fill={palette.background.textPrimary} style={expandIconStyle} />
+                        }
+                    </Stack>
+                    <Collapse in={isDisplaySettingsOpen} sx={collapseStyle}>
+                        <UserMenuDisplaySettingsBox id={ELEMENT_IDS.UserMenuDisplaySettings}>
+                            <ThemeSwitch updateServer sx={themeSwitchStyle} />
+                            <TextSizeButtons />
+                            <LeftHandedCheckbox sx={leftHandedCheckboxStyle} />
+                            <LanguageSelector />
+                            <FocusModeSelector />
+                        </UserMenuDisplaySettingsBox>
+                        <Link href={LINKS.SettingsDisplay} sx={seeAllLinkStyle}>
+                            <Typography variant="body2" sx={seeAllLinkTextStyle}>{t("SeeAll")}</Typography>
+                        </Link>
+                    </Collapse>
+                </>
+            )}
+
+            <Divider sx={dividerStyle} />
+
+            {/* Other accounts and session actions */}
+            <List>
+                {accounts
+                    .filter(account => account.id !== userId)
+                    .map((account) => {
+                        function handleClick(event: React.MouseEvent<HTMLElement>) {
+                            handleUserClick(event, account);
+                        }
+                        return (
+                            <ListItem
+                                button
+                                key={account.id}
+                                onClick={handleClick}
+                                sx={{ background: palette.background.default }}
+                            >
+                                <StyledAvatar
+                                    src={extractImageUrl(account.profileImage, account.updated_at, AVATAR_SIZE_PX)}
+                                >
+                                    <UserIcon width="75%" height="75%" />
+                                </StyledAvatar>
+                                <ListItemText
+                                    primary={
+                                        <Stack direction="column" spacing={0}>
+                                            <Typography variant="body1">{account.name}</Typography>
+                                            <Typography
+                                                variant="body2"
+                                                fontFamily="monospace"
+                                                sx={{ color: palette.background.textSecondary }}
+                                            >
+                                                @{account.handle}
+                                            </Typography>
+                                        </Stack>
+                                    }
+                                    sx={{
+                                        "& .MuiListItemText-primary": {
+                                            mb: 0,
+                                        },
+                                    }}
+                                />
+                            </ListItem>
+                        );
+                    })}
+
                 {/* Show login/signup button when not logged in */}
                 {!isLoggedIn && (
                     <ListItem button onClick={handleLoginSignup}>
                         <ListItemIcon>
                             <LogInIcon fill={palette.background.textPrimary} />
                         </ListItemIcon>
-                        <ListItemText primary={"Log In/Sign Up"} />
+                        <ListItemText primary={t("LogInSignUp")} />
                     </ListItem>
                 )}
+
                 {/* Show add account button when logged in and under max accounts */}
                 {isLoggedIn && accounts.length < MAX_ACCOUNTS && (
                     <ListItem button onClick={handleLoginSignup}>
@@ -433,6 +466,7 @@ export function UserMenu() {
                         <ListItemText primary={t("AddAccount")} />
                     </ListItem>
                 )}
+
                 {/* Show logout button when logged in */}
                 {isLoggedIn && accounts.length > 0 && (
                     <ListItem button onClick={handleLogOut}>
@@ -443,67 +477,19 @@ export function UserMenu() {
                     </ListItem>
                 )}
             </List>
-            <Divider sx={dividerStyle} />
-            {/* Display Settings */}
-            <Stack id="side-menu-display-header" direction="row" spacing={1} onClick={toggleDisplaySettings} sx={displayHeaderStyle}>
-                <Box sx={boxIconStyle}>
-                    <DisplaySettingsIcon fill={palette.background.textPrimary} />
-                </Box>
-                <Typography variant="body1" sx={typographyStyle}>{t("Display")}</Typography>
-                {isDisplaySettingsOpen ?
-                    <ExpandMoreIcon fill={palette.background.textPrimary} style={expandIconStyle} /> :
-                    <ExpandLessIcon fill={palette.background.textPrimary} style={expandIconStyle} />
-                }
-            </Stack>
-            <Collapse in={isDisplaySettingsOpen} sx={collapseStyle}>
-                <UserMenuDisplaySettingsBox id={ELEMENT_IDS.UserMenuDisplaySettings}>
-                    <ThemeSwitch updateServer sx={themeSwitchStyle} />
-                    <TextSizeButtons />
-                    <LeftHandedCheckbox sx={leftHandedCheckboxStyle} />
-                    <LanguageSelector />
-                    <FocusModeSelector />
-                </UserMenuDisplaySettingsBox>
-                <Link
-                    href={LINKS.SettingsDisplay}
-                    sx={seeAllLinkStyle}
-                >
-                    <Typography variant="body2" sx={seeAllLinkTextStyle}>{t("SeeAll")}</Typography>
-                </Link>
-            </Collapse>
-            <Divider sx={dividerStyle} />
-            {/* List of quick links */}
-            <List id={ELEMENT_IDS.UserMenuQuickLinks}>
-                {navItems.map((item, index) => {
-                    function handleClick(event: React.MouseEvent<HTMLElement>) {
-                        handleNavItemClick(event, item);
-                    }
 
-                    return (
-                        <NavListItem
-                            key={index}
-                            label={item.label}
-                            Icon={item.Icon}
-                            onClick={handleClick}
-                            palette={palette}
-                        />
-                    );
-                })}
-            </List>
             <Divider sx={dividerStyle} />
-            {/* Additional Resources */}
-            <Stack direction="row" spacing={1} onClick={toggleAdditionalResources} sx={additionalResourcesStyle}>
-                <Box sx={boxIconStyle}>
-                    <InfoIcon fill={palette.background.textPrimary} />
-                </Box>
-                <Typography variant="body1" sx={typographyStyle}>{t("AdditionalResources")}</Typography>
-                {isAdditionalResourcesOpen ?
-                    <ExpandMoreIcon fill={palette.background.textPrimary} style={expandIconStyle} /> :
-                    <ExpandLessIcon fill={palette.background.textPrimary} style={expandIconStyle} />
-                }
-            </Stack>
-            <Collapse in={isAdditionalResourcesOpen} sx={collapseStyle}>
-                <ContactInfo />
-            </Collapse>
+
+            {/* Help and support content */}
+            <List>
+                <NavListItem
+                    label={t("Tutorial")}
+                    Icon={HelpIcon}
+                    onClick={(event) => handleNavItemClick(event, { label: t("Tutorial"), Icon: HelpIcon, action: Actions.tutorial })}
+                    palette={palette}
+                />
+            </List>
+            <ContactInfo />
         </LargeDialog>
     );
 }

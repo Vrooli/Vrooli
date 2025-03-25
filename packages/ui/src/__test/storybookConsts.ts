@@ -21,7 +21,7 @@ export const signedInNoPremiumNoCreditsSession: Partial<Session> = {
     isLoggedIn: true,
     users: [{
         credits: "0",
-        handle: "myHandle",
+        handle: "mr_anderson420",
         hasPremium: false,
         id: signedInUserId,
         name: "Joe Anderson",
@@ -32,10 +32,10 @@ export const signedInNoPremiumWithCreditsSession: Partial<Session> = {
     isLoggedIn: true,
     users: [{
         credits: "1234567",
-        handle: "myHandle",
+        handle: "bugsbunnyofficial",
         hasPremium: false,
         id: signedInUserId,
-        name: "Joe Anderson",
+        name: "Bugs Bunny",
     }] as SessionUser[],
 };
 
@@ -43,10 +43,10 @@ export const signedInPremiumNoCreditsSession: Partial<Session> = {
     isLoggedIn: true,
     users: [{
         credits: "0",
-        handle: "myHandle",
+        handle: "daffyduck",
         hasPremium: true,
         id: signedInUserId,
-        name: "Joe Anderson",
+        name: "Daffy Duck",
     }] as SessionUser[],
 };
 
@@ -55,10 +55,10 @@ export const signedInPremiumWithCreditsSession: Partial<Session> = {
     isLoggedIn: true,
     users: [{
         credits: "12345678912",
-        handle: "myHandle",
+        handle: "ElmerFudd",
         hasPremium: true,
         id: signedInUserId,
-        name: "Joe Anderson",
+        name: "Elmer Fudd",
     }] as SessionUser[],
 };
 

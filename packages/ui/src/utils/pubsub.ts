@@ -230,7 +230,6 @@ export type MenuPayloads = {
          */
         data?: {
             isDisplaySettingsCollapsed?: boolean;
-            isAdditionalResourcesCollapsed?: boolean;
         };
     };
 }
