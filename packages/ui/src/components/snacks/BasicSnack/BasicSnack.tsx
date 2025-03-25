@@ -1,9 +1,9 @@
 import { Box, BoxProps, Button, IconButton, Palette, Typography, styled, useTheme } from "@mui/material";
-import { CloseIcon, CopyIcon, ErrorIcon, InfoIcon, SuccessIcon, WarningIcon } from "icons/common.js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { SvgComponent } from "types";
-import { SNACK_HIGHLIGHT, addHighlight, removeHighlights } from "utils/display/documentTools";
-import { PubSub } from "utils/pubsub.js";
+import { CloseIcon, CopyIcon, ErrorIcon, InfoIcon, SuccessIcon, WarningIcon } from "../../../icons/common.js";
+import { SvgComponent } from "../../../types.js";
+import { SNACK_HIGHLIGHT, addHighlight, removeHighlights } from "../../../utils/display/documentTools.js";
+import { PubSub } from "../../../utils/pubsub.js";
 import { BasicSnackProps } from "../types.js";
 
 export enum SnackSeverity {

@@ -1,11 +1,12 @@
 import { calculateOccurrences, CalendarEvent, Chat, ChatCreateInput, ChatParticipantShape, ChatShape, ChatUpdateInput, DAYS_30_MS, deleteArrayIndex, DUMMY_ID, endpointsChat, endpointsFeed, FindByIdInput, FocusMode, FocusModeStopCondition, HomeResult, LINKS, MyStuffPageTabOption, Reminder, Resource, ResourceList as ResourceListType, Schedule, SEEDED_IDS, updateArray, uuid } from "@local/shared";
-import { Box, Button, styled, useTheme } from "@mui/material";
+import { Box, Button, List, styled, Typography, useTheme } from "@mui/material";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { ServerResponseParser } from "../../api/responseParser.js";
 import { ChatBubbleTree } from "../../components/ChatBubbleTree/ChatBubbleTree.js";
-import { ListTitleContainer } from "../../components/containers/ListTitleContainer/ListTitleContainer.js";
+import { TitleContainer } from "../../components/containers/TitleContainer/TitleContainer.js";
+import { TitleContainerProps } from "../../components/containers/types.js";
 import { ChatMessageInput } from "../../components/inputs/ChatMessageInput/ChatMessageInput.js";
 import { FocusModeInfo, useFocusModesStore } from "../../components/inputs/FocusModeSelector/FocusModeSelector.js";
 import { ObjectList } from "../../components/lists/ObjectList/ObjectList.js";
@@ -62,7 +63,7 @@ const DashboardInnerBox = styled(Box)(() => ({
     width: "min(700px, 100%)",
 }));
 
-const ChatViewOptionsBox = styled(Box)(({ theme }) => ({
+const ChatViewOptionsBox = styled(Box)(() => ({
     display: "flex",
     flexDirection: "row",
     justifyContent: "space-around",
@@ -92,6 +93,30 @@ const resourceListFallback = {
     resources: [],
     translations: [],
 } as unknown as ResourceListType;
+
+function ListTitleContainer({
+    children,
+    emptyText,
+    isEmpty,
+    ...props
+}: TitleContainerProps & {
+    emptyText: string;
+    isEmpty: boolean;
+}) {
+    return (
+        <TitleContainer {...props}>
+            {
+                isEmpty ?
+                    <Typography variant="h6" pt={1} pb={1} sx={{
+                        textAlign: "center",
+                    }}>{emptyText}</Typography> :
+                    <List sx={{ overflow: "hidden", padding: 0 }}>
+                        {children}
+                    </List>
+            }
+        </TitleContainer>
+    );
+}
 
 /** View displayed for Home page when logged in */
 export function DashboardView({

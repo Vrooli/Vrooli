@@ -68,9 +68,10 @@ const dialogSxs = {
     paper: {
         overflowY: "auto",
     },
-};
+} as const;
 const seeAllLinkStyle = { textAlign: "right" } as const;
 const seeAllLinkTextStyle = { marginRight: "12px", marginBottom: "8px" } as const;
+const collapseStyle = { display: "inline-block", width: "100%" } as const;
 
 /**
  * User menu dialog that displays user accounts, settings, and navigation options.
@@ -249,10 +250,92 @@ export function UserMenu() {
                     />
                 </StyledAvatar>
                 <ListItemText
-                    primary={account.name ?? account.handle}
-                    // Credits are calculated in cents * 1 million. 
-                    // We'll convert it to dollars
-                    secondary={`${t("Credit", { count: 2 })}: $${(Number(BigInt(account.credits ?? "0") / BigInt(API_CREDITS_MULTIPLIER)) / 100).toFixed(2)}`}
+                    primary={
+                        <Stack direction="column" spacing={0}>
+                            <Typography variant="body1">{account.name}</Typography>
+                            <Typography
+                                variant="body2"
+                                fontFamily="monospace"
+                                sx={{ color: palette.background.textSecondary }}
+                            >
+                                @{account.handle}
+                            </Typography>
+                        </Stack>
+                    }
+                    secondary={
+                        account.id === userId ? (
+                            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+                                {account.hasPremium && (
+                                    <Box
+                                        sx={{
+                                            backgroundColor: `${palette.secondary.main}15`,
+                                            color: palette.secondary.main,
+                                            borderRadius: 1,
+                                            px: 1,
+                                            py: 0.25,
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 0.5,
+                                            boxShadow: `0 0 0 1px ${palette.secondary.main}40`,
+                                        }}
+                                    >
+                                        <PremiumIcon width="14px" height="14px" fill={palette.secondary.main} />
+                                        <Typography
+                                            variant="body2"
+                                            sx={{
+                                                fontWeight: 500,
+                                                fontSize: "0.75rem",
+                                                lineHeight: 1,
+                                            }}
+                                        >
+                                            {t("Pro")}
+                                        </Typography>
+                                    </Box>
+                                )}
+                                <Typography
+                                    variant="body2"
+                                    sx={{
+                                        color: palette.background.textSecondary,
+                                        fontSize: "0.75rem",
+                                    }}
+                                >
+                                    {t("Credit", { count: 2 })}: ${(Number(BigInt(account.credits ?? "0") / BigInt(API_CREDITS_MULTIPLIER)) / 100).toFixed(2)}
+                                </Typography>
+                            </Stack>
+                        ) : (
+                            <Stack direction="row" spacing={1} alignItems="center">
+                                {account.hasPremium && (
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            color: palette.secondary.main,
+                                            fontSize: "0.75rem",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 0.5,
+                                        }}
+                                    >
+                                        <PremiumIcon width="12px" height="12px" fill={palette.secondary.main} />
+                                        {t("Pro")}
+                                    </Typography>
+                                )}
+                                <Typography
+                                    variant="body2"
+                                    sx={{
+                                        color: palette.background.textSecondary,
+                                        fontSize: "0.75rem",
+                                    }}
+                                >
+                                    ${(Number(BigInt(account.credits ?? "0") / BigInt(API_CREDITS_MULTIPLIER)) / 100).toFixed(2)}
+                                </Typography>
+                            </Stack>
+                        )
+                    }
+                    sx={{
+                        "& .MuiListItemText-primary": {
+                            mb: 0,
+                        },
+                    }}
                 />
             </ListItem>
         );
@@ -304,7 +387,6 @@ export function UserMenu() {
     const boxIconStyle = { minWidth: "56px", display: "flex", alignItems: "center" };
     const typographyStyle = { color: palette.background.textPrimary, ...noSelect, margin: "0 !important" };
     const expandIconStyle = { marginLeft: "auto" };
-    const collapseStyle = { display: "inline-block", minHeight: "auto!important" };
 
     const themeSwitchStyle = { justifyContent: "flex-start" };
     const leftHandedCheckboxStyle = { justifyContent: "flex-start" };
@@ -318,8 +400,6 @@ export function UserMenu() {
         paddingTop: 1,
         paddingBottom: 1,
     };
-
-    const additionalResourcesCollapseStyle = { display: "inline-block" };
 
     return (
         <LargeDialog
@@ -393,23 +473,6 @@ export function UserMenu() {
             <Divider sx={dividerStyle} />
             {/* List of quick links */}
             <List id={ELEMENT_IDS.UserMenuQuickLinks}>
-                {/* Main navigation links, if not mobile and logged in */}
-                {!isMobile && isLoggedIn && navActions.map((action) => {
-                    function handleClick(event: React.MouseEvent<HTMLElement>) {
-                        handleOpen(event, action.link);
-                    }
-
-                    return (
-                        <NavListItem
-                            key={action.value}
-                            label={t(action.label, { count: action.numNotifications })}
-                            Icon={action.Icon}
-                            onClick={handleClick}
-                            palette={palette}
-                        />
-                    );
-                })}
-                {/* Other navigation links */}
                 {navItems.map((item, index) => {
                     function handleClick(event: React.MouseEvent<HTMLElement>) {
                         handleNavItemClick(event, item);
@@ -438,7 +501,7 @@ export function UserMenu() {
                     <ExpandLessIcon fill={palette.background.textPrimary} style={expandIconStyle} />
                 }
             </Stack>
-            <Collapse in={isAdditionalResourcesOpen} sx={additionalResourcesCollapseStyle}>
+            <Collapse in={isAdditionalResourcesOpen} sx={collapseStyle}>
                 <ContactInfo />
             </Collapse>
         </LargeDialog>

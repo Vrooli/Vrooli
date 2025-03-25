@@ -1,5 +1,5 @@
-import { TitleProps } from "components/text/types";
-import { SvgComponent, SxType, ViewDisplayType } from "types";
+import { SvgComponent, SxType, ViewDisplayType } from "../../types.js";
+import { TitleProps } from "../text/types.js";
 
 export interface ContactInfoProps {
     sx?: SxType;

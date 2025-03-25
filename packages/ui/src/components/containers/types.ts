@@ -39,11 +39,6 @@ export interface ListContainerProps {
     sx?: SxType;
 }
 
-export interface ListTitleContainerProps extends TitleContainerProps {
-    emptyText?: string;
-    isEmpty: boolean;
-}
-
 /** Array of label, Icon, disabled, isSubmit, onClick */
 export type DialogActionItem = [string, SvgComponent, boolean, boolean, () => unknown]
 

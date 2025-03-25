@@ -1,5 +1,5 @@
-import { Session, SessionUser, uuid } from "@local/shared";
 import { useEffect } from "react";
+import { loggedOutSession, multipleUsersSession, signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ELEMENT_IDS } from "../../../utils/consts.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { PageContainer } from "../../Page/Page.js";
@@ -10,38 +10,6 @@ const OPEN_DELAY_MS = 1000;
 export default {
     title: "Components/dialogs/UserMenu",
     component: UserMenu,
-};
-
-const loggedOutSession: Partial<Session> = {
-    isLoggedIn: false,
-    users: [],
-};
-
-const signedInNoPremiumOrCreditsSession: Partial<Session> = {
-    isLoggedIn: true,
-    users: [{
-        credits: "0",
-        hasPremium: false,
-        id: uuid(),
-    }] as SessionUser[],
-};
-
-const signedInNoPremiumWithCreditsSession: Partial<Session> = {
-    isLoggedIn: true,
-    users: [{
-        credits: "1234567",
-        hasPremium: false,
-        id: uuid(),
-    }] as SessionUser[],
-};
-
-const signedInPremiumSession: Partial<Session> = {
-    isLoggedIn: true,
-    users: [{
-        credits: "12345678912",
-        hasPremium: true,
-        id: uuid(),
-    }] as SessionUser[],
 };
 
 export function LoggedOut() {
@@ -61,7 +29,7 @@ LoggedOut.parameters = {
     session: loggedOutSession,
 };
 
-export function SignedInNoPremiumOrCredits() {
+export function SignedInNoPremiumNoCredits() {
     useEffect(function publishUserMenuOpen() {
         setTimeout(() => {
             PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen: true });
@@ -74,8 +42,8 @@ export function SignedInNoPremiumOrCredits() {
         </PageContainer>
     );
 }
-SignedInNoPremiumOrCredits.parameters = {
-    session: signedInNoPremiumOrCreditsSession,
+SignedInNoPremiumNoCredits.parameters = {
+    session: signedInNoPremiumNoCreditsSession,
 };
 
 export function SignedInNoPremiumWithCredits() {
@@ -95,7 +63,7 @@ SignedInNoPremiumWithCredits.parameters = {
     session: signedInNoPremiumWithCreditsSession,
 };
 
-export function SignedInPremium() {
+export function SignedInPremiumWithCredits() {
     useEffect(function publishUserMenuOpen() {
         setTimeout(() => {
             PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen: true });
@@ -108,6 +76,17 @@ export function SignedInPremium() {
         </PageContainer>
     );
 }
-SignedInPremium.parameters = {
-    session: signedInPremiumSession,
-};  
+SignedInPremiumWithCredits.parameters = {
+    session: signedInPremiumWithCreditsSession,
+};
+
+export function MultipleUsers() {
+    useEffect(function publishUserMenuOpen() {
+        setTimeout(() => {
+            PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen: true });
+        }, OPEN_DELAY_MS);
+    }, []);
+}
+MultipleUsers.parameters = {
+    session: multipleUsersSession,
+};
