@@ -8,13 +8,17 @@ import { I18nextProvider } from 'react-i18next';
 import { MainBox, getGlobalStyles, useCssVariables } from '../src/App.js';
 import { API_URL, baseSession } from '../src/__test/storybookConsts.js';
 import { AdaptiveLayout } from '../src/components/AdaptiveLayout.js';
+import { Celebration } from '../src/components/Celebration/Celebration.js';
+import { PullToRefresh } from '../src/components/PullToRefresh/PullToRefresh.js';
 import { FullPageSpinner } from '../src/components/Spinners.js';
+import { AlertDialog } from '../src/components/dialogs/AlertDialog/AlertDialog.js';
 import { TutorialDialog } from '../src/components/dialogs/TutorialDialog.js';
 import { UserMenu } from '../src/components/dialogs/UserMenu/UserMenu.js';
 import { VideoPopup } from "../src/components/dialogs/media.js";
 import { BottomNav } from '../src/components/navigation/BottomNav.js';
 import { CommandPalette } from '../src/components/navigation/CommandPalette.js';
 import { FindInPage } from '../src/components/navigation/FindInPage.js';
+import { SnackStack } from '../src/components/snacks/SnackStack/SnackStack.js';
 import { ActiveChatProvider, SessionContext } from "../src/contexts.js";
 import { useHotkeys } from '../src/hooks/useHotkeys.js';
 import { useWindowSize } from "../src/hooks/useWindowSize.js";
@@ -243,8 +247,12 @@ const preview: Preview = {
                         <SessionContext.Provider value={finalSession}>
                             <ActiveChatProvider>
                                 <MainBox id="App" component="main">
+                                    <PullToRefresh />
                                     <CommandPalette />
                                     <FindInPage />
+                                    <Celebration />
+                                    <AlertDialog />
+                                    <SnackStack />
                                     <TutorialDialog />
                                     <VideoPopup
                                         open={!!openVideoData}

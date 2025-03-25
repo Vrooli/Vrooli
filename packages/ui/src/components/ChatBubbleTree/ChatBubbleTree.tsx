@@ -696,7 +696,6 @@ type MessageRenderData = {
 }
 
 type ChatBubbleTreeProps = {
-    belowMessageList?: React.ReactNode,
     branches: BranchMap,
     handleEdit: (originalMessage: ChatMessageShape) => unknown,
     handleRegenerateResponse: (message: ChatMessageShape) => unknown,
@@ -731,15 +730,7 @@ const InnerMessageList = styled(Box, {
     filter: isEditingOrReplying ? "blur(20px)" : "none",
 }));
 
-const BelowMessageListButtonsBox = styled(Box)(({ theme }) => ({
-    position: "sticky",
-    bottom: 0,
-    padding: theme.spacing(1),
-    height: "52px",
-}));
-
 export function ChatBubbleTree({
-    belowMessageList,
     branches,
     handleEdit,
     handleRegenerateResponse,
@@ -851,10 +842,6 @@ export function ChatBubbleTree({
                     />
                 )}
             </InnerMessageList>
-            {!(isEditingMessage || isReplyingToMessage) && <BelowMessageListButtonsBox>
-                <ScrollToBottomButton containerRef={dimRef} />
-                {belowMessageList}
-            </BelowMessageListButtonsBox>}
         </OuterMessageList>
     );
 }

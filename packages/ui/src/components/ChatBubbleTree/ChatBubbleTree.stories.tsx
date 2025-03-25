@@ -1,7 +1,7 @@
 import { ChatMessageShape, ChatMessageStatus, ChatSocketEventPayloads, MINUTES_10_MS, uuid } from "@local/shared";
 import { Box } from "@mui/material";
 import { action } from "@storybook/addon-actions";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { loggedOutSession, signedInPremiumWithCreditsSession, signedInUserId } from "../../__test/storybookConsts.js";
 import { MessageTree } from "../../hooks/messages.js";
 import { BranchMap } from "../../utils/localStorage.js";
@@ -342,7 +342,7 @@ function useStoryMessages(initialMessages: ChatMessageShape[]) {
 }
 
 const outerStyle = {
-    height: "500px",
+    height: "100%",
     maxWidth: "800px",
     padding: "20px",
     border: "1px solid #ccc",
@@ -393,7 +393,6 @@ export function LoggedOut() {
             branches={branches}
             setBranches={setBranches}
             handleEdit={handleEdit}
-            handleReactionAdd={handleReactionAdd}
             handleRegenerateResponse={handleRegenerateResponse}
             handleReply={handleReply}
             handleRetry={handleRetry}
@@ -428,7 +427,6 @@ export function SignedInPremiumWithCredits() {
             branches={branches}
             setBranches={setBranches}
             handleEdit={handleEdit}
-            handleReactionAdd={handleReactionAdd}
             handleRegenerateResponse={handleRegenerateResponse}
             handleReply={handleReply}
             handleRetry={handleRetry}
@@ -444,12 +442,136 @@ SignedInPremiumWithCredits.parameters = {
     session: signedInPremiumWithCreditsSession,
 };
 
-// Pre-create streaming message object
-const streamingMessage: ChatSocketEventPayloads["responseStream"] = {
-    __type: "stream",
-    message: "I'm currently generating a response...",
-    botId: "bot-1",
-};
+// Mock socket service for streaming story
+const STREAM_INTERVAL_MS = 150;
+function useMockSocketStream() {
+    const [messageStream, setMessageStream] = useState<ChatSocketEventPayloads["responseStream"] | null>(null);
+
+    useEffect(() => {
+        let currentText = "";
+        const fullText = `I've analyzed your code and I can help you implement this feature. Let me break down the solution into multiple parts.
+
+First, let's look at the core data structure we'll need. Here's how we can implement it:
+
+\`\`\`typescript
+interface TreeNode<T> {
+    value: T;
+    children: TreeNode<T>[];
+    metadata: {
+        id: string;
+        parentId: string | null;
+        depth: number;
+        index: number;
+    };
+}
+
+class Tree<T> {
+    private root: TreeNode<T> | null = null;
+    private nodeMap: Map<string, TreeNode<T>> = new Map();
+
+    constructor(data?: T) {
+        if (data) {
+            this.root = this.createNode(data, null);
+        }
+    }
+
+    private createNode(value: T, parentId: string | null): TreeNode<T> {
+        return {
+            value,
+            children: [],
+            metadata: {
+                id: crypto.randomUUID(),
+                parentId,
+                depth: 0,
+                index: 0
+            }
+        };
+    }
+
+    public insert(value: T, parentId: string | null): string {
+        const newNode = this.createNode(value, parentId);
+        
+        if (!parentId) {
+            if (!this.root) {
+                this.root = newNode;
+            } else {
+                throw new Error("Root already exists");
+            }
+        } else {
+            const parent = this.nodeMap.get(parentId);
+            if (!parent) {
+                throw new Error("Parent node not found");
+            }
+            parent.children.push(newNode);
+            newNode.metadata.depth = parent.metadata.depth + 1;
+            newNode.metadata.index = parent.children.length - 1;
+        }
+
+        this.nodeMap.set(newNode.metadata.id, newNode);
+        return newNode.metadata.id;
+    }
+}
+\`\`\`
+
+This implementation provides several key benefits:
+1. Efficient node lookup through the Map data structure
+2. Proper typing support with TypeScript generics
+3. Metadata tracking for each node including depth and position
+4. Immutable node references
+
+Let's also consider how we can optimize the tree traversal operations. We should implement both depth-first and breadth-first search algorithms to support different use cases:
+
+\`\`\`typescript
+public traverse(strategy: 'dfs' | 'bfs' = 'dfs'): T[] {
+    if (!this.root) return [];
+    
+    if (strategy === 'dfs') {
+        return this.depthFirstTraversal(this.root);
+    } else {
+        return this.breadthFirstTraversal(this.root);
+    }
+}
+\`\`\`
+
+Finally, make sure to add comprehensive error handling and validation to ensure data integrity. The tree structure should maintain its invariants even after multiple operations.`;
+        // Split by spaces, then combine any words that are smaller than 3 characters
+        const words: string[] = [];
+        const splitText = fullText.split(" ");
+        for (const word of splitText) {
+            if (word.length < 3) {
+                words[words.length - 1] += " " + word;
+            } else {
+                words.push(word);
+            }
+        }
+        let currentWordIndex = 0;
+
+        // Emit a new word every 200ms
+        const interval = setInterval(() => {
+            if (currentWordIndex < words.length) {
+                currentText += (currentWordIndex > 0 ? " " : "") + words[currentWordIndex];
+                setMessageStream({
+                    __type: "stream",
+                    message: currentText,
+                    botId: bot1Id,
+                });
+                currentWordIndex++;
+            } else {
+                // End the stream
+                setMessageStream({
+                    __type: "end",
+                    message: currentText,
+                    botId: bot1Id,
+                });
+                clearInterval(interval);
+            }
+        }, STREAM_INTERVAL_MS);
+
+        return () => clearInterval(interval);
+    }, []);
+
+    return messageStream;
+}
 
 export function SingleMessage() {
     const {
@@ -470,7 +592,6 @@ export function SingleMessage() {
             branches={branches}
             setBranches={setBranches}
             handleEdit={handleEdit}
-            handleReactionAdd={handleReactionAdd}
             handleRegenerateResponse={handleRegenerateResponse}
             handleReply={handleReply}
             handleRetry={handleRetry}
@@ -487,7 +608,7 @@ SingleMessage.parameters = {
 };
 
 /**
- * With Streaming Message: Shows a message being streamed
+ * With Streaming Message: Shows a message being streamed with realistic word-by-word updates
  */
 export function StreamingMessage() {
     const {
@@ -502,13 +623,15 @@ export function StreamingMessage() {
         removeMessages,
     } = useStoryMessages(mockMessages);
 
+    // Use our mock socket stream
+    const messageStream = useMockSocketStream();
+
     return (
         <ChatBubbleTree
             tree={tree}
             branches={branches}
             setBranches={setBranches}
             handleEdit={handleEdit}
-            handleReactionAdd={handleReactionAdd}
             handleRegenerateResponse={handleRegenerateResponse}
             handleReply={handleReply}
             handleRetry={handleRetry}
@@ -516,7 +639,7 @@ export function StreamingMessage() {
             isBotOnlyChat={true}
             isEditingMessage={false}
             isReplyingToMessage={false}
-            messageStream={streamingMessage}
+            messageStream={messageStream}
         />
     );
 }
@@ -553,7 +676,6 @@ export function FailedMessage() {
             branches={branches}
             setBranches={setBranches}
             handleEdit={handleEdit}
-            handleReactionAdd={handleReactionAdd}
             handleRegenerateResponse={handleRegenerateResponse}
             handleReply={handleReply}
             handleRetry={handleRetry}
@@ -591,7 +713,6 @@ export function EditingState() {
             branches={branches}
             setBranches={setBranches}
             handleEdit={handleEdit}
-            handleReactionAdd={handleReactionAdd}
             handleRegenerateResponse={handleRegenerateResponse}
             handleReply={handleReply}
             handleRetry={handleRetry}
@@ -604,48 +725,5 @@ export function EditingState() {
     );
 }
 EditingState.parameters = {
-    session: signedInPremiumWithCreditsSession,
-};
-
-/**
- * With Custom Below Message List: Shows the chat tree with custom content below
- */
-export function WithBelowMessageList() {
-    const {
-        tree,
-        branches,
-        setBranches,
-        handleEdit,
-        handleReactionAdd,
-        handleRegenerateResponse,
-        handleReply,
-        handleRetry,
-        removeMessages,
-    } = useStoryMessages(mockMessages);
-
-    return (
-        <ChatBubbleTree
-            tree={tree}
-            branches={branches}
-            setBranches={setBranches}
-            handleEdit={handleEdit}
-            handleReactionAdd={handleReactionAdd}
-            handleRegenerateResponse={handleRegenerateResponse}
-            handleReply={handleReply}
-            handleRetry={handleRetry}
-            removeMessages={removeMessages}
-            isBotOnlyChat={true}
-            isEditingMessage={false}
-            isReplyingToMessage={false}
-            messageStream={null}
-            belowMessageList={
-                <Box sx={{ textAlign: "center", color: "text.secondary" }}>
-                    Custom content below messages
-                </Box>
-            }
-        />
-    );
-}
-WithBelowMessageList.parameters = {
     session: signedInPremiumWithCreditsSession,
 };

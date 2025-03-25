@@ -1,14 +1,14 @@
 /* eslint-disable import/extensions */
 
 import { endpointsApi, endpointsChat, endpointsCode, endpointsComment, endpointsNote, endpointsProject, endpointsQuestion, endpointsQuiz, endpointsReport, endpointsRoutine, endpointsStandard, endpointsTag, endpointsTeam, endpointsUser, exists, LINKS, uuid } from "@local/shared";
-import { Box, Checkbox, CircularProgress, IconButton, Link, styled, Typography, TypographyProps, useTheme } from "@mui/material";
+import { Box, Checkbox, CircularProgress, IconButton, Link, styled, Tooltip, Typography, TypographyProps, useTheme } from "@mui/material";
 import { type HLJSApi } from "highlight.js";
 import Markdown from "markdown-to-jsx";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { SxType } from "types";
 import { usePress, UsePressEvent } from "../../hooks/gestures.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
-import { CopyIcon } from "../../icons/common.js";
+import { CopyIcon, ExpandLessIcon, ExpandMoreIcon, ListIcon, WrapTextIcon } from "../../icons/common.js";
+import { SxType } from "../../types.js";
 import { getDisplay } from "../../utils/display/listTools.js";
 import { parseSingleItemUrl } from "../../utils/navigation/urlTools.js";
 import { PubSub } from "../../utils/pubsub.js";
@@ -30,6 +30,7 @@ function Heading({ children, level, ...props }: HeadingProps) {
         <Typography
             variant={`h${Math.min(level + H_TAG_DISPLAY_OFFSET, H_TAG_MAX)}` as HeadingLevel}
             component={`h${level}` as HeadingLevel}
+            // eslint-disable-next-line no-magic-numbers
             marginTop={level === 1 ? 0 : 4}
             {...props}
         >
@@ -70,14 +71,47 @@ function ListItem({ children, ...props }) {
     );
 }
 
-const CodeBlockOuter = styled("div")(() => ({
+const CodeBlockOuter = styled("div")(({ theme }) => ({
     position: "relative",
+    borderRadius: theme.spacing(2),
+    boxShadow: theme.shadows[2],
+    overflow: "hidden",
+}));
+const CodeBlockTopBar = styled(Box)(({ theme }) => ({
+    display: "flex",
+    alignItems: "center",
+    padding: theme.spacing(1),
+    backgroundColor: theme.palette.primary.dark,
+}));
+const CodeBlockTopBarButton = styled(IconButton)(({ theme }) => ({
+    color: theme.palette.primary.contrastText,
+    backgroundColor: theme.palette.primary.dark,
+}));
+const LanguageLabel = styled(Typography)(({ theme }) => ({
+    color: theme.palette.primary.contrastText,
+    flexGrow: 1,
+    fontStyle: "italic",
+}));
+const CodeContainer = styled(Box)<{ isCollapsed?: boolean }>(({ theme, isCollapsed }) => ({
+    position: "relative",
+    maxHeight: isCollapsed ? "0px" : "none",
+    overflow: "hidden",
+    transition: "max-height 0.3s ease-in-out",
+    "& pre": {
+        margin: 0,
+        padding: theme.spacing(2),
+    },
+    "& code": {
+        fontFamily: "monospace",
+        whiteSpace: isCollapsed ? "normal" : "pre",
+        wordBreak: "break-word",
+    },
 }));
 
-const CopyButton = styled(IconButton)(() => ({
-    position: "absolute",
-    top: "0px",
-    right: "0px",
+const CollapsedText = styled(Typography)(({ theme }) => ({
+    padding: theme.spacing(1),
+    color: theme.palette.text.secondary,
+    fontStyle: "italic",
 }));
 
 // Module-level variable to store the Highlight.js module
@@ -305,10 +339,24 @@ const TeXComponent = lazy(async () => {
     return { default: module.default };
 });
 
+const preStyle = {
+    padding: 0,
+} as const;
+
+function codeStyle(isHighlighted: boolean, isWrapped: boolean) {
+    return {
+        opacity: isHighlighted ? 1 : 0,
+        whiteSpace: isWrapped ? "pre-wrap" : "pre",
+    } as const;
+}
+
 /** Pretty code block with copy button */
 function CodeBlock({ children, className }) {
     const textRef = useRef<HTMLElement | null>(null);
     const [isHighlighted, setIsHighlighted] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isWrapped, setIsWrapped] = useState(false);
+    const [lineCount, setLineCount] = useState(0);
 
     // Extract language from className
     const language = className ? className.replace("language-", "").replace("lang-", "") : "";
@@ -318,6 +366,12 @@ function CodeBlock({ children, className }) {
 
     // Check if the language is LaTeX
     const isLatex = language === "latex" || language === "tex";
+
+    // Count lines
+    useEffect(() => {
+        const lines = codeString.split("\n").length;
+        setLineCount(lines);
+    }, [codeString]);
 
     useEffect(function loadAndApplyHighlighting() {
         if (isLatex) return; // Skip Highlight.js logic for LaTeX
@@ -394,40 +448,76 @@ function CodeBlock({ children, className }) {
         };
     }, [codeString, isLatex, language]);
 
-    function copyCode() {
+    const copyCode = useCallback(() => {
         if (isLatex) {
             navigator.clipboard.writeText(codeString);
         } else if (textRef && textRef.current) {
-            // Copy the text content of the code block
             navigator.clipboard.writeText(textRef.current.textContent ?? "");
         }
         PubSub.get().publish("snack", { messageKey: "CopiedToClipboard", severity: "Success" });
-    }
+    }, [codeString, isLatex]);
+
+    const toggleCollapse = useCallback(() => setIsCollapsed(prev => !prev), []);
+    const toggleWrap = useCallback(() => setIsWrapped(prev => !prev), []);
 
     return (
         <CodeBlockOuter>
-            <CopyButton
-                onClick={copyCode}
-            >
-                <CopyIcon fill="white" />
-            </CopyButton>
-            {isLatex && (
+            <Box position="sticky" top={0} zIndex={1}>
+                <Box display="flex" gap={1} position="absolute" right={1}>
+                    <Tooltip title={isWrapped ? "Disable word wrap" : "Enable word wrap"}>
+                        <CodeBlockTopBarButton
+                            size="small"
+                            onClick={toggleWrap}
+                        >
+                            {isWrapped ? <ListIcon /> : <WrapTextIcon />}
+                        </CodeBlockTopBarButton>
+                    </Tooltip>
+                    <Tooltip title="Copy code">
+                        <CodeBlockTopBarButton
+                            size="small"
+                            onClick={copyCode}
+                        >
+                            <CopyIcon />
+                        </CodeBlockTopBarButton>
+                    </Tooltip>
+                    <Tooltip title={isCollapsed ? "Expand code" : "Collapse code"}>
+                        <CodeBlockTopBarButton
+                            size="small"
+                            onClick={toggleCollapse}
+                        >
+                            {isCollapsed ? <ExpandMoreIcon /> : <ExpandLessIcon />}
+                        </CodeBlockTopBarButton>
+                    </Tooltip>
+                </Box>
+            </Box>
+            <CodeBlockTopBar>
+                <LanguageLabel variant="body2">{language || "text"}</LanguageLabel>
+            </CodeBlockTopBar>
+            {isLatex ? (
                 <Suspense fallback={<div>Loading...</div>}>
                     <div>
                         <TeXComponent block>{codeString}</TeXComponent>
                     </div>
                 </Suspense>
-            )}
-            {!isLatex && (
-                <pre>
-                    <code
-                        ref={textRef}
-                        className={className}
-                        style={{ paddingRight: "40px", opacity: isHighlighted ? 1 : 0 }}
-                    >
-                        {codeString}
-                    </code>
-                </pre>
+            ) : (
+                <>
+                    <CodeContainer isCollapsed={isCollapsed}>
+                        <pre style={preStyle}>
+                            <code
+                                ref={textRef}
+                                className={className}
+                                style={codeStyle(isHighlighted, isWrapped)}
+                            >
+                                {codeString}
+                            </code>
+                        </pre>
+                    </CodeContainer>
+                    {isCollapsed && (
+                        <CollapsedText>
+                            {lineCount} lines collapsed
+                        </CollapsedText>
+                    )}
+                </>
             )}
         </CodeBlockOuter>
     );
