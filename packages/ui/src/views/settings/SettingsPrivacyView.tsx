@@ -4,7 +4,7 @@ import { Formik, FormikHelpers, useField } from "formik";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
-import { BottomActionsButtons } from "../../components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { BottomActionsButtons } from "../../components/buttons/BottomActionsButtons.js";
 import { ListContainer } from "../../components/containers/ListContainer/ListContainer.js";
 import { SettingsList } from "../../components/lists/SettingsList/SettingsList.js";
 import { SettingsToggleListItem } from "../../components/lists/SettingsToggleListItem/SettingsToggleListItem.js";

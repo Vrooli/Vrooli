@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation } from "route/router.js";
 import { NoteCrudProps } from "views/objects/note/types.js";
 import { fetchLazyWrapper, useSubmitHelper } from "../../../api/fetchWrapper.js";
-import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
 import { EllipsisActionButton } from "../../../components/buttons/EllipsisActionButton/EllipsisActionButton.js";
 import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
 import { SelectLanguageMenu } from "../../../components/dialogs/SelectLanguageMenu/SelectLanguageMenu.js";

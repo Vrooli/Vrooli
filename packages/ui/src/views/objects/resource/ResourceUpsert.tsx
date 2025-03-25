@@ -4,7 +4,7 @@ import { Formik, useField } from "formik";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
-import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { BottomActionsButtons } from "../../../components/buttons/BottomActionsButtons.js";
 import { MaybeLargeDialog } from "../../../components/dialogs/LargeDialog/LargeDialog.js";
 import { LinkInput } from "../../../components/inputs/LinkInput/LinkInput.js";
 import { Selector, SelectorBase } from "../../../components/inputs/Selector/Selector.js";

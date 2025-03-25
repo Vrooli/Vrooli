@@ -9,7 +9,7 @@ import { default as OrganizationalManagement, default as TourThumbnail } from ".
 import Blob1 from "../../assets/img/blob1.svg";
 import Blob2 from "../../assets/img/blob2.svg";
 import { PageContainer } from "../../components/Page/Page.js";
-import { BreadcrumbsBase } from "../../components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase.js";
+import { BreadcrumbsBase } from "../../components/breadcrumbs/BreadcrumbsBase.js";
 import { Footer } from "../../components/navigation/Footer.js";
 import { TopBar } from "../../components/navigation/TopBar.js";
 import { SnackSeverity } from "../../components/snacks/BasicSnack/BasicSnack.js";

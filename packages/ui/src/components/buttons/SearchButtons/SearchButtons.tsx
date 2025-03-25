@@ -15,7 +15,7 @@ import { searchTypeToParams } from "../../../utils/search/objectToSearch.js";
 import { LargeDialog } from "../../dialogs/LargeDialog/LargeDialog.js";
 import { DateRangeMenu } from "../../lists/DateRangeMenu/DateRangeMenu.js";
 import { TopBar } from "../../navigation/TopBar.js";
-import { BottomActionsGrid } from "../BottomActionsGrid/BottomActionsGrid.js";
+import { BottomActionsGrid } from "../BottomActionsGrid.js";
 import { SearchButtonsProps } from "../types.js";
 
 export const StyledSearchButton = styled(Box)<{ active?: boolean }>(

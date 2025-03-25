@@ -19,7 +19,7 @@ import { CompletionBar } from "../../CompletionBar/CompletionBar.js";
 import { BookmarkButton } from "../../buttons/BookmarkButton.js";
 import { CommentsButton } from "../../buttons/CommentsButton/CommentsButton.js";
 import { ReportsButton } from "../../buttons/ReportsButton/ReportsButton.js";
-import { VoteButton } from "../../buttons/VoteButton/VoteButton.js";
+import { VoteButton } from "../../buttons/VoteButton.js";
 import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
 import { CompletionBarProps } from "../../types.js";
 import { TagList } from "../TagList/TagList.js";

@@ -1,8 +1,8 @@
 import { Typography } from "@mui/material";
-import { PopoverWithArrow } from "components/dialogs/PopoverWithArrow/PopoverWithArrow";
 import { scaleLinear } from "d3-scale";
 import { curveMonotoneX, line } from "d3-shape";
 import { useMemo, useRef, useState } from "react";
+import { PopoverWithArrow } from "../../dialogs/PopoverWithArrow/PopoverWithArrow.js";
 import { LineGraphProps } from "../types.js";
 
 type Point = {

@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { ServerResponseParser } from "../../api/responseParser.js";
 import { SocketService } from "../../api/socket.js";
-import { BreadcrumbsBase } from "../../components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase.js";
+import { BreadcrumbsBase } from "../../components/breadcrumbs/BreadcrumbsBase.js";
 import { PasswordTextInput } from "../../components/inputs/PasswordTextInput/PasswordTextInput.js";
 import { TextInput } from "../../components/inputs/TextInput/TextInput.js";
 import { Footer } from "../../components/navigation/Footer.js";

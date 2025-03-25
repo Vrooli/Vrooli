@@ -1,11 +1,11 @@
 import { ApiVersion, CodeLanguage, CodeVersion, JSONVariable, ListObject, NoteVersion, ProjectVersion, ResourceListFor, RoutineVersion, StandardVersion, Tag, TagShape, TranslationFunc } from "@local/shared";
 import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
-import { FindObjectType } from "components/dialogs/types";
-import { ResourceListProps } from "components/lists/types.js";
 import { FieldProps } from "formik";
-import { type UseChatTaskReturn } from "hooks/tasks.js";
 import { CSSProperties, RefObject } from "react";
-import { SvgComponent, SxType } from "types";
+import { type UseChatTaskReturn } from "../../hooks/tasks.js";
+import { SvgComponent, SxType } from "../../types.js";
+import { FindObjectType } from "../dialogs/types.js";
+import { ResourceListProps } from "../lists/types.js";
 
 export interface CharLimitIndicatorProps {
     chars: number;

@@ -7,7 +7,7 @@ import { useLocation } from "route/router.js";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { SocketService } from "../../api/socket.js";
 import { LazyRequestWithResult } from "../../api/types.js";
-import { BottomActionsButtons } from "../../components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { BottomActionsButtons } from "../../components/buttons/BottomActionsButtons.js";
 import { DeleteAccountDialog } from "../../components/dialogs/DeleteAccountDialog/DeleteAccountDialog.js";
 import { PasswordTextInput } from "../../components/inputs/PasswordTextInput/PasswordTextInput.js";
 import { TextInput } from "../../components/inputs/TextInput/TextInput.js";

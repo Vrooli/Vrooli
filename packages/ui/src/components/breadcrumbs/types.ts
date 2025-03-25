@@ -1,4 +1,4 @@
-import { SxType } from "types";
+import { SxType } from "../../types.js";
 
 export interface BreadcrumbsBaseProps {
     ariaLabel?: string;

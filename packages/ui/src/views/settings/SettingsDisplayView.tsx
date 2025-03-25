@@ -4,7 +4,7 @@ import { Formik, FormikHelpers } from "formik";
 import { useCallback, useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
-import { BottomActionsButtons } from "../../components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { BottomActionsButtons } from "../../components/buttons/BottomActionsButtons.js";
 import { FocusModeSelector } from "../../components/inputs/FocusModeSelector/FocusModeSelector.js";
 import { LanguageSelector } from "../../components/inputs/LanguageSelector/LanguageSelector.js";
 import { LeftHandedCheckbox } from "../../components/inputs/LeftHandedCheckbox/LeftHandedCheckbox.js";

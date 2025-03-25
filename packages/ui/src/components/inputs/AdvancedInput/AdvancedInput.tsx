@@ -1,55 +1,13 @@
 /* eslint-disable no-magic-numbers */
-import {
-    Avatar,
-    Box,
-    Chip,
-    Collapse,
-    Divider,
-    IconButton,
-    IconButtonProps,
-    InputBase,
-    ListItemIcon,
-    ListItemText,
-    Menu,
-    MenuItem,
-    Popover,
-    Switch,
-    Typography,
-    styled,
-    useTheme,
-} from "@mui/material";
+import { Avatar, Box, Chip, CircularProgress, Collapse, Divider, IconButton, IconButtonProps, InputBase, ListItemIcon, ListItemText, Menu, MenuItem, Popover, Switch, Typography, styled, useTheme } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { CSSProperties } from "@mui/styles";
-import { MicrophoneButton } from "components/buttons/MicrophoneButton/MicrophoneButton.js";
-import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog.js";
-import { MarkdownDisplay } from "components/text/MarkdownDisplay.js";
-import { useDimensions } from "hooks/useDimensions.js";
-import React, {
-    KeyboardEvent,
-    MouseEvent,
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
-import {
-    AddIcon,
-    CameraOpenIcon,
-    CloseIcon,
-    CompleteIcon,
-    EllipsisIcon,
-    FileIcon,
-    ImageIcon,
-    InfoIcon,
-    InvisibleIcon,
-    LinkIcon,
-    PauseIcon,
-    PlayIcon,
-    RoutineIcon,
-    SendIcon,
-} from "../../../icons/common.js";
-
+import React, { KeyboardEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDimensions } from "../../../hooks/useDimensions.js";
+import { AddIcon, CameraOpenIcon, CloseIcon, CompleteIcon, EllipsisIcon, FileIcon, ImageIcon, InfoIcon, InvisibleIcon, LinkIcon, PauseIcon, PlayIcon, RoutineIcon, SendIcon } from "../../../icons/common.js";
+import { MicrophoneButton } from "../../buttons/MicrophoneButton/MicrophoneButton.js";
+import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog.js";
+import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
 
 interface ExternalApp {
     id: string;
@@ -90,10 +48,11 @@ export interface ContextItem {
     src?: string;
 }
 
-interface AdvancedInputProps {
+export interface AdvancedInputProps {
     enterWillSubmit: boolean;
     tools: Tool[];
     contextData: ContextItem[];
+    maxChars?: number;
     onToolsChange?: (updatedTools: Tool[]) => unknown;
     onContextDataChange?: (updatedContext: ContextItem[]) => unknown;
     onSubmit?: (message: string) => unknown;
@@ -658,6 +617,7 @@ export function AdvancedInput({
     enterWillSubmit,
     tools,
     contextData,
+    maxChars,
     onToolsChange,
     onContextDataChange,
     onSubmit,
@@ -811,11 +771,11 @@ export function AdvancedInput({
     );
 
     const handleSend = useCallback(() => {
-        if (onSubmit && textValue.trim()) {
+        if (onSubmit && textValue.trim() && (!maxChars || textValue.length <= maxChars)) {
             onSubmit(textValue.trim());
+            setTextValue("");
         }
-        setTextValue("");
-    }, [onSubmit, textValue]);
+    }, [onSubmit, textValue, maxChars]);
 
     const handleInputChange = useCallback(
         (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -863,6 +823,19 @@ export function AdvancedInput({
         transition: "max-height 0.3s ease",
         gap: theme.spacing(1),
     }), [isToolsExpanded, theme]);
+
+    const charsProgress = maxChars ? Math.min(100, Math.ceil((textValue.length / maxChars) * 100)) : 0;
+    const charsOverLimit = maxChars ? Math.max(0, textValue.length - maxChars) : 0;
+
+    const progressStyle = useMemo(() => {
+        let progressStyle = { color: theme.palette.success.main };
+        if (charsOverLimit > 0) {
+            progressStyle = { color: theme.palette.error.main };
+        } else if (charsProgress >= 80) {
+            progressStyle = { color: theme.palette.warning.main };
+        }
+        return progressStyle;
+    }, [charsOverLimit, charsProgress, theme.palette.error.main, theme.palette.success.main, theme.palette.warning.main]);
 
     return (
         <Outer>
@@ -995,20 +968,49 @@ export function AdvancedInput({
                         height={iconHeight}
                         width={iconWidth}
                     />
-                    <StyledIconButton
-                        bgColor={theme.palette.mode === "dark" ? theme.palette.background.textPrimary : theme.palette.primary.main}
-                        disabled={!textValue.trim()}
-                        onClick={handleSend}
-                    >
-                        <SendIcon
-                            fill={!textValue.trim() ?
-                                theme.palette.background.textSecondary :
-                                theme.palette.mode === "dark" ?
-                                    theme.palette.background.default :
-                                    theme.palette.primary.contrastText
-                            }
+                    <Box position="relative" display="inline-flex" sx={{ verticalAlign: "middle" }}>
+                        <CircularProgress
+                            variant="determinate"
+                            size={34}
+                            value={charsProgress}
+                            sx={progressStyle}
                         />
-                    </StyledIconButton>
+                        <Box
+                            top={0}
+                            left={0}
+                            bottom={0}
+                            right={0}
+                            position="absolute"
+                            display="flex"
+                            alignItems="center"
+                            justifyContent="center"
+                        >
+                            {charsOverLimit > 0 && <Typography variant="caption" component="div">
+                                {charsOverLimit >= 1000 ? "99+" : charsOverLimit}
+                            </Typography>}
+                            {charsOverLimit <= 0 && <StyledIconButton
+                                bgColor={maxChars ?
+                                    "transparent" :
+                                    theme.palette.mode === "dark"
+                                        ? theme.palette.background.textPrimary
+                                        : theme.palette.primary.main
+                                }
+                                disabled={!textValue.trim() || charsOverLimit > 0}
+                                onClick={handleSend}
+                            >
+                                <SendIcon
+                                    fill={!textValue.trim()
+                                        ? theme.palette.background.textSecondary
+                                        : maxChars
+                                            ? theme.palette.background.textPrimary
+                                            : theme.palette.mode === "dark"
+                                                ? theme.palette.background.default
+                                                : theme.palette.primary.contrastText
+                                    }
+                                />
+                            </StyledIconButton>}
+                        </Box>
+                    </Box>
                 </Box>
             </Box>
 

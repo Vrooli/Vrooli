@@ -1,7 +1,7 @@
 import { LINKS } from "@local/shared";
 import { useTranslation } from "react-i18next";
-import { BreadcrumbsBase } from "../BreadcrumbsBase/BreadcrumbsBase.js";
-import { PolicyBreadcrumbsProps } from "../types.js";
+import { BreadcrumbsBase } from "./BreadcrumbsBase.js";
+import { PolicyBreadcrumbsProps } from "./types.js";
 
 export function PolicyBreadcrumbs({
     ...props

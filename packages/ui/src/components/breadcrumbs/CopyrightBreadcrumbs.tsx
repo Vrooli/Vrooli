@@ -1,7 +1,7 @@
 import { BUSINESS_NAME, LINKS } from "@local/shared";
 import { useTranslation } from "react-i18next";
-import { BreadcrumbsBase } from "../BreadcrumbsBase/BreadcrumbsBase.js";
-import { CopyrightBreadcrumbsProps } from "../types.js";
+import { BreadcrumbsBase } from "./BreadcrumbsBase.js";
+import { CopyrightBreadcrumbsProps } from "./types.js";
 
 export function CopyrightBreadcrumbs({
     sx,

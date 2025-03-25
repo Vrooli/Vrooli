@@ -5,7 +5,7 @@ import { useWindowSize } from "../../../hooks/useWindowSize.js";
 import { CancelIcon, DeleteIcon } from "../../../icons/common.js";
 import { pagePaddingBottom } from "../../../styles.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
-import { BottomActionsGrid } from "../../buttons/BottomActionsGrid/BottomActionsGrid.js";
+import { BottomActionsGrid } from "../../buttons/BottomActionsGrid.js";
 import { TextInput } from "../../inputs/TextInput/TextInput.js";
 import { TopBar } from "../../navigation/TopBar.js";
 import { LargeDialog } from "../LargeDialog/LargeDialog.js";

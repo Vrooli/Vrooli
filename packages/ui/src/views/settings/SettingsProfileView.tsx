@@ -4,7 +4,7 @@ import { Field, Formik, FormikHelpers } from "formik";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
-import { BottomActionsButtons } from "../../components/buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { BottomActionsButtons } from "../../components/buttons/BottomActionsButtons.js";
 import { LanguageInput } from "../../components/inputs/LanguageInput/LanguageInput.js";
 import { ProfilePictureInput } from "../../components/inputs/ProfilePictureInput/ProfilePictureInput.js";
 import { TranslatedRichInput } from "../../components/inputs/RichInput/RichInput.js";

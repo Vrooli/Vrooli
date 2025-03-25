@@ -7,7 +7,7 @@ import { openLink } from "../../route/openLink.js";
 import { useLocation } from "../../route/router.js";
 import { noSelect } from "../../styles.js";
 import { SvgComponent } from "../../types.js";
-import { CopyrightBreadcrumbs } from "../breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs.js";
+import { CopyrightBreadcrumbs } from "../breadcrumbs/CopyrightBreadcrumbs.js";
 import { ContactInfoProps } from "./types.js";
 
 type NavActionListData = [string, string, string, SvgComponent]

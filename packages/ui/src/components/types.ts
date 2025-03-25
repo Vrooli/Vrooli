@@ -1,9 +1,9 @@
 import { ChatMessageShape, Comment, CommentThread, NavigableObject } from "@local/shared";
 import { LinearProgressProps } from "@mui/material";
-import { PageTab } from "hooks/useTabs";
 import { ReactNode } from "react";
-import { SxType } from "types";
-import { TabListType } from "utils/search/objectToSearch";
+import { PageTab } from "../hooks/useTabs.js";
+import { SxType } from "../types.js";
+import { TabListType } from "../utils/search/objectToSearch.js";
 
 export interface ChatBubbleProps {
     /** Which sibling (version) is currently being displayed */

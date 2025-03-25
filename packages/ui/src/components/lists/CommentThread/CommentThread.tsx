@@ -15,7 +15,7 @@ import { CommentUpsert } from "../../../views/objects/comment/CommentUpsert.js";
 import { BookmarkButton } from "../../buttons/BookmarkButton.js";
 import { ReportButton } from "../../buttons/ReportButton/ReportButton.js";
 import { ShareButton } from "../../buttons/ShareButton/ShareButton.js";
-import { VoteButton } from "../../buttons/VoteButton/VoteButton.js";
+import { VoteButton } from "../../buttons/VoteButton.js";
 import { TextLoading } from "../../lists/TextLoading/TextLoading.js";
 import { OwnerLabel } from "../../text/OwnerLabel.js";
 import { CommentConnectorProps, CommentThreadItemProps, CommentThreadProps } from "../../types.js";

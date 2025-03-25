@@ -6,7 +6,7 @@ import { CloseIcon } from "../../../icons/common.js";
 import { useLocation } from "../../../route/router.js";
 import { ELEMENT_IDS } from "../../../utils/consts.js";
 import { PricingTierType } from "../../../views/ProView/ProView.js";
-import { BreadcrumbsBase } from "../../breadcrumbs/BreadcrumbsBase/BreadcrumbsBase.js";
+import { BreadcrumbsBase } from "../../breadcrumbs/BreadcrumbsBase.js";
 
 type TriangleProps = {
     size?: number;

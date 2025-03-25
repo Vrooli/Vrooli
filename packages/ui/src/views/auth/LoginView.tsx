@@ -12,7 +12,7 @@ import FacebookIcon from "../../assets/img/facebook.svg";
 import GitHubIcon from "../../assets/img/github.svg";
 import GoogleIcon from "../../assets/img/google.svg";
 import XIcon from "../../assets/img/x.svg";
-import { BreadcrumbsBase } from "../../components/breadcrumbs/BreadcrumbsBase/BreadcrumbsBase.js";
+import { BreadcrumbsBase } from "../../components/breadcrumbs/BreadcrumbsBase.js";
 import { PasswordTextInput } from "../../components/inputs/PasswordTextInput/PasswordTextInput.js";
 import { TextInput } from "../../components/inputs/TextInput/TextInput.js";
 import { TopBar } from "../../components/navigation/TopBar.js";

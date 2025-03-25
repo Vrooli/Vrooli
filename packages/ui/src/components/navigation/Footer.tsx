@@ -7,7 +7,7 @@ import { useLocation } from "../../route/router.js";
 import { pagePaddingBottom } from "../../styles.js";
 import { SvgComponent } from "../../types.js";
 import { getDeviceInfo } from "../../utils/display/device.js";
-import { CopyrightBreadcrumbs } from "../breadcrumbs/CopyrightBreadcrumbs/CopyrightBreadcrumbs.js";
+import { CopyrightBreadcrumbs } from "../breadcrumbs/CopyrightBreadcrumbs.js";
 
 /** aria-label, tooltip, link, displayed text, icon */
 const contactLinks: [string, TranslationKeyCommon, string, TranslationKeyCommon, SvgComponent][] = [

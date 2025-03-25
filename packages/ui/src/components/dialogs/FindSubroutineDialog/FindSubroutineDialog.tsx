@@ -1,7 +1,7 @@
 import { OwnerShape, RoutineVersion, uuidValidate, VisibilityType } from "@local/shared";
-import { FindObjectDialog } from "components/dialogs/FindObjectDialog/FindObjectDialog.js";
 import { useField } from "formik";
 import { useCallback, useMemo } from "react";
+import { FindObjectDialog } from "../FindObjectDialog/FindObjectDialog.js";
 import { FindSubroutineDialogProps } from "../types.js";
 
 const limitTo = [

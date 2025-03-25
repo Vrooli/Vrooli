@@ -11,7 +11,7 @@ import { useBookmarkListsStore } from "../../../hooks/objectActions.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { AddIcon, ArrowLeftIcon } from "../../../icons/common.js";
 import { ELEMENT_IDS } from "../../../utils/consts.js";
-import { BottomActionsButtons } from "../../buttons/BottomActionsButtons/BottomActionsButtons.js";
+import { BottomActionsButtons } from "../../buttons/BottomActionsButtons.js";
 import { LargeDialog } from "../LargeDialog/LargeDialog.js";
 import { SelectBookmarkListDialogProps } from "../types.js";
 

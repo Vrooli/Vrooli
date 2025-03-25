@@ -269,3 +269,31 @@ export function WithWysiwygAndToolbar() {
     );
 }
 
+export function WithMaxChars() {
+    const [contextData, setContextData] = useState<ContextItem[]>([]);
+    const [message, setMessage] = useState("");
+    const [tools, setTools] = useState<Tool[]>([]);
+
+    function onContextDataChange(updated: ContextItem[]) {
+        setContextData(updated);
+    }
+    function onSubmit(msg: string) {
+        action("onSubmit")(msg);
+        setMessage("");
+    }
+    function onToolsChange(updated: Tool[]) {
+        setTools(updated);
+    }
+
+    return (
+        <AdvancedInput
+            enterWillSubmit={true}
+            tools={tools}
+            contextData={contextData}
+            maxChars={100}
+            onToolsChange={onToolsChange}
+            onContextDataChange={onContextDataChange}
+            onSubmit={onSubmit}
+        />
+    );
+}
