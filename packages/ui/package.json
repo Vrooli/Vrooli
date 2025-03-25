@@ -75,11 +75,13 @@
         "zxcvbn": "^4.4.2"
     },
     "scripts": {
-        "build-tests": "rimraf dist && NODE_ENV=test swc src -d dist",
-        "test": "yarn build-tests && dotenv -e ../../.env-test -- mocha --file \"dist/__test/setup.js\" \"dist/**/*.test.js\"",
-        "test-watch": "yarn build-tests && dotenv -e ../../.env-test -- mocha --watch --file \"dist/__test/setup.js\" \"dist/**/*.test.js\"",
-        "build": "rimraf dist && vite build && node workbox-build.js",
-        "start-development": "yarn type-check && vite",
+        "build-tests": "rimraf dist && NODE_ENV=test swc src -d dist && yarn post-build",
+        "test": "yarn build-tests && NODE_OPTIONS=\"--import=./dist/__test/register.js\" dotenv -e ../../.env-test -- mocha --file \"dist/__test/setup.js\" \"dist/**/*.test.js\"",
+        "test-watch": "yarn build-tests && NODE_OPTIONS=\"--import=./dist/__test/register.js\" dotenv -e ../../.env-test -- mocha --watch --file \"dist/__test/setup.js\" \"dist/**/*.test.js\"",
+        "build": "rimraf dist && vite build && node workbox-build.js && yarn post-build",
+        "post-build": "yarn post-build-copy",
+        "post-build-copy": "copyfiles -u 1 \"src/**/*.css\" \"src/**/*.md\" dist",
+        "start-development": "vite",
         "start-production": "serve --config serve.json",
         "analyze": "source-map-explorer --html \"source-tree-$(date '+%Y%m%d%H%M%S').html\" --no-border-checks dist/assets/*",
         "lint": "eslint src",
@@ -117,6 +119,7 @@
         "@types/sinon": "^17.0.3",
         "@vitejs/plugin-react-swc": "^3.7.1",
         "chai": "^5.1.2",
+        "copyfiles": "^2.4.1",
         "dotenv-cli": "^8.0.0",
         "eslint": "^8.57.0",
         "eslint-plugin-jsx-a11y": "^6.9.0",
@@ -133,6 +136,7 @@
         "source-map-explorer": "^2.5.2",
         "storybook": "^8.6.0",
         "vite": "^5.4.7",
+        "why-is-node-running": "^2.3.0",
         "workbox-build": "^7.1.1"
     },
     "eslintConfig": {
