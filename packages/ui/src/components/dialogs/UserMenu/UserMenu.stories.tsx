@@ -1,26 +1,40 @@
-import { useEffect } from "react";
+import { Button } from "@mui/material";
+import { useRef } from "react";
 import { loggedOutSession, multipleUsersSession, signedInNoPremiumNoCreditsSession, signedInNoPremiumWithCreditsSession, signedInPremiumWithCreditsSession } from "../../../__test/storybookConsts.js";
 import { ELEMENT_IDS } from "../../../utils/consts.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { PageContainer } from "../../Page/Page.js";
 import { UserMenu } from "./UserMenu.js";
 
-const OPEN_DELAY_MS = 1000;
-
 export default {
     title: "Components/dialogs/UserMenu",
     component: UserMenu,
 };
 
-export function LoggedOut() {
-    useEffect(function publishUserMenuOpen() {
-        setTimeout(() => {
-            PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen: true });
-        }, OPEN_DELAY_MS);
-    }, []);
+function MenuTrigger() {
+    const buttonRef = useRef<HTMLButtonElement>(null);
+
+    function handleClick() {
+        if (buttonRef.current) {
+            PubSub.get().publish("menu", {
+                id: ELEMENT_IDS.UserMenu,
+                isOpen: true,
+                data: { anchorEl: buttonRef.current },
+            });
+        }
+    }
 
     return (
+        <Button ref={buttonRef} onClick={handleClick} variant="contained">
+            Open Menu
+        </Button>
+    );
+}
+
+export function LoggedOut() {
+    return (
         <PageContainer>
+            <MenuTrigger />
             <UserMenu />
         </PageContainer>
     );
@@ -30,14 +44,9 @@ LoggedOut.parameters = {
 };
 
 export function SignedInNoPremiumNoCredits() {
-    useEffect(function publishUserMenuOpen() {
-        setTimeout(() => {
-            PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen: true });
-        }, OPEN_DELAY_MS);
-    }, []);
-
     return (
         <PageContainer>
+            <MenuTrigger />
             <UserMenu />
         </PageContainer>
     );
@@ -47,14 +56,9 @@ SignedInNoPremiumNoCredits.parameters = {
 };
 
 export function SignedInNoPremiumWithCredits() {
-    useEffect(function publishUserMenuOpen() {
-        setTimeout(() => {
-            PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen: true });
-        }, OPEN_DELAY_MS);
-    }, []);
-
     return (
         <PageContainer>
+            <MenuTrigger />
             <UserMenu />
         </PageContainer>
     );
@@ -64,14 +68,9 @@ SignedInNoPremiumWithCredits.parameters = {
 };
 
 export function SignedInPremiumWithCredits() {
-    useEffect(function publishUserMenuOpen() {
-        setTimeout(() => {
-            PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen: true });
-        }, OPEN_DELAY_MS);
-    }, []);
-
     return (
         <PageContainer>
+            <MenuTrigger />
             <UserMenu />
         </PageContainer>
     );
@@ -81,11 +80,12 @@ SignedInPremiumWithCredits.parameters = {
 };
 
 export function MultipleUsers() {
-    useEffect(function publishUserMenuOpen() {
-        setTimeout(() => {
-            PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen: true });
-        }, OPEN_DELAY_MS);
-    }, []);
+    return (
+        <PageContainer>
+            <MenuTrigger />
+            <UserMenu />
+        </PageContainer>
+    );
 }
 MultipleUsers.parameters = {
     session: multipleUsersSession,

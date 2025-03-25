@@ -1,8 +1,17 @@
-import { Box, Dialog, useTheme } from "@mui/material";
+import { Box, Dialog, Popover, useTheme } from "@mui/material";
 import { useMemo } from "react";
 import { Z_INDEX } from "../../../utils/consts.js";
 import { UpTransition } from "../../transitions/UpTransition/UpTransition.js";
 import { LargeDialogProps, MaybeLargeDialogProps } from "../types.js";
+
+const defaultAnchorOrigin = {
+    vertical: "bottom" as const,
+    horizontal: "right" as const,
+} as const;
+const defaultTransformOrigin = {
+    vertical: "top" as const,
+    horizontal: "right" as const,
+} as const;
 
 export function LargeDialog({
     children,
@@ -11,6 +20,9 @@ export function LargeDialog({
     onClose,
     titleId,
     sxs,
+    anchorEl,
+    anchorOrigin,
+    transformOrigin,
 }: LargeDialogProps) {
     const { palette, spacing } = useTheme();
     const shadowColor = palette.mode === "dark" ? "230, 230, 230" : "0, 0, 0";
@@ -51,6 +63,23 @@ export function LargeDialog({
             },
         } as const;
     }, [palette.background.default, palette.background.textPrimary, shadowColor, spacing, sxs?.paper, sxs?.root]);
+
+    // If anchorEl is provided, use Popover instead of Dialog
+    if (anchorEl) {
+        return (
+            <Popover
+                id={id}
+                open={isOpen}
+                anchorEl={anchorEl}
+                onClose={onClose}
+                anchorOrigin={anchorOrigin ?? defaultAnchorOrigin}
+                transformOrigin={transformOrigin ?? defaultTransformOrigin}
+                sx={style}
+            >
+                {children}
+            </Popover>
+        );
+    }
 
     return (
         <Dialog

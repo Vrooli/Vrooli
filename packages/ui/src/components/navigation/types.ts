@@ -1,10 +1,6 @@
 import { SvgComponent, SxType, ViewDisplayType } from "../../types.js";
 import { TitleProps } from "../text/types.js";
 
-export interface ContactInfoProps {
-    sx?: SxType;
-}
-
 export type NavbarProps = {
     below?: JSX.Element | boolean | undefined;
     help?: string | undefined;

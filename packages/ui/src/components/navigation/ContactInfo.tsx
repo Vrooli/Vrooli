@@ -8,14 +8,10 @@ import { useLocation } from "../../route/router.js";
 import { noSelect } from "../../styles.js";
 import { SvgComponent } from "../../types.js";
 import { CopyrightBreadcrumbs } from "../breadcrumbs/CopyrightBreadcrumbs.js";
-import { ContactInfoProps } from "./types.js";
 
 type NavActionListData = [string, string, string, SvgComponent]
 
-export function ContactInfo({
-    sx,
-    ...props
-}: ContactInfoProps) {
+export function ContactInfo() {
     const { palette } = useTheme();
     const { t } = useTranslation();
     const [, setLocation] = useLocation();
@@ -41,13 +37,7 @@ export function ContactInfo({
     }
 
     return (
-        <Box sx={{
-            minWidth: "fit-content",
-            height: "fit-content",
-            background: palette.background.default,
-            padding: 1,
-            ...(sx ?? {}),
-        }} {...props}>
+        <Box minWidth="fit-content" height="fit-content" padding={1}>
             <Typography variant="h6" textAlign="center" color={palette.background.textPrimary} sx={{ ...noSelect }}>{t("FindUsOn")}</Typography>
             <BottomNavigation
                 showLabels

@@ -1,6 +1,5 @@
 import { API_CREDITS_MULTIPLIER, ActionOption, HistoryPageTabOption, LINKS, PreActionOption, ProfileUpdateInput, Session, SessionUser, SwitchCurrentAccountInput, User, endpointsAuth, endpointsUser, profileValidation, shapeProfile } from "@local/shared";
-import { Avatar, Box, Collapse, Divider, Link, List, ListItem, ListItemIcon, ListItemText, Palette, Typography, styled, useTheme } from "@mui/material";
-import { Stack } from "@mui/system";
+import { Avatar, Box, Collapse, Divider, Link, List, ListItem, ListItemIcon, ListItemText, Palette, Stack, Typography, styled, useTheme } from "@mui/material";
 import { useFormik } from "formik";
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -33,6 +32,7 @@ import { LargeDialog } from "../LargeDialog/LargeDialog.js";
  * Limited by cookie size (4kb)
  */
 const MAX_ACCOUNTS = 10;
+const SPACING_MULTIPLIER = 1.5;
 const AVATAR_SIZE_PX = 50;
 
 function NavListItem({ label, Icon, onClick, palette }: {
@@ -54,6 +54,7 @@ function NavListItem({ label, Icon, onClick, palette }: {
 const StyledAvatar = styled(Avatar)(({ theme }) => ({
     marginRight: theme.spacing(2),
 }));
+
 const UserMenuDisplaySettingsBox = styled(Box)(({ theme }) => ({
     display: "flex",
     flexDirection: "column",
@@ -63,14 +64,109 @@ const UserMenuDisplaySettingsBox = styled(Box)(({ theme }) => ({
     padding: theme.spacing(1),
 }));
 
+const SeeAllLink = styled(Link)({
+    textAlign: "right",
+});
+
+const SeeAllLinkText = styled(Typography)(({ theme }) => ({
+    marginRight: theme.spacing(SPACING_MULTIPLIER),
+    marginBottom: theme.spacing(1),
+}));
+
+const CollapseBox = styled(Box)({
+    display: "inline-block",
+    width: "100%",
+});
+
+const AccountList = styled(List)({
+    paddingTop: 0,
+    paddingBottom: 0,
+});
+
+const DividerStyled = styled(Divider)(({ theme }) => ({
+    background: theme.palette.background.textSecondary,
+}));
+
+const DisplayHeader = styled(Stack)(({ theme }) => ({
+    display: "flex",
+    alignItems: "center",
+    textAlign: "left",
+    paddingLeft: theme.spacing(2),
+    paddingRight: theme.spacing(2),
+    paddingTop: theme.spacing(1),
+    paddingBottom: theme.spacing(1),
+}));
+
+const BoxIcon = styled(Box)({
+    minWidth: "56px",
+    display: "flex",
+    alignItems: "center",
+});
+
+const HeaderTypography = styled(Typography)(({ theme }) => ({
+    color: theme.palette.background.textPrimary,
+    ...noSelect,
+    margin: "0 !important",
+}));
+
+const ExpandIcon = styled(Box)({
+    marginLeft: "auto",
+});
+
+const themeSwitchStyle = { justifyContent: "flex-start" } as const;
+const leftHandedCheckboxStyle = { justifyContent: "flex-start" } as const;
+
 const dialogSxs = {
     paper: {
         overflowY: "auto",
     },
 } as const;
-const seeAllLinkStyle = { textAlign: "right" } as const;
-const seeAllLinkTextStyle = { marginRight: "12px", marginBottom: "8px" } as const;
-const collapseStyle = { display: "inline-block", width: "100%" } as const;
+
+const anchorOrigin = {
+    vertical: "bottom" as const,
+    horizontal: "right" as const,
+} as const;
+const transformOrigin = {
+    vertical: "top" as const,
+    horizontal: "right" as const,
+} as const;
+
+const MonospaceTypography = styled(Typography)({
+    fontFamily: "monospace",
+});
+
+const CreditStack = styled(Stack)({
+    marginTop: 1,
+});
+
+const PremiumBox = styled(Box)(({ theme }) => ({
+    backgroundColor: `${theme.palette.secondary.main}15`,
+    color: theme.palette.secondary.main,
+    borderRadius: 1,
+    paddingLeft: 1,
+    paddingRight: 1,
+    paddingTop: 0.25,
+    paddingBottom: 0.25,
+    display: "flex",
+    alignItems: "center",
+    gap: 0.5,
+    boxShadow: `0 0 0 1px ${theme.palette.secondary.main}40`,
+}));
+
+const PremiumTypography = styled(Typography)({
+    fontWeight: 500,
+    fontSize: "0.75rem",
+    lineHeight: 1,
+});
+
+const CreditTypography = styled(Typography)(({ theme }) => ({
+    color: theme.palette.background.textSecondary,
+    fontSize: "0.75rem",
+}));
+
+const MonospaceHandleTypography = styled(MonospaceTypography)(({ theme }) => ({
+    color: theme.palette.background.textSecondary,
+}));
 
 /**
  * User menu dialog that displays user accounts, settings, and navigation options.
@@ -103,6 +199,19 @@ export function UserMenu() {
         isMobile,
         onEvent,
     });
+
+    // Get anchor element from menu data
+    const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+    useEffect(() => {
+        const subscription = PubSub.get().subscribe("menu", (data) => {
+            console.log("menu subscription", data);
+            if (data.id === ELEMENT_IDS.UserMenu && data.data?.anchorEl) {
+                setAnchorEl(data.data.anchorEl);
+            }
+        });
+        return subscription;
+    }, []);
+
     // When moving between mobile/desktop, publish current state
     useEffect(() => {
         PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen });
@@ -243,26 +352,9 @@ export function UserMenu() {
             handleOpen(event, item.link);
         }
     }, [handleAction, handleOpen]);
-
-    const accountListStyle = { paddingTop: 0, paddingBottom: 0 };
-    const dividerStyle = { background: palette.background.textSecondary };
-
-    const displayHeaderStyle = {
-        display: "flex",
-        alignItems: "center",
-        textAlign: "left",
-        paddingLeft: 2,
-        paddingRight: 2,
-        paddingTop: 1,
-        paddingBottom: 1,
-    };
-
-    const boxIconStyle = { minWidth: "56px", display: "flex", alignItems: "center" };
-    const typographyStyle = { color: palette.background.textPrimary, ...noSelect, margin: "0 !important" };
-    const expandIconStyle = { marginLeft: "auto" };
-
-    const themeSwitchStyle = { justifyContent: "flex-start" };
-    const leftHandedCheckboxStyle = { justifyContent: "flex-start" };
+    const handleTutorialClick = useCallback(function handleTutorialClickCallback(event: React.MouseEvent<HTMLElement>) {
+        handleNavItemClick(event, { label: t("Tutorial"), Icon: HelpIcon, action: Actions.tutorial });
+    }, [handleNavItemClick, t]);
 
     return (
         <LargeDialog
@@ -270,9 +362,11 @@ export function UserMenu() {
             isOpen={isOpen}
             onClose={handleClose}
             sxs={dialogSxs}
+            anchorEl={anchorEl}
+            anchorOrigin={anchorOrigin}
+            transformOrigin={transformOrigin}
         >
-            {/* Primary user and their actions */}
-            <List id={ELEMENT_IDS.UserMenuAccountList} sx={accountListStyle}>
+            <AccountList>
                 {accounts
                     .filter(account => account.id === userId)
                     .map((account) => {
@@ -294,65 +388,31 @@ export function UserMenu() {
                                     primary={
                                         <Stack direction="column" spacing={0}>
                                             <Typography variant="body1">{account.name}</Typography>
-                                            <Typography
-                                                variant="body2"
-                                                fontFamily="monospace"
-                                                sx={{ color: palette.background.textSecondary }}
-                                            >
+                                            <MonospaceHandleTypography variant="body2">
                                                 @{account.handle}
-                                            </Typography>
+                                            </MonospaceHandleTypography>
                                         </Stack>
                                     }
                                     secondary={
-                                        <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+                                        <CreditStack direction="row" spacing={1} alignItems="center">
                                             {account.hasPremium && (
-                                                <Box
-                                                    sx={{
-                                                        backgroundColor: `${palette.secondary.main}15`,
-                                                        color: palette.secondary.main,
-                                                        borderRadius: 1,
-                                                        px: 1,
-                                                        py: 0.25,
-                                                        display: "flex",
-                                                        alignItems: "center",
-                                                        gap: 0.5,
-                                                        boxShadow: `0 0 0 1px ${palette.secondary.main}40`,
-                                                    }}
-                                                >
+                                                <PremiumBox>
                                                     <PremiumIcon width="14px" height="14px" fill={palette.secondary.main} />
-                                                    <Typography
-                                                        variant="body2"
-                                                        sx={{
-                                                            fontWeight: 500,
-                                                            fontSize: "0.75rem",
-                                                            lineHeight: 1,
-                                                        }}
-                                                    >
+                                                    <PremiumTypography variant="body2">
                                                         {t("Pro")}
-                                                    </Typography>
-                                                </Box>
+                                                    </PremiumTypography>
+                                                </PremiumBox>
                                             )}
-                                            <Typography
-                                                variant="body2"
-                                                sx={{
-                                                    color: palette.background.textSecondary,
-                                                    fontSize: "0.75rem",
-                                                }}
-                                            >
+                                            <CreditTypography variant="body2">
                                                 {t("Credit", { count: 2 })}: ${(Number(BigInt(account.credits ?? "0") / BigInt(API_CREDITS_MULTIPLIER)) / 100).toFixed(2)}
-                                            </Typography>
-                                        </Stack>
+                                            </CreditTypography>
+                                        </CreditStack>
                                     }
-                                    sx={{
-                                        "& .MuiListItemText-primary": {
-                                            mb: 0,
-                                        },
-                                    }}
                                 />
                             </ListItem>
                         );
                     })}
-            </List>
+            </AccountList>
 
             {/* User-specific navigation links and display settings */}
             {isLoggedIn && (
@@ -377,32 +437,36 @@ export function UserMenu() {
                     </List>
 
                     {/* Display Settings */}
-                    <Stack direction="row" spacing={1} onClick={toggleDisplaySettings} sx={displayHeaderStyle}>
-                        <Box sx={boxIconStyle}>
+                    <DisplayHeader direction="row" spacing={1} onClick={toggleDisplaySettings}>
+                        <BoxIcon>
                             <DisplaySettingsIcon fill={palette.background.textPrimary} />
-                        </Box>
-                        <Typography variant="body1" sx={typographyStyle}>{t("Display")}</Typography>
-                        {isDisplaySettingsOpen ?
-                            <ExpandMoreIcon fill={palette.background.textPrimary} style={expandIconStyle} /> :
-                            <ExpandLessIcon fill={palette.background.textPrimary} style={expandIconStyle} />
-                        }
-                    </Stack>
-                    <Collapse in={isDisplaySettingsOpen} sx={collapseStyle}>
-                        <UserMenuDisplaySettingsBox id={ELEMENT_IDS.UserMenuDisplaySettings}>
-                            <ThemeSwitch updateServer sx={themeSwitchStyle} />
-                            <TextSizeButtons />
-                            <LeftHandedCheckbox sx={leftHandedCheckboxStyle} />
-                            <LanguageSelector />
-                            <FocusModeSelector />
-                        </UserMenuDisplaySettingsBox>
-                        <Link href={LINKS.SettingsDisplay} sx={seeAllLinkStyle}>
-                            <Typography variant="body2" sx={seeAllLinkTextStyle}>{t("SeeAll")}</Typography>
-                        </Link>
-                    </Collapse>
+                        </BoxIcon>
+                        <HeaderTypography variant="body1">{t("Display")}</HeaderTypography>
+                        <ExpandIcon>
+                            {isDisplaySettingsOpen ?
+                                <ExpandMoreIcon fill={palette.background.textPrimary} /> :
+                                <ExpandLessIcon fill={palette.background.textPrimary} />
+                            }
+                        </ExpandIcon>
+                    </DisplayHeader>
+                    <CollapseBox>
+                        <Collapse in={isDisplaySettingsOpen}>
+                            <UserMenuDisplaySettingsBox id={ELEMENT_IDS.UserMenuDisplaySettings}>
+                                <ThemeSwitch updateServer sx={themeSwitchStyle} />
+                                <TextSizeButtons />
+                                <LeftHandedCheckbox sx={leftHandedCheckboxStyle} />
+                                <LanguageSelector />
+                                <FocusModeSelector />
+                            </UserMenuDisplaySettingsBox>
+                            <SeeAllLink href={LINKS.SettingsDisplay}>
+                                <SeeAllLinkText variant="body2">{t("SeeAll")}</SeeAllLinkText>
+                            </SeeAllLink>
+                        </Collapse>
+                    </CollapseBox>
                 </>
             )}
 
-            <Divider sx={dividerStyle} />
+            <DividerStyled />
 
             {/* Other accounts and session actions */}
             <List>
@@ -417,7 +481,6 @@ export function UserMenu() {
                                 button
                                 key={account.id}
                                 onClick={handleClick}
-                                sx={{ background: palette.background.default }}
                             >
                                 <StyledAvatar
                                     src={extractImageUrl(account.profileImage, account.updated_at, AVATAR_SIZE_PX)}
@@ -428,20 +491,26 @@ export function UserMenu() {
                                     primary={
                                         <Stack direction="column" spacing={0}>
                                             <Typography variant="body1">{account.name}</Typography>
-                                            <Typography
-                                                variant="body2"
-                                                fontFamily="monospace"
-                                                sx={{ color: palette.background.textSecondary }}
-                                            >
+                                            <MonospaceHandleTypography variant="body2">
                                                 @{account.handle}
-                                            </Typography>
+                                            </MonospaceHandleTypography>
                                         </Stack>
                                     }
-                                    sx={{
-                                        "& .MuiListItemText-primary": {
-                                            mb: 0,
-                                        },
-                                    }}
+                                    secondary={
+                                        <CreditStack direction="row" spacing={1} alignItems="center">
+                                            {account.hasPremium && (
+                                                <PremiumBox>
+                                                    <PremiumIcon width="14px" height="14px" fill={palette.secondary.main} />
+                                                    <PremiumTypography variant="body2">
+                                                        {t("Pro")}
+                                                    </PremiumTypography>
+                                                </PremiumBox>
+                                            )}
+                                            <CreditTypography variant="body2">
+                                                {t("Credit", { count: 2 })}: ${(Number(BigInt(account.credits ?? "0") / BigInt(API_CREDITS_MULTIPLIER)) / 100).toFixed(2)}
+                                            </CreditTypography>
+                                        </CreditStack>
+                                    }
                                 />
                             </ListItem>
                         );
@@ -478,14 +547,14 @@ export function UserMenu() {
                 )}
             </List>
 
-            <Divider sx={dividerStyle} />
+            <DividerStyled />
 
             {/* Help and support content */}
             <List>
                 <NavListItem
                     label={t("Tutorial")}
                     Icon={HelpIcon}
-                    onClick={(event) => handleNavItemClick(event, { label: t("Tutorial"), Icon: HelpIcon, action: Actions.tutorial })}
+                    onClick={handleTutorialClick}
                     palette={palette}
                 />
             </List>

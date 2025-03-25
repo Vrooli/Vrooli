@@ -230,6 +230,7 @@ export type MenuPayloads = {
          */
         data?: {
             isDisplaySettingsCollapsed?: boolean;
+            anchorEl?: HTMLElement | null;
         };
     };
 }

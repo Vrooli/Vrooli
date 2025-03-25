@@ -93,7 +93,9 @@ export function NavList() {
     const navActions = useMemo<NavAction[]>(() => getUserActions({ session, exclude: [NAV_ACTION_TAGS.Home, NAV_ACTION_TAGS.LogIn] }), [session]);
 
     const { isOpen: isUserMenuOpen } = useMenu({ id: ELEMENT_IDS.UserMenu, isMobile });
-    const openUserMenu = useCallback(() => { PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen: true }); }, []);
+    const openUserMenu = useCallback((event: React.MouseEvent<HTMLElement>) => {
+        PubSub.get().publish("menu", { id: ELEMENT_IDS.UserMenu, isOpen: true, data: { anchorEl: event.currentTarget } });
+    }, []);
 
     const toLoginPage = useCallback(function toLoginPageCallback(e: React.MouseEvent<HTMLElement>) {
         e.preventDefault();

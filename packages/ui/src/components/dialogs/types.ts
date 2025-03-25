@@ -1,16 +1,12 @@
-import { Bookmark, BookmarkFor, ListObject, Node, NodeLinkShape, NodeRoutineList, NodeRoutineListItem, NodeRoutineListItemShape, NodeShape, RoutineVersion, TranslationKeyCommon } from "@local/shared";
+import { Bookmark, BookmarkFor, ListObject, RoutineVersion, TranslationKeyCommon } from "@local/shared";
 import { DialogProps, PopoverProps } from "@mui/material";
-import { HelpButtonProps } from "components/buttons/types.js";
-import { TitleProps } from "components/text/types.js";
-import { type UseObjectActionsReturn } from "hooks/objectActions.js";
 import { ReactNode } from "react";
-import { SvgComponent, SxType, ViewDisplayType } from "types";
-import { ObjectAction } from "utils/actions/objectActions.js";
-import { CookiePreferences } from "utils/localStorage.js";
-import { FormProps } from "../../types.js";
-
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface SideMenuProps { }
+import { type UseObjectActionsReturn } from "../../hooks/objectActions.js";
+import { SvgComponent, SxType, ViewDisplayType } from "../../types.js";
+import { ObjectAction } from "../../utils/actions/objectActions.js";
+import { CookiePreferences } from "../../utils/localStorage.js";
+import { HelpButtonProps } from "../buttons/types.js";
+import { TitleProps } from "../text/types.js";
 
 export interface BulkDeleteDialogProps {
     handleClose: (selectedForDelete: ListObject[]) => unknown;
@@ -161,15 +157,15 @@ export interface ObjectActionMenuProps {
 }
 
 export interface LinkDialogProps {
-    handleClose: (newLink?: NodeLinkShape) => unknown;
-    handleDelete: (link: NodeLinkShape) => unknown;
-    isAdd: boolean;
-    isOpen: boolean;
-    language: string; // Language to display/edit
-    link?: NodeLinkShape; // Link to display on open, if editing
-    nodeFrom?: NodeShape | null; // Initial "from" node
-    nodeTo?: NodeShape | null; // Initial "to" node
-    routineVersion: Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">;
+    // handleClose: (newLink?: NodeLinkShape) => unknown;
+    // handleDelete: (link: NodeLinkShape) => unknown;
+    // isAdd: boolean;
+    // isOpen: boolean;
+    // language: string; // Language to display/edit
+    // link?: NodeLinkShape; // Link to display on open, if editing
+    // nodeFrom?: NodeShape | null; // Initial "from" node
+    // nodeTo?: NodeShape | null; // Initial "to" node
+    // routineVersion: Pick<RoutineVersion, "id" | "nodes" | "nodeLinks">;
 }
 
 export interface SubroutineCreateDialogProps {
@@ -177,27 +173,27 @@ export interface SubroutineCreateDialogProps {
     onClose: () => unknown;
 }
 
-export type SubroutineFormProps = Omit<FormProps<Node, NodeRoutineListItemShape>, "disabled" | "display" | "existing" | "isLoading" | "isOpen" | "onCancel" | "isReadLoading" | "onClose" | "onCompleted"> & Required<Pick<SubroutineInfoDialogProps, "handleUpdate" | "handleReorder" | "handleViewFull" | "onClose">> & {
-    /**
-     * True if the routine version itself can be updated. Otherwise, 
-     * only node-level properties can be updated (e.g. index)
-     */
-    canUpdateRoutineVersion: boolean;
-    isEditing: boolean;
-    isOpen: boolean;
-    /** Number of subroutines in parent routine list */
-    numSubroutines: number;
-};
+export type SubroutineFormProps = any;//Omit<FormProps<Node, NodeRoutineListItemShape>, "disabled" | "display" | "existing" | "isLoading" | "isOpen" | "onCancel" | "isReadLoading" | "onClose" | "onCompleted"> & Required<Pick<SubroutineInfoDialogProps, "handleUpdate" | "handleReorder" | "handleViewFull" | "onClose">> & {
+//     /**
+//      * True if the routine version itself can be updated. Otherwise, 
+//      * only node-level properties can be updated (e.g. index)
+//      */
+//     canUpdateRoutineVersion: boolean;
+//     isEditing: boolean;
+//     isOpen: boolean;
+//     /** Number of subroutines in parent routine list */
+//     numSubroutines: number;
+// };
 
 export interface SubroutineInfoDialogProps {
-    data: { node: Node & { routineList: NodeRoutineList }, routineItemId: string } | null;
-    defaultLanguage: string;
-    handleUpdate: (updatedSubroutine: NodeRoutineListItem) => unknown;
-    handleReorder: (nodeId: string, oldIndex: number, newIndex: number) => unknown;
-    handleViewFull: () => unknown;
-    isEditing: boolean;
-    open: boolean;
-    onClose: () => unknown;
+    // data: { node: Node & { routineList: NodeRoutineList }, routineItemId: string } | null;
+    // defaultLanguage: string;
+    // handleUpdate: (updatedSubroutine: NodeRoutineListItem) => unknown;
+    // handleReorder: (nodeId: string, oldIndex: number, newIndex: number) => unknown;
+    // handleViewFull: () => unknown;
+    // isEditing: boolean;
+    // open: boolean;
+    // onClose: () => unknown;
 }
 
 export interface DeleteBookmarkListDialogProps {
@@ -239,6 +235,18 @@ export interface LargeDialogProps {
         paper?: SxType;
         root?: SxType;
     };
+    /** Optional anchor element to position the dialog relative to */
+    anchorEl?: HTMLElement | null;
+    /** Optional anchor origin for positioning when using anchorEl */
+    anchorOrigin?: {
+        vertical: "top" | "center" | "bottom";
+        horizontal: "left" | "center" | "right";
+    };
+    /** Optional transform origin for positioning when using anchorEl */
+    transformOrigin?: {
+        vertical: "top" | "center" | "bottom";
+        horizontal: "left" | "center" | "right";
+    };
 }
 
 export interface MaybeLargeDialogProps extends Omit<LargeDialogProps, "isOpen" | "onClose"> {
@@ -268,11 +276,4 @@ export interface PopoverWithArrowProps extends Omit<PopoverProps, "open" | "sx">
         content?: SxType;
         paper?: SxType;
     }
-}
-
-
-export interface TutorialDialogProps {
-    isOpen: boolean;
-    onClose: () => unknown;
-    onOpen: () => unknown;
 }
