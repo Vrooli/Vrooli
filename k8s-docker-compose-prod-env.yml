@@ -22,24 +22,6 @@ kind: Service
 metadata:
   creationTimestamp: null
   labels:
-    io.kompose.service: docs
-  name: docs
-spec:
-  ports:
-    - name: "4000"
-      port: 4000
-      targetPort: 4000
-  selector:
-    io.kompose.service: docs
-status:
-  loadBalancer: {}
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  creationTimestamp: null
-  labels:
     io.kompose.service: redis
   name: redis
 spec:
@@ -95,16 +77,6 @@ metadata:
   name: vrooli-ingress
 spec:
   rules:
-    - host: "docs.vrooli.com"
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: docs
-                port:
-                  number: 4000
     - host: "vrooli.com"
       http:
         paths:
@@ -323,89 +295,6 @@ spec:
   podSelector:
     matchLabels:
       io.kompose.network/vrooli-app: "true"
-
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  creationTimestamp: null
-  labels:
-    io.kompose.service: docs
-  name: docs
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      io.kompose.service: docs
-  strategy:
-    type: RollingUpdate
-  template:
-    metadata:
-      creationTimestamp: null
-      labels:
-        io.kompose.network/nginx-proxy: "true"
-        io.kompose.network/vrooli-app: "true"
-        io.kompose.service: docs
-    spec:
-      initContainers:
-        - name: init-docs-claim0
-          image: alpine/git
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
-              rm -rf /docs/* &&
-              git clone -n --depth=1 -b master --filter=tree:0 https://github.com/Vrooli/Vrooli /tmp/init-docs-claim0 &&
-              cd /tmp/init-docs-claim0 &&
-              git sparse-checkout set --no-cone packages/docs &&
-              git checkout &&
-              mv /tmp/init-docs-claim0/packages/docs/* /docs &&
-              rm -rf /tmp/init-docs-claim0
-          volumeMounts:
-            - name: docs-claim0
-              mountPath: /docs
-      containers:
-        - args:
-            - serve
-            - --dev-addr=0.0.0.0:4000
-          env:
-            - name: LETSENCRYPT_EMAIL
-              value: "matthalloran8@gmail.com"
-            - name: LETSENCRYPT_HOST
-              value: "docs.vrooli.com,www.docs.vrooli.com"
-            - name: VIRTUAL_HOST
-              value: "docs.vrooli.com,www.docs.vrooli.com"
-            - name: VIRTUAL_PORT
-              value: "4000"
-          image: matthalloran8/vrooli_docs:prod-1.9.7
-          name: docs
-          ports:
-            - containerPort: 4000
-          resources: {}
-          volumeMounts:
-            - mountPath: /docs
-              name: docs-claim0
-      restartPolicy: Always
-      volumes:
-        - name: docs-claim0
-          persistentVolumeClaim:
-            claimName: docs-claim0
-status: {}
-
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  creationTimestamp: null
-  labels:
-    io.kompose.service: docs-claim0
-  name: docs-claim0
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 100Mi
-status: {}
 
 ---
 apiVersion: networking.k8s.io/v1

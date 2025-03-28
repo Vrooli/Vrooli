@@ -207,25 +207,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-  docs:
-    build:
-      context: ./packages/docs
-      dockerfile: Dockerfile
-    container_name: docs
-    image: docs:dev
-    volumes:
-      - ./packages/docs:/docs
-    ports:
-      - "${PORT_DOCS:-4000}:${PORT_DOCS:-4000}"
-    networks:
-      - proxy
-      - app
-    command: serve --dev-addr=0.0.0.0:${PORT_DOCS:-4000}
-    environment:
-      VIRTUAL_HOST: "${VIRTUAL_HOST_DOCS}"
-      VIRTUAL_PORT: "${PORT_DOCS:-4000}"
-      LETSENCRYPT_HOST: "${VIRTUAL_HOST_DOCS}"
-      LETSENCRYPT_EMAIL: "${LETSENCRYPT_EMAIL}"
   # Used to view the database. Open http://localhost:8080
   adminer:
     image: ghcr.io/jeliebig/adminer-autologin
