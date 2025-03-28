@@ -1,6 +1,7 @@
 ---
 description: Used for frontend development
-globs: *.ts, *.tsx
+globs: 
+alwaysApply: false
 ---
 
 - This is a functional React application.

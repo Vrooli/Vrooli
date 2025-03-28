@@ -290,7 +290,7 @@ Vrooli is built using a modern and robust technology stack to ensure performance
 
 - [<img align="left" alt="PostgreSQL" width="26px" src="./assets/postgresql.svg" style="padding-right:10px;" />](https://www.postgresql.org/) **PostgreSQL:** A powerful, open-source relational database system used for data storage and management.
 
-- [<img align="left" alt="Docker" width="26px" src="./assets/docker.svg" style="padding-right:10px;" />](https://www.docker.com/) **Docker:** A platform for developing, shipping, and running applications in containers, ensuring consistency across different environments.
+- [<img align="left" alt="Docker" width="26px" src="./packages/ui/src/assets/icons/service/docker.svg" style="padding-right:10px;" />](https://www.docker.com/) **Docker:** A platform for developing, shipping, and running applications in containers, ensuring consistency across different environments.
 
 ## [🗂️ Project Structure][project-structure]
 [This docs section][project-structure] provides a comprehensive overview of the project’s structure, helping developers get familiar with the layout and organization of the codebase.
