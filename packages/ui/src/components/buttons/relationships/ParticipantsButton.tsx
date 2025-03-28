@@ -3,7 +3,7 @@ import { AvatarGroup, Tooltip } from "@mui/material";
 import { useField, useFormikContext } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SettingsIcon, UserIcon } from "../../../icons/common.js";
+import { Icon, IconCommon } from "../../../icons/Icons.js";
 import { extractImageUrl } from "../../../utils/display/imageTools.js";
 import { placeholderColor } from "../../../utils/display/listTools.js";
 import { ParticipantManageView } from "../../../views/ParticipantManageView/ParticipantManageView.js";
@@ -27,12 +27,12 @@ export function ParticipantsButton({
     const openDialog = useCallback(() => { setDialogOpen(true); }, []);
     const closeDialog = useCallback(() => { setDialogOpen(false); }, []);
 
-    const { avatars, Icon, participantsCount, label, tooltip } = useMemo(() => {
+    const { avatars, iconInfo, participantsCount, label, tooltip } = useMemo(() => {
         const participants = (participantsField.value || []) as ChatParticipantShape[];
         if (!Array.isArray(participants) || participants.some(member => typeof member !== "object")) {
             return {
                 avatars: [],
-                Icon: null,
+                iconInfo: null,
                 participantsCount: 0,
                 label: "",
                 tooltip: "",
@@ -48,7 +48,10 @@ export function ParticipantsButton({
                     src={imageUrl}
                     profileColors={placeholderColor(participant.user?.id)}
                 >
-                    {!imageUrl && <UserIcon />}
+                    {!imageUrl && <IconCommon
+                        decorative
+                        name={isBot ? "Bot" : "User"}
+                    />}
                 </RelationshipAvatar>
             );
         });
@@ -60,7 +63,7 @@ export function ParticipantsButton({
 
         return {
             avatars,
-            Icon: avatars.length > 0 ? undefined : SettingsIcon,
+            iconInfo: avatars.length > 0 ? undefined : { name: "Settings", type: "Common" } as const,
             participantsCount,
             label: truncatedLabel,
             tooltip,
@@ -89,7 +92,9 @@ export function ParticipantsButton({
                 <Tooltip title={tooltip}>
                     <RelationshipButton
                         onClick={openDialog}
-                        startIcon={Avatars || (Icon && <Icon />)}
+                        startIcon={Avatars || (iconInfo && <Icon
+                            info={iconInfo}
+                        />)}
                         variant="outlined"
                     >
                         {label}
@@ -100,7 +105,9 @@ export function ParticipantsButton({
     }
     return (
         <RelationshipChip
-            icon={Avatars || (Icon && <Icon />) || undefined}
+            icon={Avatars || (iconInfo && <Icon
+                info={iconInfo}
+            />) || undefined}
             label={label}
             onClick={openDialog}
         />

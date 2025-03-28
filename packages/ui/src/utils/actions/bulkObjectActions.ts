@@ -1,7 +1,4 @@
-import { BookmarkFor, CopyType, DeleteType, ListObject, ReportFor, Session, TranslationKeyCommon } from "@local/shared";
-import { ListMenuItemData } from "../../components/dialogs/types.js";
-import { AddIcon, BookmarkFilledIcon, BookmarkOutlineIcon, CopyIcon, DeleteIcon, ReportIcon } from "../../icons/common.js";
-import { SvgComponent } from "../../types.js";
+import { BookmarkFor, CopyType, DeleteType, ListObject, ReportFor, Session } from "@local/shared";
 import { checkIfLoggedIn } from "../../utils/authentication/session.js";
 import { getYou } from "../display/listTools.js";
 
@@ -42,7 +39,6 @@ function getBulkYou(objects: ListObject[]) {
     };
 }
 
-
 /**
  * Determines which actions are available for the given objects.
  * Actions follow the order: Edit, Bookmark, ProjectAdd, Export, Report, Delete
@@ -73,23 +69,4 @@ export function getAvailableBulkActions(objects: ListObject[], session: Session 
         options.push(BulkObjectAction.Delete);
     }
     return options;
-}
-
-/**
- * Maps an BulkObjectAction to [labelKey, Icon, iconColor, preview]
- */
-const allBulkOptionsMap: { [key in BulkObjectAction]: [TranslationKeyCommon, SvgComponent, string, boolean] } = ({
-    [BulkObjectAction.Bookmark]: ["Bookmark", BookmarkOutlineIcon, "#cbae30", false],
-    [BulkObjectAction.BookmarkUndo]: ["BookmarkUndo", BookmarkFilledIcon, "#cbae30", false],
-    [BulkObjectAction.Delete]: ["Delete", DeleteIcon, "default", false],
-    [BulkObjectAction.Export]: ["Export", CopyIcon, "default", false],
-    [BulkObjectAction.ProjectAdd]: ["ProjectAdd", AddIcon, "default", false],
-    [BulkObjectAction.Report]: ["Report", ReportIcon, "default", false],
-});
-
-export function getBulkActionsDisplayData(actions: BulkObjectAction[]): Pick<ListMenuItemData<BulkObjectAction>, "Icon" | "iconColor" | "labelKey" | "value">[] {
-    return actions.map((action) => {
-        const [labelKey, Icon, iconColor, preview] = allBulkOptionsMap[action];
-        return { labelKey, Icon, iconColor, preview, value: action };
-    });
 }

@@ -1,19 +1,26 @@
 import { IconButton, Slider, SliderThumb, useTheme } from "@mui/material";
-import { useThrottle } from "hooks/useThrottle";
-import { AddIcon, CaseSensitiveIcon, MinusIcon } from "icons/common.js";
 import { useCallback, useState } from "react";
-import { FONT_SIZE_MAX, FONT_SIZE_MIN } from "utils/consts.js";
-import { getCookie } from "utils/localStorage.js";
-import { PubSub } from "utils/pubsub.js";
+import { useThrottle } from "../../../hooks/useThrottle.js";
+import { IconCommon, IconText } from "../../../icons/Icons.js";
+import { FONT_SIZE_MAX, FONT_SIZE_MIN } from "../../../utils/consts.js";
+import { getCookie } from "../../../utils/localStorage.js";
+import { PubSub } from "../../../utils/pubsub.js";
 
 const THROTTLE_MS = 50;
 
 function ThumbComponent(props: React.HTMLAttributes<unknown>) {
     const { children, ...other } = props;
     return (
-        <SliderThumb {...other}>
+        <SliderThumb
+            aria-label="Text size"
+            {...other}
+        >
             {children}
-            <CaseSensitiveIcon width="20px" height="20px" />
+            <IconText
+                decorative
+                name="CaseSensitive"
+                size={20}
+            />
         </SliderThumb>
     );
 }
@@ -32,6 +39,12 @@ export function TextSizeButtons() {
             PubSub.get().publish("fontSize", newValue);
         }
     }, []);
+    function decreaseByOne() {
+        handleSliderChange(size - 1);
+    }
+    function increaseByOne() {
+        handleSliderChange(size + 1);
+    }
 
     const handleSliderChangeThrottled = useThrottle<[Event, number | number[]]>((event, newValue) => {
         handleSliderChange(Array.isArray(newValue) ?
@@ -43,8 +56,16 @@ export function TextSizeButtons() {
 
     return (
         <div style={{ display: "flex", alignItems: "center" }}>
-            <IconButton onClick={() => handleSliderChange(size - 1)} disabled={size === FONT_SIZE_MIN}>
-                <MinusIcon fill={palette.secondary.main} />
+            <IconButton
+                aria-label="Decrease text size"
+                disabled={size === FONT_SIZE_MIN}
+                onClick={decreaseByOne}
+            >
+                <IconCommon
+                    decorative
+                    fill={palette.secondary.main}
+                    name="Minus"
+                />
             </IconButton>
             <Slider
                 value={size}
@@ -67,8 +88,16 @@ export function TextSizeButtons() {
                     },
                 }}
             />
-            <IconButton onClick={() => handleSliderChange(size + 1)} disabled={size === FONT_SIZE_MAX}>
-                <AddIcon fill={palette.secondary.main} />
+            <IconButton
+                aria-label="Increase text size"
+                disabled={size === FONT_SIZE_MAX}
+                onClick={increaseByOne}
+            >
+                <IconCommon
+                    decorative
+                    fill={palette.secondary.main}
+                    name="Plus"
+                />
             </IconButton>
         </div>
     );

@@ -6,7 +6,7 @@ import { FixedSizeList } from "react-window";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { SessionContext } from "../../../contexts.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
-import { ArrowDropDownIcon, ArrowDropUpIcon, CompleteIcon, DeleteIcon, LanguageIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { Z_INDEX } from "../../../utils/consts.js";
 import { AllLanguages, getLanguageSubtag, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { PubSub } from "../../../utils/pubsub.js";
@@ -280,7 +280,11 @@ export function SelectLanguageMenu({
                                 >
                                     {/* Display check mark if selected */}
                                     {isSelected && (
-                                        <CompleteIcon fill={(isCurrent) ? palette.secondary.contrastText : palette.background.textPrimary} />
+                                        <IconCommon
+                                            decorative
+                                            fill={(isCurrent) ? palette.secondary.contrastText : palette.background.textPrimary}
+                                            name="Complete"
+                                        />
                                     )}
                                     <Typography variant="body2" style={{
                                         display: "block",
@@ -294,7 +298,11 @@ export function SelectLanguageMenu({
                                                 size="small"
                                                 onClick={(e) => onDelete(e, option[0])}
                                             >
-                                                <DeleteIcon fill={isCurrent ? palette.secondary.contrastText : palette.background.textPrimary} />
+                                                <IconCommon
+                                                    decorative
+                                                    fill={isCurrent ? palette.secondary.contrastText : palette.background.textPrimary}
+                                                    name="Delete"
+                                                />
                                             </IconButton>
                                         </Tooltip>
                                     )}
@@ -333,15 +341,27 @@ export function SelectLanguageMenu({
                     ...(sxs?.root ?? {}),
                 }}>
                     <IconButton size="large" sx={{ padding: "4px" }}>
-                        <LanguageIcon fill={"white"} />
+                        <IconCommon
+                            decorative
+                            fill={"white"}
+                            name="Language"
+                        />
                     </IconButton>
                     {/* Only show language code when editing to save space. You'll know what language you're reading just by reading */}
                     {isEditing && <Typography variant="body2" sx={{ color: "white", marginRight: "8px" }}>
                         {currentLanguage?.toLocaleUpperCase()}
                     </Typography>}
                     {/* Drop down or drop up icon */}
-                    <IconButton size="large" aria-label="language-select" sx={{ padding: "4px", marginLeft: "-8px" }}>
-                        {open ? <ArrowDropUpIcon fill={"white"} /> : <ArrowDropDownIcon fill={"white"} />}
+                    <IconButton
+                        aria-label="language-select"
+                        size="large"
+                        sx={{ padding: "4px", marginLeft: "-8px" }}
+                    >
+                        <IconCommon
+                            decorative
+                            fill={"white"}
+                            name={open ? "ArrowDropUp" : "ArrowDropDown"}
+                        />
                     </IconButton>
                 </Stack>
             </Tooltip>

@@ -2,7 +2,7 @@ import { Tooltip, useTheme } from "@mui/material";
 import { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../contexts.js";
-import { MagicIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
 import { SideActionsButton } from "../../styles.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { AutoFillButtonProps } from "./types.js";
@@ -24,7 +24,11 @@ export function AutoFillButton({
                 disabled={isAutoFillLoading}
                 onClick={handleAutoFill}
             >
-                <MagicIcon fill={palette.secondary.contrastText} />
+                <IconCommon
+                    decorative
+                    fill={palette.secondary.contrastText}
+                    name="Magic"
+                />
             </SideActionsButton>
         </Tooltip>
     );

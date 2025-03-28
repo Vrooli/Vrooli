@@ -1,9 +1,10 @@
 import { FormHeaderType, FormStructureType, HeaderTag } from "@local/shared";
 import { Box, Button, IconButton, List, ListItem, ListItemIcon, ListItemText, Palette, Popover, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import React, { forwardRef, memo, useCallback, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useEditableLabel } from "../../../hooks/useEditableLabel.js";
 import { usePopover } from "../../../hooks/usePopover.js";
-import { DeleteIcon, Header1Icon, Header2Icon, Header3Icon, Header4Icon } from "../../../icons/common.js";
+import { Icon, IconCommon } from "../../../icons/Icons.js";
 import { HelpButton } from "../../buttons/HelpButton/HelpButton.js";
 import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
 import { RichInputBase } from "../RichInput/RichInput.js";
@@ -20,12 +21,12 @@ const ROWS_MIN_PARAGRAPH = 1;
 const ROWS_MAX_PARAGRAPH = 10;
 
 export const FORM_HEADER_SIZE_OPTIONS = [
-    { type: FormStructureType.Header, tag: "h1", icon: <Header1Icon />, label: "Title (Largest)" },
-    { type: FormStructureType.Header, tag: "h2", icon: <Header2Icon />, label: "Subtitle (Large)" },
-    { type: FormStructureType.Header, tag: "h3", icon: <Header3Icon />, label: "Header (Normal)" },
-    { type: FormStructureType.Header, tag: "h4", icon: <Header4Icon />, label: "Subheader (Small)" },
-    { type: FormStructureType.Header, tag: "body1", icon: null, label: "Paragraph" },
-    { type: FormStructureType.Header, tag: "body2", icon: null, label: "Caption" },
+    { type: FormStructureType.Header, tag: "h1", iconInfo: { name: "Header1", type: "Text" }, label: "Title (Largest)" },
+    { type: FormStructureType.Header, tag: "h2", iconInfo: { name: "Header2", type: "Text" }, label: "Subtitle (Large)" },
+    { type: FormStructureType.Header, tag: "h3", iconInfo: { name: "Header3", type: "Text" }, label: "Header (Normal)" },
+    { type: FormStructureType.Header, tag: "h4", iconInfo: { name: "Header4", type: "Text" }, label: "Subheader (Small)" },
+    { type: FormStructureType.Header, tag: "body1", iconInfo: null, label: "Paragraph" },
+    { type: FormStructureType.Header, tag: "body2", iconInfo: null, label: "Caption" },
 ] as const;
 
 const COLOR_OPTIONS = [
@@ -200,6 +201,7 @@ export function FormHeader({
     onUpdate,
     onDelete,
 }: FormHeaderProps) {
+    const { t } = useTranslation();
     const { palette, typography } = useTheme();
 
     const getHeaderStyle = useCallback((tag: HeaderTag, color?: string) => {
@@ -371,9 +373,17 @@ export function FormHeader({
 
         return (
             <Box display="flex" alignItems="center">
-                <Tooltip title="Delete">
-                    <IconButton onClick={onDelete}>
-                        <DeleteIcon fill={palette.error.main} width="24px" height="24px" />
+                <Tooltip title={t("Delete")}>
+                    <IconButton
+                        aria-label={t("Delete")}
+                        onClick={onDelete}
+                    >
+                        <IconCommon
+                            decorative
+                            fill={palette.error.main}
+                            name="Delete"
+                            size={24}
+                        />
                     </IconButton>
                 </Tooltip>
                 {HeaderContent}
@@ -401,7 +411,10 @@ export function FormHeader({
                     {FORM_HEADER_SIZE_OPTIONS.map((item) => (
                         <SizeListItem
                             key={item.tag}
-                            icon={item.icon}
+                            icon={item.iconInfo && <Icon
+                                decorative
+                                info={item.iconInfo}
+                            />}
                             label={item.label}
                             tag={item.tag}
                             onSetTag={updateTag}

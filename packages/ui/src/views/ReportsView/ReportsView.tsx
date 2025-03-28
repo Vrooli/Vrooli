@@ -19,7 +19,7 @@ import { useFindMany } from "../../hooks/useFindMany.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { fetchDataUsingUrl } from "../../hooks/useManagedObject.js";
 import { useObjectContextMenu } from "../../hooks/useObjectContextMenu.js";
-import { ReportIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
 import { ArgsType } from "../../types.js";
@@ -324,7 +324,10 @@ export function ReportsView() {
                     color="primary"
                     fullWidth
                     onClick={handleAddReport}
-                    startIcon={<ReportIcon />}
+                    startIcon={<IconCommon
+                        decorative
+                        name="Report"
+                    />}
                     variant="contained"
                 >
                     {t("AddReport")}

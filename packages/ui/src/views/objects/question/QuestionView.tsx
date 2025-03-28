@@ -3,8 +3,6 @@ import { Stack, useTheme } from "@mui/material";
 import { Formik } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route/router.js";
-import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "utils/display/translationTools.js";
 import { SideActionsButtons } from "../../../components/buttons/SideActionsButtons/SideActionsButtons.js";
 import { CommentContainer } from "../../../components/containers/CommentContainer/CommentContainer.js";
 import { SelectLanguageMenu } from "../../../components/dialogs/SelectLanguageMenu/SelectLanguageMenu.js";
@@ -17,11 +15,13 @@ import { MarkdownDisplay } from "../../../components/text/MarkdownDisplay.js";
 import { SessionContext } from "../../../contexts.js";
 import { useObjectActions } from "../../../hooks/objectActions.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
-import { EditIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
+import { useLocation } from "../../../route/router.js";
 import { FormSection, SideActionsButton } from "../../../styles.js";
 import { ObjectAction } from "../../../utils/actions/objectActions.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { firstString } from "../../../utils/display/stringTools.js";
+import { getLanguageSubtag, getPreferredLanguage, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { questionInitialValues } from "./QuestionUpsert.js";
 import { QuestionViewProps } from "./types.js";
 
@@ -134,7 +134,12 @@ export function QuestionView({
                 {/* Edit button */}
                 {permissions.canUpdate ? (
                     <SideActionsButton aria-label={t("UpdateQuestion")} onClick={() => { actionData.onActionStart(ObjectAction.Edit); }}>
-                        <EditIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.contrastText}
+                            name="Edit"
+                            size={36}
+                        />
                     </SideActionsButton>
                 ) : null}
             </SideActionsButtons>

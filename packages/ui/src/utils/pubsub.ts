@@ -184,7 +184,7 @@ export type MenuPayloads = {
             // Add data here
         }
     }
-    [ELEMENT_IDS.FullPageSpinner]: MenuBase & {
+    [ELEMENT_IDS.FullPageSpinner]: Omit<MenuBase, "isOpen"> & {
         id: typeof ELEMENT_IDS.FullPageSpinner;
         /**
          * Optional data to provide to the menu

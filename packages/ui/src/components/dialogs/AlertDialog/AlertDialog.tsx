@@ -1,11 +1,11 @@
-import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogProps, Palette, styled, useTheme } from "@mui/material";
+import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogProps, styled, useTheme } from "@mui/material";
 import i18next from "i18next";
-import { ErrorIcon, InfoIcon, SuccessIcon, WarningIcon } from "icons/common.js";
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Z_INDEX } from "utils/consts.js";
-import { translateSnackMessage } from "utils/display/translationTools.js";
-import { PubSub } from "utils/pubsub.js";
+import { Icon, IconInfo } from "../../../icons/Icons.js";
+import { Z_INDEX } from "../../../utils/consts.js";
+import { translateSnackMessage } from "../../../utils/display/translationTools.js";
+import { PubSub } from "../../../utils/pubsub.js";
 import { DialogTitle } from "../DialogTitle/DialogTitle.js";
 
 interface StateButton {
@@ -31,21 +31,6 @@ function defaultState(): AlertDialogState {
     return {
         buttons: [{ label: i18next.t("Ok") }],
     } as const;
-}
-
-function iconColor(severity: AlertDialogSeverity | `${AlertDialogSeverity}` | undefined, palette: Palette) {
-    switch (severity) {
-        case "Error":
-            return palette.error.dark;
-        case "Info":
-            return palette.info.main;
-        case "Success":
-            return palette.success.main;
-        case "Warning":
-            return palette.warning.main;
-        default:
-            return palette.primary.light;
-    }
 }
 
 const titleId = "alert-dialog-title";
@@ -80,12 +65,12 @@ export function AlertDialog() {
     const [open, setOpen] = useState(false);
 
     // Determine the icon based on severity
-    const Icon = state.severity ? {
-        [AlertDialogSeverity.Error]: ErrorIcon,
-        [AlertDialogSeverity.Info]: InfoIcon,
-        [AlertDialogSeverity.Success]: SuccessIcon,
-        [AlertDialogSeverity.Warning]: WarningIcon,
-    }[state.severity] : null;
+    const { iconInfo, iconFill }: { iconInfo: IconInfo | null, iconFill: string | null } = state.severity ? {
+        [AlertDialogSeverity.Error]: { iconInfo: { name: "Error" as const, type: "Common" as const }, iconFill: palette.error.dark },
+        [AlertDialogSeverity.Info]: { iconInfo: { name: "Info" as const, type: "Common" as const }, iconFill: palette.info.main },
+        [AlertDialogSeverity.Success]: { iconInfo: { name: "Success" as const, type: "Common" as const }, iconFill: palette.success.main },
+        [AlertDialogSeverity.Warning]: { iconInfo: { name: "Warning" as const, type: "Common" as const }, iconFill: palette.warning.main },
+    }[state.severity] : { iconInfo: null, iconFill: null };
 
     useEffect(() => {
         const unsubscribe = PubSub.get().subscribe("alertDialog", (o) => {
@@ -129,10 +114,20 @@ export function AlertDialog() {
                 id={titleId}
                 title={state.title}
                 onClose={resetState}
-                startComponent={Icon ? <Icon fill={iconColor(state.severity, palette)} /> : undefined}
+                startComponent={iconInfo ? <Icon
+                    decorative={false}
+                    fill={iconFill}
+                    info={iconInfo}
+                    size={24}
+                /> : undefined}
             />}
             <DialogContent>
-                {!state.title && Icon !== null && <Icon fill={iconColor(state.severity, palette)} />}
+                {!state.title && iconInfo !== null && <Icon
+                    decorative={false}
+                    fill={iconFill}
+                    info={iconInfo}
+                    size={24}
+                />}
                 <DialogContentText id={descriptionAria} sx={dialogContextTextStyle}>
                     {state.message}
                 </DialogContentText>

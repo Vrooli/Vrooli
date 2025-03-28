@@ -1,7 +1,6 @@
 import { CalendarPageTabOption, ChatInviteStatus, CodeType, HistoryPageTabOption, InboxPageTabOption, LINKS, MemberInviteStatus, MemberManagePageTabOption, MyStuffPageTabOption, ParticipantManagePageTabOption, RoutineType, RunStatus, ScheduleFor, SearchPageTabOption, SearchType, SearchTypeToSearchInput, SearchVersionPageTabOption, SignUpPageTabOption, StandardType, TeamPageTabOption, TranslationKeyCommon, UserPageTabOption, VisibilityType, YouInflated } from "@local/shared";
 import { Palette } from "@mui/material";
-import { ActionIcon, AddIcon, ApiIcon, ArticleIcon, FocusModeIcon, HelpIcon, MonthIcon, NoteIcon, ObjectIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon, VisibleIcon } from "../../icons/common.js";
-import { SvgComponent } from "../../types.js";
+import { IconInfo } from "../../icons/Icons.js";
 import { PolicyTabOption } from "../../views/PolicyView/PolicyView.js";
 import { apiSearchParams } from "./schemas/api.js";
 import { apiVersionSearchParams } from "./schemas/apiVersion.js";
@@ -89,7 +88,7 @@ type Exact<T, Shape> =
 export type TabParamBase<TabList extends TabsInfo> = {
     color?: (palette: Palette) => (string | TabStateColors)
     href?: string;
-    Icon?: SvgComponent,
+    iconInfo?: IconInfo,
     key: TabList["Key"];
     titleKey: TranslationKeyCommon;
 };
@@ -123,91 +122,91 @@ export type SearchViewTabsInfo = {
 
 export const searchViewTabParams: TabParamSearchableList<SearchViewTabsInfo, ["Popular", "Routine", "Project", "Question", "Note", "Team", "User", "Standard", "Api", "Code"]> = [
     {
-        Icon: VisibleIcon,
+        iconInfo: { name: "Visible", type: "Common" } as const,
         key: SearchPageTabOption.All,
         titleKey: "All",
         searchType: "Popular",
         where: () => ({}),
     },
     {
-        Icon: RoutineIcon,
+        iconInfo: { name: "Routine", type: "Routine" } as const,
         key: SearchPageTabOption.RoutineMultiStep,
         titleKey: "RoutineMultiStep",
         searchType: "Routine",
         where: () => ({ isInternal: false, latestVersionRoutineType: RoutineType.MultiStep } as const),
     },
     {
-        Icon: ActionIcon,
+        iconInfo: { name: "Action", type: "Common" } as const,
         key: SearchPageTabOption.RoutineSingleStep,
         titleKey: "RoutineSingleStep",
         searchType: "Routine",
         where: () => ({ isInternal: false, latestVersionRoutineTypes: Object.values(RoutineType).filter(type => type !== RoutineType.MultiStep) }),
     },
     {
-        Icon: ProjectIcon,
+        iconInfo: { name: "Project", type: "Common" } as const,
         key: SearchPageTabOption.Project,
         titleKey: "Project",
         searchType: "Project",
         where: () => ({}),
     },
     {
-        Icon: HelpIcon,
+        iconInfo: { name: "Help", type: "Common" } as const,
         key: SearchPageTabOption.Question,
         titleKey: "Question",
         searchType: "Question",
         where: () => ({}),
     },
     {
-        Icon: NoteIcon,
+        iconInfo: { name: "Note", type: "Common" } as const,
         key: SearchPageTabOption.Note,
         titleKey: "Note",
         searchType: "Note",
         where: () => ({}),
     },
     {
-        Icon: TeamIcon,
+        iconInfo: { name: "Team", type: "Common" } as const,
         key: SearchPageTabOption.Team,
         titleKey: "Team",
         searchType: "Team",
         where: () => ({}),
     },
     {
-        Icon: UserIcon,
+        iconInfo: { name: "User", type: "Common" } as const,
         key: SearchPageTabOption.User,
         titleKey: "User",
         searchType: "User",
         where: () => ({}),
     },
     {
-        Icon: ArticleIcon,
+        iconInfo: { name: "Article", type: "Common" } as const,
         key: SearchPageTabOption.Prompt,
         titleKey: "Prompt",
         searchType: "Standard",
         where: () => ({ isInternal: false, variantLatestVersion: StandardType.Prompt }),
     },
     {
-        Icon: ObjectIcon,
+        iconInfo: { name: "Object", type: "Common" } as const,
         key: SearchPageTabOption.DataStructure,
         titleKey: "DataStructure",
         searchType: "Standard",
         where: () => ({ isInternal: false, variantLatestVersion: StandardType.DataStructure }),
     },
     {
-        Icon: ApiIcon,
+        iconInfo: { name: "Api", type: "Common" } as const,
         key: SearchPageTabOption.Api,
         titleKey: "Api",
         searchType: "Api",
         where: () => ({}),
     },
     {
-        Icon: TerminalIcon,
+        iconInfo: { name: "Terminal", type: "Common" } as const,
         key: SearchPageTabOption.DataConverter,
         titleKey: "DataConverter",
         searchType: "Code",
         where: () => ({ codeTypeLatestVersion: CodeType.DataConvert }),
     },
     {
-        Icon: SmartContractIcon,
+        iconInfo: { name: "SmartContract", type: "Common" } as const,
         key: SearchPageTabOption.SmartContract,
         titleKey: "SmartContract",
         searchType: "Code",
@@ -223,63 +222,63 @@ export type SearchVersionViewTabsInfo = {
 
 export const searchVersionViewTabParams: TabParamSearchableList<SearchVersionViewTabsInfo, ["RoutineVersion", "ProjectVersion", "NoteVersion", "StandardVersion", "ApiVersion", "CodeVersion"]> = [
     {
-        Icon: RoutineIcon,
+        iconInfo: { name: "Routine", type: "Routine" } as const,
         key: SearchVersionPageTabOption.RoutineMultiStepVersion,
         titleKey: "RoutineMultiStep",
         searchType: "RoutineVersion",
         where: () => ({ isInternalWithRoot: false, routineType: RoutineType.MultiStep }),
     },
     {
-        Icon: ActionIcon,
+        iconInfo: { name: "Action", type: "Common" } as const,
         key: SearchVersionPageTabOption.RoutineSingleStepVersion,
         titleKey: "RoutineSingleStep",
         searchType: "RoutineVersion",
         where: () => ({ isInternalWithRoot: false, routineTypes: Object.values(RoutineType).filter(type => type !== RoutineType.MultiStep) }),
     },
     {
-        Icon: ProjectIcon,
+        iconInfo: { name: "Project", type: "Common" } as const,
         key: SearchVersionPageTabOption.ProjectVersion,
         titleKey: "Project",
         searchType: "ProjectVersion",
         where: () => ({}),
     },
     {
-        Icon: NoteIcon,
+        iconInfo: { name: "Note", type: "Common" } as const,
         key: SearchVersionPageTabOption.NoteVersion,
         titleKey: "Note",
         searchType: "NoteVersion",
         where: () => ({}),
     },
     {
-        Icon: ArticleIcon,
+        iconInfo: { name: "Article", type: "Common" } as const,
         key: SearchVersionPageTabOption.PromptVersion,
         titleKey: "Prompt",
         searchType: "StandardVersion",
         where: () => ({ isInternalWithRoot: false, variant: StandardType.Prompt }),
     },
     {
-        Icon: ObjectIcon,
+        iconInfo: { name: "Object", type: "Common" } as const,
         key: SearchVersionPageTabOption.DataStructureVersion,
         titleKey: "DataStructure",
         searchType: "StandardVersion",
         where: () => ({ isInternalWithRoot: false, variant: StandardType.DataStructure }),
     },
     {
-        Icon: ApiIcon,
+        iconInfo: { name: "Api", type: "Common" } as const,
         key: SearchVersionPageTabOption.ApiVersion,
         titleKey: "Api",
         searchType: "ApiVersion",
         where: () => ({}),
     },
     {
-        Icon: TerminalIcon,
+        iconInfo: { name: "Terminal", type: "Common" } as const,
         key: SearchVersionPageTabOption.DataConverterVersion,
         titleKey: "DataConverter",
         searchType: "CodeVersion",
         where: () => ({ codeType: CodeType.DataConvert }),
     },
     {
-        Icon: SmartContractIcon,
+        iconInfo: { name: "SmartContract", type: "Common" } as const,
         key: SearchVersionPageTabOption.SmartContractVersion,
         titleKey: "SmartContract",
         searchType: "CodeVersion",
@@ -374,28 +373,28 @@ export type FindObjectTabsInfo = {
 export const findObjectTabParams: TabParamSearchableList<FindObjectTabsInfo, ["Popular", "Routine", "Project", "Question", "Note", "Team", "User", "Standard", "Api", "Code", "FocusMode", "Meeting", "RunRoutine", "RunProject"]> = [
     ...searchViewTabParams,
     {
-        Icon: FocusModeIcon,
+        iconInfo: { name: "FocusMode", type: "Common" } as const,
         key: CalendarPageTabOption.FocusMode,
         titleKey: "FocusMode",
         searchType: "FocusMode",
         where: () => ({}),
     },
     {
-        Icon: TeamIcon,
+        iconInfo: { name: "Team", type: "Common" } as const,
         key: CalendarPageTabOption.Meeting,
         titleKey: "Meeting",
         searchType: "Meeting",
         where: () => ({}),
     },
     {
-        Icon: RoutineIcon,
+        iconInfo: { name: "Routine", type: "Routine" } as const,
         key: CalendarPageTabOption.RunRoutine,
         titleKey: "RunRoutine",
         searchType: "RunRoutine",
         where: () => ({}),
     },
     {
-        Icon: ProjectIcon,
+        iconInfo: { name: "Project", type: "Common" } as const,
         key: CalendarPageTabOption.RunProject,
         titleKey: "RunProject",
         searchType: "RunProject",
@@ -449,84 +448,84 @@ export type MyStuffTabsInfo = {
 
 export const myStuffTabParams: TabParamSearchableList<MyStuffTabsInfo, ["Popular", "Project", "Routine", "Schedule", "Reminder", "Note", "Question", "Team", "User", "Standard", "Api", "Code"]> = [
     {
-        Icon: VisibleIcon,
+        iconInfo: { name: "Visible", type: "Common" } as const,
         key: MyStuffPageTabOption.All,
         titleKey: "All",
         searchType: "Popular",
         where: () => ({ visibility: VisibilityType.Own }),
     },
     {
-        Icon: ProjectIcon,
+        iconInfo: { name: "Project", type: "Common" } as const,
         key: MyStuffPageTabOption.Project,
         titleKey: "Project",
         searchType: "Project",
         where: () => ({ visibility: VisibilityType.Own }),
     },
     {
-        Icon: RoutineIcon,
+        iconInfo: { name: "Routine", type: "Routine" } as const,
         key: MyStuffPageTabOption.Routine,
         titleKey: "Routine",
         searchType: "Routine",
         where: () => ({ isInternal: false, visibility: VisibilityType.Own }),
     },
     {
-        Icon: MonthIcon,
+        iconInfo: { name: "Month", type: "Common" } as const,
         key: MyStuffPageTabOption.Schedule,
         titleKey: "Schedule",
         searchType: "Schedule",
         where: () => ({ visibility: VisibilityType.Own }),
     },
     {
-        Icon: ReminderIcon,
+        iconInfo: { name: "Reminder", type: "Common" } as const,
         key: MyStuffPageTabOption.Reminder,
         titleKey: "Reminder",
         searchType: "Reminder",
         where: () => ({}), // Always "Own" visibility
     },
     {
-        Icon: NoteIcon,
+        iconInfo: { name: "Note", type: "Common" } as const,
         key: MyStuffPageTabOption.Note,
         titleKey: "Note",
         searchType: "Note",
         where: () => ({ visibility: VisibilityType.Own }),
     },
     {
-        Icon: HelpIcon,
+        iconInfo: { name: "Help", type: "Common" } as const,
         key: MyStuffPageTabOption.Question,
         titleKey: "Question",
         searchType: "Question",
         where: () => ({ visibility: VisibilityType.Own }),
     },
     {
-        Icon: TeamIcon,
+        iconInfo: { name: "Team", type: "Common" } as const,
         key: MyStuffPageTabOption.Team,
         titleKey: "Team",
         searchType: "Team",
         where: ({ userId }) => ({ memberUserIds: [userId] }),
     },
     {
-        Icon: UserIcon,
+        iconInfo: { name: "User", type: "Common" } as const,
         key: MyStuffPageTabOption.User,
         titleKey: "Bot",
         searchType: "User",
         where: ({ userId }) => ({ visibility: VisibilityType.Own, isBot: true, excludeIds: [userId] }),
     },
     {
-        Icon: StandardIcon,
+        iconInfo: { name: "Standard", type: "Common" } as const,
         key: MyStuffPageTabOption.Standard,
         titleKey: "Standard",
         searchType: "Standard",
         where: () => ({ visibility: VisibilityType.Own }),
     },
     {
-        Icon: ApiIcon,
+        iconInfo: { name: "Api", type: "Common" } as const,
         key: MyStuffPageTabOption.Api,
         titleKey: "Api",
         searchType: "Api",
         where: () => ({ visibility: VisibilityType.Own }),
     },
     {
-        Icon: TerminalIcon,
+        iconInfo: { name: "Terminal", type: "Common" } as const,
         key: MyStuffPageTabOption.Code,
         titleKey: "Code",
         searchType: "Code",
@@ -663,7 +662,7 @@ export const participantTabParams: TabParamSearchableList<ParticipantTabsInfo, [
         where: ({ chatId }) => ({ chatId, statuses: [ChatInviteStatus.Pending, ChatInviteStatus.Declined] }),
     },
     {
-        Icon: AddIcon,
+        iconInfo: { name: "Add", type: "Common" } as const,
         key: ParticipantManagePageTabOption.Add,
         titleKey: "SearchUser",
         searchType: "User",

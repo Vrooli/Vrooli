@@ -4,7 +4,7 @@ import { useField } from "formik";
 import { HTMLAttributes, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useFetch } from "../../../hooks/useFetch.js";
-import { TagIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { CHIP_LIST_LIMIT } from "../../../utils/consts.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { BookmarkButton } from "../../buttons/BookmarkButton.js";
@@ -265,7 +265,10 @@ export function TagSelectorBase({
             startAdornment: (
                 <>
                     <InputAdornment position="start">
-                        <TagIcon />
+                        <IconCommon
+                            decorative
+                            name="Tag"
+                        />
                     </InputAdornment>
                     {params.InputProps.startAdornment}
                 </>
@@ -328,6 +331,7 @@ export function TagSelector({
 }: TagSelectorProps) {
     const [field, , helpers] = useField<(TagShape | Tag)[] | undefined>(name);
 
+    const tags = useMemo(() => field.value ?? [], [field.value]);
     const handleTagsUpdate = useCallback((tags: (TagShape | Tag)[]) => {
         exists(helpers) && helpers.setValue(tags);
     }, [helpers]);
@@ -335,7 +339,7 @@ export function TagSelector({
     return (
         <TagSelectorBase
             handleTagsUpdate={handleTagsUpdate}
-            tags={field.value ?? []}
+            tags={tags}
             {...props}
         />
     );

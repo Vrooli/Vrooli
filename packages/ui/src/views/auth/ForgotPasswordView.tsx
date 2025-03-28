@@ -3,8 +3,6 @@ import { Box, Button, InputAdornment } from "@mui/material";
 import { Field, Formik, FormikHelpers } from "formik";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route/router.js";
-import { ForgotPasswordViewProps } from "views/types.js";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { BreadcrumbsBase } from "../../components/breadcrumbs/BreadcrumbsBase.js";
 import { TextInput } from "../../components/inputs/TextInput/TextInput.js";
@@ -12,8 +10,10 @@ import { TopBar } from "../../components/navigation/TopBar.js";
 import { InnerForm } from "../../forms/BaseForm/BaseForm.js";
 import { formPaper, formSubmit } from "../../forms/styles.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
-import { EmailIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
+import { useLocation } from "../../route/router.js";
 import { CenteredContentPage, CenteredContentPageWrap, CenteredContentPaper, FormContainer, FormSection } from "../../styles.js";
+import { ForgotPasswordViewProps } from "../types.js";
 
 interface ForgotPasswordFormProps {
     onClose?: () => unknown;
@@ -36,7 +36,10 @@ const breadcrumbsStyle = {
 const emailInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <EmailIcon />
+            <IconCommon
+                decorative
+                name="Email"
+            />
         </InputAdornment>
     ),
 } as const;

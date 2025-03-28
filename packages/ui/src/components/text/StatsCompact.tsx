@@ -1,7 +1,7 @@
 import { ListObject, ReactionFor } from "@local/shared";
 import { Box, Typography, styled } from "@mui/material";
 import { useCallback, useMemo } from "react";
-import { VisibleIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
 import { getCounts, getYou } from "../../utils/display/listTools.js";
 import { ReportsLink } from "../buttons/ReportsLink/ReportsLink.js";
 import { VoteButton } from "../buttons/VoteButton.js";
@@ -40,7 +40,11 @@ export function StatsCompact<T extends ListObject>({
         <OuterBox>
             {/* Views */}
             <Box display="flex" alignItems="center">
-                <VisibleIcon width={32} height={32} />
+                <IconCommon
+                    decorative
+                    name="Visible"
+                    size={32}
+                />
                 <Typography variant="body2">
                     {(object as any)?.views ?? 1}
                 </Typography>

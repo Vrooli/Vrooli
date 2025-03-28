@@ -20,7 +20,7 @@ import { useSaveToCache, useUpsertActions } from "../../../hooks/forms.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
-import { AddIcon, DeleteIcon, FocusModeIcon, OpenInNewIcon, ProjectIcon, RoutineIcon, TeamIcon } from "../../../icons/common.js";
+import { Icon, IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { FormSection, ProfileAvatar } from "../../../styles.js";
 import { getDisplay, placeholderColor } from "../../../utils/display/listTools.js";
@@ -30,19 +30,19 @@ import { validateFormValues } from "../../../utils/validateFormValues.js";
 import { ScheduleFormProps, ScheduleForOption, ScheduleUpsertProps } from "./types.js";
 
 export const scheduleForOptions: ScheduleForOption[] = [{
-    Icon: TeamIcon,
+    iconInfo: { name: "Team", type: "Common" },
     labelKey: "Meeting",
     objectType: "Meeting",
 }, {
-    Icon: RoutineIcon,
+    iconInfo: { name: "Routine", type: "Routine" },
     labelKey: "RunRoutine",
     objectType: "RunRoutine",
 }, {
-    Icon: ProjectIcon,
+    iconInfo: { name: "Project", type: "Common" },
     labelKey: "RunProject",
     objectType: "RunProject",
 }, {
-    Icon: FocusModeIcon,
+    iconInfo: { name: "FocusMode", type: "Common" },
     labelKey: "FocusMode",
     objectType: "FocusMode",
 }];
@@ -119,18 +119,18 @@ export const ScheduleForAvatar = styled(ProfileAvatar)(() => ({
 
 const ScheduleForCardAvatar = memo(function ScheduleForCardAvatarMemo({ scheduleFor }: { scheduleFor: ScheduleForObject }) {
     const profileColors = useMemo(() => placeholderColor(), []);
-    const Icon = useMemo(function IconMemo() {
+    const iconInfo = useMemo(function iconInfoMemo() {
         switch (scheduleFor.__typename) {
             case "FocusMode":
-                return FocusModeIcon;
+                return { name: "FocusMode", type: "Common" } as const;
             case "Meeting":
-                return TeamIcon;
+                return { name: "Team", type: "Common" } as const;
             case "RunProject":
-                return ProjectIcon;
+                return { name: "Project", type: "Common" } as const;
             case "RunRoutine":
-                return RoutineIcon;
+                return { name: "Routine", type: "Routine" } as const;
             default:
-                return RoutineIcon;
+                return { name: "Routine", type: "Routine" } as const;
         }
     }, [scheduleFor.__typename]);
 
@@ -140,7 +140,10 @@ const ScheduleForCardAvatar = memo(function ScheduleForCardAvatarMemo({ schedule
             isBot={true}
             profileColors={profileColors}
         >
-            <Icon width="75%" height="75%" />
+            <Icon
+                decorative
+                info={iconInfo}
+            />
         </ScheduleForAvatar>
     );
 });
@@ -177,7 +180,10 @@ const ScheduleForCard = memo(function ScheduleForCardMemo({
                 {getDisplay(scheduleFor).subtitle && <Typography variant="body2">{getDisplay(scheduleFor).subtitle}</Typography>}
             </Box>
             <Box sx={scheduleForCardOpenIconBoxStyle}>
-                <OpenInNewIcon />
+                <IconCommon
+                    decorative
+                    name="OpenInNew"
+                />
             </Box>
         </ScheduleForCardOuter>
     );
@@ -382,7 +388,7 @@ function ScheduleForm({
 
     const topBarOptions = useMemo(function topBarOptionsMemo() {
         return (!isCreate && isMutate) ? [{
-            Icon: DeleteIcon,
+            iconInfo: { name: "Delete", type: "Common" } as const,
             label: t("Delete"),
             onClick: handleDelete,
         }] : [];
@@ -430,7 +436,10 @@ function ScheduleForm({
                             fullWidth
                             color="secondary"
                             onClick={handleScheduleForButtonClick}
-                            startIcon={!scheduleForObject ? <AddIcon /> : null}
+                            startIcon={!scheduleForObject ? <IconCommon
+                                decorative
+                                name="Add"
+                            /> : null}
                             variant={scheduleForObject ? "outlined" : "contained"}
                         >
                             {scheduleForObject ?
@@ -547,7 +556,11 @@ function ScheduleForm({
                                                     onClick={handleRemoveRecurrence}
                                                     sx={deleteButtonStyle}
                                                 >
-                                                    <DeleteIcon fill={palette.error.light} />
+                                                    <IconCommon
+                                                        decorative
+                                                        fill={palette.error.light}
+                                                        name="Delete"
+                                                    />
                                                 </IconButton>
                                             </Stack>
                                         </Box>
@@ -559,7 +572,10 @@ function ScheduleForm({
                         <Button
                             fullWidth
                             onClick={addNewRecurrence}
-                            startIcon={<AddIcon />}
+                            startIcon={<IconCommon
+                                decorative
+                                name="Add"
+                            />}
                             variant="outlined"
                             sx={addEventButtonStyle}
                         >{"Add event"}</Button>

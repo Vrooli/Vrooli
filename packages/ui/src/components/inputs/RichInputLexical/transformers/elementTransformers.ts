@@ -1,4 +1,4 @@
-import { Headers } from "utils/display/stringTools.js";
+import { Headers } from "../../../../utils/display/stringTools.js";
 import { $createCodeNode } from "../nodes/CodeNode.js";
 import { type ElementNode } from "../nodes/ElementNode.js";
 import { type LexicalNode } from "../nodes/LexicalNode.js";
@@ -6,16 +6,16 @@ import { listExport, listReplace } from "../nodes/ListNode.js";
 import { ElementTransformer } from "../types.js";
 import { $createNode, $isNode, getPreviousSibling } from "../utils.js";
 
-const createBlockNode = (
+function createBlockNode(
     createNode: (match: Array<string>) => ElementNode,
-): ElementTransformer["replace"] => {
+): ElementTransformer["replace"] {
     return (parentNode, children, match) => {
         const node = createNode(match);
         node.append(...children);
         parentNode.replace(node);
         node.select(0, 0);
     };
-};
+}
 
 export const HEADING: ElementTransformer = {
     export: (node, exportChildren) => {

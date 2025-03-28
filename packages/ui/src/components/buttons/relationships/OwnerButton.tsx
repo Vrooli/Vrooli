@@ -5,7 +5,7 @@ import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../../contexts.js";
 import { usePopover } from "../../../hooks/usePopover.js";
-import { TeamIcon, UserIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { extractImageUrl } from "../../../utils/display/imageTools.js";
@@ -114,7 +114,10 @@ export function OwnerButton({
             label: truncatedLabel,
             tooltip: t(`OwnerTogglePress${isEditing ? "Editable" : ""}`, { owner: isSelf ? t("Self") : ownerName }),
             avatarProps: {
-                children: isTeam ? <TeamIcon /> : <UserIcon />,
+                children: <IconCommon
+                    decorative
+                    name={isTeam ? "Team" : "User"}
+                />,
                 isBot,
                 profileColors,
                 src: imageUrl,

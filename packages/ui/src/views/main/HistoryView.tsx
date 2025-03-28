@@ -2,17 +2,17 @@ import { ListObject, ModelType, getObjectUrlBase } from "@local/shared";
 import { useTheme } from "@mui/material";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route/router.js";
 import { PageTabs } from "../../components/PageTabs/PageTabs.js";
 import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/SideActionsButtons.js";
 import { SearchList, SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";
 import { TopBar } from "../../components/navigation/TopBar.js";
 import { useFindMany } from "../../hooks/useFindMany.js";
 import { useTabs } from "../../hooks/useTabs.js";
-import { AddIcon } from "../../icons/common.js";
+import { useLocation } from "../../route/router.js";
 import { SideActionsButton } from "../../styles.js";
 import { historyTabParams } from "../../utils/search/objectToSearch.js";
 import { HistoryViewProps } from "./types.js";
+import { IconCommon } from "../../icons/Icons.js";
 
 const scrollContainerId = "history-search-scroll";
 
@@ -71,7 +71,12 @@ export function HistoryView({
                         aria-label={t("Add")}
                         onClick={handleAddBookmarkListClick}
                     >
-                        <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.contrastText}
+                            name="Add"
+                            size={36}
+                        />
                     </SideActionsButton>
                 </SideActionsButtons>
             }

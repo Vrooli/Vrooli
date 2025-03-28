@@ -2,13 +2,12 @@ import { LINKS, RoutineType, TranslationKeyCommon } from "@local/shared";
 import { Box, Dialog, DialogProps, IconButton, Stack, Typography, styled } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route/router.js";
 import { CardGrid } from "../../components/lists/CardGrid/CardGrid.js";
 import { TIDCard } from "../../components/lists/TIDCard/TIDCard.js";
 import { TopBar } from "../../components/navigation/TopBar.js";
-import { ApiIcon, ArrowLeftIcon, ArticleIcon, BotIcon, CommentIcon, HelpIcon, NoteIcon, ObjectIcon, ProjectIcon, ReminderIcon, RoutineIcon, SmartContractIcon, TeamIcon, TerminalIcon } from "../../icons/common.js";
+import { IconCommon, IconInfo } from "../../icons/Icons.js";
+import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
-import { SvgComponent } from "../../types.js";
 import { ELEMENT_IDS, Z_INDEX } from "../../utils/consts.js";
 import { CreateType, getCookie, setCookie } from "../../utils/localStorage.js";
 import { RoutineTypeOption, routineTypes } from "../../utils/search/schemas/routine.js";
@@ -17,7 +16,7 @@ import { CreateViewProps } from "./types.js";
 type CreateInfo = {
     objectType: CreateType;
     description: TranslationKeyCommon,
-    Icon: SvgComponent,
+    iconInfo: IconInfo,
     id: string,
     incomplete?: boolean;
 }
@@ -26,81 +25,81 @@ export const createCards: CreateInfo[] = [
     {
         objectType: "Reminder",
         description: "CreateReminderDescription",
-        Icon: ReminderIcon,
+        iconInfo: { name: "Reminder", type: "Common" },
         id: "create-reminder-card",
     },
     {
         objectType: "Note",
         description: "CreateNoteDescription",
-        Icon: NoteIcon,
+        iconInfo: { name: "Note", type: "Common" },
         id: "create-note-card",
     },
     {
         objectType: "Routine",
         description: "CreateRoutineDescription",
-        Icon: RoutineIcon,
+        iconInfo: { name: "Routine", type: "Routine" },
         id: "create-routine-card",
     },
     {
         objectType: "Project",
         description: "CreateProjectDescription",
-        Icon: ProjectIcon,
+        iconInfo: { name: "Project", type: "Common" },
         id: "create-project-card",
     },
     {
         objectType: "Team",
         description: "CreateTeamDescription",
-        Icon: TeamIcon,
+        iconInfo: { name: "Team", type: "Common" },
         id: "create-team-card",
     },
     {
         objectType: "Bot",
         description: "CreateBotDescription",
-        Icon: BotIcon,
+        iconInfo: { name: "Bot", type: "Common" },
         id: "create-bot-card",
     },
     {
         objectType: "Chat",
         description: "CreateChatDescription",
-        Icon: CommentIcon,
+        iconInfo: { name: "Comment", type: "Common" },
         id: "create-chat-card",
     },
     {
         objectType: "Question",
         description: "CreateQuestionDescription",
-        Icon: HelpIcon,
+        iconInfo: { name: "Help", type: "Common" },
         id: "create-question-card",
         incomplete: true,
     },
     {
         objectType: "Prompt",
         description: "CreatePromptDescription",
-        Icon: ArticleIcon,
+        iconInfo: { name: "Article", type: "Common" },
         id: "create-prompt-card",
     },
     {
         objectType: "DataStructure",
         description: "CreateDataStructureDescription",
-        Icon: ObjectIcon,
+        iconInfo: { name: "Object", type: "Common" },
         id: "create-data-structure-card",
     },
     {
         objectType: "DataConverter",
         description: "CreateDataConverterDescription",
-        Icon: TerminalIcon,
+        iconInfo: { name: "Terminal", type: "Common" },
         id: "create-code-card",
     },
     {
         objectType: "SmartContract",
         description: "CreateSmartContractDescription",
-        Icon: SmartContractIcon,
+        iconInfo: { name: "SmartContract", type: "Common" },
         id: "create-smart-contract-card",
         incomplete: true,
     },
     {
         objectType: "Api",
         description: "CreateApiDescription",
-        Icon: ApiIcon,
+        iconInfo: { name: "Api", type: "Common" },
         id: "create-api-card",
         incomplete: true,
     },
@@ -218,6 +217,7 @@ function RoutineWizardDialog({
                         <TIDCard
                             buttonText={t("Select")}
                             description={"Ideal for quick, one-off tasks or simple transformations."}
+                            iconInfo={{ name: "Action", type: "Common" }}
                             key="singleStep"
                             onClick={selectSingleStep}
                             size="small"
@@ -226,6 +226,7 @@ function RoutineWizardDialog({
                         <TIDCard
                             buttonText={t("Select")}
                             description={"Use a graph of steps for complex, automated workflows."}
+                            iconInfo={{ name: "Routine", type: "Routine" }}
                             key="multiStep"
                             onClick={selectMultiStep}
                             size="small"
@@ -237,7 +238,12 @@ function RoutineWizardDialog({
             {step === "singleStepType" && (
                 <Box p={2}>
                     <Box display="flex" alignItems="center" mb={4}>
-                        <IconButton onClick={selectComplexity}><ArrowLeftIcon /></IconButton>
+                        <IconButton onClick={selectComplexity}>
+                            <IconCommon
+                                decorative
+                                name="ArrowLeft"
+                            />
+                        </IconButton>
                         <Typography variant="h5" ml={1}>Select a Single-Step Routine Type</Typography>
                     </Box>
                     <Stack spacing={2}>
@@ -251,7 +257,7 @@ function RoutineWizardDialog({
                                 <TIDCard
                                     buttonText={t("Select")}
                                     description={typeOption.description}
-                                    Icon={typeOption.Icon}
+                                    iconInfo={typeOption.iconInfo}
                                     id={typeOption.type}
                                     key={typeOption.type}
                                     onClick={handleClick}
@@ -307,7 +313,7 @@ export function CreateView({
             />
             <RoutineWizardDialog isOpen={showRoutineWizard} onClose={closeRoutineWizard} />
             <CardGrid minWidth={300}>
-                {sortedCards.map(({ objectType, description, Icon, id, incomplete }, index) => {
+                {sortedCards.map(({ objectType, description, iconInfo, id, incomplete }, index) => {
                     function handleClick() {
                         onSelect(id);
                     }
@@ -316,7 +322,7 @@ export function CreateView({
                         <TIDCard
                             buttonText={t("Create")}
                             description={t(description)}
-                            Icon={Icon}
+                            iconInfo={iconInfo}
                             id={id}
                             key={index}
                             onClick={handleClick}

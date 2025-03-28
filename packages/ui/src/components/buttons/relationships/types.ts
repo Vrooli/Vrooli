@@ -1,4 +1,4 @@
-import { ObjectType } from "utils/navigation/openObject";
+import { ObjectType } from "../../../utils/navigation/openObject.js";
 
 interface RelationshipButtonsBaseProps {
     isEditing: boolean;

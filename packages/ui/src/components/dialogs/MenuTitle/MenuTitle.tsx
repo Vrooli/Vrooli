@@ -1,5 +1,6 @@
 import { Box, IconButton, useTheme } from "@mui/material";
-import { CloseIcon } from "../../../icons/common.js";
+import { useTranslation } from "react-i18next";
+import { IconCommon } from "../../../icons/Icons.js";
 import { noSelect } from "../../../styles.js";
 import { Title } from "../../text/Title.js";
 import { MenuTitleProps } from "../types.js";
@@ -9,7 +10,16 @@ export function MenuTitle({
     onClose,
     ...titleData
 }: MenuTitleProps) {
+    const { t } = useTranslation();
     const { palette } = useTheme();
+
+    function handleKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
+        // Cancel tabbing to close button. 
+        // Useful for menus with tabbable items, like ListMenu
+        if (event.key === "Tab") {
+            event.stopPropagation();
+        }
+    }
 
     return (
         <Box
@@ -49,19 +59,17 @@ export function MenuTitle({
                 }}
             />
             <IconButton
-                aria-label="close"
+                aria-label={t("Close")}
                 edge="end"
                 onClick={onClose}
-                onKeyDown={(e) => {
-                    // Cancel tabbing to close button. 
-                    // Useful for menus with tabbable items, like ListMenu
-                    if (e.key === "Tab") {
-                        e.stopPropagation();
-                    }
-                }}
+                onKeyDown={handleKeyDown}
                 sx={{ marginLeft: "auto" }}
             >
-                <CloseIcon fill={palette.primary.contrastText} />
+                <IconCommon
+                    decorative
+                    fill={palette.primary.contrastText}
+                    name="Close"
+                />
             </IconButton>
         </Box>
     );

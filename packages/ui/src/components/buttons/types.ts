@@ -1,7 +1,7 @@
 import { BookmarkFor, FormSchema, NavigableObject, OrArray, ProjectVersion, ReactionFor, ReportFor, RoutineVersion, SearchType, Status } from "@local/shared";
 import { ButtonProps } from "@mui/material";
 import React from "react";
-import { FormErrors, SvgProps, SxType, ViewDisplayType } from "../../types.js";
+import { FormErrors, SxType, ViewDisplayType } from "../../types.js";
 
 export type AutoFillButtonProps = {
     handleAutoFill: () => unknown;
@@ -56,8 +56,6 @@ export interface HelpButtonProps extends ButtonProps {
     onClick?: (event: React.MouseEvent) => unknown;
     /** Style applied to the root element */
     sxRoot?: object;
-    /** Style applied to the question mark icon */
-    sx?: SvgProps;
 }
 
 export type MicrophoneButtonProps = {

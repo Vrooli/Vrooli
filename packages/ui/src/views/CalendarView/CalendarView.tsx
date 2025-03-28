@@ -13,7 +13,7 @@ import { SessionContext } from "../../contexts.js";
 import { useFindMany } from "../../hooks/useFindMany.js";
 import { useTabs } from "../../hooks/useTabs.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
-import { AddIcon, ArrowLeftIcon, ArrowRightIcon, DayIcon, MonthIcon, TodayIcon, WeekIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
 import { bottomNavHeight, SideActionsButton } from "../../styles.js";
 import { PartialWithType } from "../../types.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
@@ -138,17 +138,29 @@ function CustomToolbar({
             <ToolbarSection>
                 <Tooltip title={t("Today")}>
                     <IconButton onClick={toToday}>
-                        <TodayIcon fill={palette.secondary.main} />
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.main}
+                            name="Today"
+                        />
                     </IconButton>
                 </Tooltip>
                 <Tooltip title={t("Previous")}>
                     <IconButton onClick={toPrevious}>
-                        <ArrowLeftIcon fill={palette.secondary.main} />
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.main}
+                            name="ArrowLeft"
+                        />
                     </IconButton>
                 </Tooltip>
                 <Tooltip title={t("Next")}>
                     <IconButton onClick={toNext}>
-                        <ArrowRightIcon fill={palette.secondary.main} />
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.main}
+                            name="ArrowRight"
+                        />
                     </IconButton>
                 </Tooltip>
             </ToolbarSection>
@@ -171,17 +183,29 @@ function CustomToolbar({
             <ToolbarSection>
                 <Tooltip title={t("Month")}>
                     <IconButton onClick={toMonth}>
-                        <MonthIcon fill={palette.secondary.main} />
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.main}
+                            name="Month"
+                        />
                     </IconButton>
                 </Tooltip>
                 <Tooltip title={t("Week")}>
                     <IconButton onClick={toWeek}>
-                        <WeekIcon fill={palette.secondary.main} />
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.main}
+                            name="Week"
+                        />
                     </IconButton>
                 </Tooltip>
                 <Tooltip title={t("Day")}>
                     <IconButton onClick={toDay}>
-                        <DayIcon fill={palette.secondary.main} />
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.main}
+                            name="Day"
+                        />
                     </IconButton>
                 </Tooltip>
             </ToolbarSection>
@@ -229,11 +253,6 @@ const FlexContainer = styled(Box, {
 const outerBoxStyle = {
     maxHeight: "100vh",
     overflow: "hidden",
-} as const;
-
-const navbarStyle = {
-    root: { paddingTop: 0, flexGrow: 0 },
-    appBar: { position: "relative" },
 } as const;
 
 export function CalendarView({
@@ -525,7 +544,6 @@ export function CalendarView({
                         onChange={handleTabChange}
                         tabs={tabs}
                     />}
-                    sxsNavbar={navbarStyle}
                 />
                 {/* TODO Remove when weird type error is fixed */}
                 {/* @ts-expect-error Incompatible JSX type definitions */}
@@ -548,13 +566,17 @@ export function CalendarView({
                     views={views}
                 />
             </FlexContainer>
-            {/* Add event button */}
             <SideActionsButtons display={display}>
                 <SideActionsButton
                     aria-label={t("CreateEvent")}
                     onClick={handleAddSchedule}
                 >
-                    <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    <IconCommon
+                        decorative
+                        fill={palette.secondary.contrastText}
+                        name="Add"
+                        size={36}
+                    />
                 </SideActionsButton>
             </SideActionsButtons>
         </Box>

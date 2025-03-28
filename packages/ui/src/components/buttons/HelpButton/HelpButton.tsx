@@ -2,7 +2,7 @@ import { Box, Button, IconButton, Menu, Tooltip, styled, useTheme } from "@mui/m
 import React, { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { usePopover } from "../../../hooks/usePopover.js";
-import { HelpIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { linkColors, noSelect } from "../../../styles.js";
 import { MenuTitle } from "../../dialogs/MenuTitle/MenuTitle.js";
 import { RichInputBase } from "../../inputs/RichInput/RichInput.js";
@@ -52,7 +52,6 @@ export function HelpButton({
     onMarkdownChange,
     onClick,
     sxRoot,
-    sx,
 }: HelpButtonProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -114,8 +113,15 @@ export function HelpButton({
                         (<Button variant="text" sx={helpTextButtonStyle}>
                             Help text
                         </Button>) :
-                        (<IconButton sx={helpIconButtonStyle}>
-                            <HelpIcon fill={palette.secondary.main} {...sx} />
+                        (<IconButton
+                            aria-label={t("Help")}
+                            sx={helpIconButtonStyle}
+                        >
+                            <IconCommon
+                                decorative
+                                fill={palette.secondary.main}
+                                name="Help"
+                            />
                         </IconButton>)
                     }
                 </Box>

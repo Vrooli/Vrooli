@@ -1,8 +1,12 @@
 import { Box, Typography, useTheme } from "@mui/material";
-import { ScheduleIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
 import { displayDate } from "../../utils/display/stringTools.js";
 import { TextLoading } from "../lists/TextLoading/TextLoading.js";
 import { DateDisplayProps } from "./types.js";
+
+const scheduleIconStyle = {
+    marginRight: "4px",
+} as const;
 
 /**
  * Displays a date in short format (e.g. "1 hour ago", "yesterday", "June 16", "Jan 1, 2020"). 
@@ -26,15 +30,17 @@ export function DateDisplay({
         <>
             <Box
                 {...props}
+                bgcolor={palette.background.textSecondary}
                 display="flex"
                 justifyContent="center"
                 alignItems="center"
-                sx={{
-                    color: palette.background.textSecondary,
-                    ...(props.sx ?? {}),
-                }}
             >
-                {showIcon && <ScheduleIcon fill={palette.background.textSecondary} style={{ marginRight: "4px" }} />}
+                {showIcon && <IconCommon
+                    decorative
+                    fill={palette.background.textSecondary}
+                    name="Schedule"
+                    style={scheduleIconStyle}
+                />}
                 <Typography variant="body2" color={palette.background.textSecondary}>
                     {`${textBeforeDate} ${displayDate(timestamp, showDateAndTime)}`}
                 </Typography>

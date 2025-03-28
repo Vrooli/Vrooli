@@ -4,7 +4,7 @@ import { useField } from "formik";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../../contexts.js";
-import { AddIcon, FocusModeIcon } from "../../../icons/common.js";
+import { Icon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog.js";
 import { FocusModeInfo, useFocusModesStore } from "../../inputs/FocusModeSelector/FocusModeSelector.js";
@@ -68,7 +68,7 @@ export function FocusModeButton({
         closeDialog();
     }, [focusModeField.value, focusModeHelpers, reminderListField.value, reminderListHelpers, closeDialog]);
 
-    const { Icon, label, tooltip } = useMemo(() => {
+    const { iconInfo, label, tooltip } = useMemo(() => {
         const focusMode = focusModeField?.value ?? reminderListField?.value?.focusMode ?? focusModeInfo.all.find(focusMode => focusMode.reminderList?.id === reminderListField?.value?.id);
         // If no data
         if (!focusMode) {
@@ -80,21 +80,21 @@ export function FocusModeButton({
             };
             // Otherwise, mark as unset
             return {
-                Icon: AddIcon,
+                iconInfo: { name: "Add", type: "Common" } as const,
                 label: "Add focus mode",
                 tooltip: t(`FocusModeNoneTogglePress${isEditing ? "Editable" : ""}`),
             };
         }
         const focusModeName = focusMode?.name ?? null;
         return {
-            Icon: FocusModeIcon,
+            iconInfo: { name: "FocusMode", type: "Common" } as const,
             label: focusModeName ? `Focus mode: ${focusModeName}` : "Focus mode",
             tooltip: t(`FocusModeTogglePress${isEditing ? "Editable" : ""}`, { focusMode: focusModeName || "" }),
         };
     }, [focusModeField?.value, reminderListField?.value?.focusMode, reminderListField?.value?.id, focusModeInfo.all, t, isEditing]);
 
     // If not editing and no focus mode, return null
-    if (!isEditing && !Icon) return null;
+    if (!isEditing && !iconInfo) return null;
     // If editing, return button and popups for choosing owner type and owner
     if (isEditing) {
         return (
@@ -110,7 +110,7 @@ export function FocusModeButton({
                 <Tooltip title={tooltip}>
                     <RelationshipButton
                         onClick={handleClick}
-                        startIcon={Icon && <Icon />}
+                        startIcon={iconInfo && <Icon info={iconInfo} />}
                         variant="outlined"
                     >
                         {label}
@@ -122,7 +122,7 @@ export function FocusModeButton({
     // Otherwise, return chip
     return (
         <RelationshipChip
-            icon={Icon && <Icon />}
+            icon={iconInfo && <Icon info={iconInfo} />}
             label={label}
             onClick={handleClick}
         />

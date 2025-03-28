@@ -1,6 +1,6 @@
 import { DUMMY_ID, orDefault, RoutineVersionInput, RoutineVersionInputShape, routineVersionInputValidation, RoutineVersionOutput, RoutineVersionOutputShape, routineVersionOutputValidation, Session, shapeRoutineVersionInput, shapeRoutineVersionOutput, uuid } from "@local/shared";
-import { getUserLanguages } from "utils/display/translationTools.js";
-import { validateFormValues } from "utils/validateFormValues.js";
+import { getUserLanguages } from "../../utils/display/translationTools.js";
+import { validateFormValues } from "../../utils/validateFormValues.js";
 
 export function routineVersionInputInitialValues(
     session: Session | undefined,

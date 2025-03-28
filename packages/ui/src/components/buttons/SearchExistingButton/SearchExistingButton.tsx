@@ -1,5 +1,5 @@
 import { Button, styled } from "@mui/material";
-import { SearchIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 
 const StyledButton = styled(Button)(({ theme }) => ({
     color: theme.palette.background.textSecondary,
@@ -20,7 +20,10 @@ export function SearchExistingButton({
         <StyledButton
             href={href}
             variant="text"
-            endIcon={<SearchIcon />}
+            endIcon={<IconCommon
+                decorative
+                name="Search"
+            />}
         >
             {text}
         </StyledButton>

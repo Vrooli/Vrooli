@@ -1,8 +1,8 @@
 import { Box, useTheme } from "@mui/material";
-import { ListItemChip, ObjectListItemBase } from "components/lists/ObjectListItemBase/ObjectListItemBase";
-import { DateDisplay } from "components/text/DateDisplay.js";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { DateDisplay } from "../../text/DateDisplay.js";
+import { ListItemChip, ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
 import { ReportResponseListItemProps } from "../types.js";
 
 export function ReportResponseListItem({

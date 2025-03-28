@@ -2,7 +2,7 @@ import { API_CREDITS_MULTIPLIER, API_CREDITS_PREMIUM, LINKS } from "@local/share
 import { Box, Button, Dialog, DialogContent, IconButton, Typography, keyframes, styled } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { CloseIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { ELEMENT_IDS } from "../../../utils/consts.js";
 import { PricingTierType } from "../../../views/ProView/ProView.js";
@@ -236,8 +236,14 @@ export function ProDialog({ isOpen, onClose }: ProDialogProps) {
             open={isOpen}
             onClose={onClose}
         >
-            <CloseButton onClick={onClose}>
-                <CloseIcon />
+            <CloseButton
+                aria-label={t("Close")}
+                onClick={onClose}
+            >
+                <IconCommon
+                    decorative
+                    name="Close"
+                />
             </CloseButton>
             <Triangle {...largeTriangeProps} />
             <Triangle {...smallTriangleProps} />

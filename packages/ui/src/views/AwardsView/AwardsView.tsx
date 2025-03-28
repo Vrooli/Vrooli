@@ -1,5 +1,6 @@
-import { Award, AwardCategory, AwardSearchInput, AwardSearchResult, TranslationKeyAward, endpointsAward } from "@local/shared";
+import { Award, AwardCategory, AwardSearchInput, AwardSearchResult, TranslationKeyAward, awardNames, endpointsAward } from "@local/shared";
 import { Box, Typography } from "@mui/material";
+import { TFunction } from "i18next";
 import { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CompletionBar } from "../../components/CompletionBar/CompletionBar.js";
@@ -9,10 +10,8 @@ import { TIDCard } from "../../components/lists/TIDCard/TIDCard.js";
 import { TopBar } from "../../components/navigation/TopBar.js";
 import { SessionContext } from "../../contexts.js";
 import { useFetch } from "../../hooks/useFetch.js";
-import { AwardIcon } from "../../icons/common.js";
 import { ScrollBox } from "../../styles.js";
 import { AwardDisplay } from "../../types.js";
-import { awardToDisplay } from "../../utils/display/awardsDisplay.js";
 import { getUserLanguages } from "../../utils/display/translationTools.js";
 import { AwardsViewProps } from "../../views/types.js";
 
@@ -24,11 +23,49 @@ const ALMOST_THERE_PERCENT = 90;
 //TODO store tiers in @local/shared, so we can show tier progress and stuff
 //TODO store title and description for category (i.e. no tier) in awards.json
 
+const awardIconInfo = { name: "Award", type: "Common" } as const;
 const completionBarStyle = {
     root: { display: "block" },
     barBox: { maxWidth: "unset" },
 } as const;
 const almostThereStyle = { fontStyle: "italic" } as const;
+
+/**
+ * Converts a queried award object into an AwardDisplay object.
+ * @param award The queried award object.
+ * @param t The translation function.
+ * @returns The AwardDisplay object.
+ */
+export function awardToDisplay(award: Award, t: TFunction<"common", undefined, "common">): AwardDisplay {
+    // Find earned tier
+    const earnedTierDisplay = awardNames[award.category](award.progress, false);
+    let earnedTier: AwardDisplay["earnedTier"] | undefined = undefined;
+    if (earnedTierDisplay.name && earnedTierDisplay.body) {
+        earnedTier = {
+            title: t(`${earnedTierDisplay.name}`, { ns: "award", ...earnedTierDisplay.nameVariables }),
+            description: t(`${earnedTierDisplay.body}`, { ns: "award", ...earnedTierDisplay.bodyVariables }),
+            level: earnedTierDisplay.level,
+        };
+    }
+    // Find next tier
+    const nextTierDisplay = awardNames[award.category](award.progress, true);
+    let nextTier: AwardDisplay["nextTier"] | undefined = undefined;
+    if (nextTierDisplay.name && nextTierDisplay.body) {
+        nextTier = {
+            title: t(`${nextTierDisplay.name}`, { ns: "award", ...nextTierDisplay.nameVariables }),
+            description: t(`${nextTierDisplay.body}`, { ns: "award", ...nextTierDisplay.bodyVariables }),
+            level: nextTierDisplay.level,
+        };
+    }
+    return {
+        category: award.category,
+        categoryDescription: t(`${award.category}Title`, { ns: "award", defaultValue: "" }),
+        categoryTitle: t(`${award.category}Body`, { ns: "award", defaultValue: "" }),
+        earnedTier,
+        nextTier,
+        progress: award.progress,
+    };
+}
 
 function AwardCard({
     award,
@@ -66,7 +103,7 @@ function AwardCard({
     return (
         <TIDCard
             description={description}
-            Icon={AwardIcon} //TODO Add custom icons/images for each category
+            iconInfo={awardIconInfo} //TODO Add custom icons/images for each category
             id={award.category}
             key={award.category}
             title={title}

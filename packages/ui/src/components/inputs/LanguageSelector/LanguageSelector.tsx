@@ -1,10 +1,10 @@
-import { LanguageIcon } from "icons/common.js";
 import { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SessionService, siteLanguages } from "utils/authentication/session.js";
-import { AllLanguages } from "utils/display/translationTools.js";
-import { PubSub } from "utils/pubsub.js";
 import { SessionContext } from "../../../contexts.js";
+import { IconCommon } from "../../../icons/Icons.js";
+import { SessionService, siteLanguages } from "../../../utils/authentication/session.js";
+import { AllLanguages } from "../../../utils/display/translationTools.js";
+import { PubSub } from "../../../utils/pubsub.js";
 import { SelectorBase } from "../Selector/Selector.js";
 
 function handleRequestLanguage() {
@@ -19,7 +19,7 @@ function getLanguageOptionLabel(lang: string) {
 }
 
 function getDisplayIcon() {
-    return <LanguageIcon />;
+    return <IconCommon decorative name="Language" />;
 }
 
 /**

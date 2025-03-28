@@ -1,8 +1,8 @@
 import { stringifySearchParams } from "@local/shared";
 import { Box, Button, Checkbox, Stack, Typography, styled } from "@mui/material";
-import BunnyCrash from "assets/img/BunnyCrash.svg";
-import { HomeIcon, RefreshIcon } from "icons/common.js";
 import { Component } from "react";
+import BunnyCrash from "../../assets/img/BunnyCrash.svg";
+import { IconCommon } from "../../icons/Icons.js";
 import { ErrorBoundaryProps } from "../../views/types.js";
 
 interface ErrorBoundaryState {
@@ -195,17 +195,25 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                     </CrashLogsBox>
                     <Stack direction={actionButtonDirection} spacing={2} pb={4} justifyContent="center" alignItems="center">
                         <ActionButton
+                            aria-label="Refresh"
                             fullWidth
                             variant="contained"
-                            startIcon={<RefreshIcon />}
+                            startIcon={<IconCommon
+                                decorative
+                                name="Refresh"
+                            />}
                             onClick={this.handleRefresh}
                         >
                             Refresh
                         </ActionButton>
                         <ActionButton
+                            aria-label="Go to Home"
                             fullWidth
                             variant="contained"
-                            startIcon={<HomeIcon />}
+                            startIcon={<IconCommon
+                                decorative
+                                name="Home"
+                            />}
                             onClick={this.toHome}
                         >
                             Go to Home

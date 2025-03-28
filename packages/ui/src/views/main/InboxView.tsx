@@ -2,7 +2,6 @@ import { Chat, endpointsNotification, getObjectUrlBase, InboxPageTabOption, List
 import { Tooltip, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route/router.js";
 import { fetchLazyWrapper } from "../../api/fetchWrapper.js";
 import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/SideActionsButtons.js";
 import { ListContainer } from "../../components/containers/ListContainer/ListContainer.js";
@@ -17,7 +16,8 @@ import { useFindMany } from "../../hooks/useFindMany.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
 import { useSelectableList } from "../../hooks/useSelectableList.js";
 import { useTabs } from "../../hooks/useTabs.js";
-import { ActionIcon, AddIcon, CancelIcon, CompleteIcon, DeleteIcon } from "../../icons/common.js";
+import { Icon, IconCommon } from "../../icons/Icons.js";
+import { useLocation } from "../../route/router.js";
 import { pagePaddingBottom, SideActionsButton } from "../../styles.js";
 import { ArgsType } from "../../types.js";
 import { BulkObjectAction } from "../../utils/actions/bulkObjectActions.js";
@@ -93,11 +93,11 @@ export function InboxView({
         setLocation(`${getObjectUrlBase({ __typename: "Chat" })}/add`);
     }, [setLocation]);
 
-    const [onActionButtonPress, ActionButtonIcon, actionTooltip] = useMemo(() => {
+    const [onActionButtonPress, actionButtonIconInfo, actionTooltip] = useMemo(() => {
         if (currTab.key === InboxPageTabOption.Notification) {
-            return [onMarkAllAsRead, CompleteIcon, "MarkAllAsRead"] as const;
+            return [onMarkAllAsRead, { name: "Complete", type: "Common" }, "MarkAllAsRead"] as const;
         }
-        return [openCreateChat, AddIcon, "CreateChat"] as const;
+        return [openCreateChat, { name: "Add", type: "Common" }, "CreateChat"] as const;
     }, [currTab.key, onMarkAllAsRead, openCreateChat]);
 
     const onAction = useCallback((action: keyof ObjectListActions<InboxObject>, ...data: unknown[]) => {
@@ -111,13 +111,15 @@ export function InboxView({
         }
     }, [removeItem, updateItem]);
 
+    function handleDelete() {
+        onBulkActionStart(BulkObjectAction.Delete);
+    }
+
     useInfiniteScroll({
         loading,
         loadMore,
         scrollContainerId,
     });
-
-    const actionIconProps = useMemo(() => ({ fill: palette.secondary.contrastText, width: "36px", height: "36px" }), [palette.secondary.contrastText]);
 
     return (
         <SearchListScrollContainer id={scrollContainerId}>
@@ -155,18 +157,47 @@ export function InboxView({
             </ListContainer>
             <SideActionsButtons display={display}>
                 {isSelecting && selectedData.length > 0 ? <Tooltip title={t("Delete")}>
-                    <SideActionsButton aria-label={t("Delete")} onClick={() => { onBulkActionStart(BulkObjectAction.Delete); }}>
-                        <DeleteIcon {...actionIconProps} />
+                    <SideActionsButton
+                        aria-label={t("Delete")}
+                        onClick={handleDelete}
+                    >
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.contrastText}
+                            name="Delete"
+                            size={36}
+                        />
                     </SideActionsButton>
                 </Tooltip> : null}
                 <Tooltip title={t(isSelecting ? "Cancel" : "Select")}>
-                    <SideActionsButton aria-label={t(isSelecting ? "Cancel" : "Select")} onClick={handleToggleSelecting}>
-                        {isSelecting ? <CancelIcon {...actionIconProps} /> : <ActionIcon {...actionIconProps} />}
+                    <SideActionsButton
+                        aria-label={t(isSelecting ? "Cancel" : "Select")}
+                        onClick={handleToggleSelecting}
+                    >
+                        {isSelecting ? <IconCommon
+                            decorative
+                            fill={palette.secondary.contrastText}
+                            name="Cancel"
+                            size={36}
+                        /> : <Icon
+                            decorative
+                            fill={palette.secondary.contrastText}
+                            info={actionButtonIconInfo}
+                            size={36}
+                        />}
                     </SideActionsButton>
                 </Tooltip>
                 {!isSelecting ? <Tooltip title={t(actionTooltip)}>
-                    <SideActionsButton aria-label={t(actionTooltip)} onClick={onActionButtonPress}>
-                        <ActionButtonIcon {...actionIconProps} />
+                    <SideActionsButton
+                        aria-label={t(actionTooltip)}
+                        onClick={onActionButtonPress}
+                    >
+                        <Icon
+                            decorative
+                            fill={palette.secondary.contrastText}
+                            info={actionButtonIconInfo}
+                            size={36}
+                        />
                     </SideActionsButton>
                 </Tooltip> : null}
             </SideActionsButtons>

@@ -1,7 +1,7 @@
 import { Session, TranslationKeyCommon } from "@local/shared";
 import { FilterOptionsState } from "@mui/material";
 import i18next from "i18next";
-import { SvgComponent } from "types";
+import { IconInfo } from "../../icons/Icons.js";
 import { SessionService } from "../authentication/session.js";
 import { normalizeText, removeEmojis, removePunctuation } from "../display/documentTools.js";
 
@@ -9,7 +9,7 @@ import { normalizeText, removeEmojis, removePunctuation } from "../display/docum
  * A search item before it is translated into the user's language.
  */
 export interface PreSearchItem {
-    Icon?: SvgComponent;
+    iconInfo?: IconInfo | null | undefined;
     /**
      * Key for the label
      */
@@ -33,7 +33,7 @@ export interface PreSearchItem {
  * data that can be searched
  */
 export interface SearchItem {
-    Icon?: SvgComponent;
+    iconInfo?: IconInfo | null | undefined;
     /**
      * What the user will see in the search results.
      */
@@ -99,7 +99,7 @@ export function translateSearchItems(items: PreSearchItem[], session: Session | 
             }
         }
         return {
-            Icon: item.Icon,
+            iconInfo: item.iconInfo,
             label,
             keywords,
             unshapedKeywords,

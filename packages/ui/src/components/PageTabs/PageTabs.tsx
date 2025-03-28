@@ -2,6 +2,7 @@
 import { Box, BoxProps, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { createRef, memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
+import { Icon, IconInfo } from "../../icons/Icons.js";
 import { TabListType, TabStateColors } from "../../utils/search/objectToSearch.js";
 import { PageTabsProps } from "../types.js";
 
@@ -40,15 +41,15 @@ const TabBox = styled(Box, {
 
 interface TabItemProps {
     ariaLabel: string;
+    color?: string | TabStateColors;
     fullWidth: boolean;
+    href?: string;
+    iconInfo?: IconInfo | null | undefined;
+    ignoreIcons: boolean;
     index: number;
     isSelected: boolean;
-    color?: string | TabStateColors;
-    href?: string;
-    Icon?: React.ComponentType<{ fill: string }>;
     key: string;
     label: string;
-    ignoreIcons: boolean;
     onClick: (event: React.MouseEvent, index: number) => unknown;
     tabColor: string;
 }
@@ -59,7 +60,7 @@ const TabItem = memo(function TabItem({
     index,
     isSelected,
     href,
-    Icon,
+    iconInfo,
     label,
     ignoreIcons,
     onClick,
@@ -75,7 +76,7 @@ const TabItem = memo(function TabItem({
     const labelStyle = useMemo(() => ({ color: tabColor }), [tabColor]);
 
     return (
-        <Tooltip key={label} title={(Icon && !ignoreIcons) ? label : ""}>
+        <Tooltip key={label} title={(iconInfo && !ignoreIcons) ? label : ""}>
             <TabBox
                 id={`${ariaLabel}-${index}`}
                 aria-selected={isSelected}
@@ -90,8 +91,8 @@ const TabItem = memo(function TabItem({
                 role="tab"
             >
                 {
-                    (Icon && !ignoreIcons)
-                        ? <Icon fill={tabColor} />
+                    (iconInfo && !ignoreIcons)
+                        ? <Icon decorative fill={tabColor} info={iconInfo} />
                         : <Typography variant="body2" style={labelStyle}>{label}</Typography>
                 }
             </TabBox>
@@ -102,7 +103,7 @@ const TabItem = memo(function TabItem({
         prevProps.isSelected === nextProps.isSelected &&
         prevProps.color === nextProps.color &&
         prevProps.href === nextProps.href &&
-        prevProps.Icon === nextProps.Icon &&
+        prevProps.iconInfo === nextProps.iconInfo &&
         prevProps.label === nextProps.label &&
         prevProps.ignoreIcons === nextProps.ignoreIcons &&
         prevProps.tabColor === nextProps.tabColor

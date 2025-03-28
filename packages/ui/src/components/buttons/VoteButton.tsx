@@ -4,7 +4,7 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../contexts.js";
 import { useVoter } from "../../hooks/objectActions.js";
-import { ArrowDownIcon, ArrowUpIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
 import { ActionCompletePayloads, ObjectActionComplete } from "../../utils/actions/objectActions.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { VoteButtonProps } from "./types.js";
@@ -116,7 +116,12 @@ export function VoteButton({
                         },
                     }}
                 >
-                    <ArrowUpIcon width="24px" height="24px" fill={upvoteColor} />
+                    <IconCommon
+                        decorative
+                        fill={upvoteColor}
+                        name="ArrowUp"
+                        size={24}
+                    />
                 </Box>
             </Tooltip>
             {/* Score */}
@@ -147,7 +152,12 @@ export function VoteButton({
                         },
                     }}
                 >
-                    <ArrowDownIcon width="24px" height="24px" fill={downvoteColor} />
+                    <IconCommon
+                        decorative
+                        fill={downvoteColor}
+                        name="ArrowDown"
+                        size={24}
+                    />
                 </Box>
             </Tooltip>
         </Stack>

@@ -4,7 +4,7 @@ import { Box, Button, Checkbox, Divider, FormControl, FormControlLabel, FormGrou
 import { useField } from "formik";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AddIcon, CloseIcon, DragIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { randomString } from "../../../utils/codes.js";
 import { IntegerInputBase } from "../IntegerInput/IntegerInput.js";
 import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "./styles.js";
@@ -344,7 +344,12 @@ export function FormInputCheckbox({
                                                 size="small"
                                                 sx={{ marginLeft: "4px" }}
                                             >
-                                                <CloseIcon fill={palette.background.textSecondary} width="16px" height="16px" />
+                                                <IconCommon
+                                                    decorative
+                                                    fill={palette.background.textSecondary}
+                                                    name="Close"
+                                                    size={16}
+                                                />
                                             </IconButton>
                                         )}
                                     </Box>
@@ -448,12 +453,22 @@ export function FormInputCheckbox({
                                                                     <>
                                                                         <Tooltip title="Drag to reorder" placement={props.row === true ? "top" : "right"}>
                                                                             <div {...providedDrag.dragHandleProps} style={dragIconBoxStyle}>
-                                                                                <DragIcon fill={palette.background.textSecondary} width="16px" height="16px" />
+                                                                                <IconCommon
+                                                                                    decorative
+                                                                                    fill={palette.background.textSecondary}
+                                                                                    name="Drag"
+                                                                                    size={16}
+                                                                                />
                                                                             </div>
                                                                         </Tooltip>
                                                                         <Tooltip title="Remove option" placement={props.row === true ? "top" : "right"}>
                                                                             <IconButton onClick={onRemoveOption} sx={closeIconBoxStyle}>
-                                                                                <CloseIcon fill={palette.background.textSecondary} width="16px" height="16px" />
+                                                                                <IconCommon
+                                                                                    decorative
+                                                                                    fill={palette.background.textSecondary}
+                                                                                    name="Close"
+                                                                                    size={16}
+                                                                                />
                                                                             </IconButton>
                                                                         </Tooltip>
                                                                     </>
@@ -472,7 +487,10 @@ export function FormInputCheckbox({
                                     <Button
                                         variant="text"
                                         onClick={addOption}
-                                        startIcon={<AddIcon />}
+                                        startIcon={<IconCommon
+                                            decorative
+                                            name="Add"
+                                        />}
                                         style={addOptionStyle}
                                     >
                                         Add Option

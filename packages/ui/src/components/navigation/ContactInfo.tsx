@@ -2,14 +2,13 @@ import { LINKS, SOCIALS } from "@local/shared";
 import { BottomNavigation, BottomNavigationAction, Box, IconButton, Tooltip, Typography, useTheme } from "@mui/material";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { ArticleIcon, GitHubIcon, InfoIcon, StatsIcon, XIcon } from "../../icons/common.js";
+import { Icon, IconInfo } from "../../icons/Icons.js";
 import { openLink } from "../../route/openLink.js";
 import { useLocation } from "../../route/router.js";
 import { noSelect } from "../../styles.js";
-import { SvgComponent } from "../../types.js";
 import { CopyrightBreadcrumbs } from "../breadcrumbs/CopyrightBreadcrumbs.js";
 
-type NavActionListData = [string, string, string, SvgComponent]
+type NavActionListData = [string, string, string, IconInfo]
 
 export function ContactInfo() {
     const { palette } = useTheme();
@@ -19,14 +18,14 @@ export function ContactInfo() {
     const { additionalInfo, contactInfo } = useMemo(() => {
         return {
             additionalInfo: [
-                [t("AboutUs"), t("About"), LINKS.About, InfoIcon],
-                [t("DocumentationShort"), t("DocumentationShort"), "https://docs.vrooli.com", ArticleIcon],
-                [t("StatisticsShort"), t("StatisticsShort"), LINKS.Stats, StatsIcon],
+                [t("AboutUs"), t("About"), LINKS.About, { name: "Info", type: "Common" }],
+                [t("DocumentationShort"), t("DocumentationShort"), "https://docs.vrooli.com", { name: "Article", type: "Common" }],
+                [t("StatisticsShort"), t("StatisticsShort"), LINKS.Stats, { name: "Stats", type: "Common" }],
             ] as NavActionListData[],
             contactInfo: [
-                [t("ContactHelpX"), t("X"), SOCIALS.X, XIcon],
+                [t("ContactHelpX"), t("X"), SOCIALS.X, { name: "X", type: "Service" }],
                 // [t("ContactHelpDiscord"), t("Discord"), SOCIALS.Discord, DiscordIcon],
-                [t("ContactHelpCode"), t("Code"), SOCIALS.GitHub, GitHubIcon],
+                [t("ContactHelpCode"), t("Code"), SOCIALS.GitHub, { name: "GitHub", type: "Service" }],
             ] as NavActionListData[],
         };
     }, [t]);
@@ -48,25 +47,36 @@ export function ContactInfo() {
                     padding: 1,
                     marginBottom: 2,
                 }}>
-                {contactInfo.map(([tooltip, label, link, Icon], index: number) => (
-                    <Tooltip key={`contact-info-button-${index}`} title={tooltip} placement="top">
-                        <BottomNavigationAction
-                            label={label}
-                            onClick={(e) => { e.preventDefault(); handleLink(e, link); }}
-                            href={link}
-                            icon={
-                                <IconButton sx={{ background: palette.secondary.main }} >
-                                    <Icon fill={palette.secondary.contrastText} />
-                                </IconButton>
-                            }
-                            sx={{
-                                alignItems: "center",
-                                color: palette.background.textPrimary,
-                                overflowWrap: "anywhere",
-                            }}
-                        />
-                    </Tooltip>
-                ))}
+                {contactInfo.map(([tooltip, label, link, iconInfo], index: number) => {
+                    function handleClick(event: React.MouseEvent<HTMLElement>) {
+                        event.preventDefault();
+                        handleLink(event, link);
+                    }
+
+                    return (
+                        <Tooltip key={`contact-info-button-${index}`} title={tooltip} placement="top">
+                            <BottomNavigationAction
+                                label={label}
+                                onClick={handleClick}
+                                href={link}
+                                icon={
+                                    <IconButton sx={{ background: palette.secondary.main }} >
+                                        <Icon
+                                            decorative
+                                            fill={palette.secondary.contrastText}
+                                            info={iconInfo}
+                                        />
+                                    </IconButton>
+                                }
+                                sx={{
+                                    alignItems: "center",
+                                    color: palette.background.textPrimary,
+                                    overflowWrap: "anywhere",
+                                }}
+                            />
+                        </Tooltip>
+                    );
+                })}
             </BottomNavigation>
             <Typography variant="h6" textAlign="center" color={palette.background.textPrimary} sx={{ ...noSelect }}>{t("AdditionalResources")}</Typography>
             <BottomNavigation
@@ -77,25 +87,36 @@ export function ContactInfo() {
                     height: "fit-content",
                     padding: 1,
                 }}>
-                {additionalInfo.map(([tooltip, label, link, Icon], index: number) => (
-                    <Tooltip key={`additional-info-button-${index}`} title={tooltip} placement="top">
-                        <BottomNavigationAction
-                            label={label}
-                            onClick={(e) => { e.preventDefault(); handleLink(e, link); }}
-                            href={link}
-                            icon={
-                                <IconButton sx={{ background: palette.secondary.main }}>
-                                    <Icon fill={palette.secondary.contrastText} />
-                                </IconButton>
-                            }
-                            sx={{
-                                alignItems: "center",
-                                color: palette.background.textPrimary,
-                                overflowWrap: "anywhere",
-                            }}
-                        />
-                    </Tooltip>
-                ))}
+                {additionalInfo.map(([tooltip, label, link, iconInfo], index: number) => {
+                    function handleClick(event: React.MouseEvent<HTMLElement>) {
+                        event.preventDefault();
+                        handleLink(event, link);
+                    }
+
+                    return (
+                        <Tooltip key={`additional-info-button-${index}`} title={tooltip} placement="top">
+                            <BottomNavigationAction
+                                label={label}
+                                onClick={handleClick}
+                                href={link}
+                                icon={
+                                    <IconButton sx={{ background: palette.secondary.main }}>
+                                        <Icon
+                                            decorative
+                                            fill={palette.secondary.contrastText}
+                                            info={iconInfo}
+                                        />
+                                    </IconButton>
+                                }
+                                sx={{
+                                    alignItems: "center",
+                                    color: palette.background.textPrimary,
+                                    overflowWrap: "anywhere",
+                                }}
+                            />
+                        </Tooltip>
+                    );
+                })}
             </BottomNavigation>
             <CopyrightBreadcrumbs sx={{ color: palette.background.textPrimary }} />
         </Box>

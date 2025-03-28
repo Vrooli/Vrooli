@@ -1,7 +1,6 @@
 import { useField, useFormikContext } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { DeleteIcon, EditIcon } from "../../icons/common.js";
 import { getTranslationData } from "../../utils/display/translationTools.js";
 import { LargeDialog } from "../dialogs/LargeDialog/LargeDialog.js";
 import { TopBar } from "../navigation/TopBar.js";
@@ -70,14 +69,14 @@ export function EditableTitle({
         const options: TitleProps["options"] = [];
         if (isEditable) {
             options.push({
-                Icon: EditIcon,
+                iconInfo: { name: "Edit", type: "Common" } as const,
                 label: t("Edit"),
                 onClick: handleOpen,
             });
         }
         if (isDeletable) {
             options.push({
-                Icon: DeleteIcon,
+                iconInfo: { name: "Delete", type: "Common" } as const,
                 label: t("Delete"),
                 onClick: () => {
                     if (typeof handleDelete === "function") handleDelete();

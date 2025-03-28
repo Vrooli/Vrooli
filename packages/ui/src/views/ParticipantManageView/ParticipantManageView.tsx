@@ -11,7 +11,7 @@ import { useBulkObjectActions } from "../../hooks/objectActions.js";
 import { useFindMany } from "../../hooks/useFindMany.js";
 import { useSelectableList } from "../../hooks/useSelectableList.js";
 import { useTabs } from "../../hooks/useTabs.js";
-import { ActionIcon, AddIcon, CancelIcon, DeleteIcon, EditIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
 import { SideActionsButton } from "../../styles.js";
 import { BulkObjectAction } from "../../utils/actions/bulkObjectActions.js";
 import { participantTabParams } from "../../utils/search/objectToSearch.js";
@@ -103,13 +103,17 @@ export function ParticipantManageView({
     });
 
     const sideActionButtons = useMemo(() => {
-        const actionIconProps = { fill: palette.secondary.contrastText, width: "36px", height: "36px" };
         const buttons: JSX.Element[] = [];
         // If not selecting, show select button
         if (!isSelecting) {
             buttons.push(<Tooltip title={t("Select")}>
                 <SideActionsButton aria-label={t("Select")} onClick={handleToggleSelecting} sx={{ background: palette.secondary.main }}>
-                    <ActionIcon {...actionIconProps} />
+                    <IconCommon
+                        decorative
+                        fill={palette.secondary.contrastText}
+                        name="Select"
+                        size={36}
+                    />
                 </SideActionsButton>
             </Tooltip>);
             return buttons;
@@ -119,21 +123,36 @@ export function ParticipantManageView({
             if ([ParticipantManagePageTabOption.ChatParticipant, ParticipantManagePageTabOption.ChatInvite].includes(currTab.key as ParticipantManagePageTabOption)) {
                 buttons.push(<Tooltip title={t("Delete")}>
                     <SideActionsButton aria-label={t("Delete")} onClick={() => { onBulkActionStart(BulkObjectAction.Delete); }}>
-                        <DeleteIcon {...actionIconProps} />
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.contrastText}
+                            name="Delete"
+                            size={36}
+                        />
                     </SideActionsButton>
                 </Tooltip>);
             }
             if (currTab.key === ParticipantManagePageTabOption.ChatInvite) {
                 buttons.push(<Tooltip title={t("Edit")}>
                     <SideActionsButton aria-label={t("Edit")} onClick={handleInvitesUpdate}>
-                        <EditIcon {...actionIconProps} />
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.contrastText}
+                            name="Edit"
+                            size={36}
+                        />
                     </SideActionsButton>
                 </Tooltip>);
             }
             if (currTab.key === ParticipantManagePageTabOption.Add) {
                 buttons.push(<Tooltip title={t("Add")}>
                     <SideActionsButton aria-label={t("Add")} onClick={handleInvitesCreate}>
-                        <AddIcon {...actionIconProps} />
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.contrastText}
+                            name="Add"
+                            size={36}
+                        />
                     </SideActionsButton>
                 </Tooltip>);
             }
@@ -141,7 +160,12 @@ export function ParticipantManageView({
         // Show cancel button to exit selection mode
         buttons.push(<Tooltip title={t("Cancel")}>
             <SideActionsButton aria-label={t("Cancel")} onClick={handleToggleSelecting}>
-                <CancelIcon {...actionIconProps} />
+                <IconCommon
+                    decorative
+                    fill={palette.secondary.contrastText}
+                    name="Cancel"
+                    size={36}
+                />
             </SideActionsButton>
         </Tooltip>);
         return buttons;

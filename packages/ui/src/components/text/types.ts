@@ -1,6 +1,7 @@
 import { ListObject, Routine } from "@local/shared";
 import { BoxProps } from "@mui/material";
-import { SvgComponent, SxType } from "types";
+import { IconInfo } from "../../icons/Icons.js";
+import { SxType } from "../../types.js";
 import { type DisplayAdornment } from "../../utils/display/listTools.js";
 import { ObjectType } from "../../utils/navigation/openObject.js";
 
@@ -36,10 +37,10 @@ export interface TitleProps {
     adornments?: DisplayAdornment[];
     help?: string;
     /** Icon displayed to the left of the title */
-    Icon?: SvgComponent;
+    iconInfo?: IconInfo | null | undefined;
     /** Action icons displayed to the right of the title and adornments */
     options?: {
-        Icon: SvgComponent;
+        iconInfo?: IconInfo | null | undefined;
         label: string;
         onClick: (e?: any) => unknown;
     }[];

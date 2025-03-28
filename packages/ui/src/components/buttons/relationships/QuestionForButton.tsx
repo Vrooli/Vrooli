@@ -3,9 +3,8 @@ import { Tooltip } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AddIcon, ApiIcon, ArticleIcon, NoteIcon, ProjectIcon, RoutineIcon, StandardIcon, TeamIcon, TerminalIcon } from "../../../icons/common.js";
+import { Icon, IconCommon, IconInfo } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
-import { SvgComponent } from "../../../types.js";
 import { extractImageUrl } from "../../../utils/display/imageTools.js";
 import { getDisplay, placeholderColor } from "../../../utils/display/listTools.js";
 import { openObject } from "../../../utils/navigation/openObject.js";
@@ -20,14 +19,14 @@ const TARGET_IMAGE_SIZE = 100;
 /**
  * Maps QuestionForTypes to their icons
  */
-const questionForTypeIcons: Record<QuestionForType, SvgComponent> = {
-    Api: ApiIcon,
-    Code: TerminalIcon,
-    Note: NoteIcon,
-    Project: ProjectIcon,
-    Routine: RoutineIcon,
-    Standard: StandardIcon,
-    Team: TeamIcon,
+const questionForTypeIconInfos: Record<QuestionForType, IconInfo> = {
+    Api: { name: "Api", type: "Common" },
+    Code: { name: "Terminal", type: "Common" },
+    Note: { name: "Note", type: "Common" },
+    Project: { name: "Project", type: "Common" },
+    Routine: { name: "Routine", type: "Routine" },
+    Standard: { name: "Standard", type: "Common" },
+    Team: { name: "Team", type: "Common" },
 };
 
 const limitTo = [
@@ -73,7 +72,7 @@ export function QuestionForButton({
         closeDialog();
     }, [field?.value?.id, helpers, closeDialog]);
 
-    const { Icon, label, tooltip, avatarProps } = useMemo(() => {
+    const { iconInfo, label, tooltip, avatarProps } = useMemo(() => {
         const forObject = field?.value;
         // If no data
         if (!forObject) {
@@ -86,7 +85,7 @@ export function QuestionForButton({
             };
             // Otherwise, mark as unset
             return {
-                Icon: AddIcon,
+                iconInfo: { name: "Add", type: "Common" },
                 label: "Connect to object",
                 tooltip: t(`QuestionForNoneTogglePress${isEditing ? "Editable" : ""}`),
                 avatarProps: null,
@@ -97,14 +96,14 @@ export function QuestionForButton({
         const isBot = isOfType(forObject, "User") && (forObject as Partial<User>).isBot === true;
         const label = questionForName ? `For: ${questionForName}` : "Question";
         const truncatedLabel = label.length > MAX_LABEL_LENGTH ? `${label.slice(0, MAX_LABEL_LENGTH)}...` : label;
-        const Icon = questionForTypeIcons[forObject.__typename.replace("Version", "")];
+        const iconInfo = questionForTypeIconInfos[forObject.__typename.replace("Version", "")];
 
         return {
-            Icon: null,
+            iconInfo,
             label: truncatedLabel,
             tooltip: t(`QuestionForTogglePress${isEditing ? "Editable" : ""}`, { questionFor: questionForName || "" }),
             avatarProps: {
-                children: Icon ? <Icon /> : <ArticleIcon />,
+                children: iconInfo ? <Icon info={iconInfo} /> : <IconCommon name="Article" />,
                 isBot,
                 profileColors,
                 src: imageUrl,
@@ -117,7 +116,7 @@ export function QuestionForButton({
     }, [avatarProps]);
 
     // If not editing and no object, return null
-    if (!isEditing && !Avatar && !Icon) return null;
+    if (!isEditing && !Avatar && !iconInfo) return null;
     // If editing, return button and popups for changing data
     if (isEditing) {
         return (
@@ -132,7 +131,7 @@ export function QuestionForButton({
                 <Tooltip title={tooltip}>
                     <RelationshipButton
                         onClick={handleClick}
-                        startIcon={Avatar || (Icon && <Icon />)}
+                        startIcon={Avatar || (iconInfo && <Icon info={iconInfo} />)}
                         variant="outlined"
                     >
                         {label}
@@ -144,7 +143,7 @@ export function QuestionForButton({
     // Otherwise, return chip
     return (
         <RelationshipChip
-            icon={Avatar || (Icon && <Icon />) || undefined}
+            icon={Avatar || (iconInfo && <Icon info={iconInfo} />) || undefined}
             label={label}
             onClick={handleClick}
         />

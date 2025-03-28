@@ -1,24 +1,17 @@
 import { ListObject } from "@local/shared";
 import { Box, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
-import { ObjectActionDialogs } from "components/dialogs/ObjectActionDialogs/ObjectActionDialogs.js";
-import { ObjectActionMenu } from "components/dialogs/ObjectActionMenu/ObjectActionMenu.js";
-import { EllipsisIcon } from "icons/common.js";
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ObjectAction, getActionsDisplayData, getAvailableActions } from "utils/actions/objectActions.js";
-import { getDisplay } from "utils/display/listTools.js";
-import { getUserLanguages } from "utils/display/translationTools.js";
 import { SessionContext } from "../../../contexts.js";
+import { Icon, IconCommon } from "../../../icons/Icons.js";
+import { ObjectAction, getActionsDisplayData, getAvailableActions } from "../../../utils/actions/objectActions.js";
+import { getDisplay } from "../../../utils/display/listTools.js";
+import { getUserLanguages } from "../../../utils/display/translationTools.js";
+import { ObjectActionDialogs } from "../../dialogs/ObjectActionDialogs/ObjectActionDialogs.js";
+import { ObjectActionMenu } from "../../dialogs/ObjectActionMenu/ObjectActionMenu.js";
 import { ObjectActionsRowProps } from "../types.js";
 
 const MAX_ACTIONS_BEFORE_OVERFLOW = 5;
-
-function commonIconProps() {
-    return {
-        width: "24px",
-        height: "24px",
-    };
-}
 
 const OuterBox = styled(Box)(({ theme }) => ({
     display: "flex",
@@ -90,8 +83,8 @@ export function ObjectActionsRow<T extends ListObject>({
     const actions = useMemo(() => {
         const displayData = getActionsDisplayData(actionsDisplayed);
         const displayedActions = displayData.map((action, index) => {
-            const { Icon, iconColor, labelKey, value } = action;
-            if (!Icon) return null;
+            const { iconColor, iconInfo, labelKey, value } = action;
+            if (!iconInfo) return null;
 
             function handleClick() {
                 actionData.onActionStart(value);
@@ -99,7 +92,11 @@ export function ObjectActionsRow<T extends ListObject>({
 
             return (
                 <ActionIconWithLabelBox key={index} onClick={handleClick}>
-                    <Icon {...commonIconProps()} fill={iconColor === "default" ? "currentColor" : iconColor} />
+                    <Icon
+                        fill={iconColor === "default" ? "currentColor" : iconColor}
+                        info={iconInfo}
+                        size={24}
+                    />
                     <Typography variant="body2">
                         {labelKey && t(labelKey, { count: 1 })}
                     </Typography>
@@ -109,9 +106,17 @@ export function ObjectActionsRow<T extends ListObject>({
         // If there are extra actions, display an ellipsis button
         if (actionsExtra.length > 0) {
             displayedActions.push(
-                <Tooltip title="More" key={displayedActions.length}>
-                    <ActionIconButton onClick={openOverflowMenu}>
-                        <EllipsisIcon {...commonIconProps()} fill={palette.secondary.main} />
+                <Tooltip title={t("More")} key={displayedActions.length}>
+                    <ActionIconButton
+                        aria-label={t("More")}
+                        onClick={openOverflowMenu}
+                    >
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.main}
+                            name="Ellipsis"
+                            size={24}
+                        />
                     </ActionIconButton>
                 </Tooltip>,
             );

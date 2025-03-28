@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { useErrorPopover } from "../../hooks/useErrorPopover.js";
 import { useKeyboardOpen } from "../../hooks/useKeyboardOpen.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
-import { CancelIcon, CreateIcon, SaveIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
 import { SxType } from "../../types.js";
 import { BottomActionsGrid } from "./BottomActionsGrid.js";
 import { LoadableButton } from "./LoadableButton/LoadableButton.js";
@@ -97,7 +97,10 @@ export function BottomActionsButtons({
                         aria-label={t(isCreate ? "Create" : "Save")}
                         disabled={isSubmitDisabled}
                         isLoading={loading}
-                        startIcon={isCreate ? <CreateIcon /> : <SaveIcon />}
+                        startIcon={<IconCommon
+                            decorative
+                            name={isCreate ? "Create" : "Save"}
+                        />}
                         sx={buttonStyle}
                         variant="contained"
                     >{hideTextOnMobile && isMobile ? "" : t(isCreate ? "Create" : "Save")}</LoadableButton>
@@ -110,7 +113,10 @@ export function BottomActionsButtons({
                     disabled={loading || (disabledCancel !== undefined ? disabledCancel : false)}
                     fullWidth
                     onClick={handleCancel}
-                    startIcon={<CancelIcon />}
+                    startIcon={<IconCommon
+                        decorative
+                        name="Cancel"
+                    />}
                     variant="outlined"
                     sx={buttonStyle}
                 >{hideTextOnMobile && isMobile ? "" : t("Cancel")}</Button>

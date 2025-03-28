@@ -1,9 +1,10 @@
 import { FormTipType } from "@local/shared";
 import { Box, Button, IconButton, Link, List, ListItem, ListItemIcon, ListItemText, Palette, Popover, TextField, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useEditableLabel } from "../../../hooks/useEditableLabel.js";
 import { usePopover } from "../../../hooks/usePopover.js";
-import { DeleteIcon, ErrorIcon, InfoIcon, PlayIcon, WarningIcon } from "../../../icons/common.js";
+import { Icon, IconCommon, IconInfo } from "../../../icons/Icons.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
 import { RichInputBase } from "../RichInput/RichInput.js";
@@ -11,9 +12,9 @@ import { FormSettingsButtonRow, propButtonStyle } from "./styles.js";
 import { FormTipProps } from "./types.js";
 
 const TIP_ICON_OPTIONS = [
-    { icon: <ErrorIcon />, label: "Error", value: "Error" },
-    { icon: <InfoIcon />, label: "Info", value: "Info" },
-    { icon: <WarningIcon />, label: "Warning", value: "Warning" },
+    { iconInfo: { name: "Error", type: "Common" }, label: "Error", value: "Error" },
+    { iconInfo: { name: "Info", type: "Common" }, label: "Info", value: "Info" },
+    { iconInfo: { name: "Warning", type: "Common" }, label: "Warning", value: "Warning" },
 ] as const;
 
 function isYouTubeLink(link: string): boolean {
@@ -28,30 +29,30 @@ function handleLinkClick(link: string, event: React.MouseEvent) {
 }
 
 function getIconForTip(element: FormTipType, palette: Palette): {
-    icon: React.ReactNode,
+    iconInfo: IconInfo,
     color: string,
 } {
-    let icon: React.ReactNode | null = null;
+    let iconInfo: IconInfo | null = null;
     let color: string | null = null;
 
     // Handle custom icons
     if (element.icon) {
         const iconOption = TIP_ICON_OPTIONS.find((option) => option.value === element.icon);
         if (iconOption) {
-            icon = iconOption.icon;
+            iconInfo = iconOption.iconInfo;
         }
     }
     // Handle link-derived icons
-    if (!icon && element.link) {
+    if (!iconInfo && element.link) {
         if (isYouTubeLink(element.link)) {
-            icon = <PlayIcon />;
+            iconInfo = { name: "Play", type: "Common" } as const;
             color = palette.mode === "light" ? "#001cd3" : "#dd86db";
         }
         // Add more URL-based icon logic if needed
     }
     // Default to info icon
-    if (!icon) {
-        icon = <InfoIcon />;
+    if (!iconInfo) {
+        iconInfo = { name: "Info", type: "Common" } as const;
     }
 
     if (element.icon === "Warning") {
@@ -65,7 +66,7 @@ function getIconForTip(element: FormTipType, palette: Palette): {
         color = palette.primary.main;
     }
 
-    return { icon, color };
+    return { iconInfo, color };
 }
 
 const StyledLink = styled(Link)(({ theme }) => ({
@@ -80,7 +81,16 @@ export function FormTip({
     onDelete,
     onUpdate,
 }: FormTipProps) {
+    const { t } = useTranslation();
     const { palette } = useTheme();
+
+    function openElementLink(event: React.MouseEvent) {
+        if (!element.link) {
+            console.error("No link to open");
+            return;
+        }
+        handleLinkClick(element.link, event);
+    }
 
     const updateProp = useCallback(
         function updatePropCallback(data: Partial<FormTipType>) {
@@ -131,7 +141,7 @@ export function FormTip({
         onUpdate: updateLabel,
     });
 
-    const iconInfo = getIconForTip(element, palette);
+    const icon = getIconForTip(element, palette);
 
     const TipContent = useMemo(() => {
         const markdownStyle = {
@@ -151,9 +161,12 @@ export function FormTip({
 
     if (!isEditing) {
         const content = (
-            <Box display="flex" alignItems="center" color={iconInfo.color}>
+            <Box display="flex" alignItems="center" color={icon.color}>
                 <Box mr={1}>
-                    {iconInfo.icon}
+                    <Icon
+                        decorative
+                        info={icon.iconInfo}
+                    />
                 </Box>
                 {element.link ? (
                     <StyledLink
@@ -161,7 +174,7 @@ export function FormTip({
                         target="_blank"
                         rel="noopener noreferrer"
                         variant="body2"
-                        onClick={(e) => handleLinkClick(element.link!, e)}
+                        onClick={openElementLink}
                     >
                         {TipContent}
                     </StyledLink>
@@ -197,19 +210,36 @@ export function FormTip({
 
                         return (
                             <ListItem button key={option.value} onClick={handleClick}>
-                                <ListItemIcon>{option.icon}</ListItemIcon>
+                                <ListItemIcon>
+                                    <Icon
+                                        decorative
+                                        info={option.iconInfo}
+                                    />
+                                </ListItemIcon>
                                 <ListItemText primary={option.label} />
                             </ListItem>
                         );
                     })}
                 </List>
             </Popover>
-            <Box display="flex" alignItems="center" color={iconInfo.color}>
-                <IconButton onClick={onDelete}>
-                    <DeleteIcon fill={palette.error.main} width="24px" height="24px" />
+            <Box display="flex" alignItems="center" color={icon.color}>
+                <IconButton
+                    aria-label={t("Delete")}
+                    onClick={onDelete}
+                >
+                    <IconCommon
+                        decorative
+                        fill={palette.error.main}
+                        name="Delete"
+                        size={24}
+                    />
                 </IconButton>
                 <Box mr={1}>
-                    {iconInfo.icon}
+                    <Icon
+                        decorative
+                        info={icon.iconInfo}
+                        size={24}
+                    />
                 </Box>
                 {element.isMarkdown ? (
                     <RichInputBase

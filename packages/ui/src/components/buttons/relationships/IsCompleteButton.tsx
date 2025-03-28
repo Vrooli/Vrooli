@@ -2,11 +2,9 @@ import { Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { CompleteIcon as CIcon } from "../../../icons/common.js";
-import { RelationshipButton, RelationshipChip, withRelationshipIcon } from "./styles.js";
+import { Icon } from "../../../icons/Icons.js";
+import { RelationshipButton, RelationshipChip } from "./styles.js";
 import { IsCompleteButtonProps } from "./types.js";
-
-const CompleteIcon = withRelationshipIcon(CIcon);
 
 export function IsCompleteButton({
     isEditing,
@@ -16,11 +14,11 @@ export function IsCompleteButton({
 
     const [field, , helpers] = useField("isComplete");
 
-    const { Icon, label, tooltip } = useMemo(() => {
+    const { iconColor, iconInfo, label, tooltip } = useMemo(() => {
         const isComplete = field?.value;
-        const iconColor = isEditing ? palette.primary.light : palette.secondary.contrastText;
         return {
-            Icon: () => <CompleteIcon fill={iconColor} />,
+            iconColor: isEditing ? palette.primary.light : palette.secondary.contrastText,
+            iconInfo: { name: "Complete", type: "Common" } as const,
             label: t(field?.value ? "Complete" : "Incomplete"),
             tooltip: t(`IsComplete${isComplete ? "True" : "False"}TogglePress${isEditing ? "Editable" : ""}`),
         };
@@ -37,7 +35,11 @@ export function IsCompleteButton({
             <Tooltip title={tooltip}>
                 <RelationshipButton
                     onClick={handleClick}
-                    startIcon={Icon && <Icon />}
+                    startIcon={iconInfo && <Icon
+                        fill={iconColor}
+                        info={iconInfo}
+                        size={32}
+                    />}
                     variant="outlined"
                 >
                     {label}
@@ -48,7 +50,11 @@ export function IsCompleteButton({
     // Otherwise, return chip
     return (
         <RelationshipChip
-            icon={Icon && <Icon />}
+            icon={iconInfo && <Icon
+                fill={iconColor}
+                info={iconInfo}
+                size={32}
+            />}
             label={label}
         />
     );

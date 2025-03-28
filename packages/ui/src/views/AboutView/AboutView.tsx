@@ -1,11 +1,11 @@
 import { Box, Button, IconButton, Link, Stack, Tooltip, Typography, keyframes, styled, useTheme } from "@mui/material";
-import MattProfilePic from "assets/img/profile-matt.webp";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import MattProfilePic from "../../assets/img/profile-matt.webp";
 import { PageContainer } from "../../components/Page/Page.js";
 import { Footer } from "../../components/navigation/Footer.js";
 import { TopBar } from "../../components/navigation/TopBar.js";
-import { GitHubIcon, TeamIcon, WebsiteIcon, XIcon } from "../../icons/common.js";
+import { IconCommon, IconService } from "../../icons/Icons.js";
 import { openLink } from "../../route/openLink.js";
 import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
@@ -160,60 +160,99 @@ export function AboutView({
                         <Typography variant='h4' pb={2} textAlign="start">The Team</Typography>
                         {/* Vertical stack of cards, one for each member */}
                         <Stack id="members-stack" direction="column" spacing={4}>
-                            {teamMembers.map((member, key) => (
-                                <Box
-                                    key={key}
-                                    sx={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "space-between",
-                                        backgroundColor: palette.primary.dark,
-                                        color: palette.primary.contrastText,
-                                        borderRadius: 2,
-                                        padding: 2,
-                                        overflow: "overlay",
-                                    }}
-                                >
-                                    {/* Image, positioned to left */}
-                                    <Box component="img" src={member.photo} alt={`${member.fullName} profile picture`} sx={{
-                                        maxWidth: "30%",
-                                        maxHeight: "150px",
-                                        objectFit: "contain",
-                                        borderRadius: "100%",
-                                    }} />
-                                    {/* Name, role, and links */}
-                                    <Box sx={{
-                                        width: "70%",
-                                        height: "fit-content",
-                                    }}>
-                                        <Typography variant='h4' component="h5" mb={1} textAlign="center">{member.fullName}</Typography>
-                                        <Typography variant='body1' mb={2} textAlign="center">{member.role}</Typography>
-                                        <Stack direction="row" alignItems="center" justifyContent="center">
-                                            {member.socials.website && (
-                                                <Tooltip title="Personal website" placement="bottom">
-                                                    <IconButton onClick={() => openLink(setLocation, member.socials.website as string)} sx={memberButtonProps}>
-                                                        <WebsiteIcon fill={palette.secondary.light} width="42px" height="42px" />
-                                                    </IconButton>
-                                                </Tooltip>
-                                            )}
-                                            {member.socials.x && (
-                                                <Tooltip title="X/Twitter" placement="bottom">
-                                                    <IconButton onClick={() => openLink(setLocation, member.socials.x as string)} sx={memberButtonProps}>
-                                                        <XIcon fill={palette.secondary.light} width="36px" height="36px" />
-                                                    </IconButton>
-                                                </Tooltip>
-                                            )}
-                                            {member.socials.github && (
-                                                <Tooltip title="GitHub" placement="bottom">
-                                                    <IconButton onClick={() => openLink(setLocation, member.socials.github as string)} sx={memberButtonProps}>
-                                                        <GitHubIcon fill={palette.secondary.light} width="36px" height="36px" />
-                                                    </IconButton>
-                                                </Tooltip>
-                                            )}
-                                        </Stack>
+                            {teamMembers.map((member, key) => {
+                                function openPersonalWebsite() {
+                                    openLink(setLocation, member.socials.website as string);
+                                }
+                                function openX() {
+                                    openLink(setLocation, member.socials.x as string);
+                                }
+                                function openGitHub() {
+                                    openLink(setLocation, member.socials.github as string);
+                                }
+
+                                return (
+                                    <Box
+                                        key={key}
+                                        sx={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "space-between",
+                                            backgroundColor: palette.primary.dark,
+                                            color: palette.primary.contrastText,
+                                            borderRadius: 2,
+                                            padding: 2,
+                                            overflow: "overlay",
+                                        }}
+                                    >
+                                        {/* Image, positioned to left */}
+                                        <Box component="img" src={member.photo} alt={`${member.fullName} profile picture`} sx={{
+                                            maxWidth: "30%",
+                                            maxHeight: "150px",
+                                            objectFit: "contain",
+                                            borderRadius: "100%",
+                                        }} />
+                                        {/* Name, role, and links */}
+                                        <Box
+                                            width="70%"
+                                            height="fit-content"
+                                        >
+                                            <Typography variant='h4' component="h5" mb={1} textAlign="center">{member.fullName}</Typography>
+                                            <Typography variant='body1' mb={2} textAlign="center">{member.role}</Typography>
+                                            <Stack direction="row" alignItems="center" justifyContent="center">
+                                                {member.socials.website && (
+                                                    <Tooltip title="Personal website" placement="bottom">
+                                                        <IconButton
+                                                            aria-label="Personal website"
+                                                            onClick={openPersonalWebsite}
+                                                            sx={memberButtonProps}
+                                                        >
+                                                            <IconCommon
+                                                                decorative
+                                                                fill={palette.secondary.light}
+                                                                name="Website"
+                                                                size={42}
+                                                            />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                )}
+                                                {member.socials.x && (
+                                                    <Tooltip title="X/Twitter" placement="bottom">
+                                                        <IconButton
+                                                            aria-label="X/Twitter"
+                                                            onClick={openX}
+                                                            sx={memberButtonProps}
+                                                        >
+                                                            <IconService
+                                                                decorative
+                                                                fill={palette.secondary.light}
+                                                                name="X"
+                                                                size={36}
+                                                            />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                )}
+                                                {member.socials.github && (
+                                                    <Tooltip title="GitHub" placement="bottom">
+                                                        <IconButton
+                                                            aria-label="GitHub"
+                                                            onClick={openGitHub}
+                                                            sx={memberButtonProps}
+                                                        >
+                                                            <IconService
+                                                                decorative
+                                                                fill={palette.secondary.light}
+                                                                name="GitHub"
+                                                                size={36}
+                                                            />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                )}
+                                            </Stack>
+                                        </Box>
                                     </Box>
-                                </Box>
-                            ))}
+                                );
+                            })}
                             <Stack direction="row" justifyContent="center" alignItems="center">
                                 <Button
                                     fullWidth
@@ -222,7 +261,10 @@ export function AboutView({
                                     href={joinTeamLink}
                                     onClick={handleJoinTeam}
                                     variant="contained"
-                                    startIcon={<TeamIcon />}
+                                    startIcon={<IconCommon
+                                        decorative
+                                        name="Team"
+                                    />}
                                 >Join the Team</Button>
                             </Stack>
                         </Stack>

@@ -3,7 +3,7 @@ import { RadioFormInput, RadioFormInputProps, getFormikFieldName } from "@local/
 import { Button, FormControl, FormControlLabel, FormHelperText, IconButton, Radio, RadioGroup, TextField, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
-import { AddIcon, CloseIcon, DragIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { randomString } from "../../../utils/codes.js";
 import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButtonWithSectionStyle } from "./styles.js";
 import { FormInputProps } from "./types.js";
@@ -200,12 +200,22 @@ export function FormInputRadio({
                                                                     <>
                                                                         <Tooltip title="Drag to reorder" placement={props.row === true ? "top" : "right"}>
                                                                             <div {...providedDrag.dragHandleProps} style={{ cursor: "move", display: "flex", alignItems: "center", paddingLeft: "8px" }}>
-                                                                                <DragIcon fill={palette.background.textSecondary} width="16px" height="16px" />
+                                                                                <IconCommon
+                                                                                    decorative
+                                                                                    fill={palette.background.textSecondary}
+                                                                                    name="Drag"
+                                                                                    size={16}
+                                                                                />
                                                                             </div>
                                                                         </Tooltip>
                                                                         <Tooltip title="Remove option" placement={props.row === true ? "top" : "right"}>
                                                                             <IconButton onClick={() => removeOption(index)} sx={{ padding: "4px", paddingLeft: "8px" }}>
-                                                                                <CloseIcon fill={palette.background.textSecondary} width="16px" height="16px" />
+                                                                                <IconCommon
+                                                                                    decorative
+                                                                                    fill={palette.background.textSecondary}
+                                                                                    name="Close"
+                                                                                    size={16}
+                                                                                />
                                                                             </IconButton>
                                                                         </Tooltip>
                                                                     </>
@@ -228,7 +238,10 @@ export function FormInputRadio({
                                     <Button
                                         variant="text"
                                         onClick={addOption}
-                                        startIcon={<AddIcon />}
+                                        startIcon={<IconCommon
+                                            decorative
+                                            name="Add"
+                                        />}
                                         style={addOptionStyle}
                                     >
                                         Add Option

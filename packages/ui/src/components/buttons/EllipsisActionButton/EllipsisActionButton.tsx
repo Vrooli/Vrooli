@@ -1,8 +1,8 @@
 import { Collapse, IconButton, Stack, Tooltip, useTheme } from "@mui/material";
-import { useIsLeftHanded } from "hooks/subscriptions";
-import { CloseIcon, EllipsisIcon } from "icons/common.js";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useIsLeftHanded } from "../../../hooks/subscriptions.js";
+import { Icon } from "../../../icons/Icons.js";
 import { EllipsisActionButtonProps } from "../types.js";
 
 export function EllipsisActionButton({
@@ -15,9 +15,9 @@ export function EllipsisActionButton({
     const [isOpen, setIsOpen] = useState(false);
     const toggleOpen = useCallback(() => setIsOpen(!isOpen), [isOpen]);
 
-    const Icon = useMemo(() => {
-        if (isOpen) return CloseIcon;
-        return EllipsisIcon;
+    const iconInfo = useMemo(() => {
+        if (isOpen) return { name: "Close", type: "Common" } as const;
+        return { name: "Ellipsis", type: "Common" } as const;
     }, [isOpen]);
 
     const button = useMemo(() => (
@@ -33,10 +33,15 @@ export function EllipsisActionButton({
                     height: "54px",
                 }}
             >
-                <Icon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                <Icon
+                    decorative
+                    fill={palette.secondary.contrastText}
+                    info={iconInfo}
+                    size={36}
+                />
             </IconButton>
         </Tooltip>
-    ), [Icon, palette.secondary.contrastText, palette.secondary.main, toggleOpen, t]);
+    ), [iconInfo, palette.secondary.contrastText, palette.secondary.main, toggleOpen, t]);
 
     return (
         <>

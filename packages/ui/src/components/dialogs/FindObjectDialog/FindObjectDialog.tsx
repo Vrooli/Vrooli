@@ -6,7 +6,7 @@ import { lazily } from "react-lazily";
 import { useFindMany } from "../../../hooks/useFindMany.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { useTabs } from "../../../hooks/useTabs.js";
-import { AddIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { removeSearchParams } from "../../../route/searchParams.js";
 import { SideActionsButton } from "../../../styles.js";
@@ -226,6 +226,9 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
     useEffect(() => {
         setSelectedObject(null);
     }, [isOpen]);
+    function removeSelectedObject() {
+        setSelectedObject(null);
+    }
 
     const onCreateStart = useCallback((e: React.MouseEvent<HTMLElement>) => {
         // If tab is 'All', open menu to select type
@@ -472,7 +475,7 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
                         <Button
                             fullWidth
                             color="secondary"
-                            onClick={() => setSelectedObject(null)}
+                            onClick={removeSelectedObject}
                             variant="outlined"
                         >
                             Select a different object
@@ -481,7 +484,12 @@ export function FindObjectDialog<Find extends FindObjectDialogType>({
                 )}
                 <SideActionsButtons display="dialog">
                     <SideActionsButton aria-label="create-new" onClick={onCreateStart}>
-                        <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.contrastText}
+                            name="Add"
+                            size={36}
+                        />
                     </SideActionsButton>
                 </SideActionsButtons>
             </LargeDialog>

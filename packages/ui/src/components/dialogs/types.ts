@@ -2,7 +2,8 @@ import { Bookmark, BookmarkFor, ListObject, RoutineVersion, TranslationKeyCommon
 import { DialogProps, PopoverProps } from "@mui/material";
 import { ReactNode } from "react";
 import { type UseObjectActionsReturn } from "../../hooks/objectActions.js";
-import { SvgComponent, SxType, ViewDisplayType } from "../../types.js";
+import { IconInfo } from "../../icons/Icons.js";
+import { SxType, ViewDisplayType } from "../../types.js";
 import { ObjectAction } from "../../utils/actions/objectActions.js";
 import { CookiePreferences } from "../../utils/localStorage.js";
 import { HelpButtonProps } from "../buttons/types.js";
@@ -94,10 +95,10 @@ export interface FindSubroutineDialogProps {
 export interface ListMenuItemData<T> {
     /** Displays help button with data */
     helpData?: HelpButtonProps;
-    /** Icon to display */
-    Icon?: SvgComponent;
     /** Color of Icon, if different than text */
     iconColor?: string;
+    /** Icon to display */
+    iconInfo?: IconInfo;
     /** Text to display */
     label?: string;
     /** Translation key for label, if label not provided */

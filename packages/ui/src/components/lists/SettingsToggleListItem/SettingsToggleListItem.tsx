@@ -1,14 +1,14 @@
 import { ListItem, Stack, Typography, useTheme } from "@mui/material";
-import { ToggleSwitch } from "components/inputs/ToggleSwitch/ToggleSwitch.js";
 import { useField } from "formik";
+import { ToggleSwitch } from "../../inputs/ToggleSwitch/ToggleSwitch.js";
 import { SettingsToggleListItemProps } from "../types.js";
 
-export const SettingsToggleListItem = ({
+export function SettingsToggleListItem({
     description,
     disabled,
     name,
     title,
-}: SettingsToggleListItemProps) => {
+}: SettingsToggleListItemProps) {
     const { palette } = useTheme();
     const [field] = useField(name);
 
@@ -43,4 +43,4 @@ export const SettingsToggleListItem = ({
             />
         </ListItem>
     );
-};
+}

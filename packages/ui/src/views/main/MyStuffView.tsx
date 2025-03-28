@@ -12,7 +12,7 @@ import { useFindMany } from "../../hooks/useFindMany.js";
 import { usePopover } from "../../hooks/usePopover.js";
 import { useSelectableList } from "../../hooks/useSelectableList.js";
 import { useTabs } from "../../hooks/useTabs.js";
-import { ActionIcon, AddIcon, CancelIcon, DeleteIcon, SearchIcon } from "../../icons/common.js";
+import { Icon, IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { SideActionsButton } from "../../styles.js";
 import { BulkObjectAction } from "../../utils/actions/bulkObjectActions.js";
@@ -94,6 +94,9 @@ export function MyStuffView({
         },
         setLocation,
     });
+    function startBulkDelete() {
+        onBulkActionStart(BulkObjectAction.Delete);
+    }
 
     // Menu for selection object type to create
     const [selectCreateTypeAnchorEl, openSelectCreateType, closeSelectCreateType] = usePopover();
@@ -113,8 +116,6 @@ export function MyStuffView({
 
     function focusSearch() { scrollIntoFocusedView("search-bar-my-stuff-list"); }
 
-    const actionIconProps = useMemo(() => ({ fill: palette.secondary.contrastText, width: "36px", height: "36px" }), [palette.secondary.contrastText]);
-
     return (
         <SearchListScrollContainer id={scrollContainerId}>
             {BulkDeleteDialogComponent}
@@ -123,22 +124,32 @@ export function MyStuffView({
                 anchorEl={selectCreateTypeAnchorEl}
                 disableScrollLock={true}
                 open={Boolean(selectCreateTypeAnchorEl)}
-                onClose={() => onSelectCreateTypeClose()}
+                onClose={closeSelectCreateType}
             >
                 {/* Never show 'All' */}
                 {myStuffTabParams
                     .filter((t) => !["Popular"]
-                        .includes(t.searchType as SearchType)).map(({ Icon, key, searchType }) => (
-                            <MenuItem
-                                key={key}
-                                onClick={() => onSelectCreateTypeClose(searchType)}
-                            >
-                                {Icon && <ListItemIcon>
-                                    <Icon fill={palette.background.textPrimary} />
-                                </ListItemIcon>}
-                                <ListItemText primary={t(searchType, { count: 1, defaultValue: searchType })} />
-                            </MenuItem>
-                        ))}
+                        .includes(t.searchType as SearchType)).map(({ iconInfo, key, searchType }) => {
+                            function handleClick() {
+                                onSelectCreateTypeClose(searchType);
+                            }
+
+                            return (
+                                <MenuItem
+                                    key={key}
+                                    onClick={handleClick}
+                                >
+                                    {iconInfo && <ListItemIcon>
+                                        <Icon
+                                            decorative
+                                            fill={palette.background.textPrimary}
+                                            info={iconInfo}
+                                        />
+                                    </ListItemIcon>}
+                                    <ListItemText primary={t(searchType, { count: 1, defaultValue: searchType })} />
+                                </MenuItem>
+                            );
+                        })}
             </Menu>
             <TopBar
                 display={display}
@@ -165,21 +176,47 @@ export function MyStuffView({
             />}
             <SideActionsButtons display={display}>
                 {isSelecting && selectedData.length > 0 ? <Tooltip title={t("Delete")}>
-                    <SideActionsButton aria-label={t("Delete")} onClick={() => { onBulkActionStart(BulkObjectAction.Delete); }}>
-                        <DeleteIcon {...actionIconProps} />
+                    <SideActionsButton
+                        aria-label={t("Delete")}
+                        onClick={startBulkDelete}
+                    >
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.contrastText}
+                            name="Delete"
+                            size={36}
+                        />
                     </SideActionsButton>
                 </Tooltip> : null}
                 <Tooltip title={t(isSelecting ? "Cancel" : "Select")}>
-                    <SideActionsButton aria-label={t(isSelecting ? "Cancel" : "Select")} onClick={handleToggleSelecting}>
-                        {isSelecting ? <CancelIcon {...actionIconProps} /> : <ActionIcon {...actionIconProps} />}
+                    <SideActionsButton
+                        aria-label={t(isSelecting ? "Cancel" : "Select")}
+                        onClick={handleToggleSelecting}
+                    >
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.contrastText}
+                            name={isSelecting ? "Cancel" : "Action"}
+                            size={36}
+                        />
                     </SideActionsButton>
                 </Tooltip>
                 {!isSelecting ? <SideActionsButton aria-label={t("FilterList")} onClick={focusSearch}>
-                    <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    <IconCommon
+                        decorative
+                        fill={palette.secondary.contrastText}
+                        name="Search"
+                        size={36}
+                    />
                 </SideActionsButton> : null}
                 {userId ? (
                     <SideActionsButton aria-label={t("Add")} onClick={onCreateStart}>
-                        <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.contrastText}
+                            name="Add"
+                            size={36}
+                        />
                     </SideActionsButton>
                 ) : null}
             </SideActionsButtons>

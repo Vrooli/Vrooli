@@ -25,7 +25,7 @@ import { createUpdatedTranslations, getAutoFillTranslationData, useAutoFill, Use
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
-import { BotIcon, CommentIcon, HandleIcon, HeartFilledIcon, KeyPhrasesIcon, LearnIcon, PersonaIcon, RoutineValidIcon, TeamIcon } from "../../../icons/common.js";
+import { IconCommon, IconRoutine } from "../../../icons/Icons.js";
 import { FormContainer, FormSection } from "../../../styles.js";
 import { combineErrorsWithTranslations, getUserLanguages } from "../../../utils/display/translationTools.js";
 import { BotFormProps, BotUpsertProps } from "./types.js";
@@ -160,63 +160,90 @@ type InputMode = "default" | "custom";
 const nameInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <BotIcon />
+            <IconCommon
+                decorative
+                name="Bot"
+            />
         </InputAdornment>
     ),
 } as const;
 const handleInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <HandleIcon />
+            <IconCommon
+                decorative
+                name="Handle"
+            />
         </InputAdornment>
     ),
 } as const;
 const startingMessageInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <CommentIcon />
+            <IconCommon
+                decorative
+                name="Comment"
+            />
         </InputAdornment>
     ),
 } as const;
 const occupationInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <TeamIcon />
+            <IconCommon
+                decorative
+                name="Team"
+            />
         </InputAdornment>
     ),
 } as const;
 const personaInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <PersonaIcon />
+            <IconCommon
+                decorative
+                name="Persona"
+            />
         </InputAdornment>
     ),
 } as const;
 const toneInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <RoutineValidIcon />
+            <IconRoutine
+                decorative
+                name="RoutineValid"
+            />
         </InputAdornment>
     ),
 } as const;
 const keyPhrasesInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <KeyPhrasesIcon />
+            <IconCommon
+                decorative
+                name="KeyPhrases"
+            />
         </InputAdornment>
     ),
 } as const;
 const domainKnowledgeInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <LearnIcon />
+            <IconCommon
+                decorative
+                name="Learn"
+            />
         </InputAdornment>
     ),
 } as const;
 const biasInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <HeartFilledIcon />
+            <IconCommon
+                decorative
+                name="HeartFilled"
+            />
         </InputAdornment>
     ),
 } as const;

@@ -14,7 +14,7 @@ import { FormVideo } from "../../components/inputs/form/FormVideo.js";
 import { FormErrorBoundary } from "../../forms/FormErrorBoundary/FormErrorBoundary.js";
 import { usePopover } from "../../hooks/usePopover.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
-import { CaseSensitiveIcon, DragIcon, HeaderIcon, HelpIcon, ImageIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, MinusIcon, NumberIcon, ObjectIcon, PlayIcon, QrCodeIcon, SliderIcon, SwitchIcon, CaseSensitiveIcon as TextInputIcon, UploadIcon, VrooliIcon } from "../../icons/common.js";
+import { Icon, IconCommon, IconInfo } from "../../icons/Icons.js";
 import { randomString } from "../../utils/codes.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
 
@@ -78,12 +78,21 @@ export function normalizeFormContainers(
 
 type PopoverListInput = {
     category: string;
-    items: readonly { type: InputType; icon: React.ReactNode; label: string }[];
+    items: readonly {
+        type: InputType;
+        iconInfo: IconInfo | null;
+        label: string
+    }[];
 }[]
 
 type PopoverListStructure = {
     category: string;
-    items: readonly { type: FormStructureType; icon: React.ReactNode; label: string; tag?: FormHeaderType["tag"] }[];
+    items: readonly {
+        type: FormStructureType;
+        iconInfo: IconInfo | null;
+        label: string;
+        tag?: FormHeaderType["tag"];
+    }[];
 }[]
 
 /**
@@ -167,7 +176,7 @@ const toolbarLargeButtonStyle = { cursor: "pointer" } as const;
 const popoverAnchorOrigin = { vertical: "bottom", horizontal: "center" } as const;
 
 interface PopoverListItemProps {
-    icon?: React.ReactNode | null;
+    iconInfo: IconInfo | null;
     key: string;
     label: string;
     tag?: FormHeaderType["tag"];
@@ -178,7 +187,7 @@ interface PopoverListItemProps {
 }
 
 const PopoverListItem = memo(function PopoverListItemMemo({
-    icon,
+    iconInfo,
     key,
     label,
     onAddHeader,
@@ -207,7 +216,13 @@ const PopoverListItem = memo(function PopoverListItemMemo({
             key={key}
             onClick={handleClick}
         >
-            {Boolean(icon) && <ListItemIcon>{icon}</ListItemIcon>}
+            {iconInfo !== null && iconInfo !== undefined && <ListItemIcon>
+                <Icon
+                    decorative
+                    info={iconInfo}
+                    size={24}
+                />
+            </ListItemIcon>}
             <ListItemText primary={label} />
         </ListItem>
     );
@@ -297,37 +312,37 @@ export function FormBuildView({
             {
                 category: "Text Inputs",
                 items: [
-                    { type: InputType.Text, icon: <CaseSensitiveIcon />, label: "Text" },
-                    { type: InputType.JSON, icon: <ObjectIcon />, label: "JSON (structured text)" }, //TODO
+                    { type: InputType.Text, iconInfo: { name: "CaseSensitive", type: "Text" } as const, label: "Text" },
+                    { type: InputType.JSON, iconInfo: { name: "Object", type: "Common" } as const, label: "JSON (structured text)" }, //TODO
                 ],
             },
             {
                 category: "Selection Inputs",
                 items: [
-                    { type: InputType.Checkbox, icon: <ListCheckIcon />, label: "Checkbox (Select multiple from list)" },
-                    { type: InputType.Radio, icon: <ListBulletIcon />, label: "Radio (Select one from list)" },
-                    { type: InputType.Selector, icon: <ListIcon />, label: "Selector (Select one from list)" }, // TODO waiting on InputType.JSON to define item shape (standard) and InputType.LinkItem to connect standard
-                    { type: InputType.Switch, icon: <SwitchIcon />, label: "Switch (Toggle on/off or true/false)" },
+                    { type: InputType.Checkbox, iconInfo: { name: "ListCheck", type: "Text" } as const, label: "Checkbox (Select multiple from list)" },
+                    { type: InputType.Radio, iconInfo: { name: "ListBullet", type: "Text" } as const, label: "Radio (Select one from list)" },
+                    { type: InputType.Selector, iconInfo: { name: "List", type: "Text" } as const, label: "Selector (Select one from list)" }, // TODO waiting on InputType.JSON to define item shape (standard) and InputType.LinkItem to connect standard
+                    { type: InputType.Switch, iconInfo: { name: "Switch", type: "Common" } as const, label: "Switch (Toggle on/off or true/false)" },
                 ],
             },
             {
                 category: "Link Inputs",
                 items: [
-                    { type: InputType.LinkUrl, icon: <LinkIcon />, label: "Link any URL" }, //TODO
-                    { type: InputType.LinkItem, icon: <VrooliIcon />, label: "Link Vrooli object" }, //TODO
+                    { type: InputType.LinkUrl, iconInfo: { name: "Link", type: "Common" } as const, label: "Link any URL" }, //TODO
+                    { type: InputType.LinkItem, iconInfo: { name: "Vrooli", type: "Common" } as const, label: "Link Vrooli object" }, //TODO
                 ],
             },
             {
                 category: "Numeric Inputs",
                 items: [
-                    { type: InputType.IntegerInput, icon: <NumberIcon />, label: "Number" },
-                    { type: InputType.Slider, icon: <SliderIcon />, label: "Slider (Select a number from a range)" },
+                    { type: InputType.IntegerInput, iconInfo: { name: "Number", type: "Common" } as const, label: "Number" },
+                    { type: InputType.Slider, iconInfo: { name: "Slider", type: "Common" } as const, label: "Slider (Select a number from a range)" },
                 ],
             },
             {
                 category: "File Inputs",
                 items: [
-                    { type: InputType.Dropzone, icon: <UploadIcon />, label: "Dropzone (file upload)" },
+                    { type: InputType.Dropzone, iconInfo: { name: "Upload", type: "Common" } as const, label: "Dropzone (file upload)" },
                 ],
             },
         ] as const).reduce((acc, category) => {
@@ -347,15 +362,15 @@ export function FormBuildView({
             }, {
                 category: "Page Elements",
                 items: [
-                    { type: FormStructureType.Divider, icon: <MinusIcon />, label: "Divider" },
+                    { type: FormStructureType.Divider, iconInfo: { name: "Minus", type: "Common" } as const, label: "Divider" },
                 ],
             }, {
                 category: "Informational",
                 items: [
-                    { type: FormStructureType.Tip, icon: <HelpIcon />, label: "Tip" },
-                    { type: FormStructureType.Image, icon: <ImageIcon />, label: "Image (URL)" },
-                    { type: FormStructureType.Video, icon: <PlayIcon />, label: "Video (URL)" },
-                    { type: FormStructureType.QrCode, icon: <QrCodeIcon />, label: "QR Code" },
+                    { type: FormStructureType.Tip, iconInfo: { name: "Help", type: "Common" } as const, label: "Tip" },
+                    { type: FormStructureType.Image, iconInfo: { name: "Image", type: "Common" } as const, label: "Image (URL)" },
+                    { type: FormStructureType.Video, iconInfo: { name: "Play", type: "Common" } as const, label: "Video (URL)" },
+                    { type: FormStructureType.QrCode, iconInfo: { name: "QrCode", type: "Common" } as const, label: "QR Code" },
                 ],
             },
         ] as const).reduce((acc, category) => {
@@ -575,10 +590,11 @@ export function FormBuildView({
                     <DragBox
                         {...providedDrag.dragHandleProps}
                     >
-                        <DragIcon
+                        <IconCommon
+                            decorative
                             fill={palette.secondary.contrastText}
-                            width="24px"
-                            height="24px"
+                            name="Drag"
+                            size={24}
                             style={dragIconStyle}
                         />
                     </DragBox>
@@ -590,7 +606,7 @@ export function FormBuildView({
     const Toolbar = useMemo(() => {
         const numInputItems = inputItems.reduce((acc, { items }) => acc + items.length, 0);
         const firstInputItem = numInputItems === 1 ? inputItems[0].items[0] : null;
-        const DisplayedInputIcon = firstInputItem ? (() => firstInputItem.icon) : TextInputIcon;
+        const displayedInputIconInfo = firstInputItem?.iconInfo ?? { name: "CaseSensitive", type: "Text" };
         function inputOnClick(event: React.MouseEvent<HTMLElement>) {
             if (firstInputItem) {
                 handleAddInput({ type: firstInputItem.type });
@@ -601,7 +617,7 @@ export function FormBuildView({
 
         const numStructureItems = structureItems.reduce((acc, { items }) => acc + items.length, 0);
         const firstStructureItem = numStructureItems === 1 ? structureItems[0].items[0] : null;
-        const DisplayedStructureIcon = firstStructureItem ? (() => firstStructureItem.icon) : HeaderIcon;
+        const displayedStructureIconInfo = firstStructureItem?.iconInfo ?? { name: "Header", type: "Text" };
         function structureOnClick(event: React.MouseEvent<HTMLElement>) {
             if (firstStructureItem) {
                 if (firstStructureItem.tag) {
@@ -618,14 +634,22 @@ export function FormBuildView({
             <ToolbarBox formElementsCount={schema.elements.length}>
                 {numInputItems > 0 && <>
                     {isMobile ? <IconButton onClick={inputOnClick}>
-                        <DisplayedInputIcon width={24} height={24} />
+                        <Icon
+                            decorative
+                            info={displayedInputIconInfo}
+                            size={24}
+                        />
                     </IconButton> : <Typography variant="body1" sx={toolbarLargeButtonStyle} onClick={inputOnClick}>
                         {numInputItems === 1 && firstInputItem ? `Add ${firstInputItem.label.toLowerCase()}` : "Add input"}
                     </Typography>}
                 </>}
                 {numStructureItems > 0 && <>
                     {isMobile ? <IconButton onClick={structureOnClick}>
-                        <DisplayedStructureIcon width={24} height={24} />
+                        <Icon
+                            decorative
+                            info={displayedStructureIconInfo}
+                            size={24}
+                        />
                     </IconButton> : <Typography variant="body1" sx={toolbarLargeButtonStyle} onClick={structureOnClick}>
                         {numStructureItems === 1 && firstStructureItem ? `Add ${firstStructureItem.label.toLowerCase()}` : "Add structure"}
                     </Typography>}
@@ -653,7 +677,7 @@ export function FormBuildView({
                             {items.map((item) => (
                                 <PopoverListItem
                                     key={item.type}
-                                    icon={item.icon}
+                                    iconInfo={item.iconInfo}
                                     label={item.label}
                                     type={item.type as PopoverListItemProps["type"]}
                                     onAddHeader={handleAddHeader}
@@ -679,7 +703,7 @@ export function FormBuildView({
                             {items.map((item) => (
                                 <PopoverListItem
                                     key={item.type}
-                                    icon={item.icon}
+                                    iconInfo={item.iconInfo}
                                     label={item.label}
                                     tag={item.tag}
                                     type={item.type}

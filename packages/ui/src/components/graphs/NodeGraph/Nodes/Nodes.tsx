@@ -1,17 +1,15 @@
-/* eslint-disable no-magic-numbers */
+
 import { Status } from "@local/shared";
 import { Box, BoxProps, IconButton, SxProps, Tooltip, Typography, TypographyProps, styled, useTheme } from "@mui/material";
-import { ActionIcon, CloseIcon, ListBulletIcon, ListNumberIcon, NoActionIcon, SaveIcon, WarningIcon } from "icons/common.js";
-import { RedirectIcon } from "icons/routineGraph.js";
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import Draggable, { DraggableData, DraggableEvent } from "react-draggable";
-import { ELEMENT_IDS } from "utils/consts.js";
-import { NODE_HIGHLIGHT_ERROR, NODE_HIGHLIGHT_SELECTED, NODE_HIGHLIGHT_WARNING, addHighlight, removeHighlights } from "utils/display/documentTools.js";
-import { getDisplay } from "utils/display/listTools.js";
-import { PubSub } from "utils/pubsub.js";
 import { multiLineEllipsis, noSelect } from "../../../../styles.js";
-// import { routineTypes } from "utils/search/schemas/routine";
-import { Graph, NodeLoop, NodeOperation, NodeRedirect, RoutineListItem, SomeNode, SubroutineOperation, type NodeEnd, type NodeRoutineList } from "views/objects/routine/RoutineMultiStepCrud.js";
+import { ELEMENT_IDS } from "../../../../utils/consts.js";
+import { NODE_HIGHLIGHT_ERROR, NODE_HIGHLIGHT_SELECTED, NODE_HIGHLIGHT_WARNING, addHighlight, removeHighlights } from "../../../../utils/display/documentTools.js";
+import { getDisplay } from "../../../../utils/display/listTools.js";
+import { PubSub } from "../../../../utils/pubsub.js";
+// import { routineTypes } from "../../../../utils/search/schemas/routine";
+import { Graph, NodeLoop, NodeOperation, NodeRedirect, RoutineListItem, SomeNode, SubroutineOperation, type NodeEnd, type NodeRoutineList } from "../../../../views/objects/routine/RoutineMultiStepCrud.js";
 
 type MessageWithStatus = {
     message: string;
@@ -402,10 +400,10 @@ const stateToLabel = {
     Success: "Success",
     Fail: "Fail",
 } as const;
-const stateToIcon = {
-    Success: SaveIcon,
-    Fail: WarningIcon,
-} as const;
+// const stateToIcon = {
+//     Success: SaveIcon,
+//     Fail: WarningIcon,
+// } as const;
 
 interface EndNodeOuterProps extends BoxProps {
     isLabelVisible: boolean;
@@ -453,7 +451,7 @@ export function EndNode({
     const wasSuccessful = node.end?.wasSuccessful === true;
     const state = wasSuccessful ? "Success" : "Fail";
     const iconColor = stateToIconColor[state];
-    const Icon = stateToIcon[state];
+    // const Icon = stateToIcon[state];
 
     const iconSize = calculateNodeSize(scale, IconSize.End);
 
@@ -474,12 +472,12 @@ export function EndNode({
                 ref={nodeRef}
                 state={state}
             >
-                <Icon
+                {/* <Icon
                     className="node-end-icon"
                     width={iconSize}
                     height={iconSize}
                     fill={iconColor}
-                />
+                /> */}
                 <Typography
                     className="node-end-label"
                     variant="body2"
@@ -528,7 +526,7 @@ export function RedirectNode({
                 //     },
                 // }}
                 >
-                    <RedirectIcon
+                    {/* <RedirectIcon
                         id={Graph.node.getElementId(node, "redirect-icon")}
                     // sx={{
                     //     width: '100%',
@@ -539,7 +537,7 @@ export function RedirectNode({
                     //         transition: 'scale .2s ease-in-out',
                     //     }
                     // }}
-                    />
+                    /> */}
                 </IconButton>
             </Tooltip>
         </BaseNode>
@@ -700,7 +698,7 @@ export function RoutineListNode({
                         isLabelVisible={isLabelVisible}
                         variant="h6"
                     >{label}</NodeTitle2>
-                    {
+                    {/* {
                         isEditing && (
                             <IconButton
                                 id={Graph.node.getElementId(node, "delete-icon-button")}
@@ -712,7 +710,7 @@ export function RoutineListNode({
                                 <CloseIcon id={Graph.node.getElementId(node, "delete-icon")} />
                             </IconButton>
                         )
-                    }
+                    } */}
                 </Box>
                 <Box display="flex" justifyContent="flex-start" alignItems="center">
                     <Box
@@ -720,13 +718,13 @@ export function RoutineListNode({
                         onTouchStart={toggleOrdered}
                         sx={routineNodeActionStyle(isEditing)}
                     >
-                        <IconButton
+                        {/* <IconButton
                             size="small"
                             sx={isOrderedButtonStyle}
                             disabled={!isEditing}
                         >
                             {node.routineList.isOrdered ? <ListNumberIcon fill={palette.background.textPrimary} /> : <ListBulletIcon fill={palette.background.textPrimary} />}
-                        </IconButton>
+                        </IconButton> */}
                         {scale > SHOW_BUTTON_LABEL_ABOVE_SCALE && <Typography sx={buttonLabelStyle}>{node.routineList.isOrdered ? "Ordered" : "Unordered"}</Typography>}
                     </Box>
                     <Box
@@ -734,13 +732,13 @@ export function RoutineListNode({
                         onTouchStart={toggleOptional}
                         sx={routineNodeActionStyle(isEditing)}
                     >
-                        <IconButton
+                        {/* <IconButton
                             size="small"
                             sx={isOptionalButtonStyle}
                             disabled={!isEditing}
                         >
                             {node.routineList.isOptional ? <NoActionIcon fill={palette.background.textPrimary} /> : <ActionIcon fill={palette.background.textPrimary} />}
-                        </IconButton>
+                        </IconButton> */}
                         {scale > SHOW_BUTTON_LABEL_ABOVE_SCALE && <Typography sx={buttonLabelStyle}>{node.routineList.isOptional ? "Optional" : "Required"}</Typography>}
                     </Box>
                 </Box>

@@ -1,9 +1,10 @@
 import { Box, IconButton, Stack, useTheme } from "@mui/material";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { Z_INDEX } from "utils/consts.js";
-import { BotIcon, DeleteIcon, EditIcon, TeamIcon, UserIcon } from "../../../icons/common.js";
+import { useTranslation } from "react-i18next";
+import { Icon, IconCommon } from "../../../icons/Icons.js";
 import { ProfilePictureInputAvatar } from "../../../styles.js";
+import { ELEMENT_IDS, Z_INDEX } from "../../../utils/consts.js";
 import { extractImageUrl } from "../../../utils/display/imageTools.js";
 import { placeholderColor } from "../../../utils/display/listTools.js";
 import { PubSub } from "../../../utils/pubsub.js";
@@ -22,9 +23,9 @@ async function handleImagePreview(file: File): Promise<string | undefined> {
     // .heic and .heif files are not supported by browsers, 
     // so we need to convert them to JPEGs (thanks, Apple)
     if (ext === "heic" || ext === "heif") {
-        PubSub.get().publish("loading", true);
+        PubSub.get().publish("menu", { id: ELEMENT_IDS.FullPageSpinner, data: { show: true } });
         // Dynamic import of heic2any
-        const heic2any = (await import("utils/heic/heic2any")).default;
+        const heic2any = (await import("../../../utils/heic/heic2any.js")).default;
 
         // Convert HEIC/HEIF file to JPEG Blob
         try {
@@ -42,7 +43,7 @@ async function handleImagePreview(file: File): Promise<string | undefined> {
                 buttons: [{ labelKey: "Ok" }],
             });
         } finally {
-            PubSub.get().publish("loading", false);
+            PubSub.get().publish("menu", { id: ELEMENT_IDS.FullPageSpinner, data: { show: false } });
         }
     }
     // If not a HEIC/HEIF file, proceed as normal
@@ -62,6 +63,7 @@ export function ProfilePictureInput({
     onProfileImageChange,
     profile,
 }: ProfilePictureInputProps) {
+    const { t } = useTranslation();
     const { palette } = useTheme();
 
     const [bannerImageUrl, setBannerImageUrl] = useState(extractImageUrl(profile?.bannerImage, profile?.updated_at, BANNER_TARGET_SIZE));
@@ -120,82 +122,118 @@ export function ProfilePictureInput({
     }, [onProfileImageChange]);
 
     /** Fallback icon displayed when profile image is not available */
-    const ProfileIcon = useMemo(() => {
-        if (!profile) return EditIcon;
-        if (profile.__typename === "Team") return TeamIcon;
-        if (profile.isBot) return BotIcon;
-        return UserIcon;
+    const profileIconInfo = useMemo(() => {
+        if (!profile) return { name: "Edit", type: "Common" } as const;
+        if (profile.__typename === "Team") return { name: "Team", type: "Common" } as const;
+        if (profile.isBot) return { name: "Bot", type: "Common" } as const;
+        return { name: "User", type: "Common" } as const;
     }, [profile]);
 
     return (
-        <Box position="relative" sx={{ marginBottom: "56px", marginTop: 2, width: "100%" }}>
+        <Box
+            marginBottom="56px"
+            marginTop={2}
+            position="relative"
+            width="100%"
+        >
             {/* Banner image */}
             <Box {...getBannerRootProps()}>
                 <input name={name ?? "banner"} {...getBannerInputProps()} />
                 <Box
+                    width="100%"
+                    height="200px"
+                    borderRadius={1}
+                    boxShadow={2}
                     sx={{
-                        width: "100%",
-                        height: "200px",
                         backgroundColor: bannerImageUrl ? "#fff" : (palette.mode === "light" ? "#b2b3b3" : "#303030"),
                         backgroundImage: bannerImageUrl ? `url(${bannerImageUrl})` : undefined,
                         backgroundSize: "cover",
                         backgroundPosition: "center",
-                        borderRadius: 1,
-                        boxShadow: 2,
                     }}
                 />
-                <Stack direction="row" spacing={0.5} sx={{
-                    position: "absolute",
-                    top: "-16px",
-                    right: "0px",
-                    zIndex: Z_INDEX.PageElement + 1,
-                }}>
-                    <IconButton sx={{ background: palette.secondary.main }}>
-                        <EditIcon width="24px" height="24px" fill={palette.secondary.contrastText} />
+                <Stack
+                    direction="row"
+                    spacing={0.5}
+                    position="absolute"
+                    top="-16px"
+                    right="0px"
+                    zIndex={Z_INDEX.PageElement + 1}
+                >
+                    <IconButton
+                        aria-label={t("Edit")}
+                        sx={{ background: palette.secondary.main }}
+                    >
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.contrastText}
+                            name="Edit"
+                            size={24}
+                        />
                     </IconButton>
                     {bannerImageUrl !== undefined && (
                         <IconButton
+                            aria-label={t("Delete")}
                             onClick={removeBannerImage}
                             sx={{ background: palette.error.main }}
                         >
-                            <DeleteIcon width="24px" height="24px" fill={palette.secondary.contrastText} />
+                            <IconCommon
+                                fill={palette.secondary.contrastText}
+                                name="Delete"
+                                size={24}
+                            />
                         </IconButton>
                     )}
                 </Stack>
             </Box>
             {/* Profile image */}
-            <Box sx={{
-                position: "absolute",
-                left: "50%",
-                transform: "translateX(-50%)",
-                bottom: "-25px",
-            }} {...getProfileRootProps()}>
+            <Box
+                position="absolute"
+                left="50%"
+                bottom="-25px"
+                sx={{ transform: "translateX(-50%)" }}
+                {...getProfileRootProps()}
+            >
                 <input name={name ?? "picture"} {...getProfileInputProps()} />
                 <ProfilePictureInputAvatar
                     isBot={profile?.isBot ?? false}
                     profileColors={profileColors}
                     src={profileImageUrl}
                 >
-                    <ProfileIcon
-                        width="75%"
-                        height="75%"
+                    <Icon
+                        decorative
+                        info={profileIconInfo}
                     />
                 </ProfilePictureInputAvatar>
-                <Stack direction="row" spacing={0.5} sx={{
-                    position: "absolute",
-                    top: "-16px",
-                    right: profileImageUrl !== undefined ? "-56px" : "-8px",
-                    zIndex: Z_INDEX.PageElement + 1,
-                }}>
-                    <IconButton sx={{ background: palette.secondary.main }}>
-                        <EditIcon width="24px" height="24px" fill={palette.secondary.contrastText} />
+                <Stack
+                    direction="row"
+                    position="absolute"
+                    right={profileImageUrl !== undefined ? "-56px" : "-8px"}
+                    spacing={0.5}
+                    top="-16px"
+                    zIndex={Z_INDEX.PageElement + 1}
+                >
+                    <IconButton
+                        aria-label={t("Edit")}
+                        sx={{ background: palette.secondary.main }}
+                    >
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.contrastText}
+                            name="Edit"
+                            size={24}
+                        />
                     </IconButton>
                     {profileImageUrl !== undefined && (
                         <IconButton
+                            aria-label={t("Delete")}
                             onClick={removeProfileImage}
                             sx={{ background: palette.error.main }}
                         >
-                            <DeleteIcon width="24px" height="24px" fill={palette.secondary.contrastText} />
+                            <IconCommon
+                                fill={palette.secondary.contrastText}
+                                name="Delete"
+                                size={24}
+                            />
                         </IconButton>
                     )}
                 </Stack>

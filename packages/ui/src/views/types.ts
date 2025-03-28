@@ -1,6 +1,6 @@
 import { ChatShape, ListObject, MemberInviteShape } from "@local/shared";
 import { ReactNode } from "react";
-import { ViewProps } from "types";
+import { ViewProps } from "../types.js";
 
 export type AboutViewProps = ViewProps
 export type AwardsViewProps = ViewProps

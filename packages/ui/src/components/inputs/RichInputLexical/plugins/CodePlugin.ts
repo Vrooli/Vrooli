@@ -1,4 +1,3 @@
-import { copyIconPath } from "../../../../icons/common.js";
 import { PubSub } from "../../../../utils/pubsub.js";
 import { CODE_BLOCK_COMMAND } from "../commands.js";
 import { COMMAND_PRIORITY_HIGH } from "../consts.js";
@@ -6,6 +5,7 @@ import { useLexicalComposerContext } from "../context.js";
 import { ElementNode } from "../nodes/ElementNode.js";
 import { DOMConversionMap, DOMConversionOutput, NodeConstructorPayloads, NodeType, SerializedCodeBlockNode } from "../types.js";
 import { $createNode, $getSelection, $isNode, $isRangeSelection, getParent } from "../utils.js";
+import commonSpriteHref from "/sprites/common-sprite.svg";
 
 const LANGUAGE_DATA_ATTRIBUTE = "data-highlight-language";
 
@@ -80,16 +80,19 @@ export class CodeBlockNode extends ElementNode {
         copyButton.style.border = "none";
         copyButton.style.cursor = "pointer";
 
-        // Create the SVG element for the copy icon
+        // Create the SVG element for the copy icon using sprite reference
         const svgNS = "http://www.w3.org/2000/svg";
         const copyIcon = document.createElementNS(svgNS, "svg");
         copyIcon.setAttributeNS(null, "viewBox", "0 0 24 24");
         copyIcon.setAttributeNS(null, "width", "24");
         copyIcon.setAttributeNS(null, "height", "24");
-        const path = document.createElementNS(svgNS, "path");
-        path.setAttributeNS(null, "d", copyIconPath);
-        path.setAttributeNS(null, "fill", "white");
-        copyIcon.appendChild(path);
+        // Create a use element to reference the icon from the sprite sheet
+        const useElement = document.createElementNS(svgNS, "use");
+        // Reference the common sprite href and the copy icon
+        useElement.setAttributeNS("http://www.w3.org/1999/xlink", "href", `${commonSpriteHref}#copy`);
+        useElement.setAttributeNS(null, "fill", "white");
+
+        copyIcon.appendChild(useElement);
         copyButton.appendChild(copyIcon);
 
         copyButton.onclick = () => {

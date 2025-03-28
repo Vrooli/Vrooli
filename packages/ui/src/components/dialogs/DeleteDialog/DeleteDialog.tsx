@@ -1,7 +1,7 @@
 import { Button, DialogContent, Stack, Typography, useTheme } from "@mui/material";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { DeleteIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { TextInput } from "../../inputs/TextInput/TextInput.js";
 import { TopBar } from "../../navigation/TopBar.js";
 import { LargeDialog } from "../LargeDialog/LargeDialog.js";
@@ -21,6 +21,9 @@ export function DeleteDialog({
     useEffect(() => {
         setNameInput("");
     }, [isOpen]);
+    function handleInputChange(event: React.ChangeEvent<HTMLInputElement>) {
+        setNameInput(event.target.value);
+    }
 
     const close = useCallback((wasDeleted?: boolean) => {
         handleClose(wasDeleted ?? false);
@@ -50,13 +53,16 @@ export function DeleteDialog({
                         variant="outlined"
                         fullWidth
                         value={nameInput}
-                        onChange={(e) => setNameInput(e.target.value)}
+                        onChange={handleInputChange}
                         error={nameInput.trim() !== objectName.trim()}
                         helperText={nameInput.trim() !== objectName.trim() ? "Name does not match" : ""}
                         sx={{ paddingBottom: 2 }}
                     />
                     <Button
-                        startIcon={<DeleteIcon />}
+                        startIcon={<IconCommon
+                            decorative
+                            name="Delete"
+                        />}
                         color="secondary"
                         onClick={handleDelete}
                         disabled={nameInput.trim() !== objectName.trim()}

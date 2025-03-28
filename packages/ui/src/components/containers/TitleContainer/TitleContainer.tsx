@@ -7,7 +7,7 @@ import { TitleContainerProps } from "../types.js";
 export function TitleContainer({
     children,
     help,
-    Icon,
+    iconInfo,
     id,
     loading = false,
     options = [],
@@ -20,8 +20,8 @@ export function TitleContainer({
         <Stack direction="column" id={id} display="flex" justifyContent="center" alignItems="center">
             <Title
                 help={help}
-                Icon={Icon}
-                options={options.filter(({ Icon }) => Icon) as TitleProps["options"]}
+                iconInfo={iconInfo}
+                options={options.filter(({ iconInfo }) => iconInfo) as TitleProps["options"]}
                 title={title}
                 variant="subsection"
             />

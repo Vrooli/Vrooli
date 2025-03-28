@@ -1,7 +1,8 @@
 import { getObjectSlug, getObjectUrlBase } from "@local/shared";
 import { IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
-import { ReportIcon } from "../../../icons/common.js";
+import { useTranslation } from "react-i18next";
+import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { ReportsLinkProps } from "../types.js";
 
@@ -17,6 +18,7 @@ const CountLabel = styled(Typography)(({ theme }) => ({
 export function ReportsLink({
     object,
 }: ReportsLinkProps) {
+    const { t } = useTranslation();
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
@@ -33,10 +35,15 @@ export function ReportsLink({
     return (
         <Tooltip title="Press to view and repond to reports.">
             <IconButton
+                aria-label={t("Report", { count: object.reportsCount })}
                 href={link}
                 onClick={handleClick}
             >
-                <ReportIcon fill={palette.background.textPrimary} />
+                <IconCommon
+                    decorative
+                    fill={palette.background.textPrimary}
+                    name="Report"
+                />
                 <CountLabel variant="body1">({object.reportsCount})</CountLabel>
             </IconButton>
         </Tooltip>

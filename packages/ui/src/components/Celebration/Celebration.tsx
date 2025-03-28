@@ -1,12 +1,13 @@
 import { uuid } from "@local/shared";
 import { useEffect, useRef, useState } from "react";
 import { useReward } from "react-rewards";
-import { CelebrationType, PubSub } from "utils/pubsub.js";
+import { CelebrationType, PubSub } from "../../utils/pubsub.js";
 
+const DEFAULT_DURATION_MS = 5000;
 const DEFAULT_CELEBRATION_TYPE: CelebrationType = "confetti";
 const DEFAULT_EMOJI = "🎉";
 
-export const Celebration = () => {
+export function Celebration() {
     const [state, setState] = useState<{
         celebrationType: CelebrationType;
         emojis: string[];
@@ -72,7 +73,7 @@ export const Celebration = () => {
                 positionStyle,
             });
 
-            const duration = data?.duration || 5000;
+            const duration = data?.duration ?? DEFAULT_DURATION_MS;
             timeoutRef.current = setTimeout(() => {
                 setState(s => ({ ...s, isActive: false }));
             }, duration);
@@ -96,4 +97,4 @@ export const Celebration = () => {
     return (
         <span id="rewardId" style={state.positionStyle} />
     );
-};
+}

@@ -8,7 +8,7 @@ import { useHotkeys } from "../../hooks/useHotkeys.js";
 import { useMenu } from "../../hooks/useMenu.js";
 import { usePopover } from "../../hooks/usePopover.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
-import { ArrowLeftIcon, ArrowRightIcon, CompleteAllIcon, CompleteIcon, ExpandLessIcon, ExpandMoreIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { addSearchParams, removeSearchParams } from "../../route/searchParams.js";
 import { ELEMENT_IDS, Z_INDEX } from "../../utils/consts.js";
@@ -1436,8 +1436,8 @@ export function TutorialDialog() {
                         <IconButton edge="end" color="inherit">
                             {
                                 isSectionMenuOpen ?
-                                    <ExpandLessIcon fill={palette.background.textPrimary} /> :
-                                    <ExpandMoreIcon fill={palette.background.textPrimary} />
+                                    <IconCommon name="ExpandLess" fill={palette.background.textPrimary} /> :
+                                    <IconCommon name="ExpandMore" fill={palette.background.textPrimary} />
                             }
                         </IconButton>
                     </SectionTitleBox>
@@ -1512,14 +1512,14 @@ export function TutorialDialog() {
                             onClick={handlePrev}
                             disabled={place.section === 0 && place.step === 0}
                         >
-                            <ArrowLeftIcon />
+                            <IconCommon name="ArrowLeft" />
                         </IconButton>
                     }
                     nextButton={
                         <IconButton
                             onClick={handleNext}
                         >
-                            {isFinalStep ? <CompleteAllIcon /> : isFinalStepInSection ? <CompleteIcon /> : <ArrowRightIcon />}
+                            {isFinalStep ? <IconCommon name="CompleteAll" /> : isFinalStepInSection ? <IconCommon name="Complete" /> : <IconCommon name="ArrowRight" />}
                         </IconButton>
                     }
                 />

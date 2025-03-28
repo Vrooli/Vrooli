@@ -2,7 +2,7 @@ import { Box, Dialog, DialogContent, DialogTitle, IconButton, IconButtonProps, P
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSpeech } from "../../../hooks/useSpeech.js";
-import { MicrophoneDisabledIcon, MicrophoneOffIcon, MicrophoneOnIcon } from "../../../icons/common.js";
+import { Icon } from "../../../icons/Icons.js";
 import { Z_INDEX } from "../../../utils/consts.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { MicrophoneButtonProps } from "../types.js";
@@ -12,6 +12,8 @@ type MicrophoneStatus = "On" | "Off" | "Disabled";
 const HINT_AFTER_MILLI = 3000;
 const DEFAULT_HEIGHT = 48;
 const DEFAULT_WIDTH = 48;
+const PADDING_SMALL_THRESHOLD_PX = 16;
+const PADDING_MEDIUM_THRESHOLD_PX = 32;
 
 type StyledIconButtonProps = IconButtonProps & {
     disabled?: boolean;
@@ -22,7 +24,7 @@ type StyledIconButtonProps = IconButtonProps & {
 const StyledIconButton = styled(IconButton)<StyledIconButtonProps>(({ theme, disabled, height, status, width }) => ({
     width: width || DEFAULT_WIDTH,
     height: height || DEFAULT_HEIGHT,
-    padding: (width && width <= 16) ? "0px" : (width && width <= 32) ? "4px" : "8px",
+    padding: (width && width <= PADDING_SMALL_THRESHOLD_PX) ? "0px" : (width && width <= PADDING_MEDIUM_THRESHOLD_PX) ? "4px" : "8px",
     background: status === "On" ? theme.palette.background.textSecondary : "transparent",
     opacity: disabled ? 0.5 : 1,
 }));
@@ -156,11 +158,12 @@ export function MicrophoneButton({
         }, HINT_AFTER_MILLI));
     }, [transcriptTimeout, transcript]);
 
-    const Icon = useMemo(() => {
-        if (status === "On") return MicrophoneOnIcon;
-        if (status === "Off") return MicrophoneOffIcon;
-        return MicrophoneDisabledIcon;
+    const iconInfo = useMemo(() => {
+        if (status === "On") return { name: "MicrophoneOn", type: "Common" } as const;
+        if (status === "Off") return { name: "MicrophoneOff", type: "Common" } as const;
+        return { name: "MicrophoneDisabled", type: "Common" } as const;
     }, [status]);
+    const isMicrophoneDisabled = status === "Disabled";
 
     const handleClick = useCallback(() => {
         if (status === "On") {
@@ -178,28 +181,29 @@ export function MicrophoneButton({
 
     if (!isSpeechSupported && !showWhenUnavailable) return null;
     return (
-        <Box>
-            <Tooltip title={status !== "Disabled" ? t("SearchByVoice") : ""}>
-                <StyledIconButton
-                    height={height}
-                    onClick={handleClick}
-                    status={status}
-                    width={width}
-                >
-                    <Icon
-                        fill={status === "On" ? palette.background.default : (fill ?? palette.background.textPrimary)}
-                        width="100%"
-                        height="100%"
-                    />
-                </StyledIconButton>
-            </Tooltip>
-            {/* When microphone is active, display current translation */}
+        <>
             <TranscriptDialog
                 handleClose={stopListening}
                 isListening={status === "On"}
                 showHint={showHint}
                 transcript={transcript}
             />
-        </Box>
+            <Tooltip title={isMicrophoneDisabled ? t("SpeechNotAvailable") : t("SearchByVoice")}>
+                <StyledIconButton
+                    aria-disabled={isMicrophoneDisabled}
+                    aria-label="Search by voice"
+                    height={height}
+                    onClick={handleClick}
+                    status={status}
+                    width={width}
+                >
+                    <Icon
+                        decorative
+                        fill={status === "On" ? palette.background.default : (fill ?? palette.background.textPrimary)}
+                        info={iconInfo}
+                    />
+                </StyledIconButton>
+            </Tooltip>
+        </>
     );
 }

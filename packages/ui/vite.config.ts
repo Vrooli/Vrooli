@@ -2,6 +2,7 @@ import react from "@vitejs/plugin-react-swc";
 import fs from "fs";
 import path from "path";
 import { defineConfig, loadEnv } from "vite";
+import { iconsSpritesheet } from 'vite-plugin-icons-spritesheet';
 
 type ViteEnv = Record<string, string> & {
     DEV: boolean;
@@ -50,7 +51,40 @@ export default defineConfig((props) => {
     };
 
     return {
-        plugins: [react(), resolveImportExtensions()],
+        plugins: [
+            react(),
+            resolveImportExtensions(),
+            iconsSpritesheet([
+                {
+                    withTypes: true,
+                    inputDir: "src/assets/icons/common",
+                    outputDir: "public/sprites",
+                    typesOutputFile: "src/icons/types/commonIcons.ts",
+                    fileName: "common-sprite.svg",
+                },
+                {
+                    withTypes: true,
+                    inputDir: "src/assets/icons/routine",
+                    outputDir: "public/sprites",
+                    typesOutputFile: "src/icons/types/routineIcons.ts",
+                    fileName: "routine-sprite.svg",
+                },
+                {
+                    withTypes: true,
+                    inputDir: "src/assets/icons/service",
+                    outputDir: "public/sprites",
+                    typesOutputFile: "src/icons/types/serviceIcons.ts",
+                    fileName: "service-sprite.svg",
+                },
+                {
+                    withTypes: true,
+                    inputDir: "src/assets/icons/text",
+                    outputDir: "public/sprites",
+                    typesOutputFile: "src/icons/types/textIcons.ts",
+                    fileName: "text-sprite.svg",
+                }
+            ]),
+        ],
         assetsInclude: ["**/*.md"],
         define: envInProcess,
         server: {
@@ -59,20 +93,6 @@ export default defineConfig((props) => {
         },
         resolve: {
             alias: [
-                // Set up absolute imports for each top-level folder and file in the src directory
-                { find: "api", replacement: path.resolve(__dirname, "./src/api") },
-                { find: "assets", replacement: path.resolve(__dirname, "./src/assets") },
-                { find: "components", replacement: path.resolve(__dirname, "./src/components") },
-                { find: "forms", replacement: path.resolve(__dirname, "./src/forms") },
-                { find: "hooks", replacement: path.resolve(__dirname, "./src/hooks") },
-                { find: "icons", replacement: path.resolve(__dirname, "./src/icons") },
-                { find: "route", replacement: path.resolve(__dirname, "./src/route") },
-                { find: "stores", replacement: path.resolve(__dirname, "./src/stores") },
-                { find: "tools", replacement: path.resolve(__dirname, "./src/tools") },
-                { find: "utils", replacement: path.resolve(__dirname, "./src/utils") },
-                { find: "views", replacement: path.resolve(__dirname, "./src/views") },
-                { find: "Routes", replacement: path.resolve(__dirname, "./src/Routes") },
-                { find: "serviceWorkerRegistration", replacement: path.resolve(__dirname, "./src/serviceWorkerRegistration") },
                 // Imports from the shared folder
                 { find: "@local/shared", replacement: path.resolve(__dirname, "../shared/src") },
             ],
@@ -89,7 +109,7 @@ export default defineConfig((props) => {
                     // Also, this doesn't guarantee that the chunk will be moved to its own bundle. But it's worth a try.
                     manualChunks: {
                         // Packages used in virtually every file
-                        'vendor': ['react', 'react-dom', '@mui/material', 'formik', 'icons/common', 'i18next', 'yup'],
+                        'vendor': ['react', 'react-dom', '@mui/material', 'formik', 'i18next', 'yup'],
                         // Bundle for ad banners (if an ad-blocker decides to block this, 
                         // it won't affect the rest of the site).
                         // To help prevent blocking, it's named something random.

@@ -1,7 +1,7 @@
 import { DeferredDecisionData, ResolvedDecisionDataChooseMultiple, ResolvedDecisionDataChooseOne, RoutineVersion } from "@local/shared";
 import { FormikProps } from "formik";
 import { RefObject } from "react";
-import { ViewProps } from "types";
+import { ViewProps } from "../../types.js";
 
 export type DecisionViewProps = Omit<ViewProps, "display" | "isOpen"> & {
     /** The decision to make */

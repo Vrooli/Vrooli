@@ -27,7 +27,6 @@ import { useSocketConnect } from "./hooks/useSocketConnect.js";
 import { useSocketUser } from "./hooks/useSocketUser.js";
 import { useWindowSize } from "./hooks/useWindowSize.js";
 import { CI_MODE } from "./i18n.js";
-import { vrooliIconPath } from "./icons/common.js";
 import { bottomNavHeight } from "./styles.js";
 import { guestSession, SessionService } from "./utils/authentication/session.js";
 import { ELEMENT_IDS, Z_INDEX } from "./utils/consts.js";
@@ -36,6 +35,7 @@ import { NODE_HIGHLIGHT_ERROR, NODE_HIGHLIGHT_SELECTED, NODE_HIGHLIGHT_WARNING, 
 import { BREAKPOINTS, DEFAULT_THEME, themes } from "./utils/display/theme.js";
 import { getCookie, getStorageItem, setCookie, ThemeType } from "./utils/localStorage.js";
 import { PopupImagePub, PopupVideoPub, PubSub } from "./utils/pubsub.js";
+import commonSpriteHref from "/sprites/common-sprite.svg";
 
 export function getGlobalStyles(theme: Theme) {
     return {
@@ -208,7 +208,6 @@ export function App() {
     const [fontSize, setFontSize] = useState<number>(getCookie("FontSize"));
     const [language, setLanguage] = useState<string>(SessionService.getSiteLanguage(undefined));
     const [isLeftHanded, setIsLeftHanded] = useState<boolean>(getCookie("IsLeftHanded"));
-    const [isLoading, setIsLoading] = useState(false);
     const [openImageData, setOpenImageData] = useState<PopupImagePub | null>(null);
     const [openVideoData, setOpenVideoData] = useState<PopupVideoPub | null>(null);
     const [isProDialogOpen, setIsProDialogOpen] = useState(false);
@@ -243,13 +242,11 @@ export function App() {
         }
     }, [session]);
 
-    // Applies font size change
-    useEffect(() => {
+    useEffect(function applyFontSizeEffect() {
         setTheme(withFontSize(themes[theme.palette.mode], fontSize));
     }, [fontSize, theme.palette.mode]);
 
-    // Applies isLeftHanded change
-    useEffect(() => {
+    useEffect(function applyIsLeftHandedEffect() {
         setTheme(withIsLeftHanded(themes[theme.palette.mode], isLeftHanded));
     }, [isLeftHanded, theme.palette.mode]);
 
@@ -271,13 +268,13 @@ export function App() {
     useEffect(() => {
         // Set up Google Adsense
         ((window as { adsbygoogle?: object[] }).adsbygoogle = (window as { adsbygoogle?: object[] }).adsbygoogle || []).push({});
-        setIsLoading(false);
+
         // Add help wanted to console logs
         const svgCode = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-  <path d="${vrooliIconPath}" fill="#ccc"/>
+    <use href="${commonSpriteHref}#vrooli-logo" fill="#ccc"/>
 </svg>
-`;
+        `;
         const svgDataUrl = `data:image/svg+xml,${encodeURIComponent(svgCode)}`;
         console.info(
             "%c ", `

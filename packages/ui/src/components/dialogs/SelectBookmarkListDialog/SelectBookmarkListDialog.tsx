@@ -9,7 +9,7 @@ import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { SessionContext } from "../../../contexts.js";
 import { useBookmarkListsStore } from "../../../hooks/objectActions.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
-import { AddIcon, ArrowLeftIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { ELEMENT_IDS } from "../../../utils/consts.js";
 import { BottomActionsButtons } from "../../buttons/BottomActionsButtons.js";
 import { LargeDialog } from "../LargeDialog/LargeDialog.js";
@@ -164,10 +164,15 @@ export function SelectBookmarkListDialog({
                 <Box display="flex" flexDirection="row" alignItems="center" p={1}>
                     <Typography variant="h6" ml="auto">{t("AddToList")}</Typography>
                     <IconButton
+                        aria-label={t("AddToList")}
                         onClick={openCreate}
                         sx={createListIconButtonStyle}
                     >
-                        <AddIcon fill={palette.secondary.main} />
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.main}
+                            name="Add"
+                        />
                     </IconButton>
                 </Box>
                 <Divider />
@@ -253,8 +258,15 @@ function CreateBookmarkListDialog({
             titleId="create-bookmark-list"
         >
             <Box display="flex" flexDirection="row" alignItems="center" p={1}>
-                <IconButton onClick={handleBack} aria-label={t("Back")}>
-                    <ArrowLeftIcon fill={palette.text.primary} />
+                <IconButton
+                    aria-label={t("Back")}
+                    onClick={handleBack}
+                >
+                    <IconCommon
+                        decorative
+                        fill={palette.text.primary}
+                        name="ArrowLeft"
+                    />
                 </IconButton>
                 <Typography variant="h6" ml={2}>{t("CreateBookmarkList")}</Typography>
             </Box>

@@ -23,7 +23,7 @@ import { useSocketChat } from "../../hooks/useSocketChat.js";
 import { PageTab } from "../../hooks/useTabs.js";
 import { useUpsertFetch } from "../../hooks/useUpsertFetch.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
-import { AddIcon, ChevronLeftIcon, MonthIcon, OpenInNewIcon, ReminderIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
 import { useLocation } from "../../route/router.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { DUMMY_LIST_LENGTH, ELEMENT_IDS } from "../../utils/consts.js";
@@ -80,6 +80,8 @@ const NewChatButton = styled(Button)(({ theme }) => ({
     padding: "4px 8px",
 }));
 
+const monthIconInfo = { name: "Month", type: "Common" } as const;
+const reminderIconInfo = { name: "Reminder", type: "Common" } as const;
 const pageTabsStyle = { width: "min(700px, 100%)", minWidth: undefined, margin: "auto" } as const;
 const exitChatButtonStyle = { margin: 1, borderRadius: 8, padding: "4px 8px" } as const;
 const resourceListStyle = { list: { justifyContent: "flex-start" } } as const;
@@ -107,9 +109,9 @@ function ListTitleContainer({
         <TitleContainer {...props}>
             {
                 isEmpty ?
-                    <Typography variant="h6" pt={1} pb={1} sx={{
-                        textAlign: "center",
-                    }}>{emptyText}</Typography> :
+                    <Typography variant="h6" pt={1} pb={1} textAlign="center">
+                        {emptyText}
+                    </Typography> :
                     <List sx={{ overflow: "hidden", padding: 0 }}>
                         {children}
                     </List>
@@ -241,7 +243,7 @@ export function DashboardView({
             {
                 color: inactiveColor,
                 data: undefined,
-                Icon: AddIcon,
+                iconInfo: { name: "Add", type: "Common" } as const,
                 index: focusModeInfo.all.length,
                 key: "Add",
                 label: "Add",
@@ -473,7 +475,7 @@ export function DashboardView({
 
     const scheduleContainerOptions = useMemo(function scheduleContainerOptionsMemo() {
         return [{
-            Icon: OpenInNewIcon,
+            iconInfo: { name: "OpenInNew", type: "Common" } as const,
             label: t("Open"),
             onClick: openSchedule,
         }];
@@ -481,11 +483,11 @@ export function DashboardView({
 
     const reminderContainerOptions = useMemo(function reminderContainerOptionsMemo() {
         return [{
-            Icon: OpenInNewIcon,
+            iconInfo: { name: "OpenInNew", type: "Common" } as const,
             label: t("SeeAll"),
             onClick: () => { setLocation(`${LINKS.MyStuff}?type="${MyStuffPageTabOption.Reminder}"`); },
         }, {
-            Icon: AddIcon,
+            iconInfo: { name: "Add", type: "Common" } as const,
             label: t("Create"),
             onClick: () => { setLocation(`${LINKS.Reminder}/add`); },
         }];
@@ -513,7 +515,10 @@ export function DashboardView({
                             onClick={showHome}
                             variant="contained"
                             sx={exitChatButtonStyle}
-                            startIcon={<ChevronLeftIcon />}
+                            startIcon={<IconCommon
+                                decorative
+                                name="ChevronLeft"
+                            />}
                         >
                             {t("Dashboard")}
                         </Button>
@@ -521,7 +526,10 @@ export function DashboardView({
                             color="primary"
                             onClick={resetChat}
                             variant="contained"
-                            startIcon={<AddIcon />}
+                            startIcon={<IconCommon
+                                decorative
+                                name="Add"
+                            />}
                         >
                             {t("NewChat")}
                         </NewChatButton>
@@ -554,7 +562,7 @@ export function DashboardView({
                     </Box>
                     {/* Events */}
                     <ListTitleContainer
-                        Icon={MonthIcon}
+                        iconInfo={monthIconInfo}
                         id={ELEMENT_IDS.DashboardEventList}
                         isEmpty={upcomingEvents.length === 0 && !isFeedLoading}
                         emptyText="No upcoming events"
@@ -572,7 +580,7 @@ export function DashboardView({
                     </ListTitleContainer>
                     {/* Reminders */}
                     <ListTitleContainer
-                        Icon={ReminderIcon}
+                        iconInfo={reminderIconInfo}
                         id={ELEMENT_IDS.DashboardReminderList}
                         isEmpty={reminders.length === 0 && !isFeedLoading}
                         emptyText="No reminders"

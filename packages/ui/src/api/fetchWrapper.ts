@@ -1,5 +1,6 @@
 import { HttpMethod, ServerResponse, TranslationKeyCommon, TranslationKeyError, exists } from "@local/shared";
 import { useCallback } from "react";
+import { ELEMENT_IDS } from "../utils/consts.js";
 import { PubSub } from "../utils/pubsub.js";
 import { fetchData } from "./fetchData.js";
 import { ServerResponseParser } from "./responseParser.js";
@@ -98,7 +99,9 @@ export async function fetchLazyWrapper<Input extends object | undefined, Output>
     // Helper function to handle errors
     function handleError(data?: ServerResponse | undefined) {
         // Stop spinner
-        if (spinnerDelay) PubSub.get().publish("loading", false);
+        if (spinnerDelay) {
+            PubSub.get().publish("menu", { id: ELEMENT_IDS.FullPageSpinner, data: { show: false } });
+        }
         // Determine if error caused by bad response, or caught error
         const isError: boolean = exists(data) && exists(data.errors);
         // If specific error message is set, display it
@@ -133,7 +136,9 @@ export async function fetchLazyWrapper<Input extends object | undefined, Output>
         }
     }
     // Start loading spinner
-    if (spinnerDelay) PubSub.get().publish("loading", spinnerDelay);
+    if (spinnerDelay) {
+        PubSub.get().publish("menu", { id: ELEMENT_IDS.FullPageSpinner, data: { show: true, delay: spinnerDelay } });
+    }
     let result: ServerResponse<Output> = {};
     // Convert inputs to FormData if they contain a File
     const finalInputs = inputs && Object.values(inputs).some(value => value instanceof File)
@@ -180,7 +185,9 @@ export async function fetchLazyWrapper<Input extends object | undefined, Output>
             handleError(error);
         }).finally(() => {
             // Stop spinner
-            if (spinnerDelay) PubSub.get().publish("loading", false);
+            if (spinnerDelay) {
+                PubSub.get().publish("menu", { id: ELEMENT_IDS.FullPageSpinner, data: { show: false } });
+            }
         });
     return result;
 }

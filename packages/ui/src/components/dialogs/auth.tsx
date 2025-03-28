@@ -1,7 +1,7 @@
 import { Box, Button, DialogContent, ListItem, ListItemText, Stack, Typography } from "@mui/material";
 import { useTranslation } from "react-i18next";
-import { getInstalledWalletProviders, walletDownloadUrls } from "utils/authentication/walletIntegration.js";
-import { ELEMENT_IDS } from "utils/consts.js";
+import { getInstalledWalletProviders, walletDownloadUrls } from "../../utils/authentication/walletIntegration.js";
+import { ELEMENT_IDS } from "../../utils/consts.js";
 import { DialogTitle } from "./DialogTitle/DialogTitle.js";
 import { LargeDialog } from "./LargeDialog/LargeDialog.js";
 import { WalletInstallDialogProps, WalletSelectDialogProps } from "./types.js";

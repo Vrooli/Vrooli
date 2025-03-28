@@ -6,7 +6,7 @@ import { Box, List, ListItem, ListItemIcon, ListItemText, Stack, useTheme } from
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import QRCode from "react-qr-code";
-import { DownloadIcon, EmailIcon, LinkIcon, ObjectIcon, QrCodeIcon, ShareIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { ObjectType } from "../../../utils/navigation/openObject.js";
 import { PubSub } from "../../../utils/pubsub.js";
@@ -191,7 +191,11 @@ export function ShareObjectDialog({
                     onClick={() => { }}
                 >
                     <ListItemIcon>
-                        <EmailIcon fill={palette.background.textPrimary} />
+                        <IconCommon
+                            decorative
+                            fill={palette.background.textPrimary}
+                            name="Email"
+                        />
                     </ListItemIcon>
                     <ListItemText primary={"Message..."} />
                 </ListItem>
@@ -200,7 +204,11 @@ export function ShareObjectDialog({
                     onClick={copyLink}
                 >
                     <ListItemIcon>
-                        <LinkIcon fill={palette.background.textPrimary} />
+                        <IconCommon
+                            decorative
+                            fill={palette.background.textPrimary}
+                            name="Link"
+                        />
                     </ListItemIcon>
                     <ListItemText primary={"Copy link"} />
                 </ListItem>
@@ -209,7 +217,11 @@ export function ShareObjectDialog({
                     onClick={shareLink}
                 >
                     <ListItemIcon>
-                        <ShareIcon fill={palette.background.textPrimary} />
+                        <IconCommon
+                            decorative
+                            fill={palette.background.textPrimary}
+                            name="Share"
+                        />
                     </ListItemIcon>
                     <ListItemText primary={"Share link"} />
                 </ListItem>
@@ -218,7 +230,11 @@ export function ShareObjectDialog({
                     onClick={copyObject}
                 >
                     <ListItemIcon>
-                        <ObjectIcon fill={palette.background.textPrimary} />
+                        <IconCommon
+                            decorative
+                            fill={palette.background.textPrimary}
+                            name="Object"
+                        />
                     </ListItemIcon>
                     <ListItemText primary={"Copy object"} />
                 </ListItem>
@@ -227,7 +243,11 @@ export function ShareObjectDialog({
                     onClick={shareObject}
                 >
                     <ListItemIcon>
-                        <DownloadIcon fill={palette.background.textPrimary} />
+                        <IconCommon
+                            decorative
+                            fill={palette.background.textPrimary}
+                            name="Download"
+                        />
                     </ListItemIcon>
                     <ListItemText primary={"Share object"} />
                 </ListItem>
@@ -236,7 +256,11 @@ export function ShareObjectDialog({
                     onClick={toggleQrCode}
                 >
                     <ListItemIcon>
-                        <QrCodeIcon fill={palette.background.textPrimary} />
+                        <IconCommon
+                            decorative
+                            fill={palette.background.textPrimary}
+                            name="QrCode"
+                        />
                     </ListItemIcon>
                     <ListItemText primary={"QR code"} />
                 </ListItem>
@@ -265,7 +289,11 @@ export function ShareObjectDialog({
                         onClick={downloadQrCode}
                     >
                         <ListItemIcon>
-                            <DownloadIcon fill={palette.background.textPrimary} />
+                            <IconCommon
+                                decorative
+                                fill={palette.background.textPrimary}
+                                name="Download"
+                            />
                         </ListItemIcon>
                         <ListItemText primary={"Download QR code"} />
                     </ListItem>

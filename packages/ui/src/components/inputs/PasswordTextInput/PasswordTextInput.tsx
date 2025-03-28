@@ -2,7 +2,7 @@ import { FormControl, FormControlProps, FormHelperText, IconButton, InputAdornme
 import { useField } from "formik";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { InvisibleIcon, LockIcon, VisibleIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { PasswordTextInputProps } from "../types.js";
 
 type PasswordStrengthProps = {
@@ -14,7 +14,10 @@ type PasswordStrengthProps = {
 
 const passwordStartAdornment = (
     <InputAdornment position="start">
-        <LockIcon />
+        <IconCommon
+            decorative
+            name="Lock"
+        />
     </InputAdornment>
 );
 
@@ -91,11 +94,11 @@ export function PasswordTextInput({
                                 borderRadius: "2px",
                             }}
                         >
-                            {
-                                showPassword ?
-                                    <InvisibleIcon fill={palette.background.textSecondary} /> :
-                                    <VisibleIcon fill={palette.background.textSecondary} />
-                            }
+                            <IconCommon
+                                decorative
+                                fill={palette.background.textSecondary}
+                                name={showPassword ? "Invisible" : "Visible"}
+                            />
                         </IconButton>
                     </InputAdornment>
                 }

@@ -1,8 +1,8 @@
 import { ActionOption, endpointsUser, HistoryPageTabOption, LINKS, PreActionOption, ProfileUpdateInput, SearchPageTabOption, Session, User } from "@local/shared";
 import { fetchWrapper } from "../../api/fetchWrapper.js";
-import { ActionIcon, ApiIcon, BookmarkFilledIcon, HelpIcon, NoteIcon, PlayIcon, ProjectIcon, RoutineIcon, ShortcutIcon, StandardIcon, TeamIcon, TerminalIcon, UserIcon, VisibleIcon } from "../../icons/common.js";
-import { SvgComponent } from "../../types.js";
+import { Icon, IconInfo } from "../../icons/Icons.js";
 import { getCurrentUser } from "../authentication/session.js";
+import { ELEMENT_IDS } from "../consts.js";
 import { PubSub } from "../pubsub.js";
 import { SearchHistory } from "../search/searchHistory.js";
 import { PreSearchItem } from "../search/siteToSearch.js";
@@ -294,27 +294,31 @@ export async function performAction(option: PreActionOption | ActionOption, sess
     }
 }
 
-const IconMap = {
-    Action: ActionIcon,
-    Api: ApiIcon,
-    Bookmark: BookmarkFilledIcon,
-    Code: TerminalIcon,
-    Note: NoteIcon,
-    Project: ProjectIcon,
-    Question: HelpIcon,
-    Routine: RoutineIcon,
-    Run: PlayIcon,
-    Shortcut: ShortcutIcon,
-    Standard: StandardIcon,
-    Team: TeamIcon,
-    User: UserIcon,
-    View: VisibleIcon,
-};
+const iconInfoMap = {
+    Action: { name: "Action", type: "Common" },
+    Api: { name: "Api", type: "Common" },
+    Bookmark: { name: "BookmarkFilled", type: "Common" },
+    Code: { name: "Terminal", type: "Common" },
+    Note: { name: "Note", type: "Common" },
+    Project: { name: "Project", type: "Common" },
+    Question: { name: "Help", type: "Common" },
+    Routine: { name: "Routine", type: "Routine" },
+    Run: { name: "Play", type: "Common" },
+    Shortcut: { name: "Shortcut", type: "Common" },
+    Standard: { name: "Standard", type: "Common" },
+    Team: { name: "Team", type: "Common" },
+    User: { name: "User", type: "Common" },
+    View: { name: "Visible", type: "Common" },
+} as const;
 
 /**
  * Maps object types to icons
  */
 export function getAutocompleteOptionIcon(type: string, fill: string): JSX.Element | null {
-    const Icon: SvgComponent | undefined = IconMap[type];
-    return Icon ? <Icon fill={fill} /> : null;
+    const iconInfo: IconInfo | undefined = iconInfoMap[type];
+    return iconInfo ? <Icon
+        decorative
+        fill={fill}
+        info={iconInfo}
+    /> : null;
 }

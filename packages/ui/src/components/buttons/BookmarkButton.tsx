@@ -4,7 +4,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useState } from "re
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../contexts.js";
 import { useBookmarkListsStore, useBookmarker } from "../../hooks/objectActions.js";
-import { BookmarkFilledIcon, BookmarkOutlineIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
 import { ActionCompletePayloads, ObjectActionComplete } from "../../utils/actions/objectActions.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { PubSub } from "../../utils/pubsub.js";
@@ -101,7 +101,8 @@ export function BookmarkButton({
         closeBookmarkDialog();
     }, [closeSelect, closeBookmarkDialog]);
 
-    const Icon = internalIsBookmarked ? BookmarkFilledIcon : BookmarkOutlineIcon;
+    const iconType = internalIsBookmarked ? "BookmarkFilled" as const : "BookmarkOutline" as const;
+    const ariaLabel = internalIsBookmarked ? t("BookmarkUndo", { count: 1 }) : t("AddBookmark");
     const fill = useMemo<string>(() => {
         if (userId && !disabled && internalIsBookmarked) return "#cbae30";
         return palette.background.textSecondary;
@@ -131,12 +132,18 @@ export function BookmarkButton({
             {/* Main content */}
             <Tooltip title={t("Bookmark", { count: 1 })}>
                 <Box
+                    aria-label={ariaLabel}
+                    aria-pressed={internalIsBookmarked === true}
                     component="button"
-                    aria-label={t("Bookmark", { count: 1 })}
                     onClick={handleClick}
                     sx={bookmarkButtonStyle}
                 >
-                    <Icon fill={fill} />
+                    <IconCommon
+                        decorative
+                        fill={fill}
+                        name={iconType}
+                        size={24}
+                    />
                     {showBookmarks && typeof bookmarks === "number" && (
                         <BookmarksLabel>
                             {bookmarks}

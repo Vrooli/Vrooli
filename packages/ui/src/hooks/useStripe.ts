@@ -7,6 +7,7 @@ import { openLink } from "../route/openLink.js";
 import { useLocation } from "../route/router.js";
 import { addSearchParams, removeSearchParams } from "../route/searchParams.js";
 import { getCurrentUser } from "../utils/authentication/session.js";
+import { ELEMENT_IDS } from "../utils/consts.js";
 import { PubSub } from "../utils/pubsub.js";
 import { useFetch } from "./useFetch.js";
 
@@ -33,7 +34,7 @@ export function useStripe() {
 
     const toggleLoading = useCallback(function toggleLoadingCallback(isLoading: boolean) {
         setLoading(isLoading);
-        PubSub.get().publish("loading", isLoading);
+        PubSub.get().publish("menu", { id: ELEMENT_IDS.FullPageSpinner, data: { show: isLoading } });
     }, []);
 
     const handleError = useCallback(function handleErrorCallback(error: unknown) {

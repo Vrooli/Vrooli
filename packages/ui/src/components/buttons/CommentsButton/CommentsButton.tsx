@@ -1,7 +1,8 @@
 import { getObjectUrl } from "@local/shared";
 import { Box, ListItemText, Stack, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
-import { CommentIcon } from "../../../icons/common.js";
+import { useTranslation } from "react-i18next";
+import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { multiLineEllipsis } from "../../../styles.js";
 import { CommentsButtonProps } from "../types.js";
@@ -11,6 +12,7 @@ export function CommentsButton({
     disabled = false,
     object,
 }: CommentsButtonProps) {
+    const { t } = useTranslation();
     const { palette } = useTheme();
     const [, setLocation] = useLocation();
 
@@ -35,6 +37,7 @@ export function CommentsButton({
             }}
         >
             <Box
+                aria-label={t("Comment", { count: commentsCount ?? 0 })}
                 component="a"
                 href={link}
                 onClick={handleClick}
@@ -43,7 +46,11 @@ export function CommentsButton({
                     cursor: disabled ? "none" : "pointer",
                     pointerEvents: disabled ? "none" : "all",
                 }}>
-                <CommentIcon fill={disabled ? "rgb(189 189 189)" : palette.secondary.main} />
+                <IconCommon
+                    decorative
+                    fill={disabled ? "rgb(189 189 189)" : palette.secondary.main}
+                    name="Comment"
+                />
             </Box>
             <ListItemText
                 primary={commentsCount}

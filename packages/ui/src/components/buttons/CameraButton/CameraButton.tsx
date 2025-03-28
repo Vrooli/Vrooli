@@ -42,7 +42,7 @@ export function CameraButton({
     //                 sx={{
     //                     width: '48px',
     //                     height: '48px',
-    //                 }} aria-label="main-search-icon"
+    //                 }}
     //             >
     //                 <CameraOpenIcon fill={palette.background.textSecondary} />
     //             </IconButton>

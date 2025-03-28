@@ -1,6 +1,6 @@
 import { ActiveFocusMode, Api, ApiVersion, AutocompleteOption, Bookmark, BookmarkFor, Chat, ChatInvite, ChatParticipant, Code, CodeVersion, CommentFor, CopyType, DUMMY_ID, DeleteType, DotNotation, ListObject, Meeting, Member, MemberInvite, Note, NoteVersion, Project, ProjectVersion, Reaction, ReactionFor, ReportFor, Resource, ResourceList, Routine, RoutineVersion, RunProject, RunRoutine, Standard, StandardVersion, User, View, YouInflated, exists, getTranslation, isOfType, valueFromDot } from "@local/shared";
 import { Chip, Palette } from "@mui/material";
-import { BotIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
 import { routineTypes } from "../search/schemas/routine.js";
 import { displayDate, firstString } from "./stringTools.js";
 import { getUserLanguages } from "./translationTools.js";
@@ -352,10 +352,10 @@ export function getDisplay(
     // If a User, and `isBot` is true, add BotIcon to adornments
     if (isOfType(object, "User") && (object as Partial<User>).isBot) {
         adornments.push({
-            Adornment: <BotIcon
+            Adornment: <IconCommon
+                decorative
                 fill={palette?.mode === "light" ? "#521f81" : "#a979d5"}
-                width="100%"
-                height="100%"
+                name="Bot"
                 style={botAdornmentStyle}
             />,
             key: "bot",

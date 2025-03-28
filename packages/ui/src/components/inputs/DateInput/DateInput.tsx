@@ -1,7 +1,7 @@
 import { IconButton, InputAdornment, styled, useTheme } from "@mui/material";
 import { useField } from "formik";
-import { CloseIcon } from "icons/common.js";
 import { useCallback, useMemo } from "react";
+import { IconCommon } from "../../../icons/Icons.js";
 import { TextInput } from "../TextInput/TextInput.js";
 import { DateInputProps } from "../types.js";
 
@@ -70,7 +70,12 @@ export function DateInput({
                 <InputAdornment position="end" sx={inputAdornmentStyle}>
                     <input type="hidden" />
                     {typeof field.value === "string" && field.value.length > 0 && <IconButton edge="end" size="small" onClick={clearDate}>
-                        <CloseIcon fill={palette.background.textPrimary} width="20px" height="20px" />
+                        <IconCommon
+                            decorative
+                            fill={palette.background.textPrimary}
+                            name="Close"
+                            size={20}
+                        />
                     </IconButton>}
                 </InputAdornment>
             ),

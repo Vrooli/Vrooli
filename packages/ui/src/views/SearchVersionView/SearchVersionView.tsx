@@ -1,21 +1,21 @@
 import { LINKS, ListObject, ModelType, getObjectUrlBase } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { PageTabs } from "components/PageTabs/PageTabs.js";
-import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons.js";
-import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList.js";
-import { TopBar } from "components/navigation/TopBar.js";
-import { useFindMany } from "hooks/useFindMany.js";
-import { useTabs } from "hooks/useTabs.js";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route/router.js";
-import { getCurrentUser } from "utils/authentication/session.js";
-import { scrollIntoFocusedView } from "utils/display/scroll.js";
-import { PubSub } from "utils/pubsub.js";
-import { searchVersionViewTabParams } from "utils/search/objectToSearch.js";
+import { PageTabs } from "../../components/PageTabs/PageTabs.js";
+import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/SideActionsButtons.js";
+import { SearchList, SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";
+import { TopBar } from "../../components/navigation/TopBar.js";
 import { SessionContext } from "../../contexts.js";
-import { AddIcon, SearchIcon } from "../../icons/common.js";
+import { useFindMany } from "../../hooks/useFindMany.js";
+import { useTabs } from "../../hooks/useTabs.js";
+import { IconCommon } from "../../icons/Icons.js";
+import { useLocation } from "../../route/router.js";
 import { SideActionsButton } from "../../styles.js";
+import { getCurrentUser } from "../../utils/authentication/session.js";
+import { scrollIntoFocusedView } from "../../utils/display/scroll.js";
+import { PubSub } from "../../utils/pubsub.js";
+import { searchVersionViewTabParams } from "../../utils/search/objectToSearch.js";
 import { SearchVersionViewProps } from "../types.js";
 
 const scrollContainerId = "version-search-scroll";
@@ -85,12 +85,27 @@ export function SearchVersionView({
                 scrollContainerId={scrollContainerId}
             />}
             <SideActionsButtons display={display}>
-                <SideActionsButton aria-label={t("FilterList")} onClick={focusSearch}>
-                    <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                <SideActionsButton
+                    aria-label={t("FilterList")}
+                    onClick={focusSearch}
+                >
+                    <IconCommon
+                        decorative
+                        fill={palette.secondary.contrastText}
+                        name="Search"
+                        size={36}
+                    />
                 </SideActionsButton>
                 {userId ? (
-                    <SideActionsButton aria-label={t("Add")} onClick={onCreateStart}>
-                        <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    <SideActionsButton
+                        aria-label={t("Add")}
+                        onClick={onCreateStart}
+                    >
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.contrastText}
+                            name="Add"
+                        />
                     </SideActionsButton>
                 ) : null}
             </SideActionsButtons>

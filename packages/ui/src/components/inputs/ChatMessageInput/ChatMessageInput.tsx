@@ -8,7 +8,7 @@ import { useShowBotWarning } from "../../../hooks/subscriptions.js";
 import { UseChatTaskReturn } from "../../../hooks/tasks.js";
 import { useKeyboardOpen } from "../../../hooks/useKeyboardOpen.js";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";
-import { AddIcon, CancelIcon, DeleteIcon, EditIcon, ErrorIcon, HelpIcon, PlayIcon, SearchIcon, SendIcon, SuccessIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { pagePaddingBottom } from "../../../styles.js";
 import { ViewDisplayType } from "../../../types.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
@@ -161,7 +161,11 @@ export function ChatIndicator({
             {showBotWarning && <>
                 <Typography variant="body2" p={1}>{t("BotChatWarning")}</Typography>
                 <IconButton onClick={showBotWarningDetails}>
-                    <HelpIcon fill="currentColor" />
+                    <IconCommon
+                        decorative
+                        fill="currentColor"
+                        name="Help"
+                    />
                 </IconButton>
                 <Button
                     variant="text"
@@ -233,50 +237,92 @@ function TaskChip({
 
     function getActionIcon() {
         //TODO should be different from status icon, and should trigger respondToTask. Should also support multiple actions
-        if (isStale || !task) return <ErrorIcon />;
+        if (isStale || !task) return <IconCommon
+            decorative
+            name="Error"
+        />;
         switch (status) {
             case "Running":
             case "Canceling":
                 return <CircularProgress size={20} color="inherit" />;
             case "Completed":
-                return <SuccessIcon />;
+                return <IconCommon
+                    decorative
+                    name="Success"
+                />;
             case "Failed":
-                return <ErrorIcon />;
+                return <IconCommon
+                    decorative
+                    name="Error"
+                />;
             default:
                 // Base Icon style on task type
                 if (task.endsWith("Add"))
-                    return <AddIcon />;
+                    return <IconCommon
+                        decorative
+                        name="Add"
+                    />;
                 if (task.endsWith("Delete"))
-                    return <DeleteIcon />;
+                    return <IconCommon
+                        decorative
+                        name="Delete"
+                    />;
                 if (task.endsWith("Find"))
-                    return <SearchIcon />;
+                    return <IconCommon
+                        decorative
+                        name="Search"
+                    />;
                 if (task.endsWith("Update"))
-                    return <EditIcon />;
-                return <PlayIcon />;
+                    return <IconCommon
+                        decorative
+                        name="Edit"
+                    />;
+                return <IconCommon decorative name="Play" />;
         }
     }
 
     function getStatusIcon() {
-        if (isStale || !task) return <ErrorIcon />;
+        if (isStale || !task) return <IconCommon
+            decorative
+            name="Error"
+        />;
         switch (status) {
             case "Running":
             case "Canceling":
                 return <CircularProgress size={20} color="inherit" />;
             case "Completed":
-                return <SuccessIcon />;
+                return <IconCommon
+                    decorative
+                    name="Success"
+                />;
             case "Failed":
-                return <ErrorIcon />;
+                return <IconCommon
+                    decorative
+                    name="Error"
+                />;
             default:
                 // Base Icon style on task type
                 if (task.endsWith("Add"))
-                    return <AddIcon />;
+                    return <IconCommon
+                        decorative
+                        name="Add"
+                    />;
                 if (task.endsWith("Delete"))
-                    return <DeleteIcon />;
+                    return <IconCommon
+                        decorative
+                        name="Delete"
+                    />;
                 if (task.endsWith("Find"))
-                    return <SearchIcon />;
+                    return <IconCommon
+                        decorative
+                        name="Search"
+                    />;
                 if (task.endsWith("Update"))
-                    return <EditIcon />;
-                return <PlayIcon />;
+                    return <IconCommon
+                        decorative
+                        name="Edit"
+                    />;
+                return <IconCommon decorative name="Play" />;
         }
     }
 
@@ -411,14 +457,22 @@ export function ReplyingToMessageDisplay({
     messageBeingRepliedTo,
     onCancelReply,
 }: ReplyingToMessageDisplayProps) {
+    const { t } = useTranslation();
     const session = useContext(SessionContext);
     const { languages } = useMemo(() => getCurrentUser(session), [session]);
 
     return (
         <Box p={1}>
             <Box display="flex" flexDirection="row" justifyContent="flex-start" alignItems="center">
-                <IconButton onClick={onCancelReply} sx={replyToCloseIconStyle}>
-                    <CancelIcon />
+                <IconButton
+                    aria-label={t("Cancel")}
+                    onClick={onCancelReply}
+                    sx={replyToCloseIconStyle}
+                >
+                    <IconCommon
+                        decorative
+                        name="Cancel"
+                    />
                 </IconButton>
                 <Typography variant="body2" color="textSecondary">
                     Replying to: {getDisplay(messageBeingRepliedTo.user).title || "User"}
@@ -439,11 +493,20 @@ type EditingMessageDisplayProps = {
 function EditingMessageDisplay({
     onCancelEdit,
 }: EditingMessageDisplayProps) {
+    const { t } = useTranslation();
+
     return (
         <Box p={1}>
             <Box display="flex" flexDirection="row" justifyContent="flex-start" alignItems="center">
-                <IconButton onClick={onCancelEdit} sx={replyToCloseIconStyle}>
-                    <CancelIcon />
+                <IconButton
+                    aria-label={t("Cancel")}
+                    onClick={onCancelEdit}
+                    sx={replyToCloseIconStyle}
+                >
+                    <IconCommon
+                        decorative
+                        name="Cancel"
+                    />
                 </IconButton>
                 <Typography variant="body2" color="textSecondary">
                     Editing message
@@ -520,7 +583,7 @@ export function ChatMessageInput({
 
     const inputActionButtons = useMemo(function inputActionButtonsMemo() {
         return [{
-            Icon: SendIcon,
+            iconInfo: { name: "Send", type: "Common" } as const,
             disabled: disabled || isLoading,
             onClick: () => {
                 submitMessage(message);

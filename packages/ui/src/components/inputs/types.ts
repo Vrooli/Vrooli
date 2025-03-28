@@ -3,7 +3,8 @@ import { BoxProps, CheckboxProps, TextFieldProps } from "@mui/material";
 import { FieldProps } from "formik";
 import { CSSProperties, RefObject } from "react";
 import { type UseChatTaskReturn } from "../../hooks/tasks.js";
-import { SvgComponent, SxType } from "../../types.js";
+import { IconInfo } from "../../icons/Icons.js";
+import { SxType } from "../../types.js";
 import { FindObjectType } from "../dialogs/types.js";
 import { ResourceListProps } from "../lists/types.js";
 
@@ -184,7 +185,7 @@ export type GetTaggableItemsFunc = (query: string) => Promise<ListObject[]>;
 export type RichInputBaseProps = Omit<TextInputProps, "onChange" | "onSubmit"> & {
     actionButtons?: Array<{
         disabled?: boolean;
-        Icon: SvgComponent;
+        iconInfo: IconInfo;
         onClick: () => unknown;
         tooltip?: string;
     }>;
@@ -329,9 +330,9 @@ export interface SelectorProps<T extends string | number | { [x: string]: any }>
     autoFocus?: boolean;
     disabled?: boolean;
     fullWidth?: boolean;
-    getDisplayIcon?: (option: T) => SvgComponent | JSX.Element | undefined;
+    getDisplayIcon?: (option: T) => JSX.Element | undefined;
     getOptionDescription?: (option: T, t: TranslationFunc) => string | null | undefined;
-    getOptionIcon?: (option: T) => SvgComponent | JSX.Element | undefined;
+    getOptionIcon?: (option: T) => JSX.Element | undefined;
     getOptionLabel: (option: T, t: TranslationFunc) => string | null | undefined;
     inputAriaLabel?: string;
     isRequired?: boolean,
@@ -401,22 +402,10 @@ export type TextInputProps = Omit<TextFieldProps, "ref"> & {
 
 export type TimezoneSelectorProps = Omit<SelectorProps<string>, "getOptionLabel" | "options">
 
-export interface ToggleSwitchProps {
-    checked: boolean;
-    name?: string;
-    onChange: (event: React.ChangeEvent<HTMLInputElement>) => unknown;
-    OffIcon?: SvgComponent;
-    OnIcon?: SvgComponent;
-    label?: string;
-    tooltip?: string;
-    disabled?: boolean;
-    sx?: SxType;
-}
-
 export interface TranslatedRichInputProps {
     actionButtons?: Array<{
         disabled?: boolean;
-        Icon: SvgComponent;
+        iconInfo: IconInfo;
         onClick: () => unknown;
         tooltip?: string;
     }>;

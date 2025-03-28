@@ -26,7 +26,7 @@ import { useManagedObject } from "../../../hooks/useManagedObject.js";
 import { useSocketChat } from "../../../hooks/useSocketChat.js";
 import { useTranslatedFields } from "../../../hooks/useTranslatedFields.js";
 import { useUpsertFetch } from "../../../hooks/useUpsertFetch.js";
-import { AddIcon, CopyIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { FormContainer, FormSection, ScrollBox } from "../../../styles.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
@@ -412,7 +412,10 @@ function ChatForm({
                         onClick={copyLink}
                         size="small"
                     >
-                        <CopyIcon />
+                        <IconCommon
+                            decorative
+                            name="Copy"
+                        />
                     </IconButton>
                 </InputAdornment>
             ),
@@ -525,7 +528,10 @@ function ChatForm({
                                 onClick={newChat}
                                 variant="contained"
                                 sx={addChatButtonStyle}
-                                startIcon={<AddIcon />}
+                                startIcon={<IconCommon
+                                    decorative
+                                    name="Add"
+                                />}
                             >
                                 {t("NewChat")}
                             </Button>

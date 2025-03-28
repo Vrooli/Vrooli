@@ -1,6 +1,7 @@
 import { Box, IconButton, Modal, ModalProps, styled } from "@mui/material";
-import { CloseIcon, PlayIcon } from "icons/common.js";
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import { IconCommon } from "../../icons/Icons.js";
 
 interface ImageModalProps extends Omit<ModalProps, "zIndex"> {
     zIndex?: number;
@@ -60,6 +61,8 @@ export function ImagePopup({
     src,
     zIndex,
 }: ImagePopupProps) {
+    const { t } = useTranslation();
+
     const stopPropagation = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
     }, []);
@@ -83,10 +86,15 @@ export function ImagePopup({
                     />
                 </ImageButton>
                 <CloseIconButton
-                    aria-label="close"
+                    aria-label={t("Close")}
                     onClick={onClose}
                 >
-                    <CloseIcon />
+                    <IconCommon
+                        decorative
+                        fill="white"
+                        name="Close"
+                        size={24}
+                    />
                 </CloseIconButton>
             </ImageModalInner>
         </ImageModal>
@@ -127,6 +135,8 @@ export function VideoPopup({
     src,
     zIndex,
 }: VideoPopupProps) {
+    const { t } = useTranslation();
+
     return (
         <VideoModal
             aria-describedby="video-modal-description"
@@ -148,10 +158,15 @@ export function VideoPopup({
                     ></iframe>
                 )}
                 <CloseIconButton
-                    aria-label="close"
+                    aria-label={t("Close")}
                     onClick={onClose}
                 >
-                    <CloseIcon />
+                    <IconCommon
+                        decorative
+                        fill="white"
+                        name="Close"
+                        size={24}
+                    />
                 </CloseIconButton>
             </VideoModalInner>
         </VideoModal>
@@ -232,7 +247,10 @@ export function VideoThumbnail({
     const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : "";
 
     return (
-        <ThumbnailContainer onClick={onClick}>
+        <ThumbnailContainer
+            aria-label={"Play video"}
+            onClick={onClick}
+        >
             <ImageWrapper>
                 <ThumbnailImage
                     src={thumbnailUrl}
@@ -241,7 +259,12 @@ export function VideoThumbnail({
                 <Overlay />
                 <PlayButtonWrapper>
                     <PlayIconBox>
-                        <PlayIcon fill="white" width={40} height={40} />
+                        <IconCommon
+                            decorative
+                            fill="white"
+                            name="Play"
+                            size={40}
+                        />
                     </PlayIconBox>
                 </PlayButtonWrapper>
             </ImageWrapper>

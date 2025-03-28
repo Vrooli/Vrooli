@@ -1,4 +1,4 @@
-import { DateDisplay } from "components/text/DateDisplay.js";
+import { DateDisplay } from "../../text/DateDisplay.js";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
 import { ChatParticipantListItemProps } from "../types.js";
 

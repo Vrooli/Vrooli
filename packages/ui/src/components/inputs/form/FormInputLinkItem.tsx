@@ -3,8 +3,7 @@ import { Autocomplete, Button, Chip, ListItemIcon, ListItemText, MenuItem, TextF
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ApiIcon, ArticleIcon, HelpIcon, NoteIcon, ObjectIcon, ProjectIcon, RoutineIcon, SmartContractIcon, TeamIcon, TerminalIcon, UserIcon } from "../../../icons/common.js";
-import { SvgComponent } from "../../../types.js";
+import { Icon, IconInfo } from "../../../icons/Icons.js";
 import { CHIP_LIST_LIMIT } from "../../../utils/consts.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { LinkInputBase } from "../LinkInput/LinkInput.js";
@@ -13,69 +12,69 @@ import { FormSettingsButtonRow, FormSettingsSection, propButtonStyle, propButton
 import { FormInputProps } from "./types.js";
 
 type LimitTypeOption = {
-    Icon: SvgComponent;
+    iconInfo: IconInfo;
     label: (t: TranslationFuncCommon) => string;
     value: `${LinkItemType}`;
 }
 
 const limitTypeOptions: LimitTypeOption[] = [
     {
-        Icon: ApiIcon,
+        iconInfo: { name: "Api", type: "Common" } as const,
         label: t => t("common:Api", { count: 1, defaultValue: "Api" }),
         value: "Api",
     },
     {
-        Icon: TerminalIcon,
+        iconInfo: { name: "Terminal", type: "Common" } as const,
         label: t => t("common:DataConverter", { count: 1, defaultValue: "Data Converter" }),
         value: "DataConverter",
     },
     {
-        Icon: ObjectIcon,
+        iconInfo: { name: "Object", type: "Common" } as const,
         label: t => t("common:DataStructure", { count: 1, defaultValue: "Data Structure" }),
         value: "DataStructure",
     },
     {
-        Icon: NoteIcon,
+        iconInfo: { name: "Note", type: "Common" } as const,
         label: t => t("common:Note", { count: 1, defaultValue: "Note" }),
         value: "Note",
     },
     {
-        Icon: ProjectIcon,
+        iconInfo: { name: "Project", type: "Common" } as const,
         label: t => t("common:Project", { count: 1, defaultValue: "Project" }),
         value: "Project",
     },
     {
-        Icon: ArticleIcon,
+        iconInfo: { name: "Article", type: "Common" } as const,
         label: t => t("common:Prompt", { count: 1, defaultValue: "Prompt" }),
         value: "Prompt",
     },
     {
-        Icon: HelpIcon,
+        iconInfo: { name: "Help", type: "Common" } as const,
         label: t => t("common:Question", { count: 1, defaultValue: "Question" }),
         value: "Question",
     },
     {
-        Icon: RoutineIcon,
+        iconInfo: { name: "Routine", type: "Routine" } as const,
         label: t => t("common:RoutineMultiStep", { count: 1, defaultValue: "Multi-step routine (flow)" }),
         value: "RoutineMultiStep",
     },
     {
-        Icon: RoutineIcon,
+        iconInfo: { name: "Action", type: "Common" } as const,
         label: t => t("common:RoutineSingleStep", { count: 1, defaultValue: "Single-step routine (action)" }),
         value: "RoutineSingleStep",
     },
     {
-        Icon: SmartContractIcon,
+        iconInfo: { name: "SmartContract", type: "Common" } as const,
         label: t => t("common:SmartContract", { count: 1, defaultValue: "Smart Contract" }),
         value: "SmartContract",
     },
     {
-        Icon: TeamIcon,
+        iconInfo: { name: "Team", type: "Common" } as const,
         label: t => t("common:Team", { count: 1, defaultValue: "Team" }),
         value: "Team",
     },
     {
-        Icon: UserIcon,
+        iconInfo: { name: "User", type: "Common" } as const,
         label: t => t("common:User", { count: 1, defaultValue: "User" }),
         value: "User",
     },
@@ -283,7 +282,9 @@ export function FormInputLinkItem({
                                 selected={selectedObjectTypes.some(selected => selected.value === option.value)}
                             >
                                 <ListItemIcon>
-                                    {typeof option === "string" ? null : <option.Icon />}
+                                    {typeof option === "string" ? null : <Icon
+                                        info={option.iconInfo}
+                                    />}
                                 </ListItemIcon>
                                 <ListItemText>{option.label(t)}</ListItemText>
                             </MenuItem>

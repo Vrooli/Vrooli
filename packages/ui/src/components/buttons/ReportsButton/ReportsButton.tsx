@@ -1,6 +1,6 @@
 import { Box, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
-import { ReportIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { Link, useLocation } from "../../../route/router.js";
 import { multiLineEllipsis } from "../../../styles.js";
 import { getObjectReportUrl } from "../../../utils/navigation/openObject.js";
@@ -39,7 +39,11 @@ export function ReportsButton({
     return (
         <OuterBox>
             <Link to={link} onClick={handleClick}>
-                <ReportIcon fill={palette.background.textSecondary} />
+                <IconCommon
+                    decorative
+                    fill={palette.background.textSecondary}
+                    name="Report"
+                />
             </Link>
             <CountLabel variant="body1">{reportsCount}</CountLabel>
         </OuterBox>

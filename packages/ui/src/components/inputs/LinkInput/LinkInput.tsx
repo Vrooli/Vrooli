@@ -2,7 +2,7 @@ import { Box, IconButton, InputAdornment, Stack, TextField, Tooltip, useTheme } 
 import { useField } from "formik";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { LinkIcon, SearchIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { FindObjectDialog } from "../../dialogs/FindObjectDialog/FindObjectDialog.js";
 import { MarkdownDisplay } from "../../text/MarkdownDisplay.js";
@@ -13,7 +13,10 @@ const MAX_LINK_TITLE_CHARS = 100;
 const linkInputProps = {
     startAdornment: (
         <InputAdornment position="start">
-            <LinkIcon />
+            <IconCommon
+                decorative
+                name="Link"
+            />
         </InputAdornment>
     ),
 } as const;
@@ -122,7 +125,10 @@ export function LinkInputBase({
                             borderRadius: "0 5px 5px 0",
                             color: palette.secondary.contrastText,
                         }}>
-                        <SearchIcon />
+                        <IconCommon
+                            decorative
+                            name="Search"
+                        />
                     </IconButton>
                 </Stack>
                 {title && (

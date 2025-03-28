@@ -3,7 +3,7 @@ import { SelectorFormInput, SelectorFormInputOption, SelectorFormInputProps, get
 import { Button, IconButton, TextField, Tooltip, Typography, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useMemo, useState } from "react";
-import { AddIcon, CloseIcon, DragIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { randomString } from "../../../utils/codes.js";
 import { SelectorBase } from "../Selector/Selector.js";
 import { TextInput } from "../TextInput/TextInput.js";
@@ -185,12 +185,22 @@ export function FormInputSelector<T extends SelectorFormInputOption>({
                                                     />
                                                     <Tooltip title="Drag to reorder" placement="top">
                                                         <div {...providedDrag.dragHandleProps} style={{ cursor: "move", display: "flex", alignItems: "center", paddingLeft: "8px" }}>
-                                                            <DragIcon fill={palette.background.textSecondary} width="16px" height="16px" />
+                                                            <IconCommon
+                                                                decorative
+                                                                fill={palette.background.textSecondary}
+                                                                name="Drag"
+                                                                size={16}
+                                                            />
                                                         </div>
                                                     </Tooltip>
                                                     <Tooltip title="Remove option" placement="top">
                                                         <IconButton onClick={() => removeOption(index)} sx={{ padding: "4px", paddingLeft: "8px" }}>
-                                                            <CloseIcon fill={palette.background.textSecondary} width="16px" height="16px" />
+                                                            <IconCommon
+                                                                decorative
+                                                                fill={palette.background.textSecondary}
+                                                                name="Close"
+                                                                size={16}
+                                                            />
                                                         </IconButton>
                                                     </Tooltip>
                                                 </div>
@@ -205,7 +215,10 @@ export function FormInputSelector<T extends SelectorFormInputOption>({
                     <Button
                         variant="text"
                         onClick={addOption}
-                        startIcon={<AddIcon />}
+                        startIcon={<IconCommon
+                            decorative
+                            name="Add"
+                        />}
                         style={{
                             alignSelf: "flex-start",
                             marginTop: "8px",

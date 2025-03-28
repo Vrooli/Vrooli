@@ -1,10 +1,10 @@
 import { LINKS } from "@local/shared";
 import { Box, Button, Stack, Typography } from "@mui/material";
 import { useTranslation } from "react-i18next";
-import { Link } from "route";
 import Bunny404 from "../../assets/img/Bunny404.svg";
 import { TopBar } from "../../components/navigation/TopBar.js";
-import { ArrowLeftIcon, HomeIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
+import { Link } from "../../route/router.js";
 import { SlideImage, SlideImageContainer } from "../../styles.js";
 
 function goBack() {
@@ -46,15 +46,23 @@ export function NotFoundView() {
                 <Stack direction="row" spacing={2} justifyContent="center" alignItems="center">
                     {hasPreviousPage ? (
                         <Button
+                            aria-label={t("GoBack")}
                             variant="contained"
                             onClick={goBack}
-                            startIcon={<ArrowLeftIcon />}
+                            startIcon={<IconCommon
+                                decorative
+                                name="ArrowLeft"
+                            />}
                         >{t("GoBack")}</Button>
                     ) : null}
                     <Link to={LINKS.Home}>
                         <Button
+                            aria-label={t("GoToHome")}
                             variant="contained"
-                            startIcon={<HomeIcon />}
+                            startIcon={<IconCommon
+                                decorative
+                                name="Home"
+                            />}
                         >{t("GoToHome")}</Button>
                     </Link>
                 </Stack>

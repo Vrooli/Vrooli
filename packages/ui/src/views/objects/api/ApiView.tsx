@@ -2,7 +2,6 @@ import { ApiVersion, BookmarkFor, ResourceList as ResourceListType, endpointsApi
 import { Avatar, Box, IconButton, LinearProgress, Stack, Tooltip, Typography, useTheme } from "@mui/material";
 import { MouseEvent, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route/router.js";
 import { BookmarkButton } from "../../../components/buttons/BookmarkButton.js";
 import { ReportsLink } from "../../../components/buttons/ReportsLink/ReportsLink.js";
 import { ShareButton } from "../../../components/buttons/ShareButton/ShareButton.js";
@@ -15,7 +14,8 @@ import { Title } from "../../../components/text/Title.js";
 import { SessionContext } from "../../../contexts.js";
 import { useObjectActions } from "../../../hooks/objectActions.js";
 import { useManagedObject } from "../../../hooks/useManagedObject.js";
-import { ApiIcon, EditIcon, EllipsisIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
+import { useLocation } from "../../../route/router.js";
 import { OverviewContainer } from "../../../styles.js";
 import { placeholderColor } from "../../../utils/display/listTools.js";
 import { firstString } from "../../../utils/display/stringTools.js";
@@ -110,7 +110,11 @@ export function ApiView({
                     fontSize: "min(50px, 10vw)",
                 }}
             >
-                <ApiIcon fill="white" width='75%' height='75%' />
+                <IconCommon
+                    decorative
+                    fill="white"
+                    name="Api"
+                />
             </Avatar>
             <Tooltip title={t("MoreOptions")}>
                 <IconButton
@@ -123,7 +127,11 @@ export function ApiView({
                         marginRight: 1,
                     }}
                 >
-                    <EllipsisIcon fill={palette.background.textSecondary} />
+                    <IconCommon
+                        decorative
+                        fill={palette.background.textSecondary}
+                        name="Ellipsis"
+                    />
                 </IconButton>
             </Tooltip>
             <Stack direction="column" spacing={1} p={1} alignItems="center" justifyContent="center">
@@ -137,8 +145,8 @@ export function ApiView({
                         title={name}
                         variant="header"
                         options={permissions.canUpdate ? [{
+                            iconInfo: { name: "Edit", type: "Common" } as const,
                             label: t("Edit"),
-                            Icon: EditIcon,
                             onClick: () => { actionData.onActionStart("Edit"); },
                         }] : []}
                     />
@@ -200,11 +208,11 @@ export function ApiView({
                 position: "relative",
             }}>
                 {/* Language display/select */}
-                <Box sx={{
-                    position: "absolute",
-                    top: 8,
-                    right: 8,
-                }}>
+                <Box
+                    position="absolute"
+                    top={8}
+                    right={8}
+                >
                     {availableLanguages.length > 1 && <SelectLanguageMenu
                         currentLanguage={language}
                         handleCurrent={setLanguage}

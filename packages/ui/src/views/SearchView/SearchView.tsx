@@ -1,16 +1,16 @@
 import { LINKS, ListObject, ModelType, getObjectUrlBase } from "@local/shared";
 import { useTheme } from "@mui/material";
-import { PageTabs } from "components/PageTabs/PageTabs.js";
-import { SideActionsButtons } from "components/buttons/SideActionsButtons/SideActionsButtons.js";
-import { SearchList, SearchListScrollContainer } from "components/lists/SearchList/SearchList.js";
-import { TopBar } from "components/navigation/TopBar.js";
 import { useCallback, useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route/router.js";
+import { PageTabs } from "../../components/PageTabs/PageTabs.js";
+import { SideActionsButtons } from "../../components/buttons/SideActionsButtons/SideActionsButtons.js";
+import { SearchList, SearchListScrollContainer } from "../../components/lists/SearchList/SearchList.js";
+import { TopBar } from "../../components/navigation/TopBar.js";
 import { SessionContext } from "../../contexts.js";
 import { useFindMany } from "../../hooks/useFindMany.js";
 import { useTabs } from "../../hooks/useTabs.js";
-import { AddIcon, SearchIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
+import { useLocation } from "../../route/router.js";
 import { SideActionsButton } from "../../styles.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
@@ -96,12 +96,27 @@ export function SearchView({
                 />}
             </SearchListScrollContainer>
             <SideActionsButtons display={display}>
-                <SideActionsButton aria-label={t("FilterList")} onClick={focusSearch}>
-                    <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                <SideActionsButton
+                    aria-label={t("FilterList")}
+                    onClick={focusSearch}
+                >
+                    <IconCommon
+                        decorative
+                        fill={palette.secondary.contrastText}
+                        name="Search"
+                        size={36}
+                    />
                 </SideActionsButton>
                 {userId ? (
-                    <SideActionsButton aria-label={t("Add")} onClick={onCreateStart}>
-                        <AddIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                    <SideActionsButton
+                        aria-label={t("Add")}
+                        onClick={onCreateStart}
+                    >
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.contrastText}
+                            name="Add"
+                        />
                     </SideActionsButton>
                 ) : null}
             </SideActionsButtons>

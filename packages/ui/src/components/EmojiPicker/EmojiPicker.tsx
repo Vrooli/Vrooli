@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { VariableSizeList } from "react-window";
 import { useDebounce } from "../../hooks/useDebounce.js";
 import { PageTab, useTabs } from "../../hooks/useTabs.js";
-import { AddIcon, AirplaneIcon, AwardIcon, CompleteIcon, FoodIcon, HistoryIcon, ProjectIcon, ReportIcon, RoutineValidIcon, SearchIcon, VrooliIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
 import { Z_INDEX } from "../../utils/consts.js";
 import { TabParamBase } from "../../utils/search/objectToSearch.js";
 import { PageTabs } from "../PageTabs/PageTabs.js";
@@ -94,47 +94,47 @@ function iconColor(palette: Palette) {
 
 const categoryTabParams: TabParamBase<EmojiTabsInfo>[] = [{
     color: iconColor,
-    Icon: HistoryIcon,
+    iconInfo: { name: "History", type: "Common" } as const,
     key: CategoryTabOption.Suggested,
     titleKey: "EmojisSuggested",
 }, {
     color: iconColor,
-    Icon: RoutineValidIcon,
+    iconInfo: { name: "RoutineValid", type: "Routine" } as const,
     key: CategoryTabOption.Smileys,
     titleKey: "EmojisSmileys",
 }, {
     color: iconColor,
-    Icon: VrooliIcon,
+    iconInfo: { name: "Vrooli", type: "Common" } as const,
     key: CategoryTabOption.Nature,
     titleKey: "EmojisNature",
 }, {
     color: iconColor,
-    Icon: FoodIcon,
+    iconInfo: { name: "Food", type: "Common" } as const,
     key: CategoryTabOption.Food,
     titleKey: "EmojisFood",
 }, {
     color: iconColor,
-    Icon: AirplaneIcon,
+    iconInfo: { name: "Airplane", type: "Common" } as const,
     key: CategoryTabOption.Places,
     titleKey: "EmojisPlaces",
 }, {
     color: iconColor,
-    Icon: AwardIcon,
+    iconInfo: { name: "Award", type: "Common" } as const,
     key: CategoryTabOption.Activities,
     titleKey: "EmojisActivities",
 }, {
     color: iconColor,
-    Icon: ProjectIcon,
+    iconInfo: { name: "Project", type: "Common" } as const,
     key: CategoryTabOption.Objects,
     titleKey: "EmojisObjects",
 }, {
     color: iconColor,
-    Icon: CompleteIcon,
+    iconInfo: { name: "Complete", type: "Common" } as const,
     key: CategoryTabOption.Symbols,
     titleKey: "EmojisSymbols",
 }, {
     color: iconColor,
-    Icon: ReportIcon,
+    iconInfo: { name: "Report", type: "Common" } as const,
     key: CategoryTabOption.Flags,
     titleKey: "EmojisFlags",
 }];
@@ -983,11 +983,15 @@ export function FallbackEmojiPicker({
                                 disabled={emojiData === null}
                             />
                             <IconButton
-                                sx={searchIconButtonStyle}
-                                aria-label="main-search-icon"
+                                aria-label={t("Search")}
                                 disabled={emojiData === null}
+                                sx={searchIconButtonStyle}
                             >
-                                <SearchIcon fill={palette.background.textSecondary} />
+                                <IconCommon
+                                    decorative
+                                    fill={palette.background.textSecondary}
+                                    name="Search"
+                                />
                             </IconButton>
                         </SearchBarPaper>
                         <SkinColorPicker
@@ -1038,6 +1042,8 @@ export function FallbackEmojiPicker({
                         </LoadingContainer>
                     )}
                     {emojiData && (
+                        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                        // @ts-ignore - VariableSizeList can be used as a JSX component despite the TypeScript error
                         <VariableSizeList
                             ref={listRef}
                             height={EMOJI_GRID_HEIGHT}
@@ -1102,6 +1108,8 @@ export function EmojiPicker({
     onOpen?: () => void;
     onClose?: () => void;
 }) {
+    const { t } = useTranslation();
+
     // Start loading emoji data immediately
     const { emojiData } = useEmojiData();
 
@@ -1176,11 +1184,15 @@ export function EmojiPicker({
     return (
         <>
             <IconButton
+                aria-label={t("Add")}
                 size="small"
                 style={addEmojiIconButtonStyle}
                 onClick={handleButtonClick}
             >
-                <AddIcon />
+                <IconCommon
+                    decorative
+                    name="Add"
+                />
             </IconButton>
             <input
                 ref={inputRef}

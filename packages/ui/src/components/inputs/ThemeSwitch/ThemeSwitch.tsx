@@ -1,23 +1,23 @@
 import { ProfileUpdateInput, User, endpointsUser } from "@local/shared";
-import { Box, Typography, useTheme } from "@mui/material";
+import { Box, BoxProps, Typography, useTheme } from "@mui/material";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
-import { DarkModeIcon, LightModeIcon } from "../../../icons/common.js";
 import { noSelect } from "../../../styles.js";
-import { SxType } from "../../../types.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { ToggleSwitch } from "../ToggleSwitch/ToggleSwitch.js";
 
-type ThemeSwitchProps = {
+const offIconInfo = { name: "LightMode", type: "Common" } as const;
+const onIconInfo = { name: "DarkMode", type: "Common" } as const;
+
+type ThemeSwitchProps = BoxProps & {
     updateServer: boolean;
-    sx?: SxType;
 };
 
 export function ThemeSwitch({
     updateServer,
-    sx,
+    ...props
 }: ThemeSwitchProps) {
     const { palette } = useTheme();
     const { t } = useTranslation();
@@ -39,14 +39,12 @@ export function ThemeSwitch({
 
     return (
         <Box
-            sx={{
-                display: "flex",
-                flexDirection: "row",
-                gap: 1,
-                justifyContent: "center",
-                alignItems: "center",
-                ...sx,
-            }}
+            display="flex"
+            flexDirection="row"
+            gap={1}
+            justifyContent="center"
+            alignItems="center"
+            {...props}
         >
             <Typography variant="body1" sx={noSelect}>
                 {palette.mode === "light" ? t("Light") : t("Dark")}
@@ -54,8 +52,8 @@ export function ThemeSwitch({
             <ToggleSwitch
                 checked={isDark}
                 onChange={handleChange}
-                OffIcon={LightModeIcon}
-                OnIcon={DarkModeIcon}
+                offIconInfo={offIconInfo}
+                onIconInfo={onIconInfo}
             />
         </Box>
     );

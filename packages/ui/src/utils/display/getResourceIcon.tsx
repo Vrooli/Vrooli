@@ -1,71 +1,70 @@
 import { LINKS, ModelType, ResourceUsedFor } from "@local/shared";
 import { Avatar, Palette } from "@mui/material";
-import { ApiIcon, ArticleIcon, AwardIcon, BookmarkFilledIcon, BotIcon, CommentIcon, CreateIcon, DefaultSocialIcon, DonateIcon, DownloadIcon, FacebookIcon, GridIcon, HelpIcon, HistoryIcon, InfoIcon, InstagramIcon, LearnIcon, LinkIcon, ListNumberIcon, MonthIcon, NoteIcon, NotificationsAllIcon, ObjectIcon, PremiumIcon, ProjectIcon, ProposalIcon, RedditIcon, ReminderIcon, ReportIcon, ResearchIcon, RoutineIcon, ScheduleIcon, SearchIcon, SettingsIcon, SmartContractIcon, SocialVideoIcon, StatsIcon, TeamIcon, TerminalIcon, UserIcon, WebsiteIcon, XIcon, YouTubeIcon } from "icons/common.js";
-import { SvgComponent } from "types";
-import { getCookiePartialData } from "utils/localStorage.js";
-import { parseSingleItemUrl } from "utils/navigation/urlTools.js";
+import { Icon, IconInfo } from "../../icons/Icons.js";
+import { getCookiePartialData } from "../../utils/localStorage.js";
+import { parseSingleItemUrl } from "../../utils/navigation/urlTools.js";
 import { extractImageUrl } from "./imageTools.js";
 import { getDisplay, placeholderColor } from "./listTools.js";
 
-export const ResourceIconMap: { [key in ResourceUsedFor]?: SvgComponent } = {
-    [ResourceUsedFor.Community]: TeamIcon,
-    [ResourceUsedFor.Context]: InfoIcon,
-    [ResourceUsedFor.Developer]: TerminalIcon,
-    [ResourceUsedFor.Donation]: DonateIcon,
-    [ResourceUsedFor.ExternalService]: WebsiteIcon,
-    [ResourceUsedFor.Feed]: ArticleIcon,
-    [ResourceUsedFor.Install]: DownloadIcon,
-    [ResourceUsedFor.Learning]: LearnIcon,
-    [ResourceUsedFor.Notes]: ListNumberIcon,
-    [ResourceUsedFor.OfficialWebsite]: WebsiteIcon,
-    [ResourceUsedFor.Proposal]: ProposalIcon,
-    [ResourceUsedFor.Related]: LinkIcon,
-    [ResourceUsedFor.Researching]: ResearchIcon,
-    [ResourceUsedFor.Scheduling]: ScheduleIcon,
-    [ResourceUsedFor.Tutorial]: HelpIcon,
+export const ResourceIconMap: { [key in ResourceUsedFor]?: IconInfo } = {
+    [ResourceUsedFor.Community]: { name: "Team", type: "Common" },
+    [ResourceUsedFor.Context]: { name: "Info", type: "Common" },
+    [ResourceUsedFor.Developer]: { name: "Terminal", type: "Common" },
+    [ResourceUsedFor.Donation]: { name: "Donate", type: "Common" },
+    [ResourceUsedFor.ExternalService]: { name: "Website", type: "Common" },
+    [ResourceUsedFor.Feed]: { name: "Article", type: "Common" },
+    [ResourceUsedFor.Install]: { name: "Download", type: "Common" },
+    [ResourceUsedFor.Learning]: { name: "Learn", type: "Common" },
+    [ResourceUsedFor.Notes]: { name: "ListNumber", type: "Text" },
+    [ResourceUsedFor.OfficialWebsite]: { name: "Website", type: "Common" },
+    [ResourceUsedFor.Proposal]: { name: "Proposal", type: "Common" },
+    [ResourceUsedFor.Related]: { name: "Link", type: "Common" },
+    [ResourceUsedFor.Researching]: { name: "Research", type: "Common" },
+    [ResourceUsedFor.Scheduling]: { name: "Schedule", type: "Common" },
+    [ResourceUsedFor.Tutorial]: { name: "Help", type: "Common" },
 };
 
-export const ResourceSocialIconMap: { [key: string]: SvgComponent } = {
-    "default": DefaultSocialIcon,
-    "facebook": FacebookIcon,
-    "instagram": InstagramIcon,
-    "tiktok": SocialVideoIcon,
-    "odysee": SocialVideoIcon,
-    "x": XIcon,
-    "vimeo": SocialVideoIcon,
-    "youtube": YouTubeIcon,
-    "reddit": RedditIcon,
+export const ResourceSocialIconMap: { [key: string]: IconInfo } = {
+    "default": { name: "DefaultSocial", type: "Service" },
+    "facebook": { name: "Facebook", type: "Service" },
+    "instagram": { name: "Instagram", type: "Service" },
+    "tiktok": { name: "SocialVideo", type: "Common" },
+    "odysee": { name: "SocialVideo", type: "Common" },
+    "x": { name: "X", type: "Service" },
+    "vimeo": { name: "SocialVideo", type: "Common" },
+    "youtube": { name: "YouTube", type: "Service" },
+    "reddit": { name: "Reddit", type: "Service" },
 };
 
-const LinkIconMap: { [key in LINKS]?: SvgComponent } = {
-    [LINKS.About]: InfoIcon,
-    [LINKS.Api]: ApiIcon,
-    [LINKS.Awards]: AwardIcon,
-    [LINKS.BookmarkList]: BookmarkFilledIcon,
-    [LINKS.Calendar]: MonthIcon,
-    [LINKS.Chat]: CommentIcon,
-    [LINKS.DataConverter]: TerminalIcon,
-    [LINKS.DataStructure]: ObjectIcon,
-    [LINKS.Comment]: CommentIcon,
-    [LINKS.Create]: CreateIcon,
-    [LINKS.History]: HistoryIcon,
-    [LINKS.Inbox]: NotificationsAllIcon,
-    [LINKS.MyStuff]: GridIcon,
-    [LINKS.Note]: NoteIcon,
-    [LINKS.Pro]: PremiumIcon,
-    [LINKS.Profile]: UserIcon,
-    [LINKS.Project]: ProjectIcon,
-    [LINKS.Prompt]: ArticleIcon,
-    [LINKS.Question]: HelpIcon,
-    [LINKS.Reminder]: ReminderIcon,
-    [LINKS.Report]: ReportIcon,
-    [LINKS.RoutineMultiStep]: RoutineIcon,
-    [LINKS.RoutineSingleStep]: RoutineIcon,
-    [LINKS.Search]: SearchIcon,
-    [LINKS.Settings]: SettingsIcon,
-    [LINKS.SmartContract]: SmartContractIcon,
-    [LINKS.Stats]: StatsIcon,
-    [LINKS.Team]: TeamIcon,
+const LinkIconMap: { [key in LINKS]?: IconInfo } = {
+    [LINKS.About]: { name: "Info", type: "Common" },
+    [LINKS.Api]: { name: "Api", type: "Common" },
+    [LINKS.Awards]: { name: "Award", type: "Common" },
+    [LINKS.BookmarkList]: { name: "BookmarkFilled", type: "Common" },
+    [LINKS.Calendar]: { name: "Month", type: "Common" },
+    [LINKS.Chat]: { name: "Comment", type: "Common" },
+    [LINKS.DataConverter]: { name: "Terminal", type: "Common" },
+    [LINKS.DataStructure]: { name: "Object", type: "Common" },
+    [LINKS.Comment]: { name: "Comment", type: "Common" },
+    [LINKS.Create]: { name: "Create", type: "Common" },
+    [LINKS.History]: { name: "History", type: "Common" },
+    [LINKS.Inbox]: { name: "NotificationsAll", type: "Common" },
+    [LINKS.MyStuff]: { name: "Grid", type: "Common" },
+    [LINKS.Note]: { name: "Note", type: "Common" },
+    [LINKS.Pro]: { name: "Premium", type: "Common" },
+    [LINKS.Profile]: { name: "User", type: "Common" },
+    [LINKS.Project]: { name: "Project", type: "Common" },
+    [LINKS.Prompt]: { name: "Article", type: "Common" },
+    [LINKS.Question]: { name: "Help", type: "Common" },
+    [LINKS.Reminder]: { name: "Reminder", type: "Common" },
+    [LINKS.Report]: { name: "Report", type: "Common" },
+    [LINKS.RoutineMultiStep]: { name: "Routine", type: "Routine" },
+    [LINKS.RoutineSingleStep]: { name: "Routine", type: "Routine" },
+    [LINKS.Search]: { name: "Search", type: "Common" },
+    [LINKS.Settings]: { name: "Settings", type: "Common" },
+    [LINKS.SmartContract]: { name: "SmartContract", type: "Common" },
+    [LINKS.Stats]: { name: "Stats", type: "Common" },
+    [LINKS.Team]: { name: "Team", type: "Common" },
 };
 
 function getRoute(pathname: string): LINKS | undefined {
@@ -90,7 +89,7 @@ function getRoute(pathname: string): LINKS | undefined {
  * @param link Resource's link, to check if it is a social media link
  * @returns Icon to display
  */
-export function getResourceIcon(usedFor: ResourceUsedFor, link?: string, palette?: Palette): SvgComponent | JSX.Element {
+export function getResourceIcon(usedFor: ResourceUsedFor, link?: string, palette?: Palette): JSX.Element {
     // Determine default icon
     const defaultIcon = usedFor === ResourceUsedFor.Social ? ResourceSocialIconMap.default : (ResourceIconMap[usedFor] ?? LinkIconMap[usedFor]);
     // Create URL object from link safely
@@ -124,11 +123,16 @@ export function getResourceIcon(usedFor: ResourceUsedFor, link?: string, palette
         // Check if it corresponds to a cached item
         const urlParams = parseSingleItemUrl({ href: link });
         const cachedItem = getCookiePartialData({ __typename: routeKey as ModelType, ...urlParams }) as { __typename: ModelType, isBot?: boolean, profileImage?: string, updated_at?: string };
+        const profileIconInfo: IconInfo = cachedItem.isBot ?
+            { name: "Bot", type: "Common" }
+            : routeKey === "User"
+                ? { name: "User", type: "Common" }
+                : { name: "Team", type: "Common" };
         // If cached item has a profileImage, return it as an Avatar
         if (cachedItem.profileImage) {
             return (<Avatar
-                src={extractImageUrl(cachedItem.profileImage, cachedItem.updated_at, 50)}
                 alt={`${getDisplay(cachedItem).title}'s profile picture`}
+                src={extractImageUrl(cachedItem.profileImage, cachedItem.updated_at, 50)}
                 sx={{
                     backgroundColor: placeholderColor()[0],
                     width: "24px",
@@ -137,22 +141,40 @@ export function getResourceIcon(usedFor: ResourceUsedFor, link?: string, palette
                     ...(cachedItem.isBot ? { borderRadius: "4px" } : {}),
                 }}
             >
-                {cachedItem.isBot ?
-                    <BotIcon width="75%" height="75%" fill={palette?.background?.textPrimary ?? "white"} /> :
-                    routeKey === "User" ? <UserIcon width="75%" height="75%" fill={palette?.background.textPrimary ?? "white"} /> :
-                        <TeamIcon width="75%" height="75%" fill={palette?.background?.textPrimary ?? "white"} />}
+                <Icon
+                    decorative
+                    fill={palette?.background?.textPrimary ?? "white"}
+                    info={profileIconInfo}
+                    size={24}
+                />
             </Avatar>);
         }
         // If cached item is a bot, return bot icon
         if ((cachedItem as { isBot?: boolean }).isBot) {
-            return BotIcon;
+            return <Icon
+                decorative
+                fill={palette?.background?.textPrimary ?? "white"}
+                info={profileIconInfo}
+                size={24}
+            />;
         }
         // Otherwise, return route icon or default icon
         return LinkIconMap[route as LINKS] ?? defaultIcon;
     }
     // ResourceUsedFor.Social is a special case, as the icon depends on the url
     if (usedFor === ResourceUsedFor.Social) {
-        return ResourceSocialIconMap[hostName] ?? ResourceSocialIconMap.defaul;
+        const iconInfo = ResourceSocialIconMap[hostName] ?? ResourceSocialIconMap.default;
+        return <Icon
+            decorative
+            fill={palette?.background?.textPrimary ?? "white"}
+            info={iconInfo}
+            size={24}
+        />;
     }
-    return defaultIcon;
+    return <Icon
+        decorative
+        fill={palette?.background?.textPrimary ?? "white"}
+        info={defaultIcon}
+        size={24}
+    />;
 }

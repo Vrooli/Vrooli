@@ -3,7 +3,7 @@ import { AvatarGroup, Tooltip } from "@mui/material";
 import { useField, useFormikContext } from "formik";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { SettingsIcon, UserIcon } from "../../../icons/common.js";
+import { Icon, IconCommon } from "../../../icons/Icons.js";
 import { extractImageUrl } from "../../../utils/display/imageTools.js";
 import { placeholderColor } from "../../../utils/display/listTools.js";
 import { MemberManageView } from "../../../views/MemberManageView/MemberManageView.js";
@@ -27,12 +27,12 @@ export function MembersButton({
     const openDialog = useCallback(() => { setDialogOpen(true); }, []);
     const closeDialog = useCallback(() => { setDialogOpen(false); }, []);
 
-    const { avatars, Icon, membersCount, label, tooltip } = useMemo(() => {
+    const { avatars, iconInfo, membersCount, label, tooltip } = useMemo(() => {
         const members = (membersField.value || []) as MemberShape[];
         if (!Array.isArray(members) || members.some(member => typeof member !== "object")) {
             return {
                 avatars: [],
-                Icon: null,
+                iconInfo: null,
                 membersCount: 0,
                 label: "",
                 tooltip: "",
@@ -48,7 +48,10 @@ export function MembersButton({
                     src={imageUrl}
                     profileColors={placeholderColor(member.user?.id)}
                 >
-                    {!imageUrl && <UserIcon />}
+                    {!imageUrl && <IconCommon
+                        decorative
+                        name={isBot ? "Bot" : "User"}
+                    />}
                 </RelationshipAvatar>
             );
         });
@@ -60,7 +63,7 @@ export function MembersButton({
 
         return {
             avatars,
-            Icon: avatars.length > 0 ? undefined : SettingsIcon,
+            iconInfo: avatars.length > 0 ? undefined : { name: "Settings", type: "Common" } as const,
             membersCount,
             label: truncatedLabel,
             tooltip,
@@ -89,7 +92,9 @@ export function MembersButton({
                 <Tooltip title={tooltip}>
                     <RelationshipButton
                         onClick={openDialog}
-                        startIcon={Avatars || (Icon && <Icon />)}
+                        startIcon={Avatars || (iconInfo && <Icon
+                            info={iconInfo}
+                        />)}
                         variant="outlined"
                     >
                         {label}
@@ -100,7 +105,9 @@ export function MembersButton({
     }
     return (
         <RelationshipChip
-            icon={Avatars || (Icon && <Icon />) || undefined}
+            icon={Avatars || (iconInfo && <Icon
+                info={iconInfo}
+            />) || undefined}
             label={label}
             onClick={openDialog}
         />

@@ -5,7 +5,7 @@ import { ComponentType, Suspense, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { lazily } from "react-lazily";
 import { useEditableLabel } from "../../../hooks/useEditableLabel.js";
-import { CopyIcon, DeleteIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { HelpButton } from "../../buttons/HelpButton/HelpButton.js";
 import { FormInputCheckbox } from "./FormInputCheckbox.js";
@@ -147,8 +147,16 @@ export function FormInput({
             {/* Delete button when editing form */}
             {isEditing && (
                 <Tooltip title={t("Delete")}>
-                    <IconButton onClick={handleDelete}>
-                        <DeleteIcon fill={palette.error.main} width="24px" height="24px" />
+                    <IconButton
+                        aria-label={t("Delete")}
+                        onClick={handleDelete}
+                    >
+                        <IconCommon
+                            decorative
+                            fill={palette.error.main}
+                            name="Delete"
+                            size={24}
+                        />
                     </IconButton>
                 </Tooltip>
             )}
@@ -182,8 +190,17 @@ export function FormInput({
             </legend>
             {/* Copy button for certain input types. Others include their own copy buttons or don't need one */}
             {[InputType.IntegerInput, InputType.LinkUrl, InputType.Text].includes(fieldData.type) && <Tooltip title={t("CopyToClipboard")}>
-                <IconButton onClick={copyToClipboard} sx={copyButtonStyle}>
-                    <CopyIcon fill={palette.background.textSecondary} width="24px" height="24px" />
+                <IconButton
+                    aria-label={t("CopyToClipboard")}
+                    onClick={copyToClipboard}
+                    sx={copyButtonStyle}
+                >
+                    <IconCommon
+                        decorative
+                        fill={palette.background.textSecondary}
+                        name="Copy"
+                        size={24}
+                    />
                 </IconButton>
             </Tooltip>}
             {(fieldData.helpText || isEditing) ?

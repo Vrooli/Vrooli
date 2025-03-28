@@ -2,12 +2,9 @@ import { Tooltip, useTheme } from "@mui/material";
 import { useField } from "formik";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { InvisibleIcon, VisibleIcon } from "../../../icons/common.js";
-import { RelationshipButton, RelationshipChip, withRelationshipIcon } from "./styles.js";
+import { Icon } from "../../../icons/Icons.js";
+import { RelationshipButton, RelationshipChip } from "./styles.js";
 import { IsPrivateButtonProps } from "./types.js";
-
-const PrivateIcon = withRelationshipIcon(InvisibleIcon);
-const PublicIcon = withRelationshipIcon(VisibleIcon);
 
 export function IsPrivateButton({
     isEditing,
@@ -19,11 +16,11 @@ export function IsPrivateButton({
     const [, , rootHelpers] = useField("root.isPrivate");
     const [rootVersionsCountField] = useField("root.versionsCount");
 
-    const { Icon, label, tooltip } = useMemo(() => {
+    const { iconColor, iconInfo, label, tooltip } = useMemo(() => {
         const isPrivate = versionField?.value;
-        const iconColor = isEditing ? palette.primary.light : palette.secondary.contrastText;
         return {
-            Icon: isPrivate ? () => <PrivateIcon fill={iconColor} /> : () => <PublicIcon fill={iconColor} />,
+            iconColor: isEditing ? palette.primary.light : palette.secondary.contrastText,
+            iconInfo: { name: isPrivate ? "Invisible" : "Visible", type: "Common" } as const,
             label: t(versionField?.value ? "Private" : "Public"),
             tooltip: t(`${!isPrivate ? "Private" : "Public"}TogglePress${isEditing ? "Editable" : ""}`),
         };
@@ -45,7 +42,11 @@ export function IsPrivateButton({
             <Tooltip title={tooltip}>
                 <RelationshipButton
                     onClick={handleClick}
-                    startIcon={Icon && <Icon />}
+                    startIcon={iconInfo && <Icon
+                        fill={iconColor}
+                        info={iconInfo}
+                        size={32}
+                    />}
                     variant="outlined"
                 >
                     {label}
@@ -56,7 +57,11 @@ export function IsPrivateButton({
     // Otherwise, return chip
     return (
         <RelationshipChip
-            icon={Icon && <Icon />}
+            icon={iconInfo && <Icon
+                fill={iconColor}
+                info={iconInfo}
+                size={32}
+            />}
             label={label}
         />
     );

@@ -5,9 +5,10 @@ import { Box, Checkbox, CircularProgress, IconButton, Link, styled, Tooltip, Typ
 import { type HLJSApi } from "highlight.js";
 import Markdown from "markdown-to-jsx";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { usePress, UsePressEvent } from "../../hooks/gestures.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
-import { CopyIcon, ExpandLessIcon, ExpandMoreIcon, ListIcon, WrapTextIcon } from "../../icons/common.js";
+import { IconCommon, IconText } from "../../icons/Icons.js";
 import { SxType } from "../../types.js";
 import { getDisplay } from "../../utils/display/listTools.js";
 import { parseSingleItemUrl } from "../../utils/navigation/urlTools.js";
@@ -352,6 +353,7 @@ function codeStyle(isHighlighted: boolean, isWrapped: boolean) {
 
 /** Pretty code block with copy button */
 function CodeBlock({ children, className }) {
+    const { t } = useTranslation();
     const textRef = useRef<HTMLElement | null>(null);
     const [isHighlighted, setIsHighlighted] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -464,28 +466,54 @@ function CodeBlock({ children, className }) {
         <CodeBlockOuter>
             <Box position="sticky" top={0} zIndex={1}>
                 <Box display="flex" gap={1} position="absolute" right={1}>
-                    <Tooltip title={isWrapped ? "Disable word wrap" : "Enable word wrap"}>
+                    <Tooltip title={isWrapped ? t("WordWrapDisable") : t("WordWrapEnable")}>
                         <CodeBlockTopBarButton
+                            aria-label={isWrapped ? t("WordWrapDisable") : t("WordWrapEnable")}
                             size="small"
                             onClick={toggleWrap}
                         >
-                            {isWrapped ? <ListIcon /> : <WrapTextIcon />}
+                            {
+                                isWrapped
+                                    ? <IconText
+                                        decorative
+                                        name="List"
+                                    />
+                                    : <IconText
+                                        decorative
+                                        name="WrapText"
+                                    />
+                            }
                         </CodeBlockTopBarButton>
                     </Tooltip>
-                    <Tooltip title="Copy code">
+                    <Tooltip title={t("Copy")}>
                         <CodeBlockTopBarButton
+                            aria-label={t("Copy")}
                             size="small"
                             onClick={copyCode}
                         >
-                            <CopyIcon />
+                            <IconCommon
+                                decorative
+                                name="Copy"
+                            />
                         </CodeBlockTopBarButton>
                     </Tooltip>
-                    <Tooltip title={isCollapsed ? "Expand code" : "Collapse code"}>
+                    <Tooltip title={isCollapsed ? t("Expand") : t("Collapse")}>
                         <CodeBlockTopBarButton
+                            aria-label={isCollapsed ? t("Expand") : t("Collapse")}
                             size="small"
                             onClick={toggleCollapse}
                         >
-                            {isCollapsed ? <ExpandMoreIcon /> : <ExpandLessIcon />}
+                            {
+                                isCollapsed
+                                    ? <IconCommon
+                                        decorative
+                                        name="ExpandMore"
+                                    />
+                                    : <IconCommon
+                                        decorative
+                                        name="ExpandLess"
+                                    />
+                            }
                         </CodeBlockTopBarButton>
                     </Tooltip>
                 </Box>

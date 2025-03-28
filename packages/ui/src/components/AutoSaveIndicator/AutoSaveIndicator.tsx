@@ -2,7 +2,7 @@ import { Box, BoxProps, Typography, styled, useTheme } from "@mui/material";
 import { FormikProps } from "formik";
 import { RefObject, useCallback, useEffect, useState } from "react";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
-import { RefreshIcon, SaveIcon, WarningIcon } from "../../icons/common.js";
+import { Icon, IconInfo } from "../../icons/Icons.js";
 
 type AutoSaveIndicatorProps = {
     formikRef: RefObject<FormikProps<object>>;
@@ -11,33 +11,39 @@ type AutoSaveIndicatorProps = {
 
 type SaveStatus = "Saving" | "Saved" | "Unsaved";
 
+type StatusDisplay = {
+    backgroundColor: string;
+    iconColor: string;
+    iconInfo: IconInfo;
+    label: string;
+    labelColor: string;
+}
+
 const DEFAULT_SAVED_INDICATOR_TIMEOUT_MS = 3000;
 const CHECK_SAVE_STATUS_INTERVAL_MS = 1000;
 
-const statusToIconColor = {
-    Saving: "#0288d1",
-    Saved: "#2e7d32",
-    Unsaved: "#ed6c02",
-} as const;
-const statusToBackgroundColor = {
-    Saving: "#e5f6fdbb",
-    Saved: "#edf7edbb",
-    Unsaved: "#fff4e5bb",
-} as const;
-const statusToLabelColor = {
-    Saving: "#014361",
-    Saved: "#1e4620",
-    Unsaved: "#663c00",
-} as const;
-const statusToLabel = {
-    Saving: "Saving...",
-    Saved: "Saved",
-    Unsaved: "Not saved",
-} as const;
-const statusToIcon = {
-    Saving: RefreshIcon,
-    Saved: SaveIcon,
-    Unsaved: WarningIcon,
+const statusToDisplay = {
+    Saving: {
+        backgroundColor: "#e5f6fdbb",
+        iconColor: "#0288d1",
+        iconInfo: { name: "Refresh", type: "Common" },
+        label: "Saving...",
+        labelColor: "#014361",
+    },
+    Saved: {
+        backgroundColor: "#edf7edbb",
+        iconColor: "#2e7d32",
+        iconInfo: { name: "Save", type: "Common" },
+        label: "Saved",
+        labelColor: "#1e4620",
+    },
+    Unsaved: {
+        backgroundColor: "#fff4e5bb",
+        iconColor: "#ed6c02",
+        iconInfo: { name: "Warning", type: "Common" },
+        label: "Not saved",
+        labelColor: "#663c00",
+    },
 } as const;
 
 interface AutoSaveAlertProps extends BoxProps {
@@ -52,7 +58,7 @@ const AutoSaveAlert = styled(Box, {
     display: isVisible ? "flex" : "none",
     alignItems: "center",
     justifyContent: "center",
-    background: statusToBackgroundColor[status],
+    background: statusToDisplay[status].backgroundColor,
     borderRadius: "4px",
     // eslint-disable-next-line no-magic-numbers
     padding: isLabelVisible ? theme.spacing(0.75) : `${theme.spacing(0.5)} ${theme.spacing(1)}`,
@@ -115,9 +121,10 @@ export function AutoSaveIndicator({
         };
     }, [formikRef, savedIndicatorTimeoutMs]);
 
-    const Icon = statusToIcon[saveStatus];
     return (
         <AutoSaveAlert
+            aria-label={statusToDisplay[saveStatus].label}
+            aria-pressed={saveStatus === "Saved"}
             isLabelVisible={!isMobile || showLabelOnMobile}
             isVisible={isVisible}
             onClick={toggleShowLabelOnMobile}
@@ -127,16 +134,17 @@ export function AutoSaveIndicator({
         >
             <Icon
                 className="save-alert-icon"
-                width={20}
-                height={20}
-                fill={statusToIconColor[saveStatus]}
+                decorative
+                fill={statusToDisplay[saveStatus].iconColor}
+                info={statusToDisplay[saveStatus].iconInfo}
+                size={20}
             />
             <Typography
                 className="save-alert-label"
+                color={statusToDisplay[saveStatus].labelColor}
                 variant="body2"
-                color={statusToLabelColor[saveStatus]}
             >
-                {statusToLabel[saveStatus]}
+                {statusToDisplay[saveStatus].label}
             </Typography>
         </AutoSaveAlert>
     );

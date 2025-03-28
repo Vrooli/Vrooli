@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FormRunView } from "../../../forms/FormView/FormView.js";
 import { usePopover } from "../../../hooks/usePopover.js";
-import { BuildIcon, CancelIcon, RefreshIcon, SearchIcon, SortIcon, HistoryIcon as TimeIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { addSearchParams, removeSearchParams } from "../../../route/searchParams.js";
 import { ELEMENT_IDS } from "../../../utils/consts.js";
@@ -154,16 +154,19 @@ export function SortButton({
             />
             <Tooltip title={t("SortBy")} placement="top">
                 <StyledSearchButton
+                    aria-label={t("SortBy")}
                     id={sortButtonId}
                     active={isActive}
                     onClick={openSort}
                 >
-                    <SortIcon
+                    <IconCommon
+                        decorative
                         fill={
                             isActive
                                 ? palette.secondary.contrastText
                                 : palette.secondary.main
                         }
+                        name="Sort"
                     />
                     <Typography variant="body2" ml={0.5}>{sortByLabel}</Typography>
                 </StyledSearchButton>
@@ -286,16 +289,19 @@ export function TimeButton({
             />
             <Tooltip title={t("TimeCreated")} placement="top">
                 <StyledSearchButton
+                    aria-label={t("TimeCreated")}
                     id={timeButtonId}
                     onClick={openTime}
                     active={Boolean(timeFrame)}
                 >
-                    <TimeIcon
+                    <IconCommon
+                        decorative
                         fill={
                             isActive
                                 ? palette.secondary.contrastText
                                 : palette.secondary.main
                         }
+                        name="History"
                     />
                     <Typography variant="body2" ml={0.5}>{timeFrameLabel}</Typography>
                 </StyledSearchButton>
@@ -307,7 +313,7 @@ export function TimeButton({
 function createTopBarOptions(resetForm: (() => unknown), t: TranslationFuncCommon) {
     return [
         {
-            Icon: RefreshIcon,
+            iconInfo: { name: "Refresh", type: "Common" } as const,
             label: t("Reset"),
             onClick: resetForm,
         },
@@ -411,7 +417,10 @@ function AdvancedSearchDialog({
                                 <Grid item xs={6}>
                                     <Button
                                         fullWidth
-                                        startIcon={<SearchIcon />}
+                                        startIcon={<IconCommon
+                                            decorative
+                                            name="Search"
+                                        />}
                                         type="submit"
                                         onClick={onSubmit}
                                         variant="contained"
@@ -420,7 +429,10 @@ function AdvancedSearchDialog({
                                 <Grid item xs={6}>
                                     <Button
                                         fullWidth
-                                        startIcon={<CancelIcon />}
+                                        startIcon={<IconCommon
+                                            decorative
+                                            name="Cancel"
+                                        />}
                                         onClick={handleClose}
                                         variant="outlined"
                                     >{t("Cancel")}</Button>
@@ -507,12 +519,14 @@ export function AdvancedSearchButton({
                     onClick={handleAdvancedSearchDialogOpen}
                     active={isActive}
                 >
-                    <BuildIcon
+                    <IconCommon
+                        decorative
                         fill={
                             isActive
                                 ? palette.secondary.contrastText
                                 : palette.secondary.main
                         }
+                        name="Build"
                     />
                     {Object.keys(advancedSearchParams).length > 0 && <Typography variant="body2" sx={filterCountLabelStyle}>
                         *{Object.keys(advancedSearchParams).length}

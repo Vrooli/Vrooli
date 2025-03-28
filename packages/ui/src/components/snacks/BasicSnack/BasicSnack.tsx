@@ -1,7 +1,7 @@
-import { Box, BoxProps, Button, IconButton, Palette, Typography, styled, useTheme } from "@mui/material";
+import { Box, BoxProps, Button, IconButton, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CloseIcon, CopyIcon, ErrorIcon, InfoIcon, SuccessIcon, WarningIcon } from "../../../icons/common.js";
-import { SvgComponent } from "../../../types.js";
+import { useTranslation } from "react-i18next";
+import { IconCommon } from "../../../icons/Icons.js";
 import { SNACK_HIGHLIGHT, addHighlight, removeHighlights } from "../../../utils/display/documentTools.js";
 import { PubSub } from "../../../utils/pubsub.js";
 import { BasicSnackProps } from "../types.js";
@@ -15,21 +15,6 @@ export enum SnackSeverity {
 
 const DEFAULT_AUTO_HIDE_DURATION_MS = 5000;
 const SWIPE_THRESHOLD_PX = 10;
-
-function iconColor(severity: SnackSeverity | `${SnackSeverity}` | undefined, palette: Palette) {
-    switch (severity) {
-        case "Error":
-            return palette.error.dark;
-        case "Info":
-            return palette.info.main;
-        case "Success":
-            return palette.success.main;
-        case "Warning":
-            return palette.warning.main;
-        default:
-            return palette.primary.light;
-    }
-}
 
 interface OuterBoxProps extends BoxProps {
     isOpen: boolean;
@@ -95,6 +80,7 @@ export function BasicSnack({
     message,
     severity,
 }: BasicSnackProps) {
+    const { t } = useTranslation();
     const { palette } = useTheme();
     const [open, setOpen] = useState<boolean>(true);
     const [isHovered, setIsHovered] = useState<boolean>(false);
@@ -210,21 +196,34 @@ export function BasicSnack({
         }
     }, [data, severity]);
 
-    const Icon = useMemo<SvgComponent>(() => {
+    const { iconType, iconColor } = useMemo(() => {
         switch (severity) {
             case "Error":
-                return ErrorIcon;
+                return {
+                    iconType: "Error" as const,
+                    iconColor: palette.error.dark,
+                };
             case "Info":
-                return InfoIcon;
+                return {
+                    iconType: "Info" as const,
+                    iconColor: palette.info.main,
+                };
             case "Success":
-                return SuccessIcon;
+                return {
+                    iconType: "Success" as const,
+                    iconColor: palette.success.main,
+                };
             default:
-                return WarningIcon;
+                return {
+                    iconType: "Warning" as const,
+                    iconColor: palette.warning.main,
+                };
         }
-    }, [severity]);
+    }, [palette.error.dark, palette.info.main, palette.success.main, palette.warning.main, severity]);
 
     return (
         <OuterBox
+            id={id}
             isOpen={open}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
@@ -232,12 +231,31 @@ export function BasicSnack({
             touchPosition={touchPosition}
         >
             {isHovered ? (
-                <IconButton onClick={copyMessage}>
-                    <CopyIcon fill={palette.secondary.main} />
+                <IconButton
+                    aria-label={t("CopyMessage")}
+                    onClick={copyMessage}
+                >
+                    <IconCommon
+                        decorative
+                        fill={palette.secondary.main}
+                        name="Copy"
+                        size={24}
+                    />
                 </IconButton>
             ) : (
-                <Box width="40px" height="40px" display="flex" justifyContent="center" alignItems="center">
-                    <Icon fill={iconColor(severity, palette)} width="24px" height="24px" />
+                <Box
+                    alignItems="center"
+                    display="flex"
+                    height="40px"
+                    justifyContent="center"
+                    width="40px"
+                >
+                    <IconCommon
+                        decorative={false}
+                        fill={iconColor}
+                        name={iconType}
+                        size={24}
+                    />
                 </Box>
             )}
             <MessageBox>
@@ -253,8 +271,16 @@ export function BasicSnack({
                     {buttonText}
                 </ActionButton>
             )}
-            <IconButton onClick={handleClose}>
-                <CloseIcon fill={palette.background.textPrimary} />
+            <IconButton
+                aria-label={t("Close")}
+                onClick={handleClose}
+            >
+                <IconCommon
+                    decorative
+                    fill={palette.background.textPrimary}
+                    name="Close"
+                    size={24}
+                />
             </IconButton>
         </OuterBox>
     );

@@ -2,10 +2,9 @@
 import { LINKS, Session, TranslationKeyCommon } from "@local/shared";
 import { Badge, BottomNavigationAction, Button, IconButton, SxProps, Theme } from "@mui/material";
 import i18next from "i18next";
-import { CreateAccountIcon, CreateIcon, GridIcon, HelpIcon, HomeIcon, NotificationsAllIcon, PremiumIcon, SearchIcon } from "../../icons/common.js";
+import { Icon, IconInfo } from "../../icons/Icons.js";
 import { openLink } from "../../route/openLink.js";
 import { SetLocation } from "../../route/types.js";
-import { SvgComponent } from "../../types.js";
 import { checkIfLoggedIn } from "../../utils/authentication/session.js";
 
 export enum NAV_ACTION_TAGS {
@@ -19,12 +18,12 @@ export enum NAV_ACTION_TAGS {
     MyStuff = "MyStuff",
 }
 
-export type NavActionArray = [string, NAV_ACTION_TAGS, LINKS, SvgComponent, number];
-export interface NavAction {
+export type NavActionArray = [string, NAV_ACTION_TAGS, LINKS, IconInfo, number];
+export type NavAction = {
     label: TranslationKeyCommon;
     value: NAV_ACTION_TAGS;
+    iconInfo: IconInfo;
     link: string;
-    Icon: SvgComponent;
     numNotifications: number;
 }
 
@@ -40,25 +39,25 @@ export function getUserActions({ session, exclude = [] }: GetUserActionsProps): 
     // Home always available. Page changes based on login status, 
     // but we don't worry about that here.
     actions.push(
-        ["Home", NAV_ACTION_TAGS.Home, LINKS.Home, HomeIcon, 0],
+        ["Home", NAV_ACTION_TAGS.Home, LINKS.Home, { name: "Home", type: "Common" }, 0],
     );
     // Search always available
     actions.push(
-        ["Search", NAV_ACTION_TAGS.Search, LINKS.Search, SearchIcon, 0],
+        ["Search", NAV_ACTION_TAGS.Search, LINKS.Search, { name: "Search", type: "Common" }, 0],
     );
     // Actions for logged in users
     if (isLoggedIn) {
         actions.push(
-            ["Create", NAV_ACTION_TAGS.Create, LINKS.Create, CreateIcon, 0],
-            ["Inbox", NAV_ACTION_TAGS.Inbox, LINKS.Inbox, NotificationsAllIcon, 0],
-            ["MyStuff", NAV_ACTION_TAGS.MyStuff, LINKS.MyStuff, GridIcon, 0],
+            ["Create", NAV_ACTION_TAGS.Create, LINKS.Create, { name: "Create", type: "Common" }, 0],
+            ["Inbox", NAV_ACTION_TAGS.Inbox, LINKS.Inbox, { name: "NotificationsAll", type: "Common" }, 0],
+            ["MyStuff", NAV_ACTION_TAGS.MyStuff, LINKS.MyStuff, { name: "Grid", type: "Common" }, 0],
         );
     }
     // Display about, pricing, and login for logged out users 
     else {
-        actions.push(["About", NAV_ACTION_TAGS.About, LINKS.About, HelpIcon, 0]);
-        actions.push(["Pricing", NAV_ACTION_TAGS.Pricing, LINKS.Pro, PremiumIcon, 0]);
-        actions.push(["Log In", NAV_ACTION_TAGS.LogIn, LINKS.Login, CreateAccountIcon, 0]);
+        actions.push(["About", NAV_ACTION_TAGS.About, LINKS.About, { name: "Help", type: "Common" }, 0]);
+        actions.push(["Pricing", NAV_ACTION_TAGS.Pricing, LINKS.Pro, { name: "Premium", type: "Common" }, 0]);
+        actions.push(["Log In", NAV_ACTION_TAGS.LogIn, LINKS.Login, { name: "CreateAccount", type: "Common" }, 0]);
     }
     return actions.map(a => createAction(a)).filter(a => !(exclude ?? []).includes(a.value));
 }
@@ -112,7 +111,7 @@ const navActionStyle = {
     minWidth: "58px", // Default min width is too big for some screens, like closed Galaxy Fold 
 };
 export function actionsToBottomNav({ actions, setLocation }: ActionsToBottomNavProps) {
-    return actions.map(({ label, value, link, Icon, numNotifications }) => {
+    return actions.map(({ label, value, iconInfo, link, numNotifications }) => {
         function handleNavActionClick(e: React.MouseEvent) {
             e.preventDefault();
             // Check if link is different from current location
@@ -129,7 +128,12 @@ export function actionsToBottomNav({ actions, setLocation }: ActionsToBottomNavP
                 value={value}
                 href={link}
                 onClick={handleNavActionClick}
-                icon={<Badge badgeContent={numNotifications} color="error"><Icon /></Badge>}
+                icon={<Badge badgeContent={numNotifications} color="error">
+                    <Icon
+                        decorative
+                        info={iconInfo}
+                    />
+                </Badge>}
                 sx={navActionStyle}
             />
         );
@@ -143,7 +147,7 @@ interface ActionToIconButtonProps {
     classes?: { [key: string]: string };
 }
 export function actionToIconButton({ action, setLocation, classes = { root: "" } }: ActionToIconButtonProps) {
-    const { value, link, Icon, numNotifications } = action;
+    const { value, iconInfo, link, numNotifications } = action;
 
     function handleClick(event: React.MouseEvent) {
         event.preventDefault();
@@ -152,7 +156,10 @@ export function actionToIconButton({ action, setLocation, classes = { root: "" }
 
     return <IconButton classes={classes} edge="start" color="inherit" aria-label={value} onClick={handleClick}>
         <Badge badgeContent={numNotifications} color="error">
-            <Icon />
+            <Icon
+                decorative
+                info={iconInfo}
+            />
         </Badge>
     </IconButton>;
 }

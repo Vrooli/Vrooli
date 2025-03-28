@@ -3,7 +3,7 @@ import { FormControl, FormHelperText, InputLabel, ListItemIcon, ListItemText, Me
 import { useField } from "formik";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { AddIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { SelectorBaseProps, SelectorProps } from "../types.js";
 
 export function SelectorBase<T extends string | number | { [x: string]: any }>({
@@ -189,8 +189,17 @@ export function SelectorBase<T extends string | number | { [x: string]: any }>({
                 }
                 {
                     addOption ? (
-                        <MenuItem value="addOption" onClick={addOption.onSelect}>
-                            <AddIcon fill={color ?? palette.background.textPrimary} style={{ marginRight: "8px" }} />
+                        <MenuItem
+                            aria-label={addOption.label}
+                            value="addOption"
+                            onClick={addOption.onSelect}
+                        >
+                            <IconCommon
+                                decorative
+                                fill={color ?? palette.background.textPrimary}
+                                name="Add"
+                                style={{ marginRight: "8px" }}
+                            />
                             <em>{addOption.label}</em>
                         </MenuItem>
                     ) : null

@@ -5,7 +5,7 @@ import { create } from "zustand";
 import { fetchData } from "../../../api/fetchData.js";
 import { ServerResponseParser } from "../../../api/responseParser.js";
 import { SessionContext } from "../../../contexts.js";
-import { FocusModeIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { PubSub } from "../../../utils/pubsub.js";
@@ -161,7 +161,10 @@ function getFocusModeOptionLabel(focusMode: FocusModeOption) {
 }
 
 function getDisplayIcon() {
-    return <FocusModeIcon />;
+    return <IconCommon
+        decorative
+        name="FocusMode"
+    />;
 }
 
 /**

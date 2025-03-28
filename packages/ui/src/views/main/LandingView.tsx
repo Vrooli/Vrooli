@@ -16,23 +16,16 @@ import { SnackSeverity } from "../../components/snacks/BasicSnack/BasicSnack.js"
 import { SessionContext } from "../../contexts.js";
 import { useStripe } from "../../hooks/useStripe.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
-import { ArticleIcon, GitHubIcon, LaunchIcon, PlayIcon, XIcon } from "../../icons/common.js";
+import { IconCommon, IconService } from "../../icons/Icons.js";
 import { openLink } from "../../route/openLink.js";
 import { useLocation } from "../../route/router.js";
 import { ScrollBox, SlideIconButton } from "../../styles.js";
-import { SvgComponent } from "../../types.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
 import { darkPalette } from "../../utils/display/theme.js";
 import { PubSub } from "../../utils/pubsub.js";
 import { BillingCycle, BillingCycleToggle, CreditDialog, PricingTierType, PricingTiers } from "../ProView/ProView.js";
 import { LandingViewProps } from "./types.js";
-
-const externalLinks: [string, string, SvgComponent][] = [
-    ["Read the docs", DOCS_URL, ArticleIcon],
-    ["Check out our code", SOCIALS.GitHub, GitHubIcon],
-    ["Follow us on X/Twitter", SOCIALS.X, XIcon],
-];
 
 // TODO create videos and update URLs
 const videoUrls = {
@@ -541,6 +534,7 @@ interface NeonBoxProps extends BoxProps {
 const NeonBox = styled(Box, {
     shouldForwardProp: (prop) => prop !== "isVisible",
 })<NeonBoxProps>(({ isVisible }) => ({
+    background: "black",
     display: isVisible ? "block" : "none",
     transition: "display 0.5s",
     position: "fixed",
@@ -698,10 +692,20 @@ function VideoContainer({
     children,
 }: VideoContainerProps) {
     return (
-        <VideoContainerOuter onClick={onClick}>
+        <VideoContainerOuter
+            aria-label="Play video"
+            component="button"
+            onClick={onClick}
+        >
             {children}
             <PlayIconBox>
-                <PlayIcon fill="white" width={40} height={40} />
+                <IconCommon
+                    decorative
+                    fill="white"
+                    name="Play"
+                    width={40}
+                    height={40}
+                />
             </PlayIconBox>
         </VideoContainerOuter>
     );
@@ -954,7 +958,6 @@ const ExternalLinksBox = styled(Box)(({ theme }) => ({
     marginLeft: "auto",
     marginRight: "auto",
 }));
-const pageContainerStyle = { background: "black" } as const;
 
 /**
  * View displayed for Home page when not logged in
@@ -1025,6 +1028,15 @@ export function LandingView({
     }
     function toApp() {
         openLink(setLocation, LINKS.Signup); //TODO: Change to popup that shows app download options and instructions for installing the app from the website
+    }
+    function toDocs() {
+        openLink(setLocation, DOCS_URL);
+    }
+    function toGitHub() {
+        openLink(setLocation, SOCIALS.GitHub);
+    }
+    function toX() {
+        openLink(setLocation, SOCIALS.X);
     }
 
     function openVideo(src: string) {
@@ -1107,7 +1119,7 @@ export function LandingView({
                 onClose={closeCreditDialog}
                 startCheckout={startCheckout}
             />
-            <PageContainer size="fullSize" sx={pageContainerStyle}>
+            <PageContainer size="fullSize">
                 <NeonScene isVisible={earthPosition === "hidden"} />
                 <StarryBackground isVisible={earthPosition !== "hidden"} />
                 <ScrollBox ref={scrollBoxRef}>
@@ -1260,25 +1272,53 @@ export function LandingView({
                                 <Slide6Title variant='h2'>Ready to Change Your World?</Slide6Title>
                                 <SlideText>Boost your productivity and get more done with Vrooli.</SlideText>
                                 <Slide6StartButton
+                                    aria-label="I'm ready!"
                                     variant="outlined"
                                     color="secondary"
                                     onClick={toSignUp}
-                                    startIcon={<LaunchIcon fill='white' />}
+                                    startIcon={<IconCommon
+                                        decorative
+                                        fill="white"
+                                        name="Launch"
+                                    />}
                                 >I&apos;m ready!</Slide6StartButton>
                                 <ExternalLinksBox>
-                                    {externalLinks.map(([tooltip, link, Icon]) => {
-                                        function onClick() {
-                                            openLink(setLocation, link);
-                                        }
-
-                                        return (
-                                            <Tooltip key={tooltip} title={tooltip} placement="bottom">
-                                                <SlideIconButton onClick={onClick}>
-                                                    <Icon fill='#0fa' />
-                                                </SlideIconButton>
-                                            </Tooltip>
-                                        );
-                                    })}
+                                    <Tooltip title="Read the docs" placement="bottom">
+                                        <SlideIconButton
+                                            aria-label="Read the docs"
+                                            onClick={toDocs}
+                                        >
+                                            <IconCommon
+                                                decorative
+                                                fill='#0fa'
+                                                name="Article"
+                                            />
+                                        </SlideIconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Check out our code" placement="bottom">
+                                        <SlideIconButton
+                                            aria-label="Check out our code"
+                                            onClick={toGitHub}
+                                        >
+                                            <IconService
+                                                decorative
+                                                fill='#0fa'
+                                                name="GitHub"
+                                            />
+                                        </SlideIconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Follow us on X/Twitter" placement="bottom">
+                                        <SlideIconButton
+                                            aria-label="Follow us on X/Twitter"
+                                            onClick={toX}
+                                        >
+                                            <IconService
+                                                decorative
+                                                fill='#0fa'
+                                                name="X"
+                                            />
+                                        </SlideIconButton>
+                                    </Tooltip>
                                 </ExternalLinksBox>
                             </Box>
                         </SlideContent>

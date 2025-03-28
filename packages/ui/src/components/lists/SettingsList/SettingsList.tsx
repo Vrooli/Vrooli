@@ -1,9 +1,9 @@
 import { LINKS } from "@local/shared";
 import { Box, BoxProps, Divider, List, ListItem, ListItemIcon, ListItemProps, ListItemText, ListProps, styled, useTheme } from "@mui/material";
-import { useElementDimensions } from "hooks/useDimensions.js";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useLocation } from "route/router.js";
+import { useElementDimensions } from "../../../hooks/useDimensions.js";
+import { useLocation } from "../../../route/router.js";
 import { pagePaddingBottom } from "../../../styles.js";
 import { accountSettingsData, displaySettingsData } from "../../../views/settings/index.js";
 import { SettingsData } from "../../../views/settings/types.js";

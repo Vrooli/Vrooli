@@ -11,7 +11,7 @@ import { TopBar } from "../../components/navigation/TopBar.js";
 import { useFindMany } from "../../hooks/useFindMany.js";
 import { useSelectableList } from "../../hooks/useSelectableList.js";
 import { useTabs } from "../../hooks/useTabs.js";
-import { ActionIcon, AddIcon, CancelIcon, DeleteIcon, SearchIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
 import { SideActionsButton } from "../../styles.js";
 import { memberTabParams } from "../../utils/search/objectToSearch.js";
 import { MemberManageViewProps } from "../types.js";
@@ -231,26 +231,39 @@ export function MemberManageView({
     }, [currTab.key, t, findManyData, notIfEditing, display, handleToggleSelect, isSelecting, selectedData, showSearchFilters, toInviteNewMembersTab]);
 
     const renderActionButtons = useMemo(function renderActionButtonsMemo() {
-        const actionIconProps = { fill: palette.secondary.contrastText, width: "36px", height: "36px" };
-
         if (isSelecting && selectedData.length > 0) {
             switch (currTab.key) {
                 case "Members":
                     return (
                         <SideActionsButton aria-label={t("RemoveMembers")} onClick={handleRemoveMembers}>
-                            <DeleteIcon {...actionIconProps} />
+                            <IconCommon
+                                decorative
+                                fill={palette.secondary.contrastText}
+                                name="Delete"
+                                size={36}
+                            />
                         </SideActionsButton>
                     );
                 case "Invites":
                     return (
                         <SideActionsButton aria-label={t("CancelInvites")} onClick={handleCancelInvites}>
-                            <DeleteIcon {...actionIconProps} />
+                            <IconCommon
+                                decorative
+                                fill={palette.secondary.contrastText}
+                                name="Delete"
+                                size={36}
+                            />
                         </SideActionsButton>
                     );
                 case "NonMembers":
                     return (
                         <SideActionsButton aria-label={t("InviteMembers")} onClick={handleInviteMembers}>
-                            <AddIcon {...actionIconProps} />
+                            <IconCommon
+                                decorative
+                                fill={palette.secondary.contrastText}
+                                name="Add"
+                                size={36}
+                            />
                         </SideActionsButton>
                     );
             }
@@ -294,11 +307,21 @@ export function MemberManageView({
                 <SideActionsButtons display={display}>
                     {renderActionButtons}
                     <SideActionsButton aria-label={t(isSelecting ? "Cancel" : "Select")} onClick={handleToggleSelecting}>
-                        {isSelecting ? <CancelIcon fill={palette.secondary.contrastText} width='36px' height='36px' /> : <ActionIcon fill={palette.secondary.contrastText} width='36px' height='36px' />}
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.contrastText}
+                            name={isSelecting ? "Cancel" : "Action"}
+                            size={36}
+                        />
                     </SideActionsButton>
                     {!isSelecting ? (
                         <SideActionsButton aria-label={t("Search")} onClick={toggleSearchFilters}>
-                            <SearchIcon fill={palette.secondary.contrastText} width='36px' height='36px' />
+                            <IconCommon
+                                decorative
+                                fill={palette.secondary.contrastText}
+                                name="Search"
+                                size={36}
+                            />
                         </SideActionsButton>
                     ) : null}
                 </SideActionsButtons>

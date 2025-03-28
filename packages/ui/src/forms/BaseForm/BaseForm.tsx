@@ -1,7 +1,7 @@
 import { Box, styled } from "@mui/material";
 import { useFormikContext } from "formik";
 import { ReactNode, useMemo } from "react";
-import { ViewDisplayType } from "types";
+import { ViewDisplayType } from "../../types.js";
 
 type OuterFormProps = {
     children: ReactNode;

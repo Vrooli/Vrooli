@@ -1,10 +1,9 @@
 import { IconButton, Stack, Tooltip, useTheme } from "@mui/material";
-import { usePopover } from "hooks/usePopover.js";
-import { AddIcon, DeleteIcon, EditIcon } from "icons/common.js";
-import { BranchIcon } from "icons/routineGraph.js";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ELEMENT_IDS } from "utils/consts.js";
-import { Graph, LinkOperation, NodeLink } from "views/objects/routine/RoutineMultiStepCrud.js";
+import { usePopover } from "../../../../hooks/usePopover.js";
+import { IconCommon, IconRoutine } from "../../../../icons/Icons.js";
+import { ELEMENT_IDS } from "../../../../utils/consts.js";
+import { Graph, LinkOperation, NodeLink } from "../../../../views/objects/routine/RoutineMultiStepCrud.js";
 
 type Point = {
     x: number;
@@ -261,7 +260,12 @@ export function EdgePopoverMenu({
                         aria-label='Insert node on edge'
                         sx={{ background: palette.secondary.main }}
                     >
-                        <AddIcon id="insert-node-on-edge-button-icon" fill="white" />
+                        <IconCommon
+                            decorative
+                            fill="white"
+                            id="insert-node-on-edge-button-icon"
+                            name="Add"
+                        />
                     </IconButton>
                 </Tooltip>,
             );
@@ -277,7 +281,12 @@ export function EdgePopoverMenu({
                         aria-label='Insert branch on edge'
                         sx={{ background: "#248791" }}
                     >
-                        <BranchIcon id="insert-branch-on-edge-button-icon" fill='white' />
+                        <IconRoutine
+                            decorative
+                            fill="white"
+                            id="insert-branch-on-edge-button-icon"
+                            name="Branch"
+                        />
                     </IconButton>
                 </Tooltip>,
             );
@@ -293,7 +302,12 @@ export function EdgePopoverMenu({
                         aria-label='Edit link'
                         sx={{ background: "#c5ab17" }}
                     >
-                        <EditIcon id="edit-edge-button-icon" fill="white" />
+                        <IconCommon
+                            decorative
+                            fill="white"
+                            id="edit-edge-button-icon"
+                            name="Edit"
+                        />
                     </IconButton>
                 </Tooltip>,
             );
@@ -309,7 +323,12 @@ export function EdgePopoverMenu({
                         aria-label='Delete link button'
                         sx={{ background: palette.error.main }}
                     >
-                        <DeleteIcon id="delete-link-on-edge-button-icon" fill='white' />
+                        <IconCommon
+                            decorative
+                            fill="white"
+                            id="delete-link-on-edge-button-icon"
+                            name="Delete"
+                        />
                     </IconButton>
                 </Tooltip>,
             );

@@ -1,7 +1,7 @@
 import { Suspense, useContext } from "react";
 import { lazily } from "react-lazily";
-import { checkIfLoggedIn } from "utils/authentication/session.js";
 import { SessionContext } from "../../contexts.js";
+import { checkIfLoggedIn } from "../../utils/authentication/session.js";
 import { HomeViewProps } from "./types.js";
 
 const { DashboardView } = lazily(() => import("./DashboardView.js"));

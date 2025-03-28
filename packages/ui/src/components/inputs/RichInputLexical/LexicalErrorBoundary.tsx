@@ -1,5 +1,5 @@
 import { Component } from "react";
-import { ErrorBoundaryProps } from "views/types";
+import { ErrorBoundaryProps } from "../../../views/types.js";
 
 interface ErrorBoundaryState {
     hasError: boolean;

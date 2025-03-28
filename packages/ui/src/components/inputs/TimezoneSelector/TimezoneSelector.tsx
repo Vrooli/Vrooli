@@ -1,11 +1,11 @@
 import { MINUTES_1_MS } from "@local/shared";
 import { IconButton, ListItem, Popover, Stack, Typography, useTheme } from "@mui/material";
-import { MenuTitle } from "components/dialogs/MenuTitle/MenuTitle.js";
 import { useField } from "formik";
-import { usePopover } from "hooks/usePopover.js";
-import { ArrowDropDownIcon, ArrowDropUpIcon } from "icons/common.js";
 import { useCallback, useMemo, useState } from "react";
 import { FixedSizeList } from "react-window";
+import { usePopover } from "../../../hooks/usePopover.js";
+import { IconCommon } from "../../../icons/Icons.js";
+import { MenuTitle } from "../../dialogs/MenuTitle/MenuTitle.js";
 import { TextInput } from "../TextInput/TextInput.js";
 import { TimezoneSelectorProps } from "../types.js";
 
@@ -149,10 +149,21 @@ export function TimezoneSelector({
                 onClick={onOpen}
                 InputProps={{
                     endAdornment: (
-                        <IconButton size="small" aria-label="timezone-select">
+                        <IconButton
+                            aria-label="timezone-select"
+                            size="small"
+                        >
                             {isOpen ?
-                                <ArrowDropUpIcon fill={palette.background.textPrimary} /> :
-                                <ArrowDropDownIcon fill={palette.background.textPrimary} />
+                                <IconCommon
+                                    decorative
+                                    fill={palette.background.textPrimary}
+                                    name="ArrowDropUp"
+                                />
+                                : <IconCommon
+                                    decorative
+                                    fill={palette.background.textPrimary}
+                                    name="ArrowDropDown"
+                                />
                             }
                         </IconButton>
                     ),

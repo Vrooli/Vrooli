@@ -1,10 +1,10 @@
 import { Box, Button, Grid, IconButton, Stack, Typography, useTheme } from "@mui/material";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CloseIcon, LargeCookieIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { noSelect } from "../../../styles.js";
 import { CookiePreferences, setCookie } from "../../../utils/localStorage.js";
-import { CookieSettingsDialog } from "../../dialogs/CookieSettingsDialog/CookieSettingsDialog";
+import { CookieSettingsDialog } from "../../dialogs/CookieSettingsDialog/CookieSettingsDialog.js";
 import { CookiesSnackProps } from "../types.js";
 
 /**
@@ -18,7 +18,7 @@ export function CookiesSnack({
 
     const [isCustomizeOpen, setIsCustomizeOpen] = useState(false);
 
-    const handleAcceptAllCookies = () => {
+    function handleAcceptAllCookies() {
         const preferences: CookiePreferences = {
             strictlyNecessary: true,
             performance: true,
@@ -30,15 +30,15 @@ export function CookiesSnack({
         // Close dialog
         setIsCustomizeOpen(false);
         handleClose();
-    };
+    }
 
-    const handleCustomizeCookies = (preferences?: CookiePreferences) => {
+    function handleCustomizeCookies(preferences?: CookiePreferences) {
         setIsCustomizeOpen(false);
         if (preferences) {
             setCookie("Preferences", preferences);
             handleClose();
         }
-    };
+    }
 
     return (
         <>
@@ -58,13 +58,23 @@ export function CookiesSnack({
             }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="center" pb={1}>
                     <Box display="flex" alignItems="center">
-                        <LargeCookieIcon width="48px" height="48px" fill={palette.background.textPrimary} />
+                        <IconCommon
+                            decorative
+                            fill={palette.background.textPrimary}
+                            name="LargeCookie"
+                            size={48}
+                        />
                         <Typography variant="body1" ml={1}>
                             {t("CookiesDetails")}
                         </Typography>
                     </Box>
                     <IconButton onClick={handleClose}>
-                        <CloseIcon width="32px" height="32px" fill={palette.background.textPrimary} />
+                        <IconCommon
+                            decorative
+                            fill={palette.background.textPrimary}
+                            name="Close"
+                            size={32}
+                        />
                     </IconButton>
                 </Stack>
                 {/* Buttons */}
@@ -93,4 +103,4 @@ export function CookiesSnack({
             </Box>
         </>
     );
-};
+}

@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../../contexts.js";
 import { useIsLeftHanded, useRichInputToolbarViewSize } from "../../../hooks/subscriptions.js";
 import { usePopover } from "../../../hooks/usePopover.js";
-import { BoldIcon, CaseSensitiveIcon, Header1Icon, Header2Icon, Header3Icon, Header4Icon, Header5Icon, Header6Icon, HeaderIcon, ItalicIcon, LinkIcon, ListBulletIcon, ListCheckIcon, ListIcon, ListNumberIcon, MagicIcon, QuoteIcon, RedoIcon, StrikethroughIcon, TableIcon, TerminalIcon, UnderlineIcon, UndoIcon, WarningIcon } from "../../../icons/common.js";
+import { IconCommon, IconText } from "../../../icons/Icons.js";
 import { SxType } from "../../../types.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { keyComboToString } from "../../../utils/display/device.js";
@@ -379,11 +379,21 @@ export function RichInputToolbar({
     const { credits } = useMemo(() => getCurrentUser(session), [session]);
 
     const { dimRef, handleUpdateViewSize, viewSize } = useRichInputToolbarViewSize();
-    const [contextMenu, setContextMenu] = useState<{ mouseX: number; mouseY: number } | null>(null);
     const onUpdateViewSize = useCallback(function onUpdateViewSizeCallback(viewSize: RichInputToolbarViewSize) {
         handleUpdateViewSize(viewSize);
         setContextMenu(null);
     }, [handleUpdateViewSize]);
+    function toMinimalView() {
+        onUpdateViewSize("minimal");
+    }
+    function toPartialView() {
+        onUpdateViewSize("partial");
+    }
+    function toFullView() {
+        onUpdateViewSize("full");
+    }
+
+    const [contextMenu, setContextMenu] = useState<{ mouseX: number; mouseY: number } | null>(null);
     const handleContextMenu = useCallback(function handleContextMenuCallback(event: React.MouseEvent) {
         event.preventDefault();
         setContextMenu(
@@ -453,39 +463,39 @@ export function RichInputToolbar({
 
     const headerItems = useMemo<PopoverActionItem[]>(function headerItemsMemo() {
         return [
-            { action: "Header1", icon: <Header1Icon />, label: `${t("Header1")} (${keyComboToString("Alt", "1")})` },
-            { action: "Header2", icon: <Header2Icon />, label: `${t("Header2")} (${keyComboToString("Alt", "2")})` },
-            { action: "Header3", icon: <Header3Icon />, label: `${t("Header3")} (${keyComboToString("Alt", "3")})` },
-            { action: "Header4", icon: <Header4Icon />, label: `${t("Header4")} (${keyComboToString("Alt", "4")})` },
-            { action: "Header5", icon: <Header5Icon />, label: `${t("Header5")} (${keyComboToString("Alt", "5")})` },
-            { action: "Header6", icon: <Header6Icon />, label: `${t("Header6")} (${keyComboToString("Alt", "6")})` },
+            { action: "Header1", icon: <IconText decorative name="Header1" />, label: `${t("Header1")} (${keyComboToString("Alt", "1")})` },
+            { action: "Header2", icon: <IconText decorative name="Header2" />, label: `${t("Header2")} (${keyComboToString("Alt", "2")})` },
+            { action: "Header3", icon: <IconText decorative name="Header3" />, label: `${t("Header3")} (${keyComboToString("Alt", "3")})` },
+            { action: "Header4", icon: <IconText decorative name="Header4" />, label: `${t("Header4")} (${keyComboToString("Alt", "4")})` },
+            { action: "Header5", icon: <IconText decorative name="Header5" />, label: `${t("Header5")} (${keyComboToString("Alt", "5")})` },
+            { action: "Header6", icon: <IconText decorative name="Header6" />, label: `${t("Header6")} (${keyComboToString("Alt", "6")})` },
         ];
     }, [t]);
     const formatItems = useMemo<PopoverActionItem[]>(function formatItemsMemo() {
         return [
-            { action: "Bold", icon: <BoldIcon />, label: `${t("Bold")} (${keyComboToString("Ctrl", "B")})` },
-            { action: "Italic", icon: <ItalicIcon />, label: `${t("Italic")} (${keyComboToString("Ctrl", "I")})` },
-            { action: "Underline", icon: <UnderlineIcon />, label: `${t("Underline")} (${keyComboToString("Ctrl", "U")})` },
-            { action: "Strikethrough", icon: <StrikethroughIcon />, label: `${t("Strikethrough")} (${keyComboToString("Ctrl", "Shift", "S")})` },
-            { action: "Spoiler", icon: <WarningIcon />, label: `${t("Spoiler")} (${keyComboToString("Ctrl", "L")})` },
-            { action: "Quote", icon: <QuoteIcon />, label: `${t("Quote")} (${keyComboToString("Ctrl", "Shift", "Q")})` },
-            { action: "Code", icon: <TerminalIcon />, label: `${t("Code")} (${keyComboToString("Ctrl", "E")})` },
+            { action: "Bold", icon: <IconText decorative name="Bold" />, label: `${t("Bold")} (${keyComboToString("Ctrl", "B")})` },
+            { action: "Italic", icon: <IconText decorative name="Italic" />, label: `${t("Italic")} (${keyComboToString("Ctrl", "I")})` },
+            { action: "Underline", icon: <IconText decorative name="Underline" />, label: `${t("Underline")} (${keyComboToString("Ctrl", "U")})` },
+            { action: "Strikethrough", icon: <IconText decorative name="Strikethrough" />, label: `${t("Strikethrough")} (${keyComboToString("Ctrl", "Shift", "S")})` },
+            { action: "Spoiler", icon: <IconCommon decorative name="Warning" />, label: `${t("Spoiler")} (${keyComboToString("Ctrl", "L")})` },
+            { action: "Quote", icon: <IconText decorative name="Quote" />, label: `${t("Quote")} (${keyComboToString("Ctrl", "Shift", "Q")})` },
+            { action: "Code", icon: <IconCommon decorative name="Terminal" />, label: `${t("Code")} (${keyComboToString("Ctrl", "E")})` },
         ];
     }, [t]);
     const listItems = useMemo<PopoverActionItem[]>(function listItemsMemo() {
         return [
-            { action: "ListBullet", icon: <ListBulletIcon />, label: `${t("ListBulleted")} (${keyComboToString("Alt", "7")})` },
-            { action: "ListNumber", icon: <ListNumberIcon />, label: `${t("ListNumbered")} (${keyComboToString("Alt", "8")})` },
-            { action: "ListCheckbox", icon: <ListCheckIcon />, label: `${t("ListCheckbox")} (${keyComboToString("Alt", "9")})` },
+            { action: "ListBullet", icon: <IconText decorative name="ListBullet" />, label: `${t("ListBulleted")} (${keyComboToString("Alt", "7")})` },
+            { action: "ListNumber", icon: <IconText decorative name="ListNumber" />, label: `${t("ListNumbered")} (${keyComboToString("Alt", "8")})` },
+            { action: "ListCheckbox", icon: <IconText decorative name="ListCheck" />, label: `${t("ListCheckbox")} (${keyComboToString("Alt", "9")})` },
         ];
     }, [t]);
     // Combine format, link, list, and table actions for minimal view
     const combinedItems = useMemo<PopoverActionItem[]>(function combinedItemsMemo() {
         return [
             ...formatItems,
-            { action: "Link", icon: <LinkIcon />, label: `${t("Link", { count: 1 })} (${keyComboToString("Ctrl", "K")})` },
+            { action: "Link", icon: <IconCommon decorative name="Link" />, label: `${t("Link", { count: 1 })} (${keyComboToString("Ctrl", "K")})` },
             ...listItems,
-            { action: "Table", icon: <TableIcon />, label: t("TableInsert") },
+            { action: "Table", icon: <IconCommon decorative name="Table" />, label: t("TableInsert") },
         ];
     }, [formatItems, listItems, t]);
 
@@ -522,15 +532,15 @@ export function RichInputToolbar({
                         : undefined
                 }
             >
-                <MenuItem onClick={() => onUpdateViewSize("minimal")}
+                <MenuItem onClick={toMinimalView}
                     sx={contextItemStyle}>
                     <ListItemText primary="Minimal View" secondary="Show fewer toolbar options for a cleaner interface." />
                 </MenuItem>
-                <MenuItem onClick={() => onUpdateViewSize("partial")}
+                <MenuItem onClick={toPartialView}
                     sx={contextItemStyle}>
                     <ListItemText primary="Partial View" secondary="Display commonly used tools for convenient access." />
                 </MenuItem>
-                <MenuItem onClick={() => onUpdateViewSize("full")}
+                <MenuItem onClick={toFullView}
                     sx={contextItemStyle}>
                     <ListItemText primary="Full View" secondary="Show all available tools for maximum functionality." />
                 </MenuItem>
@@ -542,15 +552,25 @@ export function RichInputToolbar({
                 viewSize={viewSize}
             >
                 {credits && BigInt(credits) > 0 && !disableAssistant && <ToolButton
+                    aria-label={t("AIAssistant")}
                     id={`${id}-assistant`}
-                    icon={<MagicIcon fill={palette.primary.contrastText} />}
+                    icon={<IconCommon
+                        decorative
+                        fill={palette.primary.contrastText}
+                        name="Magic"
+                    />}
                     label={t("AIAssistant")}
                     onClick={handleToggleAssistant}
                     palette={palette}
                 />}
                 <ToolButton
+                    aria-label={t("HeaderInsert")}
                     disabled={disabled}
-                    icon={<HeaderIcon fill={palette.primary.contrastText} />}
+                    icon={<IconText
+                        decorative
+                        fill={palette.primary.contrastText}
+                        name="Header"
+                    />}
                     isActive={activeStates.Header1 || activeStates.Header2 || activeStates.Header3}
                     label={t("HeaderInsert")}
                     onClick={openHeaderSelect}
@@ -568,9 +588,14 @@ export function RichInputToolbar({
                 {viewSize === "minimal" ? (
                     <>
                         <ToolButton
+                            aria-label={t("TextFormat")}
                             ref={combinedButtonRef}
                             disabled={disabled}
-                            icon={<CaseSensitiveIcon fill={palette.primary.contrastText} />}
+                            icon={<IconText
+                                decorative
+                                fill={palette.primary.contrastText}
+                                name="CaseSensitive"
+                            />}
                             label={t("TextFormat")}
                             onClick={openCombinedSelect}
                             palette={palette}
@@ -591,8 +616,13 @@ export function RichInputToolbar({
                         {viewSize !== "full" && (
                             <>
                                 <ToolButton
+                                    aria-label={t("TextFormat")}
                                     disabled={disabled}
-                                    icon={<CaseSensitiveIcon fill={palette.primary.contrastText} />}
+                                    icon={<IconText
+                                        decorative
+                                        fill={palette.primary.contrastText}
+                                        name="CaseSensitive"
+                                    />}
                                     isActive={activeStates.Bold || activeStates.Italic || activeStates.Underline || activeStates.Strikethrough || activeStates.Spoiler}
                                     label={t("TextFormat")}
                                     onClick={openFormatSelect}
@@ -609,27 +639,43 @@ export function RichInputToolbar({
                                 />
                             </>
                         )}
-                        {viewSize === "full" && formatItems.map(({ action, icon, label }) => (
-                            <ToolButton
-                                key={action}
-                                disabled={disabled}
-                                icon={icon}
-                                isActive={activeStates[action]}
-                                label={label}
-                                onClick={() => { handleToggleAction(action); }}
-                                palette={palette}
-                            />
-                        ))}
+                        {viewSize === "full" && formatItems.map(({ action, icon, label }) => {
+                            function handleClick() {
+                                handleToggleAction(action);
+                            }
+
+                            return (
+                                <ToolButton
+                                    key={action}
+                                    disabled={disabled}
+                                    icon={icon}
+                                    isActive={activeStates[action]}
+                                    label={label}
+                                    onClick={handleClick}
+                                    palette={palette}
+                                />
+                            );
+                        })}
                         <ToolButton
+                            aria-label={t("Link")}
                             disabled={disabled}
-                            icon={<LinkIcon fill={palette.primary.contrastText} />}
+                            icon={<IconCommon
+                                decorative
+                                fill={palette.primary.contrastText}
+                                name="Link"
+                            />}
                             label={`${t("Link", { count: 1 })} (${keyComboToString("Ctrl", "k")})`}
                             onClick={handleToggleLink}
                             palette={palette}
                         />
                         <ToolButton
+                            aria-label={t("ListInsert")}
                             disabled={disabled}
-                            icon={<ListIcon fill={palette.primary.contrastText} />}
+                            icon={<IconText
+                                decorative
+                                fill={palette.primary.contrastText}
+                                name="List"
+                            />}
                             isActive={activeStates.ListBullet || activeStates.ListNumber || activeStates.ListCheckbox}
                             label={t("ListInsert")}
                             onClick={openListSelect}
@@ -645,8 +691,13 @@ export function RichInputToolbar({
                             handleAction={handleToggleAction}
                         />
                         <ToolButton
+                            aria-label={t("TableInsert")}
                             disabled={disabled}
-                            icon={<TableIcon fill={palette.primary.contrastText} />}
+                            icon={<IconCommon
+                                decorative
+                                fill={palette.primary.contrastText}
+                                name="Table"
+                            />}
                             label={t("TableInsert")}
                             onClick={openTableSelect}
                             palette={palette}
@@ -666,15 +717,25 @@ export function RichInputToolbar({
             <RightSection>
                 <div>
                     {(canUndo || canRedo) && <ToolButton
+                        aria-label={t("Undo")}
                         disabled={disabled || !canUndo}
-                        icon={<UndoIcon fill={palette.primary.contrastText} />}
+                        icon={<IconCommon
+                            decorative
+                            fill={palette.primary.contrastText}
+                            name="Undo"
+                        />}
                         label={`${t("Undo")} (${keyComboToString("Ctrl", "z")})`}
                         onClick={handleToggleUndo}
                         palette={palette}
                     />}
                     {(canUndo || canRedo) && <ToolButton
+                        aria-label={t("Redo")}
                         disabled={disabled || !canRedo}
-                        icon={<RedoIcon fill={palette.primary.contrastText} />}
+                        icon={<IconCommon
+                            decorative
+                            fill={palette.primary.contrastText}
+                            name="Redo"
+                        />}
                         label={`${t("Redo")} (${keyComboToString("Ctrl", "y")})`}
                         onClick={handleToggleRedo}
                         palette={palette}

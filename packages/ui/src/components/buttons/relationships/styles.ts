@@ -1,6 +1,5 @@
 import { Button, Chip, ChipProps, styled } from "@mui/material";
 import { ProfileAvatar } from "../../../styles.js";
-import { SvgComponent } from "../../../types.js";
 
 export function commonIconProps() {
     return {
@@ -50,10 +49,3 @@ export const RelationshipButton = styled(Button)(({ theme }) => ({
     borderColor: theme.palette.primary.light,
 }));
 
-export function withRelationshipIcon(Component: SvgComponent) {
-    return styled(Component)(({ theme }) => ({
-        width: "32px",
-        height: "32px",
-        fill: theme.palette.primary.light,
-    }));
-}

@@ -1,14 +1,15 @@
 import { LINKS, NotificationSettingsUpdateInput, ProfileUpdateInput, TranslationKeyCommon } from "@local/shared";
 import { FormikProps } from "formik";
-import { SvgComponent, ViewDisplayType, ViewProps } from "types";
+import { IconInfo } from "../../icons/Icons.js";
+import { ViewDisplayType, ViewProps } from "../../types.js";
 
 export type SettingsPageType = "Data" | "Profile" | "Privacy" | "Authentication" | "Payment" | "Api" | "Display" | "Notification" | "FocusMode";
 export type SettingsData = {
+    description: TranslationKeyCommon,
+    iconInfo: IconInfo,
+    link: LINKS,
     title: SettingsPageType,
     titleVariables?: Record<string, string | number>,
-    description: TranslationKeyCommon,
-    link: LINKS,
-    Icon: SvgComponent,
 };
 
 export type SettingsViewProps = ViewProps

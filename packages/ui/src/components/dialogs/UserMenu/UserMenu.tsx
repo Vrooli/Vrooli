@@ -9,10 +9,9 @@ import { SessionContext } from "../../../contexts.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
 import { useMenu } from "../../../hooks/useMenu.js";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";
-import { AwardIcon, BookmarkFilledIcon, DisplaySettingsIcon, ExpandLessIcon, ExpandMoreIcon, HelpIcon, HistoryIcon, LogInIcon, LogOutIcon, MonthIcon, PlusIcon, PremiumIcon, SettingsIcon, UserIcon } from "../../../icons/common.js";
+import { Icon, IconCommon, IconInfo } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { noSelect } from "../../../styles.js";
-import { SvgComponent } from "../../../types.js";
 import { SessionService, checkIfLoggedIn, getCurrentUser, guestSession } from "../../../utils/authentication/session.js";
 import { ELEMENT_IDS } from "../../../utils/consts.js";
 import { extractImageUrl } from "../../../utils/display/imageTools.js";
@@ -34,17 +33,26 @@ import { LargeDialog } from "../LargeDialog/LargeDialog.js";
 const MAX_ACCOUNTS = 10;
 const SPACING_MULTIPLIER = 1.5;
 const AVATAR_SIZE_PX = 50;
+const helpIconInfo = { name: "Help", type: "Common" } as const;
 
-function NavListItem({ label, Icon, onClick, palette }: {
+function NavListItem({ iconInfo, label, onClick, palette }: {
+    iconInfo: IconInfo;
     label: string;
-    Icon: SvgComponent;
     onClick: (event: React.MouseEvent<HTMLElement>) => unknown;
     palette: Palette;
 }) {
     return (
-        <ListItem button onClick={onClick}>
+        <ListItem
+            aria-label={label}
+            button
+            onClick={onClick}
+        >
             <ListItemIcon>
-                <Icon fill={palette.background.textPrimary} />
+                <Icon
+                    decorative
+                    fill={palette.background.textPrimary}
+                    info={iconInfo}
+                />
             </ListItemIcon>
             <ListItemText primary={label} />
         </ListItem>
@@ -59,6 +67,7 @@ const UserMenuDisplaySettingsBox = styled(Box)(({ theme }) => ({
     display: "flex",
     flexDirection: "column",
     gap: theme.spacing(2),
+    alignItems: "flex-start",
     minWidth: "fit-content",
     height: "fit-content",
     padding: theme.spacing(1),
@@ -113,7 +122,6 @@ const ExpandIcon = styled(Box)({
     marginLeft: "auto",
 });
 
-const themeSwitchStyle = { justifyContent: "flex-start" } as const;
 const leftHandedCheckboxStyle = { justifyContent: "flex-start" } as const;
 
 const dialogSxs = {
@@ -328,20 +336,20 @@ export function UserMenu() {
         // Only include Pro link when not logged in
         if (!isLoggedIn) {
             return [
-                { label: t("Pro"), Icon: PremiumIcon, link: LINKS.Pro, action: null },
-                { label: t("Tutorial"), Icon: HelpIcon, action: Actions.tutorial },
+                { label: t("Pro"), iconInfo: { name: "Premium" as const, type: "Common" as const }, link: LINKS.Pro, action: null },
+                { label: t("Tutorial"), iconInfo: { name: "Help" as const, type: "Common" as const }, action: Actions.tutorial },
             ] as const;
         }
 
         // Include all links when logged in
         return [
-            { label: t("Bookmark", { count: 2 }), Icon: BookmarkFilledIcon, link: `${LINKS.History}?type="${HistoryPageTabOption.Bookmarked}"`, action: null },
-            { label: t("Calendar", { count: 2 }), Icon: MonthIcon, link: LINKS.Calendar, action: null },
-            { label: t("History", { count: 2 }), Icon: HistoryIcon, link: LINKS.History, action: null },
-            { label: t("Award", { count: 2 }), Icon: AwardIcon, link: LINKS.Awards, action: null },
-            { label: t("Pro"), Icon: PremiumIcon, link: LINKS.Pro, action: null },
-            { label: t("Settings"), Icon: SettingsIcon, link: LINKS.Settings, action: null },
-            { label: t("Tutorial"), Icon: HelpIcon, action: Actions.tutorial },
+            { label: t("Bookmark", { count: 2 }), iconInfo: { name: "BookmarkFilled" as const, type: "Common" as const }, link: `${LINKS.History}?type="${HistoryPageTabOption.Bookmarked}"`, action: null },
+            { label: t("Calendar", { count: 2 }), iconInfo: { name: "Month" as const, type: "Common" as const }, link: LINKS.Calendar, action: null },
+            { label: t("History", { count: 2 }), iconInfo: { name: "History" as const, type: "Common" as const }, link: LINKS.History, action: null },
+            { label: t("Award", { count: 2 }), iconInfo: { name: "Award" as const, type: "Common" as const }, link: LINKS.Awards, action: null },
+            { label: t("Pro"), iconInfo: { name: "Premium" as const, type: "Common" as const }, link: LINKS.Pro, action: null },
+            { label: t("Settings"), iconInfo: { name: "Settings" as const, type: "Common" as const }, link: LINKS.Settings, action: null },
+            { label: t("Tutorial"), iconInfo: { name: "Help" as const, type: "Common" as const }, action: Actions.tutorial },
         ] as const;
     }, [t, isLoggedIn]);
 
@@ -353,7 +361,7 @@ export function UserMenu() {
         }
     }, [handleAction, handleOpen]);
     const handleTutorialClick = useCallback(function handleTutorialClickCallback(event: React.MouseEvent<HTMLElement>) {
-        handleNavItemClick(event, { label: t("Tutorial"), Icon: HelpIcon, action: Actions.tutorial });
+        handleNavItemClick(event, { label: t("Tutorial"), iconInfo: { name: "Help" as const, type: "Common" as const }, action: Actions.tutorial });
     }, [handleNavItemClick, t]);
 
     return (
@@ -382,7 +390,10 @@ export function UserMenu() {
                                 <StyledAvatar
                                     src={extractImageUrl(account.profileImage, account.updated_at, AVATAR_SIZE_PX)}
                                 >
-                                    <UserIcon width="75%" height="75%" />
+                                    <IconCommon
+                                        decorative
+                                        name="Profile"
+                                    />
                                 </StyledAvatar>
                                 <ListItemText
                                     primary={
@@ -397,7 +408,12 @@ export function UserMenu() {
                                         <CreditStack direction="row" spacing={1} alignItems="center">
                                             {account.hasPremium && (
                                                 <PremiumBox>
-                                                    <PremiumIcon width="14px" height="14px" fill={palette.secondary.main} />
+                                                    <IconCommon
+                                                        decorative
+                                                        fill={palette.secondary.main}
+                                                        name="Premium"
+                                                        size={14}
+                                                    />
                                                     <PremiumTypography variant="body2">
                                                         {t("Pro")}
                                                     </PremiumTypography>
@@ -428,7 +444,7 @@ export function UserMenu() {
                                     <NavListItem
                                         key={index}
                                         label={item.label}
-                                        Icon={item.Icon}
+                                        iconInfo={item.iconInfo}
                                         onClick={handleClick}
                                         palette={palette}
                                     />
@@ -439,20 +455,32 @@ export function UserMenu() {
                     {/* Display Settings */}
                     <DisplayHeader direction="row" spacing={1} onClick={toggleDisplaySettings}>
                         <BoxIcon>
-                            <DisplaySettingsIcon fill={palette.background.textPrimary} />
+                            <IconCommon
+                                decorative
+                                name="DisplaySettings"
+                                fill={palette.background.textPrimary}
+                            />
                         </BoxIcon>
                         <HeaderTypography variant="body1">{t("Display")}</HeaderTypography>
-                        <ExpandIcon>
+                        <ExpandIcon aria-label={isDisplaySettingsOpen ? t("Shrink") : t("Expand")}>
                             {isDisplaySettingsOpen ?
-                                <ExpandMoreIcon fill={palette.background.textPrimary} /> :
-                                <ExpandLessIcon fill={palette.background.textPrimary} />
+                                <IconCommon
+                                    decorative
+                                    name="ExpandMore"
+                                    fill={palette.background.textPrimary}
+                                /> :
+                                <IconCommon
+                                    decorative
+                                    name="ExpandLess"
+                                    fill={palette.background.textPrimary}
+                                />
                             }
                         </ExpandIcon>
                     </DisplayHeader>
                     <CollapseBox>
                         <Collapse in={isDisplaySettingsOpen}>
                             <UserMenuDisplaySettingsBox id={ELEMENT_IDS.UserMenuDisplaySettings}>
-                                <ThemeSwitch updateServer sx={themeSwitchStyle} />
+                                <ThemeSwitch updateServer />
                                 <TextSizeButtons />
                                 <LeftHandedCheckbox sx={leftHandedCheckboxStyle} />
                                 <LanguageSelector />
@@ -485,7 +513,10 @@ export function UserMenu() {
                                 <StyledAvatar
                                     src={extractImageUrl(account.profileImage, account.updated_at, AVATAR_SIZE_PX)}
                                 >
-                                    <UserIcon width="75%" height="75%" />
+                                    <IconCommon
+                                        decorative
+                                        name="Profile"
+                                    />
                                 </StyledAvatar>
                                 <ListItemText
                                     primary={
@@ -500,7 +531,12 @@ export function UserMenu() {
                                         <CreditStack direction="row" spacing={1} alignItems="center">
                                             {account.hasPremium && (
                                                 <PremiumBox>
-                                                    <PremiumIcon width="14px" height="14px" fill={palette.secondary.main} />
+                                                    <IconCommon
+                                                        decorative
+                                                        fill={palette.secondary.main}
+                                                        name="Premium"
+                                                        size={14}
+                                                    />
                                                     <PremiumTypography variant="body2">
                                                         {t("Pro")}
                                                     </PremiumTypography>
@@ -518,9 +554,17 @@ export function UserMenu() {
 
                 {/* Show login/signup button when not logged in */}
                 {!isLoggedIn && (
-                    <ListItem button onClick={handleLoginSignup}>
+                    <ListItem
+                        aria-label={t("LogInSignUp")}
+                        button
+                        onClick={handleLoginSignup}
+                    >
                         <ListItemIcon>
-                            <LogInIcon fill={palette.background.textPrimary} />
+                            <IconCommon
+                                decorative
+                                name="LogIn"
+                                fill={palette.background.textPrimary}
+                            />
                         </ListItemIcon>
                         <ListItemText primary={t("LogInSignUp")} />
                     </ListItem>
@@ -528,9 +572,17 @@ export function UserMenu() {
 
                 {/* Show add account button when logged in and under max accounts */}
                 {isLoggedIn && accounts.length < MAX_ACCOUNTS && (
-                    <ListItem button onClick={handleLoginSignup}>
+                    <ListItem
+                        aria-label={t("AddAccount")}
+                        button
+                        onClick={handleLoginSignup}
+                    >
                         <ListItemIcon>
-                            <PlusIcon fill={palette.background.textPrimary} />
+                            <IconCommon
+                                decorative
+                                name="Plus"
+                                fill={palette.background.textPrimary}
+                            />
                         </ListItemIcon>
                         <ListItemText primary={t("AddAccount")} />
                     </ListItem>
@@ -538,9 +590,17 @@ export function UserMenu() {
 
                 {/* Show logout button when logged in */}
                 {isLoggedIn && accounts.length > 0 && (
-                    <ListItem button onClick={handleLogOut}>
+                    <ListItem
+                        aria-label={t("LogOut")}
+                        button
+                        onClick={handleLogOut}
+                    >
                         <ListItemIcon>
-                            <LogOutIcon fill={palette.background.textPrimary} />
+                            <IconCommon
+                                decorative
+                                name="LogOut"
+                                fill={palette.background.textPrimary}
+                            />
                         </ListItemIcon>
                         <ListItemText primary={t("LogOut")} />
                     </ListItem>
@@ -553,7 +613,7 @@ export function UserMenu() {
             <List>
                 <NavListItem
                     label={t("Tutorial")}
-                    Icon={HelpIcon}
+                    iconInfo={helpIconInfo}
                     onClick={handleTutorialClick}
                     palette={palette}
                 />

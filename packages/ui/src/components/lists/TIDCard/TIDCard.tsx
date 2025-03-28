@@ -1,5 +1,5 @@
 import { Box, BoxProps, Button, Typography, styled, useTheme } from "@mui/material";
-import { WarningIcon } from "../../../icons/common.js";
+import { Icon, IconCommon } from "../../../icons/Icons.js";
 import { TIDCardProps, TIDCardSize } from "../types.js";
 
 interface OuterCardProps extends BoxProps {
@@ -103,7 +103,7 @@ export function TIDCard({
     below,
     buttonText,
     description,
-    Icon,
+    iconInfo,
     id,
     onClick,
     size,
@@ -122,8 +122,13 @@ export function TIDCard({
             onClick={onClick}
             size={size}
         >
-            {Icon && <IconBox size={size}>
-                <Icon width={"50px"} height={"50px"} fill={palette.background.textPrimary} />
+            {iconInfo && <IconBox size={size}>
+                <Icon
+                    decorative
+                    fill={palette.background.textPrimary}
+                    info={iconInfo}
+                    size={50}
+                />
             </IconBox>}
             <TextBox size={size}>
                 <Box>
@@ -135,7 +140,10 @@ export function TIDCard({
                     </Typography>
                     {warning && (
                         <WarningBox>
-                            <WarningIcon style={warningIconStyle} />
+                            <IconCommon
+                                name="Warning"
+                                style={warningIconStyle}
+                            />
                             <Typography variant="body2">{warning}</Typography>
                         </WarningBox>
                     )}

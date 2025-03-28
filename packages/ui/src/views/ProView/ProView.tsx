@@ -9,7 +9,7 @@ import { SnackSeverity } from "../../components/snacks/BasicSnack/BasicSnack.js"
 import { SessionContext } from "../../contexts.js";
 import { useStripe } from "../../hooks/useStripe.js";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
-import { ArrowUpRightIcon, HeartFilledIcon, HelpIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
 import { openLink } from "../../route/openLink.js";
 import { useLocation } from "../../route/router.js";
 import { ScrollBox } from "../../styles.js";
@@ -84,6 +84,8 @@ const pricingInfo: Record<PricingTierType, PricingInfo> = {
     },
 };
 
+const HIGHLIGHT_TIMEOUT_MS = 1000;
+
 function scrollToElement(elementId: string) {
     const element = document.getElementById(elementId);
     if (element) {
@@ -98,10 +100,10 @@ function scrollToElement(elementId: string) {
         element.style.borderRadius = "8px";
 
         // Remove highlight after some time
-        setTimeout(() => {
+        setTimeout(function removeHighlightTimeout() {
             element.style.backgroundColor = originalBackground;
             element.style.borderRadius = originalBorderRadius;
-        }, 1000);
+        }, HIGHLIGHT_TIMEOUT_MS);
     } else {
         console.error(`Element with id ${elementId} not found`);
     }
@@ -199,7 +201,9 @@ const FrostedBox = styled(Box)<FrostedBoxProps>(({ theme, currentTheme }) => ({
     background: currentTheme === "dark" ? "rgba(0, 0, 0, 0.7)" : "rgba(255, 255, 255, 0.7)",
     backdropFilter: "blur(10px)",
     border: 0,
+    // eslint-disable-next-line no-magic-numbers
     borderRadius: theme.spacing(4),
+    // eslint-disable-next-line no-magic-numbers
     padding: theme.spacing(4),
     textAlign: "center",
     display: "flex",
@@ -212,6 +216,7 @@ const PricingTiersOuter = styled(Box)(({ theme }) => ({
     flexDirection: "row",
     width: "max-content",
     flexWrap: "nowrap",
+    // eslint-disable-next-line no-magic-numbers
     gap: theme.spacing(4),
     paddingLeft: theme.spacing(2),
     paddingRight: theme.spacing(2),
@@ -251,6 +256,7 @@ export function PricingTier({
     titleHelp,
     zIndex,
 }: PricingTierProps) {
+    const { t } = useTranslation();
     const { palette, shadows } = useTheme();
 
     return (
@@ -284,7 +290,18 @@ export function PricingTier({
             )}
             <Typography variant="h6" component="h4" color={currentTheme === "dark" ? "white" : "black"} sx={{ mt: recommended ? 2 : 4, mb: 2, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {title}
-                {titleHelp && <IconButton color="info" onClick={titleHelp}><HelpIcon /></IconButton>}
+                {titleHelp && (
+                    <IconButton
+                        aria-label={t("Help")}
+                        color="info"
+                        onClick={titleHelp}
+                    >
+                        <IconCommon
+                            decorative
+                            name="Help"
+                        />
+                    </IconButton>
+                )}
             </Typography>
             {priceDisplay}
             <Box flexGrow={1}>
@@ -440,6 +457,7 @@ const SupportOptionBox = styled(Box)(({ theme }) => ({
     flexDirection: "row",
     gap: theme.spacing(1),
     padding: theme.spacing(1),
+    // eslint-disable-next-line no-magic-numbers
     borderRadius: theme.spacing(1.5),
     cursor: "pointer",
     // Background glow on hover
@@ -459,9 +477,17 @@ function SupportOption({
     const { palette } = useTheme();
 
     return (
-        <SupportOptionBox onClick={onClick}>
+        <SupportOptionBox
+            aria-label={text}
+            onClick={onClick}
+        >
             <Box width={20} height={20}>
-                <ArrowUpRightIcon width={20} height={20} fill={palette.secondary.main} />
+                <IconCommon
+                    decorative
+                    fill={palette.secondary.main}
+                    name="ArrowUpRight"
+                    size={20}
+                />
             </Box>
             <Typography variant="body1">{text}</Typography>
         </SupportOptionBox>
@@ -801,7 +827,10 @@ export function ProView({
                                     fullWidth
                                     variant="contained"
                                     onClick={onDonateClick}
-                                    startIcon={<HeartFilledIcon />}
+                                    startIcon={<IconCommon
+                                        decorative
+                                        name="HeartFilled"
+                                    />}
                                 >
                                     Donate
                                 </Button>

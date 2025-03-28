@@ -2,7 +2,7 @@ import { Button, Checkbox, DialogContent, FormControlLabel, Grid, List, ListItem
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useWindowSize } from "../../../hooks/useWindowSize.js";
-import { CancelIcon, DeleteIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { pagePaddingBottom } from "../../../styles.js";
 import { getDisplay } from "../../../utils/display/listTools.js";
 import { BottomActionsGrid } from "../../buttons/BottomActionsGrid.js";
@@ -116,7 +116,10 @@ export function BulkDeleteDialog({
                     <Button
                         disabled={!isConfirmationValid}
                         fullWidth
-                        startIcon={<DeleteIcon />}
+                        startIcon={<IconCommon
+                            decorative
+                            name="Delete"
+                        />}
                         type="submit"
                         onClick={onDelete}
                         variant="contained"
@@ -125,7 +128,10 @@ export function BulkDeleteDialog({
                 <Grid item xs={6}>
                     <Button
                         fullWidth
-                        startIcon={<CancelIcon />}
+                        startIcon={<IconCommon
+                            decorative
+                            name="Cancel"
+                        />}
                         onClick={onCancel}
                         variant="outlined"
                     >{t("Cancel")}</Button>

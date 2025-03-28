@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { fetchLazyWrapper } from "../../../api/fetchWrapper.js";
 import { SessionContext } from "../../../contexts.js";
 import { useLazyFetch } from "../../../hooks/useLazyFetch.js";
-import { DeleteIcon } from "../../../icons/common.js";
+import { IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { PubSub } from "../../../utils/pubsub.js";
@@ -108,7 +108,10 @@ export function DeleteAccountDialog({
                         </Tooltip>
                         <Button
                             disabled={formik.isSubmitting || !formik.isValid}
-                            startIcon={<DeleteIcon />}
+                            startIcon={<IconCommon
+                                decorative
+                                name="Delete"
+                            />}
                             color="secondary"
                             onClick={() => { formik.submitForm(); }}
                             variant="contained"

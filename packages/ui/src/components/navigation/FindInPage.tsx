@@ -1,10 +1,10 @@
 import { Box, Dialog, DialogContent, IconButton, Palette, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { Stack } from "@mui/system";
-import { useMenu } from "hooks/useMenu.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useHotkeys } from "../../hooks/useHotkeys.js";
-import { ArrowDownIcon, ArrowUpIcon, CaseSensitiveIcon, CloseIcon, RegexIcon, WholeWordIcon } from "../../icons/common.js";
+import { useMenu } from "../../hooks/useMenu.js";
+import { IconCommon, IconText } from "../../icons/Icons.js";
 import { ELEMENT_IDS } from "../../utils/consts.js";
 import { keyComboToString } from "../../utils/display/device.js";
 import { SEARCH_HIGHLIGHT_CURRENT, highlightText } from "../../utils/display/documentTools.js";
@@ -19,14 +19,6 @@ function commonButtonSx(palette: Palette, isEnabled: boolean) {
         color: "inherit",
         width: "30px",
         height: "100%",
-    };
-}
-
-function commonIconProps(palette: Palette) {
-    return {
-        fill: palette.background.textPrimary,
-        width: "20px",
-        height: "20px",
     };
 }
 
@@ -190,32 +182,47 @@ export function FindInPage() {
                         <Box display="flex" alignItems="center">
                             <Tooltip title={`${t("MatchCase")} (${keyComboToString("Alt", "C")})`}>
                                 <IconButton
-                                    aria-label="case-sensitive"
+                                    aria-label={t("MatchCase")}
                                     component="button"
                                     sx={commonButtonSx(palette, isCaseSensitive)}
                                     onClick={onCaseSensitiveChange}
                                 >
-                                    <CaseSensitiveIcon {...commonIconProps(palette)} />
+                                    <IconText
+                                        decorative
+                                        fill={isCaseSensitive ? palette.background.textPrimary : null}
+                                        name="CaseSensitive"
+                                        size={20}
+                                    />
                                 </IconButton>
                             </Tooltip>
                             <Tooltip title={`${t("MatchWholeWord")} (${keyComboToString("Alt", "W")})`}>
                                 <IconButton
-                                    aria-label="match whole word"
+                                    aria-label={t("MatchWholeWord")}
                                     component="button"
                                     onClick={onWholeWordChange}
                                     sx={commonButtonSx(palette, isWholeWord)}
                                 >
-                                    <WholeWordIcon {...commonIconProps(palette)} />
+                                    <IconText
+                                        decorative
+                                        fill={isWholeWord ? palette.background.textPrimary : null}
+                                        name="WholeWord"
+                                        size={20}
+                                    />
                                 </IconButton>
                             </Tooltip>
                             <Tooltip title={`${t("UseRegex")} (${keyComboToString("Alt", "R")})`}>
                                 <IconButton
-                                    aria-label="match regex"
+                                    aria-label={t("UseRegex")}
                                     component="button"
                                     onClick={onRegexChange}
                                     sx={commonButtonSx(palette, isRegex)}
                                 >
-                                    <RegexIcon {...commonIconProps(palette)} />
+                                    <IconText
+                                        decorative
+                                        fill={isRegex ? palette.background.textPrimary : null}
+                                        name="Regex"
+                                        size={20}
+                                    />
                                 </IconButton>
                             </Tooltip>
                         </Box>
@@ -224,29 +231,44 @@ export function FindInPage() {
                     <Box display="flex" alignItems="center" justifyContent="flex-end">
                         <Tooltip title={`${t("ResultPrevious")} (${keyComboToString("Shift", "Enter")})`}>
                             <IconButton
-                                aria-label="previous result"
+                                aria-label={t("ResultPrevious")}
                                 onClick={onPrevious}
                                 sx={commonButtonSx(palette, false)}
                             >
-                                <ArrowUpIcon {...commonIconProps(palette)} />
+                                <IconCommon
+                                    decorative
+                                    fill={null}
+                                    name="ArrowUp"
+                                    size={20}
+                                />
                             </IconButton>
                         </Tooltip>
                         <Tooltip title={`${t("ResultNext")} (${keyComboToString("Enter")})`}>
                             <IconButton
-                                aria-label="next result"
+                                aria-label={t("ResultNext")}
                                 onClick={onNext}
                                 sx={commonButtonSx(palette, false)}
                             >
-                                <ArrowDownIcon {...commonIconProps(palette)} />
+                                <IconCommon
+                                    decorative
+                                    fill={null}
+                                    name="ArrowDown"
+                                    size={20}
+                                />
                             </IconButton>
                         </Tooltip>
                         <Tooltip title={`${t("Close")} (${keyComboToString("Escape")})`}>
                             <IconButton
-                                aria-label="close"
+                                aria-label={t("Close")}
                                 onClick={close}
                                 sx={commonButtonSx(palette, false)}
                             >
-                                <CloseIcon {...commonIconProps(palette)} />
+                                <IconCommon
+                                    decorative
+                                    fill={null}
+                                    name="Close"
+                                    size={20}
+                                />
                             </IconButton>
                         </Tooltip>
                     </Box>

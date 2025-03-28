@@ -4,10 +4,9 @@ import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SessionContext } from "../../../contexts.js";
 import { UsePressEvent, usePress } from "../../../hooks/gestures.js";
-import { BookmarkFilledIcon, BotIcon, EditIcon, TeamIcon, UserIcon } from "../../../icons/common.js";
+import { Icon, IconCommon } from "../../../icons/Icons.js";
 import { useLocation } from "../../../route/router.js";
 import { ObjectListProfileAvatar, multiLineEllipsis, noSelect } from "../../../styles.js";
-import { SvgComponent } from "../../../types.js";
 import { getCurrentUser } from "../../../utils/authentication/session.js";
 import { extractImageUrl } from "../../../utils/display/imageTools.js";
 import { getBookmarkFor, getCounts, getDisplay, getYou, placeholderColor } from "../../../utils/display/listTools.js";
@@ -199,7 +198,9 @@ interface GiantSelectorProps extends BoxProps {
 const GiantSelector = styled(Box, {
     shouldForwardProp: (prop) => prop !== "isSelected",
 })<GiantSelectorProps>(({ isSelected, theme }) => ({
+    // eslint-disable-next-line no-magic-numbers
     width: theme.spacing(3),
+    // eslint-disable-next-line no-magic-numbers
     height: theme.spacing(3),
     borderRadius: "50%",
     backgroundColor: isSelected ? theme.palette.secondary.dark : theme.palette.background.paper,
@@ -328,13 +329,13 @@ export function ObjectListItemBase<T extends ListObject>({
             type OrgOrUser = { __typename: "Team" | "User", profileImage: string, updated_at: string, isBot?: boolean };
             const orgOrUser: OrgOrUser = (isOfType(object, "Member", "MemberInvite", "ChatParticipant", "ChatInvite") ? (object as unknown as (Member | MemberInvite | ChatParticipant | ChatInvite)).user : object) as unknown as OrgOrUser;
             const isBot = orgOrUser.isBot;
-            let Icon: SvgComponent;
+            let iconInfo: IconInfo;
             if (object.__typename === "Team") {
-                Icon = TeamIcon;
+                iconInfo = { name: "Team", type: "Common" };
             } else if (isBot) {
-                Icon = BotIcon;
+                iconInfo = { name: "Bot", type: "Common" };
             } else {
-                Icon = UserIcon;
+                iconInfo = { name: "User", type: "Common" };
             }
             return (
                 <ObjectListProfileAvatar
@@ -344,7 +345,10 @@ export function ObjectListItemBase<T extends ListObject>({
                     profileColors={profileColors}
                     src={extractImageUrl(orgOrUser.profileImage, orgOrUser.updated_at, TARGET_IMAGE_SIZE)}
                 >
-                    <Icon fill={profileColors[1]} width="75%" height="75%" />
+                    <Icon
+                        fill={profileColors[1]}
+                        info={iconInfo}
+                    />
                 </ObjectListProfileAvatar>
             );
         }
@@ -365,7 +369,10 @@ export function ObjectListItemBase<T extends ListObject>({
                         profileColors={profileColors}
                         src={extractImageUrl(firstUser?.profileImage, firstUser?.updated_at, TARGET_IMAGE_SIZE)}
                     >
-                        {firstUser?.isBot ? <BotIcon width="75%" height="75%" /> : <UserIcon width="75%" height="75%" />}
+                        <IconCommon
+                            decorative
+                            name={firstUser?.isBot ? "Bot" : "User"}
+                        />
                     </ObjectListProfileAvatar>
                 );
             }
@@ -383,7 +390,10 @@ export function ObjectListItemBase<T extends ListObject>({
                                 profileColors={placeholderColor(user.id)}
                                 src={extractImageUrl(user?.profileImage, user?.updated_at, TARGET_IMAGE_SIZE)}
                             >
-                                {user?.isBot ? <BotIcon width="75%" height="75%" /> : <UserIcon width="75%" height="75%" />}
+                                <IconCommon
+                                    decorative
+                                    name={user?.isBot ? "Bot" : "User"}
+                                />
                             </ObjectListProfileAvatar>
                         );
                     })}
@@ -392,7 +402,12 @@ export function ObjectListItemBase<T extends ListObject>({
         }
         // Other custom object icons
         if (isOfType(object, "BookmarkList")) {
-            return <BookmarkFilledIcon fill="#cbae30" width={isMobile ? "40px" : "50px"} height={isMobile ? "40px" : "50px"} />;
+            return <IconCommon
+                decorative
+                fill="#cbae30"
+                name="BookmarkFilled"
+                size={isMobile ? 40 : 50}
+            />;
         }
         // Otherwise, only show on wide screens
         if (isMobile) return null;
@@ -433,16 +448,21 @@ export function ObjectListItemBase<T extends ListObject>({
             <ActionButtonsRow isMobile={isMobile}>
                 {willShowEditButton &&
                     <EditIconBox
-                        id={`${EDIT_PREFIX}button-${id}`}
-                        component="a"
                         aria-label={t("Edit")}
+                        component="a"
+                        id={`${EDIT_PREFIX}button-${id}`}
                         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                         // @ts-ignore
                         href={editUrl}
                         isMobile={isMobile}
                         onClick={handleEditClick}
                     >
-                        <EditIcon id={`${EDIT_PREFIX}icon-${id}`} fill={palette.secondary.main} />
+                        <IconCommon
+                            decorative
+                            fill={palette.secondary.main}
+                            id={`${EDIT_PREFIX}icon-${id}`}
+                            name="Edit"
+                        />
                     </EditIconBox>}
                 {willShowVoteButton && (
                     <VoteButton

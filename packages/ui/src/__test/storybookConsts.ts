@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { Session, SessionUser, uuid } from "@local/shared";
 import { DEFAULT_THEME } from "../utils/display/theme.js";
 
@@ -65,13 +66,13 @@ export const signedInPremiumWithCreditsSession: Partial<Session> = {
 export const multipleUsersSession: Partial<Session> = {
     isLoggedIn: true,
     users: [
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        signedInPremiumWithCreditsSession.users[0]!,
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        { ...signedInPremiumNoCreditsSession.users[0]!, id: uuid() },
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        { ...signedInNoPremiumWithCreditsSession.users[0]!, id: uuid() },
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        { ...signedInNoPremiumNoCreditsSession.users[0]!, id: uuid() },
+        // @ts-ignore - We know these users exist in the test context
+        signedInPremiumWithCreditsSession.users?.[0],
+        // @ts-ignore - We know these users exist in the test context
+        { ...signedInPremiumNoCreditsSession.users?.[0], id: uuid() },
+        // @ts-ignore - We know these users exist in the test context
+        { ...signedInNoPremiumWithCreditsSession.users?.[0], id: uuid() },
+        // @ts-ignore - We know these users exist in the test context
+        { ...signedInNoPremiumNoCreditsSession.users?.[0], id: uuid() },
     ],
 };

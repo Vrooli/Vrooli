@@ -1,4 +1,4 @@
-import { Headers } from "utils/display/stringTools.js";
+import { Headers } from "../../../utils/display/stringTools.js";
 import { DECORATOR_NODES, ELEMENT_NODES, TEXT_NODES } from "./consts.js";
 import { type EditorState, type LexicalEditor } from "./editor.js";
 import { type DecoratorNode } from "./nodes/DecoratorNode.js";
@@ -155,9 +155,12 @@ export type ElementFormatType =
     | "justify"
     | "";
 
+// eslint-disable-next-line no-magic-numbers
+export type CommandListenerPriority = 0 | 1 | 2 | 3 | 4;
+
 export type DOMConversion<T extends HTMLElement = HTMLElement> = {
     conversion: DOMConversionFn<T>;
-    priority?: 0 | 1 | 2 | 3 | 4;
+    priority?: CommandListenerPriority;
 };
 
 export type DOMConversionFn<T extends HTMLElement = HTMLElement> = (
@@ -311,8 +314,6 @@ export type EditorListenerPayload = {
 }
 
 export type CommandListener<P> = (payload: P, editor: LexicalEditor) => boolean;
-
-export type CommandListenerPriority = 0 | 1 | 2 | 3 | 4;
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type LexicalCommand<TPayload> = {

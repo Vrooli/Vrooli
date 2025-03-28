@@ -1,9 +1,9 @@
 import { useTheme } from "@mui/material";
-import { ChevronRightIcon } from "icons/common.js";
 import { useContext, useMemo } from "react";
-import { getDisplay } from "utils/display/listTools.js";
-import { getUserLanguages } from "utils/display/translationTools.js";
 import { SessionContext } from "../../../contexts.js";
+import { IconCommon } from "../../../icons/Icons.js";
+import { getDisplay } from "../../../utils/display/listTools.js";
+import { getUserLanguages } from "../../../utils/display/translationTools.js";
 import { ObjectListItemBase } from "../ObjectListItemBase/ObjectListItemBase.js";
 import { BookmarkListListItemProps } from "../types.js";
 
@@ -30,7 +30,11 @@ export function BookmarkListListItem({
             hideUpdateButton={true}
             objectType="BookmarkList"
             onAction={onAction}
-            toTheRight={<ChevronRightIcon fill={palette.background.textSecondary} />}
+            toTheRight={<IconCommon
+                decorative
+                fill={palette.background.textSecondary}
+                name="ChevronRight"
+            />}
         />
     );
 }

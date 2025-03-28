@@ -1,8 +1,9 @@
 import { Box, BoxProps, IconButton, Tooltip, Typography, styled, useTheme } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { SxType } from "types";
 import { useWindowSize } from "../../hooks/useWindowSize.js";
+import { Icon, IconInfo } from "../../icons/Icons.js";
 import { multiLineEllipsis } from "../../styles.js";
+import { SxType } from "../../types.js";
 import { fontSizeToPixels } from "../../utils/display/stringTools.js";
 import { HelpButton } from "../buttons/HelpButton/HelpButton.js";
 import { TitleProps } from "./types.js";
@@ -31,7 +32,7 @@ export function Title({
     addSidePadding = true,
     adornments,
     help,
-    Icon,
+    iconInfo,
     options,
     sxs,
     title,
@@ -73,7 +74,12 @@ export function Title({
         <OuterBox addSidePadding={addSidePadding} numberOfLines={numberOfLines} stackSx={sxs?.stack}>
             <Box display="flex" alignItems="center">
                 {/* Icon */}
-                {Icon && <Icon fill={palette.background.textPrimary} style={{ width: "30px", height: "30px", marginRight: 8 }} />}
+                {iconInfo && <Icon
+                    fill={palette.background.textPrimary}
+                    info={iconInfo}
+                    size={30}
+                    style={{ marginRight: 8 }}
+                />}
                 {/* Title */}
                 {titleComponent ?? <Typography
                     ref={textRef}
@@ -88,9 +94,10 @@ export function Title({
                 >{title}</Typography>}
                 {/* Adornments */}
                 {adornments && adornments.map(({ Adornment, key }) => (
-                    <Box key={key} sx={{
-                        height: fontSizeToPixels(fontSize ?? "1rem") * Number(typography[variant === "header" ? "h3" : "h4"].lineHeight ?? "1.5"),
-                    }}>
+                    <Box
+                        key={key}
+                        height={fontSizeToPixels(fontSize ?? "1rem") * Number(typography[variant === "header" ? "h3" : "h4"].lineHeight ?? "1.5")}
+                    >
                         {Adornment}
                     </Box>
                 ))}
@@ -105,14 +112,19 @@ export function Title({
                     }}
                 /> : null}
                 {/* Additional options */}
-                {options?.filter(({ Icon }) => Icon).map(({ Icon, label, onClick }, index) => (
+                {options?.filter(({ iconInfo }) => Boolean(iconInfo)).map(({ iconInfo, label, onClick }, index) => (
                     <Tooltip key={`title-option-${index}`} title={label}>
                         <IconButton onClick={onClick}>
-                            {Icon && <Icon fill={palette.secondary.main} style={{ width: "30px", height: "30px" }} />}
+                            <Icon
+                                decorative
+                                fill={palette.secondary.main}
+                                info={iconInfo as IconInfo}
+                                size={30}
+                            />
                         </IconButton>
                     </Tooltip>
                 ))}
             </Box>
-        </OuterBox>
+        </OuterBox >
     );
 }
