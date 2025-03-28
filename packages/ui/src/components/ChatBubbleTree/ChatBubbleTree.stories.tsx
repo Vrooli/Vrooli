@@ -4,6 +4,7 @@ import { action } from "@storybook/addon-actions";
 import { useCallback, useEffect, useState } from "react";
 import { loggedOutSession, signedInPremiumWithCreditsSession, signedInUserId } from "../../__test/storybookConsts.js";
 import { MessageTree } from "../../hooks/messages.js";
+import { pagePaddingBottom } from "../../styles.js";
 import { BranchMap } from "../../utils/localStorage.js";
 import { ChatBubbleTree } from "./ChatBubbleTree.js";
 
@@ -342,7 +343,7 @@ function useStoryMessages(initialMessages: ChatMessageShape[]) {
 }
 
 const outerStyle = {
-    height: "100%",
+    height: `calc(100vh - ${pagePaddingBottom})`,
     maxWidth: "800px",
     padding: "20px",
     border: "1px solid #ccc",

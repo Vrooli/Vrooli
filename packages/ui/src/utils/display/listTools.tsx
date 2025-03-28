@@ -356,6 +356,7 @@ export function getDisplay(
                 decorative
                 fill={palette?.mode === "light" ? "#521f81" : "#a979d5"}
                 name="Bot"
+                size={20}
                 style={botAdornmentStyle}
             />,
             key: "bot",

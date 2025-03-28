@@ -9,7 +9,7 @@ import { MessageTree } from "../../hooks/messages.js";
 import { useDeleter } from "../../hooks/objectActions.js";
 import { useDimensions } from "../../hooks/useDimensions.js";
 import { useLazyFetch } from "../../hooks/useLazyFetch.js";
-import { ArrowDownIcon, BotIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, DeleteIcon, EditIcon, ErrorIcon, RefreshIcon, ReplyIcon, UserIcon } from "../../icons/common.js";
+import { IconCommon } from "../../icons/Icons.js";
 import { Link, useLocation } from "../../route/router.js";
 import { ProfileAvatar } from "../../styles.js";
 import { getCurrentUser } from "../../utils/authentication/session.js";
@@ -44,118 +44,24 @@ const ChatBubbleSendingSpinner = styled(CircularProgress, {
             : theme.palette.success.main,
 }));
 
-const ChatBubbleErrorIconButton = styled(IconButton)(({ theme }) => ({
-    color: theme.palette.error.main,
-}));
-const ChatBubbleEditIconButton = styled(IconButton)(({ theme }) => ({
-    color: theme.palette.success.main,
-}));
-const ChatBubbleDeleteIconButton = styled(IconButton)(({ theme }) => ({
-    color: theme.palette.error.main,
-}));
-
-type ChatBubbleStatusProps = {
+type ChatBubbleReactionsProps = {
+    activeIndex: number,
+    handleActiveIndexChange: (newIndex: number) => unknown,
+    handleCopy: () => unknown,
+    handleReactionAdd: (emoji: string) => unknown,
+    handleReply: () => unknown,
+    handleRegenerateResponse: () => unknown,
+    isBot: boolean,
+    isBotOnlyChat: boolean,
+    isMobile: boolean;
+    isOwn: boolean,
+    numSiblings: number,
+    messageId: string,
+    reactions: ReactionSummary[],
+    status: ChatMessageStatus,
     onDelete: () => unknown;
     onEdit: () => unknown;
     onRetry: () => unknown;
-    /** Indicates if the edit and delete buttons should be shown */
-    showButtons: boolean;
-    status: ChatMessageStatus;
-}
-
-/**
- * Displays a visual indicator for the status of a chat message (that you sent).
- * It shows a CircularProgress that progresses as the message is sending,
- * and changes color and icon based on the success or failure of the operation.
- */
-export function ChatBubbleStatus({
-    onDelete,
-    onEdit,
-    onRetry,
-    showButtons,
-    status,
-}: ChatBubbleStatusProps) {
-    const { t } = useTranslation();
-    const [progress, setProgress] = useState(0);
-    const [isCompleted, setIsCompleted] = useState(false);
-
-    useEffect(function chatStatusLoaderEffect() {
-        // Updates the progress value every 100ms, but stops at 90 if the message is still sending
-        let timer: NodeJS.Timeout;
-        if (status === "sending") {
-            timer = setInterval(() => {
-                setProgress((oldProgress) => {
-                    if (oldProgress === PERCENTS) {
-                        setIsCompleted(true);
-                        return PERCENTS;
-                    }
-                    const diff = 3;
-                    return Math.min(oldProgress + diff, status === "sending" ? STILL_SENDING_MAX_PERCENT : PERCENTS);
-                });
-            }, SEND_STATUS_INTERVAL_MS);
-        }
-
-        // Cleans up the interval when the component is unmounted or the message is not sending anymore
-        return () => {
-            if (timer) clearInterval(timer);
-        };
-    }, [status]);
-
-    useEffect(function chatStatusTimeoutEffect() {
-        // Resets the progress and completion state after a delay when the sending has completed
-        if (isCompleted && status !== "sending") {
-            const timer = setTimeout(() => {
-                setProgress(0);
-                setIsCompleted(false);
-            }, HIDE_SEND_SUCCESS_DELAY_MS);
-            return () => {
-                clearTimeout(timer);
-            };
-        }
-    }, [isCompleted, status]);
-
-    // While the message is sending or has just completed, show a CircularProgress
-    if (status === "sending" || isCompleted) {
-        return (
-            <ChatBubbleSendingSpinner
-                variant="determinate"
-                value={progress}
-                size={24}
-                status={status}
-            />
-        );
-    }
-
-    // If there was an error, show an ErrorIcon
-    if (status === "failed") {
-        return (
-            <ChatBubbleErrorIconButton
-                aria-label={t("Retry")}
-                onClick={onRetry}
-            >
-                <ErrorIcon />
-            </ChatBubbleErrorIconButton>
-        );
-    }
-    // If allowed to show buttons, show edit and delete buttons
-    if (showButtons) return (
-        <>
-            <ChatBubbleEditIconButton
-                aria-label={t("Edit")}
-                onClick={onEdit}
-            >
-                <EditIcon />
-            </ChatBubbleEditIconButton>
-            <ChatBubbleDeleteIconButton
-                aria-label={t("Delete")}
-                onClick={onDelete}
-            >
-                <DeleteIcon />
-            </ChatBubbleDeleteIconButton>
-        </>
-    );
-    // Otherwise, show nothing
-    return null;
 }
 
 const NavigationBox = styled(Box)(() => ({
@@ -172,8 +78,6 @@ export function NavigationArrows({
     numSiblings: number,
     onIndexChange: (newIndex: number) => unknown,
 }) {
-    const { palette } = useTheme();
-
     // eslint-disable-next-line no-magic-numbers
     if (numSiblings < 2) {
         return null; // Do not render anything if there are less than 2 siblings
@@ -193,45 +97,57 @@ export function NavigationArrows({
 
     return (
         <NavigationBox>
-            <IconButton
-                size="small"
-                onClick={handlePrevious}
-                disabled={activeIndex <= 0}
-                aria-label="left"
-            >
-                <ChevronLeftIcon fill={palette.background.textSecondary} />
-            </IconButton>
+            <Tooltip title="Previous">
+                <IconButton
+                    size="small"
+                    onClick={handlePrevious}
+                    disabled={activeIndex <= 0}
+                >
+                    <IconCommon
+                        decorative
+                        fill="background.textSecondary"
+                        name="ChevronLeft"
+                    />
+                </IconButton>
+            </Tooltip>
             <Typography variant="body2" color="textSecondary">
                 {activeIndex + 1}/{numSiblings}
             </Typography>
-            <IconButton
-                size="small"
-                onClick={handleNext}
-                disabled={activeIndex >= numSiblings - 1}
-                aria-label="right"
-            >
-                <ChevronRightIcon fill={palette.background.textSecondary} />
-            </IconButton>
+            <Tooltip title="Next">
+                <IconButton
+                    size="small"
+                    onClick={handleNext}
+                    disabled={activeIndex >= numSiblings - 1}
+                >
+                    <IconCommon
+                        decorative
+                        fill="background.textSecondary"
+                        name="ChevronRight"
+                    />
+                </IconButton>
+            </Tooltip>
         </NavigationBox>
     );
 }
 
-type ChatBubbleReactionsProps = {
-    activeIndex: number,
-    handleActiveIndexChange: (newIndex: number) => unknown,
-    handleCopy: () => unknown,
-    handleReactionAdd: (emoji: string) => unknown,
-    handleReply: () => unknown,
-    handleRegenerateResponse: () => unknown,
-    isBot: boolean,
-    isBotOnlyChat: boolean,
-    isMobile: boolean;
-    isOwn: boolean,
-    numSiblings: number,
-    messageId: string,
-    reactions: ReactionSummary[],
-    status: ChatMessageStatus,
+interface ChatBubbleOuterBoxProps extends BoxProps {
+    showAll: boolean;
 }
+const ChatBubbleOuterBox = styled(Box, {
+    shouldForwardProp: (prop) => prop !== "showAll",
+})<ChatBubbleOuterBoxProps>(({ showAll }) => ({
+    display: "flex",
+    flexDirection: "column",
+    padding: "8px",
+    maxWidth: "100vw",
+    ".chat-bubble-actions": {
+        opacity: showAll ? 1 : 0,
+        transition: "opacity 0.2s ease-in-out",
+    },
+    "&:hover .chat-bubble-actions": {
+        opacity: 1,
+    },
+}));
 
 interface ReactionsOuterBoxProps extends BoxProps {
     isOwn: boolean;
@@ -244,6 +160,7 @@ const ReactionsOuterBox = styled(Box, {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: isOwn ? "flex-end" : "flex-start",
+    transition: "opacity 0.2s ease-in-out",
 }));
 
 interface ReactionsMainStackProps extends BoxProps {
@@ -292,15 +209,73 @@ function ChatBubbleReactions({
     messageId,
     reactions,
     status,
+    onDelete,
+    onEdit,
+    onRetry,
 }: ChatBubbleReactionsProps) {
-    const { palette } = useTheme();
     const { t } = useTranslation();
+    const [progress, setProgress] = useState(0);
+    const [isCompleted, setIsCompleted] = useState(false);
+
+    useEffect(function chatStatusLoaderEffect() {
+        let timer: NodeJS.Timeout;
+        if (status === "sending") {
+            timer = setInterval(() => {
+                setProgress((oldProgress) => {
+                    if (oldProgress === PERCENTS) {
+                        setIsCompleted(true);
+                        return PERCENTS;
+                    }
+                    const diff = 3;
+                    return Math.min(oldProgress + diff, status === "sending" ? STILL_SENDING_MAX_PERCENT : PERCENTS);
+                });
+            }, SEND_STATUS_INTERVAL_MS);
+        }
+        return () => {
+            if (timer) clearInterval(timer);
+        };
+    }, [status]);
+
+    useEffect(function chatStatusTimeoutEffect() {
+        if (isCompleted && status !== "sending") {
+            const timer = setTimeout(() => {
+                setProgress(0);
+                setIsCompleted(false);
+            }, HIDE_SEND_SUCCESS_DELAY_MS);
+            return () => {
+                clearTimeout(timer);
+            };
+        }
+    }, [isCompleted, status]);
 
     function onReactionAdd(emoji: string) {
         handleReactionAdd(emoji);
     }
 
     if (status === "unsent") return null;
+
+    // Render status indicator if message is sending/failed
+    const statusIndicator = status === "sending" || isCompleted ? (
+        <ChatBubbleSendingSpinner
+            variant="determinate"
+            value={progress}
+            size={24}
+            status={status}
+        />
+    ) : status === "failed" ? (
+        <Tooltip title={t("Retry")}>
+            <IconButton
+                color="error"
+                onClick={onRetry}
+            >
+                <IconCommon
+                    decorative
+                    name="Error"
+                />
+            </IconButton>
+        </Tooltip>
+    ) : null;
+
     return (
         <ReactionsOuterBox isOwn={isOwn}>
             <ReactionsMainStack isMobile={isMobile} isOwn={isOwn}>
@@ -327,39 +302,78 @@ function ChatBubbleReactions({
                 })}
                 {!isOwn && <EmojiPicker onSelect={onReactionAdd} />}
             </ReactionsMainStack>
-            <Stack direction="row">
-                <Tooltip title={t("Copy")}>
-                    <IconButton size="small" onClick={handleCopy}>
-                        <CopyIcon fill={palette.background.textSecondary} />
-                    </IconButton>
-                </Tooltip>
-                {(isBot && isBotOnlyChat) && <Tooltip title={t("Retry")}>
-                    <IconButton size="small" onClick={handleRegenerateResponse}>
-                        <RefreshIcon fill={palette.background.textSecondary} />
-                    </IconButton>
-                </Tooltip>}
-                {isBot && <Tooltip title={t("Reply")}>
-                    <IconButton size="small" onClick={handleReply}>
-                        <ReplyIcon fill={palette.background.textSecondary} />
-                    </IconButton>
-                </Tooltip>}
-                {isBot && <ReportButton forId={messageId} reportFor={ReportFor.ChatMessage} />}
+            <Stack direction="row" alignItems="center">
+                {statusIndicator}
                 <NavigationArrows
                     activeIndex={activeIndex}
                     numSiblings={numSiblings}
                     onIndexChange={handleActiveIndexChange}
                 />
+                <Box className="chat-bubble-actions">
+                    <Tooltip title={t("Copy")}>
+                        <IconButton
+                            size="small"
+                            onClick={handleCopy}
+                        >
+                            <IconCommon
+                                decorative
+                                fill="background.textSecondary"
+                                name="Copy"
+                            />
+                        </IconButton>
+                    </Tooltip>
+                    {(isBot && isBotOnlyChat) && <Tooltip title={t("Retry")}>
+                        <IconButton size="small" onClick={handleRegenerateResponse}>
+                            <IconCommon
+                                decorative
+                                fill="background.textSecondary"
+                                name="Refresh"
+                            />
+                        </IconButton>
+                    </Tooltip>}
+                    {isBot && <Tooltip title={t("Reply")}>
+                        <IconButton size="small" onClick={handleReply}>
+                            <IconCommon
+                                decorative
+                                fill="background.textSecondary"
+                                name="Reply"
+                            />
+                        </IconButton>
+                    </Tooltip>}
+                    {isBot && <ReportButton forId={messageId} reportFor={ReportFor.ChatMessage} />}
+                    {isOwn && status === "sent" && (
+                        <>
+                            <Tooltip title={t("Edit")}>
+                                <IconButton
+                                    onClick={onEdit}
+                                    size="small"
+                                >
+                                    <IconCommon
+                                        decorative
+                                        fill="background.textSecondary"
+                                        name="Edit"
+                                    />
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title={t("Delete")}>
+                                <IconButton
+                                    onClick={onDelete}
+                                    size="small"
+                                >
+                                    <IconCommon
+                                        decorative
+                                        fill="background.textSecondary"
+                                        name="Delete"
+                                    />
+                                </IconButton>
+                            </Tooltip>
+                        </>
+                    )}
+                </Box>
             </Stack>
         </ReactionsOuterBox>
     );
 }
-
-const ChatBubbleOuterBox = styled(Box)(() => ({
-    display: "flex",
-    flexDirection: "column",
-    padding: "8px",
-    maxWidth: "100vw",
-}));
 
 interface ChatBubbleBoxProps extends BoxProps {
     isOwn: boolean;
@@ -393,7 +407,6 @@ const UserNameDisplay = styled(Box)(({ theme }) => ({
     display: "flex",
     flexDirection: "row",
     alignItems: "center",
-    spacing: theme.spacing(0.5),
     marginBottom: theme.spacing(0.5),
     cursor: "pointer",
     "&:hover": { textDecoration: "underline" },
@@ -507,7 +520,6 @@ export function ChatBubble({
 
     const [bubblePressed, setBubblePressed] = useState(false);
     function toggleBubblePressed() {
-        if (!isMobile && bubblePressed) return;
         setBubblePressed(!bubblePressed);
     }
     const pressEvents = usePress({
@@ -535,7 +547,7 @@ export function ChatBubble({
     return (
         <>
             {DeleteDialogComponent}
-            <ChatBubbleOuterBox key={message.id}>
+            <ChatBubbleOuterBox showAll={bubblePressed}>
                 {!isOwn && (
                     <Link to={profileUrl}>
                         <UserNameDisplay>
@@ -548,7 +560,7 @@ export function ChatBubble({
                                 </AdornmentBox>
                             ))}
                             {handle && (
-                                <Typography variant="body2" color="textSecondary">
+                                <Typography variant="body2" color="textSecondary" marginLeft={0.5}>
                                     @{handle}
                                 </Typography>
                             )}
@@ -566,7 +578,10 @@ export function ChatBubble({
                             profileColors={profileColors}
                             sx={profileAvatarStyle}
                         >
-                            {message.user?.isBot ? <BotIcon width="75%" height="75%" /> : <UserIcon width="75%" height="75%" />}
+                            <IconCommon
+                                decorative
+                                name={message.user?.isBot ? "Bot" : "User"}
+                            />
                         </ProfileAvatar>
                     )}
                     <ChatBubbleBox
@@ -579,20 +594,7 @@ export function ChatBubble({
                             sx={markdownDisplayStyle}
                         />
                     </ChatBubbleBox>
-                    {/* Status indicator and edit/retry buttons */}
-                    {isOwn && (
-                        <Box display="flex" alignItems="center">
-                            <ChatBubbleStatus
-                                onDelete={handleDelete}
-                                onEdit={startEdit}
-                                onRetry={startRetry}
-                                showButtons={bubblePressed}
-                                status={message.status ?? "sent"}
-                            />
-                        </Box>
-                    )}
                 </Stack>
-                {/* Reactions */}
                 <ChatBubbleReactions
                     activeIndex={activeIndex}
                     handleActiveIndexChange={onActiveIndexChange}
@@ -608,6 +610,9 @@ export function ChatBubble({
                     messageId={message.id}
                     reactions={message.reactionSummaries}
                     status={message.status ?? "sent"}
+                    onDelete={handleDelete}
+                    onEdit={startEdit}
+                    onRetry={startRetry}
                 />
             </ChatBubbleOuterBox>
         </>
@@ -680,7 +685,11 @@ export function ScrollToBottomButton({
             onClick={scrollToBottom}
             size="small"
         >
-            <ArrowDownIcon fill={palette.background.textSecondary} />
+            <IconCommon
+                decorative
+                fill={palette.background.textSecondary}
+                name="ArrowDown"
+            />
         </ScrollToBottomIconButton>
     );
 }
